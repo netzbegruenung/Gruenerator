@@ -2,7 +2,7 @@
 -- Creates restricted database user and security policies
 
 -- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Note: pgcrypto removed - no longer using database-level encryption
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create application-specific database user with minimal permissions
@@ -204,6 +204,5 @@ BEGIN
     RAISE NOTICE '- Row-Level Security on sensitive tables';
     RAISE NOTICE '- Restricted database user permissions';
     RAISE NOTICE '- Security audit logging';
-    RAISE NOTICE '- pgcrypto extension for encryption functions';
     RAISE NOTICE '';
 END $$;

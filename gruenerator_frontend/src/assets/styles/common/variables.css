@@ -3,31 +3,31 @@
     --black: #000000;
     --white: #ffffff;
     
-    /* Primary Color System ("Klee") - Limited digital use, mainly illustrations */
-    --primary-50: #e8f5e8;
-    --primary-100: #c8e6c8;
-    --primary-200: #a3d4a3;
-    --primary-300: #7dc17d;
-    --primary-400: #60b260;
-    --primary-500: #42a342;
-    --primary-600: #008939;  /* Base "Klee" color */
-    --primary-700: #007230;
-    --primary-800: #005c27;
-    --primary-900: #004019;
-    --primary-950: #002d12;
-    
-    /* Secondary Color System ("Tanne") - Primary digital interaction color */
-    --secondary-50: #e8f2ee;
-    --secondary-100: #c8dfd5;
-    --secondary-200: #a3c9b8;
-    --secondary-300: #7db39a;
-    --secondary-400: #60a183;
-    --secondary-500: #428f6c;
-    --secondary-600: #005538;  /* Base "Tanne" color */
-    --secondary-700: #004a2f;
-    --secondary-800: #003e26;
-    --secondary-900: #00321d;
-    --secondary-950: #002315;
+    /* Primary Color System ("Tanne") - Primary digital interaction color */
+    --primary-50: #e8f2ee;
+    --primary-100: #c8dfd5;
+    --primary-200: #a3c9b8;
+    --primary-300: #7db39a;
+    --primary-400: #60a183;
+    --primary-500: #428f6c;
+    --primary-600: #005538;  /* Base "Tanne" color */
+    --primary-700: #004a2f;
+    --primary-800: #003e26;
+    --primary-900: #00321d;
+    --primary-950: #002315;
+
+    /* Secondary Color System ("Eucalyptus") */
+    --secondary-50: #F0F4F3;
+    --secondary-100: #D5E1DC;
+    --secondary-200: #BACEC6;
+    --secondary-300: #A0BBB0;
+    --secondary-400: #85A899;
+    --secondary-500: #6A9583;
+    --secondary-600: #5F8575;  /* Base "Eucalyptus" color */
+    --secondary-700: #445F54;
+    --secondary-800: #31453C;
+    --secondary-900: #1E2A25;
+    --secondary-950: #0B0F0D;
     
     /* Grey Color System */
     --grey-50: #f9f9f9;
@@ -47,23 +47,22 @@
     --neutral-600: #F5F1E9;  /* Base "Sand" color */
     --neutral-700: #e8e0d4;
     
+    /* Semantic color mapping based on brand guidelines */
+    --tanne: var(--primary-600);         /* Tanne - primary color */
+    --eucalyptus: var(--secondary-600);  /* Eucalyptus - secondary color */
+
     /* Legacy compatibility - maintaining old variable names */
-    --primary: var(--secondary-600);
-    --klee: var(--primary-600);
+    --primary: var(--primary-600);
+    --klee: var(--primary-500);
     --secondary: var(--neutral-600);
 
-    /* Semantic color mapping based on brand guidelines */
-    --primary: var(--secondary-600);     /* Tanne - main digital interactions */
-    --secondary: var(--neutral-600);     /* Sand - backgrounds, subtle hover */
-    --accent: var(--primary-600);        /* Klee - limited use, illustrations */
-
     --weiß: var(--white);
-    --dunkelgruen: var(--secondary-700);
-    --dunkelgruen-alt: var(--secondary-800); 
+    --dunkelgruen: var(--primary-700);
+    --dunkelgruen-alt: var(--primary-800); 
     --error-red: #D32F2F;
 
-    --backgroundgruen: var(--primary-50);
-    --backgroundgruen-dark: var(--primary-100);
+    --backgroundgruen: var(--secondary-50);
+    --backgroundgruen-dark: var(--secondary-100);
     --background-red-light: #f5e8e8; /* Very light red for preview mode */
     --dunkelgrau: var(--grey-900);
     --anthrazit: var(--grey-950);
@@ -75,11 +74,11 @@
     --background-color-sand: var(--neutral-600);
     --hover-color-alt: var(--secondary-50);
     --font-color: var(--grey-800);
-    --font-color-h: var(--secondary-600);
-    --font-color-h3: var(--secondary-600);
-    --link-color: var(--secondary-600);
+    --font-color-h: var(--primary-600);
+    --font-color-h3: var(--primary-600);
+    --link-color: var(--primary-600);
     --button-background-color: var(--grey-200);
-    --button-color: var(--secondary-600);
+    --button-color: var(--primary-600);
     --button-color-hover: var(--neutral-600);
     --button-text-color: var(--black);
     --button-hover-color: var(--secondary-50);
@@ -121,27 +120,6 @@
     --scrollbar-thumb-color: var(--grey-600);
     --scrollbar-thumb-hover-color: var(--grey-700);
 
-    /* Custom Chat variables */
-    --chat-background-light: var(--backgroundgruen);
-    --ai-message-background-light: var(--white);
-    --ai-message-text-color-light: var(--grey-800);
-    --assistant-icon-background-light: var(--white);
-    --assistant-icon-color-light: var(--grey-800);
-    --chat-message-user-name-color-light: var(--grey-600);
-    --chat-input-background-light: var(--white); 
-    --chat-input-text-color-light: var(--font-color);
-    --chat-input-border-color-light: var(--background-color-alt);
-
-
-    --chat-background: var(--chat-background-light);
-    --ai-message-background: var(--ai-message-background-light);
-    --ai-message-text-color: var(--ai-message-text-color-light);
-    --assistant-icon-background: var(--assistant-icon-background-light);
-    --assistant-icon-color: var(--assistant-icon-color-light);
-    --chat-message-user-name-color: var(--chat-message-user-name-color-light);
-    --chat-input-background: var(--chat-input-background-light);
-    --chat-input-text-color: var(--chat-input-text-color-light);
-    --chat-input-border-color: var(--chat-input-border-color-light);
 
     /* Card Styles */
     --card-border-radius-small: 8px;
@@ -210,17 +188,6 @@
     --scrollbar-thumb-color: var(--neutral-600);
     --scrollbar-thumb-hover-color: var(--white);
 
-    /* Custom Chat variables for dark theme */
-    --chat-background: var(--background-color);
-    --ai-message-background: var(--background-color-alt);
-    --ai-message-text-color: var(--font-color);
-    --assistant-icon-background: var(--background-color-alt);
-    --assistant-icon-color: var(--font-color);
-    
-    --chat-message-user-name-color: var(--grey-400);
-    --chat-input-background: var(--background-color);
-    --chat-input-text-color: var(--font-color);
-    --chat-input-border-color: var(--background-color-alt);
 
     /* Form Input Styles for dark theme */
     --input-background: var(--background-color-alt);
@@ -261,16 +228,6 @@
         --scrollbar-thumb-color: var(--neutral-600);
         --scrollbar-thumb-hover-color: var(--white);
 
-        /* Custom Chat variables for prefers-color-scheme: dark */
-        --chat-background: var(--background-color);
-        --ai-message-background: var(--background-color-alt);
-        --ai-message-text-color: var(--font-color);
-        --assistant-icon-background: var(--background-color-alt);
-        --assistant-icon-color: var(--font-color);
-        --chat-message-user-name-color: var(--grey-400);
-        --chat-input-background: var(--background-color);
-        --chat-input-text-color: var(--font-color);
-        --chat-input-border-color: var(--background-color-alt);
 
         /* Form Input Styles for prefers-color-scheme: dark */
         --input-background: var(--background-color-alt);
@@ -289,7 +246,6 @@ a {
 }
 
 button {
-    background-color: var(--button-background-color);
     color: var(--button-text-color);
     transition: background-color 0.5s, color 0.5s;
 }

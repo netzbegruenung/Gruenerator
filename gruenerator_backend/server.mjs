@@ -17,7 +17,6 @@ import multer from 'multer';
 import axios from 'axios';
 import { createRequire } from 'module';
 
-// Adjusted imports for CommonJS modules
 import routesModule from './routes.js';
 const { setupRoutes } = routesModule;
 
@@ -27,7 +26,6 @@ const AIWorkerPool = AiWorkerPoolModule;
 import tusServiceModule from './routes/subtitler/services/tusService.js';
 const { tusServer } = tusServiceModule;
 
-// Import session and auth modules at the top level
 import session from 'express-session';
 import {RedisStore} from 'connect-redis';
 import passport from './config/passportSetup.mjs';
@@ -36,42 +34,32 @@ const require = createRequire(import.meta.url);
 
 const numCPUs = os.cpus().length;
 
-// Load environment variables
 dotenv.config();
 
-// ES-Module friendly __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Globaler Worker-Pool für AI-Anfragen
 let aiWorkerPool;
 let masterShutdownInProgress = false;
-
-// ... existing code ...
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
-  // Anzahl der Worker aus Umgebungsvariable lesen oder Standardwert verwenden
   const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 2;
   console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
 
-  // Fork Workers
   for (let i = 0; i < workerCount; i++) {
     cluster.fork();
   }
 
-  // Verbesserte Worker-Exit-Behandlung
   cluster.on('exit', (worker, code, signal) => {
     console.log(`Worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
-    // Nur neue Worker starten, wenn es kein geplanter Shutdown war
     if (!worker.exitedAfterDisconnect && !masterShutdownInProgress) {
       console.log('Starting new worker...');
       cluster.fork();
     }
   });
 
-  // Koordinierte Shutdown-Sequenz für den Master
   const masterShutdown = async (signal) => {
     if (masterShutdownInProgress) {
       console.log(`Master shutdown already in progress, ignoring ${signal}`);
@@ -80,14 +68,12 @@ if (cluster.isMaster) {
     masterShutdownInProgress = true;
     
     console.log(`Master received ${signal}, initiating graceful shutdown...`);
-    
-    // Disconnect alle Worker (verhindert neue Worker bei Exit)
+
     const workers = Object.values(cluster.workers);
     workers.forEach(worker => {
       worker.disconnect();
     });
-    
-    // Benachrichtige alle Worker über den bevorstehenden Shutdown
+
     const shutdownPromises = workers.map(worker => {
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
@@ -124,15 +110,11 @@ if (cluster.isMaster) {
 
   const app = express();
   let workerShutdownInProgress = false;
-  
-  // Import Redis client only in worker process
-  const redisClient = require('./utils/redisClient.js');
-  
-  // Redis Client is already configured and connected in utils/redisClient.js
-  // No need to create a new client here
 
-  // CORS Setup - MUSS GANZ AM ANFANG kommen!
-  const allowedOrigins = [
+  const redisClient = require('./utils/redisClient.js');
+
+  // Security: Environment-based CORS configuration
+  const productionOrigins = [
     'https://gruenerator-test.de',
     'https://www.gruenerator-test.de',
     'https://gruenerator.netzbegruenung.verdigado.net',
@@ -153,24 +135,45 @@ if (cluster.isMaster) {
     'https://www.beta.xn--grenerator-z2a.de',
     'https://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
     'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
+    'https://www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
+  ];
+
+  const developmentOrigins = [
     'http://localhost:3000',
     'https://localhost:3000',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:3001',
-    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
-    'https://www.gruenerator-test.de',
-    'https://www.gruenerator.de',
-    'https://www.gruenerator.netzbegruenung.verdigado.net',
-    'https://www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'http://gruenerator.de',
+    'http://localhost:3001',
   ];
+
+  // Use production origins only in production, include development origins in development
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? productionOrigins
+    : [...productionOrigins, ...developmentOrigins];
 
   const corsOptions = {
     origin: function (origin, callback) {
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      // Fallback: If nginx strips Origin header, reconstruct from X-Forwarded-Host
+      let effectiveOrigin = origin;
+      if (!origin && this && this.headers) {
+        const forwardedHost = this.headers['x-forwarded-host'];
+        const forwardedProto = this.headers['x-forwarded-proto'] || 'https';
+        if (forwardedHost) {
+          effectiveOrigin = `${forwardedProto}://${forwardedHost}`;
+        }
+      }
+
+      // Security: Strict origin checking - no bypass for missing origins
+      if (!effectiveOrigin) {
+        console.warn('[CORS] Request with no origin header - allowing (may be same-origin request)');
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.indexOf(effectiveOrigin) !== -1) {
         callback(null, true);
       } else {
+        console.error(`[CORS] Origin BLOCKED: ${effectiveOrigin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
@@ -201,28 +204,51 @@ if (cluster.isMaster) {
     optionsSuccessStatus: 204
   };
 
-  // CORS muss ZUERST kommen!
   app.use(cors(corsOptions));
-  
-  // Setze Express Limit
-  app.use(express.json({limit: '500mb'}));
-  app.use(express.raw({limit: '500mb'}));
-  app.use(bodyParser.json({ limit: '105mb' }));
-  app.use(bodyParser.urlencoded({ limit: '105mb', extended: true }));
-  
-  // Timeout-Einstellungen
+
+  // Security: Reduced request size limits to prevent DoS attacks
+  // Specific upload routes (video, images) use multer with their own limits
+  // IMPORTANT: Exclude TUS upload paths from body parsing (TUS handles streaming itself with 500MB limit)
+  const skipBodyParserForTUS = (req) => req.path.startsWith('/api/subtitler/upload');
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    express.json({limit: '10mb'})(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    express.raw({limit: '10mb'})(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    bodyParser.json({ limit: '10mb' })(req, res, next);
+  });
+
+  app.use((req, res, next) => {
+    if (skipBodyParserForTUS(req)) {
+      return next();
+    }
+    bodyParser.urlencoded({ limit: '10mb', extended: true })(req, res, next);
+  });
+
   app.use((req, res, next) => {
     res.setTimeout(900000); // 15 Minuten
     next();
   });
 
-  // Worker-Pool für AI-Anfragen initialisieren
   const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
 
-  // Initialize AI Search Agent with worker pool
   try {
     const { createRequire } = await import('module');
     const require = createRequire(import.meta.url);
@@ -233,7 +259,17 @@ if (cluster.isMaster) {
     console.error('Warning: Could not initialize AI Search Agent:', error.message);
   }
 
-  // Initialize PostgreSQL database connection (minimal - no schema)
+  try {
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
+    const SharepicImageManager = require('./services/sharepicImageManager.js');
+    const sharepicImageManager = new SharepicImageManager(redisClient);
+    app.locals.sharepicImageManager = sharepicImageManager;
+    console.log(`[Worker ${process.pid}] SharepicImageManager initialized with Redis client`);
+  } catch (error) {
+    console.error(`[Worker ${process.pid}] Warning: Could not initialize SharepicImageManager:`, error.message);
+  }
+
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
     const postgresService = getPostgresInstance();
@@ -244,7 +280,6 @@ if (cluster.isMaster) {
     console.error(`[Worker ${process.pid}] Warning: Could not initialize PostgreSQL connection:`, error.message);
   }
 
-  // Initialize ProfileService (database connection should be ready)
   try {
     const { getProfileService } = await import('./services/ProfileService.js');
     const profileService = getProfileService();
@@ -254,7 +289,6 @@ if (cluster.isMaster) {
     console.error(`[Worker ${process.pid}] Warning: Could not initialize ProfileService:`, error.message);
   }
 
-  // Compression Middleware
   app.use(compression({
     filter: (req, res) => {
       if (req.headers['x-no-compression']) {
@@ -262,10 +296,9 @@ if (cluster.isMaster) {
       }
       return compression.filter(req, res);
     },
-    level: 6 // Optimaler Kompromiss zwischen CPU und Kompression
+    level: 6
   }));
 
-  // Security Helmet
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -275,7 +308,9 @@ if (cluster.isMaster) {
         imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
         connectSrc: [
           "'self'",
-          "https://*.supabase.co", 
+          "data:",
+          "blob:",
+          "https://*.supabase.co",
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
@@ -285,9 +320,6 @@ if (cluster.isMaster) {
           // Weiterhin lokale Entwicklungs-URLs
           "http://localhost:*",
           "http://127.0.0.1:*",
-          // WebSocket connections for Y.js collaborative editing
-          "ws://localhost:*",
-          "ws://127.0.0.1:*",
           // Falls *.netzbegruenung* genutzt wird
           "http://*.netzbegruenung.verdigado.net",
           "https://*.netzbegruenung.verdigado.net",
@@ -307,29 +339,22 @@ if (cluster.isMaster) {
   const desiredPort = process.env.PORT || 3001;
   const host = process.env.HOST || "127.0.0.1";
 
-  // Multer Konfiguration für Videouploads - MOVED AFTER ROUTES
-  // Die Multer-Middleware wird nach setupRoutes verschoben
-
-  // Verbesserte Graceful Shutdown Handler für Worker
   process.on('message', async (msg) => {
     if (msg.type === 'shutdown' && !workerShutdownInProgress) {
       workerShutdownInProgress = true;
       console.log(`Worker ${process.pid} received shutdown signal`);
-      
+
       try {
-        // Beende AI Worker Pool
         if (aiWorkerPool) {
           console.log('Shutting down AI worker pool...');
           await aiWorkerPool.shutdown();
         }
 
-        // Schließe Redis-Verbindung nur wenn sie offen ist
         if (redisClient && redisClient.isOpen) {
           console.log('Closing Redis connection...');
           await redisClient.quit();
         }
 
-        // Schließe den Server
         server.close(() => {
           console.log(`Worker ${process.pid} server closed`);
           if (process.send) {
@@ -347,7 +372,6 @@ if (cluster.isMaster) {
     }
   });
 
-  // Fallback für direkte Signal-Behandlung
   const workerShutdown = async (signal) => {
     if (workerShutdownInProgress) {
       console.log(`Worker ${process.pid} shutdown already in progress, ignoring ${signal}`);
@@ -376,9 +400,7 @@ if (cluster.isMaster) {
   process.on('SIGTERM', () => workerShutdown('SIGTERM'));
   process.on('SIGINT', () => workerShutdown('SIGINT'));
 
-  // Redis-Cache für statische Dateien (EXCLUDE API ROUTES) - BUGFIX!
   const cacheMiddleware = async (req, res, next) => {
-    // WICHTIG: API-Routen NIEMALS cachen!
     if (req.method !== 'GET' || req.path.startsWith('/api')) {
       return next();
     }
@@ -389,11 +411,9 @@ if (cluster.isMaster) {
       if (cachedResponse) {
         return res.send(JSON.parse(cachedResponse));
       }
-      
-      // Nur für NICHT-API-Routen cachen
+
       const originalSend = res.send;
       res.send = function(body) {
-        // Nur cachen wenn es keine API-Route ist
         if (!req.originalUrl.startsWith('/api/')) {
           redisClient.set(key, JSON.stringify(body), {
             EX: 3600 // 1 Stunde Cache
@@ -410,18 +430,30 @@ if (cluster.isMaster) {
 
   // Session and Authentication setup
   console.log('[Server.mjs] Setting up session middleware...');
-  
+
+  // Commented out for mobile-only usage - uncomment when sessions are needed
+  // if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+  //   console.error('[CRITICAL] SESSION_SECRET must be set and at least 32 characters');
+  //   process.exit(1);
+  // }
+
+  // Use SESSION_SECRET if available, otherwise use fallback with warning
+  const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
+  if (!process.env.SESSION_SECRET) {
+    console.warn('[WARNING] SESSION_SECRET not set - using temporary fallback. Set SESSION_SECRET for production!');
+  }
+
   app.use(session({
     store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET || 'fallback-secret-please-change',
+    secret: sessionSecret,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true to support anonymous user rate limiting
     name: 'gruenerator.sid', // Custom session name to avoid conflicts
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Allow cross-port in development
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days (extended for anonymous session tracking)
+      sameSite: 'lax', // Use 'lax' for OAuth flows - 'strict' blocks cross-site redirects from Keycloak
       domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Don't set domain in development
       path: '/' // Ensure cookie is available for all paths
     }
@@ -467,6 +499,13 @@ if (cluster.isMaster) {
       uptime: process.uptime()
     });
   });
+
+  // === Subdomain Handler for Sites ===
+  // WICHTIG: Muss vor setupRoutes kommen!
+  // TEMPORARILY DISABLED FOR DEBUGGING
+  // const { subdomainHandler } = await import('./middleware/subdomainHandler.js');
+  // app.use(subdomainHandler);
+  // === Ende Subdomain Handler ===
 
   // === TUS Upload Handler ===
   // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
@@ -541,13 +580,23 @@ if (cluster.isMaster) {
     extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico']
   }));
 
+  // Handle subdomain public sites BEFORE SPA routing
+  // TEMPORARILY DISABLED FOR DEBUGGING
+  // const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
+  // app.use((req, res, next) => {
+  //   if (req.siteData) {
+  //     return publicSiteRouter(req, res, next);
+  //   }
+  //   next();
+  // });
+
   // SPA-Routing: Alle anderen Anfragen zu index.html
   app.get('*', (req, res, next) => {
     // API-Routen ignorieren
     if (req.path.startsWith('/api')) {
       return next(); // Ensure next() is called for API routes
     }
-    
+
     const indexPath = path.join(staticFilesPath, 'index.html');
     if (fs.existsSync(indexPath)) {
       res.sendFile(indexPath);
@@ -568,6 +617,15 @@ if (cluster.isMaster) {
       res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       res.set('Access-Control-Allow-Origin', '*');
       res.set('Cache-Control', 'no-cache');
+    }
+  }));
+
+  // Statisches Verzeichnis für Sharepic-Hintergrundbilder
+  app.use('/public', express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path, stat) => {
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
     }
   }));
 

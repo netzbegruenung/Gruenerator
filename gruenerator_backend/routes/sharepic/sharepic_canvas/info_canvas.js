@@ -36,8 +36,6 @@ function parseBodyText(bodyText) {
 }
 
 async function processInfoText(textData) {
-  console.log('processInfoText aufgerufen mit:', textData);
-
   const { header, bodyFirstSentence, bodyRemaining } = textData;
 
   if (!header && !bodyFirstSentence && !bodyRemaining) {
@@ -52,7 +50,6 @@ async function processInfoText(textData) {
 }
 
 async function createInfoImage(processedText, validatedParams) {
-  console.log('Starting createInfoImage function');
   try {
     await checkFiles();
     registerFonts();
@@ -65,9 +62,7 @@ async function createInfoImage(processedText, validatedParams) {
     }
 
     // Load the pre-made background image
-    console.log('Loading Info background image from:', INFO_BG_PATH);
     const backgroundImage = await loadImage(INFO_BG_PATH);
-    console.log('Background image loaded successfully, dimensions:', backgroundImage.width, 'x', backgroundImage.height);
 
     // Create canvas with same dimensions as background
     const canvas = createCanvas(backgroundImage.width, backgroundImage.height);
@@ -75,25 +70,8 @@ async function createInfoImage(processedText, validatedParams) {
 
     // Draw the background image
     ctx.drawImage(backgroundImage, 0, 0);
-    console.log('Background image drawn to canvas');
 
     const { headerColor, bodyColor, headerFontSize, bodyFontSize } = validatedParams;
-
-    // Test font loading
-    ctx.font = `${headerFontSize}px GrueneType`;
-    const testText = "Test";
-    const beforeWidth = ctx.measureText(testText).width;
-    ctx.font = `${headerFontSize}px serif`; // Fallback
-    const serifWidth = ctx.measureText(testText).width;
-    ctx.font = `${headerFontSize}px GrueneType`; // Set back
-    const afterWidth = ctx.measureText(testText).width;
-    
-    console.log('Font loading test:', {
-      grueneTypeWidth: beforeWidth,
-      serifWidth: serifWidth,
-      grueneTypeWidthAfter: afterWidth,
-      differentFromSerif: afterWidth !== serifWidth
-    });
 
     // Define text areas and positioning
     const canvasWidth = canvas.width;
@@ -105,18 +83,16 @@ async function createInfoImage(processedText, validatedParams) {
 
     // Render Header Text
     if (processedText.header) {
-      console.log('Rendering header text:', processedText.header);
       ctx.font = `${headerFontSize}px GrueneType`;
       ctx.fillStyle = headerColor;
       ctx.textAlign = 'left'; // Left-aligned header
       ctx.textBaseline = 'top';
-      
+
       // Wrap text if necessary
       const headerLines = wrapText(ctx, processedText.header, textWidth);
       headerLines.forEach((line, index) => {
         const textY = currentY + (index * (headerFontSize * 1.2));
         ctx.fillText(line, margin, textY); // Left-aligned with margin
-        console.log(`Header line ${index}: "${line}" at position (${margin}, ${textY})`);
       });
       
       currentY += (headerLines.length * headerFontSize * 1.2) + 40; // Add spacing after header
@@ -125,19 +101,15 @@ async function createInfoImage(processedText, validatedParams) {
 
     // Render Body Text as continuous block with mixed fonts
     if (processedText.bodyFirstSentence || processedText.bodyRemaining) {
-      console.log('Rendering body text with pre-marked word fonts');
-      
       // Pre-process: mark each word with its font type
       const fullBodyText = (processedText.bodyFirstSentence + ' ' + processedText.bodyRemaining).trim();
       const allWords = fullBodyText.split(' ');
       const firstSentenceWordCount = processedText.bodyFirstSentence ? processedText.bodyFirstSentence.split(' ').length : 0;
-      
+
       const wordsWithFont = allWords.map((word, index) => ({
         text: word,
         font: index < firstSentenceWordCount ? `${bodyFontSize}px PTSans-Bold` : `${bodyFontSize}px PTSans-Regular`
       }));
-      
-      console.log('Words with font assignments:', wordsWithFont.slice(0, 10)); // Log first 10 for debugging
       
       ctx.fillStyle = bodyColor;
       ctx.textAlign = 'left';
@@ -225,15 +197,11 @@ function renderWordsWithFonts(ctx, wordsWithFont, x, y, color) {
       currentX += wordWidth + spaceWidth;
     }
     
-    const fontType = wordObj.font.includes('Bold') ? 'Bold' : 'Regular';
-    console.log(`Word "${wordObj.text}" (${fontType}) at position (${currentX - wordWidth}, ${y})`);
   });
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  console.log('Received request for info_canvas');
   try {
-    console.log('Received request body:', req.body);
 
     const {
       header,
@@ -254,8 +222,6 @@ router.post('/', upload.single('image'), async (req, res) => {
       bodyFontSize: parseInt(bodyFontSize, 10) || 40 // Body text size
     };
 
-    console.log('Parsed info params:', modParams);
-
     await checkFiles();
     registerFonts();
 
@@ -266,36 +232,31 @@ router.post('/', upload.single('image'), async (req, res) => {
       bodyFontSize: Math.max(30, Math.min(60, modParams.bodyFontSize))
     };
 
-    console.log('Validated info params:', infoValidatedParams);
-
     // Parse body text if provided as single field, or use separate fields if provided
     let parsedBodyFirstSentence = bodyFirstSentence;
     let parsedBodyRemaining = bodyRemaining;
-    
+
     if (body && !bodyFirstSentence && !bodyRemaining) {
       // Parse the body text using backend logic
       const parsed = parseBodyText(body);
       parsedBodyFirstSentence = parsed.firstSentence;
       parsedBodyRemaining = parsed.remainingText;
-      console.log('Parsed body in backend:', parsed);
     }
-    
-    const processedText = await processInfoText({ 
-      header, 
-      bodyFirstSentence: parsedBodyFirstSentence, 
-      bodyRemaining: parsedBodyRemaining 
+
+    const processedText = await processInfoText({
+      header,
+      bodyFirstSentence: parsedBodyFirstSentence,
+      bodyRemaining: parsedBodyRemaining
     });
-    console.log('Processed text:', processedText);
 
     // Generate the image
     const generatedImageBuffer = await createInfoImage(
-      processedText, 
+      processedText,
       infoValidatedParams
     );
-    
+
     const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
 
-    console.log('Info image generated successfully');
     res.json({ image: base64Image });
 
   } catch (err) {

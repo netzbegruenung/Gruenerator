@@ -9,7 +9,7 @@ import { useSearchState } from '../../hooks/useSearchState';
 import { useFilteredAndGroupedItems } from '../../hooks/useFilteredAndGroupedItems';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import SelectAllCheckbox from './SelectAllCheckbox';
-import DocumentGroupedContent from './DocumentGroupedContent';
+import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import { getActionItems } from './ItemActionBuilder';
 import { truncateForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
 
@@ -84,14 +84,14 @@ const DocumentOverview = ({
     const [sortBy, setSortBy] = useState(sortOptions[0]?.value || 'updated_at');
     const [sortOrder, setSortOrder] = useState('desc');
     
-    // Derived items and grouping
-    const { filteredItems, groupedItems } = useFilteredAndGroupedItems({
+    // Derived items and filtering
+    const { filteredItems } = useFilteredAndGroupedItems({
         items: allItems,
         itemType,
         searchFields,
         sortBy,
         sortOrder,
-        enableGrouping,
+        enableGrouping: false, // Grouping disabled - using category filter instead
         searchState,
     });
     
@@ -105,13 +105,75 @@ const DocumentOverview = ({
     const [previewLoading, setPreviewLoading] = useState(false);
     const [previewError, setPreviewError] = useState(null);
 
+    // Category filter state
+    const [selectedCategory, setSelectedCategory] = useState('all');
+
+    // Category options with counts
+    const categoryOptions = useMemo(() => {
+        const counts = allItems.reduce((acc, item) => {
+            if (itemType === 'document') {
+                const sourceType = item.source_type || 'manual';
+                acc[sourceType] = (acc[sourceType] || 0) + 1;
+                acc.all = (acc.all || 0) + 1;
+            } else {
+                acc.all = (acc.all || 0) + 1;
+            }
+            return acc;
+        }, {});
+
+        const options = [
+            {
+                value: 'all',
+                label: `Alle Dokumente (${counts.all || 0})`,
+                icon: '📄'
+            }
+        ];
+
+        if (itemType === 'document') {
+            if (counts.wolke > 0) {
+                options.push({
+                    value: 'wolke',
+                    label: `Wolke Dokumente (${counts.wolke})`,
+                    icon: '☁️'
+                });
+            }
+            if (counts.manual > 0) {
+                options.push({
+                    value: 'manual',
+                    label: `Manuelle Uploads (${counts.manual})`,
+                    icon: '📁'
+                });
+            }
+            if (counts.url > 0) {
+                options.push({
+                    value: 'url',
+                    label: `URL Dokumente (${counts.url})`,
+                    icon: '🔗'
+                });
+            }
+        }
+
+        return options;
+    }, [allItems, itemType]);
+
+    // Apply category filtering to items
+    const categoryFilteredItems = useMemo(() => {
+        if (selectedCategory === 'all') {
+            return filteredItems;
+        }
+        return filteredItems.filter(item => {
+            if (itemType === 'document') {
+                const sourceType = item.source_type || 'manual';
+                return sourceType === selectedCategory;
+            }
+            return true;
+        });
+    }, [filteredItems, selectedCategory, itemType]);
+
     // Bulk selection state
     const [selectedItemIds, setSelectedItemIds] = useState(new Set());
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-    
-    // Grouping state
-    const [expandedGroups, setExpandedGroups] = useState(new Set(['manual', 'wolke']));
 
     // Sort getter for remote results sorting
     const getSortValue = useMemo(() => getSortValueFactory(itemType), [itemType]);
@@ -132,10 +194,10 @@ const DocumentOverview = ({
     // Handle item deletion
     const handleDelete = async (item) => {
         const itemName = itemType === 'qa' ? item.name : item.title;
-        const confirmMessage = itemType === 'qa' 
-            ? `Möchten Sie die Q&A-Sammlung "${itemName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+        const confirmMessage = itemType === 'qa'
+            ? `Möchten Sie das Notebook "${itemName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
             : 'Möchtest du dieses Dokument wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
-            
+
         if (!window.confirm(confirmMessage)) {
             return;
         }
@@ -199,7 +261,7 @@ const DocumentOverview = ({
 
     const handleSelectAll = (isSelected) => {
         // Only allow bulk select for non-Wolke documents
-        const selectable = filteredItems.filter(item => itemType !== 'document' || item.source_type !== 'wolke');
+        const selectable = categoryFilteredItems.filter(item => itemType !== 'document' || item.source_type !== 'wolke');
         if (isSelected) {
             setSelectedItemIds(new Set(selectable.map(item => item.id)));
         } else {
@@ -227,19 +289,6 @@ const DocumentOverview = ({
         } finally {
             setIsBulkDeleting(false);
         }
-    };
-    
-    // Group expansion handlers
-    const toggleGroupExpansion = (groupKey) => {
-        setExpandedGroups(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(groupKey)) {
-                newSet.delete(groupKey);
-            } else {
-                newSet.add(groupKey);
-            }
-            return newSet;
-        });
     };
 
     const clearSelection = () => {
@@ -483,11 +532,6 @@ const DocumentOverview = ({
                             {(() => {
                                 const raw = item.full_content || item.content_preview || item.ocr_text;
                                 const text = truncateForPreview(raw);
-                                // If no inline preview is available but the document is completed,
-                                // hint that the preview loads on open instead of "Kein Inhalt verfügbar".
-                                if (!text && item.status === 'completed') {
-                                    return 'Vorschau beim Öffnen verfügbar';
-                                }
                                 return text || 'Kein Inhalt verfügbar';
                             })()}
                         </p>
@@ -527,10 +571,11 @@ const DocumentOverview = ({
 
         return (
             <>
-                {/* Source badge - only show when not grouping or for context */}
-                {(!enableGrouping || itemType !== 'document') && item.source_type && (
+                {/* Source badge */}
+                {itemType === 'document' && item.source_type && (
                     <span className={`document-source-badge source-${item.source_type}`}>
-                        {item.source_type === 'wolke' ? '☁️ Wolke' : '📁 Manual'}
+                        {item.source_type === 'wolke' ? '☁️ Wolke' :
+                         item.source_type === 'url' ? '🔗 URL' : '📁 Manual'}
                     </span>
                 )}
                 {item.similarity_score != null && (
@@ -540,9 +585,6 @@ const DocumentOverview = ({
                     <span className="document-type">
                         {documentTypes[item.type] || item.type}
                     </span>
-                )}
-                {item.word_count && (
-                    <span className="document-stats">{item.word_count} Wörter</span>
                 )}
                 {item.updated_at && (
                     <span className="document-date">{formatDate(item.updated_at)}</span>
@@ -646,8 +688,8 @@ const DocumentOverview = ({
     const renderEmptyState = () => {
         const defaultIcon = itemType === 'qa' ? NotebookIcon : HiOutlineDocumentText;
         const DefaultIcon = defaultIcon;
-        const defaultMessage = itemType === 'qa' ? 'Keine Q&A-Sammlungen vorhanden.' : 'Keine Dokumente vorhanden.';
-        
+        const defaultMessage = itemType === 'qa' ? 'Keine Notebooks vorhanden.' : 'Keine Dokumente vorhanden.';
+
         return (
             <div className="document-overview-empty-state">
                 <DefaultIcon size={48} className="empty-state-icon" />
@@ -672,16 +714,6 @@ const DocumentOverview = ({
         );
     };
 
-    // Render grouped content via extracted component
-    const renderGroupedContent = () => (
-        <DocumentGroupedContent
-            groupedItems={groupedItems}
-            expandedGroups={expandedGroups}
-            onToggleGroup={toggleGroupExpansion}
-            cardRenderer={cardRenderer}
-            renderDefaultCard={renderDefaultCard}
-        />
-    );
     
     if (loading && allItems.length === 0) {
         return <div className="document-overview-loading"><Spinner /></div>;
@@ -689,42 +721,26 @@ const DocumentOverview = ({
 
     return (
         <div className="document-overview-container">
-            <div className="document-overview-card">
-                <div className="document-overview-header">
-                    <div className="document-overview-header-left">
-                        <h3>{title} ({(() => {
-                            const usingRemote = remoteSearchEnabled && searchState.hasQuery;
-                            const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : filteredItems;
-                            return itemsToShow.length;
-                        })()})</h3>
-                    </div>
-                    
-                    <div className="document-overview-header-actions">
-                        {/* Bulk delete button */}
-                        {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
-                            <div className="document-overview-bulk-actions">
-                                <button
-                                    type="button"
-                                    className="pabtn pabtn--delete pabtn--s"
-                                    onClick={() => setShowBulkDeleteModal(true)}
-                                    disabled={isBulkDeleting}
-                                >
-                                    <HiOutlineTrash className="pabtn__icon" />
-                                    <span className="pabtn__label">{selectedItemIds.size} löschen</span>
-                                </button>
-                            </div>
-                        )}
-                        
-                        {headerActions && (
-                            <div className="document-overview-custom-actions">
-                                {headerActions}
-                            </div>
-                        )}
-                        {/* Removed built-in refresh to avoid duplicate sync/refresh controls */}
-                    </div>
+            <div className="document-overview-header">
+                <div className="document-overview-header-left">
+                    <h3>{title} ({(() => {
+                        const usingRemote = remoteSearchEnabled && searchState.hasQuery;
+                        const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : categoryFilteredItems;
+                        return itemsToShow.length;
+                    })()})</h3>
                 </div>
 
-                <div className="document-overview-content">
+                <div className="document-overview-header-actions">
+                    {headerActions && (
+                        <div className="document-overview-custom-actions">
+                            {headerActions}
+                        </div>
+                    )}
+                    {/* Removed built-in refresh to avoid duplicate sync/refresh controls */}
+                </div>
+            </div>
+
+            <div className="document-overview-content">
                     {/* Search and Sort Controls */}
                     <div className="document-overview-controls">
                         {enableLocalSearch && (
@@ -753,6 +769,21 @@ const DocumentOverview = ({
                                 </select>
                             </div>
                         )}
+
+                        {/* Category Filter */}
+                        <div className="category-filter-container">
+                            <EnhancedSelect
+                                options={categoryOptions}
+                                value={categoryOptions.find(opt => opt.value === selectedCategory)}
+                                onChange={(selectedOption) => setSelectedCategory(selectedOption?.value || 'all')}
+                                enableIcons={true}
+                                placeholder="Kategorie wählen..."
+                                className="category-filter-select"
+                                isSearchable={false}
+                                isClearable={false}
+                            />
+                        </div>
+
                         <div className="sort-controls">
                             <select 
                                 className="form-select"
@@ -778,7 +809,7 @@ const DocumentOverview = ({
                                 enabled={enableBulkSelect && !!onBulkDelete}
                                 disabledWhenRemote={true}
                                 isRemoteActive={remoteSearchEnabled && searchState.hasQuery}
-                                filteredItems={filteredItems}
+                                filteredItems={categoryFilteredItems}
                                 itemType={itemType}
                                 selectedItemIds={selectedItemIds}
                                 onToggleAll={handleSelectAll}
@@ -789,14 +820,13 @@ const DocumentOverview = ({
                     {/* Items Grid (supports remote results) */}
                     {(() => {
                         const usingRemote = remoteSearchEnabled && searchState.hasQuery;
-                        const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : filteredItems;
-
+                        const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : categoryFilteredItems;
 
                         if (itemsToShow.length === 0) {
                             if (!searchState.hasQuery) {
                                 return renderEmptyState();
                             }
-                            
+
                             // Handle empty search results
                             const status = searchState.getSearchStatus(isRemoteSearchingValue);
                             if (status) {
@@ -806,7 +836,7 @@ const DocumentOverview = ({
                                     </div>
                                 );
                             }
-                            
+
                             if (searchState.shouldShowNoResults(0, isRemoteSearchingValue)) {
                                 return (
                                     <div className="document-overview-empty-state">
@@ -814,15 +844,11 @@ const DocumentOverview = ({
                                     </div>
                                 );
                             }
-                            
+
                             return null;
                         }
 
-                        if (!usingRemote && enableGrouping && itemType === 'document') {
-                            return renderGroupedContent();
-                        }
-
-                        // Sort remote results by selected sort if needed
+                        // Sort items by selected sort
                         const sorted = [...itemsToShow].sort((a, b) => {
                             const valA = getSortValue(a, sortBy);
                             const valB = getSortValue(b, sortBy);
@@ -838,7 +864,27 @@ const DocumentOverview = ({
                         );
                     })()}
                 </div>
-            </div>
+
+                {/* Bulk delete section at the end for better UX */}
+                {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
+                    <div className="document-overview-bulk-actions" style={{
+                        padding: 'var(--spacing-medium)',
+                        borderTop: '1px solid var(--border-color)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        backgroundColor: 'var(--background-secondary)'
+                    }}>
+                        <button
+                            type="button"
+                            className="pabtn pabtn--delete pabtn--s"
+                            onClick={() => setShowBulkDeleteModal(true)}
+                            disabled={isBulkDeleting}
+                        >
+                            <HiOutlineTrash className="pabtn__icon" />
+                            <span className="pabtn__label">{selectedItemIds.size} löschen</span>
+                        </button>
+                    </div>
+                )}
 
             {/* Preview Modal */}
             {showPreview && renderPreview()}

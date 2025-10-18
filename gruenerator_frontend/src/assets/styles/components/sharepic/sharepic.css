@@ -2,7 +2,7 @@
     display: flex;
     width: 100%;
     max-width: 1200px;
-    margin: 0 auto;
+    margin: 60px auto 0 auto;
     gap: 20px;
     position: relative;
     align-items: stretch;
@@ -86,7 +86,7 @@
 .font-size-group h3,
 .social-media-group h3 {
     color: var(--font-color);
-    margin: 0;
+    margin: 0 0 0 0;
     font-size: 1.1em;
     font-weight: 600;
 }
@@ -231,6 +231,11 @@
     text-align: center;
 }
 
+.image-modification-controls .left-column .form-button {
+    height: 42px;
+    max-height: 42px;
+}
+
 .social-media-button:hover,
 .alttext-button:hover:not(:disabled) {
     background-color: var(--grashalm);
@@ -350,7 +355,12 @@
 .sharepic-form-container h3,
 .sharepic-form-container h4 {
     color: var(--font-color);
+    margin-top: 0;
     margin-bottom: 0;
+}
+
+.sharepic-base-container .form-container h3 {
+    margin-top: 0.5rem;
 }
 
 
@@ -434,6 +444,7 @@
     .font-size-group h3,
     .social-media-group h3 {
         font-size: 1em;
+        margin-top: 0;
         margin-bottom: 0.5rem;
     }
 

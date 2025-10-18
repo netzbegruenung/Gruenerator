@@ -1,0 +1,11 @@
+{
+  "systemRole": "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Erstelle Zitate mit exakt 100-160 Zeichen ohne Hashtags. Achte penibel auf die Zeichenzahl!",
+  "requestTemplate": "{{#if (and thema details)}}\nErstelle 4 verschiedene Zitate zum Thema \"{{thema}}\" basierend auf folgenden Details: {{details}}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:\n- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)\n- KEINE Hashtags enthalten\n- Als klare, aussagekräftige Statements formuliert sein\n- Perfekt für das grüne Farbtemplate geeignet sein\n- Vollständige, bedeutungsvolle Aussagen sein\nGib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein \"quote\" Feld hat. WICHTIG: Zähle die Zeichen genau!\n{{else}}\nOptimiere folgendes Zitat: \"{{quote}}\" und erstelle 3 weitere Varianten. Die Zitate sollen:\n- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)\n- KEINE Hashtags enthalten\n- Als klare, aussagekräftige Statements formuliert sein\n- Perfekt für das grüne Farbtemplate geeignet sein\n- Vollständige, bedeutungsvolle Aussagen sein\nGib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein \"quote\" Feld hat. WICHTIG: Zähle die Zeichen genau!\n{{/if}}",
+  "singleItemTemplate": "{{#if preserveName}}Zitat zum Thema (100-160 Zeichen):\n\nThema: {{thema}}\nDetails: {{details}}\n\nREGELN:\n- Exakt 100-160 Zeichen\n- Keine Hashtags\n- Grüne Position\n- NUR Zitattext zurückgeben{{else}}Zitat als JSON (100-160 Zeichen):\n\n{\n  \"quote\": \"Aussage ohne Hashtags\",\n  \"name\": \"\"\n}\n\nThema: {{thema}}\nDetails: {{details}}\n\nREGELN:\n- NUR reines JSON\n- Exakt 100-160 Zeichen\n- Keine Hashtags\n- Grüne Position{{/if}}",
+  "options": {
+    "max_tokens": 200,
+    "temperature": 0.5,
+    "top_p": 0.7,
+    "useBedrock": true
+  }
+}

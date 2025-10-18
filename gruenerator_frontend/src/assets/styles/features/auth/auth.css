@@ -15,7 +15,6 @@
 }
 
 .auth-header h1 {
-  font-family: 'GrueneType', Arial, sans-serif;
   margin-bottom: var(--spacing-small);
   font-size: 2rem;
   font-weight: 700;
@@ -212,21 +211,7 @@
 }
 
 .auth-submit-button {
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: var(--spacing-small) var(--spacing-medium);
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.2s;
   margin-top: var(--spacing-small);
-  text-align: center;
-  display: inline-block;
-}
-
-.auth-submit-button:hover {
-  background-color: var(--button-hover-color, #005229);
 }
 
 /* Email sync hint styling */
@@ -257,11 +242,6 @@
 
 .auth-email-sync-button:hover {
   background-color: var(--primary-color-hover, var(--primary));
-}
-
-.auth-submit-button:disabled {
-  background-color: #b0b0b0;
-  cursor: not-allowed;
 }
 
 .auth-submit-button-link {
@@ -608,19 +588,9 @@
   margin-top: 0;
 }
 
-.auth-form button.auth-submit-button:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-  transition: all 0.25s ease-out;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none !important;
     transition: none !important;
-  }
-  
-  .auth-form button.auth-submit-button:hover {
-    transform: none;
   }
 }

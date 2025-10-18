@@ -33,7 +33,7 @@ export const getActionItems = (item, ctx) => {
     return [
       {
         icon: HiOutlineEye,
-        label: 'Q&A öffnen',
+        label: 'Notebook öffnen',
         onClick: () => onViewItem?.(item),
         primary: true,
       },
@@ -41,13 +41,13 @@ export const getActionItems = (item, ctx) => {
         icon: HiOutlinePencil,
         label: 'Bearbeiten',
         onClick: () => onEditItem?.(item),
-        show: !!onEditItem,
+        show: false, // Hidden for now
       },
       {
         icon: HiShare,
         label: 'Mit Gruppe teilen',
         onClick: () => onShareItem?.(item),
-        show: !!onShareItem,
+        show: false, // Hidden for now
       },
       { separator: true },
       {
@@ -91,13 +91,13 @@ export const getActionItems = (item, ctx) => {
       icon: HiOutlinePencil,
       label: 'Bearbeiten',
       onClick: () => onEditItem?.(item),
-      show: !!onEditItem && !isWolkeDocument,
+      show: false, // Hidden for now
     },
     {
       icon: HiShare,
       label: 'Mit Gruppe teilen',
       onClick: () => onShareItem?.(item),
-      show: !!onShareItem && !isWolkeDocument,
+      show: false, // Hidden for now
     },
     { separator: true },
     {

@@ -19,7 +19,6 @@
 }
 
 .display-container {
-    flex: 1 1 33.33%;
     display: flex;
     flex-direction: column;
     padding: var(--spacing-responsive-large);
@@ -33,33 +32,13 @@
     padding: 0 px;
 }
 
-/* FormSection responsive - with generated content - 50/50 split */
-.form-section.has-generated-content {
-    flex: 0 0 50%;
-    max-width: 50%;
-}
-
 .display-container.has-generated-content {
-    flex: 0 0 50%;
-    max-width: 50%;
-    width: 50%;
     transition: padding 0.3s ease-in-out;
 }
 
 
 
 
-
-/* FormSection antragsversteher layout */
-.antragsversteher-base .form-section {
-    flex: 1 1 25%;
-    max-width: 25%;
-}
-
-.antragsversteher-base .display-container {
-    flex: 1 1 75%;
-    max-width: 75%;
-}
 
 .generated-content-wrapper {
     flex: 1;
@@ -127,15 +106,6 @@
         margin: 0;
     }
 
-    /* FormSection responsive */
-    .form-section,
-    .display-container {
-        flex: 0 1 100%;
-        max-width: 100%;
-        width: 100%;
-        margin: 0;
-        padding-top: var(--spacing-small);
-    }
 
     .display-header h3 /* , .form-container h3 */ {
         padding-left: 0;
@@ -148,62 +118,17 @@
         padding: 10px;
     }
 
-    /* FormSection responsive layouts */
-    .form-section.has-generated-content,
-    .display-container.has-generated-content {
-        flex: 0 1 100%;
-        max-width: 100%;
-        width: 100%;
-    }
-
-    .base-container.has-generated-content {
+    /* Regular mobile responsive layouts for non-edit mode */
+    .base-container:not(.edit-mode-active).has-generated-content {
         flex-direction: column;
     }
-
-    /* FormSection responsive layouts */
-    .form-section.has-generated-content,
-    .form-section,
-    .display-container.has-generated-content,
-    .display-container {
-        flex: 0 1 100%;
-        max-width: 100%;
-        width: 100%;
-    }
-
-
-
-
 }
 
-
-
-.display-container.has-generated-content.form-hidden {
-    flex: 0 0 100%;
-    max-width: 900px;
-    width: 100%;
-    margin: 0 auto;
-}
-
-/* Large Display Optimizations - maintain 50/50 split */
+/* Large Display Optimizations */
 @media (min-width: 1280px) {
     .base-container {
         max-width: 1400px;
         gap: var(--spacing-responsive-large);
-    }
-    
-    .form-section.has-generated-content {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
-
-    .display-container.has-generated-content {
-        flex: 0 0 50%;
-        max-width: 50%;
-        width: 50%;
-    }
-    
-    .display-container.has-generated-content.form-hidden {
-        max-width: 1000px;
     }
 }
 
@@ -211,32 +136,13 @@
     .base-container {
         max-width: 1600px;
     }
-    
-    .display-container.has-generated-content.form-hidden {
-        max-width: 1100px;
-    }
 }
 
 @media (min-width: 1920px) {
     .base-container {
         max-width: 1800px;
     }
-    
-    .form-section.has-generated-content {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
 
-    .display-container.has-generated-content {
-        flex: 0 0 50%;
-        max-width: 50%;
-        width: 50%;
-    }
-    
-    .display-container.has-generated-content.form-hidden {
-        max-width: 1200px;
-    }
-    
     .display-header {
         min-height: 48px;
     }
@@ -245,10 +151,6 @@
 @media (min-width: 2560px) {
     .base-container {
         max-width: 2000px;
-    }
-    
-    .display-container.has-generated-content.form-hidden {
-        max-width: 1400px;
     }
 }
 

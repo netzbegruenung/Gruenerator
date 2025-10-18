@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
-import FormSelect from '../Form/Input/FormSelect';
 import EnhancedSelect from '../EnhancedSelect';
 import '../../../assets/styles/components/ui/knowledge-selector.css';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -30,13 +29,15 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
   } = useGroups();
   
   // Handle profile source selection (for instructions only)
-  const handleSourceChange = useCallback((e) => {
-    const value = e.target.value;
-    
+  const handleSourceChange = useCallback((selectedOption) => {
+    if (!selectedOption) return;
+
+    const value = selectedOption.value;
+
     if (value === 'neutral') {
       setSource({ type: 'neutral', id: null, name: null });
     } else if (value === 'user') {
-      setSource({ type: 'user', id: null, name: 'Mein Profil' });
+      setSource({ type: 'user', id: null, name: 'Meine Anweisungen' });
     } else if (value.startsWith('group-')) {
       const groupId = value.substring("group-".length);
       const selectedGroup = groups.find(g => g.id === groupId);
@@ -57,8 +58,8 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
   // Memoize source options array
   const sourceOptions = useMemo(() => {
     const baseOptions = [
-      { value: 'neutral', label: 'Neutral' },
-      { value: 'user', label: 'Mein Profil' }
+      { value: 'neutral', label: 'Keine Anweisungen' },
+      { value: 'user', label: 'Meine Anweisungen' }
     ];
 
     const loadingOptions = [];
@@ -84,16 +85,30 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
   
   return (
     <div className="profile-selector">
-      <FormSelect
-        name="profile-source"
+      <EnhancedSelect
+        inputId="profile-source"
+        classNamePrefix="enhanced-knowledge-select"
+        className="enhanced-knowledge-select"
         label="Profil für Anweisungen auswählen"
         options={sourceOptions}
-        value={getCurrentSourceValue()}
+        value={sourceOptions.find(opt => opt.value === getCurrentSourceValue())}
         onChange={handleSourceChange}
-        disabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled || disabled}
-        placeholder=""
+        isDisabled={isLoadingGroups || isLoadingBetaFeatures || !anweisungenBetaEnabled || disabled}
+        placeholder="Auswählen"
         tabIndex={tabIndex}
-        helpText="Wähle das Profil aus, dessen Anweisungen verwendet werden sollen"
+        isMulti={false}
+        isClearable={false}
+        isSearchable={false}
+        closeMenuOnSelect={true}
+        hideSelectedOptions={false}
+        blurInputOnSelect={true}
+        openMenuOnFocus={false}
+        tabSelectsValue={true}
+        captureMenuScroll={false}
+        menuShouldBlockScroll={false}
+        menuShouldScrollIntoView={false}
+        menuPortalTarget={document.body}
+        menuPosition="fixed"
       />
     </div>
   );
@@ -140,11 +155,10 @@ const EnhancedKnowledgeSelector = ({
   } = uiConfig;
 
   // Get user groups and authentication
-  const { 
+  const {
     userGroups: groups
   } = useGroups();
-  
-  const { fetchDocuments, isLoading: documentsLoading } = useDocumentsStore();
+
   const { user } = useAuth();
   
   // Load content from all groups using the new hook
@@ -165,25 +179,16 @@ const EnhancedKnowledgeSelector = ({
   
   // Removed console.log for performance
 
-  // Load user documents and texts
-  const { documents: documentsStoreData } = useDocumentsStore();
-  
-  // Track if initial document fetch has been attempted to prevent loops
-  const hasAttemptedDocumentFetch = useRef(false);
-  
-  useEffect(() => {
-    if (enableDocuments && !hasAttemptedDocumentFetch.current && !documentsLoading) {
-      hasAttemptedDocumentFetch.current = true;
-      fetchDocuments();
-    }
-  }, [enableDocuments, documentsLoading, fetchDocuments]);
-  
-  // Reset the fetch flag when enableDocuments changes from false to true
-  useEffect(() => {
-    if (enableDocuments) {
-      hasAttemptedDocumentFetch.current = false;
-    }
-  }, [enableDocuments]);
+  // Get documents from generatorKnowledgeStore (now properly synced by useKnowledge)
+  const {
+    availableDocuments: documentsFromKnowledgeStore
+  } = useGeneratorKnowledgeStore();
+
+  // Use documents from the knowledge store which are synced from documentsStore
+  const documentsStoreData = documentsFromKnowledgeStore;
+
+  // Note: Document fetching is now handled by useKnowledge hook in parent components
+  // This prevents duplicate fetches and ensures proper synchronization
 
   useEffect(() => {
     if (enableTexts) {
@@ -193,6 +198,12 @@ const EnhancedKnowledgeSelector = ({
 
   // State for current search term to trigger re-sorting
   const [currentSearchTerm, setCurrentSearchTerm] = useState('');
+
+  // Helper function to truncate long titles
+  const truncateTitle = useCallback((title, maxLength = 80) => {
+    if (!title || title.length <= maxLength) return title;
+    return title.substring(0, maxLength) + '...';
+  }, []);
 
   // Relevance scoring function for search ranking
   const calculateRelevanceScore = useCallback((option, searchTerm) => {
@@ -266,7 +277,7 @@ const EnhancedKnowledgeSelector = ({
     if (enableKnowledge && availableKnowledge.length > 0) {
       const userKnowledgeItems = availableKnowledge.map(item => ({
         value: `knowledge_${item.id}`,
-        label: item.title,
+        label: truncateTitle(item.title),
         iconType: item.type || 'knowledge',
         tag: { label: 'Mein Profil', variant: 'user' },
         itemType: 'knowledge',
@@ -284,13 +295,12 @@ const EnhancedKnowledgeSelector = ({
         .filter(doc => doc.status === 'completed')
         .map(doc => ({
           value: `document_${doc.id}`,
-          label: doc.title,
+          label: truncateTitle(doc.title),
           iconType: 'user_document',
           tag: { label: 'Mein Profil', variant: 'user' },
           itemType: 'document',
           originalId: doc.id,
           sourceType: 'user',
-          subtitle: doc.filename,
           searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
           created_at: doc.created_at || null
         }));
@@ -301,13 +311,12 @@ const EnhancedKnowledgeSelector = ({
     if (enableTexts && availableTexts.length > 0) {
       const userTextItems = availableTexts.map(text => ({
         value: `text_${text.id}`,
-        label: text.title,
+        label: truncateTitle(text.title),
         iconType: 'user_text',
         tag: { label: 'Mein Profil', variant: 'user' },
         itemType: 'text',
         originalId: text.id,
         sourceType: 'user',
-        subtitle: text.type || 'Text',
         searchableContent: `${text.title} ${text.type || ''} ${text.full_content || text.content || ''}`.toLowerCase(),
         created_at: text.created_at || null
       }));
@@ -329,7 +338,7 @@ const EnhancedKnowledgeSelector = ({
           return {
             ...baseItem,
             value: `group_knowledge_${item.id}`,
-            label: item.title,
+            label: truncateTitle(item.title),
             iconType: 'group_knowledge',
             itemType: 'knowledge',
             searchableContent: `${item.title} ${item.content || ''}`.toLowerCase()
@@ -338,20 +347,18 @@ const EnhancedKnowledgeSelector = ({
           return {
             ...baseItem,
             value: `group_document_${item.id}`,
-            label: item.title,
+            label: truncateTitle(item.title),
             iconType: 'group_document',
             itemType: 'document',
-            subtitle: item.filename,
             searchableContent: `${item.title} ${item.filename || ''} ${item.ocr_text || ''}`.toLowerCase()
           };
         } else {
           return {
             ...baseItem,
             value: `group_text_${item.id}`,
-            label: item.title,
+            label: truncateTitle(item.title),
             iconType: 'group_text',
             itemType: 'text',
-            subtitle: item.type || 'Text',
             searchableContent: `${item.title} ${item.type || ''} ${item.full_content || item.content || ''}`.toLowerCase()
           };
         }
@@ -360,7 +367,7 @@ const EnhancedKnowledgeSelector = ({
     }
     
     return allOptions;
-  }, [enableKnowledge, enableDocuments, enableTexts, availableKnowledge, documentsStoreData, availableTexts, allGroupContent]);
+  }, [enableKnowledge, enableDocuments, enableTexts, availableKnowledge, documentsStoreData, availableTexts, allGroupContent, truncateTitle]);
 
   // Sorted and filtered options based on current search term
   const knowledgeOptions = useMemo(() => {
@@ -481,13 +488,12 @@ const EnhancedKnowledgeSelector = ({
     <div className="enhanced-knowledge-selector">
       <EnhancedSelect
         label="Wissen, Dokumente & Texte auswählen"
-        helpText="Wähle Wissen, Dokumente und Texte aus"
         inputId="enhanced-knowledge-select"
         classNamePrefix="enhanced-knowledge-select"
         className="enhanced-knowledge-select"
         enableTags={true}
         enableIcons={true}
-        enableSubtitles={true}
+        enableSubtitles={false}
         isMulti
         options={knowledgeOptions}
         // Allow placeholder to hyphenate and wrap: Aus­wählen (soft hyphen)
@@ -534,7 +540,7 @@ const EnhancedKnowledgeSelector = ({
           if (currentSearchTerm && currentSearchTerm.trim()) {
             return `Keine Ergebnisse für "${currentSearchTerm}"`;
           }
-          if (isLoadingAllGroups || documentsLoading || isLoadingTexts) {
+          if (isLoadingAllGroups || isLoadingTexts) {
             return 'Lade verfügbare Inhalte...';
           }
           if (hasGroupErrors) {

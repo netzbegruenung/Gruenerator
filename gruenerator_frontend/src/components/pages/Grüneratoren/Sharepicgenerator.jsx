@@ -276,37 +276,70 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               const mapTypeForEditor = (type) => {
                 const typeMap = {
                   'info': 'Info',
-                  'dreizeilen': 'Dreizeilen', 
+                  'dreizeilen': 'Dreizeilen',
                   'quote': 'Zitat',
                   'quote_pure': 'Zitat_Pure',
+                  'zitat': 'Zitat',
+                  'zitat_pure': 'Zitat_Pure',
                   'headline': 'Headline'
                 };
                 return typeMap[type] || type;
               };
 
               // Fetch image from backend if imageSessionId is provided
-              let imageData = data.image; // fallback to stored image
+              let imageData = data.image; // fallback to stored image (final generated image)
+              let originalImageData = null; // original background image for modifications
+              let imageBlob = null;
+
               if (data.imageSessionId) {
                 try {
                   const imageResponse = await apiClient.get(`/sharepic/edit-session/${data.imageSessionId}`);
-                  
+
                   // Handle Axios response wrapper - extract data
                   const result = imageResponse.data || imageResponse;
-                  imageData = result.imageData;
-                  console.log('[Sharepicgenerator] Fetched image from backend Redis storage');
+                  imageData = result.imageData; // Generated image for display
+                  originalImageData = result.originalImageData; // Original background for modifications
+                  console.log('[Sharepicgenerator] Fetched images from backend Redis storage:', {
+                    hasGenerated: !!imageData,
+                    hasOriginal: !!originalImageData
+                  });
                 } catch (error) {
                   console.warn('[Sharepicgenerator] Failed to fetch image from backend, using fallback:', error);
                 }
+              }
+
+              // Convert original background image to Blob for modification functions
+              // Use original background if available, otherwise fall back to generated image
+              const imageForModification = originalImageData || imageData;
+              if (imageForModification && imageForModification.startsWith('data:image')) {
+                const base64Data = imageForModification.split(',')[1];
+                const mimeType = imageForModification.match(/data:([^;]+)/)[1];
+
+                // Convert base64 to binary
+                const binaryString = atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Create Blob object
+                imageBlob = new Blob([bytes], { type: mimeType });
+                console.log('[Sharepicgenerator] Converted image to Blob for modification support:', {
+                  usingOriginal: !!originalImageData,
+                  usingGenerated: !originalImageData && !!imageData
+                });
               }
 
               // Load the sharepic data into the store
               updateFormData({
                 type: mapTypeForEditor(data.type),
                 currentStep: FORM_STEPS.RESULT,
-                generatedImageSrc: imageData,
-                // Mark that this is an edit session (no original image available)
+                generatedImageSrc: imageData, // Display the generated image
+                uploadedImage: imageBlob, // Use original background for modifications
+                image: imageBlob, // Alternative field for compatibility
+                file: imageBlob, // Additional fallback field
                 isEditSession: true,
-                hasOriginalImage: data.hasOriginalImage || false
+                hasOriginalImage: !!originalImageData
               });
 
             // Parse and set the text content based on type
@@ -324,7 +357,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
                 line2: lines[1] || '',
                 line3: lines[2] || ''
               });
-            } else if (data.type === 'quote' || data.type === 'quote_pure') {
+            } else if (data.type === 'zitat' || data.type === 'zitat_pure') {
               // For quotes, extract quote and name from text - handle both formats
               let quote = '';
               let name = '';
@@ -391,6 +424,20 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       setHasSeenWelcome(true);
     }
   }, [hasSeenWelcome]);
+
+  useEffect(() => {
+    if (state.currentStep === FORM_STEPS.PREVIEW &&
+        state.formData.sloganAlternatives &&
+        state.formData.sloganAlternatives.length > 0) {
+      setShowAlternatives(true);
+    }
+  }, [state.currentStep, state.formData.sloganAlternatives]);
+
+  useEffect(() => {
+    if (state.currentStep !== FORM_STEPS.PREVIEW) {
+      setShowAlternatives(false);
+    }
+  }, [state.currentStep]);
 
   const validateForm = useCallback((formData, currentStep) => {
     const newErrors = {};

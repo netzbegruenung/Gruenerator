@@ -1,6 +1,6 @@
 /**
  * Manual Subtitle Generator Service
- * 
+ *
  * Generates 2-second intelligent subtitle segments from OpenAI word timestamps
  * without using Claude AI. Uses punctuation detection and timing rules for
  * optimal readability.
@@ -141,14 +141,14 @@ function groupWordsIntoSegments(words, fullText) {
         
         // --- START: Overlap Prevention & Smart Timing ---
         const nextWord = (i + 1 < words.length) ? words[i + 1] : null;
-        
+
         // The absolute latest this segment can end is the start of the next word.
         // If there is no next word, allow it to extend freely.
         const maxAllowedEnd = nextWord ? nextWord.start : word.end + 5.0;
 
         // Start with the actual end time of the current word.
         let potentialEnd = word.end;
-        
+
         // If the segment would be too short, try to extend it to the minimum duration.
         if (potentialEnd - currentSegment.start < CONFIG.minDuration) {
             potentialEnd = currentSegment.start + CONFIG.minDuration;
@@ -190,7 +190,7 @@ function groupWordsIntoSegments(words, fullText) {
         // Decision logic for ending current segment with smart phrase breaking
         let shouldEndSegment = false;
         let reason = '';
-        
+
         // Rule 1: Max words per segment (Hard Limit)
         // This is now a primary rule to enforce short, punchy subtitles.
         if (currentSegment.words.length >= CONFIG.maxWordsPerSegment) {

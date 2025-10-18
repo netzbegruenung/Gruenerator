@@ -20,6 +20,10 @@ export const useWolkeStore = create(immer((set, get) => ({
   error: null,
   successMessage: '',
 
+  // File cache for preloading
+  filesCache: new Map(), // shareLinkId -> {files: [], timestamp: number, loading: boolean}
+  preloadPromises: new Map(), // shareLinkId -> Promise
+
   // Permissions (context-dependent)
   permissions: {
     canAddLinks: true,
@@ -30,6 +34,9 @@ export const useWolkeStore = create(immer((set, get) => ({
 
   // Internal state
   initialized: false,
+  lastFetchTimestamp: 0,
+  fetchPromise: null,
+  shareLinksPreloaded: false,
 
   // Actions
   setScope: (scope, scopeId = null, permissions = null) => set(state => {
@@ -52,6 +59,9 @@ export const useWolkeStore = create(immer((set, get) => ({
       state.error = null;
       state.successMessage = '';
       state.initialized = false;
+      state.shareLinksPreloaded = false;
+      state.filesCache.clear();
+      state.preloadPromises.clear();
     } else {
       console.log('[WolkeStore] Scope unchanged - keeping existing data and initialization state');
       // Don't reset initialized flag when scope hasn't changed
@@ -78,7 +88,7 @@ export const useWolkeStore = create(immer((set, get) => ({
   // Reset to personal context
   resetToPersonal: () => set(state => {
     console.log('[WolkeStore] Resetting to personal context');
-    
+
     state.scope = 'personal';
     state.scopeId = null;
     state.shareLinks = [];
@@ -86,6 +96,9 @@ export const useWolkeStore = create(immer((set, get) => ({
     state.error = null;
     state.successMessage = '';
     state.initialized = false;
+    state.shareLinksPreloaded = false;
+    state.filesCache.clear();
+    state.preloadPromises.clear();
     state.permissions = {
       canAddLinks: true,
       canDeleteLinks: true,
@@ -148,6 +161,7 @@ export const useWolkeStore = create(immer((set, get) => ({
             state.shareLinks = response.data.shareLinks || [];
             state.isLoading = false;
             state.initialized = true;
+            state.shareLinksPreloaded = true;
           });
         } else {
           throw new Error('Failed to fetch group share links');
@@ -159,6 +173,7 @@ export const useWolkeStore = create(immer((set, get) => ({
           state.shareLinks = shareLinks;
           state.isLoading = false;
           state.initialized = true;
+          state.shareLinksPreloaded = true;
         });
       }
 
@@ -319,19 +334,36 @@ export const useWolkeStore = create(immer((set, get) => ({
 
   // Fetch sync statuses
   fetchSyncStatuses: async (forceRefresh = false) => {
-    try {
-      // Only show loading if we don't have existing sync statuses or force refresh
-      const currentSyncStatuses = get().syncStatuses;
-      const shouldShowLoading = forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
-      
-      if (shouldShowLoading) {
-        set(state => {
-          state.isLoading = true;
-          state.error = null;
-        });
-      }
+    const state = get();
 
-      const { scope, scopeId } = get();
+    // Check if we have a recent fetch and don't force refresh
+    const now = Date.now();
+    const timeSinceLastFetch = now - state.lastFetchTimestamp;
+    const CACHE_DURATION = 3000; // 3 seconds
+
+    if (!forceRefresh && timeSinceLastFetch < CACHE_DURATION && state.syncStatuses.length > 0) {
+      return state.syncStatuses;
+    }
+
+    // Deduplicate concurrent requests
+    if (state.fetchPromise) {
+      return state.fetchPromise;
+    }
+
+    const fetchPromise = (async () => {
+      try {
+        // Only show loading if we don't have existing sync statuses or force refresh
+        const currentSyncStatuses = get().syncStatuses;
+        const shouldShowLoading = forceRefresh || !currentSyncStatuses || currentSyncStatuses.length === 0;
+
+        if (shouldShowLoading) {
+          set(state => {
+            state.isLoading = true;
+            state.error = null;
+          });
+        }
+
+        const { scope, scopeId } = get();
       let syncStatuses = [];
 
       if (scope === 'group') {
@@ -353,30 +385,41 @@ export const useWolkeStore = create(immer((set, get) => ({
         }
       }
 
-      set(state => {
-        state.syncStatuses = syncStatuses;
-        state.isLoading = false;
-        // Mark as initialized after successful fetch
-        if (!state.initialized) {
-          state.initialized = true;
-        }
-      });
+        set(state => {
+          state.syncStatuses = syncStatuses;
+          state.isLoading = false;
+          state.lastFetchTimestamp = Date.now();
+          state.fetchPromise = null;
+          // Mark as initialized after successful fetch
+          if (!state.initialized) {
+            state.initialized = true;
+          }
+        });
 
-      console.log('[WolkeStore] Fetched sync statuses:', syncStatuses.length);
-      return syncStatuses;
+        console.log('[WolkeStore] Fetched sync statuses:', syncStatuses.length);
+        return syncStatuses;
 
-    } catch (error) {
-      console.error('[WolkeStore] Error fetching sync statuses:', error);
-      set(state => {
-        state.error = error.message;
-        state.isLoading = false;
-        // Still mark as initialized even on error to prevent infinite retry loops
-        if (!state.initialized) {
-          state.initialized = true;
-        }
-      });
-      throw error;
-    }
+      } catch (error) {
+        console.error('[WolkeStore] Error fetching sync statuses:', error);
+        set(state => {
+          state.error = error.message;
+          state.isLoading = false;
+          state.fetchPromise = null;
+          // Still mark as initialized even on error to prevent infinite retry loops
+          if (!state.initialized) {
+            state.initialized = true;
+          }
+        });
+        throw error;
+      }
+    })();
+
+    // Store the promise to deduplicate
+    set(state => {
+      state.fetchPromise = fetchPromise;
+    });
+
+    return fetchPromise;
   },
 
   // Ensure sync statuses are available (fetch if needed)
@@ -426,10 +469,8 @@ export const useWolkeStore = create(immer((set, get) => ({
           state.successMessage = 'Synchronisation gestartet.';
         });
         
-        // Refresh sync statuses after a delay
-        setTimeout(() => {
-          get().fetchSyncStatuses();
-        }, 1000);
+        // Refresh sync statuses immediately
+        get().fetchSyncStatuses();
 
         return response.data;
       } else {
@@ -504,10 +545,8 @@ export const useWolkeStore = create(immer((set, get) => ({
           state.successMessage = `Auto-Sync ${enabled ? 'aktiviert' : 'deaktiviert'}.`;
         });
 
-        // Force refresh from backend to ensure consistency
-        setTimeout(() => {
-          get().fetchSyncStatuses();
-        }, 200);
+        // Refresh from backend to ensure consistency
+        get().fetchSyncStatuses();
 
         return response.data;
       } else {
@@ -566,6 +605,180 @@ export const useWolkeStore = create(immer((set, get) => ({
       totalFilesProcessed,
       totalFilesFailed
     };
+  },
+
+  // Preload share links in background (non-blocking)
+  preloadShareLinks: async () => {
+    const { shareLinksPreloaded, isLoading, initialized } = get();
+
+    // Skip if already preloaded or currently loading
+    if (shareLinksPreloaded || isLoading) {
+      return get().shareLinks;
+    }
+
+    // Use requestIdleCallback for non-blocking preload
+    return new Promise((resolve) => {
+      const doPreload = async () => {
+        try {
+          await get().fetchShareLinks();
+          resolve(get().shareLinks);
+        } catch (error) {
+          console.log('[WolkeStore] Preload share links failed silently:', error.message);
+          resolve([]);
+        }
+      };
+
+      if (typeof window !== 'undefined' && window.requestIdleCallback) {
+        window.requestIdleCallback(doPreload, { timeout: 2000 });
+      } else {
+        // Fallback for environments without requestIdleCallback
+        setTimeout(doPreload, 100);
+      }
+    });
+  },
+
+  // Preload files for a specific share link
+  preloadFiles: async (shareLinkId) => {
+    const state = get();
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
+
+    // Check cache first
+    const cached = state.filesCache.get(shareLinkId);
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return cached.files;
+    }
+
+    // Check if already loading
+    const existingPromise = state.preloadPromises.get(shareLinkId);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
+    // Start loading
+    const loadPromise = (async () => {
+      try {
+        // Mark as loading in cache
+        set(state => {
+          state.filesCache.set(shareLinkId, {
+            files: cached?.files || [],
+            timestamp: cached?.timestamp || 0,
+            loading: true
+          });
+        });
+
+        const response = await apiClient.get(`/documents/wolke/browse/${shareLinkId}`);
+
+        if (response.data && response.data.success) {
+          const files = response.data.files || [];
+
+          // Update cache
+          set(state => {
+            state.filesCache.set(shareLinkId, {
+              files,
+              timestamp: now,
+              loading: false
+            });
+            state.preloadPromises.delete(shareLinkId);
+          });
+
+          console.log(`[WolkeStore] Preloaded ${files.length} files for share link ${shareLinkId}`);
+          return files;
+        } else {
+          throw new Error('Failed to preload files');
+        }
+      } catch (error) {
+        console.log(`[WolkeStore] Preload files failed silently for ${shareLinkId}:`, error.message);
+
+        // Clear loading state
+        set(state => {
+          const cached = state.filesCache.get(shareLinkId);
+          if (cached) {
+            state.filesCache.set(shareLinkId, {
+              ...cached,
+              loading: false
+            });
+          }
+          state.preloadPromises.delete(shareLinkId);
+        });
+
+        return [];
+      }
+    })();
+
+    // Store promise to prevent duplicate requests
+    set(state => {
+      state.preloadPromises.set(shareLinkId, loadPromise);
+    });
+
+    return loadPromise;
+  },
+
+  // Progressive preloading: load share links first, then files for primary share link
+  progressivePreload: async () => {
+    try {
+      // Step 1: Preload share links
+      const shareLinks = await get().preloadShareLinks();
+
+      // Step 2: If we have share links, preload files for the first/primary one
+      if (shareLinks.length > 0) {
+        const primaryShareLink = shareLinks[0]; // Use first one as primary
+
+        // Use requestIdleCallback for file preloading to avoid blocking
+        if (typeof window !== 'undefined' && window.requestIdleCallback) {
+          window.requestIdleCallback(() => {
+            get().preloadFiles(primaryShareLink.id);
+          }, { timeout: 5000 });
+        } else {
+          setTimeout(() => {
+            get().preloadFiles(primaryShareLink.id);
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.log('[WolkeStore] Progressive preload failed silently:', error.message);
+    }
+  },
+
+  // Get cached files (used by WolkeFilePicker to show immediate results)
+  getCachedFiles: (shareLinkId) => {
+    const cached = get().filesCache.get(shareLinkId);
+    return cached ? {
+      files: cached.files,
+      loading: cached.loading,
+      isCached: true,
+      timestamp: cached.timestamp
+    } : {
+      files: [],
+      loading: false,
+      isCached: false,
+      timestamp: 0
+    };
+  },
+
+  // Check if files are cached and fresh
+  areFilesCached: (shareLinkId, maxAge = 5 * 60 * 1000) => {
+    const cached = get().filesCache.get(shareLinkId);
+    if (!cached) return false;
+
+    const now = Date.now();
+    return (now - cached.timestamp) < maxAge;
+  },
+
+  // Clear specific file cache
+  clearFileCache: (shareLinkId) => {
+    set(state => {
+      state.filesCache.delete(shareLinkId);
+      state.preloadPromises.delete(shareLinkId);
+    });
+  },
+
+  // Clear all file caches
+  clearAllFileCaches: () => {
+    set(state => {
+      state.filesCache.clear();
+      state.preloadPromises.clear();
+    });
   }
 })));
 

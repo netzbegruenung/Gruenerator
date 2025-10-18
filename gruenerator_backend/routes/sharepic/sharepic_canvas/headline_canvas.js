@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const { createCanvas, loadImage } = require('canvas');
 const fs = require('fs').promises;
-const sharp = require('sharp');
 
 const { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');

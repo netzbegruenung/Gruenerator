@@ -55,7 +55,7 @@ export const CANVA_SUBTABS = [
 export const DOCUMENTS_SUBTABS = [
     { key: 'documents', label: 'Meine Dokumente' },
     { key: 'texts', label: 'Meine Texte' },
-    { key: 'qa', label: 'Meine Q&As' }
+    { key: 'qa', label: 'Meine Notebooks' }
 ];
 
 // Form validation

@@ -1,22 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { useForm, Controller } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 import BaseForm from '../../components/common/BaseForm';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import EnhancedSelect from '../../components/common/EnhancedSelect';
-import useApiSubmit from '../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 import apiClient from '../../components/utils/apiClient';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
-import useKnowledge from '../../components/hooks/useKnowledge';
-import { createKnowledgePrompt } from '../../utils/knowledgeFormUtils';
-import { prepareFilesForSubmission } from '../../utils/fileAttachmentUtils';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
-import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
+import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
+import useApiSubmit from '../../components/hooks/useApiSubmit';
 
 const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const { slug } = useParams();
@@ -24,50 +20,26 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const [generatorConfig, setGeneratorConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { submitForm, loading: submitLoading, success, resetSuccess, error: submitError } = useApiSubmit('/custom_generator');
   const [localGeneratedContent, setLocalGeneratedContent] = useState('');
-  
-  // Use generatedTextStore instead of FormContext
-  const { setGeneratedText } = useGeneratedTextStore();
 
-  // File attachment and feature states
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [processedAttachments, setProcessedAttachments] = useState([]);
+  const { setGeneratedText } = useGeneratedTextStore();
 
   // URL crawler hook for automatic link processing
   const {
     crawledUrls,
-    crawlingUrls,
-    crawlErrors,
+    isCrawling,
     detectAndCrawlUrls,
-    removeCrawledUrl,
-    retryUrl,
-    isCrawling
+    retryUrl
   } = useUrlCrawler();
 
-  // Initialize knowledge system with UI configuration
-  useKnowledge({ 
-    instructionType: 'custom_generator', 
-    ui: {
-      enableKnowledge: true,
-      enableDocuments: true,
-      enableTexts: true
-    }
-  });
+  // API submission hook for loading state management
+  const { submitForm, loading: isSubmitting, success: submissionSuccess, resetSuccess, error: submissionError } = useApiSubmit('/custom_generator');
 
-  // Store integration - all knowledge and instructions from store
-  const {
-    source,
-    isInstructionsActive,
-    getKnowledgeContent,
-    getDocumentContent,
-    getActiveInstruction
-  } = useGeneratorKnowledgeStore();
-
-  // Create default values for react-hook-form
+  // Create default values for the form
   const defaultValues = {
     useWebSearchTool: false,
-    usePrivacyMode: false
+    usePrivacyMode: false,
+    useBedrock: false
   };
   if (generatorConfig) {
     generatorConfig.form_schema.fields.forEach(field => {
@@ -75,35 +47,41 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     });
   }
 
-  // Setup react-hook-form
-  const {
-    control,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors }
-  } = useForm({
-    defaultValues
-  });
+  const helpContent = {
+    content: generatorConfig?.description || "Benutzerdefinierter Grünerator",
+    title: generatorConfig?.name || generatorConfig?.title || "Custom Generator",
+    tips: [
+      "Fülle alle erforderlichen Felder aus"
+    ]
+  };
 
-  // Watch feature toggle values
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
+  const form = useBaseForm({
+    defaultValues,
+    generatorType: 'custom-generator',
+    componentName: 'customGenerator',
+    endpoint: '/custom_generator',
+    instructionType: 'custom_generator',
+    tabIndexKey: 'CUSTOM_GENERATOR',
+    helpContent: helpContent,
+    useFeatureIcons: false,
+    disableKnowledgeSystem: true
+  });
 
   // Reset form when generator config changes
   useEffect(() => {
     if (generatorConfig) {
       const newDefaults = {
         useWebSearchTool: false,
-        usePrivacyMode: false
+        usePrivacyMode: false,
+        useBedrock: false
       };
       generatorConfig.form_schema.fields.forEach(field => {
         newDefaults[field.name] = field.defaultValue || '';
       });
-      reset(newDefaults);
+      form.reset(newDefaults);
     }
-  }, [generatorConfig, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatorConfig]);
 
 
   useEffect(() => {
@@ -147,125 +125,64 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
 
   // Handle URL detection and crawling
   const handleUrlsDetected = useCallback(async (urls) => {
-    // Only crawl if not already crawling and URLs are detected
     if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+      await detectAndCrawlUrls(urls.join(' '), form.generator.toggles.privacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+  }, [detectAndCrawlUrls, isCrawling, form.generator.toggles.privacyMode]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url) => {
-    await retryUrl(url, watchUsePrivacyMode);
-  }, [retryUrl, watchUsePrivacyMode]);
+    await retryUrl(url, form.generator.toggles.privacyMode);
+  }, [retryUrl, form.generator.toggles.privacyMode]);
 
-  // Handle file attachment
-  const handleAttachmentClick = useCallback(async (files) => {
-    try {
-      const processed = await prepareFilesForSubmission(files);
-      
-      // Accumulate files instead of replacing
-      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-    } catch (error) {
-      console.error('[CustomGeneratorPage] File processing error:', error);
-      // Here you could show a toast notification or error message to the user
-      // For now, we'll just log the error
-    }
-  }, []);
-
-  // Handle file removal
-  const handleRemoveFile = useCallback((index) => {
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
-  }, []);
-
-  const onSubmitRHF = async (rhfData) => {
+  // Custom submission handler for dynamic generator configuration
+  const customSubmit = useCallback(async (formData) => {
     try {
       // Create clean form data object - only include fields from generator config
-      const formDataToSubmit = {};
+      const cleanFormData = {};
       if (generatorConfig) {
         generatorConfig.form_schema.fields.forEach(field => {
-          formDataToSubmit[field.name] = rhfData[field.name] || '';
+          cleanFormData[field.name] = formData[field.name] || '';
         });
       }
 
       // Combine file attachments with crawled URLs
       const allAttachments = [
-        ...processedAttachments,
+        ...form.generator.attachedFiles,
         ...crawledUrls
       ];
 
       // Add feature flags and attachments to form data
-      formDataToSubmit.useWebSearchTool = rhfData.useWebSearchTool;
-      formDataToSubmit.usePrivacyMode = rhfData.usePrivacyMode;
-      formDataToSubmit.attachments = allAttachments;
+      cleanFormData.useWebSearchTool = form.generator.toggles.webSearch;
+      cleanFormData.usePrivacyMode = form.generator.toggles.privacyMode;
+      cleanFormData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
+      cleanFormData.attachments = allAttachments;
 
-      // Add knowledge content to the submission
-      const knowledgePrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'custom_generator',
-        groupDetailsData: null, // Custom generators don't use group data
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false,
-          query: null
-        }
-      });
-
+      // Use submitForm instead of apiClient.post for automatic loading state management
       const response = await submitForm({
         slug,
-        formData: formDataToSubmit,
-        knowledgeContent: knowledgePrompt
+        formData: cleanFormData
       });
-      
-      const content = response?.content || (typeof response === 'string' ? response : '');
-      
+
+      const content = response?.content || response?.data?.content || response?.data || response;
+
       if (content) {
         setLocalGeneratedContent(content);
-        setGeneratedText('customGenerator', content);
+        form.generator.handleGeneratedContentChange(content);
         setTimeout(resetSuccess, 3000);
       } else {
         setLocalGeneratedContent('');
-        setGeneratedText('customGenerator', '');
       }
     } catch (err) {
       console.error('Fehler bei der Generierung:', err);
       setLocalGeneratedContent('');
-      setGeneratedText('customGenerator', '');
     }
-  };
+  }, [submitForm, resetSuccess, generatorConfig, form, slug, crawledUrls]);
 
-  // Feature toggle configurations  
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: 11
-  };
-
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: 13
-  };
-
-  const handleReset = () => {
-    setLocalGeneratedContent('');
-    setGeneratedText('customGenerator', '');
-    resetSuccess();
-  };
+  const handleGeneratedContentChange = useCallback((content) => {
+    setLocalGeneratedContent(content);
+    form.generator.handleGeneratedContentChange(content);
+  }, [form.generator]);
 
   if (loading) return <div>Lade...</div>;
   if (error) return <div>Fehler: {error}</div>;
@@ -282,7 +199,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
               label={field.label}
               placeholder={field.placeholder}
               required={field.required}
-              control={control}
+              control={form.control}
               defaultValue={field.defaultValue || ''}
               rows={4}
               rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
@@ -293,7 +210,6 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
         }
 
         if (field.type === 'select') {
-          // Transform options to EnhancedSelect format
           const selectOptions = (field.options || []).map(option => ({
             value: option.value,
             label: option.label
@@ -303,28 +219,35 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
             <Controller
               key={field.name}
               name={field.name}
-              control={control}
+              control={form.control}
               defaultValue={field.defaultValue || ''}
               rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
               render={({ field: controllerField, fieldState }) => (
                 <EnhancedSelect
-                  {...controllerField}
                   inputId={`${field.name}-select`}
                   label={field.label}
                   options={selectOptions}
                   placeholder={field.placeholder || 'Bitte wählen...'}
+                  value={controllerField.value ? selectOptions.find(opt => opt.value === controllerField.value) : null}
+                  onChange={(selectedOption) => {
+                    const value = selectedOption ? selectedOption.value : null;
+                    controllerField.onChange(value);
+                  }}
+                  onBlur={controllerField.onBlur}
                   isClearable={!field.required}
                   isSearchable={false}
-                  className="custom-generator-select"
-                  classNamePrefix="custom-generator-select"
+                  className="react-select"
+                  classNamePrefix="react-select"
                   error={fieldState.error?.message}
                   required={field.required}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
                 />
               )}
             />
           );
         }
-        
+
         return (
           <FormInput
             key={field.name}
@@ -333,7 +256,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
             placeholder={field.placeholder}
             type={field.type}
             required={field.required}
-            control={control}
+            control={form.control}
             defaultValue={field.defaultValue || ''}
             rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
           />
@@ -346,29 +269,18 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`custom-generator-page-container container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
+          {...form.generator.baseFormProps}
           title={generatorConfig.name || generatorConfig.title}
-          onSubmit={handleSubmit(onSubmitRHF)}
-          loading={submitLoading}
-          success={success}
-          error={submitError?.message}
+          onSubmit={form.handleSubmit(customSubmit)}
+          loading={isSubmitting}
+          success={submissionSuccess}
+          error={submissionError}
           generatedContent={localGeneratedContent}
+          onGeneratedContentChange={handleGeneratedContentChange}
           submitButtonProps={{
             defaultText: 'Grünerieren'
           }}
-          formNotice={
-            generatorConfig.description && (
-              <p className="generator-description">{generatorConfig.description}</p>
-            )
-          }
           showProfileSelector={false}
-          useFeatureIcons={true}
-          onAttachmentClick={handleAttachmentClick}
-          onRemoveFile={handleRemoveFile}
-          attachedFiles={attachedFiles}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
         >
           {renderFormInputs()}
         </BaseForm>

@@ -366,7 +366,8 @@ const QACreator = ({
                                         scope={user?.groups?.length > 0 ? 'personal' : 'personal'}
                                         isMulti={true}
                                     />
-                                    <div className="feature-section" style={{ marginTop: '8px' }}>
+                                    {/* Auto-sync features commented out for now */}
+                                    {/* <div className="feature-section" style={{ marginTop: '8px' }}>
                                         <FeatureToggle
                                             isActive={autoSync}
                                             onToggle={setAutoSync}
@@ -383,7 +384,7 @@ const QACreator = ({
                                             description="Entfernt beim Syncen Dokumente, die nicht mehr im Wolke-Ordner sind."
                                             disabled={loading}
                                         />
-                                    </div>
+                                    </div> */}
                                     {selectedWolkeLinks.length > 0 && (
                                         <div className="selected-content-summary">
                                             {selectedWolkeLinks.length} Wolke-Ordner ausgewählt

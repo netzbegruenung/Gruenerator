@@ -125,14 +125,14 @@ const SharedContentSelector = ({
     }
     
     // Add Q&As
-    if (groupContent.qas && 
+    if (groupContent.qas &&
         (!config.contentFilter || config.contentFilter === 'qa_collections') &&
         !(config.excludeTypes && config.excludeTypes.includes('qa_collections'))) {
       content.push(...groupContent.qas.map(item => ({
         ...item,
         contentType: 'qa_collections',
         icon: NotebookIcon,
-        typeLabel: 'Q&A'
+        typeLabel: 'Notebook'
       })));
     }
     

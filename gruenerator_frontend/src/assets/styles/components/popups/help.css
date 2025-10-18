@@ -13,10 +13,21 @@
   line-height: 1.5;
 }
 
-.help-content h4 {
-  margin-top: 15px;
+.help-content-text p {
+  margin-bottom: var(--spacing-small);
+  white-space: pre-line;
+}
+
+.help-content-text p:last-child {
+  margin-bottom: 0;
+}
+
+.help-content h4,
+.help-content p strong {
+  margin-top: 10px;
   margin-bottom: 10px;
   color: var(--text-color);
+  display: block;
 }
 
 .help-content ul {

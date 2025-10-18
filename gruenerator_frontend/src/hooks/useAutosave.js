@@ -1,277 +1,165 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { debounce } from 'lodash-es';
 
 /**
- * Focus-aware autosave hook with field-level change tracking
- * 
- * Features:
- * - No saves while user is actively editing (focus-aware)
- * - Only saves fields that actually changed
- * - Event-driven instead of polling
- * - Silent operation (no loading states)
- * - Configurable debounce timing
- * - Smart retry logic
- * 
- * @param {Object} options Configuration options
- * @param {Function} options.saveFunction Function to call when saving changes
- * @param {Object} options.formRef React Hook Form methods (getValues, watch, etc.)
- * @param {number} options.debounceMs Debounce delay in milliseconds (default: 2000)
- * @param {boolean} options.enabled Whether autosave is enabled (default: true)
- * @param {Function} options.onError Optional error callback
- * @param {Function} options.getFieldsToTrack Function returning array of field names to track
- * @returns {Object} { triggerSave, resetTracking }
+ * Autosave hook that tracks form changes and triggers save after debounced period
+ * @param {Object} config - Configuration object
+ * @param {Function} config.saveFunction - Async function to save changes
+ * @param {Object} config.formRef - Reference to form methods (getValues, watch)
+ * @param {boolean} config.enabled - Whether autosave is enabled
+ * @param {number} config.debounceMs - Debounce delay in milliseconds
+ * @param {Function} config.getFieldsToTrack - Returns array of field names to track
+ * @param {Function} config.onError - Error handler callback
  */
 export const useAutosave = ({
   saveFunction,
   formRef,
-  debounceMs = 2000,
   enabled = true,
-  onError = null,
-  getFieldsToTrack = () => []
+  debounceMs = 2000,
+  getFieldsToTrack,
+  onError
 }) => {
-  const lastSavedValues = useRef({});
-  const saveInProgress = useRef(false);
-  const retryCount = useRef(0);
-  const maxRetries = 3;
+  const saveTimeoutRef = useRef(null);
+  const lastSavedValuesRef = useRef({});
+  const isSavingRef = useRef(false);
+  const isInitializedRef = useRef(false);
 
-  // Check if any field is currently focused (user actively editing)
-  const isAnyFieldFocused = useCallback(() => {
-    const activeElement = document.activeElement;
-    if (!activeElement) return false;
-    
-    // Check if active element is an input, textarea, or contenteditable
-    const isInputElement = activeElement.matches('input, textarea, [contenteditable="true"]');
-    
-    // Also check if it's within a form (to catch custom form components)
-    const isInForm = activeElement.closest('form') !== null;
-    
-    return isInputElement || isInForm;
-  }, []);
+  // Reset tracking to current form values
+  const resetTracking = useCallback(() => {
+    if (!formRef?.getValues) {
+      return;
+    }
 
-  // Compare field values to detect changes
-  const getChangedFields = useCallback(() => {
-    if (!formRef?.getValues || !enabled) return {};
-    
     const currentValues = formRef.getValues();
-    const fieldsToTrack = getFieldsToTrack();
-    const changedFields = {};
-    
-    // If no specific fields to track, track all current values
-    const fieldsToCheck = fieldsToTrack.length > 0 ? fieldsToTrack : Object.keys(currentValues);
-    
-    fieldsToCheck.forEach(fieldName => {
-      const currentValue = getNestedValue(currentValues, fieldName);
-      const lastValue = getNestedValue(lastSavedValues.current, fieldName);
-      
-      // Deep comparison for objects/arrays, shallow for primitives
-      if (!isEqual(currentValue, lastValue)) {
-        setNestedValue(changedFields, fieldName, currentValue);
+    const fieldsToTrack = getFieldsToTrack ? getFieldsToTrack() : Object.keys(currentValues);
+
+    const trackedValues = {};
+    fieldsToTrack.forEach(field => {
+      trackedValues[field] = currentValues[field];
+    });
+
+    lastSavedValuesRef.current = trackedValues;
+    isInitializedRef.current = true;
+  }, [formRef, getFieldsToTrack, enabled]);
+
+  // Get changed fields by comparing current values with last saved
+  const getChangedFields = useCallback(() => {
+    if (!formRef?.getValues || !isInitializedRef.current) {
+      return null;
+    }
+
+    const currentValues = formRef.getValues();
+    const fieldsToTrack = getFieldsToTrack ? getFieldsToTrack() : Object.keys(currentValues);
+    const changes = {};
+    let hasChanges = false;
+
+    fieldsToTrack.forEach(field => {
+      const currentValue = currentValues[field];
+      const lastValue = lastSavedValuesRef.current[field];
+
+      // Deep comparison for arrays and objects
+      const isEqual = JSON.stringify(currentValue) === JSON.stringify(lastValue);
+
+      if (!isEqual) {
+        changes[field] = currentValue;
+        hasChanges = true;
       }
     });
-    
-    return changedFields;
-  }, [formRef, enabled, getFieldsToTrack]);
 
-  // Update tracking with current values
-  const updateTracking = useCallback(() => {
-    if (!formRef?.getValues || !enabled) return;
-    
-    const currentValues = formRef.getValues();
-    lastSavedValues.current = deepClone(currentValues);
-  }, [formRef, enabled]);
+    return hasChanges ? changes : null;
+  }, [formRef, getFieldsToTrack]);
 
-  // Reset tracking (call this after successful save)
-  const resetTracking = useCallback(() => {
-    if (!formRef?.getValues || !enabled) return;
-    
-    const currentValues = formRef.getValues();
-    lastSavedValues.current = deepClone(currentValues);
-    retryCount.current = 0;
-  }, [formRef, enabled]);
-
-  // Debounced save function
-  const debouncedSave = useCallback(
-    debounce(async () => {
-      // Don't save if user is actively editing
-      if (isAnyFieldFocused()) {
-        // Reschedule the save for later
-        setTimeout(() => debouncedSave(), 1000);
-        return;
-      }
-
-      // Don't save if already saving
-      if (saveInProgress.current) return;
-
-      // Check what fields have changed
-      const changedFields = getChangedFields();
-      const changedFieldNames = Object.keys(changedFields);
-      
-      if (changedFieldNames.length === 0) return;
-
-      try {
-        saveInProgress.current = true;
-        
-        // Call the save function with only changed fields
-        await saveFunction(changedFields);
-        
-        // Update tracking on successful save
-        updateTracking();
-        retryCount.current = 0;
-        
-      } catch (error) {
-        retryCount.current += 1;
-        
-        // Retry logic
-        if (retryCount.current <= maxRetries) {
-          const retryDelay = Math.min(1000 * retryCount.current, 5000);
-          setTimeout(() => debouncedSave(), retryDelay);
-        } else {
-          // Max retries reached, call error callback if provided
-          if (onError) {
-            onError(error, changedFields);
-          } else {
-            console.error('Autosave failed after max retries:', error);
-          }
-        }
-      } finally {
-        saveInProgress.current = false;
-      }
-    }, debounceMs),
-    [saveFunction, isAnyFieldFocused, getChangedFields, updateTracking, onError, debounceMs]
-  );
-
-  // Manual trigger for immediate save (bypasses focus check)
-  const triggerSave = useCallback(async (force = false) => {
-    if (!enabled) return;
-
-    if (!force && isAnyFieldFocused()) {
-      // Schedule for later if user is editing
-      setTimeout(() => triggerSave(true), 1000);
+  // Trigger save with the changed fields
+  const triggerSave = useCallback(async () => {
+    if (!enabled || !isInitializedRef.current || isSavingRef.current) {
       return;
     }
 
     const changedFields = getChangedFields();
-    if (Object.keys(changedFields).length === 0) return;
+    if (!changedFields) {
+      return;
+    }
+
+    isSavingRef.current = true;
 
     try {
-      saveInProgress.current = true;
       await saveFunction(changedFields);
-      updateTracking();
+
+      // Update last saved values on success
+      Object.keys(changedFields).forEach(field => {
+        lastSavedValuesRef.current[field] = changedFields[field];
+      });
     } catch (error) {
       if (onError) {
-        onError(error, changedFields);
+        onError(error);
       }
-      throw error;
     } finally {
-      saveInProgress.current = false;
+      isSavingRef.current = false;
     }
-  }, [enabled, isAnyFieldFocused, getChangedFields, saveFunction, updateTracking, onError]);
+  }, [enabled, saveFunction, getChangedFields, onError]);
 
-  // Set up form subscription and event listeners
+  // Debounced save handler
+  const handleFieldChange = useCallback(() => {
+    if (!enabled || !isInitializedRef.current) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced save
+    saveTimeoutRef.current = setTimeout(() => {
+      triggerSave();
+    }, debounceMs);
+  }, [enabled, debounceMs, triggerSave]);
+
+  // Watch form changes
   useEffect(() => {
-    if (!enabled || !formRef?.watch) return;
+    if (!enabled || !formRef?.watch || !isInitializedRef.current) {
+      return;
+    }
 
-    // Watch for form changes
-    const subscription = formRef.watch(() => {
-      debouncedSave();
+    const fieldsToTrack = getFieldsToTrack ? getFieldsToTrack() : undefined;
+
+    // Watch specific fields or all fields
+    const subscription = formRef.watch((value, { name }) => {
+      if (fieldsToTrack && name && !fieldsToTrack.includes(name)) {
+        return;
+      }
+
+      handleFieldChange();
     });
 
-    // Also listen for focus/blur events to trigger saves when user stops editing
-    const handleFocusOut = () => {
-      // Small delay to check if focus moved to another form field
-      setTimeout(() => {
-        if (!isAnyFieldFocused()) {
-          debouncedSave();
-        }
-      }, 100);
-    };
-
-    // Listen on document level to catch all form interactions
-    document.addEventListener('focusout', handleFocusOut);
-
     return () => {
-      subscription?.unsubscribe();
-      document.removeEventListener('focusout', handleFocusOut);
-      debouncedSave.cancel();
+      // Only unsubscribe if subscription exists and has unsubscribe method
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
-  }, [enabled, formRef, debouncedSave, isAnyFieldFocused]);
+  }, [enabled, formRef, getFieldsToTrack, handleFieldChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const isAutoSaveInProgress = useCallback(() => {
+    return isSavingRef.current;
+  }, []);
 
   return {
     triggerSave,
     resetTracking,
-    isAutoSaveInProgress: () => saveInProgress.current
+    isAutoSaveInProgress
   };
 };
-
-// Utility functions
-
-/**
- * Get nested object value by path (supports 'field.subfield' notation)
- */
-function getNestedValue(obj, path) {
-  if (!obj || typeof path !== 'string') return undefined;
-  
-  return path.split('.').reduce((current, key) => {
-    return current?.[key];
-  }, obj);
-}
-
-/**
- * Set nested object value by path (supports 'field.subfield' notation)
- */
-function setNestedValue(obj, path, value) {
-  if (!obj || typeof path !== 'string') return;
-  
-  const keys = path.split('.');
-  const lastKey = keys.pop();
-  
-  const target = keys.reduce((current, key) => {
-    if (!(key in current) || current[key] === null || typeof current[key] !== 'object') {
-      current[key] = {};
-    }
-    return current[key];
-  }, obj);
-  
-  target[lastKey] = value;
-}
-
-/**
- * Deep equality comparison
- */
-function isEqual(a, b) {
-  if (a === b) return true;
-  if (a == null || b == null) return a === b;
-  if (typeof a !== typeof b) return false;
-  
-  if (Array.isArray(a)) {
-    if (!Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((item, index) => isEqual(item, b[index]));
-  }
-  
-  if (typeof a === 'object') {
-    const keysA = Object.keys(a);
-    const keysB = Object.keys(b);
-    if (keysA.length !== keysB.length) return false;
-    return keysA.every(key => isEqual(a[key], b[key]));
-  }
-  
-  return false;
-}
-
-/**
- * Deep clone utility
- */
-function deepClone(obj) {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (obj instanceof Date) return new Date(obj);
-  if (Array.isArray(obj)) return obj.map(deepClone);
-  
-  const cloned = {};
-  Object.keys(obj).forEach(key => {
-    cloned[key] = deepClone(obj[key]);
-  });
-  
-  return cloned;
-}
 
 export default useAutosave;

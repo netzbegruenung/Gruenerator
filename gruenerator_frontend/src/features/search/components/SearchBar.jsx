@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
-import { FaSearch, FaCog } from 'react-icons/fa';
-import FilterPopover from '../../../components/common/FilterPopover';
+import { FaSearch } from 'react-icons/fa';
+import Icon from '../../../components/common/Icon';
 import '../styles/SearchBarStyles.css';
 
 const defaultExampleQuestions = [
@@ -15,22 +15,18 @@ const defaultExampleQuestions = [
   }
 ];
 
-const SearchBar = ({ 
-  onSearch, 
-  loading, 
-  value, 
-  onChange, 
+const SearchBar = ({
+  onSearch,
+  loading,
+  value,
+  onChange,
   placeholder = 'Suchbegriff eingeben...',
   exampleQuestions = defaultExampleQuestions,
-  onFilterClick,
-  filterComponent,
-  showFilters = false,
+  onDeepResearchToggle,
+  isDeepResearchActive = false,
   hideExamples = false,
-  hideDisclaimer = false,
-  filterTitle = "Filter"
+  hideDisclaimer = false
 }) => {
-  const filterButtonRef = useRef(null);
-
   const handleSubmit = (e) => {
     e.preventDefault();
     if (value.trim() && !loading) {
@@ -38,20 +34,12 @@ const SearchBar = ({
     }
   };
 
-  const handleFilterClick = (e) => {
+  const handleDeepResearchToggle = (e) => {
     e.preventDefault();
-    if (onFilterClick) {
-      onFilterClick();
+    if (onDeepResearchToggle) {
+      onDeepResearchToggle();
     }
   };
-
-  const handleFilterClose = () => {
-    if (onFilterClick) {
-      onFilterClick(); // Toggle off
-    }
-  };
-
-  const hasFilterFunctionality = onFilterClick || filterComponent;
 
   return (
     <div className="search-bar-container">
@@ -67,19 +55,19 @@ const SearchBar = ({
             disabled={loading}
           />
           <div className="search-buttons">
-            {hasFilterFunctionality && (
-              <button 
-                ref={filterButtonRef}
+            {onDeepResearchToggle && (
+              <button
                 type="button"
-                className={`filter-icon-button ${showFilters ? 'active' : ''}`}
-                onClick={handleFilterClick}
-                aria-label="Filter"
+                className={`deep-research-toggle ${isDeepResearchActive ? 'active' : ''}`}
+                onClick={handleDeepResearchToggle}
+                aria-label={isDeepResearchActive ? 'Deep Research deaktivieren' : 'Deep Research aktivieren'}
                 disabled={loading}
+                title={isDeepResearchActive ? 'Deep Research aktiv' : 'Deep Research aktivieren'}
               >
-                <FaCog className="filter-icon" />
+                <Icon category="ui" name="brain" />
               </button>
             )}
-            <button 
+            <button
               type="submit"
               className="search-icon-button"
               disabled={loading || !value.trim()}
@@ -115,18 +103,6 @@ const SearchBar = ({
             ))}
           </div>
         )}
-        
-        {/* Filter Popover */}
-        {filterComponent && (
-          <FilterPopover
-            isOpen={showFilters}
-            onClose={handleFilterClose}
-            anchorRef={filterButtonRef}
-            title={filterTitle}
-          >
-            {filterComponent}
-          </FilterPopover>
-        )}
       </form>
     </div>
   );
@@ -142,12 +118,10 @@ SearchBar.propTypes = {
     icon: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired
   })),
-  onFilterClick: PropTypes.func,
-  filterComponent: PropTypes.node,
-  showFilters: PropTypes.bool,
+  onDeepResearchToggle: PropTypes.func,
+  isDeepResearchActive: PropTypes.bool,
   hideExamples: PropTypes.bool,
-  hideDisclaimer: PropTypes.bool,
-  filterTitle: PropTypes.string
+  hideDisclaimer: PropTypes.bool
 };
 
 SearchBar.defaultProps = {
@@ -155,10 +129,9 @@ SearchBar.defaultProps = {
   value: '',
   onChange: () => {},
   exampleQuestions: defaultExampleQuestions,
-  showFilters: false,
+  isDeepResearchActive: false,
   hideExamples: false,
-  hideDisclaimer: false,
-  filterTitle: "Filter"
+  hideDisclaimer: false
 };
 
 export default SearchBar; 

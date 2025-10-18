@@ -90,7 +90,7 @@
 .profile-dropdown {
   position: absolute;
   top: 55px;
-  right: 0;
+  right: clamp(0px, 2vw, 10px);
   width: 260px;
   background-color: var(--background-color);
   border-radius: 12px;
@@ -157,7 +157,10 @@
   font-weight: 600;
   color: var(--font-color-h);
   margin-bottom: var(--spacing-xxsmall);
-  font-family: 'GrueneType', Arial, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .profile-dropdown-email {
@@ -165,6 +168,10 @@
   color: var(--font-color);
   opacity: 0.8;
   margin-bottom: var(--spacing-xsmall);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 
@@ -208,8 +215,117 @@
 }
 
 
+/* Responsive Breakpoints */
+
+@media (max-width: 1024px) {
+  .profile-dropdown {
+    width: 250px;
+  }
+}
+
+@media (max-width: 834px) {
+  .profile-dropdown {
+    width: 240px;
+    top: 52px;
+  }
+
+  .profile-dropdown-greeting {
+    font-size: 1.15rem;
+  }
+
+  .profile-dropdown-avatar-robot {
+    width: 44px;
+    height: 44px;
+  }
+
+  .profile-dropdown-avatar-icon {
+    font-size: 2.75rem;
+  }
+}
+
 @media (max-width: 768px) {
   .profile-button-container {
-    margin-right: 60px; 
+    margin-right: 60px;
+  }
+
+  .profile-dropdown {
+    position: fixed;
+    width: 240px;
+    top: 60px;
+    left: 50%;
+    right: auto;
+    margin-left: -120px;
+    transform-origin: top center;
+  }
+
+  .profile-dropdown-greeting {
+    font-size: 1.1rem;
+  }
+
+  .profile-dropdown-email {
+    font-size: 0.85rem;
+  }
+
+  .profile-dropdown-link {
+    font-size: 1rem;
+    padding: var(--spacing-small) var(--spacing-medium);
+    min-height: 44px;
+  }
+
+  .profile-dropdown-avatar-robot {
+    width: 42px;
+    height: 42px;
+  }
+
+  .profile-dropdown-avatar-icon {
+    font-size: 2.6rem;
+  }
+
+  .profile-dropdown-icon {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-dropdown {
+    position: fixed;
+    width: 230px;
+    top: 58px;
+    left: 50%;
+    right: auto;
+    margin-left: -115px;
+    transform-origin: top center;
+  }
+
+  .profile-dropdown-header {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .profile-dropdown-greeting {
+    font-size: 1.05rem;
+  }
+
+  .profile-dropdown-email {
+    font-size: 0.8rem;
+  }
+
+  .profile-dropdown-link {
+    font-size: 0.95rem;
+    padding: 12px var(--spacing-small);
+    min-height: 44px;
+  }
+
+  .profile-dropdown-avatar-robot {
+    width: 40px;
+    height: 40px;
+  }
+
+  .profile-dropdown-avatar-icon {
+    font-size: 2.5rem;
+  }
+
+  .profile-dropdown-icon {
+    font-size: 0.95rem;
   }
 } 

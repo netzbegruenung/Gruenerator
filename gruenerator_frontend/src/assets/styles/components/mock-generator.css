@@ -265,14 +265,71 @@
 }
 
 /* Responsive adjustments */
+@media (max-width: 834px) {
+  .mock-form-container {
+    width: 92%;
+    padding: 18px;
+  }
+
+  .mock-form-title {
+    font-size: 1.15rem;
+  }
+
+  .mock-form-input,
+  .mock-form-textarea,
+  .mock-select-control {
+    font-size: 13px;
+  }
+
+  .mock-submit-button {
+    font-size: 0.95rem;
+    padding: 11px 18px;
+  }
+}
+
 @media (max-width: 768px) {
   .mock-form-container {
     width: 95%;
     padding: 16px;
   }
-  
+
   .mock-form-title {
     font-size: 1.1rem;
+  }
+
+  .mock-loading-placeholder {
+    min-height: 280px;
+  }
+
+  .mock-skeleton {
+    height: 220px;
+  }
+}
+
+@media (max-width: 640px) {
+  .mock-form-container {
+    width: 96%;
+    padding: 15px;
+  }
+
+  .mock-form-title {
+    font-size: 1.05rem;
+  }
+
+  .mock-form-input,
+  .mock-form-textarea,
+  .mock-select-control {
+    font-size: 12px;
+    padding: 7px;
+  }
+
+  .mock-submit-button {
+    font-size: 0.9rem;
+    padding: 10px 16px;
+  }
+
+  .mock-result-content {
+    font-size: 0.85rem;
   }
 }
 
@@ -281,16 +338,78 @@
     width: 100%;
     padding: 14px;
   }
-  
+
   .mock-form-title {
     font-size: 1rem;
   }
-  
-  .mock-loading-placeholder {
-    min-height: 250px;
+
+  .mock-form-input,
+  .mock-form-textarea,
+  .mock-select-control {
+    font-size: 11px;
+    padding: 6px;
+    min-height: 32px;
   }
-  
+
+  .mock-form-textarea {
+    min-height: 55px;
+  }
+
+  .mock-submit-button {
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    min-height: 38px;
+  }
+
+  .mock-loading-placeholder {
+    min-height: 220px;
+  }
+
   .mock-skeleton {
-    height: 200px;
+    height: 180px;
+  }
+
+  .mock-result-content {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .mock-form-container {
+    padding: 12px;
+  }
+
+  .mock-form-title {
+    font-size: 0.95rem;
+  }
+
+  .mock-form-input,
+  .mock-form-textarea,
+  .mock-select-control {
+    font-size: 10px;
+    padding: 5px;
+    min-height: 30px;
+  }
+
+  .mock-form-textarea {
+    min-height: 50px;
+  }
+
+  .mock-submit-button {
+    font-size: 0.8rem;
+    padding: 9px 12px;
+    min-height: 36px;
+  }
+
+  .mock-loading-placeholder {
+    min-height: 180px;
+  }
+
+  .mock-skeleton {
+    height: 150px;
+  }
+
+  .mock-result-content {
+    font-size: 0.75rem;
   }
 }

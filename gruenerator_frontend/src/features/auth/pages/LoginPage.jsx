@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import PropTypes from 'prop-types';
+import { getIntendedRedirect, getCurrentPath, isMobileAppContext, clearRedirectState } from '../../../utils/authRedirect';
 
 // Login Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/auth/login-page.css';
@@ -10,61 +12,45 @@ import '../../../assets/styles/features/auth/login-page.css';
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Helper function to extract page name from pathname for context
-const getPageName = (pathname) => {
+const getPageName = (pathname, t) => {
   const pathSegments = pathname.split('/').filter(Boolean);
-  if (pathSegments.length === 0) return 'Diese Seite';
-  
-  // Map common paths to readable names
-  const pathMap = {
-    'sharepic': 'Sharepic Grünerator',
-    'antrag': 'Antragsversteher',
-    'universal': 'Universal Generator',
-    'presse': 'Presse Generator',
-    'gruene-jugend': 'Grüne Jugend Generator',
-    'subtitler': 'Untertitel Generator',
-    'voice': 'Sprach-zu-Text',
-    'chat': 'KI-Chat',
-    'profile': 'Profil',
-    'groups': 'Gruppen',
-    'campaigns': 'Kampagnen',
-    'search': 'Suche',
-    'documents': 'Dokumente',
-    'qa': 'Fragen & Antworten',
-    'generators': 'Generatoren',
-    'you': 'Grüne Ideen für dich',
-    'imagine': 'Grünerator Imagine'
-  };
-  
+  if (pathSegments.length === 0) return t('pages.this_page');
+
   const mainPath = pathSegments[0];
-  return pathMap[mainPath] || 'Diese Seite';
+  const pageKey = `pages.${mainPath.replace('-', '_')}`;
+
+  // Try to get translation, fallback to this_page if not found
+  const translatedName = t(pageKey);
+  return translatedName !== pageKey ? translatedName : t('pages.this_page');
 };
 
-const LoginPage = ({ 
-  mode = 'standalone', 
+const LoginPage = ({
+  mode = 'standalone',
   pageName = null,
   customMessage = null,
   onClose = null
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const { loading, isAuthenticated, setLoginIntent } = useInstantAuth();
-  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const redirectToParam = searchParams.get('redirectTo');
+
+  // Get the intended redirect URL using the unified helper
+  // When mode is 'required', use current pathname since we're blocking access to this page
+  const intendedRedirect = mode === 'required'
+    ? location.pathname
+    : getIntendedRedirect(location, '/profile');
+
+  // Check if this is a mobile app context
+  const isMobileApp = isMobileAppContext(location);
 
   // Get success message from navigation state (e.g., from registration)
   const successMessage = location.state?.message;
-  
+
   // Auto-detect page name if not provided and in required mode
-  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname) : null);
-  
-  // Store redirect path when in required mode
-  useEffect(() => {
-    if (mode === 'required') {
-      const currentPath = window.location.pathname + window.location.search;
-      sessionStorage.setItem('redirectAfterLogin', currentPath);
-    }
-  }, [mode]);
+  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname, t) : null);
+
 
   // Handle modal close
   const handleClose = useCallback(() => {
@@ -100,9 +86,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenes-netz-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Grünes Netz Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Grünes Netz Logins:', err);
@@ -114,9 +101,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=netzbegruenung-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Netzbegrünung Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Netzbegrünung Logins:', err);
@@ -128,9 +116,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruenerator-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Grünerator Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Grünerator Logins:', err);
@@ -142,9 +131,10 @@ const LoginPage = ({
     setIsAuthenticating(true);
     try {
       setLoginIntent();
-      
-      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${redirectToParam ? `&redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`;
+
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
       console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
       window.location.href = authUrl;
     } catch (err) {
       console.error('Fehler beim Initiieren des Grüne Österreich Logins:', err);
@@ -158,15 +148,20 @@ const LoginPage = ({
         <div className="auth-header auth-header--required">
           <h1 className="gradient-title">{displayPageName}</h1>
           <p className="auth-subtitle">
-            {customMessage || `Melde dich an, um ${displayPageName === 'Diese Seite' ? 'fortzufahren' : 'den ' + displayPageName + ' zu nutzen'}.`}
+            {customMessage || (isMobileApp
+              ? t('login.mobile_app_subtitle', { pageName: displayPageName || 'App' })
+              : displayPageName === t('pages.this_page')
+                ? t('login.subtitle')
+                : t('login.subtitle_with_page', { pageName: displayPageName })
+            )}
           </p>
         </div>
       );
     }
-    
+
     return (
       <div className="auth-header">
-        <h1 className="gradient-title">Willkommen zurück!</h1>
+        <h1 className="gradient-title">{isMobileApp ? t('login.mobile_welcome') : t('welcome_back')}</h1>
       </div>
     );
   };
@@ -180,18 +175,18 @@ const LoginPage = ({
         disabled={isAuthenticating}
       >
         <div className="login-content">
-          <img 
-            src="/images/Sonnenblume_RGB_gelb.png" 
-            alt="Grünes Netz" 
+          <img
+            src="/images/Sonnenblume_RGB_gelb.png"
+            alt="Grünes Netz"
             className="login-logo"
             width="50"
             height="50"
             loading="eager"
           />
           <div className="login-text-content">
-            <h3 className="login-title">Grünes Netz Login</h3>
+            <h3 className="login-title">{t('login.sources.gruenes_netz.title')}</h3>
             <p className="login-description">
-              Mit deinem Grünes Netz Account anmelden
+              {t('login.sources.gruenes_netz.description')}
             </p>
           </div>
         </div>
@@ -203,18 +198,18 @@ const LoginPage = ({
         disabled={isAuthenticating}
       >
         <div className="login-content">
-          <img 
-            src="/images/Grüne_at_Logo.svg.png" 
-            alt="Die Grünen – Die Grüne Alternative" 
+          <img
+            src="/images/Grüne_at_Logo.svg.png"
+            alt="Die Grünen – Die Grüne Alternative"
             className="login-logo"
             width="50"
             height="50"
             loading="eager"
           />
           <div className="login-text-content">
-            <h3 className="login-title">Die Grünen – Die Grüne Alternative</h3>
+            <h3 className="login-title">{t('login.sources.gruene_oesterreich.title')}</h3>
             <p className="login-description">
-              Mit deinem Die Grünen Account anmelden
+              {t('login.sources.gruene_oesterreich.description')}
             </p>
           </div>
         </div>
@@ -226,18 +221,18 @@ const LoginPage = ({
         disabled={isAuthenticating}
       >
         <div className="login-content">
-          <img 
-            src="/images/nb_icon.png" 
-            alt="Netzbegrünung" 
+          <img
+            src="/images/nb_icon.png"
+            alt="Netzbegrünung"
             className="login-logo"
             width="50"
             height="50"
             loading="eager"
           />
           <div className="login-text-content">
-            <h3 className="login-title">Netzbegrünung Login</h3>
+            <h3 className="login-title">{t('login.sources.netzbegruenung.title')}</h3>
             <p className="login-description">
-              Mit deinem Netzbegrünung Account anmelden
+              {t('login.sources.netzbegruenung.description')}
             </p>
           </div>
         </div>
@@ -299,7 +294,7 @@ const LoginPage = ({
 
               {isAuthenticating && (
                 <div className="auth-status-message">
-                  <p>Weiterleitung zum Login...</p>
+                  <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
                 </div>
               )}
             </div>
@@ -345,7 +340,7 @@ const LoginPage = ({
 
           {isAuthenticating && (
             <div className="auth-status-message">
-              <p>Weiterleitung zum Login...</p>
+              <p>{isMobileApp ? 'Zurück zur App...' : 'Weiterleitung zum Login...'}</p>
             </div>
           )}
         </div>

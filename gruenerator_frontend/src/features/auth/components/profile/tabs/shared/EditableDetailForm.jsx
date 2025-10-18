@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import FormFieldWrapper from '../../../../../../components/common/Form/Input/FormFieldWrapper';
 import { ProfileActionButton, ProfileIconButton } from '../../../../../../components/profile/actions/ProfileActionButton';
+import RequiredFieldToggle from '../../../../../../components/common/RequiredFieldToggle';
 
 /**
  * Reusable form component for editing detail views
@@ -218,9 +219,56 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
 
     // Update form field
     const updateFormField = (index, fieldData) => {
-        const updatedFields = fields.map((field, i) => 
+        const updatedFields = fields.map((field, i) =>
             i === index ? { ...field, ...fieldData } : field
         );
+        updateFormSchema({
+            ...formSchema,
+            fields: updatedFields
+        });
+    };
+
+    // Helper functions for managing select options
+    const addOption = (fieldIndex) => {
+        const updatedFields = [...fields];
+        const field = updatedFields[fieldIndex];
+        const currentOptions = field.options || [];
+        updatedFields[fieldIndex] = {
+            ...field,
+            options: [...currentOptions, { label: '', value: '' }]
+        };
+        updateFormSchema({
+            ...formSchema,
+            fields: updatedFields
+        });
+    };
+
+    const updateOption = (fieldIndex, optionIndex, optionField, value) => {
+        const updatedFields = [...fields];
+        const field = updatedFields[fieldIndex];
+        const currentOptions = [...(field.options || [])];
+        currentOptions[optionIndex] = {
+            ...currentOptions[optionIndex],
+            [optionField]: value
+        };
+        updatedFields[fieldIndex] = {
+            ...field,
+            options: currentOptions
+        };
+        updateFormSchema({
+            ...formSchema,
+            fields: updatedFields
+        });
+    };
+
+    const removeOption = (fieldIndex, optionIndex) => {
+        const updatedFields = [...fields];
+        const field = updatedFields[fieldIndex];
+        const currentOptions = field.options || [];
+        updatedFields[fieldIndex] = {
+            ...field,
+            options: currentOptions.filter((_, i) => i !== optionIndex)
+        };
         updateFormSchema({
             ...formSchema,
             fields: updatedFields
@@ -248,18 +296,15 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
                         >
                             <option value="text">Kurzer Text</option>
                             <option value="textarea">Langer Text</option>
-                            <option value="email">E-Mail</option>
-                            <option value="number">Zahl</option>
+                            <option value="select">Auswahlfeld</option>
                         </select>
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                checked={field.required}
-                                onChange={(e) => updateFormField(index, { required: e.target.checked })}
-                                disabled={disabled}
-                            />
-                            Pflichtfeld
-                        </label>
+                        <RequiredFieldToggle
+                            checked={field.required}
+                            onChange={(checked) => updateFormField(index, { required: checked })}
+                            disabled={disabled}
+                            label="Pflichtfeld"
+                            showLabel={true}
+                        />
                         <ProfileIconButton
                             action="delete"
                             variant="delete"
@@ -271,13 +316,69 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
                     </div>
                     <input
                         type="text"
-                        className="form-input"
+                        className="form-input field-placeholder-input"
                         value={field.placeholder || ''}
                         onChange={(e) => updateFormField(index, { placeholder: e.target.value })}
                         placeholder="Platzhaltertext (optional)"
-                        style={{ marginTop: '8px' }}
                         disabled={disabled}
                     />
+                    {field.type === 'select' && (
+                        <div className="select-options-container">
+                            <label className="form-field-label">Auswahlmöglichkeiten</label>
+                            {(field.options || []).map((option, optIndex) => (
+                                <div key={optIndex} className="option-input-group">
+                                    <input
+                                        type="text"
+                                        className="form-input option-label-input"
+                                        placeholder="Anzeigetext"
+                                        value={option.label || ''}
+                                        onChange={(e) => {
+                                            const newLabel = e.target.value;
+
+                                            // Check if value has been manually edited
+                                            const currentAutoValue = (option.label || '').toLowerCase()
+                                                .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                                            const isValueAutoGenerated = option.value === currentAutoValue || !option.value;
+
+                                            updateOption(index, optIndex, 'label', newLabel);
+
+                                            // Only update value if it's currently auto-generated
+                                            if (isValueAutoGenerated) {
+                                                const newValue = newLabel.toLowerCase()
+                                                    .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                                                updateOption(index, optIndex, 'value', newValue);
+                                            }
+                                        }}
+                                        disabled={disabled}
+                                    />
+                                    <input
+                                        type="text"
+                                        className="form-input option-value-input"
+                                        placeholder="Technischer Wert"
+                                        value={option.value || ''}
+                                        onChange={(e) => updateOption(index, optIndex, 'value', e.target.value)}
+                                        disabled={disabled}
+                                    />
+                                    <ProfileIconButton
+                                        action="delete"
+                                        variant="delete"
+                                        onClick={() => removeOption(index, optIndex)}
+                                        title="Option entfernen"
+                                        size="small"
+                                        disabled={disabled}
+                                    />
+                                </div>
+                            ))}
+                            <ProfileActionButton
+                                action="add"
+                                label="Option hinzufügen"
+                                variant="secondary"
+                                onClick={() => addOption(index)}
+                                size="s"
+                                disabled={disabled}
+                            />
+                        </div>
+                    )}
                 </div>
             ))}
             <ProfileActionButton

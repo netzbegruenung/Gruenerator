@@ -1,25 +1,52 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { HiShieldCheck } from 'react-icons/hi';
 import { useLocation } from 'react-router-dom';
 import PropTypes from 'prop-types';
-// import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import BaseForm from '../../../components/common/BaseForm';
-// FormContext removed - using generatedTextStore directly
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import TextTypeSelector, { TEXT_TYPES, TEXT_TYPE_TITLES } from './components/TextTypeSelector';
+import PlatformSelector from '../../../components/common/PlatformSelector';
+import Icon from '../../../components/common/Icon';
 import RedeForm from './RedeForm';
 import WahlprogrammForm from './WahlprogrammForm';
 import BuergeranfragenForm from './BuergeranfragenForm';
 import UniversalForm from './UniversalForm';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
-import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import { HiGlobeAlt } from 'react-icons/hi';
+import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+
+// Text type constants (moved from TextTypeSelector)
+export const TEXT_TYPES = {
+  REDE: 'rede',
+  WAHLPROGRAMM: 'wahlprogramm',
+  BUERGERANFRAGEN: 'buergeranfragen',
+  UNIVERSAL: 'universal'
+};
+
+export const TEXT_TYPE_LABELS = {
+  [TEXT_TYPES.REDE]: 'Rede',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Wahlprogramm',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Bürger*innenanfragen',
+  [TEXT_TYPES.UNIVERSAL]: 'Universal'
+};
+
+export const TEXT_TYPE_TITLES = {
+  [TEXT_TYPES.REDE]: 'Grünerator für Reden',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Grünerator für Wahlprogramm-Kapitel',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Grünerator für Bürger*innenanfragen',
+  [TEXT_TYPES.UNIVERSAL]: 'Universal Grünerator'
+};
+
+const TEXT_TYPE_ICONS = {
+  [TEXT_TYPES.REDE]: () => <Icon category="textTypes" name="rede" size={16} />,
+  [TEXT_TYPES.WAHLPROGRAMM]: () => <Icon category="textTypes" name="wahlprogramm" size={16} />,
+  [TEXT_TYPES.BUERGERANFRAGEN]: () => <Icon category="textTypes" name="buergeranfragen" size={16} />,
+  [TEXT_TYPES.UNIVERSAL]: () => <Icon category="textTypes" name="universal" size={16} />
+};
+
+const TEXT_TYPE_DESCRIPTIONS = {
+  [TEXT_TYPES.REDE]: 'Perfekt für Veranstaltungen und öffentliche Auftritte',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Strukturierte politische Inhalte',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Professionelle Antworten auf Anfragen von Bürger*innen',
+  [TEXT_TYPES.UNIVERSAL]: 'Für alle anderen Textarten geeignet'
+};
 
 const API_ENDPOINTS = {
   [TEXT_TYPES.REDE]: '/claude_rede',
@@ -39,222 +66,162 @@ const getInitialTextType = (pathname) => {
 const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'universal-text';
   const location = useLocation();
-  
+
   // Initialize with URL-based text type
   const [selectedType, setSelectedType] = useState(() => {
     const initialType = getInitialTextType(location.pathname);
     return initialType;
   });
   const [generatedContent, setGeneratedContent] = useState('');
-  const [useWebSearchTool, setUseWebSearchTool] = useState(false);
-  const [usePrivacyMode, setUsePrivacyMode] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [processedAttachments, setProcessedAttachments] = useState([]);
-  const formRef = useRef();
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-  
+
+  // Create separate refs for each form type to avoid stale references
+  const formRefs = useRef({
+    [TEXT_TYPES.REDE]: useRef(),
+    [TEXT_TYPES.WAHLPROGRAMM]: useRef(),
+    [TEXT_TYPES.BUERGERANFRAGEN]: useRef(),
+    [TEXT_TYPES.UNIVERSAL]: useRef()
+  });
+
+  // Get current form ref based on selected type
+  const currentFormRef = formRefs.current[selectedType];
+
   useOptimizedAuth();
-  
+
   // Update selected type when URL changes
   useEffect(() => {
     const newType = getInitialTextType(location.pathname);
     if (newType !== selectedType) {
       setSelectedType(newType);
     }
-  }, [location.pathname, selectedType]);
-  
-  // Initialize knowledge system with UI configuration
-  useKnowledge({ 
-    instructionType: 'universal', 
-    ui: {
-      enableKnowledge: true,
-      enableDocuments: true,
-      enableTexts: true
-    }
-  });
+  }, [location.pathname]); // Removed selectedType dependency to prevent loops
 
-  // Initialize tabIndex configuration
-  const tabIndex = useTabIndex('UNIVERSAL');
-  const baseFormTabIndex = useBaseFormTabIndex('UNIVERSAL');
-  
-  // Get knowledge state from store
-  const {
-    source,
-    availableKnowledge,
-    isInstructionsActive,
-    instructions,
-    getKnowledgeContent,
-    getDocumentContent,
-    getActiveInstruction,
-    groupData: groupDetailsData
-  } = useGeneratorKnowledgeStore();
-  
-  // Create form notice
-  const formNotice = createKnowledgeFormNotice({
-    source,
-    isLoadingGroupDetails: false, // useKnowledge handles loading
-    isInstructionsActive,
-    instructions,
-    instructionType: 'universal',
-    groupDetailsData,
-    availableKnowledge,
-  });
-  
-  // const textSize = useDynamicTextSize(generatedContent, 1.2, 0.8, [1000, 2000]);
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(API_ENDPOINTS[selectedType]);
-
+  // Reset form when type changes
   useEffect(() => {
-    setStoreIsLoading(loading);
-  }, [loading, setStoreIsLoading]);
-
-  const handleSubmit = useCallback(async () => {
-    if (!formRef.current?.getFormData) return;
-    
-    const formData = formRef.current.getFormData();
-    if (!formData) return;
-
-    // Add web search, privacy mode and attachments to form data
-    formData.useWebSearchTool = useWebSearchTool;
-    formData.usePrivacyMode = usePrivacyMode;
-    formData.attachments = processedAttachments;
-
-    try {
-      // Extract search query from form data for intelligent document content
-      const extractQueryFromFormData = (data) => {
-        const queryParts = [];
-        
-        // Extract key fields that provide context
-        if (data.thema) queryParts.push(data.thema);
-        if (data.hauptthema) queryParts.push(data.hauptthema);
-        if (data.anliegen) queryParts.push(data.anliegen);
-        if (data.topic) queryParts.push(data.topic);
-        if (data.subject) queryParts.push(data.subject);
-        if (data.zielgruppe) queryParts.push(data.zielgruppe);
-        if (data.context) queryParts.push(data.context);
-        if (data.beschreibung) queryParts.push(data.beschreibung);
-        if (data.inhalt) queryParts.push(data.inhalt);
-        // Bürgeranfragen specific fields
-        if (data.anfrage) queryParts.push(data.anfrage);
-        if (data.gremium) queryParts.push(data.gremium);
-        if (data.kontext) queryParts.push(data.kontext);
-        
-        return queryParts.filter(part => part && part.trim()).join(' ');
-      };
-      
-      const searchQuery = extractQueryFromFormData(formData);
-
-      // Add knowledge, instructions, and documents with intelligent extraction
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'universal',
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false, // Not using memories in this context
-          query: searchQuery
-        }
-      });
-      
-      if (finalPrompt) {
-        formData.customPrompt = finalPrompt;
-      }
-      
-      const content = await submitForm(formData);
-      if (content) {
-        setGeneratedContent(content);
-        setGeneratedText(componentName, content);
-        setTimeout(resetSuccess, 3000);
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
+    if (currentFormRef.current?.resetForm) {
+      currentFormRef.current.resetForm();
     }
-  }, [submitForm, resetSuccess, setGeneratedText, selectedType, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, useWebSearchTool, usePrivacyMode, processedAttachments]);
+  }, [selectedType, currentFormRef]);
 
-  const handleGeneratedContentChange = useCallback((content) => {
-    setGeneratedContent(content);
-    setGeneratedText(componentName, content);
-  }, [setGeneratedText, componentName]);
-
-  const handleAttachmentClick = useCallback(async (files) => {
-    try {
-      console.log(`[UniversalTextGenerator] Processing ${files.length} new attached files`);
-      const processed = await prepareFilesForSubmission(files);
-      
-      // Accumulate files instead of replacing
-      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-      
-      console.log('[UniversalTextGenerator] Files successfully processed for submission');
-    } catch (error) {
-      console.error('[UniversalTextGenerator] File processing error:', error);
-      // Here you could show a toast notification or error message to the user
-      // For now, we'll just log the error
+  // Map selected text type to instruction type
+  const getInstructionType = (textType) => {
+    switch (textType) {
+      case TEXT_TYPES.REDE:
+        return 'rede';
+      case TEXT_TYPES.BUERGERANFRAGEN:
+        return 'buergeranfragen';
+      case TEXT_TYPES.UNIVERSAL:
+        return 'universal';
+      case TEXT_TYPES.WAHLPROGRAMM:
+        return 'universal'; // Wahlprogramm uses universal instructions
+      default:
+        return 'universal';
     }
-  }, []);
+  };
 
-  const handleRemoveFile = useCallback((index) => {
-    console.log(`[UniversalTextGenerator] Removing file at index ${index}`);
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
-  }, []);
+  const currentInstructionType = getInstructionType(selectedType);
 
-  const helpContent = {
-    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
+  // Memoize helpContent to prevent unnecessary re-renders
+  const helpContent = useMemo(() => ({
+    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten.",
+    title: TEXT_TYPE_TITLES[selectedType],
     tips: [
       "Wähle zunächst den passenden Texttyp aus",
       "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
       "Wahlprogramme: Strukturierte politische Inhalte",
       "Bürger*innenanfragen: Professionelle Antworten auf Anfragen von Bürger*innen",
       "Universal: Für alle anderen Textarten geeignet",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
       "Gib spezifische Details für bessere Ergebnisse an"
     ]
-  };
+  }), [selectedType]);
 
-  const webSearchFeatureToggle = {
-    isActive: useWebSearchTool,
-    onToggle: (checked) => {
-      setUseWebSearchTool(checked);
+  // Create baseForm - we'll use the knowledge and UI features but handle submission ourselves
+  const form = useBaseForm({
+    defaultValues: {
+      useWebSearchTool: false,
+      usePrivacyMode: false,
+      useProMode: false
     },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch || 11
-  };
+    // Generator configuration - using a placeholder endpoint since we handle submission manually
+    generatorType: 'universal-text',
+    componentName: componentName,
+    endpoint: '/placeholder', // This won't be used
+    instructionType: currentInstructionType,
+    features: ['webSearch', 'privacyMode', 'proMode'],
+    tabIndexKey: 'UNIVERSAL',
+    helpContent: helpContent
+  });
 
-  const privacyModeToggle = {
-    isActive: usePrivacyMode,
-    onToggle: (checked) => {
-      setUsePrivacyMode(checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
-  };
+  // Custom submission handler for dynamic form types
+  const handleSubmit = useCallback(async () => {
+    if (!currentFormRef.current?.getFormData) return;
+
+    const formData = currentFormRef.current.getFormData();
+    if (!formData) return;
+
+    // Add feature toggles and attachments to form data
+    formData.useWebSearchTool = form.generator.toggles.webSearch;
+    formData.usePrivacyMode = form.generator.toggles.privacyMode;
+    formData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
+    formData.attachments = form.generator.attachedFiles;
+
+    try {
+      // Import apiClient dynamically since this is a special case
+      const { default: apiClient } = await import('../../../components/utils/apiClient');
+
+      // Submit to the correct endpoint for the selected type
+      const response = await apiClient.post(API_ENDPOINTS[selectedType], formData);
+      const content = response.data || response;
+
+      if (content) {
+        setGeneratedContent(content);
+        form.generator.handleGeneratedContentChange(content);
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      form.handleSubmitError(error);
+    }
+  }, [selectedType, form, currentFormRef]);
+
+  const handleGeneratedContentChange = useCallback((content) => {
+    setGeneratedContent(content);
+    form.generator.handleGeneratedContentChange(content);
+  }, [form.generator]);
 
   const renderForm = () => {
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm ref={formRef} tabIndex={tabIndex} />;
+        return <RedeForm key={`rede-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return <WahlprogrammForm ref={formRef} tabIndex={tabIndex} />;
+        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
       case TEXT_TYPES.BUERGERANFRAGEN:
-        return <BuergeranfragenForm ref={formRef} tabIndex={tabIndex} />;
+        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
       case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm ref={formRef} tabIndex={tabIndex} />;
+        return <UniversalForm key={`universal-${selectedType}`} ref={currentFormRef} tabIndex={form.generator.tabIndex} />;
       default:
         return null;
     }
   };
 
+  const textTypeOptions = useMemo(() => Object.entries(TEXT_TYPE_LABELS).map(([value, label]) => ({
+    value,
+    label,
+    icon: TEXT_TYPE_ICONS[value]
+  })), []);
+
   const renderTextTypeSection = () => (
-    <TextTypeSelector 
-      selectedType={selectedType}
-      onTypeChange={setSelectedType}
+    <PlatformSelector
+      name="textType"
+      options={textTypeOptions}
+      value={selectedType}
+      onChange={setSelectedType}
+      label="Art des Textes"
+      placeholder="Textart auswählen..."
+      isMulti={false}
+      control={null}
+      enableIcons={true}
+      enableSubtitles={false}
+      isSearchable={false}
+      required={true}
     />
   );
 
@@ -262,30 +229,13 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title={TEXT_TYPE_TITLES[selectedType]}
-          loading={loading}
-          success={success}
-          error={error}
+          key={selectedType}
+          {...form.generator.baseFormProps}
+          title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType]}</span>}
           generatedContent={generatedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
-          formNotice={formNotice}
-          helpContent={helpContent}
-          componentName={componentName}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
-          useFeatureIcons={true}
-          onAttachmentClick={handleAttachmentClick}
-          onRemoveFile={handleRemoveFile}
-          attachedFiles={attachedFiles}
           firstExtrasChildren={renderTextTypeSection()}
-          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
-          knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
-          knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
-          documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
-          submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
         >
           {renderForm()}
         </BaseForm>

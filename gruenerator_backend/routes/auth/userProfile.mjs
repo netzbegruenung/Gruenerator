@@ -16,13 +16,9 @@ const router = express.Router();
 router.get('/profile', ensureAuthenticated, async (req, res) => {
   try {
     const profileService = getProfileService();
-    
-    // Email is now stored in profiles table after PostgreSQL migration
-    
-    // Get profile from database using ProfileService
+
     let profile = await profileService.getProfileById(req.user.id);
-    
-    // If no profile exists, create a basic one
+
     if (!profile) {
       const basicProfile = {
         id: req.user.id,
@@ -33,8 +29,7 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
       };
       
       profile = await profileService.createProfile(basicProfile);
-      
-      // Enhance new profile with SSO detection
+
       const enhancedNewProfile = {
         ...profile,
         is_sso_user: !!profile.keycloak_id // Detect SSO users
@@ -45,8 +40,7 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
         user: enhancedNewProfile
       });
     }
-    
-    // Enhance profile with SSO detection
+
     const enhancedProfile = {
       ...profile,
       is_sso_user: !!profile.keycloak_id // Detect SSO users
@@ -227,7 +221,6 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'sharepic', 
       'anweisungen', 
       'you', 
-      'collab',
       'qa',
       'advanced_editor',
       'collaborative_editing',
@@ -236,6 +229,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'memory',
       'contentManagement',
       'canva',
+      'chat',
       'labor',
       // Profile settings treated as beta features for consistency
       'igel_modus',

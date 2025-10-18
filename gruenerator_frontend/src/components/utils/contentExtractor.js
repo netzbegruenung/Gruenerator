@@ -72,11 +72,22 @@ export const extractMixedContent = (mixedContent) => {
   const parts = [];
   
   if (mixedContent.sharepic) {
-    // Extract content property if it's an object, otherwise use as-is
-    const sharepicContent = typeof mixedContent.sharepic === 'object' 
-      ? (mixedContent.sharepic.content || '')
-      : mixedContent.sharepic;
-    if (sharepicContent) parts.push(sharepicContent);
+    const sharepicEntries = Array.isArray(mixedContent.sharepic)
+      ? mixedContent.sharepic
+      : [mixedContent.sharepic];
+
+    sharepicEntries
+      .filter(Boolean)
+      .forEach(entry => {
+        if (typeof entry === 'object') {
+          const sharepicText = entry.text || entry.content || '';
+          if (sharepicText) {
+            parts.push(sharepicText);
+          }
+        } else if (entry) {
+          parts.push(entry);
+        }
+      });
   }
   
   if (mixedContent.social) {
@@ -262,99 +273,58 @@ export const extractFormattedText = async (content) => {
   return String(content).trim();
 };
 
+
 /**
- * Extracts HTML content for Etherpad exports with full formatting
+ * Extracts HTML content for rich clipboard copying (Word, Etherpad)
+ * Converts markdown to HTML to preserve formatting when pasting
  * @param {string|Object} content - Content in any supported format
- * @returns {string} HTML formatted content for Etherpad
+ * @returns {string} HTML formatted content for clipboard
  */
 export const extractHTMLContent = async (content) => {
-  // Handle null/undefined
   if (!content) return '';
-  
-  // Handle search export objects (use existing specialized formatting)
+
+  // Handle strings (markdown or plain text)
+  if (typeof content === 'string') {
+    // Convert markdown to HTML if needed
+    if (isMarkdownContent(content)) {
+      const { marked } = await import('marked');
+      return marked(content, {
+        breaks: true,      // Convert line breaks to <br>
+        gfm: true,        // GitHub Flavored Markdown
+        headerIds: false, // Don't add IDs to headers
+        mangle: false     // Don't mangle autolinks
+      });
+    }
+
+    // Already HTML - return as-is
+    if (content.includes('<') && content.includes('>')) {
+      return content;
+    }
+
+    // Plain text - wrap in paragraph for consistency
+    return `<p>${content.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
+  }
+
+  // Handle search export objects (use existing specialized formatter)
   if (typeof content === 'object' && content.analysis) {
-    // Use the existing formatExportContent for search exports to maintain
-    // all the complex formatting, source handling, and Etherpad-specific features
     return await formatExportContent(content);
   }
-  
-  // Handle mixed content objects
+
+  // Handle mixed content (sharepic/social)
   if (typeof content === 'object' && (content.sharepic || content.social)) {
-    const mixedText = extractMixedContent(content);
-    return await formatTextForEtherpad(mixedText);
+    const text = extractMixedContent(content);
+    if (isMarkdownContent(text)) {
+      const { marked } = await import('marked');
+      return marked(text, {
+        breaks: true,
+        gfm: true,
+        headerIds: false,
+        mangle: false
+      });
+    }
+    return `<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`;
   }
-  
-  // Handle string content
-  if (typeof content === 'string') {
-    return await formatTextForEtherpad(content);
-  }
-  
+
   // Fallback
-  return await formatTextForEtherpad(String(content));
-};
-
-/**
- * Formats plain text for Etherpad with basic HTML structure
- * @param {string} text - Plain text to format
- * @returns {string} HTML formatted text
- */
-const formatTextForEtherpad = async (text) => {
-  if (!text) return '';
-  
-  // Convert markdown to HTML first if needed
-  if (typeof text === 'string' && isMarkdownContent(text)) {
-    const { marked } = await import('marked');
-    const html = marked(text, {
-      breaks: true,      // Convert line breaks to <br>
-      gfm: true,        // GitHub Flavored Markdown
-      headerIds: false, // Don't add IDs to headers
-      mangle: false     // Don't mangle autolinks
-    });
-    
-    // Return the converted HTML directly - it's already properly formatted
-    return html;
-  }
-  
-  // Basic HTML formatting for Etherpad for non-markdown text
-  // If there are no blank lines, treat single newlines as paragraph breaks to preserve spacing in Etherpad
-  const hasDoubleLineBreaks = /\n{2,}/.test(text);
-  let formattedText;
-  if (!hasDoubleLineBreaks) {
-    formattedText = text
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => `<p>${line}</p>`)
-      .join('');
-  } else {
-    formattedText = text
-      .split('\n\n')
-      .map(paragraph => paragraph.trim())
-      .filter(paragraph => paragraph.length > 0)
-      .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
-      .join('');
-  }
-  
-  return formattedText;
-};
-
-
-/**
- * Unified entry point for content extraction
- * @param {string|Object} content - Content in any supported format
- * @param {string} outputType - Output format: 'plain', 'formatted', 'html'
- * @returns {string} Extracted content in the specified format
- */
-export const extractContentByType = async (content, outputType = 'plain') => {
-  switch (outputType) {
-    case 'plain':
-      return await extractPlainText(content);
-    case 'formatted':
-      return await extractFormattedText(content);
-    case 'html':
-      return await extractHTMLContent(content);
-    default:
-      console.warn(`Unknown output type: ${outputType}. Defaulting to plain text.`);
-      return await extractPlainText(content);
-  }
+  return `<p>${String(content)}</p>`;
 };

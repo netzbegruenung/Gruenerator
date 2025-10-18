@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { buildLoginUrl } from '../../utils/authRedirect';
 
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
@@ -29,13 +30,18 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   response => response,
   error => {
+    // Check if this request should skip auth redirect
+    if (error.config?.skipAuthRedirect) {
+      return Promise.reject(error);
+    }
+
     if (error.response && error.response.status === 401) {
-      // Redirect to frontend login page instead of backend auth endpoint
+      // Redirect to frontend login page with proper redirectTo parameter
       if (window.location.pathname !== '/login') {
-        // Store current path for redirect after login
         const currentPath = window.location.pathname + window.location.search;
-        sessionStorage.setItem('redirectAfterLogin', currentPath);
-        window.location.href = '/login';
+        const loginUrl = buildLoginUrl(currentPath);
+        console.log('[apiClient] 401 detected, redirecting to login with redirect:', currentPath);
+        window.location.href = loginUrl;
       }
     }
     return Promise.reject(error);

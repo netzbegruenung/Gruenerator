@@ -1,5 +1,6 @@
 //routes.js
 const antraegeRouter = require('./routes/antraege/index'); // Import the consolidated Anträge router
+const recentValuesRouter = require('./routes/recentValues'); // Import recent values router
 // const saveAntragRoute = require('./routes/antraege/saveAntrag');
 // const getMyAntraegeRouter = require('./routes/antraege/getMyAntraege');
 // const deleteAntragRouter = require('./routes/antraege/deleteAntrag');
@@ -8,13 +9,14 @@ const antraegeRouter = require('./routes/antraege/index'); // Import the consoli
 const claudeChatRoute = require('./routes/claude_chat');
 const { universalRouter, redeRouter, wahlprogrammRouter, buergeranfragenRouter } = require('./routes/claude_universal');
 const antragsversteherRoute = require('./routes/claude_antragsversteher');
-const wahlpruefsteinBundestagswahlRoute = require('./routes/wahlpruefsteinbundestagswahl');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
 const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_pure_canvas');
 const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/headline_canvas');
 const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
+const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
+const { generateSharepicForChat } = require('./routes/chat/services/sharepicGenerationService');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
@@ -22,14 +24,13 @@ const editSessionRouter = require('./routes/sharepic/editSession');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const claudeSuggestEditsRoute = require('./routes/claude_suggest_edits');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
-const claudeKandidatRoute = require('./routes/claude_kandidat');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
-const claudeYouRoute = require('./routes/claude_you');
 const searchRouter = require('./routes/search/searchRoutes');
 const searchAnalysisRouter = require('./routes/search/searchAnalysis');
+const imagePickerRoute = require('./routes/imagePickerRoute');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
-// const voiceRouter = require('./routes/voice/voiceController'); // COMMENTED OUT - nodejs-whisper dependency missing
+// voiceRouter now imported and enabled below
 // customGeneratorRoute and generatorConfiguratorRoute will be imported as ES6 modules
 // const customGeneratorRoute = require('./routes/custom_generator');
 // const generatorConfiguratorRoute = require('./routes/generator_configurator');
@@ -55,6 +56,8 @@ const webSearchRouter = require('./routes/webSearch'); // Import the web search 
 const imageGenerationRouter = require('./routes/imageGeneration'); // Import the image generation router
 const exportDocumentsRouter = require('./routes/exportDocuments'); // Server-side DOCX/PDF export
 const markdownRouter = require('./routes/markdown'); // Server-side markdown conversion
+const databaseTestRouter = require('./routes/databaseTest'); // Database schema test route
+const rateLimitRouter = require('./routes/rateLimit'); // Universal rate limiting status API
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -62,7 +65,6 @@ const markdownRouter = require('./routes/markdown'); // Server-side markdown con
 async function setupRoutes(app) {
   // Add debug middleware to trace ALL requests before anything else
   app.use('*', (req, res, next) => {
-    console.log(`[SERVER REQUEST] ${req.method} ${req.originalUrl} - From: ${req.headers.origin || 'unknown'}`);
     next();
   });
 
@@ -89,18 +91,12 @@ async function setupRoutes(app) {
   const { default: userProfile } = await import('./routes/auth/userProfile.mjs');
   const { default: userContent } = await import('./routes/auth/userContent.mjs');
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
+  const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
   const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
-  const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
+  // MOBILE AUTH DISABLED
+  // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
   const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
-  // Try to import mem0Router, handle gracefully if dependencies missing
-  let mem0Router = null;
-  try {
-    const mem0Module = await import('./routes/mem0.mjs');
-    mem0Router = mem0Module.default;
-  } catch (error) {
-    console.log('[Setup] Mem0 router import failed, skipping mem0 routes:', error.message);
-  }
   
   // Import claude_social as ES6 module
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
@@ -134,14 +130,16 @@ async function setupRoutes(app) {
   app.use('/api/auth', userProfile);
   app.use('/api/auth', userContent);
   app.use('/api/auth', userGroups);
-  // app.use('/api/auth', userCustomGenerators); // REMOVED - consolidated
+  app.use('/api/auth', userCustomGenerators);
   app.use('/api/auth', userTemplates);
-  app.use('/api/auth/mobile', mobileAuthRoutes);
+  // MOBILE AUTH DISABLED
+  // app.use('/api/auth/mobile', mobileAuthRoutes);
   app.use('/api/auth/qa-collections', qaCollectionsRouter);
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/bundestag', bundestagRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
+  app.use('/api/recent-values', recentValuesRouter);
 
   
   // Use the single consolidated router for all /api/antraege paths
@@ -159,13 +157,17 @@ async function setupRoutes(app) {
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
+
+  // Grünerator Chat - Unified chat interface for all agents
+  const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
+  app.use('/api/chat', grueneratorChatRoute);
   app.use('/api/antragsversteher', antragsversteherRoute);
-  app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahlRoute);
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
   app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
   app.use('/api/info_canvas', infoSharepicCanvasRoute);
+  app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
   
@@ -184,6 +186,42 @@ async function setupRoutes(app) {
 
   app.post('/api/zitat_pure_claude', async (req, res) => {
     await sharepicClaudeRoute.handleClaudeRequest(req, res, 'zitat_pure');
+  });
+
+  app.post('/api/default_claude', async (req, res) => {
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'default');
+  });
+
+  // Unified sharepic generation endpoint - generates complete sharepic (text + image) in one call
+  app.post('/api/generate-sharepic', async (req, res) => {
+    try {
+      const { type, ...requestBody } = req.body;
+
+      if (!type) {
+        return res.status(400).json({
+          success: false,
+          error: 'Sharepic type is required'
+        });
+      }
+
+      console.log(`[UnifiedSharepic] Generating ${type} sharepic`);
+
+      const result = await generateSharepicForChat(req, type, requestBody);
+
+      // Return the complete sharepic with consistent structure
+      res.json({
+        success: true,
+        ...result.content.sharepic,
+        metadata: result.content.metadata
+      });
+
+    } catch (error) {
+      console.error('[UnifiedSharepic] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to generate sharepic'
+      });
+    }
   });
 
   // Zitat with Abyssale generation route - combines text generation + professional template
@@ -283,11 +321,9 @@ async function setupRoutes(app) {
   app.use('/api/claude_text_adjustment', claudeTextAdjustmentRoute);
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
-  app.use('/api/claude_kandidat', claudeKandidatRoute);
   app.use('/api/claude_universal', universalRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
-  app.use('/api/you', claudeYouRoute);
   app.use('/api/custom_generator', customGeneratorRoute); // Public access for view operations
   app.use('/api/auth/custom_generator', customGeneratorRoute); // Authenticated access for management operations
   app.use('/api/generate_generator_config', generatorConfiguratorRoute);
@@ -295,14 +331,22 @@ async function setupRoutes(app) {
 
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
-  // app.use('/api/voice', voiceRouter); // COMMENTED OUT - nodejs-whisper dependency missing
 
-  app.use('/api/search', searchRouter);
-  app.use('/api/analyze', searchAnalysisRouter);
-  app.use('/api/web-search', webSearchRouter);
+  // Import and enable Mistral-based voice routes
+  const voiceRouter = require('./routes/voice/voiceController');
+  app.use('/api/voice', voiceRouter);
+
+  // Unified LangGraph-based search system
+  app.use('/api/search', searchRouter); // Handles /, /deep-research, /analyze endpoints
+  app.use('/api/analyze', searchRouter); // Redirect to unified controller
+  app.use('/api/image-picker', imagePickerRoute); // AI-powered image selection for sharepics
+  // DEPRECATED: Legacy SearXNG endpoint - use /api/search instead
+  app.use('/api/web-search', webSearchRouter); // TODO: Remove after migration
   app.use('/api/image-generation', imageGenerationRouter);
+  app.use('/api/rate-limit', rateLimitRouter); // Universal rate limiting status API for all resource types
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);
+  app.use('/api/database', databaseTestRouter);
 
   // Add the Collab Editor route - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
   // app.use('/api/collab-editor', collabEditorRouter);
@@ -327,13 +371,11 @@ async function setupRoutes(app) {
   app.use('/api/abyssale', abyssaleRouter);
   console.log('[Setup] Abyssale routes registered');
 
-  // Add Mem0 routes if available
-  if (mem0Router) {
-    app.use('/api/mem0', mem0Router);
-    console.log('[Setup] Mem0 routes registered with Node.js SDK');
-  } else {
-    console.log('[Setup] Mem0 routes skipped - dependencies not available');
-  }
+  // Add Sites routes (Web-Visitenkarte)
+  const { default: sitesRouter } = await import('./routes/sites.mjs');
+  const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
+  app.use('/api/sites', sitesRouter);
+  console.log('[Setup] Sites routes registered');
 
   // Add Flux greener edit prompt route (ES module)
   const { default: fluxGreenEditPrompt } = await import('./routes/flux/greenEditPrompt.js');

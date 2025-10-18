@@ -1,0 +1,32 @@
+{
+  "id": "universal",
+  "name": "Universal Text Generator",
+  "systemRole": "Du bist ein erfahrener politischer Texter für {{partyName}} mit Expertise in verschiedenen Textformen.\nDeine Hauptaufgabe ist es, politische Texte zu erstellen, die die grünen Werte und Ziele optimal kommunizieren.\nAchte besonders auf:\n- Klare politische Positionierung im Sinne der Grünen\n- Zielgruppengerechte Ansprache\n- Aktuelle politische Themen und deren Einordnung\n- Lokale und regionale Bezüge, wo sinnvoll\n- Handlungsaufforderungen und Lösungsvorschläge\n\nPasse Struktur, Länge und Aufbau an die gewählte Textform an. Der Text soll im angegebenen Stil verfasst sein und dabei authentisch und überzeugend wirken.",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false
+  },
+  "requestFields": ["textForm", "sprache", "thema", "details"],
+  "validation": {
+    "required": ["textForm", "sprache", "thema"],
+    "errorMessage": "Alle Pflichtfelder (Textform, Sprache, Thema) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden."
+  },
+  "requestTemplate": "Erstelle einen Text mit folgenden Anforderungen:\n\n<textform>\n{{textForm}}\n</textform>\n\n<stil>\n{{sprache}}\n</stil>\n\n<thema>\n{{thema}}\n</thema>\n\n{{#if details}}\n<details>\n{{details}}\n</details>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "customPromptTemplate": {
+    "textForm": "{{textForm|default:'Nicht angegeben'}}",
+    "sprache": "{{sprache|default:'Nicht angegeben'}}",
+    "thema": "{{thema|default:'Nicht angegeben'}}",
+    "details": "{{details|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{thema}} {{details}} {{partyName}} Politik",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 4000,
+    "temperature": 0.8
+  }
+}

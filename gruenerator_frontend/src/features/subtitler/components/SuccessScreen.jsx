@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+
+const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const AnimatedCheckmark = () => {
   return (
@@ -138,7 +140,11 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
 
         <div className="social-text-result">
           <h3>Dein Instagram Reel Text:</h3>
-          <p>{socialText}</p>
+          <div className="antrag-text-content">
+            <Suspense fallback={<div>Loading...</div>}>
+              <ReactMarkdown>{socialText}</ReactMarkdown>
+            </Suspense>
+          </div>
           <CopyButton content={socialText} />
         </div>
       </div>

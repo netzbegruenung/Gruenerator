@@ -1,14 +1,31 @@
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
-// const { nodewhisper } = require('nodejs-whisper'); // Commented out - module not installed
-const { transcribeWithOpenAI, formatSegmentsToText } = require('./openAIService');
+const { transcribeWithAssemblyAI } = require('./assemblyAIService');
 const { extractAudio } = require('./videoUploadService');
 // UNUSED: Short subtitle generator service commented out - only manual mode is used
 // const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
 const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
 const { generateWordHighlightSubtitles } = require('./wordHighlightSubtitleService');
 const { startBackgroundCompression } = require('./backgroundCompressionService');
+
+/**
+ * Transcribe audio using AssemblyAI (ONLY provider - provides word timestamps)
+ * @param {string} audioPath - Path to audio file
+ * @param {boolean} requestWordTimestamps - Whether to request word timestamps
+ * @returns {Promise<Object>} - Transcription result in consistent format
+ */
+async function transcribeWithProvider(audioPath, requestWordTimestamps = false) {
+    console.log('[transcriptionService] Using AssemblyAI EU provider');
+
+    try {
+        return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps);
+    } catch (error) {
+        console.error('[transcriptionService] AssemblyAI transcription failed:', error.message);
+        throw new Error(`Transcription failed - AssemblyAI is required for word timestamps: ${error.message}`);
+    }
+}
+
 
 // UNUSED: parseTimestamp function commented out - only manual mode is used
 /*
@@ -236,28 +253,28 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
     } else
     */
     if (subtitlePreference === 'manual') {
-        console.log("[transcriptionService] Requesting word timestamps from OpenAI for manual processing");
-        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
-        
+        console.log("[transcriptionService] Requesting word timestamps for manual processing");
+        const transcriptionResult = await transcribeWithProvider(audioPath, true);
+
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-            throw new Error('Invalid transcription data received from OpenAI');
+            throw new Error('Invalid transcription data received from provider');
         }
-        
-        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
-        
+
+        console.log(`[transcriptionService] Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+
         // Use manual service to generate 2-second intelligent segments
         finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
 
     } else if (subtitlePreference === 'word') {
-        console.log("[transcriptionService] Requesting word timestamps from OpenAI for word highlight processing");
-        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
-        
+        console.log("[transcriptionService] Requesting word timestamps for word highlight processing");
+        const transcriptionResult = await transcribeWithProvider(audioPath, true);
+
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-            throw new Error('Invalid transcription data received from OpenAI');
+            throw new Error('Invalid transcription data received from provider');
         }
-        
-        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
-        
+
+        console.log(`[transcriptionService] Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+
         // Use word highlight service to generate individual word segments
         finalTranscription = await generateWordHighlightSubtitles(transcriptionResult.text, transcriptionResult.words);
 
@@ -274,14 +291,14 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
         
         // Fallback to manual mode if unknown mode provided
         console.log(`[transcriptionService] Unknown mode '${subtitlePreference}', using manual mode as fallback. Supported modes: 'manual', 'word'`);
-        const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
-        
+        const transcriptionResult = await transcribeWithProvider(audioPath, true);
+
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-            throw new Error('Invalid transcription data received from OpenAI');
+            throw new Error('Invalid transcription data received from provider');
         }
-        
-        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
-        
+
+        console.log(`[transcriptionService] Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+
         // Use manual service to generate 2-second intelligent segments
         finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
     }
@@ -294,7 +311,7 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
     }
 
     if (!finalTranscription) {
-      throw new Error('Keine Transkription von OpenAI erhalten oder verarbeitet');
+      throw new Error('Keine Transkription vom Provider erhalten oder verarbeitet');
     }
 
     // Log segment timing details for debugging

@@ -6,7 +6,7 @@ import ActionButtons from '../../../components/common/ActionButtons';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
-import SearchModeFilter from './SearchModeFilter';
+import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
 
 // Search Feature CSS - Loaded only when this feature is accessed
 import '../styles/SearchPage.css';
@@ -114,31 +114,34 @@ SourceList.propTypes = {
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchMode, setSearchMode] = useState('web'); // 'web', 'standard' or 'deep'
-  const [showFilters, setShowFilters] = useState(false);
-  const { 
+  const [searchMode, setSearchMode] = useState('web');
+  const {
     results,
-    usedSources, 
+    usedSources,
     analysis,
-    loading, 
-    error, 
+    loading,
+    error,
     search,
     deepSearch,
     webSearch,
     webResults,
     dossier,
     categorizedSources,
-    sourceRecommendations = []
+    sourceRecommendations = [],
+    citations = [],
+    citationSources = []
   } = useSearch();
 
   const handleSearch = async (query) => {
     if (searchMode === 'deep') {
       await deepSearch(query);
-    } else if (searchMode === 'web') {
-      await webSearch(query);
     } else {
-      await search(query);
+      await webSearch(query);
     }
+  };
+
+  const toggleDeepResearch = () => {
+    setSearchMode(prev => prev === 'deep' ? 'web' : 'deep');
   };
 
   // Berechne die nicht verwendeten Quellen
@@ -146,38 +149,27 @@ const SearchPage = () => {
     result => !usedSources.some(used => used.url === result.url)
   );
 
-  // Filter toggle handler
-  const handleFilterToggle = () => {
-    setShowFilters(!showFilters);
-  };
-
   return (
     <ErrorBoundary>
+      <CitationModal />
       <div className="search-page-container">
         <div className="search-header">
           <h1>Grünerator Suche</h1>
           <p className="search-subtitle">KI-Suche des Grünerators</p>
         </div>
         
-        <SearchBar 
-          onSearch={handleSearch} 
-          loading={loading} 
+        <SearchBar
+          onSearch={handleSearch}
+          loading={loading}
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder={
-            searchMode === 'deep' ? 'Thema für umfassende Recherche eingeben...' :
-            searchMode === 'web' ? 'Web-Suchbegriff eingeben...' :
-            'Suchbegriff eingeben...'
+            searchMode === 'deep'
+              ? 'Thema für umfassende Recherche eingeben...'
+              : 'Web-Suchbegriff eingeben...'
           }
-          onFilterClick={handleFilterToggle}
-          filterComponent={
-            <SearchModeFilter
-              activeSearchMode={searchMode}
-              onSearchModeChange={setSearchMode}
-            />
-          }
-          showFilters={showFilters}
-          filterTitle="Suchmodus"
+          onDeepResearchToggle={toggleDeepResearch}
+          isDeepResearchActive={searchMode === 'deep'}
         />
         
         {loading && searchMode === 'deep' && (
@@ -211,12 +203,25 @@ const SearchPage = () => {
                 </div>
                 <div className="analysis-content">
                   <h2>🤖 AI-Zusammenfassung</h2>
-                  <ContentRenderer 
-                    value={webResults.summary.text} 
-                    useMarkdown={true} 
-                    componentName="web-search-summary" 
+                  <ContentRenderer
+                    value={webResults.summary.text}
+                    useMarkdown={true}
+                    componentName="web-search-summary"
                   />
                 </div>
+
+                {/* Display citations for web search summary */}
+                {searchMode === 'web' && citations.length > 0 && (
+                  <div className="citation-sources-section">
+                    <CitationSourcesDisplay
+                      sources={citationSources}
+                      citations={citations}
+                      linkConfig={{ type: 'none' }}
+                      title="🔗 Quellen der Zusammenfassung"
+                      className="search-citation-sources"
+                    />
+                  </div>
+                )}
               </div>
             )}
             
@@ -275,6 +280,20 @@ const SearchPage = () => {
                   componentName="deep-research-dossier"
                 />
               </div>
+
+              {/* Display citations for deep research dossier */}
+              {searchMode === 'deep' && citations.length > 0 && (
+                <div className="citation-sources-section">
+                  <CitationSourcesDisplay
+                    sources={citationSources}
+                    citations={citations}
+                    linkConfig={{ type: 'none' }}
+                    title="🔗 Quellen des Dossiers"
+                    className="search-citation-sources"
+                    crossReferenceMessage="Das Dossier basiert auf mehreren vertrauenswürdigen Quellen"
+                  />
+                </div>
+              )}
             </div>
             
             {categorizedSources && Object.keys(categorizedSources).length > 0 && (

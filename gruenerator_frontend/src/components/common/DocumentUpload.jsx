@@ -1,19 +1,29 @@
 import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle, lazy } from 'react';
-import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiClock, HiCheckCircle, HiExclamationCircle, HiEye, HiX } from 'react-icons/hi';
+import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiClock, HiCheckCircle, HiExclamationCircle, HiEye, HiX, HiOutlineLink, HiOutlineCloudDownload } from 'react-icons/hi';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useDocumentsStore } from '../../stores/documentsStore';
+import { useWolkeStore } from '../../stores/wolkeStore';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/urlValidation';
 import Spinner from './Spinner';
 import FeatureToggle from './FeatureToggle';
+import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
+
+// Import button styles for modal
+import '../../assets/styles/components/ui/button.css';
+import '../../assets/styles/common/markdown-styles.css';
+import './DocumentUpload.css';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FILE_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-  'application/vnd.oasis.opendocument.text', // ODT
-  'application/vnd.ms-excel', // XLS
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' // XLSX
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PPTX
+  'image/png',
+  'image/jpeg',
+  'image/avif',
+  'text/plain',
+  'text/markdown'
 ];
 
 // Document Preview Component
@@ -134,17 +144,21 @@ const DocumentUpload = forwardRef(({
   const [selectedFile, setSelectedFile] = useState(null);
   const [ocrMethod, setOcrMethod] = useState('tesseract');
   
-  // URL crawling mode state
-  const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'url'
+  // Upload mode state
+  const [uploadMode, setUploadMode] = useState('file'); // 'file', 'url', or 'wolke'
   const [urlInput, setUrlInput] = useState('');
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
+
+  // Wolke import state
+  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState([]);
+  const [wolkeImportProgress, setWolkeImportProgress] = useState(0);
   
   // Use controlled state when forceShowUploadForm is true
   const isFormVisible = forceShowUploadForm || showUploadForm;
   const fileInputRef = useRef(null);
   
   const { user } = useOptimizedAuth();
-  
+
   const {
     documents,
     isLoading,
@@ -155,8 +169,13 @@ const DocumentUpload = forwardRef(({
     crawlUrl,
     deleteDocument,
     clearError,
-    refreshDocument
+    refreshDocument,
+    browseWolkeFiles,
+    importWolkeFiles
   } = useDocumentsStore();
+
+  // Wolke store for preloading
+  const { progressivePreload, preloadFiles } = useWolkeStore();
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -171,6 +190,14 @@ const DocumentUpload = forwardRef(({
     }
   }, [user, fetchDocuments]);
 
+  // Preload Wolke data progressively on mount
+  React.useEffect(() => {
+    if (user) {
+      // Start progressive preloading in the background
+      progressivePreload();
+    }
+  }, [user, progressivePreload]);
+
   // Handle forceShowUploadForm prop - now using computed isFormVisible instead of useEffect
 
   // Debug log for showUploadForm state changes
@@ -181,11 +208,12 @@ const DocumentUpload = forwardRef(({
   // Validate file
   const validateFile = useCallback((file) => {
     if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
-      return 'Nur PDF-, DOCX-, ODT- und Excel-Dateien sind erlaubt.';
+      return 'Nur PDF, Word (DOCX), PowerPoint (PPTX), Bilder (PNG, JPG, AVIF) und Textdateien sind erlaubt.';
     }
     
     if (file.size > MAX_FILE_SIZE) {
-      return 'Datei ist zu groß. Maximum: 50MB.';
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      return `Datei ist zu groß. Maximum: 50MB. Ihre Datei: ${fileSizeMB}MB.`;
     }
     
     return null;
@@ -254,7 +282,23 @@ const DocumentUpload = forwardRef(({
     handleFileSelect(files);
   }, [handleFileSelect]);
 
-  // Handle upload (file or URL)
+  // Handle Wolke file selection
+  const handleWolkeFilesSelected = (files) => {
+    setSelectedWolkeFiles(files);
+    // Always auto-generate title based on selection
+    if (files.length === 1) {
+      const fileName = files[0].name;
+      const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, '');
+      setUploadTitle(nameWithoutExtension);
+    } else if (files.length > 1) {
+      setUploadTitle(`${files.length} Wolke-Dateien`);
+    } else {
+      // Clear title when no files selected
+      setUploadTitle('');
+    }
+  };
+
+  // Handle upload (file, URL, or Wolke)
   const handleUpload = async () => {
     if (uploadMode === 'file') {
       if (!selectedFile || !uploadTitle.trim()) {
@@ -302,6 +346,29 @@ const DocumentUpload = forwardRef(({
         console.error('[DocumentUpload] URL crawl failed:', error);
         // Error is already set in store
       }
+    } else if (uploadMode === 'wolke') {
+      if (selectedWolkeFiles.length === 0 || !uploadTitle.trim()) {
+        alert('Bitte wählen Sie Wolke-Dateien aus und geben Sie einen Titel ein.');
+        return;
+      }
+
+      try {
+        console.log('[DocumentUpload] Starting Wolke import process...');
+        const result = await importWolkeFiles(
+          selectedWolkeFiles[0].shareLinkId,
+          selectedWolkeFiles,
+          setWolkeImportProgress
+        );
+        console.log('[DocumentUpload] Wolke import successful, hiding form and calling onUploadComplete');
+        resetForm();
+
+        if (onUploadComplete) {
+          onUploadComplete(result);
+        }
+      } catch (error) {
+        console.error('[DocumentUpload] Wolke import failed:', error);
+        // Error is already set in store
+      }
     }
   };
 
@@ -313,7 +380,17 @@ const DocumentUpload = forwardRef(({
     setUrlInput('');
     setOcrMethod('tesseract');
     setUploadMode('file');
+    setSelectedWolkeFiles([]);
+    setWolkeImportProgress(0);
   };
+
+  // Handle hover over Wolke tab to accelerate preloading
+  const handleWolkeModeHover = useCallback(() => {
+    if (user) {
+      // Immediately start/accelerate Wolke preloading on hover
+      progressivePreload();
+    }
+  }, [user, progressivePreload]);
 
   // Handle delete
   const handleDelete = async (documentId, documentTitle) => {
@@ -443,13 +520,47 @@ const DocumentUpload = forwardRef(({
                   </button>
                 </div>
                 <div className="document-preview-content">
+                  {/* Mode Selector */}
+                  <div className="upload-mode-selector" style={{ marginBottom: 'var(--spacing-medium)' }}>
+                    <div className="mode-tabs">
+                      <button
+                        type="button"
+                        className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
+                        onClick={() => setUploadMode('file')}
+                        disabled={isUploading}
+                      >
+                        <HiOutlineDocumentAdd className="icon" />
+                        Datei
+                      </button>
+                      <button
+                        type="button"
+                        className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
+                        onClick={() => setUploadMode('url')}
+                        disabled={isUploading}
+                      >
+                        <HiOutlineLink className="icon" />
+                        URL
+                      </button>
+                      <button
+                        type="button"
+                        className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
+                        onClick={() => setUploadMode('wolke')}
+                        onMouseEnter={handleWolkeModeHover}
+                        disabled={isUploading}
+                      >
+                        <HiOutlineCloudDownload className="icon" />
+                        Wolke
+                      </button>
+                    </div>
+                  </div>
+
                   {uploadMode === 'file' ? (
                     <>
                       <div className="form-field-wrapper">
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept=".pdf,.docx,.odt,.xls,.xlsx"
+                          accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.avif,.txt,.md"
                           onChange={handleInputChange}
                           style={{ display: 'none' }}
                         />
@@ -469,14 +580,14 @@ const DocumentUpload = forwardRef(({
                           >
                             <div className="file-placeholder">
                               <HiOutlineDocumentAdd className="upload-icon" />
-                              <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
+                              <p>PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hier ablegen oder klicken zum Auswählen</p>
                               <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
                             </div>
                           </div>
                         )}
                       </div>
                     </>
-                  ) : (
+                  ) : uploadMode === 'url' ? (
                     <>
                       <div className="form-field-wrapper">
                         {/* URL Input */}
@@ -492,21 +603,24 @@ const DocumentUpload = forwardRef(({
                           disabled={isUploading}
                         />
                         <p className="field-help">
-                          Geben Sie die URL einer Website ein, die gecrawlt werden soll. 
+                          Geben Sie die URL einer Website ein, die gecrawlt werden soll.
                           Der Inhalt wird automatisch extrahiert und als Dokument hinzugefügt.
                         </p>
                       </div>
-                      
-                      {/* Back to file upload option */}
-                      <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
-                        <button
-                          type="button"
-                          onClick={() => setUploadMode('file')}
-                          className="upload-mode-link"
-                          disabled={isUploading}
-                        >
-                          Zurück zur Datei-Upload
-                        </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Wolke Import */}
+                      <div className="form-field-wrapper">
+                        <label className="form-label">
+                          Wolke-Dateien auswählen *
+                        </label>
+                        <WolkeFilePicker
+                          onFilesSelected={handleWolkeFilesSelected}
+                          onCancel={() => {}} // No cancel needed for inline mode
+                          selectedFiles={selectedWolkeFiles}
+                          inline={true}
+                        />
                       </div>
                     </>
                   )}
@@ -547,34 +661,39 @@ const DocumentUpload = forwardRef(({
                   */}
                 </div>
                 <div className="document-preview-actions">
-                  <button 
+                  <button
                     onClick={handleUpload}
-                    className="btn-primary"
-                    disabled={isUploading || 
+                    className="btn-primary size-s"
+                    disabled={isUploading ||
                       (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
-                      (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
+                      (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim())) ||
+                      (uploadMode === 'wolke' && (selectedWolkeFiles.length === 0 || !uploadTitle.trim()))
                     }
                   >
                     {isUploading ? (
                       <>
                         <Spinner size="xsmall" />
-                        {uploadMode === 'file' ? 'Wird hochgeladen...' : 'Website wird verarbeitet...'}
+                        {uploadMode === 'file' ? 'Wird hochgeladen...' :
+                         uploadMode === 'url' ? 'Website wird verarbeitet...' :
+                         'Wolke-Dateien werden importiert...'}
                       </>
                     ) : (
-                      uploadMode === 'file' ? 'Hochladen' : 'Website crawlen'
+                      uploadMode === 'file' ? 'Hochladen' :
+                      uploadMode === 'url' ? 'Website crawlen' :
+                      'Wolke-Dateien importieren'
                     )}
                   </button>
                   {uploadMode === 'file' && selectedFile && (
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="btn-secondary"
+                      className="btn-primary size-s"
                       disabled={isUploading}
                     >
                       Datei ändern
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={() => {
                       if (forceShowUploadForm) {
                         // When controlled by parent, notify parent to close
@@ -583,7 +702,7 @@ const DocumentUpload = forwardRef(({
                         resetForm();
                       }
                     }}
-                    className="btn-secondary"
+                    className="btn-primary size-s"
                     disabled={isUploading}
                   >
                     Abbrechen
@@ -594,6 +713,40 @@ const DocumentUpload = forwardRef(({
           ) : (
             /* Inline Upload Form */
             <div className="knowledge-entry knowledge-entry-bordered" style={{ marginBottom: 'var(--spacing-medium)' }}>
+              {/* Mode Selector */}
+              <div className="upload-mode-selector" style={{ marginBottom: 'var(--spacing-medium)' }}>
+                <div className="mode-tabs">
+                  <button
+                    type="button"
+                    className={`mode-tab ${uploadMode === 'file' ? 'active' : ''}`}
+                    onClick={() => setUploadMode('file')}
+                    disabled={isUploading}
+                  >
+                    <HiOutlineDocumentAdd className="icon" />
+                    Datei
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-tab ${uploadMode === 'url' ? 'active' : ''}`}
+                    onClick={() => setUploadMode('url')}
+                    disabled={isUploading}
+                  >
+                    <HiOutlineLink className="icon" />
+                    URL
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
+                    onClick={() => setUploadMode('wolke')}
+                    onMouseEnter={handleWolkeModeHover}
+                    disabled={isUploading}
+                  >
+                    <HiOutlineCloudDownload className="icon" />
+                    Wolke
+                  </button>
+                </div>
+              </div>
+
               {uploadMode === 'file' ? (
                 <>
                   <div className="form-field-wrapper">
@@ -604,7 +757,7 @@ const DocumentUpload = forwardRef(({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.docx,.odt,.xls,.xlsx"
+                      accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.avif,.txt,.md"
                       onChange={handleInputChange}
                       style={{ display: 'none' }}
                     />
@@ -624,14 +777,14 @@ const DocumentUpload = forwardRef(({
                       >
                         <div className="file-placeholder">
                           <HiOutlineDocumentAdd className="upload-icon" />
-                          <p>PDF-, DOCX-, ODT- oder Excel-Datei hier ablegen oder klicken zum Auswählen</p>
-                          <p className="file-requirements">Max. 50 Seiten, 50MB</p>
+                          <p>PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hier ablegen oder klicken zum Auswählen</p>
+                          <p className="file-requirements">Max. 1.000 Seiten, 50MB</p>
                         </div>
                       </div>
                     )}
                   </div>
                 </>
-              ) : (
+              ) : uploadMode === 'url' ? (
                 <>
                   <div className="form-field-wrapper">
                     {/* URL Input */}
@@ -647,22 +800,24 @@ const DocumentUpload = forwardRef(({
                       disabled={isUploading}
                     />
                     <p className="field-help">
-                      Geben Sie die URL einer Website ein, die gecrawlt werden soll. 
+                      Geben Sie die URL einer Website ein, die gecrawlt werden soll.
                       Der Inhalt wird automatisch extrahiert und als Dokument hinzugefügt.
                     </p>
                   </div>
-                  
-                  {/* Back to file upload option */}
-                  <div className="form-field-wrapper" style={{ textAlign: 'center', marginTop: 'var(--spacing-small)' }}>
-                    <button
-                      type="button"
-                      onClick={() => setUploadMode('file')}
-                      className="style-as-link"
-                      style={{ fontSize: '0.9em', color: 'var(--font-color-muted)' }}
-                      disabled={isUploading}
-                    >
-                      Zurück zur Datei-Upload
-                    </button>
+                </>
+              ) : (
+                <>
+                  {/* Wolke Import */}
+                  <div className="form-field-wrapper">
+                    <label className="form-label">
+                      Wolke-Dateien auswählen *
+                    </label>
+                    <WolkeFilePicker
+                      onFilesSelected={handleWolkeFilesSelected}
+                      onCancel={() => {}} // No cancel needed for inline mode
+                      selectedFiles={selectedWolkeFiles}
+                      inline={true}
+                    />
                   </div>
                 </>
               )}
@@ -704,28 +859,33 @@ const DocumentUpload = forwardRef(({
 
               {/* Action Buttons */}
               <div className="profile-actions" style={{justifyContent: 'flex-start', gap: '10px'}}>
-                <button 
+                <button
                   onClick={handleUpload}
-                  className="btn-primary"
-                  disabled={isUploading || 
+                  className="btn-primary size-s"
+                  disabled={isUploading ||
                     (uploadMode === 'file' && (!selectedFile || !uploadTitle.trim())) ||
-                    (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim()))
+                    (uploadMode === 'url' && (!urlInput.trim() || !uploadTitle.trim())) ||
+                    (uploadMode === 'wolke' && (selectedWolkeFiles.length === 0 || !uploadTitle.trim()))
                   }
                 >
                   {isUploading ? (
                     <>
                       <Spinner size="xsmall" />
-                      {uploadMode === 'file' ? 'Wird hochgeladen...' : 'Website wird verarbeitet...'}
+                      {uploadMode === 'file' ? 'Wird hochgeladen...' :
+                       uploadMode === 'url' ? 'Website wird verarbeitet...' :
+                       'Wolke-Dateien werden importiert...'}
                     </>
                   ) : (
-                    uploadMode === 'file' ? 'Hochladen' : 'Website crawlen'
+                    uploadMode === 'file' ? 'Hochladen' :
+                    uploadMode === 'url' ? 'Website crawlen' :
+                    'Wolke-Dateien importieren'
                   )}
                 </button>
                 {uploadMode === 'file' && selectedFile && (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-secondary"
+                    className="btn-primary size-s"
                     disabled={isUploading}
                   >
                     Datei ändern
@@ -759,7 +919,7 @@ const DocumentUpload = forwardRef(({
               <HiDocumentText size={48} className="empty-state-icon" />
               <p>Keine Dokumente vorhanden</p>
               <p className="empty-state-description">
-                Laden Sie PDF-, DOCX-, ODT- oder Excel-Dokumente hoch, um sie als Wissensquelle zu nutzen.
+                Laden Sie PDF, Word (DOCX), PowerPoint (PPTX), Bilder oder Textdateien hoch, um sie als Wissensquelle zu nutzen.
               </p>
             </div>
           ) : (
@@ -817,7 +977,6 @@ const DocumentUpload = forwardRef(({
           )}
         </div>
       )}
-
 
     </div>
   );

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { tavilyService } = require('../utils/searchUtils');
+const { webSearchService } = require('../utils/searchUtils');
 const { HTML_FORMATTING_INSTRUCTIONS, MARKDOWN_CHAT_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
 
 const WEB_SEARCH_TOOL_NAME = "web_search";
@@ -231,13 +231,13 @@ router.post('/', async (req, res) => {
     let systemPrompt, userPrompt, apiMessages, requestOptions = {};
 
     if (mode === 'searchExplicit') {
-      // This mode directly uses Tavily without going through Claude's tool use initially
+      // This mode directly uses Mistral Web Search without going through Claude's tool use initially
       try {
         const searchQuery = `${message} antworte auf deutsch`;
         console.log(`[claude_chat] Explicit search query: ${searchQuery}`);
 
-        const searchResults = await tavilyService.search(searchQuery, {
-          includeAnswer: "advanced", // Requesting an answer from Tavily
+        const searchResults = await webSearchService.search(searchQuery, {
+          includeAnswer: "advanced", // Requesting comprehensive search results
           maxResults: 5
         });
 
@@ -489,7 +489,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
       } else if (toolCallDetails.name === WEB_SEARCH_TOOL_NAME) {
         console.log(`[claude_chat] Executing tool '${WEB_SEARCH_TOOL_NAME}' with input:`, toolInput);
         try {
-          const searchResults = await tavilyService.search(toolInput.query, {
+          const searchResults = await webSearchService.search(toolInput.query, {
             includeAnswer: "advanced",
             maxResults: 5
           });

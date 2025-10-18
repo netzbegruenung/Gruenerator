@@ -17,8 +17,9 @@ build
 .env.development.local
 .env.test.local
 .env.production.local
+.env.backup
+*.env.backup
 .cursorrules
-CLAUDE.md
 .editorconfig
 mcp.json
 
@@ -38,9 +39,6 @@ gruenerator_backend/fastembed_cache/
 
 # Playwright MCP files
 .playwright-mcp/
-
-# Large files
-*.pack
 
 # Dataset files
 gruenerator_backend/public/dataset_*.json
@@ -72,27 +70,30 @@ gruenerator_backend/uploads/*.zip
 gruenerator_backend/uploads/*.png
 gruenerator_backend/uploads/*.zip:Zone.Identifier
 
-# Temporarily ignore admin feature
-# gruenerator_frontend/src/features/admin/
-
-#claudecode & cursor files
+# Claude Code & Cursor files
 CLAUDE.md
 .cursor
 .claude/
+.cursorignore
+AGENTS.md
 
-#scripts
-scripts
+# Scripts directory
+scripts/
 
-docs
+# Documentation (local development)
+docs/
+!gruenerator_backend/docs/
 
-bfg-1.14.0.jar
-
-
+# Backup files
 backup/
 
 # AWS files and directories
 aws/
 
-# Cursor and agent files
-.cursorignore
-AGENTS.md
+# Storage files (crawler and queue data)
+gruenerator_backend/storage/
+
+# Root-level temporary files
+/test_*.js
+/add_*.sql
+bfg-*.jar

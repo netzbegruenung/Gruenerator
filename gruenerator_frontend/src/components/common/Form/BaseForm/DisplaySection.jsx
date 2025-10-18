@@ -50,6 +50,14 @@ const DisplaySection = forwardRef(({
   onErrorDismiss,
   onEditModeToggle,
   isEditModeActive = false,
+  showEditModeToggle = true,
+  onRequestEdit,
+  showUndoControls = true,
+  showRedoControls = true,
+  renderActions = null,
+  showResetButton = false,
+  onReset,
+  renderEmptyState = null,
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -67,10 +75,33 @@ const DisplaySection = forwardRef(({
   // Use store state with prop fallback
   const saveLoading = storeSaveLoading || propSaveLoading;
 
+  // Determine the content to display and use for actions
+  // Priority: store content -> props fallback (no edit mode)
+  const activeContent = React.useMemo(() => {
+    if (storeGeneratedText) {
+      return storeGeneratedText;
+    } else {
+      return generatedContent || value || '';
+    }
+  }, [storeGeneratedText, generatedContent, value]);
+
+  const hasRenderableContent = React.useMemo(() => {
+    if (!activeContent) return false;
+    if (typeof activeContent === 'string') {
+      return activeContent.trim().length > 0;
+    }
+    if (typeof activeContent === 'object') {
+      if (activeContent.sharepic) return true;
+      if (typeof activeContent.content === 'string' && activeContent.content.trim().length > 0) return true;
+      if (typeof activeContent.text === 'string' && activeContent.text.trim().length > 0) return true;
+      if (activeContent.social?.content && typeof activeContent.social.content === 'string' && activeContent.social.content.trim().length > 0) return true;
+    }
+    return false;
+  }, [activeContent]);
 
   const handleGeneratePost = React.useCallback(async () => {
     if (!onGeneratePost) return;
-    
+
     setGeneratePostLoading(true);
     try {
       await onGeneratePost();
@@ -79,15 +110,6 @@ const DisplaySection = forwardRef(({
       setGeneratePostLoading(false);
     }
   }, [onGeneratePost]);
-
-  // Determine the content to display and use for actions
-  // Priority: store content -> props fallback (no edit mode)
-  let activeContent;
-  if (storeGeneratedText) {
-    activeContent = storeGeneratedText;
-  } else {
-    activeContent = generatedContent || value || '';
-  }
 
   // Check if activeContent is mixed content (has both social and sharepic)
   const isMixedContent = activeContent && typeof activeContent === 'object' && 
@@ -115,38 +137,53 @@ const DisplaySection = forwardRef(({
   }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
 
 
+  const actionButtons = (
+    <ActionButtons 
+      content={activeContent}
+      isEditing={false}
+      showExport={true}
+      showDownload={true}
+      showRegenerate={true}
+      showSave={!!onSave}
+      showSaveToLibrary={true}
+      showEditMode={showEditModeToggle}
+      showUndo={showUndoControls}
+      showRedo={showRedoControls}
+      onRegenerate={onGeneratePost}
+      onSave={onSave}
+      onSaveToLibrary={handleSaveToLibrary}
+      onEditModeToggle={onEditModeToggle}
+      isEditModeActive={isEditModeActive}
+      regenerateLoading={generatePostLoading || isStreaming}
+      saveLoading={saveLoading}
+      saveToLibraryLoading={saveToLibraryLoading}
+      exportableContent={currentExportableContent}
+      generatedPost={generatedPost}
+      generatedContent={activeContent}
+      title={storeGeneratedTextMetadata?.title || title}
+      componentName={componentName}
+      onRequestEdit={onRequestEdit}
+      showReset={showResetButton}
+      onReset={onReset}
+    />
+  );
+
+  const actionsNode = hasRenderableContent
+    ? (renderActions
+        ? renderActions(actionButtons)
+        : (
+            <div className="display-header">
+              {actionButtons}
+            </div>
+          ))
+    : null;
+
   return (
     <div className="display-container" id="display-section-container" ref={ref}>
-      <div className="display-header">
-          <ActionButtons 
-            content={activeContent}
-            isEditing={false}
-            showExport={true}
-            showDownload={true}
-            showRegenerate={true}
-            showSave={!!onSave}
-            showSaveToLibrary={true}
-            showEditMode={true}
-            showUndo={true}
-            showRedo={true}
-            onRegenerate={onGeneratePost}
-            onSave={onSave}
-            onSaveToLibrary={handleSaveToLibrary}
-            onEditModeToggle={onEditModeToggle}
-            isEditModeActive={isEditModeActive}
-            regenerateLoading={generatePostLoading || isStreaming}
-            saveLoading={saveLoading}
-            saveToLibraryLoading={saveToLibraryLoading}
-            exportableContent={currentExportableContent}
-            generatedPost={generatedPost}
-            generatedContent={activeContent}
-            title={storeGeneratedTextMetadata?.title || title}
-            componentName={componentName}
-          />
-      </div>
-      {helpContent && (
+      {actionsNode}
+      {!hasRenderableContent && helpContent && (
         <div className="help-section">
-          <HelpDisplay 
+          <HelpDisplay
             content={helpContent.content}
             tips={helpContent.tips}
             hasGeneratedContent={!!activeContent}
@@ -154,14 +191,20 @@ const DisplaySection = forwardRef(({
         </div>
       )}
       <div className="display-content">
-        <ErrorDisplay error={error} onDismiss={onErrorDismiss} />
-        <ContentRenderer
-          value={activeContent}
-          generatedContent={storeGeneratedText || generatedContent || activeContent}
-          useMarkdown={useMarkdown}
-          componentName={componentName}
-          helpContent={helpContent}
-        />
+        {hasRenderableContent ? (
+          <>
+            <ErrorDisplay error={error} onDismiss={onErrorDismiss} />
+            <ContentRenderer
+              value={activeContent}
+              generatedContent={storeGeneratedText || generatedContent || activeContent}
+              useMarkdown={useMarkdown}
+              componentName={componentName}
+              helpContent={helpContent}
+            />
+          </>
+        ) : (
+          renderEmptyState ? renderEmptyState() : null
+        )}
       </div>
       {/* Render additional display actions if provided */}
       {displayActions && (
@@ -199,10 +242,25 @@ DisplaySection.propTypes = {
   onErrorDismiss: PropTypes.func,
   onEditModeToggle: PropTypes.func,
   isEditModeActive: PropTypes.bool,
+  showEditModeToggle: PropTypes.bool,
+  onRequestEdit: PropTypes.func,
+  showUndoControls: PropTypes.bool,
+  showRedoControls: PropTypes.bool,
+  renderActions: PropTypes.func,
+  showResetButton: PropTypes.bool,
+  onReset: PropTypes.func,
+  renderEmptyState: PropTypes.func,
 };
 
 DisplaySection.defaultProps = {
-  displayActions: null
+  displayActions: null,
+  onRequestEdit: null,
+  showUndoControls: true,
+  showRedoControls: true,
+  renderActions: null,
+  showResetButton: false,
+  onReset: undefined,
+  renderEmptyState: null
 };
 
 DisplaySection.displayName = 'DisplaySection';

@@ -1,660 +1,1133 @@
 const express = require('express');
 const router = express.Router();
-const { formatUserContent } = require('../../../utils/promptUtils');
-const { 
-  processAndBuildAttachments,
-  hasValidAttachments
-} = require('../../../utils/attachmentUtils');
-const { 
-  PromptBuilderWithExamples 
-} = require('../../../utils/promptBuilderCompat');
+const prompts = require('../../../prompts/sharepic');
+const aiShortenerService = require('../../../services/aiShortenerService');
 
-// Unified handler for all sharepic types: dreizeilen, zitat, headline, info
-const handleClaudeRequest = async (req, res, type = 'dreizeilen') => {
-  const logPrefix = `[${type.charAt(0).toUpperCase() + type.slice(1)}-Claude API]`;
-  console.log(`${logPrefix} Received request:`, req.body);
-  
-  const { thema, details, line1, line2, line3, quote, name, customPrompt, attachments, usePrivacyMode, provider } = req.body;
-  
-  if (customPrompt) {
-    console.log(`${logPrefix} Using custom prompt (knowledge) with length:`, customPrompt.length);
+// Helper function to detect if an error is related to throttling/temporary issues
+const isThrottlingError = (error) => {
+  if (!error || typeof error !== 'string') return false;
+  const errorLower = error.toLowerCase();
+  return errorLower.includes('throttl') ||
+         errorLower.includes('rate limit') ||
+         errorLower.includes('capacity') ||
+         errorLower.includes('too many requests') ||
+         errorLower.includes('service unavailable');
+};
+
+// Template helper function to replace placeholders
+// Helper function to extract clean JSON from malformed responses
+const extractCleanJSON = (content) => {
+  if (!content || typeof content !== 'string') {
+    return null;
   }
 
-  // Process attachments if provided
-  let attachmentResult = { documents: [], error: null, hasAttachments: false };
-  if (hasValidAttachments(attachments)) {
-    attachmentResult = await processAndBuildAttachments(
-      attachments,
-      usePrivacyMode,
-      `sharepic_${type}`,
-      req.user?.id || 'unknown'
-    );
+  // Remove markdown backticks and "json" language markers
+  const cleanedContent = content
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim();
 
-    if (attachmentResult.error) {
-      console.error(`${logPrefix} Attachment processing error:`, attachmentResult.error);
-      return res.status(400).json({
-        success: false,
-        error: 'Fehler bei der Verarbeitung der Anhänge',
-        details: attachmentResult.error
-      });
+  // Try to find the first valid JSON object
+  const jsonMatch = cleanedContent.match(/\{[\s\S]*?\}/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return parsed;
+    } catch (parseError) {
+      console.warn('[extractCleanJSON] Parse error:', parseError.message);
+    }
+  }
+
+  return null;
+};
+
+// Helper function to extract clean JSON array from malformed responses
+const extractCleanJSONArray = (content) => {
+  if (!content || typeof content !== 'string') {
+    return null;
+  }
+
+  // Remove markdown backticks and "json" language markers
+  const cleanedContent = content
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Try to find valid JSON array
+  const jsonMatch = cleanedContent.match(/\[[\s\S]*?\]/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (parseError) {
+      console.warn('[extractCleanJSONArray] Parse error:', parseError.message);
+    }
+  }
+
+  return null;
+};
+
+const replaceTemplate = (template, data) => {
+  if (!template || typeof template !== 'string') {
+    return template;
+  }
+
+  const result = template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    const cleanKey = key.trim();
+
+    // Handle conditional logic
+    if (cleanKey.includes('#if')) {
+      // Simple conditional handling for (and thema details)
+      if (cleanKey.includes('and thema details')) {
+        return data.thema && data.details ? '' : '{{else}}';
+      }
+      return '';
     }
 
-    console.log(`${logPrefix} Processed ${attachmentResult.documents.length} attachments`);
+    if (cleanKey === '#else' || cleanKey === '/if') {
+      return '';
+    }
+
+    // Handle default values
+    if (cleanKey.includes('|default:')) {
+      const [actualKey, defaultValue] = cleanKey.split('|default:');
+      const value = data[actualKey.trim()];
+      return value !== undefined && value !== null && value !== ''
+        ? value
+        : defaultValue.replace(/'/g, '');
+    }
+
+    return data[cleanKey] || '';
+  });
+
+  return result;
+};
+
+const sanitizeInfoField = (value) => {
+  if (typeof value !== 'string') return value;
+  return value
+    .replace(/\*\*/g, '') // Remove markdown bold
+    .replace(/#\w+/g, '') // Remove hashtags
+    .replace(/\n+/g, ' ') // Replace newlines with spaces
+    .replace(/\s+/g, ' ') // Normalize multiple spaces
+    .trim();
+};
+
+// Normalize slightly messy model responses into valid JSON arrays
+const extractQuoteArray = (content) => {
+  if (typeof content !== 'string') {
+    return null;
   }
+
+  const withoutCodeFences = content
+    .replace(/```(?:json)?/gi, '')
+    .replace(/```/g, '');
+
+  const match = withoutCodeFences.match(/\[[\s\S]*\]/);
+  if (!match) {
+    return null;
+  }
+
+  let candidate = match[0]
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/,\s*(?=[}\]])/g, '');
 
   try {
-    console.log(`${logPrefix} Preparing request to Claude API`);
-    
-    // Generate type-specific prompt and AI request parameters
-    let aiRequest;
-    
-    if (type === 'dreizeilen') {
-      // Use PromptBuilder for better structure and attachment support
-      const builder = new PromptBuilderWithExamples('sharepic_dreizeilen')
-        .setSystemRole('Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.');
-
-      // Add documents if present
-      if (attachmentResult.documents.length > 0) {
-        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
-      }
-
-      // Add custom instructions if present
-      if (customPrompt) {
-        builder.setInstructions(customPrompt);
-      }
-
-      const baseXmlPrompt = `
-<context>
-Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kurze, prägnante Slogans für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle 5 verschiedene prägnante, zusammenhängende Slogans zum gegebenen Thema. Jeder Slogan soll:
-- Einen durchgängigen Gedanken oder eine Botschaft über drei Zeilen vermitteln
-- Die Werte der Grünen widerspiegeln
-- Inspirierend und zukunftsorientiert sein
-- Für eine breite Zielgruppe geeignet sein
-- Fachbegriffe und komplexe Satzkonstruktionen vermeiden
-</instructions>
-
-<format>
-- Formuliere jeden Slogan als einen zusammenhängenden Satz oder Gedanken
-- Teile jeden Satz auf drei Zeilen auf
-- Maximal 15 Zeichen pro Zeile, inklusive Leerzeichen
-- Die Slogans sollten auch beim Lesen über die Zeilenumbrüche hinweg Sinn ergeben und flüssig sein
-- Vermeide Bindestriche oder andere Satzzeichen am Ende der Zeilen
-- Gib die Slogans im Format "Slogan 1:", "Slogan 2:" etc. aus
-- Schlage zusätzlich ein Wort als Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- Das Bild soll präzise zum Thema passen
-</format>
-
-<examples>
-<example>
-<input>
-Thema: Klimaschutz
-Details: Fokus auf erneuerbare Energien
-</input>
-<output>
-Slogan 1:
-Grüne Energie
-gestaltet heute
-unsere Zukunft
-
-Slogan 2:
-Sonnenkraft und
-Windenergie
-bewegen uns
-
-Slogan 3:
-Klimaschutz ist
-der Weg in die
-neue Zukunft
-
-Slogan 4:
-Gemeinsam für
-saubere Kraft
-von morgen
-
-Slogan 5:
-Naturenergie
-schafft Wandel
-für uns alle
-
-Suchbegriff: Windkraft, Solaranlage
-</output>
-</example>
-</examples>
-
-<task>
-${thema && details 
-  ? `Erstelle nun fünf verschiedene Slogans basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`
-  : `Optimiere diese Zeilen zu fünf verschiedenen Slogans:
-<input>
-Zeile 1: ${line1}
-Zeile 2: ${line2}
-Zeile 3: ${line3}
-</input>`}
-</task>
-`;
-
-      builder.setRequest(baseXmlPrompt);
-
-      // Build the final prompt
-      const promptResult = builder.build();
-
-      aiRequest = {
-        type: 'dreizeilen',
-        usePrivacyMode: usePrivacyMode || false,
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: 4000,
-          temperature: 1.0,
-          ...(usePrivacyMode && provider && { provider: provider })
-        }
-      };
-    } else if (type === 'zitat') {
-      // Use PromptBuilder for zitat type
-      const builder = new PromptBuilderWithExamples('sharepic_zitat')
-        .setSystemRole('Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit maximal 140 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Gib die Zitate immer als JSON-Array zurück.');
-
-      // Add documents if present
-      if (attachmentResult.documents.length > 0) {
-        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
-      }
-
-      // Add custom instructions if present
-      if (customPrompt) {
-        builder.setInstructions(customPrompt);
-      }
-
-      const basePrompt = thema && details
-        ? `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`
-        : `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen KEINE Hashtags enthalten und als klare, aussagekräftige Statements formuliert sein. Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat.`;
-
-      builder.setRequest(basePrompt);
-      const promptResult = builder.build();
-
-      aiRequest = {
-        type: 'zitat',
-        usePrivacyMode: usePrivacyMode || false,
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: 1000,
-          temperature: 0.7,
-          ...(usePrivacyMode && provider && { provider: provider })
-        }
-      };
-    } else if (type === 'zitat_pure') {
-      // Use PromptBuilder for zitat_pure type
-      const builder = new PromptBuilderWithExamples('sharepic_zitat_pure')
-        .setSystemRole('Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Deine Aufgabe ist es, prägnante und aussagekräftige Zitate mit exakt 100-160 Zeichen im Stil von Bündnis 90/Die Grünen zu erstellen. Die Zitate sollen KEINE Hashtags enthalten und als klare, lesbare Aussagen formuliert sein. Achte penibel auf die Zeichenzahl! Gib die Zitate immer als JSON-Array zurück.');
-
-      // Add documents if present
-      if (attachmentResult.documents.length > 0) {
-        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
-      }
-
-      // Add custom instructions if present
-      if (customPrompt) {
-        builder.setInstructions(customPrompt);
-      }
-
-      const basePrompt = thema && details
-        ? `Erstelle 4 verschiedene Zitate zum Thema "${thema}" basierend auf folgenden Details: ${details}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:
-- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
-- KEINE Hashtags enthalten
-- Als klare, aussagekräftige Statements formuliert sein
-- Perfekt für das grüne Farbtemplate geeignet sein
-- Vollständige, bedeutungsvolle Aussagen sein
-Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`
-        : `Optimiere folgendes Zitat: "${quote}" und erstelle 3 weitere Varianten. Die Zitate sollen:
-- Exakt 100-160 Zeichen lang sein (inklusive Leerzeichen und Satzzeichen)
-- KEINE Hashtags enthalten
-- Als klare, aussagekräftige Statements formuliert sein
-- Perfekt für das grüne Farbtemplate geeignet sein
-- Vollständige, bedeutungsvolle Aussagen sein
-Gib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein "quote" Feld hat. WICHTIG: Zähle die Zeichen genau!`;
-
-      builder.setRequest(basePrompt);
-      const promptResult = builder.build();
-
-      aiRequest = {
-        type: 'zitat_pure',
-        usePrivacyMode: usePrivacyMode || false,
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: 1000,
-          temperature: 0.7,
-          ...(usePrivacyMode && provider && { provider: provider })
-        }
-      };
-    } else if (type === 'headline') {
-      // Use PromptBuilder for headline type
-      const builder = new PromptBuilderWithExamples('sharepic_headline')
-        .setSystemRole('Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines zu erstellen.');
-
-      // Add documents if present
-      if (attachmentResult.documents.length > 0) {
-        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
-      }
-
-      // Add custom instructions if present
-      if (customPrompt) {
-        builder.setInstructions(customPrompt);
-      }
-
-      const baseXmlPrompt = `
-<context>
-Du bist ein erfahrener Headline-Texter für Bündnis 90/Die Grünen. Deine Aufgabe ist es, kraftvolle, prägnante Headlines für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle 5 verschiedene kraftvolle Headlines zum gegebenen Thema. Jede Headline soll:
-- Exakt 3 Zeilen haben
-- Pro Zeile 6-12 Zeichen (inklusive Leerzeichen)
-- Sehr kraftvoll und direkt sein
-- Die grüne Botschaft klar vermitteln
-- Emotional aktivierend wirken
-- Einfache, starke Worte verwenden
-- Perfekt für große, fette Schrift geeignet sein
-</instructions>
-
-<format>
-- Jede Headline besteht aus exakt 3 Zeilen
-- 6-12 Zeichen pro Zeile (inklusive Leerzeichen)
-- Verwende starke, emotionale Begriffe
-- Gib die Headlines im Format "Headline 1:", "Headline 2:" etc. aus
-- Schlage zusätzlich einen Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- WICHTIG: Zähle die Zeichen pro Zeile genau (6-12 Zeichen)!
-</format>
-
-<examples>
-<example>
-<input>
-Thema: Klimaschutz
-Details: Dringlichkeit des Handelns
-</input>
-<output>
-Headline 1:
-Für eine
-Zukunft
-in Grün.
-
-Headline 2:
-Klima
-schützen
-JETZT!
-
-Headline 3:
-Grüne
-Wende
-heute
-
-Headline 4:
-Natur
-bewahren
-für alle
-
-Headline 5:
-Umwelt
-retten
-gemeinsam
-
-Headline 6:
-Für unsere
-grüne Zukunft
-kämpfen!
-
-Suchbegriff: Klimaschutz, Umwelt
-</output>
-</example>
-</examples>
-
-<task>
-${thema && details 
-  ? `Erstelle nun fünf verschiedene Headlines basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`
-  : `Optimiere diese Zeilen zu fünf verschiedenen Headlines:
-<input>
-Zeile 1: ${line1}
-Zeile 2: ${line2}
-Zeile 3: ${line3}
-</input>`}
-</task>
-`;
-
-      builder.setRequest(baseXmlPrompt);
-      const promptResult = builder.build();
-
-      aiRequest = {
-        type: 'headline',
-        usePrivacyMode: usePrivacyMode || false,
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: 2000,
-          temperature: 0.8,
-          ...(usePrivacyMode && provider && { provider: provider })
-        }
-      };
-    } else if (type === 'info') {
-      // Use PromptBuilder for info type
-      const builder = new PromptBuilderWithExamples('sharepic_info')
-        .setSystemRole('Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte, informative Inhalte zu erstellen.');
-
-      // Add documents if present
-      if (attachmentResult.documents.length > 0) {
-        await builder.addDocuments(attachmentResult.documents, usePrivacyMode);
-      }
-
-      // Add custom instructions if present
-      if (customPrompt) {
-        builder.setInstructions(customPrompt);
-      }
-
-      const baseXmlPrompt = `
-<context>
-Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Deine Aufgabe ist es, strukturierte Informations-Inhalte für Sharepics zu erstellen.
-</context>
-
-<instructions>
-Erstelle 5 verschiedene strukturierte Info-Inhalte zum gegebenen Thema. Jeder Info-Inhalt soll:
-- Einen Header: Die Hauptaussage/Behauptung (50-60 Zeichen)
-- Einen Subheader: Schlüsselfakt oder wichtigster Beleg (80-120 Zeichen)
-- Einen Body: Zusätzliche Details und Kontext (150-250 Zeichen)
-- Sachlich aber engaging sein
-- Die grüne Position klar vermitteln
-- Faktisch fundiert und verständlich sein
-</instructions>
-
-<format>
-- Header: Hauptaussage (50-60 Zeichen)
-- Subheader: Wichtigster Beleg/Fakt (80-120 Zeichen)
-- Body: Zusätzliche Details (150-250 Zeichen)
-- Gib die Info-Inhalte im Format "Info 1:", "Info 2:" etc. aus
-- Schlage zusätzlich einen Suchbegriff für ein passendes Unsplash-Hintergrundbild vor
-- Halte dich an die Zeichenvorgaben, aber gib diese NICHT im Text aus
-</format>
-
-<examples>
-<example>
-<input>
-Thema: Gleichstellung
-Details: Fortschritte der Grünen bei Geschlechtergerechtigkeit
-</input>
-<output>
-Info 1:
-Header:
-Unsere Partei möchte Vorreiter*in für Gleichstellung sein!
-
-Subheader:
-Bündnis 90/Die Grünen ist die erste Partei in Deutschland mit verbindlicher Frauenquote.
-
-Body:
-Seit 1986 regelt das grüne Frauenstatut: Mindestens 50 % aller Ämter und Mandate für Frauen! Platz 1 auf Listen ist immer für eine Frau reserviert für echte Gleichstellung in der Politik.
-
-Info 2:
-Header:
-Gleichberechtigung ist unser Auftrag für die Zukunft.
-
-Subheader:
-Frauen verdienen noch immer 18% weniger als Männer bei gleicher Arbeit in Deutschland.
-
-Body:
-Wir fordern gleiche Bezahlung für gleiche Arbeit, bessere Vereinbarkeit von Familie und Beruf sowie mehr Frauen in Führungspositionen. Gleichstellung ist kein Privileg, sondern ein Grundrecht.
-
-Suchbegriff: Gleichberechtigung, Frauen
-</output>
-</example>
-</examples>
-
-<task>
-${thema && details 
-  ? `Erstelle nun fünf verschiedene Info-Inhalte basierend auf folgendem Input:
-<input>
-Thema: ${thema}
-Details: ${details}
-</input>`
-  : `Erstelle Info-Inhalte basierend auf diesem Thema: ${thema || 'Umweltschutz'}`}
-</task>
-`;
-
-      builder.setRequest(baseXmlPrompt);
-      const promptResult = builder.build();
-
-      aiRequest = {
-        type: 'info',
-        usePrivacyMode: usePrivacyMode || false,
-        systemPrompt: promptResult.system,
-        messages: promptResult.messages,
-        options: {
-          max_tokens: 3000,
-          temperature: 0.7,
-          ...(usePrivacyMode && provider && { provider: provider })
-        }
-      };
-    }
-
-    console.log(`${logPrefix} Sending request to Claude API with prompt:`, aiRequest.messages[0].content.substring(0, 200) + '...');
-    
-    if (!req.app.locals.aiWorkerPool) {
-      throw new Error('AI Worker Pool nicht initialisiert');
-    }
-
-    const aiResponse = await req.app.locals.aiWorkerPool.processRequest(aiRequest);
-
-    console.log(`${logPrefix} Received response from Claude API:`, aiResponse);
-
-    if (!aiResponse || !aiResponse.success) {
-      throw new Error(aiResponse?.error || 'Keine gültige Antwort von der AI erhalten');
-    }
-
-    const textContent = aiResponse.content;
-    console.log(`${logPrefix} Processed text content:`, textContent);
-
-    // Type-specific response processing
-    let response;
-    
-    if (type === 'dreizeilen' || type === 'headline') {
-      // Process dreizeilen/headline response - extract slogans and search terms
-      const lines = textContent.split('\n')
-        .map(line => line.trim())
-        .filter(line => line !== '');
-
-      const slogans = [];
-      let currentSlogan = {};
-      let lineCount = 0;
-
-      for (const line of lines) {
-        if (line.startsWith('Slogan') || line.startsWith('Headline')) {
-          if (lineCount > 0) {
-            slogans.push({ ...currentSlogan });
-          }
-          currentSlogan = {};
-          lineCount = 0;
-          continue;
-        }
-
-        if (line.startsWith('Suchbegriff:')) {
-          if (lineCount > 0) {
-            slogans.push({ ...currentSlogan });
-          }
-          break;
-        }
-
-        if (line && !line.startsWith('Slogan') && !line.startsWith('Headline') && lineCount < 3) {
-          const lineKey = `line${lineCount + 1}`;
-          currentSlogan[lineKey] = line;
-          lineCount++;
-        }
-      }
-
-      const searchTermsLine = lines.find(line => line.startsWith('Suchbegriff:'));
-      const searchTerms = searchTermsLine 
-        ? searchTermsLine.replace('Suchbegriff:', '').split(',').map(term => term.trim())
-        : [];
-
-      response = {
-        mainSlogan: slogans[0] || { line1: '', line2: '', line3: '' },
-        alternatives: slogans.slice(1),
-        searchTerms
-      };
-    } else if (type === 'zitat' || type === 'zitat_pure') {
-      // Process zitat response - extract quotes from JSON
-      let quotes = [];
-      try {
-        // Extract JSON from response
-        const jsonMatch = textContent.match(/\[.*\]/s);
-        if (jsonMatch) {
-          // Clean JSON by removing JavaScript-style comments
-          const cleanJson = jsonMatch[0].replace(/\/\/[^\n\r]*/g, '');
-          quotes = JSON.parse(cleanJson);
-        } else {
-          // Fallback: Extract individual quotes
-          quotes = textContent
-            .split(/\d+\./)
-            .map(q => q.trim())
-            .filter(q => q)
-            .map(q => ({
-              quote: q.replace(/^.*?["„]|[""]$/g, '').trim()
-            }));
-        }
-      } catch (error) {
-        console.error(`${logPrefix} Error parsing quotes:`, error);
-        // Fallback: Use first found quote
-        const extractedQuote = textContent
-          .replace(/^.*?["„]|[""]$/g, '')
-          .replace(/^(Hier ist ein (mögliches )?Zitat|Ein Zitat).*?:/i, '')
-          .trim();
-        quotes = [{ quote: extractedQuote }];
-      }
-      
-      // Ensure max 4 quotes
-      quotes = quotes.slice(0, 4);
-      
-      response = {
-        alternatives: quotes,
-        quote: quotes[0]?.quote || ''
-      };
-    } else if (type === 'info') {
-      // Process info response - extract structured info content (Header + Subheader + Body)
-      const lines = textContent.split('\n')
-        .map(line => line.trim())
-        .filter(line => line !== '');
-
-      const infoItems = [];
-      let currentInfo = {};
-      let currentSection = '';
-      let headerLines = [];
-      let subheaderLines = [];
-      let bodyLines = [];
-
-      for (const line of lines) {
-        if (line.startsWith('Info')) {
-          if (headerLines.length > 0 || subheaderLines.length > 0 || bodyLines.length > 0) {
-            currentInfo.header = headerLines.join(' ');
-            currentInfo.subheader = subheaderLines.join(' ');
-            currentInfo.body = bodyLines.join(' ');
-            infoItems.push({ ...currentInfo });
-          }
-          currentInfo = {};
-          currentSection = '';
-          headerLines = [];
-          subheaderLines = [];
-          bodyLines = [];
-          continue;
-        }
-
-        if (line.startsWith('Header:')) {
-          currentSection = 'header';
-          continue;
-        }
-
-        if (line.startsWith('Subheader:')) {
-          currentSection = 'subheader';
-          continue;
-        }
-
-        if (line.startsWith('Body:')) {
-          currentSection = 'body';
-          continue;
-        }
-
-        if (line.startsWith('Suchbegriff:')) {
-          if (headerLines.length > 0 || subheaderLines.length > 0 || bodyLines.length > 0) {
-            currentInfo.header = headerLines.join(' ');
-            currentInfo.subheader = subheaderLines.join(' ');
-            currentInfo.body = bodyLines.join(' ');
-            infoItems.push({ ...currentInfo });
-          }
-          break;
-        }
-
-        if (currentSection === 'header' && line && !line.startsWith('Info')) {
-          headerLines.push(line);
-        } else if (currentSection === 'subheader' && line && !line.startsWith('Info')) {
-          subheaderLines.push(line);
-        } else if (currentSection === 'body' && line && !line.startsWith('Info')) {
-          bodyLines.push(line);
-        }
-      }
-
-      // Handle any remaining content that wasn't saved
-      if (headerLines.length > 0 || subheaderLines.length > 0 || bodyLines.length > 0) {
-        currentInfo.header = headerLines.join(' ');
-        currentInfo.subheader = subheaderLines.join(' ');
-        currentInfo.body = bodyLines.join(' ');
-        infoItems.push({ ...currentInfo });
-      }
-
-      const searchTermsLine = lines.find(line => line.startsWith('Suchbegriff:'));
-      const searchTerms = searchTermsLine 
-        ? searchTermsLine.replace('Suchbegriff:', '').split(',').map(term => term.trim())
-        : [];
-
-      response = {
-        mainInfo: infoItems[0] || { header: '', subheader: '', body: '' },
-        alternatives: infoItems.slice(1),
-        searchTerms
-      };
-    }
-
-    console.log(`${logPrefix} Sending response:`, response);
-    res.json(response);
+    const parsed = JSON.parse(candidate);
+    return Array.isArray(parsed) ? parsed : null;
   } catch (error) {
-    console.error(`${logPrefix} Error:`, error.message);
-    const errorMessage = {
-      'dreizeilen': 'Fehler bei der Dreizeilen-Generierung',
-      'zitat': 'Fehler bei der Zitat-Generierung',
-      'zitat_pure': 'Fehler bei der Zitat-Pure-Generierung',
-      'headline': 'Fehler bei der Headline-Generierung',
-      'info': 'Fehler bei der Info-Generierung'
-    }[type] || 'Fehler bei der Generierung';
-    
-    if (type === 'dreizeilen' || type === 'headline' || type === 'info') {
-      res.status(500).json({
+    console.warn('[sharepic] Failed to parse sanitized JSON response', error);
+    return null;
+  }
+};
+
+// Helper function to clean line by removing prefixes like "Zeile 1:", "Line 1:", etc.
+const cleanLine = (line) => {
+  // Match patterns like "Zeile 1:", "Line 1:", "Línea 1:", or just numbered prefixes
+  return line.replace(/^(Zeile|Line|Línea)?\s*\d+\s*:\s*/i, '').trim();
+};
+
+// Helper function to parse dreizeilen response
+const parseDreizeilenResponse = (content, skipShortener = false) => {
+  console.log(`[parser] Received content starting with: "${content.substring(0, 30)}"`);
+
+  const allLines = content.split('\n');
+
+  // Find first group of 3 consecutive non-empty lines
+  for (let i = 0; i <= allLines.length - 3; i++) {
+    const line1 = allLines[i].trim();
+    const line2 = allLines[i + 1].trim();
+    const line3 = allLines[i + 2].trim();
+
+    // Check if all 3 lines exist and are valid
+    if (line1 && line2 && line3) {
+      console.log(`[parser] Checking lines: ["${line1}", "${line2}", "${line3}"]`);
+
+      if (line1.toLowerCase().includes('suchbegriff') || line2.toLowerCase().includes('suchbegriff') || line3.toLowerCase().includes('suchbegriff')) {
+        console.log(`[parser] Rejected: contains 'suchbegriff'`);
+        continue;
+      }
+
+      if (line1.length < 3 || line1.length > 35 || line2.length < 3 || line2.length > 35 || line3.length < 3 || line3.length > 35) {
+        console.log(`[parser] Rejected: length issue [${line1.length}, ${line2.length}, ${line3.length}]`);
+        continue;
+      }
+
+      console.log(`[parser] SUCCESS - returning valid slogan`);
+      return { line1, line2, line3 };
+    }
+  }
+
+  console.log(`[parser] FAILED - no valid lines found in ${allLines.length} total lines`);
+  return { line1: '', line2: '', line3: '' };
+};
+
+// Helper function to check if slogan is valid
+const isSloganValid = (slogan) => {
+  return slogan.line1 && slogan.line2 && slogan.line3;
+};
+
+// Helper function to check if info post is valid (character limits)
+const isInfoValid = (info) => {
+  if (!info.header || !info.subheader || !info.body) {
+    return false;
+  }
+
+  const headerLength = info.header.length;
+  const subheaderLength = info.subheader.length;
+  const bodyLength = info.body.length;
+
+  // Slightly relaxed ranges for better success rate: ±5 characters tolerance
+  return headerLength >= 45 && headerLength <= 65 &&
+         subheaderLength >= 75 && subheaderLength <= 125 &&
+         bodyLength >= 145 && bodyLength <= 255;
+};
+
+// Handler for dreizeilen type
+const handleDreizeilenRequest = async (req, res) => {
+
+  const { thema, details, line1, line2, line3, count = 1, source } = req.body;
+  const singleItem = count === 1;
+  const skipShortener = source === 'sharepicgenerator';
+
+
+  const config = prompts.dreizeilen;
+  const systemRole = config.systemRole;
+
+  const getRequestTemplate = () => {
+    const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
+    const templateData = { thema, details, line1, line2, line3 };
+
+    return replaceTemplate(template, templateData);
+  };
+
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let mainSlogan = { line1: '', line2: '', line3: '' };
+    let searchTerms = [];
+    let allGeneratedContent = []; // Store content from all attempts for debugging
+    let result; // Declare result outside the loop so it's accessible later
+
+    // Retry loop for AI generation
+    while (attempts < maxAttempts) {
+      const requestTemplate = getRequestTemplate();
+
+      const requestOptions = config.options;
+
+      result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_dreizeilen',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: requestTemplate }],
+        options: requestOptions
+      }, req);
+
+
+      if (!result.success) {
+        // Check if this is a throttling error - if so, don't count it as an attempt
+        const isThrottling = isThrottlingError(result.error);
+        if (!isThrottling) {
+          attempts++;
+        }
+
+        console.error(`[sharepic_dreizeilen] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      // Success - count this as an attempt for consistency
+      attempts++;
+
+      // Parse response to extract slogans and search terms
+      const content = result.content;
+
+      // Store content for debugging
+      allGeneratedContent.push({
+        attempt: attempts,
+        content: content.substring(0, 300) + (content.length > 300 ? '...' : ''),
+        timestamp: new Date().toISOString()
+      });
+
+      const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
+      searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+
+      if (singleItem) {
+        // Log raw AI response for debugging
+        console.log(`[sharepic_dreizeilen] Raw AI response on attempt ${attempts}:`, content.substring(0, 300) + (content.length > 300 ? '...' : ''));
+
+        // Parse single item response
+        console.log(`[sharepic_dreizeilen] Calling parser with ${content.length} chars`);
+        mainSlogan = parseDreizeilenResponse(content, skipShortener);
+
+        // Log parsing result for debugging
+        console.log(`[sharepic_dreizeilen] Parsed slogan on attempt ${attempts}:`, mainSlogan);
+
+        // Check if parsing succeeded
+        if (isSloganValid(mainSlogan)) {
+          console.log(`[sharepic_dreizeilen] Valid slogan found on attempt ${attempts}`);
+          break;
+        } else {
+          console.log(`[sharepic_dreizeilen] Invalid slogan on attempt ${attempts}, continuing...`);
+        }
+      } else {
+        // Handle multiple slogans without headers
+        console.log(`[sharepic_dreizeilen] Parsing multiple slogans (count=${count})`);
+        const slogans = [];
+        const lines = content.split('\n');
+
+        // Find groups of 3 consecutive non-empty lines
+        for (let i = 0; i <= lines.length - 3; i++) {
+          const line1 = lines[i].trim();
+          const line2 = lines[i + 1].trim();
+          const line3 = lines[i + 2].trim();
+
+          // Check if we found a valid 3-line group
+          if (line1 && line2 && line3 &&
+              !line1.toLowerCase().includes('suchbegriff') &&
+              !line2.toLowerCase().includes('suchbegriff') &&
+              !line3.toLowerCase().includes('suchbegriff') &&
+              line1.length >= 3 && line1.length <= 35 &&
+              line2.length >= 3 && line2.length <= 35 &&
+              line3.length >= 3 && line3.length <= 35) {
+
+            console.log(`[sharepic_dreizeilen] Found slogan ${slogans.length + 1}: "${line1}", "${line2}", "${line3}"`);
+            slogans.push({ line1, line2, line3 });
+            i += 2; // Skip the lines we just processed (i++ will add 1 more)
+
+            // If we found 5 slogans, we can stop
+            if (slogans.length >= 5) break;
+          }
+        }
+
+        console.log(`[sharepic_dreizeilen] Found ${slogans.length} slogans total`);
+        mainSlogan = slogans[0] || { line1: '', line2: '', line3: '' };
+        if (isSloganValid(mainSlogan)) {
+          const alternatives = slogans.slice(1);
+
+          return res.json({
+            success: true,
+            mainSlogan: mainSlogan,
+            alternatives: alternatives,
+            searchTerms: searchTerms
+          });
+        }
+      }
+    }
+
+    // After all attempts, check if we have a valid result
+    if (!isSloganValid(mainSlogan)) {
+      // Create a preview of the last generated content for debugging
+      const lastContent = result?.content || 'No content available';
+      const contentPreview = lastContent.substring(0, 200) + (lastContent.length > 200 ? '...' : '');
+
+      if (skipShortener) {
+        console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts`);
+        console.error(`[sharepic_dreizeilen] Last generated content preview:`, contentPreview);
+        console.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
+
+        return res.status(500).json({
+          success: false,
+          error: `Failed to generate valid dreizeilen after ${maxAttempts} attempts`,
+          debug: {
+            contentPreview,
+            finalSlogan: mainSlogan,
+            attempts: maxAttempts,
+            allGeneratedContent
+          }
+        });
+      }
+
+      // Try AI shortener as fallback
+      try {
+        const shortenedSlogan = await aiShortenerService.shortenSharepicText('dreizeilen', mainSlogan, req);
+
+        if (isSloganValid(shortenedSlogan)) {
+          return res.json({
+            success: true,
+            mainSlogan: shortenedSlogan,
+            alternatives: [],
+            searchTerms: searchTerms
+          });
+        }
+      } catch (shortenerError) {
+        console.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
+      }
+
+      // Create a preview of the last generated content for debugging
+      const finalContent = result?.content || 'No content available';
+      const finalPreview = finalContent.substring(0, 200) + (finalContent.length > 200 ? '...' : '');
+
+      console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts and AI shortener`);
+      console.error(`[sharepic_dreizeilen] Last generated content preview:`, finalPreview);
+      console.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
+
+      return res.status(500).json({
         success: false,
-        error: error.message || errorMessage
+        error: `Failed to generate valid dreizeilen after ${maxAttempts} attempts and AI shortener`,
+        debug: {
+          contentPreview: finalPreview,
+          finalSlogan: mainSlogan,
+          attempts: maxAttempts,
+          shortenerTried: true,
+          allGeneratedContent
+        }
+      });
+    }
+
+    // Return successful single item result
+    res.json({
+      success: true,
+      mainSlogan: mainSlogan,
+      alternatives: [],
+      searchTerms: searchTerms
+    });
+
+  } catch (error) {
+    console.error('[sharepic_dreizeilen] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Handler for zitat type
+const handleZitatRequest = async (req, res) => {
+
+  const { thema, details, quote, name, count = 1, source } = req.body;
+  const singleItem = count === 1;
+  const skipShortener = source === 'sharepicgenerator';
+
+  const config = prompts.zitat;
+  const systemRole = config.systemRole;
+
+  const requestTemplate = replaceTemplate(
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
+    { thema, details, quote, name }
+  );
+
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let result;
+
+    // Retry loop for AI generation
+    while (attempts < maxAttempts) {
+      result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_zitat',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: requestTemplate }],
+        options: config.options
+      }, req);
+
+      if (!result.success) {
+        // Check if this is a throttling error - if so, don't count it as an attempt
+        const isThrottling = isThrottlingError(result.error);
+        if (!isThrottling) {
+          attempts++;
+        }
+
+        console.error(`[sharepic_zitat] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      // Success - break out of retry loop
+      break;
+    }
+
+    // Parse the AI response to extract quotes
+    let quotes = [];
+    let firstQuote = '';
+    let alternatives = [];
+
+    if (singleItem) {
+      // For single item, try to parse JSON object first
+      try {
+        const jsonMatch = result.content.match(/\{[^}]*"quote"\s*:\s*"[^"]+"\s*[^}]*\}/);
+        if (jsonMatch) {
+          const quoteData = JSON.parse(jsonMatch[0]);
+          firstQuote = quoteData.quote || '';
+        } else {
+          // Fallback: extract quote from content
+          firstQuote = (result.content || '').trim();
+        }
+        alternatives = []; // No alternatives for single item
+
+        // Check if quote exceeds 140 characters and use shortener if needed
+        if (firstQuote.length > 140 && !skipShortener) {
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: firstQuote, name }, req);
+            firstQuote = shortenedResult.quote;
+          } catch (shortenerError) {
+            console.error(`[sharepic_zitat] Shortener error:`, shortenerError);
+            firstQuote = firstQuote.substring(0, 137) + '...';
+          }
+        }
+
+      } catch (parseError) {
+        console.warn('[sharepic_zitat] Single item JSON parsing failed, using fallback:', parseError.message);
+        firstQuote = (result.content || '').trim();
+        alternatives = [];
+
+        // Apply shortener to fallback as well if needed
+        if (firstQuote.length > 140 && !skipShortener) {
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: firstQuote, name }, req);
+            firstQuote = shortenedResult.quote;
+          } catch (shortenerError) {
+            console.error(`[sharepic_zitat] Shortener error in fallback:`, shortenerError);
+            firstQuote = firstQuote.substring(0, 137) + '...';
+          }
+        }
+      }
+    } else {
+      // Multiple items (original behavior)
+      quotes = extractQuoteArray(result.content);
+      if (!quotes || quotes.length === 0) {
+        quotes = [{ quote: (result.content || '').trim() }];
+      } else {
+        quotes = quotes.map((item) =>
+          typeof item === 'string' ? { quote: item } : item
+        );
+      }
+
+      // Apply shortener to all quotes if any exceed 140 chars
+      if (!skipShortener) {
+        for (let i = 0; i < quotes.length; i++) {
+          if (quotes[i].quote && quotes[i].quote.length > 140) {
+            try {
+              const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: quotes[i].quote, name }, req);
+              quotes[i].quote = shortenedResult.quote;
+            } catch (shortenerError) {
+              console.error(`[sharepic_zitat] Shortener error for quote ${i}:`, shortenerError);
+              quotes[i].quote = quotes[i].quote.substring(0, 137) + '...';
+            }
+          }
+        }
+      }
+
+      firstQuote = quotes[0]?.quote || (result.content || '').trim();
+      alternatives = quotes.slice(1);
+    }
+
+    res.json({
+      success: true,
+      quote: firstQuote,
+      alternatives: alternatives,
+      name: name || ''
+    });
+  } catch (error) {
+    console.error('[sharepic_zitat] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Handler for zitat_pure type
+const handleZitatPureRequest = async (req, res) => {
+
+  const { thema, details, quote, name, count = 5, preserveName = false, source } = req.body;
+  const singleItem = count === 1;
+  const skipShortener = source === 'sharepicgenerator';
+
+  const config = prompts.zitat_pure;
+  const systemRole = config.systemRole;
+
+  const requestTemplate = replaceTemplate(
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
+    { thema, details, quote, name, preserveName }
+  );
+
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let result;
+
+    // Retry loop for AI generation
+    while (attempts < maxAttempts) {
+      result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_zitat_pure',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: requestTemplate }],
+        options: config.options
+      }, req);
+
+      if (!result.success) {
+        // Check if this is a throttling error - if so, don't count it as an attempt
+        const isThrottling = isThrottlingError(result.error);
+        if (!isThrottling) {
+          attempts++;
+        }
+
+        console.error(`[sharepic_zitat_pure] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      // Success - break out of retry loop
+      break;
+    }
+
+    // Parse the AI response based on format
+    let quotes = [];
+    let quoteName = name || '';
+
+    if (singleItem) {
+      // Parse response based on preserveName flag
+      if (preserveName && name) {
+        // Chat feature: AI returns just the quote text, use provided name
+        quotes = [{ quote: (result.content || '').trim() }];
+        quoteName = name; // Use the preserved name
+      } else {
+        // Backward compatibility: Parse JSON format for single item
+        const zitatData = extractCleanJSON(result.content);
+        if (zitatData && zitatData.quote) {
+          quotes = [{ quote: zitatData.quote }];
+          quoteName = zitatData.name || quoteName;
+        } else {
+          quotes = [{ quote: (result.content || '').trim() }];
+        }
+      }
+    } else {
+      // Parse original format for multiple items
+      quotes = extractQuoteArray(result.content);
+      if (!quotes || quotes.length === 0) {
+        quotes = [{ quote: (result.content || '').trim() }];
+      } else {
+        quotes = quotes.map((item) =>
+          typeof item === 'string' ? { quote: item } : item
+        );
+      }
+    }
+
+    // Format response for frontend
+    let firstQuote = quotes[0]?.quote || (result.content || '').trim();
+    let alternatives = quotes.slice(1);
+
+    // Check if quotes need shortening (100-160 characters for zitat_pure)
+    if (!skipShortener && (firstQuote.length < 100 || firstQuote.length > 160)) {
+      try {
+        const shortenedResult = await aiShortenerService.shortenSharepicText('zitat_pure', { quote: firstQuote, name: quoteName }, req);
+        firstQuote = shortenedResult.quote;
+      } catch (shortenerError) {
+        console.error(`[sharepic_zitat_pure] Shortener error:`, shortenerError);
+        // Fallback: adjust length manually
+        if (firstQuote.length > 160) {
+          firstQuote = firstQuote.substring(0, 157) + '...';
+        }
+      }
+    }
+
+    // Check alternatives too (skip for sharepicgenerator)
+    if (!skipShortener) {
+      for (let i = 0; i < alternatives.length; i++) {
+        if (alternatives[i].quote && (alternatives[i].quote.length < 100 || alternatives[i].quote.length > 160)) {
+          try {
+            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat_pure', { quote: alternatives[i].quote, name: quoteName }, req);
+            alternatives[i].quote = shortenedResult.quote;
+          } catch (shortenerError) {
+            console.error(`[sharepic_zitat_pure] Shortener error for alternative ${i}:`, shortenerError);
+            if (alternatives[i].quote.length > 160) {
+              alternatives[i].quote = alternatives[i].quote.substring(0, 157) + '...';
+            }
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      quote: firstQuote,
+      alternatives: alternatives,
+      name: quoteName
+    });
+  } catch (error) {
+    console.error('[sharepic_zitat_pure] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Handler for headline type
+const handleHeadlineRequest = async (req, res) => {
+
+  const { thema, details, line1, line2, line3, count = 1, source } = req.body;
+  const singleItem = count === 1;
+  const skipShortener = source === 'sharepicgenerator';
+
+  const config = prompts.headline;
+  const systemRole = config.systemRole;
+
+  const requestTemplate = replaceTemplate(
+    singleItem ? config.singleItemTemplate : config.requestTemplate,
+    { thema, details, line1, line2, line3 }
+  );
+
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let result;
+
+    // Retry loop for AI generation
+    while (attempts < maxAttempts) {
+      result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_headline',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: requestTemplate }],
+        options: config.options
+      }, req);
+
+      if (!result.success) {
+        // Check if this is a throttling error - if so, don't count it as an attempt
+        const isThrottling = isThrottlingError(result.error);
+        if (!isThrottling) {
+          attempts++;
+        }
+
+        console.error(`[sharepic_headline] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      // Success - break out of retry loop
+      break;
+    }
+
+    // Parse response to extract headlines and search terms
+    const content = result.content;
+    const headlines = [];
+    const searchTermMatch = content.match(/Suchbegriff[^:]*:(.+?)(?:\n|$)/i);
+    const searchTerms = searchTermMatch ? [searchTermMatch[1].trim()] : [];
+
+    if (singleItem) {
+      // For single item, try to extract lines directly from content without Headline headers
+      const lines = content.split('\n').filter(line => line.trim() && !line.toLowerCase().includes('suchbegriff'));
+
+      // Find three consecutive lines that look like headlines (short lines)
+      let mainSlogan = { line1: '', line2: '', line3: '' };
+
+      for (let i = 0; i < lines.length - 2; i++) {
+        // Clean lines by removing prefixes before validation
+        const line1 = cleanLine(lines[i]);
+        const line2 = cleanLine(lines[i + 1]);
+        const line3 = cleanLine(lines[i + 2]);
+
+        // Check if these lines look like headline lines (short and not descriptive text)
+        if (line1.length >= 6 && line1.length <= 15 &&
+            line2.length >= 6 && line2.length <= 15 &&
+            line3.length >= 6 && line3.length <= 15 &&
+            !line1.toLowerCase().includes('headline') &&
+            !line1.toLowerCase().includes('zeile') &&
+            !line1.startsWith('**') &&
+            !line1.includes('suchbegriff')) {
+          mainSlogan = { line1, line2, line3 };
+          break;
+        }
+      }
+
+      // Check if headline needs shortening (6-12 chars per line)
+      const needsShortening = mainSlogan.line1.length > 12 || mainSlogan.line2.length > 12 || mainSlogan.line3.length > 12;
+
+      if (needsShortening && !skipShortener) {
+        try {
+          const shortenedResult = await aiShortenerService.shortenSharepicText('headline', mainSlogan, req);
+          mainSlogan = shortenedResult;
+        } catch (shortenerError) {
+          console.error('[sharepic_headline] Shortener error:', shortenerError);
+          // Fallback truncation
+          mainSlogan.line1 = mainSlogan.line1.substring(0, 9) + '...';
+          mainSlogan.line2 = mainSlogan.line2.substring(0, 9) + '...';
+          mainSlogan.line3 = mainSlogan.line3.substring(0, 9) + '...';
+        }
+      }
+
+      res.json({
+        success: true,
+        mainSlogan: mainSlogan,
+        alternatives: [], // No alternatives for single item
+        searchTerms: searchTerms
       });
     } else {
-      res.status(500).send('Internal Server Error');
+      // Extract multiple headlines (original behavior)
+      const headlineMatches = content.matchAll(/\*\*Headline \d+:\*\*\s*\n([^\n]+)\n([^\n]+)\n([^\n]+)/g);
+      for (const match of headlineMatches) {
+        headlines.push({
+          line1: match[1].trim(),
+          line2: match[2].trim(),
+          line3: match[3].trim()
+        });
+      }
+
+      // Apply shortener to all headlines if needed (6-12 chars per line)
+      if (!skipShortener) {
+        for (let i = 0; i < headlines.length; i++) {
+          const headline = headlines[i];
+          const needsShortening = headline.line1.length > 12 || headline.line2.length > 12 || headline.line3.length > 12;
+
+          if (needsShortening) {
+            try {
+              const shortenedResult = await aiShortenerService.shortenSharepicText('headline', headline, req);
+              headlines[i] = shortenedResult;
+            } catch (shortenerError) {
+              console.error(`[sharepic_headline] Shortener error for headline ${i}:`, shortenerError);
+              // Fallback truncation
+              headlines[i].line1 = headline.line1.substring(0, 9) + '...';
+              headlines[i].line2 = headline.line2.substring(0, 9) + '...';
+              headlines[i].line3 = headline.line3.substring(0, 9) + '...';
+            }
+          }
+        }
+      }
+
+      // Format for frontend
+      const mainSlogan = headlines[0] || { line1: '', line2: '', line3: '' };
+      const alternatives = headlines.slice(1);
+
+      res.json({
+        success: true,
+        mainSlogan: mainSlogan,
+        alternatives: alternatives,
+        searchTerms: searchTerms
+      });
     }
+  } catch (error) {
+    console.error('[sharepic_headline] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Handler for info type
+const handleInfoRequest = async (req, res) => {
+  console.log('[sharepic_info] handleInfoRequest called with body:', req.body);
+
+  const { thema, details, count = 5, source } = req.body;
+  const singleItem = count === 1;
+  const skipShortener = source === 'sharepicgenerator';
+
+  console.log('[sharepic_info] Config:', { singleItem, skipShortener, count, source });
+
+  const config = prompts.info;
+  const systemRole = config.systemRole;
+
+  const getInfoRequestTemplate = () => {
+    const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
+    return replaceTemplate(template, { thema, details });
+  };
+
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let responseData = null;
+
+    // Retry loop for AI generation
+    while (attempts < maxAttempts && !responseData) {
+      const currentRequestTemplate = getInfoRequestTemplate();
+
+      const result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_info',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: currentRequestTemplate }],
+        options: config.options
+      }, req);
+
+      if (!result.success) {
+        // Check if this is a throttling error - if so, don't count it as an attempt
+        const isThrottling = isThrottlingError(result.error);
+        if (!isThrottling) {
+          attempts++;
+        }
+
+        console.error(`[sharepic_info] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      // Success - count this as an attempt for consistency
+      attempts++;
+
+      // Adaptive parsing based on requested format
+      const content = result.content;
+
+      if (singleItem) {
+        // Parse JSON response for single item
+        const infoData = extractCleanJSON(content);
+        console.log(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        console.log(`[sharepic_info] Attempt ${attempts} - Parsed infoData:`, infoData);
+
+        if (infoData) {
+          const header = sanitizeInfoField(infoData.header);
+          const subheader = sanitizeInfoField(infoData.subheader);
+          const body = sanitizeInfoField(infoData.body);
+          const searchTerm = sanitizeInfoField(infoData.searchTerm);
+
+          console.log(`[sharepic_info] Attempt ${attempts} - Sanitized values:`, {
+            header: header?.substring(0, 50) + '...',
+            subheader: subheader?.substring(0, 50) + '...',
+            body: body?.substring(0, 50) + '...',
+            headerLength: header?.length,
+            subheaderLength: subheader?.length,
+            bodyLength: body?.length
+          });
+
+          // Validate required fields - check for empty strings
+          if (!header || !subheader || !body ||
+              header.trim() === '' || subheader.trim() === '' || body.trim() === '') {
+            console.log(`[sharepic_info] Attempt ${attempts} - Validation failed: empty or missing fields`);
+            if (attempts === maxAttempts) {
+              return res.status(500).json({
+                success: false,
+                error: 'Missing required fields in JSON response after all attempts'
+              });
+            }
+            continue; // Try next attempt
+          }
+
+          // Apply additional cleanup to ensure character limits
+          let cleanHeader = header;
+          let cleanSubheader = subheader;
+          let cleanBody = body;
+
+          // Truncate if still over limits after sanitization
+          if (cleanHeader.length > 65) {
+            cleanHeader = cleanHeader.substring(0, 60).trim();
+          }
+          if (cleanSubheader.length > 125) {
+            cleanSubheader = cleanSubheader.substring(0, 120).trim();
+          }
+          if (cleanBody.length > 255) {
+            cleanBody = cleanBody.substring(0, 250).trim();
+          }
+
+          // Validate character lengths (skip for sharepicgenerator)
+          const infoForValidation = { header: cleanHeader, subheader: cleanSubheader, body: cleanBody };
+          if (!skipShortener && !isInfoValid(infoForValidation)) {
+            if (attempts === maxAttempts) {
+              // Try AI shortener as fallback
+              try {
+                const shortenedInfo = await aiShortenerService.shortenSharepicText('info', infoForValidation, req);
+
+                if (isInfoValid(shortenedInfo)) {
+                  responseData = {
+                    success: true,
+                    mainInfo: {
+                      header: shortenedInfo.header,
+                      subheader: shortenedInfo.subheader,
+                      body: shortenedInfo.body
+                    },
+                    alternatives: [],
+                    searchTerms: shortenedInfo.searchTerm ? [shortenedInfo.searchTerm] : []
+                  };
+                  break; // Exit the retry loop
+                }
+              } catch (shortenerError) {
+                console.error(`[sharepic_info] AI shortener error:`, shortenerError);
+              }
+
+              console.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts and AI shortener`);
+              return res.status(500).json({
+                success: false,
+                error: `Failed to generate info with correct character limits after ${maxAttempts} attempts and AI shortener`
+              });
+            }
+            // Continue to next attempt
+            continue;
+          }
+
+
+          responseData = {
+            success: true,
+            mainInfo: {
+              header: cleanHeader,
+              subheader: cleanSubheader,
+              body: cleanBody
+            },
+            alternatives: [], // No alternatives for single item
+            searchTerms: searchTerm ? [searchTerm] : []
+          };
+        } else {
+          // extractCleanJSON failed
+          if (attempts === maxAttempts) {
+            const preview = content.replace(/\s+/g, ' ').slice(0, 200);
+            const previewSuffix = content.length > 200 ? '…' : '';
+            return res.status(500).json({
+              success: false,
+              error: `JSON extraction failed after ${maxAttempts} attempts. Snippet: ${preview}${previewSuffix}`
+            });
+          }
+          // Continue to next attempt
+          continue;
+        }
+      } else {
+        // Parse JSON array response for multiple items
+        const infoArray = extractCleanJSONArray(content);
+        console.log(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        console.log(`[sharepic_info] Attempt ${attempts} - Parsed array:`, infoArray?.length || 0, 'items');
+
+        if (!infoArray || !Array.isArray(infoArray) || infoArray.length === 0) {
+          console.log(`[sharepic_info] Attempt ${attempts} - Array extraction failed or empty`);
+          if (attempts === maxAttempts) {
+            return res.status(500).json({
+              success: false,
+              error: `Failed to extract info array after ${maxAttempts} attempts`
+            });
+          }
+          continue;
+        }
+
+        // Validate and sanitize each item
+        const validInfos = [];
+        for (const item of infoArray) {
+          const header = sanitizeInfoField(item.header);
+          const subheader = sanitizeInfoField(item.subheader);
+          const body = sanitizeInfoField(item.body);
+
+          console.log(`[sharepic_info] Validating item:`, {
+            header: header?.substring(0, 30) + '...',
+            subheader: subheader?.substring(0, 30) + '...',
+            body: body?.substring(0, 30) + '...',
+            headerLength: header?.length,
+            subheaderLength: subheader?.length,
+            bodyLength: body?.length
+          });
+
+          // Check for empty strings
+          if (header && subheader && body &&
+              header.trim() !== '' && subheader.trim() !== '' && body.trim() !== '') {
+            validInfos.push({
+              header: header.length > 65 ? header.substring(0, 65).trim() : header,
+              subheader: subheader.length > 125 ? subheader.substring(0, 125).trim() : subheader,
+              body: body.length > 255 ? body.substring(0, 255).trim() : body
+            });
+          } else {
+            console.log(`[sharepic_info] Item rejected: empty field(s)`);
+          }
+        }
+
+        if (validInfos.length === 0) {
+          console.log(`[sharepic_info] Attempt ${attempts} - No valid items after validation`);
+          if (attempts === maxAttempts) {
+            return res.status(500).json({
+              success: false,
+              error: `No valid info items after ${maxAttempts} attempts`
+            });
+          }
+          continue;
+        }
+
+        // Extract search term from first item
+        const searchTerms = infoArray[0]?.searchTerm ? [infoArray[0].searchTerm] : [];
+
+        console.log(`[sharepic_info] Success: ${validInfos.length} valid items, searchTerms:`, searchTerms);
+
+        // Format: first as main, rest as alternatives
+        responseData = {
+          success: true,
+          mainInfo: validInfos[0],
+          alternatives: validInfos.slice(1),
+          searchTerms: searchTerms
+        };
+      }
+    }
+
+    // Return successful result if we have one
+    if (responseData) {
+      res.json(responseData);
+    } else {
+      console.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts`);
+      res.status(500).json({
+        success: false,
+        error: `Failed to generate valid info after ${maxAttempts} attempts`
+      });
+    }
+  } catch (error) {
+    console.error('[sharepic_info] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Handler for default type (generates 3 sharepics)
+const handleDefaultRequest = async (req, res) => {
+
+  try {
+    const { generateDefaultSharepics } = require('../../../services/defaultSharepicService');
+    const result = await generateDefaultSharepics(req, req.body);
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: 'Failed to generate default sharepics' });
+    }
+
+    // Return the array of sharepics for frontend consumption
+    res.json({
+      success: true,
+      sharepics: result.sharepics,
+      metadata: result.metadata
+    });
+
+  } catch (error) {
+    console.error('[sharepic_default] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Unified handler for backward compatibility
+const handleClaudeRequest = async (req, res, type = 'dreizeilen') => {
+  switch (type) {
+    case 'default':
+      return await handleDefaultRequest(req, res);
+    case 'dreizeilen':
+      return await handleDreizeilenRequest(req, res);
+    case 'zitat':
+      return await handleZitatRequest(req, res);
+    case 'zitat_pure':
+      return await handleZitatPureRequest(req, res);
+    case 'headline':
+      return await handleHeadlineRequest(req, res);
+    case 'info':
+      return await handleInfoRequest(req, res);
+    default:
+      return await handleDreizeilenRequest(req, res);
   }
 };
 
 // Route handlers for all types
 router.post('/', async (req, res) => {
-  await handleClaudeRequest(req, res, 'dreizeilen');
+  await handleDreizeilenRequest(req, res);
 });
 
 // Export both the router and the handler for external use

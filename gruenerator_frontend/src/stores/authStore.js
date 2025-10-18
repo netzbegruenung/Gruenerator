@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fetchWithDedup } from '../utils/requestDeduplication';
+import { setLocale } from '../i18n';
 
 // Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -70,6 +71,7 @@ const loadPersistedAuthState = () => {
           memoryEnabled: authState.memoryEnabled || false,
           igelModus: authState.igelModus || false,
           bundestagApiEnabled: authState.bundestagApiEnabled || false,
+          locale: authState.locale || 'de-DE',
           isLoading: false, // Don't start in loading state if we have persisted data
         };
       } else {
@@ -95,6 +97,7 @@ const persistAuthState = (authState) => {
         memoryEnabled: authState.memoryEnabled,
         igelModus: authState.igelModus,
         bundestagApiEnabled: authState.bundestagApiEnabled,
+        locale: authState.locale,
       },
       timestamp: Date.now(),
       cacheVersion: AUTH_CACHE_VERSION,
@@ -137,13 +140,20 @@ export const useAuthStore = create((set, get) => ({
   // Bundestag API integration
   bundestagApiEnabled: persistedState?.bundestagApiEnabled || false, // Default OFF
 
+  // Locale/language preference
+  locale: persistedState?.locale || 'de-DE', // Default to German
+
   // Supabase specific state
   supabaseSession: null,
   unsubscribeSupabase: () => {}, // Placeholder for cleanup
 
   // Main actions
   setAuthState: (data) => {
-    
+    const userLocale = data.user?.locale || 'de-DE';
+
+    // Update i18n language when user authenticates
+    setLocale(userLocale);
+
     set({
       user: data.user,
       isAuthenticated: data.isAuthenticated,
@@ -155,6 +165,7 @@ export const useAuthStore = create((set, get) => ({
       memoryEnabled: data.user?.user_metadata?.memory_enabled || false,
       igelModus: data.user?.igel_modus || false, // Read from profiles table instead of user_metadata
       bundestagApiEnabled: data.user?.bundestag_api_enabled || false, // Read from profiles table
+      locale: userLocale,
     });
   },
 
@@ -199,9 +210,13 @@ export const useAuthStore = create((set, get) => ({
       memoryEnabled: false,
       igelModus: false,
       bundestagApiEnabled: false,
+      locale: 'de-DE',
       supabaseSession: null,
       _supabaseAuthCleanup: null,
     });
+
+    // Reset i18n to default German when logging out
+    setLocale('de-DE');
   },
 
   // Supabase session management
@@ -717,6 +732,47 @@ export const useAuthStore = create((set, get) => ({
   signup: () => {
     // Deprecated method
   },
+
+  // Locale management
+  updateLocale: async (newLocale) => {
+    // Validate locale
+    if (!['de-DE', 'de-AT'].includes(newLocale)) {
+      console.warn('[AuthStore] Invalid locale:', newLocale);
+      return false;
+    }
+
+    try {
+      // Update backend if user is authenticated
+      const state = get();
+      if (state.isAuthenticated) {
+        const response = await fetch(`${AUTH_BASE_URL}/auth/locale`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ locale: newLocale })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('[AuthStore] Failed to update locale on backend:', errorData.error);
+          return false;
+        }
+      }
+
+      // Update i18n
+      setLocale(newLocale);
+
+      // Update store
+      set({ locale: newLocale });
+
+      return true;
+    } catch (error) {
+      console.error('[AuthStore] Error updating locale:', error);
+      return false;
+    }
+  },
 }));
 
 // Export legacy helpers for backward compatibility
@@ -730,13 +786,14 @@ useAuthStore.subscribe(
       persistAuthState(state);
     }
   },
-  (state) => ({ 
-    user: state.user, 
+  (state) => ({
+    user: state.user,
     isAuthenticated: state.isAuthenticated,
     selectedMessageColor: state.selectedMessageColor,
     memoryEnabled: state.memoryEnabled,
     igelModus: state.igelModus,
     bundestagApiEnabled: state.bundestagApiEnabled,
+    locale: state.locale,
   })
 );
 

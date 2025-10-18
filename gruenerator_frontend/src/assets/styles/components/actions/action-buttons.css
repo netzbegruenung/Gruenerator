@@ -48,6 +48,14 @@
 
 .action-button-disabled:hover {
   background-color: var(--button-hover-color);
+}
+
+/* Hide edit mode button on mobile */
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none !important;
+  }
+}
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -130,7 +138,7 @@
   cursor: pointer;
   text-align: left;
   border-radius: 0;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
   line-height: 1.4;
   gap: 12px;
 }
@@ -149,8 +157,6 @@
 
 .download-export .format-option:hover {
   background: var(--button-hover-color);
-  color: var(--tanne);
-  transform: translateX(2px);
 }
 
 .download-export .format-option:active {
@@ -270,14 +276,12 @@
   cursor: pointer;
   text-align: left;
   border-radius: 0;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
   gap: 10px;
 }
 
 .wolke-subdropdown-option:hover {
   background: var(--button-hover-color);
-  color: var(--tanne);
-  transform: translateX(2px);
 }
 
 .wolke-subdropdown-option:disabled {

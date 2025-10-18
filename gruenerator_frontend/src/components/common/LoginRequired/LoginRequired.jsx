@@ -2,13 +2,15 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import LoginPage from '../../../features/auth/pages/LoginPage';
+import { getCurrentPath, buildLoginUrl } from '../../../utils/authRedirect';
 
-const LoginRequired = ({ 
+const LoginRequired = ({
   title,
   message,
   className = '',
   variant = 'fullpage',
-  onClose = null
+  onClose = null,
+  limitInfo = null // { count, limit, remaining, timeUntilReset, resourceType }
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -21,14 +23,30 @@ const LoginRequired = ({
       navigate('/');
     }
   });
-  
+
+  // Generate limit-specific message if limitInfo is provided
+  const getLimitMessage = () => {
+    if (!limitInfo) return message;
+
+    const { count, limit, timeUntilReset, resourceType } = limitInfo;
+    const resourceLabel = {
+      text: 'Textgenerierungen',
+      image: 'Bildgenerierungen',
+      pdf_export: 'PDF-Exporte'
+    }[resourceType] || 'Generierungen';
+
+    return `Du hast dein Tageslimit von ${limit} kostenlosen ${resourceLabel} erreicht (${count}/${limit} genutzt). ${timeUntilReset ? `Das Limit wird in ${timeUntilReset} zurückgesetzt.` : 'Das Limit wird um Mitternacht zurückgesetzt.'}\n\nMelde dich an für unbegrenzte Nutzung!`;
+  };
+
+  const displayMessage = variant === 'limit-reached' ? getLimitMessage() : message;
+
   // For fullpage variant, use the beautiful LoginPage component
-  if (variant === 'fullpage') {
+  if (variant === 'fullpage' || variant === 'limit-reached') {
     return (
-      <LoginPage 
-        mode="required" 
-        pageName={title}
-        customMessage={message}
+      <LoginPage
+        mode="required"
+        pageName={title || (variant === 'limit-reached' ? 'Limit erreicht' : undefined)}
+        customMessage={displayMessage}
         onClose={handleClose}
       />
     );
@@ -37,9 +55,9 @@ const LoginRequired = ({
   // Keep simple inline variant for special cases
   if (variant === 'inline') {
     const handleLoginClick = () => {
-      const currentPath = window.location.pathname + window.location.search;
-      sessionStorage.setItem('redirectAfterLogin', currentPath);
-      window.location.href = '/login';
+      const currentPath = getCurrentPath(location);
+      const loginUrl = buildLoginUrl(currentPath);
+      window.location.href = loginUrl;
     };
 
     return (
@@ -89,8 +107,15 @@ LoginRequired.propTypes = {
   title: PropTypes.string,
   message: PropTypes.string,
   className: PropTypes.string,
-  variant: PropTypes.oneOf(['inline', 'fullpage']),
+  variant: PropTypes.oneOf(['inline', 'fullpage', 'limit-reached']),
   onClose: PropTypes.func,
+  limitInfo: PropTypes.shape({
+    count: PropTypes.number,
+    limit: PropTypes.number,
+    remaining: PropTypes.number,
+    timeUntilReset: PropTypes.string,
+    resourceType: PropTypes.string
+  })
 };
 
 export default LoginRequired;

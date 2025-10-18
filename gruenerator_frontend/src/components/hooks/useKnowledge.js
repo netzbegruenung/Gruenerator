@@ -1,5 +1,5 @@
-import { useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { useOptimizedAuth } from '../../hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
 import { useDocumentsStore } from '../../stores/documentsStore';
@@ -24,7 +24,7 @@ const useKnowledge = ({
   enableDocuments = false, // deprecated, use ui.enableDocuments
   ui = {}
 } = {}) => {
-  const { user, betaFeatures } = useAuth();
+  const { user, betaFeatures } = useOptimizedAuth();
   const { 
     source, 
     availableKnowledge, 
@@ -42,14 +42,21 @@ const useKnowledge = ({
     getActiveInstruction,
     // Document state and actions
     setAvailableDocuments,
+    // Text state and actions
+    setAvailableTexts,
     // UI Configuration
     setUIConfig,
     // Reset function
     reset
   } = useGeneratorKnowledgeStore();
-  
-  // Access documents store for preloading
-  const { fetchDocuments } = useDocumentsStore();
+
+  // Access documents store for synchronization
+  const {
+    fetchDocuments,
+    fetchCombinedContent,
+    documents: documentsFromStore,
+    texts: textsFromStore
+  } = useDocumentsStore();
 
   // Reset store on component mount to ensure clean state
   useEffect(() => {
@@ -240,24 +247,79 @@ const useKnowledge = ({
     setInstructionsActive
   ]);
 
-  // Preload documents when enabled and user source is selected
+  // CRITICAL: Synchronize documents and texts from documentsStore to generatorKnowledgeStore
+  // This fixes the bug where availableDocuments was always empty
   useEffect(() => {
-    if (enableDocuments && user && source.type === 'user') {
-      // Preloading documents
-      
-      // Fetch documents in background
-      fetchDocuments()
-        .then(() => {
-          // Document preloading completed
-        })
-        .catch((error) => {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[useKnowledge] Document preloading failed (non-blocking):', error);
-          }
-          // Don't throw - document preloading failures shouldn't block the UI
-        });
+    // Sync documents to generatorKnowledgeStore whenever they change
+    if (documentsFromStore && documentsFromStore.length > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useKnowledge] Syncing documents to generatorKnowledgeStore:', documentsFromStore.length);
+      }
+      setAvailableDocuments(documentsFromStore);
     }
-  }, [enableDocuments, user, source.type, fetchDocuments]);
+  }, [documentsFromStore, setAvailableDocuments]);
+
+  useEffect(() => {
+    // Sync texts to generatorKnowledgeStore whenever they change
+    if (textsFromStore && textsFromStore.length > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useKnowledge] Syncing texts to generatorKnowledgeStore:', textsFromStore.length);
+      }
+      setAvailableTexts(textsFromStore);
+    }
+  }, [textsFromStore, setAvailableTexts]);
+
+  // Track if initial fetch has been done to prevent duplicate fetches
+  const hasFetchedDocuments = useRef(false);
+
+  // Fetch documents/texts when enabled - now using combined endpoint for efficiency
+  useEffect(() => {
+    if (finalUIConfig.enableDocuments && user && !hasFetchedDocuments.current) {
+      hasFetchedDocuments.current = true;
+
+      // Use combined endpoint if both documents and texts are enabled
+      if (finalUIConfig.enableTexts) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useKnowledge] Fetching combined content (documents + texts)');
+        }
+        fetchCombinedContent()
+          .then((result) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[useKnowledge] Combined content fetched:', {
+                documents: result?.documents?.length || 0,
+                texts: result?.texts?.length || 0
+              });
+            }
+          })
+          .catch((error) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[useKnowledge] Combined content fetch failed (non-blocking):', error);
+            }
+          });
+      } else {
+        // Only fetch documents
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[useKnowledge] Fetching documents only');
+        }
+        fetchDocuments()
+          .then(() => {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[useKnowledge] Documents fetched');
+            }
+          })
+          .catch((error) => {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[useKnowledge] Document fetch failed (non-blocking):', error);
+            }
+          });
+      }
+    }
+  }, [finalUIConfig.enableDocuments, finalUIConfig.enableTexts, user, fetchDocuments, fetchCombinedContent]);
+
+  // Reset fetch flag when UI config changes to allow re-fetching
+  useEffect(() => {
+    hasFetchedDocuments.current = false;
+  }, [finalUIConfig.enableDocuments, finalUIConfig.enableTexts]);
 
   return {
     // Store state

@@ -1,10 +1,13 @@
-import React, { lazy, Suspense, useRef, useEffect } from 'react';
+import React, { lazy, Suspense, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
+import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
 import { AssistantIcon } from '../../../config/icons';
 import './ChatUI.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
+import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
+import AttachedFilesList from '../AttachedFilesList';
 
 const ChatUI = ({
   messages = [],
@@ -18,11 +21,33 @@ const ChatUI = ({
   renderMessage,
   children,
   className = "",
-  fullScreen = false
+  fullScreen = false,
+  showHeader = true,
+  headerTitle = "Chat",
+  onClose,
+  onVoiceRecorderTranscription,
+  autoSubmitVoice = true,
+  enableFileUpload = false,
+  onFileSelect,
+  attachedFiles = [],
+  onRemoveFile
 }) => {
   const chatContainerRef = useRef(null);
   const lastMessageIndexRef = useRef(0);
   const scrollTimeoutRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const voiceRecorderHook = useVoiceRecorder((text) => {
+    handleVoiceRecorderTranscription(text);
+  }, { removeTimestamps: true });
+
+  const {
+    isRecording: isVoiceRecording,
+    isProcessing: isVoiceProcessing,
+    startRecording,
+    stopRecording,
+    processRecording
+  } = voiceRecorderHook;
 
   // Auto-scroll behavior
   useEffect(() => {
@@ -64,6 +89,13 @@ const ChatUI = ({
     }
   }, [messages, isProcessing]);
 
+  // Process recording for transcription when recording stops
+  useEffect(() => {
+    if (!isVoiceRecording) {
+      processRecording();
+    }
+  }, [isVoiceRecording, processRecording]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!inputValue.trim() || disabled) return;
@@ -103,26 +135,133 @@ const ChatUI = ({
     );
   };
 
+
+  const handleVoiceRecorderTranscription = useCallback((text) => {
+    if (!text) return;
+
+    // Update the input field
+    const newValue = inputValue ? `${inputValue} ${text}`.trim() : text;
+    if (onInputChange) {
+      onInputChange(newValue);
+    }
+
+    // Auto-submit if enabled
+    if (autoSubmitVoice && onSubmit) {
+      console.log('[ChatUI] Auto-submitting voice transcription:', newValue);
+      // Small delay to show the text in input first
+      setTimeout(() => {
+        onSubmit(newValue);
+        // Clear input after submit
+        if (onInputChange) {
+          onInputChange('');
+        }
+      }, 100);
+    }
+
+    onVoiceRecorderTranscription && onVoiceRecorderTranscription(text);
+  }, [inputValue, onInputChange, onSubmit, onVoiceRecorderTranscription, autoSubmitVoice]);
+
+  const handleFileUploadClick = useCallback(() => {
+    console.log('[ChatUI] File upload button clicked');
+    if (fileInputRef.current) {
+      console.log('[ChatUI] Triggering file input click');
+      fileInputRef.current.click();
+    } else {
+      console.warn('[ChatUI] File input ref not found');
+    }
+  }, []);
+
+  const handleFileChange = useCallback((event) => {
+    const files = Array.from(event.target.files);
+    console.log('[ChatUI] File input changed:', files.length, 'files selected');
+
+    if (files.length > 0 && onFileSelect) {
+      console.log('[ChatUI] Calling onFileSelect with files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+      onFileSelect(files);
+    } else {
+      console.warn('[ChatUI] No files selected or onFileSelect not available');
+    }
+    // Reset file input to allow selecting the same file again
+    event.target.value = '';
+  }, [onFileSelect]);
+
+
   const defaultRenderInput = () => (
-    <>
-      <textarea
-        className="form-input"
-        value={inputValue}
-        onChange={(e) => onInputChange && onInputChange(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit(e);
-          }
-        }}
-      />
-    </>
+    <div className="floating-input">
+      {enableFileUpload && attachedFiles.length > 0 && (
+        <AttachedFilesList
+          files={attachedFiles}
+          onRemoveFile={onRemoveFile}
+          className="chat-attached-files"
+        />
+      )}
+      <div className="input-elements">
+        <textarea
+          className="form-input"
+          value={inputValue}
+          onChange={(e) => onInputChange && onInputChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
+        />
+        <div className="chat-input-buttons">
+          {enableFileUpload && (
+            <>
+              <button
+                type="button"
+                className="chat-file-upload-button"
+                onClick={handleFileUploadClick}
+                disabled={disabled}
+                aria-label="Datei hinzufügen"
+              >
+                <FaPlus />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+            </>
+          )}
+          <button
+            type="button"
+            className={`chat-send-button ${isVoiceRecording ? 'voice-recording' : ''}`}
+            onClick={inputValue.trim() ? handleSubmit : (isVoiceRecording ? stopRecording : startRecording)}
+            disabled={disabled || isVoiceProcessing}
+          >
+            {isVoiceRecording ? (
+              <FaStop />
+            ) : inputValue.trim() ? (
+              '➤'
+            ) : (
+              <FaMicrophone />
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   return (
     <div className={`editor-chat ${fullScreen ? 'editor-chat-fullscreen' : ''} ${className}`}>
+      {showHeader && (
+        <div className="chat-header">
+          <h3>{headerTitle}</h3>
+          {onClose && (
+            <button className="close-button" onClick={onClose}>
+              ×
+            </button>
+          )}
+        </div>
+      )}
       <div className={`editor-chat-messages markdown-styles ${fullScreen ? 'editor-chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
         <AnimatePresence initial={false}>
           {messages.map((msg, index) => 
@@ -147,9 +286,7 @@ const ChatUI = ({
       
       {children}
       
-      <div 
-        className="editor-chat-input"
-      >
+      <div className="editor-chat-input">
         {renderInput ? renderInput() : defaultRenderInput()}
       </div>
     </div>
@@ -174,7 +311,15 @@ ChatUI.propTypes = {
   renderMessage: PropTypes.func,
   children: PropTypes.node,
   className: PropTypes.string,
-  fullScreen: PropTypes.bool
+  fullScreen: PropTypes.bool,
+  showHeader: PropTypes.bool,
+  headerTitle: PropTypes.string,
+  onClose: PropTypes.func,
+  onVoiceRecorderTranscription: PropTypes.func,
+  enableFileUpload: PropTypes.bool,
+  onFileSelect: PropTypes.func,
+  attachedFiles: PropTypes.array,
+  onRemoveFile: PropTypes.func
 };
 
 export default ChatUI;

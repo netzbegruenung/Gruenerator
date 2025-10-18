@@ -1,8 +1,8 @@
-import React, { lazy, Suspense, useState, useCallback, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { motion, AnimatePresence } from 'motion/react';
-const Select = lazy(() => import('react-select'));
+import ReactSelect from 'react-select';
 import BaseForm from '../../../components/common/BaseForm';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
@@ -13,7 +13,7 @@ import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiInformationCircle, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
@@ -23,15 +23,18 @@ import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
 import FileUpload from '../../../components/common/FileUpload';
 import Icon from '../../../components/common/Icon';
+import PlatformSelector from '../../../components/common/PlatformSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt } from 'react-icons/hi';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
+import SmartInput from '../../../components/common/Form/SmartInput';
+import { getIcon } from '../../../config/icons';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
-  const { isAuthenticated } = useOptimizedAuth();
-  const { Input, Textarea, Select } = useFormFields();
+  const { isAuthenticated, user } = useOptimizedAuth();
+  const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Initialize knowledge system with UI configuration
@@ -53,7 +56,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       { id: 'pressemitteilung', label: 'Pressemitteilung', icon: <Icon category="platforms" name="pressemitteilung" size={16} /> },
       { id: 'instagram', label: 'Instagram', icon: <Icon category="platforms" name="instagram" size={16} /> },
       { id: 'facebook', label: 'Facebook', icon: <Icon category="platforms" name="facebook" size={16} /> },
-      { id: 'twitter', label: 'Twitter/X, Mastodon & Bluesky', icon: <Icon category="platforms" name="twitter" size={16} /> },
+      { id: 'twitter', label: 'Twitter/X, Mastodon & Bsky', icon: <Icon category="platforms" name="twitter" size={16} /> },
       { id: 'linkedin', label: 'LinkedIn', icon: <Icon category="platforms" name="linkedin" size={16} /> },
       { id: 'sharepic', label: 'Sharepic', icon: <Icon category="platforms" name="sharepic" size={16} /> },
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
@@ -63,12 +66,14 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, [isAuthenticated]);
 
   const sharepicTypeOptions = [
+    { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
     { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
     { value: 'quote', label: 'Zitat mit Bild' },
     { value: 'quote_pure', label: 'Zitat (Nur Text)' },
     { value: 'info', label: 'Infopost' },
   ];
 
+  // Optimization: Memoize defaultPlatforms to prevent recalculation on every render
   const defaultPlatforms = useMemo(() => {
     // Determine default platforms based on initial content
     let selectedPlatforms = [];
@@ -93,28 +98,33 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     control,
     handleSubmit,
     reset,
-    watch,
     setValue,
+    getValues,
     formState: { errors }
   } = useForm({
     defaultValues: {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
       zitatgeber: initialContent?.zitatgeber || '',
+      presseabbinder: '',
       platforms: defaultPlatforms,
-      sharepicType: 'dreizeilen',
+      sharepicType: 'default',
       zitatAuthor: '',
       useWebSearchTool: false,
-      usePrivacyMode: false
-    }
+      usePrivacyMode: false,
+      useProMode: false
+    },
+    shouldUnregister: false  // Preserve field values when conditionally rendered
   });
 
-  const watchPlatforms = watch('platforms');
-  const watchPressemitteilung = watchPlatforms && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic = isAuthenticated && watchPlatforms && watchPlatforms.includes('sharepic');
-  const watchSharepicType = watch('sharepicType');
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
+  const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
+  const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
+  const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
+  const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
+  const watchUseProMode = useWatch({ control, name: 'useProMode', defaultValue: false });
+
+  const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
+  const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
 
   // Ensure sharepic is not selected when user is not authenticated
   useEffect(() => {
@@ -123,6 +133,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       setValue('platforms', filtered);
     }
   }, [isAuthenticated, watchPlatforms, setValue]);
+
 
   const handleImageChange = useCallback((file) => {
     setUploadedImage(file);
@@ -167,10 +178,10 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     source,
     availableKnowledge,
     selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -207,6 +218,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         zitatgeber: rhfData.zitatgeber,
         useWebSearchTool: rhfData.useWebSearchTool,
         usePrivacyMode: rhfData.usePrivacyMode,
+        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
         attachments: allAttachments
       };
       
@@ -221,24 +233,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-      // Add knowledge, instructions, and documents
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'social',
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false, // Not using memories in this context
-          query: searchQuery
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-      }
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction('social')
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       let combinedResults = {};
 
@@ -246,14 +251,43 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       if (hasSharepic) {
         try {
           const sharepicResult = await generateSharepic(
-            rhfData.thema, 
-            rhfData.details, 
+            rhfData.thema,
+            rhfData.details,
             uploadedImage,
-            rhfData.sharepicType || 'dreizeilen',
+            rhfData.sharepicType || 'default',
             rhfData.zitatAuthor,
-            finalPrompt // Pass knowledge prompt to sharepic generation
+            customPrompt, // Pass custom instructions to sharepic generation
+            allAttachments, // Include attachments
+            rhfData.usePrivacyMode, // Include privacy mode
+            null, // provider - will be handled by privacy mode settings
+            rhfData.useProMode // Pass Pro mode flag for sharepic generation
           );
-          combinedResults.sharepic = sharepicResult;
+          // Handle both single sharepic and array of sharepics (default mode)
+          const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
+          const existingSharepics = Array.isArray(previousContent?.sharepic)
+            ? previousContent.sharepic
+            : previousContent?.sharepic
+              ? [previousContent.sharepic]
+              : [];
+
+          let newSharepicEntries;
+          if (Array.isArray(sharepicResult)) {
+            // Default mode returns array - add IDs if not already present
+            newSharepicEntries = sharepicResult.map(sharepic => ({
+              ...sharepic,
+              id: sharepic.id || `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              createdAt: sharepic.createdAt || new Date().toISOString()
+            }));
+          } else {
+            // Individual modes return single object
+            newSharepicEntries = [{
+              ...sharepicResult,
+              id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+              createdAt: new Date().toISOString()
+            }];
+          }
+
+          combinedResults.sharepic = [...newSharepicEntries, ...existingSharepics];
         } catch (sharepicError) {
           console.error('[PresseSocialGenerator] Sharepic generation failed:', sharepicError);
           // Continue with social generation even if sharepic fails
@@ -267,11 +301,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           ...formDataToSubmit,
           platforms: otherPlatforms
         });
-        
+
         if (response) {
           // Handle both old string format and new {content, metadata} format
-          const content = typeof response === 'string' ? response : response.content;
+          let content = typeof response === 'string' ? response : response.content;
           const metadata = typeof response === 'object' ? response.metadata : {};
+
+          // Append presseabbinder to pressemitteilung content if provided
+          if (otherPlatforms.includes('pressemitteilung') && rhfData.presseabbinder?.trim()) {
+            content = `${content}\n\n---\n\n${rhfData.presseabbinder.trim()}`;
+          }
+
           combinedResults.social = { content, metadata };
         }
       }
@@ -296,7 +336,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, generateSharepic, uploadedImage, processedAttachments, crawledUrls]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -337,21 +377,23 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         try {
           const imageResponse = await apiClient.post('/sharepic/edit-session', {
             imageData: sharepicData.image,
+            originalImageData: sharepicData.originalImage, // Store original background
             metadata: {
               type: sharepicData.type,
+              hasOriginalImage: !!sharepicData.originalImage,
               timestamp: Date.now()
             }
           });
-          
+
           // Handle Axios response wrapper - extract data
           const result = imageResponse.data || imageResponse;
           imageSessionId = result.sessionId;
-          console.log('[PresseSocialGenerator] Image stored in backend:', imageSessionId);
+          console.log('[PresseSocialGenerator] Images stored in backend:', imageSessionId, 'hasOriginal:', !!sharepicData.originalImage);
         } catch (imageUploadError) {
           console.warn('[PresseSocialGenerator] Failed to store image in backend:', imageUploadError);
         }
       }
-      
+
       // Store minimal data in sessionStorage for cross-tab access
       const sessionData = {
         text: sharepicData.text,
@@ -418,15 +460,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben. Du kannst auch PDFs, Bilder und URLs als Hintergrundinformation verwenden.",
+    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
     tips: [
       "Gib ein klares, prägnantes Thema an",
       "Füge wichtige Details und Fakten hinzu",
       "Wähle die gewünschten Formate aus",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
-      
-      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich - Abbinder wird automatisch hinzugefügt",
-      "Bei Sharepics: Wähle zwischen 5 Formaten - 3-Zeilen Slogan (mit Bild), Zitat mit Bild, Zitat (Nur Text), Infopost oder Nur Text (Groß). Bei Zitat-Formaten ist die Angabe des Autors erforderlich"
+      "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
+      "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics. Weitere Formate: 3-Zeilen Slogan, Zitat mit/ohne Bild, Infopost"
     ]
   };
 
@@ -451,6 +491,27 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     description: "Verwendet deutsche Server der Netzbegrünung.",
     tabIndex: tabIndex.privacyMode || 13
   };
+
+  const proModeToggle = {
+    isActive: watchUseProMode,
+    onToggle: (checked) => {
+      setValue('useProMode', checked);
+    },
+    label: "Pro-Mode",
+    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
+  };
+
+  const renderPlatformSection = () => (
+    <PlatformSelector
+      name="platforms"
+      control={control}
+      platformOptions={platformOptions}
+      label="Formate"
+      placeholder="Formate auswählen..."
+      required={true}
+      tabIndex={baseFormTabIndex.platformSelectorTabIndex}
+    />
+  );
 
   const renderFormInputs = () => (
     <>
@@ -496,7 +557,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               name="sharepicType"
               control={control}
               rules={{}}
-              defaultValue="dreizeilen"
+              defaultValue="default"
               render={({ field, fieldState: { error } }) => (
                 <FormFieldWrapper
                   label="Sharepic Art"
@@ -505,7 +566,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                   htmlFor="sharepicType-select"
                 >
                   <div className="sharepic-type-selector">
-                    <Select
+                    <ReactSelect
                       {...field}
                       inputId="sharepicType-select"
                       className={`react-select ${error ? 'error' : ''}`.trim()}
@@ -550,13 +611,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                     duration: 0.25 
                   }}
                 >
-                  <Input
+                  <SmartInput
+                    fieldType="zitatAuthor"
+                    formName="presseSocial"
                     name="zitatAuthor"
                     control={control}
                     label="Autor/Urheber des Zitats"
                     placeholder="z.B. Anton Hofreiter"
                     rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
                     tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatAuthor, watchSharepicType === 'quote' || watchSharepicType === 'quote_pure')}
+                    onSubmitSuccess={success ? getValues('zitatAuthor') : null}
+                    shouldSave={success}
                   />
                 </motion.div>
               )}
@@ -590,7 +655,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             }}
           >
             <h4>Pressemitteilung:</h4>
-            <Input
+            <SmartInput
+              fieldType="zitatgeber"
+              formName="presseSocial"
               name="zitatgeber"
               control={control}
               label={FORM_LABELS.WHO_QUOTE}
@@ -598,6 +665,20 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
               rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
               tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber, watchPressemitteilung)}
+              onSubmitSuccess={success ? getValues('zitatgeber') : null}
+              shouldSave={success}
+            />
+            <SmartInput
+              fieldType="presseabbinder"
+              formName="presseSocial"
+              name="presseabbinder"
+              control={control}
+              label="Presseabbinder (optional)"
+              subtext="Standard-Abbinder, der an die Pressemitteilung angehängt wird (z.B. Kontaktdaten, Vereinsinformationen)."
+              placeholder="z.B. Kontakt: Max Mustermann, presse@gruene-example.de"
+              tabIndex={TabIndexHelpers.getConditional(tabIndex.presseabbinder, watchPressemitteilung)}
+              onSubmitSuccess={success ? getValues('presseabbinder') : null}
+              shouldSave={success}
             />
           </motion.div>
         )}
@@ -610,7 +691,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Presse- & Social Media Grünerator"
+          title={<span className="gradient-title">Presse- & Social Media Grünerator</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || sharepicLoading}
           success={success}
@@ -621,18 +702,14 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
-          enablePlatformSelector={true}
-          platformOptions={platformOptions}
-          platformSelectorLabel="Formate"
-          platformSelectorPlaceholder="Formate auswählen..."
-          platformSelectorHelpText="Wähle ein oder mehrere Formate für die dein Content optimiert werden soll"
-          formControl={control}
           helpContent={helpContent}
           componentName={componentName}
           webSearchFeatureToggle={webSearchFeatureToggle}
           useWebSearchFeatureToggle={true}
           privacyModeToggle={privacyModeToggle}
           usePrivacyModeToggle={true}
+          proModeToggle={proModeToggle}
+          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
@@ -642,11 +719,11 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             privacyMode: tabIndex.privacyMode,
             attachment: tabIndex.attachment
           }}
-          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
+          firstExtrasChildren={renderPlatformSection()}
         >
           {renderFormInputs()}
         </BaseForm>

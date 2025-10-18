@@ -14,7 +14,6 @@ const router = express.Router();
 
 // Add debugging middleware to all user content routes
 router.use((req, res, next) => {
-  console.log(`[User Content] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -27,7 +26,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     const { instructionType } = req.params;
     
     // Validate instruction type
-    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend', 'custom_generator'];
+    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend', 'rede', 'buergeranfragen', 'custom_generator'];
     if (!validInstructionTypes.includes(instructionType)) {
       return res.status(400).json({
         success: false,
@@ -37,10 +36,12 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     
     // Map instruction types to database fields
     const fieldMapping = {
-      antrag: ['custom_antrag_prompt', 'custom_antrag_gliederung'],
-      social: ['custom_social_prompt', 'presseabbinder'], 
+      antrag: ['custom_antrag_prompt'],
+      social: ['custom_social_prompt'],
       universal: ['custom_universal_prompt'],
-      gruenejugend: ['custom_gruenejugend_prompt']
+      gruenejugend: ['custom_gruenejugend_prompt'],
+      rede: ['custom_rede_prompt'],
+      buergeranfragen: ['custom_buergeranfragen_prompt']
     };
     
     // Special handling for custom_generator - they don't use traditional instruction fields
@@ -87,20 +88,31 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
       antrag: ['custom_antrag_prompt'],
       social: ['custom_social_prompt']
     };
-    
+
     // Only check groups for instruction types that support group instructions
     if (groupIds.length > 0 && ['antrag', 'social'].includes(instructionType)) {
-      
+
       const groupFieldsToCheck = groupFieldMapping[instructionType];
-      
+
       if (groupFieldsToCheck && groupIds.length > 0) {
         try {
-          const groupInstructions = await postgres.query(
-            `SELECT group_id, ${groupFieldsToCheck.join(', ')} FROM group_instructions WHERE group_id = ANY($1) AND is_active = true`,
-            [groupIds],
-            { table: 'group_instructions' }
-          );
-          
+          // Security: Use explicit column selection to prevent SQL injection
+          // Never use dynamic column names in queries
+          let groupInstructions;
+          if (instructionType === 'antrag') {
+            groupInstructions = await postgres.query(
+              'SELECT group_id, custom_antrag_prompt FROM group_instructions WHERE group_id = ANY($1) AND is_active = true',
+              [groupIds],
+              { table: 'group_instructions' }
+            );
+          } else if (instructionType === 'social') {
+            groupInstructions = await postgres.query(
+              'SELECT group_id, custom_social_prompt FROM group_instructions WHERE group_id = ANY($1) AND is_active = true',
+              [groupIds],
+              { table: 'group_instructions' }
+            );
+          }
+
           // Filter groups that have instructions for this type
           groupsWithInstructions = groupInstructions
             ?.filter(group => {
@@ -117,8 +129,6 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     }
     
     const hasAnyInstructions = hasUserInstructions || groupsWithInstructions.length > 0;
-    
-    console.log(`[Instructions Status ${instructionType.toUpperCase()}] User ${userId}: hasUser=${hasUserInstructions}, groupsWithInstructions=[${groupsWithInstructions.join(',')}], hasAny=${hasAnyInstructions}`);
     
     res.json({
       success: true,
@@ -315,11 +325,11 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     res.json({
       success: true,
       antragPrompt: profileData?.custom_antrag_prompt || '',
-      antragGliederung: profileData?.custom_antrag_gliederung || '',
       socialPrompt: profileData?.custom_social_prompt || '',
       universalPrompt: profileData?.custom_universal_prompt || '',
       gruenejugendPrompt: profileData?.custom_gruenejugend_prompt || '',
-      presseabbinder: profileData?.presseabbinder || '',
+      redePrompt: profileData?.custom_rede_prompt || '',
+      buergeranfragenPrompt: profileData?.custom_buergeranfragen_prompt || '',
       knowledge: knowledgeEntries?.map(entry => ({
         id: entry.id,
         title: entry.title,
@@ -344,18 +354,28 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
 router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { custom_antrag_prompt, custom_antrag_gliederung, custom_social_prompt, custom_universal_prompt, custom_gruenejugend_prompt, presseabbinder, knowledge = [] } = req.body || {};
+    const {
+      custom_antrag_prompt,
+      custom_social_prompt,
+      custom_universal_prompt,
+      custom_gruenejugend_prompt,
+      custom_rede_prompt,  // Added missing field
+      custom_buergeranfragen_prompt,  // Added missing field
+      knowledge = []
+    } = req.body || {};
     console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
+    console.log('[User Content /anweisungen-wissen PUT] Request body keys:', Object.keys(req.body || {}));
+    console.log('[User Content /anweisungen-wissen PUT] Knowledge entries count:', knowledge?.length || 0);
 
     // 1. Update profile prompts using ProfileService
     const profileService = getProfileService();
     const profilePayload = {
       custom_antrag_prompt: custom_antrag_prompt ?? null,
-      custom_antrag_gliederung: custom_antrag_gliederung ?? null,
       custom_social_prompt: custom_social_prompt ?? null,
       custom_universal_prompt: custom_universal_prompt ?? null,
       custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,
-      presseabbinder: presseabbinder ?? null,
+      custom_rede_prompt: custom_rede_prompt ?? null,  // Added missing field
+      custom_buergeranfragen_prompt: custom_buergeranfragen_prompt ?? null,  // Added missing field
     };
     
     await profileService.updateProfile(userId, profilePayload);
@@ -664,7 +684,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
             }];
           } else {
             // For longer texts, use smart chunking
-            chunks = smartChunkDocument(textForEmbedding, {
+            chunks = await smartChunkDocument(textForEmbedding, {
               maxTokens: 600,
               overlapTokens: 150,
               preserveStructure: true

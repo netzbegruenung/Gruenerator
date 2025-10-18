@@ -28,11 +28,6 @@ class ProfileService {
                 [userId],
                 { table: this.tableName }
             );
-            if (profile) {
-                console.log(`[ProfileService] 📄 Profile fetched for user ${userId}: avatar_robot_id=${profile.avatar_robot_id}`);
-            } else {
-                console.log(`[ProfileService] ❌ No profile found for user ${userId}`);
-            }
             return profile;
         } catch (error) {
             console.error('[ProfileService] Error getting profile by ID:', error);
@@ -51,11 +46,6 @@ class ProfileService {
                 [keycloakId],
                 { table: this.tableName }
             );
-            if (profile) {
-                console.log(`[ProfileService] 🔑 Profile fetched by Keycloak ID ${keycloakId}: user_id=${profile.id}, avatar_robot_id=${profile.avatar_robot_id}`);
-            } else {
-                console.log(`[ProfileService] ❌ No profile found for Keycloak ID ${keycloakId}`);
-            }
             return profile;
         } catch (error) {
             console.error('[ProfileService] Error getting profile by Keycloak ID:', error);
@@ -190,7 +180,9 @@ class ProfileService {
                 'anweisungen': 'anweisungen',
                 'memory': 'memory',
                 'canva': 'canva',
-                'labor': 'labor_enabled'
+                'labor': 'labor_enabled',
+                'sites': 'sites',
+                'chat': 'chat'
             };
 
             if (featureColumnMap[feature]) {
@@ -373,9 +365,11 @@ class ProfileService {
             anweisungen: profile.anweisungen || false,
             memory: profile.memory || false,
             canva: profile.canva || false,
-            labor: profile.labor_enabled || false
+            labor: profile.labor_enabled || false,
+            sites: profile.sites || false,
+            chat: profile.chat || false
         };
-        
+
         return {
             ...profileBetaFeatures,
             ...profileSettingsAsBetaFeatures
@@ -402,7 +396,9 @@ class ProfileService {
             'sharepic': 'sharepic',
             'anweisungen': 'anweisungen',
             'memory': 'memory',
-            'canva': 'canva'
+            'canva': 'canva',
+            'sites': 'sites',
+            'chat': 'chat'
         };
 
         // Update all individual properties from profile

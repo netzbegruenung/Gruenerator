@@ -242,7 +242,8 @@ class BaseSearchService {
           vectorWeight: options.vectorWeight ?? 0.4,
           textWeight: options.textWeight ?? 0.5,
           useRRF: options.useRRF ?? false,
-          rrfK: options.rrfK ?? 60
+          rrfK: options.rrfK ?? 60,
+          recallLimit: options.recallLimit
         }
       });
       
@@ -252,7 +253,10 @@ class BaseSearchService {
       }
       
       // Group and rank results with hybrid scoring (pass query for lexical-aware ranking)
-      const results = await this.groupAndRankHybridResults(chunks, options.limit, query);
+      const results = await this.groupAndRankHybridResults(chunks, options.limit, query, {
+        applyMMR: true,
+        mmrLambda: 0.7
+      });
       
       // Build response
       const response = {
@@ -812,8 +816,8 @@ class BaseSearchService {
       if (normQuery && isShortQuery && !doc.chunks.some(c => c.has_term)) {
         return null;
       }
-      // Sort by adjusted score
-      doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
+    // Sort by adjusted score
+    doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
       
       // Calculate hybrid-aware enhanced document score
       const enhancedScore = this.calculateHybridDocumentScore(doc.chunks, doc.hybridMetadata);
@@ -1127,9 +1131,68 @@ class BaseSearchService {
       };
     });
     
-    // Sort by final score and return top results
+    // Sort by final score
     results.sort((a, b) => b.similarity_score - a.similarity_score);
-    return results.slice(0, limit);
+
+    // Optional MMR selection for diversity across documents
+    const applyMMR = options.applyMMR === true;
+    if (!applyMMR) {
+      return results.slice(0, limit);
+    }
+
+    const mmrLambda = typeof options.mmrLambda === 'number' ? options.mmrLambda : 0.7;
+    const selected = [];
+    const used = new Set();
+
+    // Precompute simple token sets for similarity approximation
+    const tokenCache = new Map();
+    const getTokens = (text) => {
+      if (tokenCache.has(text)) return tokenCache.get(text);
+      const tokens = (text || '')
+        .toLowerCase()
+        .replace(/[^a-zäöüß0-9\s]/gi, ' ')
+        .split(/\s+/)
+        .filter(t => t.length >= 4);
+      const set = new Set(tokens);
+      tokenCache.set(text, set);
+      return set;
+    };
+    const jaccard = (aSet, bSet) => {
+      if (!aSet || !bSet) return 0;
+      let inter = 0;
+      for (const t of aSet) if (bSet.has(t)) inter++;
+      const union = aSet.size + bSet.size - inter;
+      return union > 0 ? inter / union : 0;
+    };
+
+    while (selected.length < Math.min(limit, results.length)) {
+      let best = null;
+      let bestScore = -Infinity;
+      for (let i = 0; i < results.length; i++) {
+        if (used.has(i)) continue;
+        const cand = results[i];
+        const rel = cand.similarity_score || 0;
+        let maxSim = 0;
+        if (selected.length > 0) {
+          const candTok = getTokens(cand.relevant_content || '');
+          for (const s of selected) {
+            const selTok = getTokens(s.relevant_content || '');
+            const sim = jaccard(candTok, selTok);
+            if (sim > maxSim) maxSim = sim;
+          }
+        }
+        const mmrScore = mmrLambda * rel - (1 - mmrLambda) * maxSim;
+        if (mmrScore > bestScore) {
+          bestScore = mmrScore;
+          best = i;
+        }
+      }
+      if (best === null) break;
+      used.add(best);
+      selected.push(results[best]);
+    }
+
+    return selected;
   }
 
   /**

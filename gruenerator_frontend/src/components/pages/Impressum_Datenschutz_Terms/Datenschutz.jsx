@@ -3,27 +3,35 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 03. März 2025</p>
+      <p>Stand: 19. September 2025</p>
       
       <h2>Kurzzusammenfassung</h2>
       <p>
-        <strong>Der <a href="https://gruenerator.de/">GRUENERATOR</a> erhebt keine Daten von Dir.
-        Die von Dir getätigten Eingaben werden im Hintergrund an
-        <a href="https://www.anthropic.com/">ANTHROPIC</a> weitergeleitet. Wenn Du die Suchfunktion des GRUENERATORs nutzt, 
-        werden Deine Suchanfragen zusätzlich an <a href="https://tavily.com/">TAVILY</a> weitergeleitet. Bei Nutzung der Sprachverarbeitung werden deine Audiodaten an OpenAI in den USA weitergeleitet. Die Daten werden dort verarbeitet
-        und für 28 Tage gespeichert. Bitte achte also darauf, dass Du keine
+        <strong>Der <a href="https://gruenerator.de/">GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die Eingabefelder eingibst.
+        Diese werden zur AI-Bearbeitung an unseren europäischen Technologiepartner
+        <a href="https://mistral.ai/">Mistral AI</a> weitergeleitet. Deine Daten werden dort nicht zum Training der KI verwendet. Bei Aktivierung des <strong>Pro-Modus</strong> werden Deine Eingaben alternativ an <strong>Amazon Web Services (AWS)</strong> in der EU weitergeleitet und dort durch Anthropic's Claude-Modell verarbeitet. AWS fungiert dabei als Auftragsverarbeiter. Deine Daten werden auch hier nicht zum Training der KI verwendet. Bei Nutzung des <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, 
+        werden Deine Suchanfragen ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also darauf, dass Du keine
         personenbezogenen oder vertraulichen Daten eingibst oder sprichst.</strong>
       </p>
       <p>
-        <strong>Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio- und Videodaten ausschließlich auf unserem Server mit Whisper und FFmpeg verarbeitet und nicht an Dritte weitergegeben. Die Audio- und Videodaten werden nur für die Verarbeitung verwendet und direkt nach Abschluss des Vorgangs gelöscht. Die verarbeiteten Daten werden ebenfalls nicht dauerhaft gespeichert. Sie werden weder von Menschen angehört/angesehen noch zu Trainingszwecken genutzt.</strong>
+        <strong>Hinweis zu den KI-Modi:</strong> Du hast jederzeit die Wahl zwischen verschiedenen Optionen:
+      </p>
+      <ul>
+        <li><strong>Standard-Modus:</strong> Mistral AI (EU)</li>
+        <li><strong>Pro-Modus:</strong> AWS Claude (EU)</li>
+        <li><strong>Privacy-Modus:</strong> netzbegrünung e.V. (Deutschland) - maximaler Datenschutz durch grüne Netzkultur</li>
+      </ul>
+      <p>Die Auswahl triffst Du bei jeder einzelnen Anfrage selbst.</p>
+      <p>
+        <strong>Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio- und Videodaten auf unserem Server verarbeitet. Beim Reel-Grünerator werden die Audiodaten zur Transkription an AssemblyAI übermittelt und ausschließlich auf EU-Servern verarbeitet. Die Daten werden nach der Transkription automatisch gelöscht (Zero Data Retention). Die verarbeiteten Daten werden nicht dauerhaft bei uns gespeichert.</strong>
       </p>
       <p>
         Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten
         findest Du unten auf dieser Seite. Weiterführende Informationen dazu,
-        wie ANTHROPIC Deine Eingaben verarbeitet und behandelt, findest Du in
-        der <a href="https://www.anthropic.com/legal/privacy">Datenschutzerklärung</a>
-        sowie in den <a href="https://www.anthropic.com/legal/aup">Nutzungsbedingungen</a>
-        von Anthropic.
+        wie Mistral AI Deine Eingaben verarbeitet und behandelt, findest Du in
+        der <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a>
+        sowie in den <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a>
+        von Mistral AI.
       </p>
       <p>
         <u>Hinweis:</u><br />
@@ -37,11 +45,16 @@ const Datenschutz = () => {
 
       <h2 id="nutzungsbedingungen">Nutzungsbedingungen</h2>
       <p>
-        Die von Dir getätigten Eingaben werden im Hintergrund an ANTHROPIC
-        weitergeleitet, dort verarbeitet und für 28 Tage gespeichert. Mit dem
-        Absenden Deiner Eingabe sicherst Du zu, keine personenbezogenen oder
-        vertraulichen Daten eingegeben zu haben und die <a href="https://www.anthropic.com/legal/aup">Nutzungsbedingungen von
-        Anthropic</a>, die Deine Daten empfangen und verarbeiten, zu beachten.
+        Die von Dir getätigten Eingaben werden zur Bearbeitung an unseren Partner Mistral AI weitergeleitet. Deine Daten werden dort nicht zum KI-Training genutzt und nicht dauerhaft gespeichert. Mit dem Absenden Deiner Eingabe beachtest Du die <a href="https://mistral.ai/terms/">Nutzungsbedingungen von Mistral AI</a>, die Deine Daten empfangen und verarbeiten.
+      </p>
+      <p>
+        Bei Aktivierung des Pro-Modus im GRUENERATOR werden Deine Eingaben an AWS/Claude weitergeleitet. Mit der Aktivierung des Pro-Modus akzeptierst Du, dass die Verarbeitung unter den AWS-Servicebedingungen und dem AWS Data Processing Addendum erfolgt. Du kannst für jede Anfrage individuell entscheiden, ob Du den Pro-Modus nutzen möchtest.
+      </p>
+      <p>
+        <strong>Grünerator Imagine:</strong> Bei Nutzung der Bildbearbeitungsfunktion werden Deine Bilder an Black Forest Labs weitergeleitet. Mit dem Upload stimmst Du der Verarbeitung gemäß den <a href="https://blackforestlabs.ai/privacy-policy/">Datenschutzbestimmungen</a> und <a href="https://blackforestlabs.ai/terms-of-service/">Nutzungsbedingungen</a> von Black Forest Labs zu. Bitte lade keine Bilder hoch, die personenbezogene Daten Dritter enthalten, für deren Verarbeitung Du keine Rechtsgrundlage hast.
+      </p>
+      <p>
+        <strong>Hinweis zu Bildinhalten:</strong> Bitte achte darauf, dass Du nur Bilder hochlädst, für die Du die erforderlichen Rechte besitzt. Lade keine Bilder mit erkennbaren Personen hoch, es sei denn, Du hast deren ausdrückliche Einwilligung. Bilder von Minderjährigen sind generell nicht gestattet.
       </p>
 
       <h2>Datenschutzhinweise</h2>
@@ -74,32 +87,24 @@ const Datenschutz = () => {
         ermöglichen.
       </p>
 
-      <h3>Verarbeitung von Video- und Audiodaten</h3>
-      <p>
-        Wenn Du den Reel-Grünerator oder die Sprachaufnahme-Funktion nutzt, werden Deine hochgeladenen Video- und Audiodaten wie folgt verarbeitet:
-        <ul>
-          <li>Die Daten werden ausschließlich auf unseren eigenen Servern verarbeitet</li>
-          <li>Für die Verarbeitung verwenden wir Whisper (Spracherkennung) und FFmpeg (Videobearbeitung)</li>
-          <li>Die Daten werden nicht an externe Dienste weitergeleitet</li>
-          <li>Die Original-Dateien werden direkt nach der Verarbeitung gelöscht</li>
-          <li>Die verarbeiteten Daten werden nicht dauerhaft gespeichert</li>
-          <li>Es erfolgt keine manuelle Sichtung oder Anhörung der Daten</li>
-          <li>Die Daten werden nicht zu Trainingszwecken verwendet</li>
-        </ul>
-      </p>
+      <h3>Medienverarbeitung (Video/Audio/Sprache)</h3>
 
-      <p>
-        Wenn Du die Sprachverarbeitung nutzt, werden deine Audiodaten zusätzlich wie folgt verarbeitet:
-        <ul>
-          <li>Die Audiodaten werden zur Transkription an OpenAI in den USA übermittelt</li>
-          <li>Die Verarbeitung erfolgt durch OpenAI's Whisper-API</li>
-          <li>Die Daten werden bei OpenAI für 28 Tage gespeichert</li>
-          <li>OpenAI verwendet die Daten nicht zum Training ihrer Modelle</li>
-          <li>Die Datenübermittlung erfolgt auf Grundlage des EU-US Data Privacy Framework</li>
-          <li>Nach der Verarbeitung werden die lokalen Kopien der Audiodaten sofort gelöscht</li>
-          <li>Die generierten Transkripte werden nur temporär gespeichert</li>
-        </ul>
-      </p>
+      <p><strong>Lokale Verarbeitung auf unseren Servern:</strong></p>
+      <ul>
+        <li>Sprachaufnahme & Reel-Videos: Whisper (Spracherkennung) + FFmpeg (Videobearbeitung)</li>
+        <li>Sofortlöschung der Original-Dateien nach Verarbeitung</li>
+        <li>Keine dauerhafte Speicherung</li>
+        <li>Keine manuelle Sichtung oder Anhörung</li>
+        <li>Keine Nutzung zu Trainingszwecken</li>
+      </ul>
+
+      <p><strong>Externe Verarbeitung durch Dienstleister:</strong></p>
+      <ul>
+        <li>Sprache-zu-Text: Mistral Voxtral (EU-Server, max. 30 Tage)</li>
+        <li>Video-Transkription: AssemblyAI (EU-Server, Zero Retention)</li>
+        <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
+      </ul>
+
 
       <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
       <p>
@@ -109,21 +114,85 @@ const Datenschutz = () => {
 
       <h4>c. Gibt es neben dem Verantwortlichen weitere Empfänger der personenbezogenen Daten?</h4>
       <p>
-        Die Website wird bei [Name, Postadresse, E-Mail-Adresse des
-        Hosters] gehostet. Der Hoster empfängt die oben genannten Daten als
-        Auftragsverarbeiter.
-      </p>
+        Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
+        Auftragsverarbeiter. 
+        Bei Aktivierung des Pro-Modus fungiert zusätzlich Amazon Web Services EMEA SARL als Auftragsverarbeiter für die KI-Textgenerierung mittels Claude.
+        Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert <strong>AssemblyAI, Inc.</strong> als Auftragsverarbeiter für die Audiotranskription mit ausschließlicher EU-Datenverarbeitung.
+    </p>
+      
       <p>
-        Darüber hinaus werden Deine Eingaben im Hintergrund an ANTHROPIC weitergeleitet. 
-        Bei Nutzung der Suchfunktion werden Deine Suchanfragen zusätzlich an TAVILY
-        weitergeleitet. Die Daten werden dort verarbeitet und für 28 Tage gespeichert. Mit
-        dem Absenden Deiner Eingabe sicherst Du zu, keine personenbezogenen
-        oder vertraulichen Daten eingegeben zu haben und die
-        <a href="https://www.anthropic.com/legal/aup">Nutzungsbedingungen von Anthropic</a> sowie bei Nutzung der Suchfunktion die 
-        <a href="https://tavily.com/terms">Nutzungsbedingungen von Tavily</a>, die Deine Daten
-        empfangen und verarbeiten, zu beachten. Weitere Informationen dazu sowie zu Deinen Rechten findest Du in der
-        <a href="https://www.anthropic.com/legal/privacy">Datenschutzerklärung von Anthropic</a> und der
-        <a href="https://www.tavily.com/privacy">Datenschutzerklärung von Tavily</a>.
+        Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren.
+      </p>
+
+      <h3>Auftragsverarbeitung durch technische Dienstleister</h3>
+
+      <p><strong>Gemeinsame Grundsätze für alle Dienstleister:</strong></p>
+      <ul>
+        <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)</li>
+        <li>Auftragsverarbeitungsverträge gemäß Art. 28 DSGVO vorhanden</li>
+        <li><strong>Kein KI-Training: Deine Daten werden bei keinem unserer Partner zum Training verwendet</strong></li>
+        <li>Maximale Speicherdauer: 30 Tage für technische Zwecke/Missbrauchserkennung</li>
+        <li>Verarbeitung ausschließlich in der EU (außer spezifisch erwähnt)</li>
+      </ul>
+
+      <h4>Unsere Auftragsverarbeiter im Detail:</h4>
+
+      <p><strong>1. Mistral AI</strong> (15 rue des Halles, 75001 Paris, Frankreich)</p>
+      <ul>
+        <li>Zweck: Text-/Sprachverarbeitung (Standard-Modus + Voxtral)</li>
+        <li>Server: EU (Frankreich)</li>
+        <li>Besonderheit: Subunternehmer möglich (mit EU-Standardvertragsklauseln)</li>
+        <li>Details: <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a> und <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a></li>
+      </ul>
+
+      <p><strong>2. AWS/Anthropic Claude</strong> (Amazon Web Services EMEA SARL, Luxemburg)</p>
+      <ul>
+        <li>Zweck: Pro-Modus (erweiterte KI bei aktiver Auswahl)</li>
+        <li>Server: EU (Frankfurt/Irland)</li>
+        <li>Aktivierung: Standardmäßig deaktiviert, Du entscheidest bei jeder Anfrage</li>
+        <li>Zertifizierungen: ISO 27001/27017/27018, CISPE Code of Conduct</li>
+      </ul>
+
+      <p><strong>3. Black Forest Labs Inc.</strong></p>
+      <ul>
+        <li>Zweck: Bildbearbeitung (FLUX-Modell im Grünerator Imagine)</li>
+        <li>Server: Ausschließlich EU</li>
+        <li>Besonderheit: Keine Speicherung auf unseren Servern, direkte Weiterleitung</li>
+        <li>Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten</li>
+      </ul>
+
+      <p><strong>4. AssemblyAI Inc.</strong></p>
+      <ul>
+        <li>Zweck: Video-Audiotranskription (Reel-Grünerator)</li>
+        <li>Server: api.eu.assemblyai.com (nur EU)</li>
+        <li>Zero Data Retention: Sofortlöschung nach Transkription</li>
+        <li>Maximale Speicherdauer: 3 Tage (statt 30 Tage)</li>
+        <li>Zertifizierung: SOC 2 Type II</li>
+        <li>Details: <a href="https://www.assemblyai.com/trust">Trust Center</a> und <a href="https://www.assemblyai.com/legal/dpa">DPA</a></li>
+      </ul>
+
+      <p><strong>5. netzbegrünung e.V.</strong> (Deutschland)</p>
+      <ul>
+        <li>Zweck: Privacy-Modus (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
+        <li>Server: Eigene Server (Deutschland)</li>
+        <li>Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle Datennutzung</li>
+        <li>Aktivierung: Standardmäßig deaktiviert, Du entscheidest bei jeder Anfrage</li>
+        <li>Backup-Provider: IONOS SE (bei Ausfall) - Stateless Service in Berlin</li>
+      </ul>
+
+      <p><strong>6. SearXNG (selbstgehostet)</strong></p>
+      <ul>
+        <li>Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)</li>
+        <li>Server: Eigene Server (Deutschland)</li>
+        <li>Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle</li>
+      </ul>
+
+      <p>
+        <strong>Wichtiger Hinweis zur Datenverarbeitung:</strong>
+        Wir verarbeiten ausschließlich die von Dir bewusst eingegebenen Texte.
+        Eine automatische Erhebung oder Analyse Deiner politischen Ansichten
+        findet nicht statt. Ob und welche politischen Inhalte verarbeitet werden,
+        liegt vollständig in Deiner Entscheidung. Bitte achte darauf, keine personenbezogenen oder vertraulichen Daten in die Eingabefelder einzugeben, für deren Verarbeitung Du keine Rechtsgrundlage hast.
       </p>
 
       <h4>d. Wie lange werden die Daten gespeichert?</h4>
@@ -146,7 +215,7 @@ const Datenschutz = () => {
 
       <h3>Dauer der Datenspeicherung</h3>
       <p>
-        Ihre Daten werden so lange in Supabase gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich sind oder bis Sie eine Löschung beantragen. Nach Beendigung der Nutzung unserer Dienste werden Ihre Daten für weitere [X] Tage aufbewahrt und anschließend gelöscht, es sei denn, gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung.
+        Ihre Daten werden so lange gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich sind oder bis Sie eine Löschung beantragen. Nach Beendigung der Nutzung unserer Dienste werden Ihre Daten für weitere 30 Tage aufbewahrt und anschließend gelöscht, es sei denn, gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung.
       </p>
 
       <h3>Standort der Datenverarbeitung</h3>
@@ -167,13 +236,12 @@ const Datenschutz = () => {
       </p>
 
       <p>
-        Bezüglich der Verarbeitung von Sprachdaten durch OpenAI haben Sie das Recht:
-        <ul>
-          <li>Auskunft über die verarbeiteten Daten zu erhalten</li>
-          <li>Die Löschung der Daten vor Ablauf der 28-Tage-Frist zu verlangen</li>
-          <li>Der Verarbeitung zu widersprechen</li>
-          <li>Ihre Einwilligung jederzeit zu widerrufen</li>
-        </ul>
+        <strong>Audiodaten beim Reel-Grünerator:</strong>
+        Deine Betroffenenrechte bezüglich der an AssemblyAI übermittelten Audiodaten kannst Du über uns geltend machen. Direktkontakt: support@assemblyai.com. Beachte die maximale Speicherdauer von 3 Tagen mit automatischer Löschung nach Transkription (Zero Data Retention).
+      </p>
+
+      <p>
+        <strong>Bilder im Grünerator Imagine:</strong> Da wir Deine Bilder nicht speichern, sondern nur durchleiten, können wir keine Auskunft über oder Löschung von Bilddaten vornehmen, die sich möglicherweise bei Black Forest Labs befinden. Hierfür kontaktiere bitte direkt Black Forest Labs unter support@blackforestlabs.ai.
       </p>
 
       <h4>b. Recht auf Widerspruch</h4>
@@ -297,16 +365,6 @@ const Datenschutz = () => {
         der EU-Kommission entnommen werden.
       </p>
 
-      <p>
-        Für die Übermittlung von Audiodaten an OpenAI (USA) gilt:
-        <ul>
-          <li>Die Übermittlung erfolgt auf Basis des EU-US Data Privacy Framework</li>
-          <li>OpenAI Ireland Limited ist der verantwortliche Vertragspartner für EU-Nutzer</li>
-          <li>Es besteht ein Datenverarbeitungsvertrag (DPA) gemäß Art. 28 DSGVO</li>
-          <li>Technische und organisatorische Maßnahmen zum Schutz der Daten sind vertraglich festgelegt</li>
-          <li>Die Speicherdauer bei OpenAI ist auf 28 Tage begrenzt</li>
-        </ul>
-      </p>
 
       <p>
         EU-US Trans-Atlantic Data Privacy Framework: Im Rahmen des sogenannten

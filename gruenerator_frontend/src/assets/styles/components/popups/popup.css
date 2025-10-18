@@ -68,7 +68,7 @@
   gap: 25px;
 }
 
-.feature-card {
+.welcome-popup .feature-card {
   background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
   padding: 25px;
   border-radius: 18px;
@@ -79,7 +79,7 @@
   cursor: default;
 }
 
-.feature-card:hover {
+.welcome-popup .feature-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   border-color: var(--dunkelgruen);
@@ -91,7 +91,7 @@
   margin-bottom: 15px;
 }
 
-.feature-card h3 {
+.welcome-popup .feature-card h3 {
   font-size: 1.3em;
   margin-bottom: 12px;
   color: var(--font-color-h);
@@ -99,7 +99,7 @@
   letter-spacing: -0.01em;
 }
 
-.feature-card p {
+.welcome-popup .feature-card p {
   font-size: 1em;
   line-height: 1.4;
   color: var(--font-color);
@@ -170,7 +170,7 @@
     margin-bottom: 20px;
   }
 
-  .feature-card {
+  .welcome-popup .feature-card {
     padding: 20px;
   }
   
@@ -179,12 +179,12 @@
     margin-bottom: 12px;
   }
   
-  .feature-card h3 {
+  .welcome-popup .feature-card h3 {
     font-size: 1.2em;
     margin-bottom: 10px;
   }
   
-  .feature-card p {
+  .welcome-popup .feature-card p {
     font-size: 0.95em;
   }
 

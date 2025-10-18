@@ -16,6 +16,7 @@
 
 /* Moved to component level: spinner.css, image-slider.css, animatedcheckbox.css, tooltip.css, SegmentedControl.css, menu-dropdown.css, TypingIndicator.css, success-screen.css, profile-skeleton.css */
 @import url('./components/ui/button.css');
+@import url('./components/profile/profile-action-buttons.css');
 /* Moved to component level: form-toggle-button.css, FeatureToggle.css, AttachedFilesList.css, knowledge-selector.css, error-boundary.css, image-display.css, ChatUI.css, react-select.css, enhanced-select.css */
 
 @import url('./components/ui/quote-form.css');
@@ -38,6 +39,9 @@
 @import url('./components/actions/linksave.css');
 @import url('./components/actions/collection-actions.css');
 
+
+/* Feature styles */
+@import url('./features/auth/profile-cards.css');
 
 
 

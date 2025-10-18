@@ -56,6 +56,7 @@ const FormSection = forwardRef(({
   submitButtonProps = {},
   webSearchFeatureToggle,
   privacyModeToggle,
+  proModeToggle,
   onAttachmentClick,
   onRemoveFile,
   enablePlatformSelector = false,
@@ -96,7 +97,8 @@ const FormSection = forwardRef(({
   onWebSearchInfoClick,
   componentName,
   useEditMode = false,
-  registerEditHandler = null
+  registerEditHandler = null,
+  enableKnowledgeSelector = false
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -183,6 +185,7 @@ const FormSection = forwardRef(({
               <FormExtrasSection
                 webSearchFeatureToggle={webSearchFeatureToggle}
                 privacyModeToggle={privacyModeToggle}
+                proModeToggle={proModeToggle}
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
                 formControl={formControl}
@@ -202,6 +205,7 @@ const FormSection = forwardRef(({
                 onPrivacyInfoClick={onPrivacyInfoClick}
                 onWebSearchInfoClick={onWebSearchInfoClick}
                 componentName={componentName}
+                enableKnowledgeSelector={enableKnowledgeSelector}
               >
                 {extrasChildren}
               </FormExtrasSection>
@@ -246,6 +250,12 @@ FormSection.propTypes = {
     onToggle: PropTypes.func,
     label: PropTypes.string,
     icon: PropTypes.elementType,
+    description: PropTypes.string
+  }),
+  proModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
     description: PropTypes.string
   }),
   enableKnowledgeSelector: PropTypes.bool,

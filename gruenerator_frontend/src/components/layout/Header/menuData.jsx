@@ -23,6 +23,36 @@ export const getMobileOnlyMenuItems = () => {
 
 // Funktion zur Generierung der Hauptmenüstruktur inkl. dynamischem "Labor"-Menü
 export const getMenuItems = (betaFeatures = {}) => {
+  // Dynamic tools items based on beta features
+  const toolsItems = [
+    {
+      id: 'suche',
+      path: '/suche',
+      title: 'Suche',
+      description: 'Webrecherche für aktuelle Informationen',
+      icon: getIcon('navigation', 'suche')
+    }
+  ];
+
+  // Add chat if beta feature is enabled
+  if (betaFeatures.chatBetaEnabled) {
+    toolsItems.push({
+      id: 'chat',
+      path: '/chat',
+      title: 'Chat',
+      description: 'KI-Assistent für alle Textarten',
+      icon: getIcon('ui', 'assistant')
+    });
+  }
+
+  toolsItems.push({
+    id: 'barrierefreiheit',
+    path: '/barrierefreiheit',
+    title: 'Barrierefreiheit',
+    description: 'Alt-Text & Leichte Sprache',
+    icon: getIcon('navigation', 'barrierefreiheit')
+  });
+
   const staticMenuItems = {
     texte: {
       title: 'Texte',
@@ -85,22 +115,7 @@ export const getMenuItems = (betaFeatures = {}) => {
     },
     tools: {
       title: 'Tools',
-      items: [
-        {
-          id: 'suche',
-          path: '/suche',
-          title: 'Suche',
-          description: 'Webrecherche für aktuelle Informationen',
-          icon: getIcon('navigation', 'suche')
-        },
-        {
-          id: 'barrierefreiheit',
-          path: '/barrierefreiheit',
-          title: 'Barrierefreiheit',
-          description: 'Alt-Text & Leichte Sprache',
-          icon: getIcon('navigation', 'barrierefreiheit')
-        }
-      ]
+      items: toolsItems
     }
     /* Temporär ausgeblendet - Grafik
     ,grafik: {
@@ -131,15 +146,6 @@ export const getMenuItems = (betaFeatures = {}) => {
     });
   }
 
-  if (betaFeatures.youBetaEnabled) {
-    laborItems.push({
-      id: 'you',
-      path: '/you',
-      title: 'You Grünerator',
-      description: 'Universeller KI-Assistent für alle Texte',
-      icon: getIcon('navigation', 'you')
-    });
-  }
 
 
   if (laborItems.length > 0) {
@@ -162,7 +168,7 @@ export const MenuItem = ({ item }) => (
       {item.icon && <item.icon aria-hidden="true" />}
     </div>
     <div className="menu-item-header">
-      <span className="menu-item-title">{item.title}</span>
+      <h4 className="menu-item-title">{item.title}</h4>
       <p className="menu-item-description">{item.description}</p>
     </div>
   </div>

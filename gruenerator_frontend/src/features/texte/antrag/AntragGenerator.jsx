@@ -1,24 +1,22 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import BaseForm from '../../../components/common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
-import StyledCheckbox from '../../../components/common/AnimatedCheckbox';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiInformationCircle, HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import SmartInput from '../../../components/common/Form/SmartInput';
+import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import useKnowledge from '../../../components/hooks/useKnowledge';
+import { useLazyAuth } from '../../../hooks/useAuth';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
-import AntragSavePopup from './components/AntragSavePopup';
-import FormSelect from '../../../components/common/Form/Input/FormSelect';
-import BundestagDocumentSelector from '../../../components/common/BundestagDocumentSelector/BundestagDocumentSelector';
+import PlatformSelector from '../../../components/common/PlatformSelector';
+import Icon from '../../../components/common/Icon';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import apiClient from '../../../components/utils/apiClient';
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -32,6 +30,12 @@ const REQUEST_TYPE_LABELS = {
   [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Große Anfrage'
 };
 
+const REQUEST_TYPE_ICONS = {
+  [REQUEST_TYPES.ANTRAG]: () => <Icon category="textTypes" name="antrag" size={16} />,
+  [REQUEST_TYPES.KLEINE_ANFRAGE]: () => <Icon category="textTypes" name="kleine_anfrage" size={16} />,
+  [REQUEST_TYPES.GROSSE_ANFRAGE]: () => <Icon category="textTypes" name="grosse_anfrage" size={16} />
+};
+
 const REQUEST_TYPE_TITLES = {
   [REQUEST_TYPES.ANTRAG]: 'Grünerator für Anträge',
   [REQUEST_TYPES.KLEINE_ANFRAGE]: 'Grünerator für Kleine Anfragen',
@@ -40,9 +44,12 @@ const REQUEST_TYPE_TITLES = {
 
 const AntragGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'antrag-generator';
-  const { user, bundestagApiEnabled } = useOptimizedAuth();
+  useLazyAuth(); // Establish cached auth state for useKnowledge
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+
+  // State for request type - moved outside of form control
+  const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
 
   // Initialize knowledge system with UI configuration
   useKnowledge({ 
@@ -61,30 +68,26 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const {
     control,
     handleSubmit,
-    reset,
     watch,
     getValues,
     setValue,
     formState: { errors }
   } = useForm({
     defaultValues: {
-      requestType: REQUEST_TYPES.ANTRAG,
       idee: '',
       details: '',
       gliederung: '',
       useWebSearchTool: false,
-      usePrivacyMode: false
+      usePrivacyMode: false,
+      useProMode: false
     }
   });
 
   const watchUseWebSearch = watch('useWebSearchTool');
   const watchUsePrivacyMode = watch('usePrivacyMode');
-  const watchRequestType = watch('requestType');
+  const watchUseProMode = watch('useProMode');
 
   const [antragContent, setAntragContent] = useState('');
-  const [isSavePopupOpen, setIsSavePopupOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [selectedBundestagDocuments, setSelectedBundestagDocuments] = useState([]);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/antraege/generate-simple');
@@ -94,10 +97,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const {
     source,
     availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -125,14 +129,13 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
     try {
       const formDataToSubmit = {
-        requestType: rhfData.requestType,
+        requestType: selectedRequestType,
         idee: rhfData.idee,
         details: rhfData.details,
         gliederung: rhfData.gliederung,
         useWebSearchTool: rhfData.useWebSearchTool,
         usePrivacyMode: rhfData.usePrivacyMode,
-        useBundestagApi: bundestagApiEnabled && selectedBundestagDocuments.length > 0,
-        selectedBundestagDocuments: selectedBundestagDocuments,
+        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
         attachments: processedAttachments
       };
       
@@ -146,29 +149,18 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       };
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
-      console.log('[AntragGenerator] Extracted search query from form:', searchQuery);
 
-      // Add knowledge, instructions, and documents
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType: 'antrag',
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: false, // Not using memories in this context
-          query: searchQuery
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt; 
-        console.log('[AntragGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
-      } else {
-        console.log('[AntragGenerator] No custom instructions or knowledge for generation.');
-      }
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction('antrag')
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       const response = await submitForm(formDataToSubmit);
       if (response) {
@@ -187,39 +179,13 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, getDocumentContent, bundestagApiEnabled, selectedBundestagDocuments, processedAttachments]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, isInstructionsActive, getActiveInstruction, processedAttachments, selectedRequestType, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setAntragContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
-  const handleSaveToDb = useCallback(async () => {
-    setIsSavePopupOpen(true);
-  }, []);
-
-  const handleConfirmSave = useCallback(async (popupData) => {
-    setIsSavePopupOpen(false);
-    setIsSaving(true);
-    
-    try {
-      const requestTypeLabel = REQUEST_TYPE_LABELS[getValues('requestType')] || 'Antrag';
-      const payload = {
-        title: popupData.title || `${requestTypeLabel}: ${getValues('idee')}` || `Unbenannte ${requestTypeLabel}`,
-        antragstext: storeGeneratedText || antragContent,
-        gliederung: getValues('gliederung') || '',
-        ...popupData,
-      };
-      // Direct API call to save antrag
-      const response = await apiClient.post('/antraege', payload);
-      const savedAntrag = response.data;
-      console.log('[AntragGenerator] Antrag erfolgreich gespeichert:', savedAntrag);
-    } catch (saveError) {
-      console.error('[AntragGenerator] Error during final save of antrag:', saveError);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [watch, storeGeneratedText, antragContent]);
 
   const handleAttachmentClick = useCallback(async (files) => {
     try {
@@ -246,34 +212,43 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
 
   const helpContent = {
-    content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details.${bundestagApiEnabled ? ' Du kannst relevante parlamentarische Dokumente aus dem Bundestag zur Fundierung auswählen.' : ''} Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
+    content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
     tips: [
       "Wähle die Art: Antrag, Kleine oder Große Anfrage",
       "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
       "Große Anfragen: Umfassende politische Themen mit Debatte",
       "Formuliere deine Idee klar und präzise",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
-      "Nutze die Websuche für aktuelle Informationen",
-      ...(bundestagApiEnabled ? ["Suche und wähle parlamentarische Dokumente zur Fundierung deines Antrags"] : []),
-      "Speichere wichtige Dokumente in der Datenbank"
+      "Nutze die Websuche für aktuelle Informationen"
     ]
   };
 
-  const requestTypeOptions = Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({
-    value,
-    label
-  }));
+  const renderRequestTypeSection = () => {
+    const requestTypeOptions = Object.entries(REQUEST_TYPE_LABELS).map(([value, label]) => ({
+      value,
+      label,
+      icon: REQUEST_TYPE_ICONS[value]
+    }));
+
+    return (
+      <PlatformSelector
+        name="requestType"
+        options={requestTypeOptions}
+        value={selectedRequestType}
+        onChange={setSelectedRequestType}
+        label="Art der Anfrage"
+        placeholder="Art der Anfrage auswählen..."
+        isMulti={false}
+        control={null}
+        enableIcons={true}
+        enableSubtitles={false}
+        isSearchable={false}
+        required={true}
+      />
+    );
+  };
 
   const renderFormInputs = () => (
     <>
-      <FormSelect
-        name="requestType"
-        control={control}
-        label="Art der Anfrage"
-        options={requestTypeOptions}
-        tabIndex={tabIndex.requestType || 1}
-      />
-
       <Input
         name="idee"
         control={control}
@@ -295,12 +270,16 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         tabIndex={tabIndex.details}
       />
 
-      <Input
+      <SmartInput
+        fieldType="gliederung"
         name="gliederung"
         control={control}
         label={FORM_LABELS.GLIEDERUNG}
         placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
         tabIndex={tabIndex.gliederung}
+        onSubmitSuccess={success ? getValues('gliederung') : null}
+        shouldSave={success}
+        formName="antrag"
       />
     </>
   );
@@ -327,28 +306,27 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.privacyMode || 13
   };
 
-  // const bundestagDocumentSelector = bundestagApiEnabled ? (
-  //   <BundestagDocumentSelector
-  //     onDocumentSelection={setSelectedBundestagDocuments}
-  //     disabled={loading}
-  //     tabIndex={tabIndex.bundestagDocuments}
-  //     searchQuery={`${getValues('idee')} ${getValues('details')}`.trim()}
-  //   />
-  // ) : null;
+  const proModeToggle = {
+    isActive: watchUseProMode,
+    onToggle: (checked) => {
+      setValue('useProMode', checked);
+    },
+    label: "Pro-Mode",
+    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
+  };
+
 
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title={REQUEST_TYPE_TITLES[watchRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}
+          title={<span className="gradient-title">{REQUEST_TYPE_TITLES[selectedRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}
           error={error}
           generatedContent={storeGeneratedText || antragContent}
           onGeneratedContentChange={handleGeneratedContentChange}
-          onSave={handleSaveToDb}
-          saveLoading={isSaving}
           formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
@@ -357,6 +335,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           useWebSearchFeatureToggle={true}
           privacyModeToggle={privacyModeToggle}
           usePrivacyModeToggle={true}
+          proModeToggle={proModeToggle}
+          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
@@ -367,19 +347,10 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
-          // firstExtrasChildren={bundestagDocumentSelector}
+          firstExtrasChildren={renderRequestTypeSection()}
         >
           {renderFormInputs()}
         </BaseForm>
-        
-        <AntragSavePopup
-          isOpen={isSavePopupOpen}
-          onClose={() => setIsSavePopupOpen(false)}
-          onConfirm={handleConfirmSave}
-          isSaving={isSaving}
-          antragstext={storeGeneratedText || antragContent}
-          initialData={{ title: `${REQUEST_TYPE_LABELS[getValues('requestType')] || 'Antrag'}: ${getValues('idee')}` }}
-        />
       </div>
     </ErrorBoundary>
   );

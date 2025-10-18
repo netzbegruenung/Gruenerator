@@ -87,13 +87,16 @@ class QdrantService {
         try {
             // Validate environment variables
             const apiKey = process.env.QDRANT_API_KEY;
+            const qdrantUrl = process.env.QDRANT_URL;
+
             if (!apiKey || apiKey.trim() === '') {
                 throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
             }
-            
-            // Hardcoded domain for testing
-            const qdrantUrl = 'https://qdrant.services.moritz-waechter.de:443';
-            
+
+            if (!qdrantUrl || qdrantUrl.trim() === '') {
+                throw new Error('QDRANT_URL environment variable is required but not set or empty');
+            }
+
             console.log(`[QdrantService] Initializing with API key: ${apiKey.substring(0, 8)}...`);
             console.log(`[QdrantService] Connecting to: ${qdrantUrl}`);
 
@@ -108,17 +111,35 @@ class QdrantService {
                 freeSocketTimeout: 15000
             });
 
+            // Prepare basic auth header if credentials are provided
+            const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
+            const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+            const headers = {};
+
+            if (basicAuthUsername && basicAuthPassword) {
+                const basicAuth = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString('base64');
+                headers['Authorization'] = `Basic ${basicAuth}`;
+                console.log(`[QdrantService] Using basic authentication for user: ${basicAuthUsername}`);
+            }
+
             // Use host/port approach for HTTPS support due to Qdrant client URL parsing bug
             if (qdrantUrl.startsWith('https://')) {
                 const url = new URL(qdrantUrl);
+                const port = url.port ? parseInt(url.port) : 443;
+
+                // Extract path as prefix if it exists (e.g., /qdrant/)
+                const basePath = url.pathname && url.pathname !== '/' ? url.pathname : undefined;
+
                 this.client = new QdrantClient({
                     host: url.hostname,
-                    port: url.port ? parseInt(url.port) : 443,
+                    port: port,
                     https: true,
                     apiKey: apiKey,
                     timeout: 60000,
                     checkCompatibility: false,  // Skip compatibility check for faster startup
-                    agent: httpAgent
+                    agent: httpAgent,
+                    ...(Object.keys(headers).length > 0 ? { headers } : {}),
+                    ...(basePath ? { prefix: basePath } : {})
                 });
             } else {
                 this.client = new QdrantClient({
@@ -126,7 +147,8 @@ class QdrantService {
                     apiKey: apiKey,
                     https: false,  // Force HTTP for non-HTTPS URLs
                     timeout: 60000,
-                    agent: httpAgent
+                    agent: httpAgent,
+                    ...(Object.keys(headers).length > 0 ? { headers } : {})
                 });
             }
 

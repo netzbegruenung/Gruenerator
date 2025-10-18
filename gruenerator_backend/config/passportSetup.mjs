@@ -1,50 +1,20 @@
 import passport from 'passport';
-import { KeycloakStrategy } from './keycloakStrategy.mjs';
+import { initializeKeycloakOIDCStrategy } from './keycloakOIDCStrategy.mjs';
 
 // Import ProfileService for database operations
 import { getProfileService } from '../services/ProfileService.mjs';
 
-console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy');
+console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy with openid-client');
 
-// Passport Keycloak Strategy Configuration (extends OpenID Connect)
-passport.use('oidc', new KeycloakStrategy({
-  issuer: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}`,
-  authorizationURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`,
-  tokenURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/token`,
-  userInfoURL: `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
-  clientID: process.env.KEYCLOAK_CLIENT_ID,
-  clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
-  callbackURL: `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/auth/callback`,
-  scope: 'openid profile email offline_access'
-}, async (issuer, profile, done) => {
-  try {
-    if (!profile) {
-      console.error('[PassportSetup OIDC Verify Callback] Profile is undefined');
-      return done(new Error('Profile is undefined'), null);
-    }
-
-    // passport-openidconnect provides profile in standard format
-    const normalizedProfile = {
-      id: profile.id,
-      displayName: profile.displayName || profile.username || profile.preferred_username,
-      emails: profile.emails || [],
-      username: profile.username || profile.preferred_username,
-      _raw: profile._raw,
-      _json: profile._json
-    };
-
-    // Create a mock request object for handleUserProfile  
-    const mockReq = { user: null };
-    const user = await handleUserProfile(normalizedProfile, mockReq);
-
-    // Note: passport-openidconnect doesn't provide tokenset in callback
-
-    return done(null, user);
-  } catch (error) {
-    console.error('[PassportSetup OIDC Verify Callback] Error in strategy callback:', error);
-    return done(error, null);
-  }
-}));
+// Initialize the new OpenID Connect strategy
+try {
+  const keycloakStrategy = await initializeKeycloakOIDCStrategy();
+  passport.use(keycloakStrategy);
+  console.log('[PassportSetup] Keycloak OIDC strategy registered successfully');
+} catch (error) {
+  console.error('[PassportSetup] Failed to initialize Keycloak OIDC strategy:', error);
+  throw error;
+}
 
 // Serialize user for session
 passport.serializeUser((user, done) => {
@@ -55,10 +25,8 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (userData, done) => {
   try {
     if (typeof userData === 'object' && userData.id) {
-      console.log(`[Auth] 🔄 Deserializing user ${userData.id}, session avatar_robot_id=${userData.avatar_robot_id}`);
       const userToReturn = await getUserById(userData.id);
       if (userToReturn) {
-        console.log(`[Auth] 🔄 Database avatar_robot_id=${userToReturn.avatar_robot_id}, session avatar_robot_id=${userData.avatar_robot_id}`);
         
         // Preserve session data that might have been updated
         if (userData.id_token) {
@@ -85,11 +53,12 @@ passport.deserializeUser(async (userData, done) => {
         }
         // CRITICAL: Preserve avatar_robot_id from session if it was updated
         if (userData.hasOwnProperty('avatar_robot_id') && userData.avatar_robot_id) {
-          console.log(`[Auth] 🎨 Using session avatar_robot_id: ${userData.avatar_robot_id} (overriding DB value: ${userToReturn.avatar_robot_id})`);
           userToReturn.avatar_robot_id = userData.avatar_robot_id;
         }
-        
-        console.log(`[Auth] ✅ Final user object avatar_robot_id=${userToReturn.avatar_robot_id}`);
+        // Preserve _redirectTo field if it exists (used for redirect after auth)
+        if (userData._redirectTo) {
+          userToReturn._redirectTo = userData._redirectTo;
+        }
       }
       return done(null, userToReturn || userData);
     }
@@ -103,8 +72,7 @@ passport.deserializeUser(async (userData, done) => {
 });
 
 // Helper function to handle user profile from Keycloak
-async function handleUserProfile(profile, req = null) {
-  console.log('[handleUserProfile] Processing profile for ID:', profile.id);
+export async function handleUserProfile(profile, req = null) {
 
   const keycloakId = profile.id;
   const email = profile.emails?.[0]?.value;
@@ -117,6 +85,12 @@ async function handleUserProfile(profile, req = null) {
 
   // Determine auth source based on session data or claims
   let authSource = req?.session?.preferredSource || 'gruenerator-login';
+
+  // Determine locale based on auth source
+  let locale = 'de-DE'; // Default to German
+  if (authSource === 'gruene-oesterreich-login') {
+    locale = 'de-AT'; // Austrian German
+  }
 
   // Allow users without email (use username or keycloak ID as fallback)
   const userIdentifier = email || username || keycloakId;
@@ -142,6 +116,7 @@ async function handleUserProfile(profile, req = null) {
           display_name: name,
           username,
           email: existingUser.email || null, // Keep existing email to avoid conflict
+          locale: existingUser.locale || locale, // Preserve existing locale or set new one
           last_login: new Date().toISOString(),
         }, authSource);
       }
@@ -151,6 +126,7 @@ async function handleUserProfile(profile, req = null) {
       display_name: name,
       username,
       email: email || existingUser.email || null, // Sync email from auth, preserve existing if no new email
+      locale: existingUser.locale || locale, // Preserve existing locale or set new one
       last_login: new Date().toISOString(),
     }, authSource);
   }
@@ -164,6 +140,7 @@ async function handleUserProfile(profile, req = null) {
         keycloak_id: keycloakId,
         display_name: name,
         username,
+        locale: userByEmail.locale || locale, // Preserve existing locale or set new one
         last_login: new Date().toISOString(),
       }, authSource);
     }
@@ -174,6 +151,7 @@ async function handleUserProfile(profile, req = null) {
     email: email || null,
     name,
     username,
+    locale,
     last_login: new Date().toISOString(),
     auth_source: authSource,
   });
@@ -182,14 +160,8 @@ async function handleUserProfile(profile, req = null) {
 // Get user by Keycloak ID
 async function getUserByKeycloakId(keycloakId) {
   try {
-    console.log(`[Auth] 🔍 Looking up user by Keycloak ID: ${keycloakId}`);
     const profileService = getProfileService();
     const profile = await profileService.getProfileByKeycloakId(keycloakId);
-    if (profile) {
-      console.log(`[Auth] ✅ User found by Keycloak ID ${keycloakId}: user_id=${profile.id}, avatar_robot_id=${profile.avatar_robot_id}`);
-    } else {
-      console.log(`[Auth] ❌ No user found for Keycloak ID: ${keycloakId}`);
-    }
     return profile;
   } catch (error) {
     console.error('[getUserByKeycloakId] Error:', error);
@@ -212,14 +184,8 @@ async function getUserByEmail(email) {
 // Get user by ID
 async function getUserById(id) {
   try {
-    console.log(`[Auth] 🔍 Looking up user by ID: ${id}`);
     const profileService = getProfileService();
     const profile = await profileService.getProfileById(id);
-    if (profile) {
-      console.log(`[Auth] ✅ User found by ID ${id}: avatar_robot_id=${profile.avatar_robot_id}`);
-    } else {
-      console.log(`[Auth] ❌ No user found for ID: ${id}`);
-    }
     return profile;
   } catch (error) {
     console.error('[getUserById] Error:', error);
@@ -241,6 +207,7 @@ async function createProfileUser(profileData) {
       username: profileData.username,
       display_name: profileData.name,
       email: profileData.email || null,
+      locale: profileData.locale || 'de-DE',
       last_login: profileData.last_login,
       // Default values
       beta_features: {

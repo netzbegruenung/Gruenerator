@@ -178,6 +178,46 @@ class PostgresDocumentService {
     }
 
     /**
+     * Get user texts from user_documents table
+     */
+    async getUserTexts(userId) {
+        try {
+            await this.ensureInitialized();
+
+            const query = `
+                SELECT id, title, content, document_type, created_at, updated_at
+                FROM user_documents
+                WHERE user_id = $1 AND is_active = true
+                ORDER BY created_at DESC
+            `;
+
+            const texts = await this.postgres.query(query, [userId], { table: 'user_documents' });
+
+            // Transform to match frontend expectations and calculate word count
+            const transformedTexts = texts.map(text => {
+                const plainText = (text.content || '').replace(/<[^>]*>/g, '').trim();
+                const wordCount = plainText.split(/\s+/).filter(word => word.length > 0).length;
+
+                return {
+                    id: text.id,
+                    title: text.title,
+                    content: text.content,
+                    document_type: text.document_type,
+                    created_at: text.created_at,
+                    updated_at: text.updated_at,
+                    word_count: wordCount,
+                    character_count: plainText.length
+                };
+            });
+
+            return transformedTexts;
+        } catch (error) {
+            console.error('[PostgresDocumentService] Error getting user texts:', error);
+            throw new Error('Failed to get user texts');
+        }
+    }
+
+    /**
      * Get document by ID (with ownership check)
      */
     async getDocumentById(documentId, userId) {
@@ -378,6 +418,25 @@ class PostgresDocumentService {
         } catch (error) {
             console.error('[PostgresDocumentService] Error getting document stats:', error);
             throw new Error('Failed to get document statistics');
+        }
+    }
+
+    /**
+     * Get document by Wolke file path (for duplicate checking)
+     */
+    async getDocumentByWolkeFile(userId, shareLinkId, filePath) {
+        try {
+            await this.ensureInitialized();
+
+            const document = await this.postgres.queryOne(
+                'SELECT * FROM documents WHERE user_id = $1 AND wolke_share_link_id = $2 AND wolke_file_path = $3',
+                [userId, shareLinkId, filePath]
+            );
+
+            return document;
+        } catch (error) {
+            console.error('[PostgresDocumentService] Error getting document by Wolke file:', error);
+            throw error;
         }
     }
 }

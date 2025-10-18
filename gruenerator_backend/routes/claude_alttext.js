@@ -1,4 +1,3 @@
-import express from 'express';
 import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js';
 
 // Create authenticated router (same pattern as authCore.mjs and claude_social.js)
@@ -71,7 +70,8 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
       }],
       options: {
         max_tokens: 2000,
-        temperature: 0.3
+        temperature: 0.3,
+        useBedrock: true
       }
     };
 

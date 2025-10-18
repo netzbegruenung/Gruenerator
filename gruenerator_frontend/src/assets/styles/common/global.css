@@ -27,7 +27,6 @@ a {
 }
 
 button {
-    background-color: var(--button-background-color);
     color: var(--button-text-color);
     transition: background-color 0.5s, color 0.5s;
 }

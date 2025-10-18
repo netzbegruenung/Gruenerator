@@ -1,37 +1,47 @@
 import express from 'express';
 import passport from '../../config/passportSetup.mjs';
-// Supabase deprecated – remove dependency
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const chatMemory = require('../../services/chatMemoryService');
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router = express.Router();
 
-// Add Passport session middleware only for auth routes
 router.use(passport.session());
 
-// Helpers for mobile deep-link support
-function parseAllowlist() {
-  const raw = process.env.MOBILE_REDIRECT_ALLOWLIST || '';
-  return raw
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
+router.use((req, res, next) => {
+  const originalSend = res.send.bind(res);
+  const originalJson = res.json.bind(res);
+
+  res.send = function (body) {
+    if (res.statusCode >= 400) {
+      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+    }
+    return originalSend(body);
+  };
+
+  res.json = function (body) {
+    if (res.statusCode >= 400) {
+      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+    }
+    return originalJson(body);
+  };
+
+  next();
+});
 
 function isAllowedMobileRedirect(redirectUrl) {
   if (!redirectUrl) return false;
-  // Only consider non-http(s) deep-links as mobile redirects
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
-  const allow = parseAllowlist();
-  if (allow.length === 0) return false;
-  return allow.some(prefix => redirectUrl.startsWith(prefix));
+  return redirectUrl.startsWith('gruenerator://');
 }
 
 function appendQueryParam(url, key, value) {
   try {
-    // For custom schemes, URL may throw; fallback to simple concatenation
     const hasQuery = url.includes('?');
     const sep = hasQuery ? '&' : '?';
     return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
@@ -48,7 +58,6 @@ router.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
 });
 
-// Simple test endpoint to verify routing works
 router.get('/test', (req, res) => {
   res.json({ 
     success: true, 
@@ -57,8 +66,46 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Session health check middleware
+async function checkSessionHealth(req, res, next) {
+  try {
+    // Test session storage by attempting a write and read
+    const testKey = '_session_health_test';
+    const testValue = Date.now().toString();
+
+    req.session[testKey] = testValue;
+
+    // Save and verify
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Session health check timeout'));
+      }, 3000);
+
+      req.session.save((err) => {
+        clearTimeout(timeout);
+        if (err) {
+          reject(err);
+        } else {
+          // Verify the value was saved
+          if (req.session[testKey] === testValue) {
+            delete req.session[testKey];
+            resolve();
+          } else {
+            reject(new Error('Session verification failed'));
+          }
+        }
+      });
+    });
+
+    next();
+  } catch (error) {
+    console.error('[Auth] Session health check failed:', error);
+    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
+  }
+}
+
 // Initiates the login flow - all sources now use OIDC through Keycloak
-router.get('/login', (req, res, next) => {
+router.get('/login', checkSessionHealth, async (req, res, next) => {
   const source = req.query.source;
   const { redirectTo, prompt } = req.query;
 
@@ -75,6 +122,28 @@ router.get('/login', (req, res, next) => {
   // Handle registration requests
   if (prompt === 'register') {
     req.session.isRegistration = true;
+  }
+
+  // Save session to ensure redirectTo and other params are persisted before OAuth flow
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Session save timeout before auth'));
+      }, 3000);
+
+      req.session.save((err) => {
+        clearTimeout(timeout);
+        if (err) {
+          console.error('[Auth Login] Failed to save session before auth:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    console.error('[Auth Login] Session save error:', error);
+    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
   }
 
   let options = {
@@ -101,6 +170,7 @@ router.get('/login', (req, res, next) => {
     }
   }
 
+  // openid-client handles session persistence properly
   passport.authenticate('oidc', options)(req, res, next);
 });
 
@@ -112,8 +182,13 @@ router.get('/callback',
   }),
   async (req, res, next) => {
     try {
-      const intendedRedirect = req.session.redirectTo;
-      console.log('[AuthCallback] Intended redirect from session:', intendedRedirect);
+      // Get redirectTo from user object (survives session regeneration) or fallback to session
+      const intendedRedirect = req.user?._redirectTo || req.session.redirectTo;
+
+      // Clean up
+      if (req.user && req.user._redirectTo) {
+        delete req.user._redirectTo;
+      }
       delete req.session.redirectTo;
       delete req.session.preferredSource;
       delete req.session.isRegistration;
@@ -121,7 +196,6 @@ router.get('/callback',
       // If redirect target is an allowed mobile deep link, issue a short-lived login_code
       if (intendedRedirect && isAllowedMobileRedirect(intendedRedirect)) {
         try {
-          console.log('[AuthCallback] Mobile deep link allowed. Creating login_code...');
           const { SignJWT } = await import('jose');
           const { randomUUID } = await import('crypto');
           const secret = new TextEncoder().encode(
@@ -148,7 +222,6 @@ router.get('/callback',
               console.error('[AuthCallback] Error saving session (mobile deep link):', err);
             }
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
-            console.log('[AuthCallback] Redirecting to mobile deep link:', redirectWithCode);
             return res.redirect(redirectWithCode);
           });
           return; // Stop further processing
@@ -156,21 +229,34 @@ router.get('/callback',
           console.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
           // fall through to normal redirect
         }
-      } else if (intendedRedirect) {
-        console.warn('[AuthCallback] Mobile deep link NOT allowed. Check MOBILE_REDIRECT_ALLOWLIST.', {
-          intendedRedirect,
-          allowlist: process.env.MOBILE_REDIRECT_ALLOWLIST || '(empty)'
-        });
       }
 
-      const fallback = `${process.env.BASE_URL}/profile`;
-      const redirectTo = intendedRedirect || fallback;
+      // Ensure all redirect URLs are absolute
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+
+      let absoluteRedirect;
+      if (intendedRedirect) {
+        if (intendedRedirect.startsWith('http://') || intendedRedirect.startsWith('https://')) {
+          // Already absolute URL (including mobile deep-links)
+          absoluteRedirect = intendedRedirect;
+        } else if (intendedRedirect.includes('://')) {
+          // Mobile deep-link (app://, gruenerator://, etc.)
+          absoluteRedirect = intendedRedirect;
+        } else {
+          // Relative URL - convert to absolute
+          absoluteRedirect = `${baseUrl}${intendedRedirect.startsWith('/') ? '' : '/'}${intendedRedirect}`;
+        }
+      } else {
+        // Default fallback
+        absoluteRedirect = `${baseUrl}/profile`;
+      }
+
+      const redirectTo = absoluteRedirect;
 
       req.session.save((err) => {
         if (err) {
           console.error('[AuthCallback] Error saving session:', err);
         }
-        console.log('[AuthCallback] Redirecting to web URL:', redirectTo);
         return res.redirect(redirectTo);
       });
       
@@ -188,9 +274,14 @@ router.get('/status', async (req, res) => {
   }
 
   const finalIsAuth = req.isAuthenticated() && req.user;
-  
+
   if (finalIsAuth) {
-    return res.json({ isAuthenticated: true, user: req.user });
+    // Ensure locale is included in user object
+    const userWithLocale = {
+      ...req.user,
+      locale: req.user.locale || 'de-DE'
+    };
+    return res.json({ isAuthenticated: true, user: userWithLocale });
   }
   return res.json({ isAuthenticated: false, user: null });
 });
@@ -206,17 +297,31 @@ router.get('/status-test', (req, res) => {
 
 // Error handling route
 router.get('/error', (req, res) => {
-  const errorMessage = req.query.message || 'An unspecified error occurred during authentication.';
+  const errorCode = req.query.message || 'unknown_error';
+  const correlationId = req.query.correlationId || 'N/A';
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;
 
-  res.status(401).send(`Authentication Error: ${errorMessage}${keycloakError ? ` - Details: ${keycloakError}` : ''}`);
+  console.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`);
+
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  res.status(401).send(`Authentication Error: ${errorCode}. Please try again or contact support with correlation ID: ${correlationId}`);
 });
 
 // Logout
-router.get('/logout', (req, res, next) => {
+router.get('/logout', async (req, res, next) => {
+  // Clear chat memory for the user
+  if (req.user?.id) {
+    try {
+      await chatMemory.clearConversation(req.user.id);
+      console.log('[Auth Core GET /logout] Chat memory cleared for user:', req.user.id);
+    } catch (error) {
+      console.error('[Auth Core GET /logout] Error clearing chat memory:', error);
+    }
+  }
+
   req.logout(function(err) {
-    if (err) { 
+    if (err) {
       console.error("Failed to logout user:", err);
     }
 
@@ -224,13 +329,13 @@ router.get('/logout', (req, res, next) => {
       if (destroyErr) {
         console.error("[Auth Core GET /logout] Session destruction error:", destroyErr);
       }
-      
+
       res.clearCookie('gruenerator.sid', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax'
       });
-      
+
       res.status(200).json({ success: true, message: 'Logout completed', sessionCleared: true });
     });
   });
@@ -260,13 +365,23 @@ router.get('/logged-out', (req, res) => {
 });
 
 // API endpoint for frontend-triggered logout (returns JSON instead of redirect)
-router.post('/logout', (req, res, next) => {
+router.post('/logout', async (req, res, next) => {
   const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
   const keycloakLogoutUrl = `${keycloakBaseUrl}/realms/Gruenerator/protocol/openid-connect/logout`;
 
   const originalSessionId = req.sessionID;
   const wasAuthenticated = req.isAuthenticated();
   const idToken = req.user?.id_token;
+
+  // Clear chat memory for the user (if authenticated)
+  if (wasAuthenticated && req.user?.id) {
+    try {
+      await chatMemory.clearConversation(req.user.id);
+      console.log('[Auth Core POST /logout] Chat memory cleared for user:', req.user.id);
+    } catch (error) {
+      console.error('[Auth Core POST /logout] Error clearing chat memory:', error);
+    }
+  }
 
   // If not authenticated, return immediate success
   if (!wasAuthenticated) {
@@ -332,6 +447,60 @@ router.post('/logout', (req, res, next) => {
 // Get user profile (example protected route)
 router.get('/profile', ensureAuthenticated, (req, res) => {
   res.json({ user: req.user || null });
+});
+
+// Get current user's locale
+router.get('/locale', ensureAuthenticated, (req, res) => {
+  try {
+    const userLocale = req.user?.locale || 'de-DE';
+    res.json({
+      success: true,
+      locale: userLocale
+    });
+  } catch (error) {
+    console.error('[Auth /locale GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get locale'
+    });
+  }
+});
+
+// Update user's locale
+router.put('/locale', ensureAuthenticated, async (req, res) => {
+  try {
+    const { locale } = req.body;
+
+    // Validate locale
+    if (!locale || !['de-DE', 'de-AT'].includes(locale)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid locale. Must be de-DE or de-AT'
+      });
+    }
+
+    // Update user's locale in database
+    const { getProfileService } = await import('../../services/ProfileService.mjs');
+    const profileService = getProfileService();
+
+    await profileService.updateProfile(req.user.id, { locale });
+
+    // Update session user object
+    req.user.locale = locale;
+
+    res.json({
+      success: true,
+      message: 'Locale updated successfully',
+      locale: locale
+    });
+
+  } catch (error) {
+    console.error('[Auth /locale PUT] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update locale'
+    });
+  }
 });
 
 // Debug session endpoint (development only)

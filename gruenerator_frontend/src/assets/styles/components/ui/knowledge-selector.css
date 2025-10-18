@@ -304,8 +304,7 @@
 
 /* Enhanced Knowledge Select - Use classNamePrefix="enhanced-knowledge-select" */
 .enhanced-knowledge-select__control {
-  /* Even more compact control height for compact layout */
-  min-height: calc(var(--form-element-min-height) - 16px) !important;
+  min-height: var(--form-element-min-height) !important;
   line-height: 1.2 !important;
   font-size: var(--form-element-font-size) !important;
   background-color: var(--input-background) !important;
@@ -325,8 +324,7 @@
 }
 
 .enhanced-knowledge-select__value-container {
-  /* Even more compact vertical padding */
-  padding: var(--form-element-padding-y) var(--form-element-padding-x) !important;
+  padding: var(--form-element-padding-y) var(--form-element-padding-x);
 }
 
 .enhanced-knowledge-select__placeholder {
@@ -374,6 +372,10 @@
 
 /* Make the dropdown menu responsive on very small viewports */
 @media (max-width: 480px) {
+  .enhanced-knowledge-select__control {
+    min-height: var(--form-element-min-height) !important;
+  }
+
   .enhanced-knowledge-select__menu {
     width: calc(100vw - 24px) !important;
     max-width: 100vw !important;
@@ -386,6 +388,26 @@
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
     hyphens: auto !important;
+  }
+
+  /* Fix option layout overflow on mobile */
+  .knowledge-option-enhanced {
+    overflow: hidden;
+  }
+
+  .knowledge-option-enhanced .knowledge-option__content {
+    max-width: 60%;
+    min-width: 0;
+  }
+
+  .knowledge-option-enhanced .source-tag {
+    max-width: 35%;
+    min-width: 0;
+  }
+
+  /* Tighter truncation for selected chips on mobile */
+  .enhanced-knowledge-select__multi-value__label {
+    max-width: 120px;
   }
 }
 
@@ -446,6 +468,11 @@
   font-size: 0.875rem !important;
   /* Tighten chip label padding */
   padding: var(--spacing-xxsmall) var(--spacing-xxsmall) !important;
+  /* Truncate long labels */
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Reduce indicator paddings to lower overall control height */

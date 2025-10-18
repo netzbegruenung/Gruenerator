@@ -3,11 +3,15 @@ import React from 'react';
 const groupLabels = {
   manual: 'Dokumente',
   wolke: 'Wolke Dokumente',
+  url: 'Websites',
+  gruenerierte_texte: 'Grünerierte Texte',
 };
 
 const groupIcons = {
   manual: '📁',
   wolke: '☁️',
+  url: '🌐',
+  gruenerierte_texte: '✨',
 };
 
 const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGroup, cardRenderer, renderDefaultCard }) => {

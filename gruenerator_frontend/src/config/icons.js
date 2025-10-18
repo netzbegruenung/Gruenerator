@@ -2,30 +2,33 @@
 // Centralized icon management for consistent usage across the application
 
 // Import all needed icons from react-icons
-import { 
-  PiFileText, 
-  PiNewspaper, 
-  PiMagicWand, 
-  PiMagnifyingGlass, 
-  PiVideoCamera, 
-  PiImageSquare, 
-  PiArchive, 
-  PiUser, 
+import {
+  PiFileText,
+  PiNewspaper,
+  PiMagicWand,
+  PiMagnifyingGlass,
+  PiVideoCamera,
+  PiImageSquare,
+  PiArchive,
+  PiUser,
   PiWrench,
   PiPlus,
   PiPencilSimple,
   PiCaretDown,
   PiCaretUp,
-  PiArrowRight
+  PiArrowRight,
+  PiBrain,
+  PiTextAlignLeftFill
 } from 'react-icons/pi';
 
-import { 
-  FaInstagram, 
-  FaFacebook, 
-  FaTwitter, 
+import {
+  FaInstagram,
+  FaFacebook,
+  FaTwitter,
   FaLinkedin,
   FaCloud,
-  FaBook 
+  FaBook,
+  FaTiktok
 } from 'react-icons/fa';
 
 import { FaFileWord } from 'react-icons/fa6';
@@ -34,21 +37,31 @@ import { CiMemoPad } from 'react-icons/ci';
 
 import { GiHedgehog } from 'react-icons/gi';
 
-import { 
+import {
   HiInformationCircle,
   HiOutlineTrash,
   HiCog,
   HiRefresh,
   HiArrowLeft,
   HiLockClosed,
-  HiBeaker
+  HiBeaker,
+  HiChat,
+  HiMicrophone,
+  HiClipboardCheck,
+  HiUserGroup,
+  HiPencilAlt,
+  HiClipboardList,
+  HiQuestionMarkCircle,
+  HiSpeakerphone,
+  HiDownload
 } from 'react-icons/hi';
 
-import { 
+import {
   IoDownloadOutline,
   IoCopyOutline,
   IoShareOutline,
-  IoAccessibilityOutline
+  IoAccessibilityOutline,
+  IoAccessibility
 } from 'react-icons/io5';
 
 import {
@@ -61,6 +74,8 @@ import {
 
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
+import { FaMagic } from 'react-icons/fa';
+
 /**
  * Comprehensive icon registry organized by usage category
  * Each category contains semantic name -> React Icon Component mappings
@@ -72,10 +87,23 @@ export const ICONS = {
     facebook: FaFacebook,
     twitter: FaTwitter,
     linkedin: FaLinkedin,
+    tiktok: FaTiktok,
+    messenger: HiChat,
     sharepic: PiImageSquare,
     pressemitteilung: PiNewspaper,
     actionIdeas: PiMagicWand,
     reelScript: PiVideoCamera
+  },
+
+  // Text type icons for form selectors
+  textTypes: {
+    rede: HiMicrophone,
+    wahlprogramm: HiClipboardCheck,
+    buergeranfragen: HiUserGroup,
+    universal: HiPencilAlt,
+    antrag: HiClipboardList,
+    kleine_anfrage: HiQuestionMarkCircle,
+    grosse_anfrage: HiSpeakerphone
   },
 
   // Navigation icons for header menu and routing
@@ -97,7 +125,7 @@ export const ICONS = {
   // Action icons for buttons and interactive elements
   actions: {
     copy: IoCopyOutline,
-    download: IoDownloadOutline,
+    download: HiDownload,
     share: IoShareOutline,
     docs: CiMemoPad,
     cloud: FaCloud,
@@ -115,7 +143,9 @@ export const ICONS = {
     back: HiArrowLeft,
     refresh: HiRefresh,
     lock: HiLockClosed,
-    labor: HiBeaker
+    labor: HiBeaker,
+    altText: IoAccessibility,
+    kiLabel: PiTextAlignLeftFill
   },
 
   // UI/Form icons for form elements and components
@@ -129,7 +159,8 @@ export const ICONS = {
     search: PiMagnifyingGlass,
     caretDown: PiCaretDown,
     caretUp: PiCaretUp,
-    assistant: RiRobot3Line
+    assistant: RiRobot3Line,
+    brain: PiBrain
   }
 };
 

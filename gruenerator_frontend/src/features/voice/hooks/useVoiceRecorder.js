@@ -20,17 +20,41 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
       setRetryCount(0);
       audioChunksRef.current = [];
       
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
+      });
+
+      // Detect supported format
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ?
+        'audio/webm;codecs=opus' :
+        MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ?
+          'audio/ogg;codecs=opus' :
+          'audio/webm'; // fallback
+
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: mimeType,
+        audioBitsPerSecond: 128000
+      });
+
+      // Store mimeType for later use
+      mediaRecorderRef.current.detectedMimeType = mimeType;
+
+      console.log('[Voice Recorder] Using MIME type:', mimeType);
+
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
-      
+
       mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
+        const detectedMimeType = mediaRecorderRef.current.detectedMimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: detectedMimeType });
+        console.log('[Voice Recorder] Audio blob created - Type:', detectedMimeType, 'Size:', audioBlob.size, 'bytes');
         setAudioBlob(audioBlob);
         
         // Stoppe alle Tracks des Streams
@@ -72,13 +96,21 @@ const useVoiceRecorder = (onTranscriptionComplete, options = {}) => {
     
     try {
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.mp3');
-      
+
+      // Determine correct file extension based on MIME type
+      const mimeType = audioBlob.type || 'audio/webm';
+      const extension = mimeType.includes('webm') ? 'webm' :
+                        mimeType.includes('ogg') ? 'ogg' : 'webm';
+      const filename = `recording.${extension}`;
+
+      formData.append('audio', audioBlob, filename);
+
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
       const url = `${apiBaseUrl.endsWith('/api') ? apiBaseUrl : `${apiBaseUrl}/api`}/voice/transcribe${removeTimestamps ? '?removeTimestamps=true' : ''}`;
-      
-      console.log('Sending request to:', url);
-      console.log('Remove timestamps:', removeTimestamps);
+
+      console.log('[Voice Recorder] Sending request to:', url);
+      console.log('[Voice Recorder] Audio format:', mimeType, 'File:', filename, 'Size:', audioBlob.size, 'bytes');
+      console.log('[Voice Recorder] Remove timestamps:', removeTimestamps);
       
       const response = await fetch(url, {
         method: 'POST',

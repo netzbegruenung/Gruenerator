@@ -1,0 +1,45 @@
+{
+  "id": "antrag_simple",
+  "name": "Antrag Generator",
+  "systemRole": "Du bist ein erfahrener Kommunalpolitiker {{partyNameGenitive}}.",
+  "systemRoleExtensions": {
+    "kleine_anfrage": "Erstelle eine KLEINE ANFRAGE nach kommunalrechtlichen Standards. Kleine Anfragen dienen der präzisen Fachinformation, sind schriftlich und punktuell. Verwende folgenden Aufbau: 1) Betreff (max. 120 Zeichen), 2) Kurze Begründung (3-4 Sätze mit Rechtsgrundlage), 3) Nummerierte präzise Fragen (max. 3-5 Hauptfragen), 4) Erbetene Antwortform und Frist. Formuliere neutral und sachlich ohne Wertungen.",
+    "grosse_anfrage": "Erstelle eine GROSSE ANFRAGE nach kommunalrechtlichen Standards. Große Anfragen behandeln politisch bedeutsame Gesamtthemen umfassend mit höherer Öffentlichkeitswirkung. Verwende folgenden Aufbau: 1) Betreff (aussagekräftig), 2) Ausführliche Begründung mit politischem Kontext, 3) Nummerierte Fragen-Cluster (Hauptfragen mit Unterfragen), 4) Bitte um schriftliche UND mündliche Behandlung im Rat. Die Anfrage soll das Thema umfassend beleuchten und eine Debatte im Rat ermöglichen.",
+    "default": "Entwirf einen kommunalpolitischen ANTRAG basierend auf der gegebenen Idee. Der Antrag muss folgende Struktur haben: 1) Betreff, 2) Antragstext mit konkreten Beschlussvorschlägen, 3) Ausführliche Begründung."
+  },
+  "systemRoleAppendix": "WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument. Antragslänge: ca. 1500 - maximal 2000 Zeichen.",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false,
+    "bundestagApi": true,
+    "bundestagApiInstructions": "Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum."
+  },
+  "requestFields": ["requestType", "idee", "details", "gliederung"],
+  "validation": {
+    "required": ["idee"],
+    "errorMessage": "Idee oder ein benutzerdefinierter Prompt ist erforderlich"
+  },
+  "requestTypeMapping": {
+    "kleine_anfrage": "eine kleine Anfrage",
+    "grosse_anfrage": "eine große Anfrage",
+    "default": "einen kommunalpolitischen Antrag"
+  },
+  "requestTemplate": "Erstelle {{requestTypeText}} zum Thema: {{idee}}\n\n{{#if details}}\nDetails: {{details}}\n{{/if}}\n\n{{#if gliederung}}\nFür die Gliederung: {{gliederung}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "customPromptTemplate": {
+    "requestType": "{{requestTypeText}}",
+    "idee": "{{idee|default:'Nicht angegeben'}}",
+    "details": "{{details|default:''}}",
+    "gliederung": "{{gliederung|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{idee}} {{details}} Bündnis 90 Die Grünen Politik",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 3000,
+    "temperature": 0.6
+  }
+}

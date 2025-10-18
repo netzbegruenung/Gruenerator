@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification } from 'react-icons/hi';
 import { NotebookIcon } from '../../../../config/icons';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -23,12 +23,14 @@ const LaborTab = ({
     GENERATORS: 'customGenerators',
     YOU: 'you',
     COLLAB: 'collab',
-    GROUPS: 'groups',
+    // GROUPS: 'groups',
     QA: 'qa',
     ELEARNING: 'e_learning',
     BUNDESTAG_API: 'bundestag_api_enabled',
     MEMORY: 'memory',
     CANVA: 'canva',
+    CHAT: 'chat',
+    // SITES: 'sites',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -84,24 +86,24 @@ const LaborTab = ({
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers
         };
-      case BETA_VIEWS.GROUPS:
-        return {
-          title: 'Gruppen',
-          description: 'Verwalte und organisiere deine Arbeit in Gruppen für bessere Zusammenarbeit.',
-          checked: getBetaFeatureState('groups'),
-          setter: (value) => updateUserBetaFeatures('groups', value),
-          featureName: 'Gruppen',
-          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
-          icon: HiOutlineUserGroup
-        };
+      // case BETA_VIEWS.GROUPS:
+      //   return {
+      //     title: 'Gruppen',
+      //     description: 'Verwalte und organisiere deine Arbeit in Gruppen für bessere Zusammenarbeit.',
+      //     checked: getBetaFeatureState('groups'),
+      //     setter: (value) => updateUserBetaFeatures('groups', value),
+      //     featureName: 'Gruppen',
+      //     checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
+      //     icon: HiOutlineUserGroup
+      //   };
       case BETA_VIEWS.QA:
         return {
-          title: 'Q&A Sammlungen',
+          title: 'Notebooks',
           description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
           checked: getBetaFeatureState('qa'),
           setter: (value) => updateUserBetaFeatures('qa', value),
-          featureName: 'Q&A Sammlungen',
-          checkboxLabel: 'Q&A-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
+          featureName: 'Notebooks',
+          checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
           icon: NotebookIcon
         };
       case BETA_VIEWS.ELEARNING:
@@ -148,6 +150,28 @@ const LaborTab = ({
           checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
           icon: HiOutlinePhotograph
         };
+      case BETA_VIEWS.CHAT:
+        return {
+          title: 'Grünerator Chat',
+          description: 'KI-Chat-Assistent für alle Textarten mit intelligenter Texterstellung. Wähle automatisch den passenden Assistenten für Social Media Posts, Pressemitteilungen, Anträge und mehr.',
+          checked: getBetaFeatureState('chat'),
+          setter: (value) => updateUserBetaFeatures('chat', value),
+          featureName: 'Grünerator Chat',
+          checkboxLabel: 'Chat-Assistent aktivieren und in Navigation anzeigen',
+          linkTo: '/chat',
+          linkText: 'Zum Chat-Assistenten',
+          icon: HiChip
+        };
+      // case BETA_VIEWS.SITES:
+      //   return {
+      //     title: 'Web-Visitenkarte',
+      //     description: 'Erstelle deine eigene One-Page-Website auf einer persönlichen Subdomain (grsites.de). Perfekt für persönliche Vorstellung, Kontaktdaten und Social Media Links.',
+      //     checked: getBetaFeatureState('sites'),
+      //     setter: (value) => updateUserBetaFeatures('sites', value),
+      //     featureName: 'Web-Visitenkarte',
+      //     checkboxLabel: 'Sites-Funktion in Meine Grüneratoren aktivieren',
+      //     icon: HiOutlineIdentification
+      //   };
       default:
         return null;
     }
@@ -167,7 +191,7 @@ const LaborTab = ({
       <div className="profile-form-section">
         <div className="auth-form">
           <div className="profile-cards-grid">
-            {getAvailableFeatures().filter(f => f.key !== 'database').map(feature => {
+            {getAvailableFeatures().filter(f => f.key !== 'database' && f.key !== 'chat').map(feature => {
               const config = getBetaFeatureConfig(feature.key);
               if (!config) return null;
 
@@ -181,7 +205,7 @@ const LaborTab = ({
                     <p className="group-description">
                       {config.description}
                     </p>
-                    
+
                     <div className="labor-tab-toggle-container">
                       <FeatureToggle
                         isActive={config.checked}
@@ -198,8 +222,8 @@ const LaborTab = ({
                     </div>
 
                     {config.linkTo && config.checked && (
-                      <Link 
-                        to={config.linkTo} 
+                      <Link
+                        to={config.linkTo}
                         className="profile-action-button profile-secondary-button labor-tab-external-link"
                       >
                         {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
@@ -209,6 +233,62 @@ const LaborTab = ({
                 </div>
               );
             })}
+          </div>
+
+          <div style={{marginTop: 'var(--spacing-xlarge)'}}>
+            <h2 style={{
+              marginBottom: 'var(--spacing-medium)',
+              color: 'var(--font-color)',
+              fontSize: 'var(--font-size-large)',
+              fontWeight: '600'
+            }}>
+              Experimentell
+            </h2>
+
+            <div className="profile-cards-grid">
+              {getAvailableFeatures().filter(f => f.key === 'chat').map(feature => {
+                const config = getBetaFeatureConfig(feature.key);
+                if (!config) return null;
+
+                return (
+                  <div key={feature.key} className="profile-card">
+                    <div className="profile-card-header">
+                      <h3>{config.title}</h3>
+                      {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
+                    </div>
+                    <div className="profile-card-content">
+                      <p className="group-description">
+                        {config.description}
+                      </p>
+
+                      <div className="labor-tab-toggle-container">
+                        <FeatureToggle
+                          isActive={config.checked}
+                          onToggle={(checked) => {
+                            config.setter(checked);
+                            onSuccessMessage(`${config.featureName} Beta-Test ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+                            onErrorLaborMessage('');
+                          }}
+                          label={config.checkboxLabel}
+                          icon={config.icon}
+                          description={config.description}
+                          className="labor-feature-toggle"
+                        />
+                      </div>
+
+                      {config.linkTo && config.checked && (
+                        <Link
+                          to={config.linkTo}
+                          className="profile-action-button profile-secondary-button labor-tab-external-link"
+                        >
+                          {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (

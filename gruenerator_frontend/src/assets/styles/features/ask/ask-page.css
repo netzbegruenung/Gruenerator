@@ -59,33 +59,6 @@
   flex-wrap: wrap;
 }
 
-.ask-submit-button,
-.ask-reset-button {
-  padding: var(--spacing-small) var(--spacing-large);
-  font-size: var(--form-element-font-size);
-  font-weight: 600;
-  border: none;
-  border-radius: var(--card-border-radius-small);
-  cursor: pointer;
-  transition: var(--input-transition);
-  min-height: var(--form-element-min-height);
-}
-
-.ask-submit-button {
-  background-color: var(--interactive-accent-color);
-  color: var(--button-text-color);
-}
-
-.ask-submit-button:hover:not(:disabled) {
-  background-color: var(--button-color-hover);
-  transform: scale(1.01);
-}
-
-.ask-submit-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
 
 .ask-reset-button {
   background-color: var(--button-background-color);
@@ -211,10 +184,6 @@
     gap: var(--spacing-small);
   }
   
-  .ask-submit-button,
-  .ask-reset-button {
-    width: 100%;
-  }
   
   .ask-answer-section,
   .ask-sources-section {

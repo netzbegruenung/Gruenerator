@@ -1,7 +1,7 @@
 const express = require('express');
-const { tavily } = require("@tavily/core");
+const MistralWebSearchService = require('../../services/mistralWebSearchService');
 const router = express.Router();
-const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
+const mistralSearchService = new MistralWebSearchService();
 
 router.post('/', async (req, res) => {
   const { query, options = {} } = req.body;
@@ -14,42 +14,41 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const searchOptions = {
-      includeAnswer: options.search_depth || "advanced",
-      maxResults: Math.min(options.max_results || 10, 10),  // Limit auf 10 Ergebnisse
-      include_raw_content: options.include_raw_content === true  // Raw Content basierend auf Parameter
-    };
-    
-    console.log('\n=== TAVILY REQUEST START ===');
+    console.log('\n=== MISTRAL WEB SEARCH REQUEST START ===');
     console.log('Query:', query);
-    console.log('Options:', searchOptions);
+    console.log('Options:', options);
     
-    const searchResults = await tvly.search(query, searchOptions);
+    // Use 'content' agent type for comprehensive search results
+    const agentType = 'content';
+    const searchResults = await mistralSearchService.performWebSearch(query, agentType);
     
-    console.log('\n=== TAVILY RESPONSE START ===');
-    console.log('Anzahl der Ergebnisse:', searchResults.results?.length || 0);
-    console.log('\nRohdaten des ersten Ergebnisses:', JSON.stringify(searchResults.results[0], null, 2));
-    searchResults.results?.forEach((result, index) => {
-      console.log(`\nTavily Ergebnis ${index + 1}:`);
-      console.log('URL:', result.url);
-      console.log('Titel:', result.title);
-      console.log('Content vorhanden:', !!result.content);
-      console.log('Content Länge:', result.content?.length || 0);
-      console.log('Verfügbare Felder:', Object.keys(result).join(', '));
-    });
-    console.log('=== TAVILY RESPONSE END ===\n');
+    console.log('\n=== MISTRAL WEB SEARCH RESPONSE START ===');
+    console.log('Anzahl der Quellen:', searchResults.sourcesCount || 0);
+    console.log('Content Länge:', searchResults.textContent?.length || 0);
     
-    if (!searchResults || !Array.isArray(searchResults.results)) {
+    if (searchResults.sources && searchResults.sources.length > 0) {
+      searchResults.sources.forEach((source, index) => {
+        console.log(`\nMistral Quelle ${index + 1}:`);
+        console.log('URL:', source.url);
+        console.log('Titel:', source.title);
+        console.log('Domain:', source.domain);
+        console.log('Snippet Länge:', source.snippet?.length || 0);
+      });
+    }
+    console.log('=== MISTRAL WEB SEARCH RESPONSE END ===\n');
+    
+    if (!searchResults || !searchResults.success) {
       return res.status(500).json({
         status: 'error',
         message: 'Ungültiges Suchergebnis'
       });
     }
     
-    const processedResults = searchResults.results.map(result => ({
-      url: result.url,
-      title: result.title,
-      content: result.content
+    // Process sources to match expected API format
+    const processedResults = (searchResults.sources || []).map(source => ({
+      url: source.url,
+      title: source.title,
+      content: source.snippet || searchResults.textContent
     }));
     
     return res.json({
@@ -58,7 +57,7 @@ router.post('/', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Tavily API Error:', error);
+    console.error('Mistral Web Search API Error:', error);
     return res.status(500).json({
       status: 'error',
       message: 'Fehler bei der Suche'

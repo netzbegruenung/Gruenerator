@@ -1,7 +1,14 @@
 // Deterministic QA agent (planner -> search -> references -> draft -> validate -> (repair) -> done)
 // No external graph deps; orchestrated step-by-step to avoid env/dependency changes.
 
-import { buildPlannerPrompt, buildDraftPrompt } from './prompts.mjs';
+import {
+  buildPlannerPromptGrundsatz,
+  buildPlannerPromptGeneral,
+  buildDraftPromptGrundsatz,
+  buildDraftPromptGeneral,
+  buildDraftPromptGrundsatzChat,
+  buildDraftPromptGeneralChat
+} from './prompts.mjs';
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 
 const documentSearchService = new DocumentSearchService();
@@ -21,11 +28,96 @@ function normalizeSearchResult(r) {
   };
 }
 
+function adaptiveWeights(query) {
+  const wordCount = query.trim().split(/\s+/).length;
+
+  if (wordCount === 1) {
+    // Single words: maximize vector similarity
+    return { vectorWeight: 0.8, textWeight: 0.2 };
+  } else if (wordCount === 2) {
+    // Two words: balanced approach favoring vectors
+    return { vectorWeight: 0.65, textWeight: 0.35 };
+  } else {
+    // 3+ words: text search likely to fail, favor vectors heavily
+    return { vectorWeight: 0.75, textWeight: 0.25 };
+  }
+}
+
+function calculateDynamicParams(allResults) {
+  if (!allResults || allResults.length === 0) {
+    return { qualityMin: 0.35, maxTotal: 6 };
+  }
+
+  const sorted = [...allResults].sort((a, b) => b.similarity - a.similarity);
+  const highQuality = sorted.filter(r => r.similarity > 0.45).length;
+  const mediumQuality = sorted.filter(r => r.similarity > 0.38).length;
+
+  // Dynamic quality threshold - softer filtering
+  let qualityMin;
+  if (highQuality >= 15) {
+    qualityMin = 0.40;  // Many good results, can be selective
+  } else if (highQuality >= 8) {
+    qualityMin = 0.37;  // Some good results, moderate threshold
+  } else {
+    qualityMin = 0.35;  // Few results, be inclusive
+  }
+
+  // Dynamic maxTotal - scale with content availability
+  let maxTotal;
+  if (highQuality >= 20) {
+    maxTotal = 25;  // Exceptional content richness
+  } else if (highQuality >= 12) {
+    maxTotal = 18;  // Rich content available
+  } else if (mediumQuality >= 8) {
+    maxTotal = 12;  // Standard content
+  } else {
+    maxTotal = 8;   // Limited content, show what we have
+  }
+
+  return { qualityMin, maxTotal };
+}
+
+function determineDraftParams(referencesMap, question) {
+  if (!referencesMap || Object.keys(referencesMap).length === 0) {
+    return { maxTokens: 800 };  // Minimal response when no references
+  }
+
+  const referenceCount = Object.keys(referencesMap).length;
+  const uniqueDocs = new Set(Object.values(referencesMap).map(r => r.document_id)).size;
+
+  // Analyze question complexity
+  const isComplexQuestion = question.length > 50 ||
+                            /\b(wie|warum|weshalb|wieso|analysier|erkl[äa]r|begr[üu]nd|vergleich)\b/i.test(question);
+
+  // Scale tokens based on content richness
+  let maxTokens;
+  if (referenceCount >= 15 && uniqueDocs >= 8) {
+    // Rich content available - comprehensive answer
+    maxTokens = isComplexQuestion ? 2500 : 2000;
+  } else if (referenceCount >= 8 && uniqueDocs >= 4) {
+    // Standard content - detailed answer
+    maxTokens = 1500;
+  } else {
+    // Limited content - concise answer
+    maxTokens = 800;
+  }
+
+  return { maxTokens };
+}
+
 function dedupeAndDiversify(results, opts = {}) {
+  // Calculate dynamic parameters if not explicitly overridden
+  const dynamicParams = calculateDynamicParams(results);
+
   const limitPerDoc = opts.limitPerDoc ?? 4;
-  const maxTotal = opts.maxTotal ?? 12;
+  const maxTotal = opts.maxTotal ?? dynamicParams.maxTotal;
+  const qualityMin = opts.qualityMin ?? dynamicParams.qualityMin;
+
   // Sort by similarity desc, then title asc
-  const sorted = [...results].sort((a, b) => (b.similarity - a.similarity) || String(a.title).localeCompare(String(b.title)));
+  const sorted = [...results]
+    .filter(r => r.similarity >= qualityMin) // Apply dynamic quality filter
+    .sort((a, b) => (b.similarity - a.similarity) || String(a.title).localeCompare(String(b.title)));
+
   const seenPerDoc = new Map();
   const out = [];
   for (const r of sorted) {
@@ -154,7 +246,7 @@ function validateAndInjectCitations(draft, refMap) {
     };
   });
 
-  // Build sources grouped by document
+  // Build sources grouped by document with multiple chunks aggregated
   const byDoc = new Map();
   for (const c of citations) {
     const key = c.document_id || c.document_title;
@@ -162,20 +254,33 @@ function validateAndInjectCitations(draft, refMap) {
       byDoc.set(key, {
         document_id: c.document_id,
         document_title: c.document_title,
-        chunk_text: c.cited_text,
-        similarity_score: c.similarity_score,
+        chunk_texts: [c.cited_text],
+        similarity_scores: [c.similarity_score],
         citations: []
       });
+    } else {
+      // Append additional chunks from the same document
+      const existing = byDoc.get(key);
+      existing.chunk_texts.push(c.cited_text);
+      existing.similarity_scores.push(c.similarity_score);
     }
     byDoc.get(key).citations.push(c);
   }
-  const sources = [...byDoc.values()];
+
+  // Convert to final sources format with aggregated chunk content
+  const sources = [...byDoc.values()].map(source => ({
+    document_id: source.document_id,
+    document_title: source.document_title,
+    chunk_text: source.chunk_texts.join(' [...] '), // Combine all chunks with separator
+    similarity_score: Math.max(...source.similarity_scores), // Use highest similarity score
+    citations: source.citations
+  }));
 
   return { cleanDraft: content, citations, sources, errors };
 }
 
-async function plannerNode(question, aiWorkerPool) {
-  const { system } = buildPlannerPrompt();
+async function plannerNode(question, aiWorkerPool, isGrundsatz) {
+  const { system } = isGrundsatz ? buildPlannerPromptGrundsatz() : buildPlannerPromptGeneral();
   const res = await aiWorkerPool.processRequest({
     type: 'qa_planner',
     messages: [{ role: 'user', content: `Question: ${question}\nRespond with JSON: {"subqueries":["..."]}` }],
@@ -203,17 +308,22 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
 
   const all = [];
   for (const q of subqueries) {
+    // Use adaptive weights based on query complexity
+    const weights = adaptiveWeights(q);
+
     const resp = await documentSearchService.search({
       query: q,
       user_id: searchUserId,
       documentIds: isSystemCollection ? undefined : undefined, // system search across all grundsatz docs
       limit: 50,
       mode: 'hybrid',
-      vectorWeight: typeof searchOptions.vectorWeight === 'number' ? searchOptions.vectorWeight : undefined,
-      textWeight: typeof searchOptions.textWeight === 'number' ? searchOptions.textWeight : undefined,
-      threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : undefined,
-      qualityMin: collection.settings?.min_quality || undefined,
-      searchCollection
+      vectorWeight: typeof searchOptions.vectorWeight === 'number' ? searchOptions.vectorWeight : weights.vectorWeight,
+      textWeight: typeof searchOptions.textWeight === 'number' ? searchOptions.textWeight : weights.textWeight,
+      threshold: typeof searchOptions.threshold === 'number' ? searchOptions.threshold : 0.38,
+      qualityMin: collection.settings?.min_quality || 0.35,
+      searchCollection,
+      // hybrid tuning
+      recallLimit: 80
     });
     const list = (resp.results || []).map(normalizeSearchResult);
     all.push(...list);
@@ -227,23 +337,48 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
     keySet.add(key);
     deduped.push(r);
   }
-  return dedupeAndDiversify(deduped, { limitPerDoc: 4, maxTotal: 12 });
+  return dedupeAndDiversify(deduped, { limitPerDoc: 4 }); // Let dynamic params handle maxTotal and qualityMin
 }
 
-async function draftNode(question, referencesMap, collection, aiWorkerPool) {
-  const { system } = buildDraftPrompt(collection?.name || 'Grüne Grundsatzprogramme');
+async function draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz, mode = 'dossier') {
+  const collectionName = collection?.name || (isGrundsatz ? 'Grüne Grundsatzprogramme' : 'Ihre Sammlung');
+
+  // Get adaptive draft parameters based on available references
+  const { maxTokens: adaptiveTokens } = determineDraftParams(referencesMap, question);
+
+  // Select prompt based on mode and collection type
+  let system;
+  let maxTokens;
+  let temperature;
+
+  if (mode === 'chat') {
+    system = isGrundsatz
+      ? buildDraftPromptGrundsatzChat(collectionName).system
+      : buildDraftPromptGeneralChat(collectionName).system;
+    maxTokens = Math.min(adaptiveTokens, 800); // Cap chat responses but adapt to content
+    temperature = 0.3; // Slightly more conversational
+  } else {
+    system = isGrundsatz
+      ? buildDraftPromptGrundsatz(collectionName).system
+      : buildDraftPromptGeneral(collectionName).system;
+    maxTokens = adaptiveTokens; // Use adaptive token count for dossier mode
+    temperature = 0.2; // More formal
+  }
+
   const refsSummary = summarizeReferencesForPrompt(referencesMap);
   const user = [
     `Question: ${question}`,
     'You must cite only using the following references map (IDs are 1-based):',
     refsSummary
   ].join('\n\n');
+
   const res = await aiWorkerPool.processRequest({
     type: 'qa_draft',
     messages: [{ role: 'user', content: user }],
     systemPrompt: system,
-    options: { max_tokens: 2200, temperature: 0.2, top_p: 0.8 }
+    options: { max_tokens: maxTokens, temperature, top_p: 0.8 }
   });
+
   const text = res.content || (Array.isArray(res.raw_content_blocks) ? res.raw_content_blocks.map(b => b.text || '').join('') : '');
   return text || '';
 }
@@ -271,16 +406,54 @@ async function repairNode(badDraft, referencesMap, aiWorkerPool) {
   return text || badDraft;
 }
 
-export async function runQaGraph({ question, collection, aiWorkerPool }) {
+export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60, mode = 'dossier' }) {
   // 1) plan subqueries
-  const subqueries = await plannerNode(question, aiWorkerPool);
+  const isGrundsatz = (collection?.id === 'grundsatz-system') || ((collection?.user_id === 'SYSTEM') && (collection?.settings?.system_collection === true));
+  const subqueries = await plannerNode(question, aiWorkerPool, isGrundsatz);
 
   // 2) search (recall -> diversify)
-  const searchResults = await searchNode(subqueries, collection, {});
+  const searchResults = await (async () => {
+    // Allow route to override scoping explicitly; fallback to collection-based inference
+    if (searchCollection) {
+      const all = [];
+      for (const q of subqueries) {
+        // Use adaptive weights based on query complexity
+        const weights = adaptiveWeights(q);
+
+        const resp = await documentSearchService.search({
+          query: q,
+          user_id: userId,
+          documentIds,
+          limit: 50,
+          mode: 'hybrid',
+          vectorWeight: weights.vectorWeight,
+          textWeight: weights.textWeight,
+          threshold: 0.38,
+          searchCollection,
+          recallLimit: recallLimit || 80,
+          qualityMin: collection.settings?.min_quality || 0.35
+        });
+        const list = (resp.results || []).map(normalizeSearchResult);
+        all.push(...list);
+      }
+      // Deduplicate per doc:chunk
+      const keySet = new Set();
+      const deduped = [];
+      for (const r of all) {
+        const key = `${r.document_id}:${r.chunk_index}`;
+        if (keySet.has(key)) continue;
+        keySet.add(key);
+        deduped.push(r);
+      }
+      return dedupeAndDiversify(deduped, { limitPerDoc: 4 }); // Let dynamic params handle maxTotal and qualityMin
+    }
+    // Fallback: infer from collection
+    return await searchNode(subqueries, collection, {});
+  })();
   if (!searchResults || searchResults.length === 0) {
     return {
       success: true,
-      answer: 'Leider konnte ich in den Grundsatzprogrammen keine passenden Stellen zu Ihrer Frage finden. Bitte formulieren Sie die Frage anders oder nutzen Sie spezifischere Stichworte.',
+      answer: `Leider konnte ich in der Sammlung "${collection?.name || 'Ihre Dokumente'}" keine passenden Stellen zu Ihrer Frage finden. Bitte formulieren Sie die Frage anders oder nutzen Sie spezifischere Stichworte.`,
       citations: [],
       sources: [],
       metadata: { provider: 'qa_graph', timestamp: new Date().toISOString(), uniqueDocuments: 0 }
@@ -291,7 +464,7 @@ export async function runQaGraph({ question, collection, aiWorkerPool }) {
   const referencesMap = buildReferencesMap(searchResults);
 
   // 4) draft
-  let draft = await draftNode(question, referencesMap, collection, aiWorkerPool);
+  let draft = await draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz, mode);
 
   // 5) validate & inject markers
   let { cleanDraft, citations, sources, errors } = validateAndInjectCitations(draft, referencesMap);

@@ -4,7 +4,6 @@ import { getPostgresDocumentService } from './postgresDocumentService.js';
 import { NextcloudShareManager } from '../utils/nextcloudShareManager.js';
 import NextcloudApiClient from './nextcloudApiClient.js';
 import { ocrService } from './ocrService.js';
-import { documentTextExtractor } from './documentTextExtractor.js';
 import { fastEmbedService } from './FastEmbedService.js';
 import { smartChunkDocument } from '../utils/textChunker.js';
 import fs from 'fs/promises';
@@ -22,7 +21,7 @@ class WolkeSyncService {
         this.qdrantService = new DocumentSearchService();
         this.documentService = getPostgresDocumentService();
         this.supportedFileTypes = [
-            '.pdf', '.docx', '.doc', '.odt', '.txt', '.md', '.rtf'
+            '.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif', '.txt', '.md'
         ];
     }
 
@@ -189,6 +188,53 @@ class WolkeSyncService {
     }
 
     /**
+     * Multi-tier change detection for files
+     * Uses ETags (primary), lastModified dates (secondary), and always sync if no existing data
+     */
+    hasFileChanged(existingDoc, file) {
+        // If no existing document, file is new
+        if (!existingDoc) {
+            console.log(`[WolkeSyncService] No existing document found - treating as new file`);
+            return true;
+        }
+
+        // Primary detection: Compare ETags (most reliable)
+        if (file.etag && existingDoc.wolke_etag) {
+            const etagChanged = existingDoc.wolke_etag !== file.etag;
+            if (etagChanged) {
+                console.log(`[WolkeSyncService] ETag changed: ${existingDoc.wolke_etag} → ${file.etag}`);
+                return true;
+            } else {
+                console.log(`[WolkeSyncService] ETag match: ${file.etag} - file unchanged`);
+                return false;
+            }
+        }
+
+        // Secondary detection: Compare lastModified dates
+        if (file.lastModified && existingDoc.last_synced_at) {
+            try {
+                const fileModifiedTime = file.lastModified instanceof Date ? file.lastModified : new Date(file.lastModified);
+                const lastSyncTime = existingDoc.last_synced_at instanceof Date ? existingDoc.last_synced_at : new Date(existingDoc.last_synced_at);
+
+                if (fileModifiedTime > lastSyncTime) {
+                    console.log(`[WolkeSyncService] File modified after last sync: ${fileModifiedTime.toISOString()} > ${lastSyncTime.toISOString()}`);
+                    return true;
+                } else {
+                    console.log(`[WolkeSyncService] File not modified since last sync: ${fileModifiedTime.toISOString()} <= ${lastSyncTime.toISOString()}`);
+                    return false;
+                }
+            } catch (error) {
+                console.warn(`[WolkeSyncService] Error comparing dates, assuming file changed:`, error);
+                return true;
+            }
+        }
+
+        // Fallback: If we have no reliable metadata for comparison, re-sync to be safe
+        console.log(`[WolkeSyncService] Insufficient metadata for comparison (etag: ${!!file.etag}, lastModified: ${!!file.lastModified}) - re-syncing to be safe`);
+        return true;
+    }
+
+    /**
      * Process a single file from Wolke
      */
     async processFile(userId, shareLinkId, file, shareLink) {
@@ -201,19 +247,20 @@ class WolkeSyncService {
                 [userId, shareLinkId, file.href]
             );
             
-            // Check if file has changed (using etag or lastModified)
-            const fileHasChanged = !existingDoc || 
-                existingDoc.wolke_etag !== file.etag || 
-                new Date(existingDoc.last_synced_at) < file.lastModified;
+            // Multi-tier change detection strategy
+            const fileHasChanged = this.hasFileChanged(existingDoc, file);
             
             if (!fileHasChanged) {
                 console.log(`[WolkeSyncService] File ${file.name} is up to date, skipping`);
                 return { skipped: true, reason: 'up_to_date' };
             }
+
+            console.log(`[WolkeSyncService] File ${file.name} has changed or is new, proceeding with sync`);
             
             // Check if file type is supported
-            if (!documentTextExtractor.isSupported(file.name)) {
-                console.warn(`[WolkeSyncService] Unsupported file type: ${file.name}`);
+            const fileExtension = path.extname(file.name).toLowerCase();
+            if (!this.supportedFileTypes.includes(fileExtension)) {
+                console.warn(`[WolkeSyncService] Unsupported file type: ${file.name} (${fileExtension})`);
                 return { skipped: true, reason: 'unsupported_file_type' };
             }
             
@@ -228,9 +275,33 @@ class WolkeSyncService {
             console.log(`[WolkeSyncService] Downloading file: ${file.name}`);
             const fileData = await client.downloadFile(file.href);
             
-            // Extract text using our unified extractor
+            // Extract text using OCR service (supports documents and images via Mistral OCR)
             console.log(`[WolkeSyncService] Extracting text from: ${file.name}`);
-            const extractedText = await documentTextExtractor.extractTextFromBuffer(fileData.buffer, file.name);
+            let extractedText;
+            
+            const supportedMistralTypes = ['.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.avif'];
+            
+            if (supportedMistralTypes.includes(fileExtension)) {
+                // Use Mistral OCR for documents and images
+                const tempDir = os.tmpdir();
+                const tempFileName = `wolke_sync_${Date.now()}_${file.name}`;
+                const tempFilePath = path.join(tempDir, tempFileName);
+                
+                try {
+                    await fs.writeFile(tempFilePath, fileData.buffer);
+                    const ocrResult = await ocrService.extractTextFromDocument(tempFilePath);
+                    extractedText = ocrResult.text;
+                    await fs.unlink(tempFilePath); // Clean up
+                } catch (error) {
+                    try { await fs.unlink(tempFilePath); } catch {}
+                    throw error;
+                }
+            } else if (['.txt', '.md'].includes(fileExtension)) {
+                // Plain text files
+                extractedText = fileData.buffer.toString('utf-8');
+            } else {
+                throw new Error(`Unsupported file type for processing: ${fileExtension}`);
+            }
             
             if (!extractedText || extractedText.trim().length === 0) {
                 console.warn(`[WolkeSyncService] No text extracted from file: ${file.name}`);
@@ -240,7 +311,7 @@ class WolkeSyncService {
             console.log(`[WolkeSyncService] Extracted ${extractedText.length} characters from ${file.name}`);
             
             // Chunk the text
-            const chunks = smartChunkDocument(extractedText, {
+            const chunks = await smartChunkDocument(extractedText, {
                 maxTokens: 400,
                 overlapTokens: 50,
                 preserveStructure: true
@@ -276,7 +347,11 @@ class WolkeSyncService {
                 filename: file.name,
                 additionalPayload: {
                     file_size: file.size,
-                    last_modified: file.lastModified?.toISOString()
+                    last_modified: file.lastModified ?
+                        (file.lastModified instanceof Date ?
+                            file.lastModified.toISOString() :
+                            new Date(file.lastModified).toISOString()) :
+                        null
                 }
             };
             
@@ -325,7 +400,7 @@ class WolkeSyncService {
                 metadata
             );
             
-            console.log(`[WolkeSyncService] Successfully processed file: ${file.name} (${chunks.length} vectors)`);
+            console.log(`[WolkeSyncService] Successfully ${existingDoc ? 'updated' : 'processed new'} file: ${file.name} (${chunks.length} vectors)`);
             
             return {
                 success: true,

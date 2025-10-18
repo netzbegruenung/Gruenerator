@@ -183,15 +183,7 @@ Bitte formatiere deine Antwort als Markdown und beachte folgende Punkte für ein
 
 const MARKDOWN_FORMATTING_INSTRUCTIONS = `
 **Formatierung:**
-Bitte formatiere deine Antwort als gut strukturiertes Markdown:
-
-- Verwende **Überschriften** (# ## ###) um deine Antwort zu gliedern
-- Verwende **fett** und *kursiv* für wichtige Begriffe und Hervorhebungen
-- Verwende Listen (- oder 1.) für Aufzählungen und Schritte
-- Verwende > Blockquotes für Zitate aus den Dokumenten
-- Verwende \`Code\` für spezifische Begriffe oder Fachausdrücke
-- Strukturiere längere Antworten in logische Abschnitte
-- KEIN HTML verwenden - nur Markdown
+Nutze Markdown: **fett**, # Überschriften, - Listen. Kein HTML.
 `;
 
 const COMPREHENSIVE_DOSSIER_INSTRUCTIONS = `
@@ -829,6 +821,18 @@ function processResponseWithTitle(result, routePath, formData = {}) {
     }
   }
   
+  // Sanitize markdown for display in social/press contexts (avoid accidental code rendering)
+  const SOCIAL_LIKE_TYPES = new Set(['instagram','facebook','twitter','linkedin','social','press','pressemitteilung','actionIdeas','reelScript']);
+  if (SOCIAL_LIKE_TYPES.has(contentType)) {
+    cleanContent = sanitizeMarkdownForDisplay(cleanContent);
+  }
+
+  // Platform-specific post-processing
+  if (contentType === 'twitter') {
+    // Collapse all line breaks to single spaces; trim excessive spaces
+    cleanContent = cleanContent.replace(/[ \t]*[\r\n]+[ \t]*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  }
+
   return {
     ...result,
     content: cleanContent,
@@ -838,6 +842,50 @@ function processResponseWithTitle(result, routePath, formData = {}) {
       contentType: contentType
     }
   };
+}
+
+/**
+ * Sanitizes markdown to prevent entire responses being treated as code.
+ * - Unwraps fenced code blocks (``` or ~~~) when they contain the bulk of the content
+ * - Removes uniform 4-space indentation from most lines (classic code blocks)
+ * This is safe for social/press content which should never be code.
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeMarkdownForDisplay(text) {
+  if (!text || typeof text !== 'string') return text;
+
+  let out = text.trim();
+
+  // 1) Unwrap full-width fenced block if the whole content is a single fence
+  const fullFence = /^(?:```|~~~)([a-zA-Z0-9_-]+)?\s*\n([\s\S]*?)\n(?:```|~~~)\s*$/;
+  const m = out.match(fullFence);
+  if (m) {
+    out = m[2].trim();
+  } else {
+    // 2) If there is exactly one fenced block and very little text around it, unwrap it
+    const fenceGlobal = /```[a-zA-Z0-9_-]*\n([\s\S]*?)\n```/g;
+    const matches = [...out.matchAll(fenceGlobal)];
+    if (matches.length === 1) {
+      const inner = matches[0][1];
+      const around = out.replace(matches[0][0], '').trim();
+      if (around.length <= 40) {
+        out = (around ? around + '\n\n' : '') + inner.trim();
+      }
+    }
+  }
+
+  // 3) If most non-empty lines begin with 4+ spaces, unindent once
+  const lines = out.split(/\r?\n/);
+  const nonEmpty = lines.filter(l => l.trim().length > 0);
+  if (nonEmpty.length >= 3) {
+    const indented = nonEmpty.filter(l => /^\s{4,}/.test(l)).length;
+    if (indented / nonEmpty.length >= 0.75) {
+      out = lines.map(l => l.replace(/^\s{4}/, '')).join('\n').trim();
+    }
+  }
+
+  return out;
 }
 
 // Attachment-aware system prompt enhancement
@@ -881,5 +929,6 @@ module.exports = {
   generateSmartTitle,
   extractTitleFromResponse,
   processResponseWithTitle,
+  sanitizeMarkdownForDisplay,
   enhanceSystemPromptWithAttachments
 };

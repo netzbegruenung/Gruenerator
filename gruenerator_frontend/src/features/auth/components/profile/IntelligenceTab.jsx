@@ -50,7 +50,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
 
     // Available tabs based on features
     const availableTabs = [
-        ...INTELLIGENCE_TABS,
+        ...INTELLIGENCE_TABS.filter(tab => tab.key !== 'wissen'), // Temporarily hide wissen tab
         ...(isMemoryEnabled ? [{ key: 'mem0ry', label: 'Memory' }] : [])
     ];
 
@@ -95,11 +95,11 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     const formMethods = useForm({
         defaultValues: {
             customAntragPrompt: '',
-            customAntragGliederung: '',
             customSocialPrompt: '',
             customUniversalPrompt: '',
             customGruenejugendPrompt: '',
-            presseabbinder: '',
+            customRedePrompt: '',
+            customBuergeranfragenPrompt: '',
             knowledge: [],
         },
         mode: 'onChange'
@@ -113,6 +113,9 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
     });
     const { Input, Textarea } = useFormFields();
 
+    // Track autosave enabled state - this needs to be dynamic
+    const [autosaveEnabled, setAutosaveEnabled] = useState(false);
+
     // Auto-save using shared hook (moved before initialization to prevent "cannot access before initialization" error)
     const { resetTracking } = useAutosave({
         saveFunction: useCallback(async (changedFields) => {
@@ -120,51 +123,63 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             const currentValues = getValues();
             const formData = {
                 customAntragPrompt: changedFields.customAntragPrompt !== undefined ? changedFields.customAntragPrompt : currentValues.customAntragPrompt || '',
-                customAntragGliederung: changedFields.customAntragGliederung !== undefined ? changedFields.customAntragGliederung : currentValues.customAntragGliederung || '',
                 customSocialPrompt: changedFields.customSocialPrompt !== undefined ? changedFields.customSocialPrompt : currentValues.customSocialPrompt || '',
                 customUniversalPrompt: changedFields.customUniversalPrompt !== undefined ? changedFields.customUniversalPrompt : currentValues.customUniversalPrompt || '',
                 customGruenejugendPrompt: changedFields.customGruenejugendPrompt !== undefined ? changedFields.customGruenejugendPrompt : currentValues.customGruenejugendPrompt || '',
-                presseabbinder: changedFields.presseabbinder !== undefined ? changedFields.presseabbinder : currentValues.presseabbinder || '',
+                customRedePrompt: changedFields.customRedePrompt !== undefined ? changedFields.customRedePrompt : currentValues.customRedePrompt || '',
+                customBuergeranfragenPrompt: changedFields.customBuergeranfragenPrompt !== undefined ? changedFields.customBuergeranfragenPrompt : currentValues.customBuergeranfragenPrompt || '',
                 knowledge: changedFields.knowledge !== undefined ? changedFields.knowledge : currentValues.knowledge || []
             };
-            
-            return await saveChanges(formData);
-        }, [saveChanges, getValues]),
+
+            try {
+                const result = await saveChanges(formData);
+                showSuccess('Änderungen wurden automatisch gespeichert');
+                return result;
+            } catch (error) {
+                console.error('[IntelligenceTab] Save failed:', error);
+                showError('Fehler beim automatischen Speichern: ' + error.message);
+                throw error;
+            }
+        }, [saveChanges, getValues, showSuccess, showError]),
         formRef: { getValues, watch },
-        enabled: data && isInitialized.current,
+        enabled: autosaveEnabled,  // Use the state variable instead of computed value
         debounceMs: 2000,
         getFieldsToTrack: () => [
             'customAntragPrompt',
-            'customAntragGliederung', 
             'customSocialPrompt',
             'customUniversalPrompt',
             'customGruenejugendPrompt',
-            'presseabbinder',
+            'customRedePrompt',
+            'customBuergeranfragenPrompt',
             'knowledge'
         ],
         onError: (error) => {
-            console.error('Intelligence autosave failed:', error);
+            showError('Fehler beim automatischen Speichern');
         }
     });
 
     // Initialize form when data loads (only once)
     useEffect(() => {
         if (!data || isInitialized.current) return;
-        
+
         const formData = {
             customAntragPrompt: data.antragPrompt || '',
-            customAntragGliederung: data.antragGliederung || '',
             customSocialPrompt: data.socialPrompt || '',
             customUniversalPrompt: data.universalPrompt || '',
             customGruenejugendPrompt: data.gruenejugendPrompt || '',
-            presseabbinder: data.presseabbinder || '',
+            customRedePrompt: data.redePrompt || '',
+            customBuergeranfragenPrompt: data.buergeranfragenPrompt || '',
             knowledge: data.knowledge || []
         };
-        
+
         reset(formData);
         isInitialized.current = true;
-        // Reset autosave tracking after initial form setup
-        setTimeout(() => resetTracking(), 100);
+
+        // Enable autosave and reset tracking after initial form setup
+        setTimeout(() => {
+            setAutosaveEnabled(true);
+            resetTracking();
+        }, 100);
     }, [data, reset, resetTracking]);
 
     // Fetch memories when tab becomes active and user is authenticated
@@ -458,15 +473,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             maxRows={8}
                                             control={control}
                                         />
-                                        <Textarea
-                                            name="customAntragGliederung"
-                                            label="Standard-Gliederung:"
-                                            placeholder="Gib hier deine Standard-Gliederung für Anträge ein..."
-                                            helpText="z.B. deine Fraktion, Ortsverband oder andere wiederkehrende Informationen"
-                                            minRows={1}
-                                            maxRows={4}
-                                            control={control}
-                                        />
                                     </ProfileCard>
                                     <ProfileCard title="Anweisungen für Presse & Social Media">
                                         <Textarea
@@ -478,15 +484,6 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             maxRows={8}
                                             control={control}
                                         />
-                                        <Textarea
-                                            name="presseabbinder"
-                                            label="Presseabbinder:"
-                                            placeholder="Gib hier deinen Standard-Presseabbinder ein, der automatisch an alle Pressemitteilungen angehängt wird..."
-                                            helpText="z.B. Kontaktdaten, Öffnungszeiten, Vereinsinformationen"
-                                            minRows={2}
-                                            maxRows={6}
-                                            control={control}
-                                        />
                                     </ProfileCard>
                                     <ProfileCard title="Anweisungen für Universelle Texte">
                                         <Textarea
@@ -494,6 +491,28 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                             label="Persönliche Anweisungen:"
                                             placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
                                             helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Reden">
+                                        <Textarea
+                                            name="customRedePrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Erstellung von Reden ein..."
+                                            helpText="z.B. bevorzugter Redestil, rhetorische Mittel, Ansprache der Zielgruppe"
+                                            minRows={2}
+                                            maxRows={8}
+                                            control={control}
+                                        />
+                                    </ProfileCard>
+                                    <ProfileCard title="Anweisungen für Bürger*innenanfragen">
+                                        <Textarea
+                                            name="customBuergeranfragenPrompt"
+                                            label="Persönliche Anweisungen:"
+                                            placeholder="Gib hier deine Anweisungen für die Beantwortung von Bürger*innenanfragen ein..."
+                                            helpText="z.B. bevorzugte Tonalität, Detailgrad, Ansprechpartner-Informationen"
                                             minRows={2}
                                             maxRows={8}
                                             control={control}
@@ -513,14 +532,15 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 </div>
                             )}
 
+                            {/* Temporarily commented out - Wissen tab
                             {currentView === 'wissen' && (
-                                <div 
+                                <div
                                     role="tabpanel"
                                     id="wissen-panel"
                                     aria-labelledby="wissen-tab"
                                     tabIndex={-1}
                                 >
-                                <ProfileCard 
+                                <ProfileCard
                                     title="Persönliches Wissen"
                                     headerActions={
                                         <button
@@ -585,6 +605,7 @@ const IntelligenceTab = ({ isActive, onSuccessMessage, onErrorMessage }) => {
                                 </ProfileCard>
                                 </div>
                             )}
+                            */}
 
                             {currentView === 'mem0ry' && isMemoryEnabled && (
                                 <div 

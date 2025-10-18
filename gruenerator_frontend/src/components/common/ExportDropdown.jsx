@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { IoDownloadOutline, IoShareSocialSharp, IoCloudUploadOutline, IoCheckmarkOutline } from "react-icons/io5";
+import { IoDownloadOutline, IoShareSocialSharp, IoCloudUploadOutline, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
 import { FaCloud } from "react-icons/fa";
 import { FaFileWord } from "react-icons/fa6";
 import { CiMemoPad } from "react-icons/ci";
@@ -10,10 +10,12 @@ import { useLazyAuth } from '../../hooks/useAuth';
 import useApiSubmit from '../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
+import { copyFormattedContent } from '../utils/commonFunctions';
 import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
+import '../../assets/styles/components/actions/exportToDocument.css';
 
 const ExportDropdown = ({ content, title, className = 'action-button', onSaveToLibrary, saveToLibraryLoading }) => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -39,6 +41,8 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const [showPastePopup, setShowPastePopup] = useState(false);
   const [copySucceeded, setCopySucceeded] = useState(false);
   const [padURL, setPadURL] = useState('');
+  const [urlCopied, setUrlCopied] = useState(false);
+  const [textCopyIcon, setTextCopyIcon] = useState(<IoCopyOutline size={20} />);
 
   // Load share links when dropdown opens
   const loadShareLinks = useCallback(async () => {
@@ -85,7 +89,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     };
   }, [showDropdown, showWolkeSubDropdown]);
 
-  // Helper functions from ExportToDocument
+  // Helper functions for document type and component name detection
   const getDocumentType = () => {
     const path = location.pathname;
     if (path.includes('pressemitteilung')) return 'Pressemitteilung';
@@ -102,7 +106,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     if (path.includes('antrag')) return 'antrag-generator';
     if (path.includes('universal') || path.includes('rede') || path.includes('wahlprogramm')) return 'universal-text';
     if (path.includes('gruene-jugend')) return 'gruene-jugend';
-    if (path.includes('ask-grundsatz')) return 'ask-grundsatz';
+    if (path.includes('gruene-notebook')) return 'ask-grundsatz';
     if (path.includes('ask')) return 'ask';
     
     const pathParts = path.split('/').filter(Boolean);
@@ -129,6 +133,8 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       fallbacks.push('universal-text', 'universal', 'rede', 'wahlprogramm');
     } else if (path.includes('gruene-jugend')) {
       fallbacks.push('gruene-jugend', 'gruene_jugend');
+    } else if (path.includes('gruene-notebook')) {
+      fallbacks.push('ask-grundsatz', 'ask');
     } else if (path.includes('ask')) {
       fallbacks.push('ask', 'ask-grundsatz');
     }
@@ -185,9 +191,22 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
         setPadURL(response.padURL);
       }
     } catch (err) {
-      console.error('Fehler beim Exportieren zu Docs:', err);
-      alert('Fehler beim Exportieren zu Docs: ' + err.message);
+      console.error('Fehler beim Exportieren zu Textbegrünung:', err);
+      alert('Fehler beim Exportieren zu Textbegrünung: ' + err.message);
     }
+  };
+
+  const handleCopyText = async () => {
+    await copyFormattedContent(
+      content,
+      () => {
+        setTextCopyIcon(<IoCheckmarkOutline size={20} />);
+        setTimeout(() => {
+          setTextCopyIcon(<IoCopyOutline size={20} />);
+        }, 2000);
+      },
+      () => {}
+    );
   };
 
   const handleDOCXDownload = useCallback(async () => {
@@ -343,7 +362,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
             <CiMemoPad size={16} />
             <div className="format-option-content">
               <div className="format-option-title">
-                {docsLoading ? 'Exportiere...' : 'Docs Export'}
+                {docsLoading ? 'Exportiere...' : 'Textbegrünung Export'}
               </div>
               <div className="format-option-subtitle">
                 Öffentlich verfügbar, als Link teilbar
@@ -453,29 +472,53 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
         />
       )}
 
-      {/* Paste Instruction Popup using existing modal structure */}
+      {/* Enhanced Textbegrünung Export Popup */}
       {showPastePopup && (
-        <div className="modal" role="dialog" aria-labelledby="paste-instruction-title" onClick={() => setShowPastePopup(false)}>
+        <div className="modal" role="dialog" aria-labelledby="export-modal-title" onClick={() => setShowPastePopup(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 id="paste-instruction-title">Text in Docs einfügen</h2>
+            <button className="close-button" onClick={() => setShowPastePopup(false)}>
+              <IoCloseOutline size={24} />
+            </button>
+            <h2 id="export-modal-title">Mit Textbegrünung freigeben</h2>
+
             <p>
               {copySucceeded
-                ? 'Der Text wurde in die Zwischenablage kopiert. Öffne das Docs-Dokument und füge ihn mit Strg+V ein.'
-                : 'Öffne das Docs-Dokument und füge den Text dort ein.'}
+                ? 'Text wurde in Zwischenablage kopiert! Öffne dein Dokument und füge ihn mit Strg+V ein.'
+                : 'Öffne das Textbegrünung-Dokument und füge deinen Text dort ein.'}
             </p>
+
             {padURL && (
-              <div className="url-container" style={{ marginTop: 'var(--spacing-small)' }}>
-                <input type="text" value={padURL} readOnly className="url-input" />
-              </div>
+              <>
+                <div className="url-container">
+                  <input type="text" value={padURL} readOnly className="url-input" />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(padURL).then(() => {
+                        setUrlCopied(true);
+                        setTimeout(() => setUrlCopied(false), 2000);
+                      }).catch(err => console.error('Fehler beim Kopieren:', err));
+                    }}
+                    className={`copy-docs-link-button ${urlCopied ? 'copied' : ''}`}
+                  >
+                    {urlCopied ? <IoCheckmarkOutline size={20} /> : <IoCopyOutline size={20} />}
+                  </button>
+                </div>
+                <div className="button-group">
+                  <button
+                    onClick={handleCopyText}
+                    className="export-action-button"
+                  >
+                    {textCopyIcon} Text kopieren
+                  </button>
+                  <button
+                    onClick={() => { window.open(padURL, '_blank'); setShowPastePopup(false); }}
+                    className="open-button"
+                  >
+                    <IoOpenOutline size={20} /> Link öffnen
+                  </button>
+                </div>
+              </>
             )}
-            <div className="button-group">
-              <button 
-                onClick={() => { if (padURL) { window.open(padURL, '_blank'); } setShowPastePopup(false); }} 
-                className="open-button"
-              >
-                Link öffnen
-              </button>
-            </div>
           </div>
         </div>
       )}

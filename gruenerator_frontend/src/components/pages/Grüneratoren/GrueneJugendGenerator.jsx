@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useForm, Controller } from 'react-hook-form';
-import { HiShieldCheck } from 'react-icons/hi';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
@@ -12,12 +11,14 @@ import { useFormFields } from '../../common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useKnowledge from '../../hooks/useKnowledge';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { createKnowledgeFormNotice, createKnowledgePrompt } from '../../../utils/knowledgeFormUtils';
+import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import { useAuthStore } from '../../../stores/authStore';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
+import PlatformSelector from '../../common/PlatformSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import { HiGlobeAlt } from 'react-icons/hi';
+import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
+import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'gruene-jugend';
@@ -47,10 +48,11 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const {
     source,
     availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
     isInstructionsActive,
     instructions,
-    getKnowledgeContent,
-    getDocumentContent,
     getActiveInstruction,
     groupData: groupDetailsData
   } = useGeneratorKnowledgeStore();
@@ -98,7 +100,6 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     control,
     handleSubmit,
     reset,
-    watch,
     setValue,
     formState: { errors }
   } = useForm({
@@ -107,18 +108,34 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
       details: initialContent?.details || '',
       platforms: defaultPlatforms,
       useWebSearchTool: false,
-      usePrivacyMode: false
+      usePrivacyMode: false,
+      useProMode: false
     }
   });
 
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
+  // Watch form values to update toggle states
+  const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
+  const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
+  const watchUseProMode = useWatch({ control, name: 'useProMode', defaultValue: false });
 
   // Use store for content management (no local state needed)
   const socialMediaContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
+
+  // Additional state for new features
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
+
+  // URL crawler hook for automatic link processing
+  const {
+    crawledUrls,
+    crawlingUrls,
+    crawlErrors,
+    detectAndCrawlUrls,
+    removeCrawledUrl,
+    retryUrl,
+    isCrawling
+  } = useUrlCrawler();
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
@@ -126,38 +143,43 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
 
-      const formDataToSubmit = { 
-        thema: rhfData.thema, 
-        details: rhfData.details, 
+      // Combine file attachments with crawled URLs
+      const allAttachments = [
+        ...processedAttachments,
+        ...crawledUrls
+      ];
+
+      const formDataToSubmit = {
+        thema: rhfData.thema,
+        details: rhfData.details,
         platforms: selectedPlatforms,
         useWebSearchTool: rhfData.useWebSearchTool,
         usePrivacyMode: rhfData.usePrivacyMode,
-        attachments: processedAttachments
+        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
+        attachments: allAttachments
       };
-      
-      // Add knowledge, instructions, documents, and memories
-      const finalPrompt = await createKnowledgePrompt({
-        source,
-        isInstructionsActive,
-        getActiveInstruction,
-        instructionType,
-        groupDetailsData,
-        getKnowledgeContent,
-        getDocumentContent,
-        memoryOptions: {
-          enableMemories: memoryEnabled,
-          query: rhfData.thema,
-          generatorType: 'gruenejugend',
-          userId: user?.id
-        }
-      });
-      
-      if (finalPrompt) {
-        formDataToSubmit.customPrompt = finalPrompt;
-        console.log('[GrueneJugendGenerator] Final structured prompt added to formData.', finalPrompt.substring(0,100)+'...');
-      } else {
-        console.log('[GrueneJugendGenerator] No custom instructions or knowledge for generation.');
-      }
+
+      // Extract search query from form data
+      const extractQueryFromFormData = (data) => {
+        const queryParts = [];
+        if (data.thema) queryParts.push(data.thema);
+        if (data.details) queryParts.push(data.details);
+        return queryParts.filter(part => part && part.trim()).join(' ');
+      };
+
+      const searchQuery = extractQueryFromFormData(rhfData);
+
+      // Get instructions for backend (if active) - backend handles all content extraction
+      const customPrompt = isInstructionsActive && getActiveInstruction
+        ? getActiveInstruction(instructionType)
+        : null;
+
+      // Send only IDs and searchQuery - backend handles all content extraction
+      formDataToSubmit.customPrompt = customPrompt;
+      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
+      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
+      formDataToSubmit.selectedTextIds = selectedTextIds || [];
+      formDataToSubmit.searchQuery = searchQuery || '';
 
       console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
       const content = await submitForm(formDataToSubmit);
@@ -172,48 +194,52 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, source, isInstructionsActive, getActiveInstruction, groupDetailsData, getKnowledgeContent, memoryEnabled, user?.id, componentName, processedAttachments]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, componentName, processedAttachments, crawledUrls, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, instructionType]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     console.log('[GrueneJugendGenerator] Content Change Handler aufgerufen mit:', content?.substring(0, 100) + '...');
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
+  // Handle attachment uploads
   const handleAttachmentClick = useCallback(async (files) => {
     try {
-      console.log(`[GrueneJugendGenerator] Processing ${files.length} new attached files`);
       const processed = await prepareFilesForSubmission(files);
-      
+
       // Accumulate files instead of replacing
       setAttachedFiles(prevFiles => [...prevFiles, ...files]);
       setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-      
-      console.log('[GrueneJugendGenerator] Files successfully processed for submission');
     } catch (error) {
       console.error('[GrueneJugendGenerator] File processing error:', error);
-      // Here you could show a toast notification or error message to the user
-      // For now, we'll just log the error
     }
   }, []);
 
   const handleRemoveFile = useCallback((index) => {
-    console.log(`[GrueneJugendGenerator] Removing file at index ${index}`);
     setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
     setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
   }, []);
 
+  // Handle URL detection and crawling
+  const handleUrlsDetected = useCallback(async (urls) => {
+    // Only crawl if not already crawling and URLs are detected
+    if (!isCrawling && urls.length > 0) {
+      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+    }
+  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+
   const helpContent = {
-    content: "Dieser Grünerator erstellt jugendgerechte Social Media Inhalte und Aktionsideen speziell für die Grüne Jugend. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.",
+    content: "Dieser Grünerator erstellt jugendgerechte Social Media Inhalte und Aktionsideen speziell für die Grüne Jugend.",
     tips: [
       "Wähle ein aktuelles, jugendrelevantes Thema",
       "Formuliere Details verständlich und ansprechend",
       "TikTok und Instagram sind besonders effektiv für junge Zielgruppen",
-      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)",
       "Aktionsideen helfen bei der praktischen Umsetzung",
-      "Instagram Reels erreichen eine große Reichweite"
+      "Instagram Reels erreichen eine große Reichweite",
+      "Hänge PDFs oder Bilder als Kontext an (max. 5MB pro Datei)"
     ]
   };
 
+  // Feature toggle configurations
   const webSearchFeatureToggle = {
     isActive: watchUseWebSearch,
     onToggle: (checked) => {
@@ -236,6 +262,27 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     tabIndex: tabIndex.privacyMode || 13
   };
 
+  const proModeToggle = {
+    isActive: watchUseProMode,
+    onToggle: (checked) => {
+      setValue('useProMode', checked);
+    },
+    label: "Pro-Mode",
+    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
+  };
+
+  const renderPlatformSection = () => (
+    <PlatformSelector
+      name="platforms"
+      control={control}
+      platformOptions={platformOptions}
+      label="Formate"
+      placeholder="Formate auswählen..."
+      required={true}
+      tabIndex={baseFormTabIndex.platformSelectorTabIndex}
+    />
+  );
+
   const renderFormInputs = () => (
     <>
       <Input
@@ -256,6 +303,8 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         minRows={3}
         maxRows={10}
         tabIndex={tabIndex.details}
+        enableUrlDetection={true}
+        onUrlsDetected={handleUrlsDetected}
       />
     </>
   );
@@ -265,7 +314,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Grüne Jugend"
+          title={<span className="gradient-title">Grüne Jugend</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}
@@ -275,24 +324,28 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
           formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
-          enablePlatformSelector={true}
-          platformOptions={platformOptions}
-          formControl={control}
           helpContent={helpContent}
           componentName={componentName}
           webSearchFeatureToggle={webSearchFeatureToggle}
           useWebSearchFeatureToggle={true}
           privacyModeToggle={privacyModeToggle}
           usePrivacyModeToggle={true}
+          proModeToggle={proModeToggle}
+          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
           attachedFiles={attachedFiles}
-          platformSelectorTabIndex={baseFormTabIndex.platformSelectorTabIndex}
+          featureIconsTabIndex={{
+            webSearch: tabIndex.webSearch,
+            privacyMode: tabIndex.privacyMode,
+            attachment: tabIndex.attachment
+          }}
           knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
           knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
           documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
+          firstExtrasChildren={renderPlatformSection()}
         >
           {renderFormInputs()}
         </BaseForm>

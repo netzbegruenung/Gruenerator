@@ -46,14 +46,86 @@
 }
 
 /* Responsive */
+@media (max-width: 834px) {
+  .image-comparison-container {
+    padding: var(--spacing-small);
+  }
+
+  .comparison-slider {
+    max-width: 450px;
+  }
+}
+
 @media (max-width: 768px) {
+  .image-comparison-container {
+    padding: 12px;
+  }
+
+  .comparison-slider {
+    max-width: 420px;
+  }
+
   .comparison-labels {
     padding: 0 20px;
   }
-  
+
   .label-before,
   .label-after {
     font-size: 0.75rem;
     padding: 4px 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .image-comparison-container {
+    padding: 10px;
+  }
+
+  .comparison-slider {
+    max-width: 100%;
+  }
+
+  .comparison-labels {
+    padding: 0 15px;
+  }
+
+  .label-before,
+  .label-after {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .image-comparison-container {
+    padding: 8px;
+  }
+
+  .comparison-labels {
+    padding: 0 12px;
+    bottom: 15px;
+  }
+
+  .label-before,
+  .label-after {
+    font-size: 0.65rem;
+    padding: 3px 5px;
+  }
+}
+
+@media (max-width: 360px) {
+  .image-comparison-container {
+    padding: 6px;
+  }
+
+  .comparison-labels {
+    padding: 0 10px;
+    bottom: 12px;
+  }
+
+  .label-before,
+  .label-after {
+    font-size: 0.6rem;
+    padding: 2px 4px;
   }
 }

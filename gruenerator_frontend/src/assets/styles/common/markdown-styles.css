@@ -13,8 +13,7 @@
 .antrag-text-content h4,
 .antrag-text-content h5,
 .antrag-text-content h6 {
-  font-family: 'GrueneType', Arial, sans-serif;
-  color: var(--font-color-h); 
+  color: var(--font-color-h);
   margin-top: var(--spacing-large);
   margin-bottom: var(--spacing-medium);
   line-height: 1.3;

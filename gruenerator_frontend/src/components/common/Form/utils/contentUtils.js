@@ -90,6 +90,27 @@ export const removeGruenTitleTags = (content) => {
 };
 
 /**
+ * Entfernt eine umschließende Code-Fence (```...```) falls der gesamte Inhalt
+ * innerhalb einer einzigen Fence liegt. Bewahrt inneren Text (Markdown) für normales Rendering.
+ * @param {string} content - Eingabetext
+ * @returns {string} Inhalt ohne äußere Code-Fence
+ */
+export const stripWrappingCodeFence = (content) => {
+  if (!content || typeof content !== 'string') return content;
+
+  // Normalize leading/trailing whitespace to avoid false negatives
+  const trimmed = content.trim();
+
+  // Match a single full-width fenced block using ``` or ~~~ with optional language
+  const fencePattern = /^(?:```|~~~)([a-zA-Z0-9_-]+)?\s*\n([\s\S]*?)\n(?:```|~~~)\s*$/;
+  const match = trimmed.match(fencePattern);
+  if (match) {
+    return match[2].trim();
+  }
+  return content;
+};
+
+/**
  * Normalisiert überschüssige Zeilenumbrüche im Text
  * @param {string} content - Text zu normalisieren
  * @returns {string} Text mit normalisierten Zeilenumbrüchen

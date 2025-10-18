@@ -24,12 +24,15 @@ CREATE TABLE IF NOT EXISTS profiles (
     email TEXT,
     custom_universal_prompt TEXT,
     custom_gruenejugend_prompt TEXT,
+    custom_rede_prompt TEXT,
+    custom_buergeranfragen_prompt TEXT,
     memory_enabled BOOLEAN DEFAULT FALSE,
     igel_modus BOOLEAN DEFAULT FALSE,
     beta_features JSONB DEFAULT '{}',
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
     auth_source TEXT,
+    locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
     canva_access_token TEXT,
     canva_refresh_token TEXT,
@@ -53,6 +56,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     content_management BOOLEAN DEFAULT FALSE,
     canva BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
+    sites BOOLEAN DEFAULT FALSE,
+    chat BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
     document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
@@ -94,7 +99,7 @@ CREATE TABLE IF NOT EXISTS documents (
     markdown_content TEXT,
     group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
     -- New columns for dual-mode support
-    source_type TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
+    source_type TEXT DEFAULT 'manual', -- 'manual', 'wolke', or 'url'
     wolke_share_link_id TEXT,
     wolke_file_path TEXT,
     wolke_etag TEXT,
@@ -403,6 +408,7 @@ CREATE TABLE IF NOT EXISTS grundsatz_documents (
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_keycloak_id ON profiles(keycloak_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
+CREATE INDEX IF NOT EXISTS idx_profiles_locale ON profiles(locale);
 
 CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
@@ -623,7 +629,94 @@ CREATE INDEX IF NOT EXISTS idx_user_uploads_status ON user_uploads(upload_status
 CREATE INDEX IF NOT EXISTS idx_user_uploads_created_at ON user_uploads(created_at);
 
 -- Add triggers for new tables
-CREATE TRIGGER update_antraege_updated_at 
-    BEFORE UPDATE ON antraege 
-    FOR EACH ROW 
+CREATE TRIGGER update_antraege_updated_at
+    BEFORE UPDATE ON antraege
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- User recent values table for storing last N form field inputs
+CREATE TABLE IF NOT EXISTS user_recent_values (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    field_type TEXT NOT NULL,
+    field_value TEXT NOT NULL,
+    form_name TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    -- Prevent duplicate values for same user/field combination
+    UNIQUE(user_id, field_type, field_value)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_user_recent_values_user_field ON user_recent_values(user_id, field_type);
+CREATE INDEX IF NOT EXISTS idx_user_recent_values_created_at ON user_recent_values(created_at);
+
+-- Function to maintain only last 5 values per user/field combination
+CREATE OR REPLACE FUNCTION cleanup_recent_values()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Keep only the 5 most recent values for this user/field combination
+    DELETE FROM user_recent_values
+    WHERE user_id = NEW.user_id
+    AND field_type = NEW.field_type
+    AND id NOT IN (
+        SELECT id FROM user_recent_values
+        WHERE user_id = NEW.user_id AND field_type = NEW.field_type
+        ORDER BY created_at DESC
+        LIMIT 5
+    );
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Trigger to automatically cleanup old values
+CREATE TRIGGER cleanup_recent_values_trigger
+    AFTER INSERT ON user_recent_values
+    FOR EACH ROW
+    EXECUTE FUNCTION cleanup_recent_values();
+
+-- User sites table (Web-Visitenkarte)
+CREATE TABLE IF NOT EXISTS user_sites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    subdomain TEXT UNIQUE NOT NULL,
+    is_published BOOLEAN DEFAULT FALSE,
+    -- Basic Info
+    site_title TEXT NOT NULL,
+    tagline TEXT,
+    bio TEXT,
+    -- Contact Info
+    contact_email TEXT,
+    contact_phone TEXT,
+    contact_website TEXT,
+    -- Social Links
+    social_links JSONB DEFAULT '{}',
+    -- Visual Settings
+    theme TEXT DEFAULT 'gruene',
+    accent_color TEXT DEFAULT '#46962b',
+    profile_image TEXT,
+    background_image TEXT,
+    -- Content Sections
+    sections JSONB DEFAULT '[]',
+    -- Meta
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_published TIMESTAMPTZ,
+    visit_count INTEGER DEFAULT 0,
+    -- SEO
+    meta_description TEXT,
+    meta_keywords TEXT[]
+);
+
+-- Create indexes for user_sites
+CREATE INDEX IF NOT EXISTS idx_user_sites_user_id ON user_sites(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sites_subdomain ON user_sites(subdomain);
+CREATE INDEX IF NOT EXISTS idx_user_sites_published ON user_sites(is_published);
+
+-- Add sites feature flag to profiles
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
+
+-- Add trigger for user_sites updated_at
+CREATE TRIGGER update_user_sites_updated_at
+    BEFORE UPDATE ON user_sites
+    FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
