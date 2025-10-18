@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
 import TurndownService from 'turndown';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 /**
  * In-memory storage adapter for Crawlee to avoid persistence issues
@@ -451,8 +452,25 @@ class URLCrawlerService {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      // Check content type
+      // Check content type and route to appropriate handler
       const contentType = response.headers.get('content-type') || '';
+
+      // Handle PDFs with dedicated PDF crawler
+      if (contentType.includes('application/pdf')) {
+        console.log(`[URLCrawlerService] Detected PDF, routing to PDF handler`);
+        const pdfResult = await this._crawlPdf(url, options);
+
+        // Format PDF result to match HTML structure
+        return {
+          html: `<html><head><title>PDF Document</title></head><body><pre>${pdfResult.text}</pre></body></html>`,
+          finalUrl: pdfResult.finalUrl,
+          statusCode: pdfResult.statusCode,
+          isPdf: true,
+          pdfText: pdfResult.text
+        };
+      }
+
+      // Only accept HTML for non-PDF content
       if (!contentType.includes('text/html')) {
         throw new Error(`Unsupported content type: ${contentType}`);
       }
@@ -479,6 +497,118 @@ class URLCrawlerService {
       }
 
       throw error;
+    }
+  }
+
+  /**
+   * Crawls PDF documents and extracts text content
+   * @private
+   */
+  async _crawlPdf(url, options = {}) {
+    const fetchOptions = {
+      ...this.config,
+      ...options
+    };
+
+    console.log(`[URLCrawlerService] Fetching PDF with fetch: ${url}`);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), fetchOptions.timeout);
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': fetchOptions.userAgent,
+          'Accept': 'application/pdf,*/*',
+        },
+        signal: controller.signal,
+        redirect: 'follow',
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Check content length
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > fetchOptions.maxContentLength) {
+        throw new Error(`PDF too large: ${contentLength} bytes`);
+      }
+
+      // Get PDF as array buffer
+      const pdfBuffer = await response.arrayBuffer();
+
+      // Extract text from PDF
+      const extractedText = await this.extractPdfText(pdfBuffer);
+
+      if (!extractedText || extractedText.trim().length === 0) {
+        throw new Error('No text content extracted from PDF');
+      }
+
+      return {
+        text: extractedText,
+        finalUrl: response.url,
+        statusCode: response.status
+      };
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error.name === 'AbortError') {
+        throw new Error(`PDF fetch timeout after ${fetchOptions.timeout}ms`);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Extracts text content from PDF buffer using pdfjs-dist
+   * @private
+   */
+  async extractPdfText(pdfBuffer) {
+    try {
+      console.log('[URLCrawlerService] Extracting text from PDF...');
+
+      // Load the PDF document
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(pdfBuffer),
+        useSystemFonts: true,
+        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/',
+      });
+
+      const pdfDocument = await loadingTask.promise;
+      const numPages = pdfDocument.numPages;
+
+      console.log(`[URLCrawlerService] PDF has ${numPages} pages`);
+
+      // Extract text from all pages
+      const textPromises = [];
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        textPromises.push(
+          pdfDocument.getPage(pageNum).then(async (page) => {
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items
+              .map(item => item.str)
+              .join(' ');
+            return pageText;
+          })
+        );
+      }
+
+      const pagesText = await Promise.all(textPromises);
+      const fullText = pagesText.join('\n\n');
+
+      console.log(`[URLCrawlerService] Extracted ${fullText.length} characters from PDF`);
+
+      return fullText;
+
+    } catch (error) {
+      console.error('[URLCrawlerService] Error extracting PDF text:', error);
+      throw new Error(`PDF text extraction failed: ${error.message}`);
     }
   }
 
