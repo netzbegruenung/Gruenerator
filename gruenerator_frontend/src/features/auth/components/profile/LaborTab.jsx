@@ -96,16 +96,16 @@ const LaborTab = ({
       //     checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
       //     icon: HiOutlineUserGroup
       //   };
-      case BETA_VIEWS.QA:
-        return {
-          title: 'Notebooks',
-          description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
-          checked: getBetaFeatureState('qa'),
-          setter: (value) => updateUserBetaFeatures('qa', value),
-          featureName: 'Notebooks',
-          checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
-          icon: NotebookIcon
-        };
+      // case BETA_VIEWS.QA:
+      //   return {
+      //     title: 'Notebooks',
+      //     description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
+      //     checked: getBetaFeatureState('qa'),
+      //     setter: (value) => updateUserBetaFeatures('qa', value),
+      //     featureName: 'Notebooks',
+      //     checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
+      //     icon: NotebookIcon
+      //   };
       case BETA_VIEWS.ELEARNING:
         return {
           title: 'E-Learning',
@@ -191,7 +191,7 @@ const LaborTab = ({
       <div className="profile-form-section">
         <div className="auth-form">
           <div className="profile-cards-grid">
-            {getAvailableFeatures().filter(f => f.key !== 'database' && f.key !== 'chat').map(feature => {
+            {getAvailableFeatures().filter(f => f.key !== 'database' && f.key !== 'chat' && f.key !== 'qa').map(feature => {
               const config = getBetaFeatureConfig(feature.key);
               if (!config) return null;
 
@@ -235,7 +235,7 @@ const LaborTab = ({
             })}
           </div>
 
-          <div style={{marginTop: 'var(--spacing-xlarge)'}}>
+          {/* <div style={{marginTop: 'var(--spacing-xlarge)'}}>
             <h2 style={{
               marginBottom: 'var(--spacing-medium)',
               color: 'var(--font-color)',
@@ -289,7 +289,7 @@ const LaborTab = ({
                 );
               })}
             </div>
-          </div>
+          </div> */}
 
           {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (
             <div className="profile-card" style={{marginTop: 'var(--spacing-large)'}}>
