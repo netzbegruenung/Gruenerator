@@ -3,7 +3,18 @@
 ![Version](https://img.shields.io/badge/version-1.0.0-green)
 ![License](https://img.shields.io/badge/license-Proprietary-blue)
 
-Grünerator ist eine moderne Webanwendung für die KI-gestützte Erstellung von Texten, speziell entwickelt für Mitglieder und Unterstützer der Grünen.
+## About
+
+Grünerator is a comprehensive AI-powered platform designed specifically for members and supporters of the German Green Party (Die Grünen). The application provides a suite of specialized AI tools for creating political content, including:
+
+- **Text Generation**: AI-assisted creation of press releases, social media posts, proposals, and speeches
+- **Sharepic Creator**: Generate professional social media graphics in seconds
+- **Image Transformation**: Transform photos with AI-powered editing (Grünerator Imagine)
+- **Video Subtitles**: Automatic subtitle generation for Reels and TikTok videos
+- **Collaborative Editing**: Real-time collaboration features for team workflows
+- **Accessibility Tools**: Tools for creating barrier-free content
+
+Built with privacy in mind, all data is processed on European servers and never used for AI model training. The platform supports multiple authentication methods including direct login and SAML SSO integration with Green Party networks.
 
 ## 🚀 Features
 
@@ -14,10 +25,38 @@ Grünerator ist eine moderne Webanwendung für die KI-gestützte Erstellung von 
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React.js
-- **Backend:** Node.js
-- **KI-Integration:** Claude AI
-- **Styling:** CSS/SCSS
+### Frontend
+- **Framework:** React 19 with Vite 7 build system
+- **State Management:** Zustand + TanStack Query (React Query)
+- **Routing:** React Router v7
+- **Styling:** CSS Modules with CSS custom properties
+- **Animation:** Motion (Framer Motion)
+- **UI Components:** Radix UI primitives
+- **Internationalization:** i18next with browser language detection
+- **Forms:** React Hook Form
+
+### Backend
+- **Runtime:** Node.js with Express
+- **Architecture:** Cluster-based with worker threads for AI processing
+- **Database:** PostgreSQL
+- **Authentication:** Keycloak OIDC with Passport.js
+- **Session Store:** Redis with express-session
+- **Real-time Collaboration:** WebSocket (Y.js)
+
+### AI & ML
+- **Primary AI:** Claude AI (Anthropic SDK)
+- **Additional Models:** OpenAI, Mistral AI, AWS Bedrock
+- **AI Framework:** LangChain for complex workflows
+- **Vector Database:** Qdrant for embeddings and semantic search
+
+### Media Processing
+- **Video:** FFmpeg for transcoding and subtitle generation
+- **Images:** Canvas API, browser-image-compression
+- **Documents:** PDF (pdf-lib, pdfjs-dist), DOCX (mammoth), OCR (Tesseract.js)
+
+### File Management
+- **Upload Protocol:** TUS (resumable uploads)
+- **Storage Middleware:** Multer
 
 ## ⚙️ Installation
 
@@ -87,27 +126,12 @@ Alle Rechte vorbehalten. Siehe [LICENSE.md](LICENSE.md)
 - Netzbegrünung für technischen und inhaltlichen Support
 - Allen Mitwirkenden und Unterstützern
 
-## Authentik Multi-Source SSO Configuration
+## Keycloak Multi-Source SSO Configuration
 
-Der Grünerator unterstützt drei verschiedene Anmeldemöglichkeiten über Authentik:
+Grünerator supports three different login methods through Keycloak:
 
 1. **Grünerator Login** - Email/Password (Built-in Authentication)
-2. **Netzbegrünung Login** - SAML SSO 
+2. **Netzbegrünung Login** - SAML SSO
 3. **Grünes Netz Login** - SAML SSO (coming soon)
 
-### Setup
-
-```bash
-# 1. API Token in Authentik erstellen und setzen
-export AUTHENTIK_API_TOKEN="ak_your_token_here"
-
-# 2. Sources automatisch konfigurieren
-cd gruenerator_backend
-npm run setup:authentik-sources:dry-run  # Vorschau
-npm run setup:authentik-sources          # Ausführen
-
-# 3. Manuelle Validation der SAML Sources
-# Siehe: docs/setup/AUTHENTIK_SOURCES_CONFIGURATION.md
-```
-
-Detaillierte Anleitung: [`docs/setup/AUTHENTIK_SOURCES_CONFIGURATION.md`](docs/setup/AUTHENTIK_SOURCES_CONFIGURATION.md)
+The application uses Keycloak with OIDC (OpenID Connect) and identity brokering for multiple authentication sources. All authentication flows go through Keycloak, which handles user management and session handling.
