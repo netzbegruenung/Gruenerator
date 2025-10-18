@@ -359,7 +359,7 @@ const SubtitlerPage = () => {
                     )}
                   </div>
                   <p className="ai-notice">
-                    Die Verarbeitung erfolgt mit OpenAI in den USA. Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
+                    Die Verarbeitung erfolgt mit AssemblyAI auf EU-Servern mit automatischer Datenlöschung nach der Transkription (Zero Data Retention). Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
                   </p>
 
 
