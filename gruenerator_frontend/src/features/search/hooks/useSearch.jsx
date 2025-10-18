@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
 const findUsedSources = (sources, analysisText, claudeSourceTitles) => {
   // Extrahiere URLs und Titel aus der Analyse
@@ -49,19 +50,22 @@ const useSearch = () => {
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState(null);
   const [sourceRecommendations, setSourceRecommendations] = useState([]);
-  
+
   // Deep research specific state
   const [dossier, setDossier] = useState(null);
   const [categorizedSources, setCategorizedSources] = useState({});
   const [researchQuestions, setResearchQuestions] = useState([]);
-  
+
   // Web search specific state
   const [webResults, setWebResults] = useState(null);
 
   // Citation support
   const [citations, setCitations] = useState([]);
   const [citationSources, setCitationSources] = useState([]);
-  
+
+  // Get store function to save citations for ContentRenderer
+  const setGeneratedTextMetadata = useGeneratedTextStore(state => state.setGeneratedTextMetadata);
+
   const { submitForm: submitSearch, loading: searchLoading } = useApiSubmit('search');
   const { submitForm: submitAnalysis, loading: analysisLoading } = useApiSubmit('analyze');
   const { submitForm: submitDeepSearch, loading: deepSearchLoading } = useApiSubmit('search/deep-research');
@@ -151,6 +155,12 @@ const useSearch = () => {
         // Set citation data if available
         if (deepSearchData.citations) {
           setCitations(deepSearchData.citations);
+
+          // Store in generatedTextStore so ContentRenderer can access citations
+          setGeneratedTextMetadata('deep-research-dossier', {
+            citations: deepSearchData.citations,
+            citationSources: deepSearchData.citationSources || []
+          });
         }
         if (deepSearchData.citationSources) {
           setCitationSources(deepSearchData.citationSources);
@@ -190,6 +200,12 @@ const useSearch = () => {
         // Set citation data if available
         if (webSearchData.citations) {
           setCitations(webSearchData.citations);
+
+          // Store in generatedTextStore so ContentRenderer can access citations
+          setGeneratedTextMetadata('web-search-summary', {
+            citations: webSearchData.citations,
+            citationSources: webSearchData.sources || []
+          });
         }
         if (webSearchData.sources) {
           setCitationSources(webSearchData.sources);
