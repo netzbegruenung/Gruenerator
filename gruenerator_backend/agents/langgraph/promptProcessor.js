@@ -246,17 +246,25 @@ function buildRequestContent(config, requestData, generatorData = null) {
     delete cleanFormData.useWebSearchTool;
     delete cleanFormData.usePrivacyMode;
     delete cleanFormData.attachments;
+    delete cleanFormData.useBedrock;
 
     for (const [key, value] of Object.entries(cleanFormData)) {
       const placeholder = `{{${key}}}`;
       processedPrompt = processedPrompt.replace(new RegExp(placeholder, 'g'), value || '');
     }
 
-    return SimpleTemplateEngine.render(config.requestTemplate, {
-      processedPrompt,
-      formDataFields: Object.entries(cleanFormData).map(([key, value]) => ({ key, value })),
-      generatorName: generatorData.name
-    });
+    // Manually build the request content with form data
+    let requestContent = processedPrompt;
+
+    // Add form data section if there are fields
+    if (Object.keys(cleanFormData).length > 0) {
+      requestContent += '\n\nFormulardaten:\n';
+      for (const [key, value] of Object.entries(cleanFormData)) {
+        requestContent += `${key}: ${value}\n`;
+      }
+    }
+
+    return requestContent;
   }
 
   // Handle sharepic multi-type case
