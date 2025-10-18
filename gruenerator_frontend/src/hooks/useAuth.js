@@ -6,6 +6,49 @@ import { useAuthStore } from '../stores/authStore';
 // Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+// Helper to detect and clean up invalid auth state on first visit
+const cleanupInvalidAuthState = () => {
+  try {
+    // Check if this is likely a first visit or corrupted state
+    const hasVisitedBefore = sessionStorage.getItem('gruenerator_session_active');
+
+    if (!hasVisitedBefore) {
+      // Mark this session as active
+      sessionStorage.setItem('gruenerator_session_active', 'true');
+
+      // Check for potentially corrupted logout timestamp
+      const logoutTimestamp = localStorage.getItem('gruenerator_logout_timestamp');
+      if (logoutTimestamp) {
+        const timestamp = parseInt(logoutTimestamp);
+        const now = Date.now();
+
+        // If timestamp is invalid, in the future, or older than 1 hour, it's likely corrupted
+        if (isNaN(timestamp) || timestamp > now || (now - timestamp) > 60 * 60 * 1000) {
+          console.log('[useAuth] Cleaning up invalid/stale logout timestamp on first visit');
+          localStorage.removeItem('gruenerator_logout_timestamp');
+        }
+      }
+
+      // Also clean up any stale login intent
+      const loginIntent = localStorage.getItem('gruenerator_login_intent');
+      if (loginIntent) {
+        const intentTime = parseInt(loginIntent);
+        if (isNaN(intentTime) || intentTime > Date.now() || (Date.now() - intentTime) > 10 * 60 * 1000) {
+          console.log('[useAuth] Cleaning up invalid/stale login intent on first visit');
+          localStorage.removeItem('gruenerator_login_intent');
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[useAuth] Error during first visit cleanup:', error);
+  }
+};
+
+// Run cleanup on module load
+if (typeof window !== 'undefined') {
+  cleanupInvalidAuthState();
+}
+
 // Helper to check if user recently logged out
 const isRecentlyLoggedOut = () => {
   try {
@@ -13,21 +56,46 @@ const isRecentlyLoggedOut = () => {
     const loginIntent = localStorage.getItem('gruenerator_login_intent');
     if (loginIntent) {
       const intentTime = parseInt(loginIntent);
-      const timeSinceIntent = Date.now() - intentTime;
-      // Allow auth for 5 minutes after login intent
-      if (timeSinceIntent < 5 * 60 * 1000) {
-        console.log('[useAuth] Recent login intent found, allowing auth');
-        return false; // Don't block auth
-      } else {
-        // Clean up old login intent
-        localStorage.removeItem('gruenerator_login_intent');
+      // Validate the timestamp is a valid number and not in the future
+      if (!isNaN(intentTime) && intentTime > 0 && intentTime <= Date.now()) {
+        const timeSinceIntent = Date.now() - intentTime;
+        // Allow auth for 5 minutes after login intent
+        if (timeSinceIntent < 5 * 60 * 1000) {
+          console.log('[useAuth] Recent login intent found, allowing auth');
+          return false; // Don't block auth
+        }
       }
+      // Clean up invalid or old login intent
+      localStorage.removeItem('gruenerator_login_intent');
     }
 
     // Check logout timestamp only if no recent login intent
     const logoutTimestamp = localStorage.getItem('gruenerator_logout_timestamp');
     if (logoutTimestamp) {
-      const timeSinceLogout = Date.now() - parseInt(logoutTimestamp);
+      const timestamp = parseInt(logoutTimestamp);
+
+      // Validate timestamp is a valid number
+      if (isNaN(timestamp) || timestamp <= 0) {
+        console.log('[useAuth] Invalid logout timestamp found, removing it');
+        localStorage.removeItem('gruenerator_logout_timestamp');
+        return false;
+      }
+
+      // Check if timestamp is in the future (clock skew or invalid data)
+      if (timestamp > Date.now()) {
+        console.log('[useAuth] Future logout timestamp detected, removing invalid data');
+        localStorage.removeItem('gruenerator_logout_timestamp');
+        return false;
+      }
+
+      // Check if timestamp is unreasonably old (> 1 day)
+      const timeSinceLogout = Date.now() - timestamp;
+      if (timeSinceLogout > 24 * 60 * 60 * 1000) {
+        console.log('[useAuth] Very old logout timestamp found (>24h), removing it');
+        localStorage.removeItem('gruenerator_logout_timestamp');
+        return false;
+      }
+
       // Check if logout was within the last minute
       if (timeSinceLogout < 60 * 1000) {
         console.log('[useAuth] Recent logout detected, blocking automatic auth');
@@ -38,7 +106,15 @@ const isRecentlyLoggedOut = () => {
       }
     }
   } catch (error) {
+    console.warn('[useAuth] Error checking logout status, allowing auth:', error);
     // If we can't read from localStorage, assume not recently logged out
+    // Also try to clean up potentially corrupted localStorage
+    try {
+      localStorage.removeItem('gruenerator_logout_timestamp');
+      localStorage.removeItem('gruenerator_login_intent');
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
   }
   return false;
 };
@@ -339,7 +415,12 @@ export const useAuth = (options = {}) => {
   useEffect(() => {
     // Don't process auth data if user was just logged out or recently logged out (unless on login page)
     if (isJustLoggedOut || (hasRecentlyLoggedOut && !isOnLoginPage)) {
-      clearAuth();
+      // Only clear auth if user is currently authenticated
+      // This prevents unnecessary clearAuth calls that would reset the logout timestamp
+      const { isAuthenticated: currentIsAuthenticated } = useAuthStore.getState();
+      if (currentIsAuthenticated) {
+        clearAuth();
+      }
       // If we're on a protected page and recently logged out, clear the logout timestamp
       // to allow the login screen to be shown properly
       if (!isOnLoginPage && !skipAuth && !lazy) {
