@@ -90,8 +90,6 @@ export const useDocumentsStore = create(immer((set, get) => {
       });
 
       try {
-        console.log('[DocumentsStore] Fetching combined content (documents + texts)');
-
         const response = await fetch(`${AUTH_BASE_URL}/documents/combined-content`, {
           method: 'GET',
           credentials: 'include',
@@ -112,7 +110,6 @@ export const useDocumentsStore = create(immer((set, get) => {
             state.texts = result.data.texts || [];
             state.isLoading = false;
           });
-          console.log(`[DocumentsStore] Combined content fetched: ${result.data.documents?.length || 0} documents, ${result.data.texts?.length || 0} texts`);
           return result.data;
         } else {
           throw new Error(result.message || 'Failed to fetch combined content');
@@ -128,7 +125,7 @@ export const useDocumentsStore = create(immer((set, get) => {
     },
 
     // Upload document (vectors-only manual mode)
-    uploadDocument: async (file, title, groupId = null, ocrMethod = 'tesseract') => {
+    uploadDocument: async (file, title, groupId = null) => {
       set((state) => {
         state.isUploading = true;
         state.uploadProgress = 0;

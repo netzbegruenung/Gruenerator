@@ -250,21 +250,13 @@ const useKnowledge = ({
   // CRITICAL: Synchronize documents and texts from documentsStore to generatorKnowledgeStore
   // This fixes the bug where availableDocuments was always empty
   useEffect(() => {
-    // Sync documents to generatorKnowledgeStore whenever they change
     if (documentsFromStore && documentsFromStore.length > 0) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[useKnowledge] Syncing documents to generatorKnowledgeStore:', documentsFromStore.length);
-      }
       setAvailableDocuments(documentsFromStore);
     }
   }, [documentsFromStore, setAvailableDocuments]);
 
   useEffect(() => {
-    // Sync texts to generatorKnowledgeStore whenever they change
     if (textsFromStore && textsFromStore.length > 0) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[useKnowledge] Syncing texts to generatorKnowledgeStore:', textsFromStore.length);
-      }
       setAvailableTexts(textsFromStore);
     }
   }, [textsFromStore, setAvailableTexts]);
@@ -279,39 +271,13 @@ const useKnowledge = ({
 
       // Use combined endpoint if both documents and texts are enabled
       if (finalUIConfig.enableTexts) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[useKnowledge] Fetching combined content (documents + texts)');
-        }
-        fetchCombinedContent()
-          .then((result) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[useKnowledge] Combined content fetched:', {
-                documents: result?.documents?.length || 0,
-                texts: result?.texts?.length || 0
-              });
-            }
-          })
-          .catch((error) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[useKnowledge] Combined content fetch failed (non-blocking):', error);
-            }
-          });
+        fetchCombinedContent().catch(() => {
+          // Silent fail - non-blocking
+        });
       } else {
-        // Only fetch documents
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[useKnowledge] Fetching documents only');
-        }
-        fetchDocuments()
-          .then(() => {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('[useKnowledge] Documents fetched');
-            }
-          })
-          .catch((error) => {
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[useKnowledge] Document fetch failed (non-blocking):', error);
-            }
-          });
+        fetchDocuments().catch(() => {
+          // Silent fail - non-blocking
+        });
       }
     }
   }, [finalUIConfig.enableDocuments, finalUIConfig.enableTexts, user, fetchDocuments, fetchCombinedContent]);
