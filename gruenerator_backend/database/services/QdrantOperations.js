@@ -753,6 +753,12 @@ class QdrantOperations {
     async scrollDocuments(collection, filter = {}, options = {}) {
         const { limit = 100, withPayload = true, withVector = false, offset = null } = options;
 
+        // Defensive validation: Qdrant requires limit >= 1
+        if (limit <= 0) {
+            console.warn(`[QdrantOperations] Invalid limit value: ${limit}. Returning empty array.`);
+            return [];
+        }
+
         try {
             const scrollParams = {
                 filter: Object.keys(filter).length > 0 ? filter : undefined,
