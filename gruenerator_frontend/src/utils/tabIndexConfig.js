@@ -101,8 +101,9 @@ export const TAB_INDEX_CONFIG = {
     attachment: 420,
 
     // Selectors (500-699)
-    knowledgeSourceSelector: 500,
-    knowledgeSelector: 510,
+    platformSelector: 500,
+    knowledgeSourceSelector: 510,
+    knowledgeSelector: 520,
 
     // Actions (900-999)
     submit: 900
