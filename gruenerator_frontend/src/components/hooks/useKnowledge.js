@@ -55,7 +55,8 @@ const useKnowledge = ({
     fetchDocuments,
     fetchCombinedContent,
     documents: documentsFromStore,
-    texts: textsFromStore
+    texts: textsFromStore,
+    isLoading: isLoadingDocumentsFromStore
   } = useDocumentsStore();
 
   // Reset store on component mount to ensure clean state
@@ -250,16 +251,25 @@ const useKnowledge = ({
   // CRITICAL: Synchronize documents and texts from documentsStore to generatorKnowledgeStore
   // This fixes the bug where availableDocuments was always empty
   useEffect(() => {
-    if (documentsFromStore && documentsFromStore.length > 0) {
+    // Always sync documents, even if empty array (to handle 0 documents case)
+    if (documentsFromStore) {
       setAvailableDocuments(documentsFromStore);
     }
   }, [documentsFromStore, setAvailableDocuments]);
 
   useEffect(() => {
-    if (textsFromStore && textsFromStore.length > 0) {
+    // Always sync texts, even if empty array (to handle 0 texts case)
+    if (textsFromStore) {
       setAvailableTexts(textsFromStore);
     }
   }, [textsFromStore, setAvailableTexts]);
+
+  // CRITICAL: Synchronize loading state from documentsStore to generatorKnowledgeStore
+  // This fixes the bug where "Lade verfügbare Inhalte..." was shown even after loading completed
+  useEffect(() => {
+    const { setLoadingDocuments } = useGeneratorKnowledgeStore.getState();
+    setLoadingDocuments(isLoadingDocumentsFromStore);
+  }, [isLoadingDocumentsFromStore]);
 
   // Track if initial fetch has been done to prevent duplicate fetches
   const hasFetchedDocuments = useRef(false);
