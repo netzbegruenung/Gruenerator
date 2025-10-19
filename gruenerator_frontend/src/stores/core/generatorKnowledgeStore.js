@@ -234,11 +234,8 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[KnowledgeStore] Fetched ${result.data?.length || 0} texts`);
-        }
         setAvailableTexts(result.data || []);
       } else {
         throw new Error(result.message || 'Failed to fetch texts');

@@ -100,23 +100,16 @@ export const useProfileStore = create(
        * Sync profile data from React Query
        */
       syncProfile: (profileData) => set(state => {
-        const currentAvatarId = state.profile?.avatar_robot_id;
-        const newAvatarId = profileData?.avatar_robot_id;
-        
         // Only sync if not currently editing to avoid overwriting user input
         if (!state.editModes.profile && !state.optimisticLoading.avatar) {
-          console.log(`[ProfileStore] 🔄 Normal sync: current=${currentAvatarId}, new=${newAvatarId}`);
           state.profile = profileData;
         } else if (state.optimisticLoading.avatar && profileData) {
           // During avatar update, preserve the optimistic avatar_robot_id
           const optimisticAvatarId = state.profile?.avatar_robot_id;
-          console.log(`[ProfileStore] 🎨 Avatar loading sync: optimistic=${optimisticAvatarId}, server=${newAvatarId}`);
           state.profile = {
             ...profileData,
             avatar_robot_id: optimisticAvatarId || profileData.avatar_robot_id
           };
-        } else {
-          console.log(`[ProfileStore] ⏸️ Sync skipped (edit mode or loading): editMode=${state.editModes.profile}, avatarLoading=${state.optimisticLoading.avatar}`);
         }
       }),
 
@@ -283,20 +276,17 @@ export const useProfileStore = create(
        */
       updateAvatarOptimistic: async (avatarRobotId) => {
         try {
-          console.log('[ProfileStore] Syncing avatar UI state:', avatarRobotId);
-          
           // Update UI state immediately for consistency
           get().updateProfileOptimistic({ avatar_robot_id: avatarRobotId }, 'avatar');
-          
+
           // Sync with authStore for unified user identity
           get().syncWithAuthStore({ avatar_robot_id: avatarRobotId });
-          
+
           // Clear loading state after coordination
           setTimeout(() => {
             get().completeOptimisticUpdate('avatar');
-            console.log('[ProfileStore] Avatar UI sync completed');
           }, 100);
-          
+
           return { avatar_robot_id: avatarRobotId };
         } catch (error) {
           console.error('[ProfileStore] Error in avatar UI sync:', error);
