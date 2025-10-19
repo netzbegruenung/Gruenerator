@@ -976,6 +976,15 @@ class DocumentSearchService extends BaseSearchService {
         try {
             await this.ensureInitialized();
 
+            // Early return if no documents to avoid Qdrant API call with limit=0
+            if (!documentIds || documentIds.length === 0) {
+                return {
+                    success: true,
+                    chunks: {},
+                    foundCount: 0
+                };
+            }
+
             const filter = {
                 must: [
                     { key: 'user_id', match: { value: userId } },
