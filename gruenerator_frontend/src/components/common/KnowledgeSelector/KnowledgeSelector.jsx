@@ -128,15 +128,16 @@ const EnhancedKnowledgeSelector = ({
   disabled = false,
   tabIndex
 }) => {
-  const { 
-    availableKnowledge, 
-    selectedKnowledgeIds, 
+  const {
+    availableKnowledge,
+    selectedKnowledgeIds,
     toggleSelection,
     // Document state
     selectedDocumentIds,
     toggleDocumentSelection,
     isExtractingDocumentContent,
     documentExtractionInfo,
+    isLoadingDocuments,
     // Text state
     availableTexts,
     selectedTextIds,
@@ -176,7 +177,12 @@ const EnhancedKnowledgeSelector = ({
   
   // For backwards compatibility, alias the loading state
   const isLoadingAllGroups = isLoadingAllGroupsContent;
-  
+
+  // Derived state: Combined loading state for all content sources
+  const isLoadingAnyContent = useMemo(() => {
+    return isLoadingAllGroups || isLoadingTexts || isLoadingDocuments;
+  }, [isLoadingAllGroups, isLoadingTexts, isLoadingDocuments]);
+
   // Removed console.log for performance
 
   // Get documents from generatorKnowledgeStore (now properly synced by useKnowledge)
@@ -540,7 +546,7 @@ const EnhancedKnowledgeSelector = ({
           if (currentSearchTerm && currentSearchTerm.trim()) {
             return `Keine Ergebnisse für "${currentSearchTerm}"`;
           }
-          if (isLoadingAllGroups || isLoadingTexts) {
+          if (isLoadingAnyContent) {
             return 'Lade verfügbare Inhalte...';
           }
           if (hasGroupErrors) {
@@ -559,7 +565,7 @@ const EnhancedKnowledgeSelector = ({
       )}
 
       {/* Show message when no content is available */}
-      {knowledgeOptions.length === 0 && !disabled && !isLoadingAllGroups && (
+      {knowledgeOptions.length === 0 && !disabled && !isLoadingAnyContent && (
         <p className="enhanced-knowledge-selector__no-options">
           Keine Inhalte verfügbar.<br />
           Erstelle Wissen in deinem Profil, lade Dokumente hoch, generiere Texte oder teile Inhalte mit Gruppen.
