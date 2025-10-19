@@ -3,18 +3,7 @@
 ![Version](https://img.shields.io/badge/version-1.0.0-green)
 ![License](https://img.shields.io/badge/license-Proprietary-blue)
 
-## About
-
-Grünerator is a comprehensive AI-powered platform designed specifically for members and supporters of the German Green Party (Die Grünen). The application provides a suite of specialized AI tools for creating political content, including:
-
-- **Text Generation**: AI-assisted creation of press releases, social media posts, proposals, and speeches
-- **Sharepic Creator**: Generate professional social media graphics in seconds
-- **Image Transformation**: Transform photos with AI-powered editing (Grünerator Imagine)
-- **Video Subtitles**: Automatic subtitle generation for Reels and TikTok videos
-- **Collaborative Editing**: Real-time collaboration features for team workflows
-- **Accessibility Tools**: Tools for creating barrier-free content
-
-Built with privacy in mind, all data is processed on European servers and never used for AI model training. The platform supports multiple authentication methods including direct login and SAML SSO integration with Green Party networks.
+Grünerator is a comprehensive AI-powered platform designed specifically for members and supporters of the German Green Party (Die Grünen). The application provides a suite of specialized AI tools for creating political content, including text generation, sharepics, image transformation, video subtitles, collaborative editing, and accessibility tools.
 
 ## 🚀 Features
 
