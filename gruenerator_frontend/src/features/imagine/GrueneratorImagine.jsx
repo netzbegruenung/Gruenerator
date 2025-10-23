@@ -512,7 +512,7 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
         </FormFieldWrapper>
       ) : (
         <FormFieldWrapper
-          label="Grüne Verbesserungen auswählen (optional)"
+          label="Grüne Verbesserungen auswählen"
           helpText="Wähle aus den Vorschlägen oder gib eigene Ideen ein"
         >
           <CreatableSelect
