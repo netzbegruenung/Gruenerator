@@ -84,7 +84,7 @@ const AllyMakerForm = forwardRef(({ loading, isPrecisionMode = false, uploadedIm
         </FormFieldWrapper>
       ) : (
         <FormFieldWrapper
-          label="Tattoo-Platzierung (optional)"
+          label="Tattoo-Platzierung"
           helpText="Wähle die gewünschte Stelle für das Regenbogen-Tattoo oder gib eine eigene an"
         >
           <CreatableSelect
