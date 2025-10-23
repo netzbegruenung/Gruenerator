@@ -8,6 +8,7 @@ const MistralWebSearchService = require('./mistralWebSearchService');
 class ToolHandler {
   /**
    * Validate tools array
+   * Supports both Claude/Bedrock format and OpenAI/Mistral format
    * @param {Array} tools - Array of tool definitions
    * @returns {boolean} - True if tools are valid
    */
@@ -18,19 +19,40 @@ class ToolHandler {
     }
 
     for (const tool of tools) {
-      if (!tool.name || typeof tool.name !== 'string') {
-        console.warn('[ToolHandler] Tool missing valid name:', tool);
-        return false;
-      }
-      
-      if (!tool.description || typeof tool.description !== 'string') {
-        console.warn('[ToolHandler] Tool missing valid description:', tool);
-        return false;
-      }
-      
-      if (!tool.input_schema || typeof tool.input_schema !== 'object') {
-        console.warn('[ToolHandler] Tool missing valid input_schema:', tool);
-        return false;
+      const isOpenAIFormat = tool.type === 'function' && tool.function;
+
+      if (isOpenAIFormat) {
+        const func = tool.function;
+
+        if (!func.name || typeof func.name !== 'string') {
+          console.warn('[ToolHandler] Tool missing valid name (OpenAI format):', tool);
+          return false;
+        }
+
+        if (!func.description || typeof func.description !== 'string') {
+          console.warn('[ToolHandler] Tool missing valid description (OpenAI format):', tool);
+          return false;
+        }
+
+        if (!func.parameters || typeof func.parameters !== 'object') {
+          console.warn('[ToolHandler] Tool missing valid parameters (OpenAI format):', tool);
+          return false;
+        }
+      } else {
+        if (!tool.name || typeof tool.name !== 'string') {
+          console.warn('[ToolHandler] Tool missing valid name (Claude format):', tool);
+          return false;
+        }
+
+        if (!tool.description || typeof tool.description !== 'string') {
+          console.warn('[ToolHandler] Tool missing valid description (Claude format):', tool);
+          return false;
+        }
+
+        if (!tool.input_schema || typeof tool.input_schema !== 'object') {
+          console.warn('[ToolHandler] Tool missing valid input_schema (Claude format):', tool);
+          return false;
+        }
       }
     }
 
@@ -39,8 +61,9 @@ class ToolHandler {
 
   /**
    * Format tools for specific AI provider
-   * @param {Array} tools - Array of tool definitions
-   * @param {string} provider - Provider name ('claude', 'bedrock', 'openai')
+   * Handles conversion between Claude/Bedrock and OpenAI/Mistral formats
+   * @param {Array} tools - Array of tool definitions (Claude or OpenAI format)
+   * @param {string} provider - Provider name ('claude', 'bedrock', 'openai', 'mistral')
    * @returns {Array} - Formatted tools for the provider
    */
   static formatToolsForProvider(tools, provider = 'bedrock') {
@@ -48,34 +71,45 @@ class ToolHandler {
       throw new Error('Invalid tools provided to formatToolsForProvider');
     }
 
-    switch (provider.toLowerCase()) {
-      case 'bedrock':
-      case 'claude':
-        // Both Bedrock and Claude use the same format
-        return tools.map(tool => ({
-          name: tool.name,
-          description: tool.description,
-          input_schema: tool.input_schema
-        }));
-      
-      case 'openai':
-      case 'litellm':
-      case 'ionos':
-      case 'mistral':
-        // OpenAI, LiteLLM, and IONOS use the same format
-        return tools.map(tool => ({
-          type: 'function',
-          function: {
+    const targetProvider = provider.toLowerCase();
+    const isClaudeProvider = targetProvider === 'bedrock' || targetProvider === 'claude';
+    const isOpenAIProvider = ['openai', 'litellm', 'ionos', 'mistral'].includes(targetProvider);
+
+    return tools.map(tool => {
+      const isOpenAIFormat = tool.type === 'function' && tool.function;
+
+      if (isClaudeProvider) {
+        if (isOpenAIFormat) {
+          return {
+            name: tool.function.name,
+            description: tool.function.description,
+            input_schema: tool.function.parameters
+          };
+        } else {
+          return {
             name: tool.name,
             description: tool.description,
-            parameters: tool.input_schema
-          }
-        }));
-      
-      default:
-        console.warn(`[ToolHandler] Unknown provider: ${provider}, using default format`);
-        return tools;
-    }
+            input_schema: tool.input_schema
+          };
+        }
+      } else if (isOpenAIProvider) {
+        if (isOpenAIFormat) {
+          return tool;
+        } else {
+          return {
+            type: 'function',
+            function: {
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.input_schema
+            }
+          };
+        }
+      } else {
+        console.warn(`[ToolHandler] Unknown provider: ${provider}, returning tools as-is`);
+        return tool;
+      }
+    });
   }
 
   /**
