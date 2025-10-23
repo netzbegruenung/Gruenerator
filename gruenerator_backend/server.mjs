@@ -244,7 +244,7 @@ if (cluster.isMaster) {
     next();
   });
 
-  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 6;
+  const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 7;
   console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
