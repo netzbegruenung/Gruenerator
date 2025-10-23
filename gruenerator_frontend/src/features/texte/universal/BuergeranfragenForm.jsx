@@ -16,7 +16,7 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
   } = useForm({
     defaultValues: {
       gremium: '',
-      anfrage: '',
+      anliegen: '',
       antwortart: '',
       kontext: ''
     }
@@ -73,7 +73,7 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
       />
 
       <Textarea
-        name="anfrage"
+        name="anliegen"
         control={control}
         label="Bürger*innenanfrage"
         placeholder="Beschreiben Sie die vollständige Anfrage der Bürger*innen. Je detaillierter, desto besser kann die Antwort ausfallen..."
