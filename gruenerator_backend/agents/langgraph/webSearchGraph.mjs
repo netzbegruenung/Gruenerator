@@ -8,7 +8,11 @@
 import { StateGraph, Annotation } from "@langchain/langgraph";
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 import searxngService from '../../services/searxngWebSearchService.js';
+import MistralWebSearchService from '../../services/mistralWebSearchService.js';
 import { urlCrawlerService } from '../../services/urlCrawlerService.js';
+
+// Initialize Mistral as fallback search service
+const mistralSearchService = new MistralWebSearchService();
 
 // Import citation functions
 import {
@@ -149,57 +153,127 @@ async function plannerNode(state) {
 }
 
 /**
- * SearXNG Node: Execute web searches
+ * Web Search Node: Execute web searches with SearXNG → Mistral fallback
  */
 async function searxngNode(state) {
-  console.log(`[WebSearchGraph] Executing SearXNG searches for ${state.subqueries?.length || 0} queries`);
+  console.log(`[WebSearchGraph] Executing web searches for ${state.subqueries?.length || 0} queries`);
+
+  // Helper: Normalize Mistral results to SearXNG format
+  const normalizeMistralResults = (mistralResult) => {
+    if (!mistralResult.sources || mistralResult.sources.length === 0) {
+      return [];
+    }
+    return mistralResult.sources.map(source => ({
+      url: source.url,
+      title: source.title,
+      content: source.snippet || mistralResult.textContent || '',
+      snippet: source.snippet || '',
+      domain: source.domain,
+      score: source.relevance || 1.0
+    }));
+  };
 
   try {
-    const searchPromises = state.subqueries.map(async (query, index) => {
+    let useMistralFallback = false;
+    let fallbackReason = null;
+    const searchResults = [];
+
+    for (let index = 0; index < state.subqueries.length; index++) {
+      const query = state.subqueries[index];
+      let provider = 'searxng';
+
       try {
-        console.log(`[WebSearchGraph] SearXNG search ${index + 1}: "${query}"`);
+        let results;
 
-        // Apply intelligent search options based on query and mode
-        const searchOptions = getIntelligentSearchOptions(query, state.mode, state.searchOptions);
+        // Use Mistral if fallback was triggered for previous query (batch fallback)
+        if (useMistralFallback) {
+          console.log(`[WebSearchGraph] Using Mistral (fallback mode) for query ${index + 1}: "${query}"`);
+          provider = 'mistral';
+          const mistralResult = await mistralSearchService.performWebSearch(query, 'content');
+          results = normalizeMistralResults(mistralResult);
+        } else {
+          // Try SearXNG first
+          console.log(`[WebSearchGraph] SearXNG search ${index + 1}: "${query}"`);
+          const searchOptions = getIntelligentSearchOptions(query, state.mode, state.searchOptions);
+          const searxngResult = await searxngService.performWebSearch(query, searchOptions);
+          results = searxngResult.results || [];
+        }
 
-        const results = await searxngService.performWebSearch(query, searchOptions);
-
-        return {
+        searchResults.push({
           query,
           success: true,
-          results: results.results || [],
-          metadata: results
-        };
+          results,
+          metadata: { provider }
+        });
+
       } catch (error) {
-        console.error(`[WebSearchGraph] SearXNG search ${index + 1} failed:`, error);
-        return {
+        // SearXNG failed - activate Mistral fallback for remaining queries
+        if (!useMistralFallback) {
+          useMistralFallback = true;
+          fallbackReason = error.message;
+          console.warn(`[WebSearchGraph] SearXNG failed for query ${index + 1}: ${error.message}`);
+          console.log(`[WebSearchGraph] Activating Mistral fallback for this and all remaining queries`);
+
+          // Retry this query with Mistral
+          try {
+            provider = 'mistral';
+            const mistralResult = await mistralSearchService.performWebSearch(query, 'content');
+            const results = normalizeMistralResults(mistralResult);
+
+            searchResults.push({
+              query,
+              success: true,
+              results,
+              metadata: { provider, fallbackUsed: true, fallbackReason }
+            });
+            continue;
+          } catch (mistralError) {
+            console.error(`[WebSearchGraph] Mistral fallback also failed for query ${index + 1}:`, mistralError);
+          }
+        }
+
+        // Both providers failed or Mistral failed during fallback mode
+        console.error(`[WebSearchGraph] Search ${index + 1} failed (provider: ${provider}):`, error);
+        searchResults.push({
           query,
           success: false,
           error: error.message,
-          results: []
-        };
+          results: [],
+          metadata: { provider, failureReason: error.message }
+        });
       }
-    });
+    }
 
-    const searchResults = await Promise.all(searchPromises);
     const successfulSearches = searchResults.filter(r => r.success);
+    const providerCounts = searchResults.reduce((acc, r) => {
+      const p = r.metadata?.provider || 'unknown';
+      acc[p] = (acc[p] || 0) + 1;
+      return acc;
+    }, {});
 
-    console.log(`[WebSearchGraph] SearXNG completed: ${successfulSearches.length}/${searchResults.length} searches successful`);
+    console.log(`[WebSearchGraph] Search completed: ${successfulSearches.length}/${searchResults.length} successful`);
+    console.log(`[WebSearchGraph] Providers used: ${JSON.stringify(providerCounts)}`);
+    if (useMistralFallback) {
+      console.log(`[WebSearchGraph] Fallback activated: ${fallbackReason}`);
+    }
 
     return {
       webResults: searchResults,
       metadata: {
         webSearches: searchResults.length,
         successfulWebSearches: successfulSearches.length,
-        totalWebResults: successfulSearches.reduce((sum, r) => sum + r.results.length, 0)
+        totalWebResults: successfulSearches.reduce((sum, r) => sum + r.results.length, 0),
+        providersUsed: providerCounts,
+        fallbackActivated: useMistralFallback,
+        fallbackReason: fallbackReason
       }
     };
   } catch (error) {
-    console.error('[WebSearchGraph] SearXNG node error:', error);
+    console.error('[WebSearchGraph] Web search node error:', error);
     return {
       webResults: [],
       error: `Web search failed: ${error.message}`,
-      metadata: { webSearches: 0, successfulWebSearches: 0 }
+      metadata: { webSearches: 0, successfulWebSearches: 0, criticalFailure: true }
     };
   }
 }
