@@ -86,6 +86,7 @@ docs/
 
 # Backup files
 backup/
+git-*-backup-*.txt
 
 # AWS files and directories
 aws/
