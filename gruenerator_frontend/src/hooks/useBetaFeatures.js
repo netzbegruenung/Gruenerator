@@ -6,16 +6,16 @@ import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
 const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
   // { key: 'you', label: 'You Generator', isAdminOnly: false },
-  { key: 'groups', label: 'Gruppen', isAdminOnly: false },
+  { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
-  { key: 'qa', label: 'Notebooks', isAdminOnly: false },
+  { key: 'qa', label: 'Notebooks', isAdminOnly: false, devOnly: true },
   // { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
   // { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false },
   // { key: 'memory', label: 'Memory (Mem0ry)', isAdminOnly: false },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
-  { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false },
-  { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false },
+  { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
+  { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },
@@ -72,8 +72,11 @@ export const useBetaFeatures = (options = {}) => {
   }, [betaFeatures, isAdmin]);
 
   const getAvailableFeatures = React.useCallback(() => {
-    return BETA_FEATURES_CONFIG.filter(feature => 
-      (!feature.isAdminOnly || isAdmin) && !feature.isProfileSetting
+    const isDev = import.meta.env.DEV;
+    return BETA_FEATURES_CONFIG.filter(feature =>
+      (!feature.isAdminOnly || isAdmin) &&
+      !feature.isProfileSetting &&
+      (!feature.devOnly || isDev)
     );
   }, [isAdmin]);
 
