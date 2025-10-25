@@ -989,6 +989,76 @@ class PostgresService {
     }
 
     /**
+     * Batch update route usage statistics
+     * @param {Map} statsMap - Map of "METHOD /route/pattern" => count
+     */
+    async batchUpdateRouteStats(statsMap) {
+        if (!statsMap || statsMap.size === 0) return;
+
+        try {
+            await this.ensureInitialized();
+            const client = await this.pool.connect();
+
+            try {
+                await client.query('BEGIN');
+
+                for (const [key, count] of statsMap.entries()) {
+                    const [method, ...pathParts] = key.split(' ');
+                    const routePattern = pathParts.join(' ');
+
+                    const sql = `
+                        INSERT INTO route_usage_stats (route_pattern, method, request_count, last_accessed)
+                        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                        ON CONFLICT (route_pattern, method)
+                        DO UPDATE SET
+                            request_count = route_usage_stats.request_count + EXCLUDED.request_count,
+                            last_accessed = CURRENT_TIMESTAMP
+                    `;
+
+                    await client.query(sql, [routePattern, method, count]);
+                }
+
+                await client.query('COMMIT');
+            } catch (error) {
+                await client.query('ROLLBACK');
+                throw error;
+            } finally {
+                client.release();
+            }
+        } catch (error) {
+            // Silent failure - don't break the application
+        }
+    }
+
+    /**
+     * Get route usage statistics
+     * @param {number} limit - Maximum number of routes to return
+     * @returns {Promise<Array>} Array of route statistics
+     */
+    async getRouteStats(limit = 50) {
+        try {
+            await this.ensureInitialized();
+
+            const sql = `
+                SELECT
+                    route_pattern,
+                    method,
+                    request_count,
+                    last_accessed,
+                    created_at
+                FROM route_usage_stats
+                ORDER BY request_count DESC
+                LIMIT $1
+            `;
+
+            return await this.query(sql, [limit]);
+        } catch (error) {
+            console.error('[PostgresService] Failed to get route stats:', error);
+            return [];
+        }
+    }
+
+    /**
      * Close all connections and clean up
      */
     async close() {

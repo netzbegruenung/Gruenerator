@@ -124,7 +124,11 @@
     }
 
     .image-thumbnails {
+        flex-wrap: nowrap;
         justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
     }
 
     .thumbnail {
@@ -155,8 +159,11 @@
     }
 
     .image-thumbnails {
+        flex-wrap: nowrap;
         gap: var(--spacing-xsmall);
         padding: var(--spacing-xsmall);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .thumbnail {
@@ -268,13 +275,15 @@
 /* Image thumbnails */
 .image-thumbnails {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--spacing-small);
     margin-bottom: var(--spacing-medium);
     padding: var(--spacing-small);
     background-color: var(--background-color);
     border-radius: var(--card-border-radius-small);
     border: 1px solid var(--border-subtle);
-    overflow-x: auto;
+    justify-content: center;
+    max-width: 100%;
 }
 
 .thumbnail {

@@ -61,6 +61,20 @@ const rateLimitRouter = require('./routes/rateLimit'); // Universal rate limitin
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
+// Route usage tracking - in-memory buffer
+const routeStats = new Map();
+
+/**
+ * Normalize route pattern by replacing dynamic IDs with placeholders
+ * @param {string} path - The request path
+ * @returns {string} Normalized route pattern
+ */
+function normalizeRoute(path) {
+  return path
+    .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/:uuid')
+    .replace(/\/\d+/g, '/:id')
+    .replace(/\/[0-9a-f]{24}/g, '/:objectid');
+}
 
 async function setupRoutes(app) {
   // Add debug middleware to trace ALL requests before anything else
@@ -82,6 +96,23 @@ async function setupRoutes(app) {
       });
     }
     next();
+  });
+
+  // Route usage tracking middleware - non-blocking, fire-and-forget
+  app.use('/api/*', (req, res, next) => {
+    // Call next() immediately - don't block the request
+    next();
+
+    // Track route usage asynchronously
+    setImmediate(() => {
+      try {
+        const routePattern = normalizeRoute(req.path);
+        const key = `${req.method} ${routePattern}`;
+        routeStats.set(key, (routeStats.get(key) || 0) + 1);
+      } catch (err) {
+        // Silent failure
+      }
+    });
   });
 
   // app.use('/api/subtitler/upload', tusServer.handle.bind(tusServer)); // REMOVED: Redundant, already handled in server.mjs
@@ -357,6 +388,29 @@ async function setupRoutes(app) {
   }
   app.use('/api/internal/offboarding', offboardingRouter);
 
+  // Route usage statistics endpoint
+  app.get('/api/internal/route-stats', async (req, res) => {
+    try {
+      const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+      const postgresService = getPostgresInstance();
+
+      const limit = parseInt(req.query.limit) || 50;
+      const stats = await postgresService.getRouteStats(limit);
+
+      res.json({
+        success: true,
+        stats,
+        currentBuffer: Object.fromEntries(routeStats)
+      });
+    } catch (error) {
+      console.error('[Route Stats] Error fetching stats:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Add Canva routes (basic functionality)
   app.use('/api/canva/auth', canvaAuthRouter);
   app.use('/api/canva', canvaApiRouter);
@@ -380,6 +434,25 @@ async function setupRoutes(app) {
   // Add Flux greener edit prompt route (ES module)
   const { default: fluxGreenEditPrompt } = await import('./routes/flux/greenEditPrompt.js');
   app.use('/api/flux/green-edit', fluxGreenEditPrompt);
+
+  // Flush route stats to database every 60 seconds
+  setInterval(async () => {
+    if (routeStats.size === 0) return;
+
+    // Create snapshot and clear immediately
+    const batch = new Map(routeStats);
+    routeStats.clear();
+
+    try {
+      const { getPostgresInstance } = await import('./database/services/PostgresService.js');
+      const postgresService = getPostgresInstance();
+      await postgresService.batchUpdateRouteStats(batch);
+    } catch (err) {
+      // Silent failure - stats are not critical
+    }
+  }, 60000);
+
+  console.log('[Setup] Route usage tracking initialized');
 }
 
 module.exports = { setupRoutes };

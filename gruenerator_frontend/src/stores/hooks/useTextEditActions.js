@@ -17,36 +17,59 @@ export const extractEditableText = (content) => {
   return '';
 };
 
-// Apply changes to a content object or string, return updated structure
+// Apply changes to a content object or string, return updated structure with metadata
 export const applyChangesToContent = (content, changes = []) => {
   const current = extractEditableText(content);
-  if (!current) return content;
+  if (!current) {
+    return { content, appliedCount: 0, totalCount: changes.length };
+  }
 
   let updatedText = current;
+  let changesApplied = 0;
+
   for (const change of changes) {
-    const { text_to_find, replacement_text } = change || {};
+    const { text_to_find, replacement_text, full_replace } = change || {};
+
+    // Handle full text replacement
+    if (full_replace === true && typeof replacement_text === 'string') {
+      updatedText = replacement_text;
+      changesApplied++;
+      continue;
+    }
+
+    // Handle partial replacement
     if (typeof text_to_find === 'string' && typeof replacement_text === 'string') {
+      const before = updatedText;
       updatedText = replaceAllLiteral(updatedText, text_to_find, replacement_text);
+      if (before !== updatedText) {
+        changesApplied++;
+      }
     }
   }
 
-  if (typeof content === 'string') return updatedText;
-  if (typeof content === 'object' && content !== null) {
+  // Build updated content structure
+  let updatedContent = content;
+  if (typeof content === 'string') {
+    updatedContent = updatedText;
+  } else if (typeof content === 'object' && content !== null) {
     const updated = { ...content };
     if (updated.social && typeof updated.social === 'object' && typeof updated.social.content === 'string') {
       updated.social = { ...updated.social, content: updatedText };
-      // Keep top-level content in sync if present as alias
       if (typeof updated.content === 'string') {
         updated.content = updatedText;
       }
-      return updated;
-    }
-    if (typeof updated.content === 'string') {
+      updatedContent = updated;
+    } else if (typeof updated.content === 'string') {
       updated.content = updatedText;
-      return updated;
+      updatedContent = updated;
     }
   }
-  return content;
+
+  return {
+    content: updatedContent,
+    appliedCount: changesApplied,
+    totalCount: changes.length
+  };
 };
 
 // Hook exposing high-level text edit actions while keeping the store simple
@@ -62,10 +85,13 @@ const useTextEditActions = (componentName) => {
     if (storeContent) {
       pushToHistory(componentName);
     }
-    
-    const updated = applyChangesToContent(storeContent, changes);
-    setTextWithHistory(componentName, updated);
-    return updated;
+
+    const result = applyChangesToContent(storeContent, changes);
+    setTextWithHistory(componentName, result.content);
+    return {
+      appliedCount: result.appliedCount,
+      totalCount: result.totalCount
+    };
   };
 
   return {

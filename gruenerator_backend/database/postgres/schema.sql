@@ -720,3 +720,18 @@ CREATE TRIGGER update_user_sites_updated_at
     BEFORE UPDATE ON user_sites
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Route usage statistics table
+CREATE TABLE IF NOT EXISTS route_usage_stats (
+    id SERIAL PRIMARY KEY,
+    route_pattern TEXT NOT NULL,
+    method TEXT NOT NULL,
+    request_count BIGINT DEFAULT 0,
+    last_accessed TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(route_pattern, method)
+);
+
+CREATE INDEX IF NOT EXISTS idx_route_usage_count ON route_usage_stats(request_count DESC);
+CREATE INDEX IF NOT EXISTS idx_route_usage_pattern ON route_usage_stats(route_pattern);
+CREATE INDEX IF NOT EXISTS idx_route_usage_last_accessed ON route_usage_stats(last_accessed DESC);

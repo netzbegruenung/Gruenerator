@@ -162,8 +162,17 @@ FORMAT:
   "summary": "Kurze Bestätigung"
 }
 
+FÜR KOMPLETTE TEXT-UMSCHREIBUNGEN (Gedicht, andere Sprache, komplett neuer Stil):
+{
+  "changes": [
+    { "full_replace": true, "replacement_text": "komplett neuer Text" }
+  ],
+  "summary": "Text komplett umgeschrieben"
+}
+
 WICHTIG:
-- text_to_find MUSS exakt im Text vorkommen
+- Für kleine Änderungen: text_to_find MUSS exakt im Text vorkommen
+- Für komplette Umschreibungen: full_replace: true verwenden
 - Alle \\n in Strings escapen
 - summary: 1-2 Sätze, optional 1 passendes Emoji (✏️✂️✅)
 
@@ -194,14 +203,18 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
                 properties: {
                   text_to_find: {
                     type: "string",
-                    description: "Exact text from the original that should be replaced"
+                    description: "Exact text from the original that should be replaced. Can be empty if full_replace is true."
                   },
                   replacement_text: {
                     type: "string",
                     description: "New text to replace it with"
+                  },
+                  full_replace: {
+                    type: "boolean",
+                    description: "If true, replace entire text content with replacement_text (ignore text_to_find). Use for complete text rewrites."
                   }
                 },
-                required: ["text_to_find", "replacement_text"]
+                required: ["replacement_text"]
               }
             },
             summary: {
@@ -219,7 +232,7 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
       systemPrompt,
       messages: [{ role: 'user', content: userContent }],
       options: {
-        max_tokens: 1024,
+        max_tokens: 4096,
         temperature: 0.3,
         tools: tools,
         tool_choice: { type: "function", function: { name: "suggest_edits" } }
@@ -235,7 +248,6 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
     if (result.tool_calls && result.tool_calls.length > 0) {
       const toolCall = result.tool_calls.find(tc => tc.name === 'suggest_edits');
       if (toolCall && toolCall.input) {
-        console.log('[claude_suggest_edits] Using structured output from function call');
         parsed = toolCall.input;
       }
     }
@@ -271,7 +283,12 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
     }
 
     // Validate elements
-    const validChanges = parsed.changes.filter(c => c && typeof c.text_to_find === 'string' && typeof c.replacement_text === 'string');
+    const validChanges = parsed.changes.filter(c => {
+      if (!c || typeof c.replacement_text !== 'string') return false;
+      // Allow either: (1) normal edit with text_to_find, or (2) full_replace mode
+      return (c.full_replace === true) || (typeof c.text_to_find === 'string');
+    });
+
     const summary = parsed.summary || `${validChanges.length} ${validChanges.length === 1 ? 'Änderung' : 'Änderungen'} durchgeführt! ✅`;
     return res.json({ changes: validChanges, summary });
   } catch (error) {
