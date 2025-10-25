@@ -117,46 +117,71 @@ const UniversalEditForm = ({ componentName }) => {
       if (!Array.isArray(changes) || changes.length === 0) {
         setMessages(prev => [...prev, { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() }]);
       } else {
-        // Apply edits
-        applyEdits(changes);
-        
-        // Use AI's summary if available, otherwise generate one
-        let summary = response?.data?.summary;
-        
-        if (!summary) {
-          // Fallback to smart detection
-          const describeChange = (change) => {
-            // Deletion: empty or whitespace-only replacement
-            if (!change.replacement_text || change.replacement_text.trim() === '') {
-              return `🗑️ Entfernt: „${change.text_to_find.substring(0, 60)}${change.text_to_find.length > 60 ? '...' : ''}"`;
-            }
-            
-            // Addition: replacement contains original text plus more
-            if (change.replacement_text.includes(change.text_to_find)) {
-              const addedPart = change.replacement_text.replace(change.text_to_find, '').trim();
-              if (addedPart) {
-                return `➕ Hinzugefügt: „${addedPart.substring(0, 60)}${addedPart.length > 60 ? '...' : ''}"`;
-              }
-            }
-            
-            // Shortening: original contains replacement
-            if (change.text_to_find.includes(change.replacement_text) && change.replacement_text) {
-              return `✂️ Gekürzt: „${change.text_to_find.substring(0, 30)}..." → „${change.replacement_text.substring(0, 30)}..."`;
-            }
-            
-            // Regular replacement
-            return `✏️ Geändert: „${change.text_to_find.substring(0, 30)}${change.text_to_find.length > 30 ? '...' : ''}" → „${change.replacement_text.substring(0, 30)}${change.replacement_text.length > 30 ? '...' : ''}"`;
-          };
+        // Apply edits and get validation result
+        const result = applyEdits(changes);
 
-          // Generate fallback summary
-          summary = [
-            `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet:`,
-            ...changes.slice(0, 5).map(describeChange),
-            changes.length > 5 ? `... und ${changes.length - 5} weitere` : ''
-          ].filter(Boolean).join('\n');
+        // Check if edits were actually applied
+        if (result.appliedCount === 0) {
+          // Error: No changes applied
+          setMessages(prev => [...prev, {
+            type: 'error',
+            content: 'Die Änderungen konnten nicht angewendet werden. Der Text wurde möglicherweise bereits verändert. Bitte versuche es erneut oder formuliere die Änderung anders.',
+            timestamp: Date.now()
+          }]);
+        } else if (result.appliedCount < result.totalCount) {
+          // Warning: Partial success
+          setMessages(prev => [...prev, {
+            type: 'assistant',
+            content: `⚠️ Nur ${result.appliedCount} von ${result.totalCount} Änderungen konnten angewendet werden. Einige Textpassagen wurden möglicherweise bereits verändert.`,
+            timestamp: Date.now()
+          }]);
+        } else {
+          // Success: All changes applied
+          // Use AI's summary if available, otherwise generate one
+          let summary = response?.data?.summary;
+
+          if (!summary) {
+            // Check if this is a full replace
+            const isFullReplace = changes.length === 1 && changes[0].full_replace === true;
+
+            if (isFullReplace) {
+              summary = '✅ Text komplett umgeschrieben!';
+            } else {
+              // Fallback to smart detection
+              const describeChange = (change) => {
+                // Deletion: empty or whitespace-only replacement
+                if (!change.replacement_text || change.replacement_text.trim() === '') {
+                  return `🗑️ Entfernt: „${change.text_to_find.substring(0, 60)}${change.text_to_find.length > 60 ? '...' : ''}"`;
+                }
+
+                // Addition: replacement contains original text plus more
+                if (change.replacement_text.includes(change.text_to_find)) {
+                  const addedPart = change.replacement_text.replace(change.text_to_find, '').trim();
+                  if (addedPart) {
+                    return `➕ Hinzugefügt: „${addedPart.substring(0, 60)}${addedPart.length > 60 ? '...' : ''}"`;
+                  }
+                }
+
+                // Shortening: original contains replacement
+                if (change.text_to_find.includes(change.replacement_text) && change.replacement_text) {
+                  return `✂️ Gekürzt: „${change.text_to_find.substring(0, 30)}..." → „${change.replacement_text.substring(0, 30)}..."`;
+                }
+
+                // Regular replacement
+                return `✏️ Geändert: „${change.text_to_find.substring(0, 30)}${change.text_to_find.length > 30 ? '...' : ''}" → „${change.replacement_text.substring(0, 30)}${change.replacement_text.length > 30 ? '...' : ''}"`;
+              };
+
+              // Generate fallback summary
+              summary = [
+                `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet:`,
+                ...changes.slice(0, 5).map(describeChange),
+                changes.length > 5 ? `... und ${changes.length - 5} weitere` : ''
+              ].filter(Boolean).join('\n');
+            }
+          }
+
+          setMessages(prev => [...prev, { type: 'assistant', content: summary, timestamp: Date.now() }]);
         }
-        
-        setMessages(prev => [...prev, { type: 'assistant', content: summary, timestamp: Date.now() }]);
       }
     } catch (e) {
       const errText = e?.response?.data?.error || e.message || 'Fehler bei der Verarbeitung';

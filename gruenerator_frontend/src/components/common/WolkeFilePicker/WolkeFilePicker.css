@@ -5,7 +5,7 @@
     width: 100%;
     border: var(--border-subtle);
     border-radius: var(--card-border-radius-medium);
-    background: var(--card-background);
+    background: var(--background-color-pure);
     overflow: hidden;
     box-shadow: var(--card-shadow-subtle);
 }
@@ -17,25 +17,12 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--background-color);
-    opacity: 0.95;
+    background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     padding: var(--spacing-medium);
-}
-
-.wolke-file-picker-overlay::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--font-color);
-    opacity: 0.3;
-    z-index: -1;
 }
 
 .wolke-file-picker {
@@ -57,7 +44,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--background-color-alt);
+    background: var(--hover-color-alt);
 }
 
 .picker-header h3 {
@@ -116,7 +103,7 @@
     align-items: center;
     gap: var(--spacing-small);
     padding: var(--spacing-medium);
-    background: var(--background-color);
+    background: var(--background-color-pure);
     border: var(--border-subtle);
     border-radius: var(--card-border-radius-small);
     cursor: pointer;
@@ -156,7 +143,7 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-small);
-    background: var(--background-color-alt);
+    background: var(--hover-color-alt);
     min-height: 40px;
     position: sticky;
     top: 0;
@@ -264,7 +251,7 @@
 }
 
 .wolke-file-card {
-    background: var(--card-background);
+    background: var(--background-color-pure);
     border: var(--border-subtle);
     border-radius: var(--card-border-radius-medium);
     padding: var(--spacing-medium);
@@ -352,7 +339,7 @@
 .picker-actions {
     padding: var(--spacing-medium);
     border-top: var(--border-subtle);
-    background: var(--background-color-alt);
+    background: var(--hover-color-alt);
     display: flex;
     justify-content: flex-end;
 }

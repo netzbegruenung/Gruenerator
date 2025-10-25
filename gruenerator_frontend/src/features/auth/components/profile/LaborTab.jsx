@@ -23,14 +23,14 @@ const LaborTab = ({
     GENERATORS: 'customGenerators',
     YOU: 'you',
     COLLAB: 'collab',
-    // GROUPS: 'groups',
+    GROUPS: 'groups',
     QA: 'qa',
     ELEARNING: 'e_learning',
     BUNDESTAG_API: 'bundestag_api_enabled',
     MEMORY: 'memory',
     CANVA: 'canva',
     CHAT: 'chat',
-    // SITES: 'sites',
+    SITES: 'sites',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -86,26 +86,26 @@ const LaborTab = ({
           checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
           icon: HiOutlineUsers
         };
-      // case BETA_VIEWS.GROUPS:
-      //   return {
-      //     title: 'Gruppen',
-      //     description: 'Verwalte und organisiere deine Arbeit in Gruppen für bessere Zusammenarbeit.',
-      //     checked: getBetaFeatureState('groups'),
-      //     setter: (value) => updateUserBetaFeatures('groups', value),
-      //     featureName: 'Gruppen',
-      //     checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
-      //     icon: HiOutlineUserGroup
-      //   };
-      // case BETA_VIEWS.QA:
-      //   return {
-      //     title: 'Notebooks',
-      //     description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
-      //     checked: getBetaFeatureState('qa'),
-      //     setter: (value) => updateUserBetaFeatures('qa', value),
-      //     featureName: 'Notebooks',
-      //     checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
-      //     icon: NotebookIcon
-      //   };
+      case BETA_VIEWS.GROUPS:
+        return {
+          title: 'Gruppen',
+          description: 'Verwalte und organisiere deine Arbeit in Gruppen für bessere Zusammenarbeit.',
+          checked: getBetaFeatureState('groups'),
+          setter: (value) => updateUserBetaFeatures('groups', value),
+          featureName: 'Gruppen',
+          checkboxLabel: 'Gruppen-Tab anzeigen und Funktionalität aktivieren',
+          icon: HiOutlineUserGroup
+        };
+      case BETA_VIEWS.QA:
+        return {
+          title: 'Notebooks',
+          description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
+          checked: getBetaFeatureState('qa'),
+          setter: (value) => updateUserBetaFeatures('qa', value),
+          featureName: 'Notebooks',
+          checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
+          icon: NotebookIcon
+        };
       case BETA_VIEWS.ELEARNING:
         return {
           title: 'E-Learning',
@@ -162,16 +162,16 @@ const LaborTab = ({
           linkText: 'Zum Chat-Assistenten',
           icon: HiChip
         };
-      // case BETA_VIEWS.SITES:
-      //   return {
-      //     title: 'Web-Visitenkarte',
-      //     description: 'Erstelle deine eigene One-Page-Website auf einer persönlichen Subdomain (grsites.de). Perfekt für persönliche Vorstellung, Kontaktdaten und Social Media Links.',
-      //     checked: getBetaFeatureState('sites'),
-      //     setter: (value) => updateUserBetaFeatures('sites', value),
-      //     featureName: 'Web-Visitenkarte',
-      //     checkboxLabel: 'Sites-Funktion in Meine Grüneratoren aktivieren',
-      //     icon: HiOutlineIdentification
-      //   };
+      case BETA_VIEWS.SITES:
+        return {
+          title: 'Web-Visitenkarte',
+          description: 'Erstelle deine eigene One-Page-Website auf einer persönlichen Subdomain (grsites.de). Perfekt für persönliche Vorstellung, Kontaktdaten und Social Media Links.',
+          checked: getBetaFeatureState('sites'),
+          setter: (value) => updateUserBetaFeatures('sites', value),
+          featureName: 'Web-Visitenkarte',
+          checkboxLabel: 'Sites-Funktion in Meine Grüneratoren aktivieren',
+          icon: HiOutlineIdentification
+        };
       default:
         return null;
     }
@@ -191,7 +191,7 @@ const LaborTab = ({
       <div className="profile-form-section">
         <div className="auth-form">
           <div className="profile-cards-grid">
-            {getAvailableFeatures().filter(f => f.key !== 'database' && f.key !== 'chat' && f.key !== 'qa').map(feature => {
+            {getAvailableFeatures().map(feature => {
               const config = getBetaFeatureConfig(feature.key);
               if (!config) return null;
 
