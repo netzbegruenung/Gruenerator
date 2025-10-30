@@ -127,21 +127,20 @@ const LoginPage = ({
     }
   };
 
-  // Temporarily disabled - Grüne Österreich login
-  // const handleGrueneOesterreichLogin = async () => {
-  //   setIsAuthenticating(true);
-  //   try {
-  //     setLoginIntent();
+  const handleGrueneOesterreichLogin = async () => {
+    setIsAuthenticating(true);
+    try {
+      setLoginIntent();
 
-  //     const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
-  //     console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
-  //     console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
-  //     window.location.href = authUrl;
-  //   } catch (err) {
-  //     console.error('Fehler beim Initiieren des Grüne Österreich Logins:', err);
-  //     setIsAuthenticating(false);
-  //   }
-  // };
+      const authUrl = `${AUTH_BASE_URL}/auth/login?source=gruene-oesterreich-login${intendedRedirect ? `&redirectTo=${encodeURIComponent(intendedRedirect)}` : ''}`;
+      console.log(`[LoginPage] Grüne Österreich Login - Redirecting to: ${authUrl}`);
+      console.log(`[LoginPage] Intended redirect: ${intendedRedirect}`);
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('Fehler beim Initiieren des Grüne Österreich Logins:', err);
+      setIsAuthenticating(false);
+    }
+  };
 
   const getHeaderContent = () => {
     if (mode === 'required') {
@@ -193,8 +192,7 @@ const LoginPage = ({
         </div>
       </button>
 
-      {/* Temporarily disabled - Grüne Österreich login */}
-      {/* <button
+      <button
         className="login-option gruene-oesterreich"
         onClick={handleGrueneOesterreichLogin}
         disabled={isAuthenticating}
@@ -215,7 +213,7 @@ const LoginPage = ({
             </p>
           </div>
         </div>
-      </button> */}
+      </button>
 
       <button
         className="login-option netzbegruenung"
