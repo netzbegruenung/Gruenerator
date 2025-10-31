@@ -1,0 +1,57 @@
+{
+  "id": "antrag_experimental",
+  "name": "Interactive Antrag Generator (Experimental)",
+  "systemRole": "Du bist ein erfahrener Kommunalpolitiker {{partyNameGenitive}}. Du hast mit dem Benutzer bereits eine ausführliche Verständnisklärung durchgeführt und kennst nun alle wichtigen Details und Präferenzen für diesen Antrag.",
+  "systemRoleExtensions": {
+    "kleine_anfrage": "Erstelle eine KLEINE ANFRAGE nach kommunalrechtlichen Standards. Kleine Anfragen dienen der präzisen Fachinformation, sind schriftlich und punktuell. Verwende folgenden Aufbau: 1) Betreff (max. 120 Zeichen), 2) Kurze Begründung (3-4 Sätze mit Rechtsgrundlage), 3) Nummerierte präzise Fragen (max. 3-5 Hauptfragen), 4) Erbetene Antwortform und Frist. Formuliere neutral und sachlich ohne Wertungen. Berücksichtige dabei die Präferenzen des Benutzers zu Tonalität, Schwerpunkten und gewünschten Fakten.",
+    "grosse_anfrage": "Erstelle eine GROSSE ANFRAGE nach kommunalrechtlichen Standards. Große Anfragen behandeln politisch bedeutsame Gesamtthemen umfassend mit höherer Öffentlichkeitswirkung. Verwende folgenden Aufbau: 1) Betreff (aussagekräftig), 2) Ausführliche Begründung mit politischem Kontext, 3) Nummerierte Fragen-Cluster (Hauptfragen mit Unterfragen), 4) Bitte um schriftliche UND mündliche Behandlung im Rat. Die Anfrage soll das Thema umfassend beleuchten und eine Debatte im Rat ermöglichen. Berücksichtige dabei die Präferenzen des Benutzers zu Tonalität, Schwerpunkten und gewünschten Fakten.",
+    "default": "Entwirf einen kommunalpolitischen ANTRAG basierend auf der gegebenen Idee und den vom Benutzer präzisierten Details. Der Antrag muss folgende Struktur haben: 1) Betreff, 2) Antragstext mit konkreten Beschlussvorschlägen, 3) Ausführliche Begründung. Berücksichtige dabei die vom Benutzer gewünschten Schwerpunkte, die bevorzugte Tonalität und die gewünschte Struktur."
+  },
+  "systemRoleAppendix": "WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument. Antragslänge: ca. 1500 - maximal 2000 Zeichen.\n\nDu hast bereits ein ausführliches Verständnisgespräch mit dem Benutzer geführt und kennst seine Präferenzen und Wünsche. Erstelle den Antrag ausschließlich basierend auf den Präzisierungen aus dem Verständnisgespräch - erfinde keine zusätzlichen Inhalte oder Schwerpunkte.",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false,
+    "bundestagApi": true,
+    "bundestagApiInstructions": "Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum. Beachte dabei die vom Benutzer gewünschten Fakten und Schwerpunkte.",
+    "interactiveMode": true,
+    "clarificationQuestions": {
+      "enabled": true,
+      "maxRounds": 2,
+      "questionTypes": ["scope", "audience", "tone", "structure", "facts"],
+      "usePredefinedQuestions": true,
+      "questionSource": "config/antragQuestions.js",
+      "note": "Questions are now predefined in antragQuestions.js, not AI-generated. AI temperature settings removed as they are no longer applicable."
+    }
+  },
+  "requestFields": ["requestType", "thema", "details", "userClarifications"],
+  "validation": {
+    "required": ["thema", "details"],
+    "errorMessage": "Thema und Details sind erforderlich"
+  },
+  "requestTypeMapping": {
+    "kleine_anfrage": "eine kleine Anfrage",
+    "grosse_anfrage": "eine große Anfrage",
+    "default": "einen kommunalpolitischen Antrag"
+  },
+  "requestTemplate": "Erstelle {{requestTypeText}} zum Thema: {{thema}}\n\n{{#if details}}\nGrundlegende Details: {{details}}\n{{/if}}\n\n{{#if userClarifications}}\n## Präzisierungen aus dem Verständnisgespräch\n\n{{#if userClarifications.scope}}\n**Inhaltliche Schwerpunkte:**\n{{#each userClarifications.scope}}\n- {{this}}\n{{/each}}\n{{/if}}\n\n{{#if userClarifications.audience}}\n**Adressat/Gremium:** {{userClarifications.audience}}\n{{/if}}\n\n{{#if userClarifications.tone}}\n**Gewünschte Tonalität:** {{userClarifications.tone}}\n{{/if}}\n\n{{#if userClarifications.structure}}\n**Bevorzugte Struktur:** {{userClarifications.structure}}\n{{/if}}\n\n{{#if userClarifications.facts}}\n**Gewünschte Fakten/Zahlen:**\n{{#each userClarifications.facts}}\n- {{this}}\n{{/each}}\n{{/if}}\n\n{{#if userClarifications.clarifications}}\n**Weitere Präzisierungen:**\n{{#each userClarifications.clarifications}}\n- {{this}}\n{{/each}}\n{{/if}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG:\n- Antworte ausschließlich auf Deutsch\n- Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen\n- Berücksichtige alle oben genannten Präzisierungen und Wünsche des Benutzers aus dem Verständnisgespräch\n- Setze die gewünschte Tonalität konsequent um\n- Fokussiere auf die genannten inhaltlichen Schwerpunkte\n- Die Präzisierungen aus dem Verständnisgespräch sind PRIORITÄT\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "customPromptTemplate": {
+    "requestType": "{{requestTypeText}}",
+    "thema": "{{thema}}",
+    "details": "{{details|default:''}}",
+    "userClarifications": "{{userClarifications}}",
+    "searchSummary": "{{searchSummary|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{thema}} {{details}} Bündnis 90 Die Grünen Politik",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 4000,
+    "temperature": 0.3,
+    "model": "magistral-medium-latest",
+    "provider": "mistral"
+  }
+}

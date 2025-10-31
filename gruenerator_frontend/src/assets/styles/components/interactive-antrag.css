@@ -1,0 +1,442 @@
+/* Interactive Antrag Q&A Section Styles */
+
+/* Request Type Section with Interactive Toggle */
+.request-type-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.interactive-mode-toggle {
+  margin-top: var(--spacing-small);
+}
+
+.question-answer-section {
+  margin: var(--spacing-medium) 0;
+  padding: var(--spacing-medium);
+}
+
+/* Quiz mode specific styling */
+.question-answer-section.quiz-mode {
+  padding: var(--spacing-large);
+}
+
+/* Quiz progress header */
+.quiz-progress-header {
+  margin-bottom: var(--spacing-large);
+  text-align: center;
+}
+
+.quiz-progress-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--button-color);
+  margin-bottom: var(--spacing-small);
+  display: block;
+}
+
+.quiz-progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: var(--input-background);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.quiz-progress-bar-fill {
+  height: 100%;
+  background: var(--button-color);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.question-round-indicator {
+  background: var(--button-color);
+  color: var(--background-color);
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--card-border-radius-small);
+  text-align: center;
+  margin-bottom: var(--spacing-medium);
+  font-weight: 600;
+}
+
+.question-item {
+  margin-bottom: var(--spacing-large);
+  padding-bottom: var(--spacing-medium);
+  border-bottom: var(--border-subtle);
+}
+
+.question-item:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.question-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color);
+  line-height: 1.5;
+}
+
+.question-number {
+  display: inline-block;
+  margin-right: var(--spacing-xxsmall);
+  color: var(--tanne);
+}
+
+.question-clarification-badge {
+  display: inline-block;
+  background: var(--klee);
+  color: var(--background-color);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-left: var(--spacing-small);
+  vertical-align: middle;
+}
+
+/* Radio button options - Large Clickable Cards */
+.question-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+/* Hide radio button completely (accessibility: still focusable via keyboard) */
+.question-radio {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Transform label into large clickable card */
+.question-option {
+  display: block;
+  position: relative;
+  padding: 18px 24px 18px 54px;
+  background: var(--hover-color-alt);
+  border: 2px solid transparent;
+  border-radius: var(--card-border-radius-small);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  text-align: left;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+/* Hover state - simple border change */
+.question-option:hover {
+  border-color: var(--button-color);
+}
+
+/* Selected state - theme-aware colored background with contrasting text */
+.question-option:has(input:checked) {
+  background: var(--button-color);
+  border-color: var(--button-color);
+  color: var(--background-color);
+}
+
+/* Checkmark for selected option - no animation */
+.question-option:has(input:checked)::before {
+  content: "✓";
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: bold;
+  font-size: 1.3rem;
+  color: var(--background-color);
+}
+
+/* Option text styling */
+.question-option-text {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  display: block;
+}
+
+/* Custom answer option styling - distinctive look */
+.question-option-custom {
+  border: 2px dashed var(--button-color);
+  background: var(--background-color);
+  opacity: 0.85;
+}
+
+/* Pencil icon for custom option (unselected) */
+.question-option-custom::after {
+  content: "✏️";
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.question-option-custom:hover {
+  border-color: var(--button-color);
+  opacity: 1;
+}
+
+/* When custom option is selected */
+.question-option-custom:has(input:checked) {
+  border-style: solid;
+  background: var(--button-color);
+  opacity: 1;
+}
+
+/* Hide pencil icon when selected (checkmark shows instead) */
+.question-option-custom:has(input:checked)::after {
+  display: none;
+}
+
+/* Custom input wrapper with simple expansion */
+.question-custom-input-wrapper {
+  margin-top: var(--spacing-small);
+  animation: expandCustomInput 0.2s ease;
+  overflow: hidden;
+}
+
+@keyframes expandCustomInput {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 200px;
+    opacity: 1;
+  }
+}
+
+/* Custom textarea styling */
+.question-custom-textarea {
+  width: 100%;
+  padding: var(--spacing-small);
+  border: 2px solid var(--button-color);
+  border-radius: var(--card-border-radius-small);
+  font-family: inherit;
+  font-size: inherit;
+  resize: vertical;
+  min-height: 80px;
+  background: var(--input-background);
+  color: var(--font-color);
+  transition: all 0.2s ease;
+}
+
+.question-custom-textarea:focus {
+  outline: none;
+  border-color: var(--button-color);
+  background: var(--background-color);
+}
+
+.question-custom-textarea::placeholder {
+  color: var(--font-color-disabled);
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Textarea for free-form answers (legacy, may not be used) */
+.question-textarea {
+  width: 100%;
+  padding: var(--spacing-small);
+  border: var(--border-subtle);
+  border-radius: var(--card-border-radius-small);
+  font-family: inherit;
+  font-size: inherit;
+  resize: vertical;
+  min-height: 80px;
+  background: var(--background-color);
+  color: var(--font-color);
+  transition: border-color 0.2s ease;
+}
+
+.question-textarea:focus {
+  outline: none;
+  border-color: var(--button-color);
+  border-width: 2px;
+  padding: calc(var(--spacing-small) - 1px);
+}
+
+.question-textarea::placeholder {
+  color: var(--font-color-disabled);
+  opacity: 0.7;
+}
+
+/* Progress indicator */
+.question-progress {
+  margin-top: var(--spacing-medium);
+  padding-top: var(--spacing-medium);
+  border-top: var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+}
+
+.question-progress-text {
+  font-weight: 600;
+  color: var(--button-color);
+}
+
+.question-progress-hint {
+  font-size: 0.85rem;
+  color: var(--font-color);
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* Quiz navigation buttons */
+.quiz-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-large);
+  padding-top: var(--spacing-medium);
+  border-top: var(--border-subtle);
+}
+
+/* Quiz completion hints */
+.quiz-completion-hint {
+  flex: 1;
+  text-align: right;
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--card-border-radius-small);
+}
+
+.quiz-ready-text {
+  color: var(--button-color);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.quiz-not-ready-text {
+  color: var(--font-color);
+  font-size: 0.85rem;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .question-answer-section {
+    padding: var(--spacing-small);
+  }
+
+  .question-answer-section.quiz-mode {
+    padding: var(--spacing-medium);
+  }
+
+  .question-item {
+    margin-bottom: var(--spacing-medium);
+  }
+
+  .question-option {
+    padding: 14px 16px 14px 46px;
+    min-height: 54px;
+  }
+
+  .question-option:has(input:checked)::before {
+    left: 16px;
+    font-size: 1.1rem;
+  }
+
+  .question-option-text {
+    font-size: 0.9rem;
+  }
+
+  .question-option-custom::after {
+    right: 16px;
+    font-size: 1.1rem;
+  }
+
+  .question-textarea {
+    min-height: 60px;
+  }
+
+  .question-custom-textarea {
+    min-height: 60px;
+  }
+
+  .quiz-navigation {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+
+  .quiz-navigation .btn-primary {
+    width: 100%;
+  }
+
+  .quiz-completion-hint {
+    text-align: center;
+    width: 100%;
+  }
+
+  @keyframes expandCustomInput {
+    from {
+      max-height: 0;
+      opacity: 0;
+    }
+    to {
+      max-height: 150px;
+      opacity: 1;
+    }
+  }
+}
+
+/* Yes/No Button Styles */
+.yes-no-buttons {
+  display: flex;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-small);
+}
+
+.yes-no-button {
+  flex: 1;
+  padding: 20px 24px;
+  background: var(--hover-color-alt);
+  border: 2px solid var(--button-color);
+  border-radius: var(--card-border-radius-small);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--button-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.yes-no-button:hover {
+  background: var(--button-color);
+  color: var(--background-color);
+}
+
+.yes-no-button.selected {
+  background: var(--button-color);
+  color: var(--background-color);
+  border-width: 3px;
+}
+
+/* Mobile responsive for yes/no buttons */
+@media (max-width: 768px) {
+  .yes-no-buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+
+  .yes-no-button {
+    width: 100%;
+    min-height: 60px;
+    padding: 16px 20px;
+  }
+}
