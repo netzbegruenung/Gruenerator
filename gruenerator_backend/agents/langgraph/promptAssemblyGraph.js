@@ -15,10 +15,17 @@ const { localizePlaceholders } = require('../../utils/localizationHelper.js');
 function buildSystemText({ systemRole, toolInstructions = [], constraints = null, formatting = null, locale = 'de-DE' }) {
   if (!systemRole) throw new Error("System role is required");
 
-  // Localize and return only the system role
+  // Get current date
+  const now = new Date();
+  const dateFormatter = new Intl.DateTimeFormat(locale, { dateStyle: 'full' });
+  const currentDate = dateFormatter.format(now);
+
+  // Localize system role and append date
   const localizedSystemRole = localizePlaceholders(systemRole, locale);
-  console.log(`📋 [PromptAssembly] System text built (role only, locale=${locale})`);
-  return localizedSystemRole;
+  const systemWithDate = `${localizedSystemRole}\n\nAktuelles Datum: ${currentDate}`;
+
+  console.log(`📋 [PromptAssembly] System text built with date (locale=${locale}, date=${currentDate})`);
+  return systemWithDate;
 }
 
 function buildDocumentBlocks(documents = []) {

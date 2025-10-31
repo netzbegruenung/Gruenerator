@@ -35,6 +35,8 @@ const FormExtrasSection = ({
   privacyModeToggle,
   proModeToggle,
   balancedModeToggle,
+  interactiveModeToggle,
+  useInteractiveModeToggle,
   onAttachmentClick,
   onRemoveFile,
   formControl = null,
@@ -66,6 +68,7 @@ const FormExtrasSection = ({
   const success = useFormStateSelector(state => state.success);
   const useWebSearchFeatureToggle = useFormStateSelector(state => state.webSearchConfig.enabled);
   const usePrivacyModeToggle = useFormStateSelector(state => state.privacyModeConfig.enabled);
+  const useInteractiveModeToggleStore = useFormStateSelector(state => state.interactiveModeConfig?.enabled || false);
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
   const attachedFiles = useFormStateSelector(state => state.attachedFiles);
   // Pro mode from store (fallback if no prop provided)
@@ -79,9 +82,11 @@ const FormExtrasSection = ({
   const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
   const anweisungenBetaEnabled = true;
 
-  // Don't render if no extras are enabled  
-  const hasExtras = useWebSearchFeatureToggle || 
-                   formNotice || 
+  // Don't render if no extras are enabled
+  const hasExtras = useWebSearchFeatureToggle ||
+                   usePrivacyModeToggle ||
+                   useInteractiveModeToggle ||
+                   formNotice ||
                    showSubmitButton ||
                    children ||
                    firstExtrasChildren ||
@@ -164,6 +169,13 @@ const FormExtrasSection = ({
           </div>
         )}
 
+        {/* Interactive-Mode Feature Toggle - only show if not using feature icons */}
+        {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
+          <div className="form-extras__item">
+            <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
+          </div>
+        )}
+
         {/* Additional custom extras */}
         {children && (
           <div className="form-extras__item form-extras__custom">
@@ -228,6 +240,15 @@ FormExtrasSection.propTypes = {
     description: PropTypes.string,
     tabIndex: PropTypes.number
   }),
+  interactiveModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    tabIndex: PropTypes.number
+  }),
+  useInteractiveModeToggle: PropTypes.bool,
   onAttachmentClick: PropTypes.func,
   onRemoveFile: PropTypes.func,
   formControl: PropTypes.object,

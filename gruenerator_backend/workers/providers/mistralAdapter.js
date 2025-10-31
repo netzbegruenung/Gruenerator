@@ -95,6 +95,10 @@ async function execute(requestId, data) {
     const typeDefaults = {
       presse: 0.3,
       antrag: 0.2,
+      antrag_simple: 0.2,
+      kleine_anfrage: 0.2,
+      grosse_anfrage: 0.2,
+      antrag_question_generation: 0.7,
       web_search_summary: 0.2,
       generator_config: 0.1,
       crawler_agent: 0.1,

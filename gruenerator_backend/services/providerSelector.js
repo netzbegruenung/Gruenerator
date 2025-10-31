@@ -54,6 +54,14 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
     provider = 'mistral';
     model = options.model || 'mistral-medium-latest';
     useBedrock = false;
+  } else if (type === 'antrag_simple' || type === 'antrag' || type === 'kleine_anfrage' || type === 'grosse_anfrage') {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
+    useBedrock = false;
+  } else if (type === 'antrag_question_generation') {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
+    useBedrock = false;
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
     provider = 'bedrock';
     useBedrock = true;

@@ -192,33 +192,6 @@ function buildSystemRole(config, requestData, generatorData = null) {
     systemRole += ' ' + config.systemRoleAppendix;
   }
 
-  // Add bundestagApi instructions if applicable
-  if (config.features?.bundestagApi && requestData.useBundestagApi) {
-    systemRole += ' ' + config.features.bundestagApiInstructions;
-  }
-
-  // Add platform-specific style guidelines
-  if (requestData.platforms && Array.isArray(requestData.platforms) && config.platforms) {
-    const platformGuidelines = [];
-    for (const platform of requestData.platforms) {
-      const platformConfig = config.platforms[platform];
-      if (platformConfig) {
-        const guidelines = [];
-        if (platformConfig.style) guidelines.push(`Stil: ${platformConfig.style}`);
-        if (platformConfig.focus) guidelines.push(`Fokus: ${platformConfig.focus}`);
-        if (platformConfig.additionalGuidelines) guidelines.push(`Zusätzliche Richtlinien:\n${platformConfig.additionalGuidelines}`);
-
-        if (guidelines.length > 0) {
-          const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
-          platformGuidelines.push(`\n\n**${platformName}:**\n${guidelines.join('\n')}`);
-        }
-      }
-    }
-    if (platformGuidelines.length > 0) {
-      systemRole += platformGuidelines.join('');
-    }
-  }
-
   return systemRole;
 }
 
@@ -306,13 +279,55 @@ function getFormattingInstructions(config) {
   return config.formatting || null;
 }
 
+// Build platform-specific guidelines
+function buildPlatformGuidelines(config, requestData) {
+  if (!requestData.platforms || !Array.isArray(requestData.platforms) || !config.platforms) {
+    return null;
+  }
+
+  const platformGuidelines = [];
+  for (const platform of requestData.platforms) {
+    const platformConfig = config.platforms[platform];
+    if (platformConfig) {
+      const guidelines = [];
+      if (platformConfig.style) guidelines.push(`Stil: ${platformConfig.style}`);
+      if (platformConfig.focus) guidelines.push(`Fokus: ${platformConfig.focus}`);
+      if (platformConfig.additionalGuidelines) guidelines.push(`Zusätzliche Richtlinien:\n${platformConfig.additionalGuidelines}`);
+
+      if (guidelines.length > 0) {
+        const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+        platformGuidelines.push(`**${platformName}:**\n${guidelines.join('\n')}`);
+      }
+    }
+  }
+
+  return platformGuidelines.length > 0 ? platformGuidelines.join('\n\n') : null;
+}
+
 // Get task-specific instructions
 function getTaskInstructions(config, requestData) {
-  if (!config.taskInstructions) return null;
-  return SimpleTemplateEngine.render(config.taskInstructions, {
-    ...requestData,
-    config
-  });
+  const parts = [];
+
+  // Add base task instructions
+  if (config.taskInstructions) {
+    parts.push(SimpleTemplateEngine.render(config.taskInstructions, {
+      ...requestData,
+      config
+    }));
+  }
+
+  // Add bundestagApi instructions if applicable
+  if (config.features?.bundestagApi && requestData.useBundestagApi && config.features.bundestagApiInstructions) {
+    parts.push(config.features.bundestagApiInstructions);
+  }
+
+  // Add platform-specific guidelines
+  const platformGuidelines = buildPlatformGuidelines(config, requestData);
+  if (platformGuidelines) {
+    parts.push(platformGuidelines);
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : null;
 }
 
 // Get output format instructions
@@ -612,5 +627,7 @@ module.exports = {
   buildWebSearchQuery,
   getFormattingInstructions,
   buildConstraints,
-  getAIOptions
+  getAIOptions,
+  buildPlatformGuidelines,
+  getTaskInstructions
 };

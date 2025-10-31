@@ -57,6 +57,8 @@ const FormSection = forwardRef(({
   webSearchFeatureToggle,
   privacyModeToggle,
   proModeToggle,
+  interactiveModeToggle,
+  useInteractiveModeToggle,
   onAttachmentClick,
   onRemoveFile,
   enablePlatformSelector = false,
@@ -186,6 +188,8 @@ const FormSection = forwardRef(({
                 webSearchFeatureToggle={webSearchFeatureToggle}
                 privacyModeToggle={privacyModeToggle}
                 proModeToggle={proModeToggle}
+                interactiveModeToggle={interactiveModeToggle}
+                useInteractiveModeToggle={useInteractiveModeToggle}
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
                 formControl={formControl}
@@ -258,6 +262,14 @@ FormSection.propTypes = {
     label: PropTypes.string,
     description: PropTypes.string
   }),
+  interactiveModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string
+  }),
+  useInteractiveModeToggle: PropTypes.bool,
   enableKnowledgeSelector: PropTypes.bool,
   enableDocumentSelector: PropTypes.bool,
   enablePlatformSelector: PropTypes.bool,

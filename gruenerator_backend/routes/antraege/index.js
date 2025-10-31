@@ -9,6 +9,7 @@ const {
   // Import other needed service functions here, e.g., getAntragById, getAllAntraege
 } = require('../../services/antragService');
 const simpleAntragRouter = require('./antrag_simple'); // Import the simple generator router
+const experimentalAntragRouter = require('./experimentalRoutes'); // Import the experimental interactive generator router
 
 /**
  * Claude-API-Router
@@ -24,6 +25,10 @@ router.use((req, res, next) => {
 // === Route for simple Antrag generation ===
 // Mounts the logic from antrag_simple.js under /generate-simple
 router.use('/generate-simple', simpleAntragRouter);
+
+// === Route for experimental interactive Antrag generation ===
+// Mounts the experimental interactive logic under /experimental
+router.use('/experimental', experimentalAntragRouter);
 
 
 // === Specific Antrag CRUD Routes ===

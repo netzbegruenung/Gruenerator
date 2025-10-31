@@ -345,10 +345,187 @@ async function handleInformationRequest(userId, message, agent, extractedParams,
   }
 }
 
+/**
+ * Generate questions for Antrag experimental flow
+ * NOTE: This function is deprecated and kept for backward compatibility.
+ * Questions are now loaded from predefined config in antragQuestions.js
+ * @param {object} context - { thema, details, searchResults, requestType }
+ * @param {object} aiWorkerPool - AI worker pool instance (unused)
+ * @returns {Promise<array>} Array of predefined questions
+ * @deprecated Use getQuestionsForType from config/antragQuestions.js instead
+ */
+async function generateAntragQuestions(context, aiWorkerPool) {
+  console.warn('[InformationRequestHandler] generateAntragQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js');
+
+  const { getQuestionsForType } = require('../../config/antragQuestions.js');
+  const { requestType } = context;
+
+  return getQuestionsForType(requestType, 1);
+}
+
+/**
+ * Fallback question generation when AI is unavailable
+ * @param {object} context - Question generation context
+ * @returns {array} Fallback questions
+ */
+function generateFallbackAntragQuestions(context) {
+  const { requestType } = context;
+
+  const baseQuestions = [
+    {
+      id: 'q1',
+      text: 'Welche spezifischen Aspekte sollen im Vordergrund stehen?',
+      type: 'scope',
+      requiresText: true
+    },
+    {
+      id: 'q2',
+      text: 'An welches Gremium richtet sich der Antrag?',
+      type: 'audience',
+      options: ['Gemeinderat', 'Stadtrat', 'Ausschuss', 'Anderes']
+    },
+    {
+      id: 'q3',
+      text: 'Welche Tonalität bevorzugst du?',
+      type: 'tone',
+      options: ['Sachlich-neutral', 'Appellativ', 'Fachlich-detailliert']
+    }
+  ];
+
+  if (requestType === 'kleine_anfrage' || requestType === 'grosse_anfrage') {
+    baseQuestions.push({
+      id: 'q4',
+      text: 'Auf welche konkreten Informationen/Daten wartest du als Antwort?',
+      type: 'facts',
+      requiresText: true
+    });
+  }
+
+  console.log('[InformationRequestHandler] Using fallback questions');
+  return baseQuestions.slice(0, 4);
+}
+
+/**
+ * Analyze answers to determine if follow-up questions are needed
+ * NOTE: This function is deprecated. Follow-up logic is now rule-based.
+ * @param {array} questions - Original questions with metadata (unused)
+ * @param {object} answers - User's answers keyed by question ID (unused)
+ * @param {object} context - Full context including thema, details
+ * @param {object} aiWorkerPool - AI worker pool instance (unused)
+ * @returns {Promise<boolean>} True if follow-up needed
+ * @deprecated Use hasFollowUpQuestions from config/antragQuestions.js instead
+ */
+async function analyzeAnswersForFollowup(questions, answers, context, aiWorkerPool) {
+  console.warn('[InformationRequestHandler] analyzeAnswersForFollowup is deprecated. Use hasFollowUpQuestions from config/antragQuestions.js');
+
+  const { hasFollowUpQuestions } = require('../../config/antragQuestions.js');
+  const { requestType } = context;
+
+  return hasFollowUpQuestions(requestType);
+}
+
+/**
+ * Generate follow-up questions based on previous Q&A
+ * NOTE: This function is deprecated. Follow-up questions are now predefined.
+ * @param {object} context - Full context including previous questions and answers
+ * @param {object} aiWorkerPool - AI worker pool instance (unused)
+ * @returns {Promise<array>} Array of predefined follow-up questions
+ * @deprecated Use getQuestionsForType(requestType, 2) from config/antragQuestions.js instead
+ */
+async function generateFollowUpQuestions(context, aiWorkerPool) {
+  console.warn('[InformationRequestHandler] generateFollowUpQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js');
+
+  const { getQuestionsForType } = require('../../config/antragQuestions.js');
+  const { requestType } = context;
+
+  return getQuestionsForType(requestType, 2);
+}
+
+/**
+ * Extract structured information from user answers
+ * @param {object} answers - Raw user answers keyed by question ID
+ * @param {array} questions - Original questions with metadata
+ * @returns {object} Structured extracted information
+ */
+function extractStructuredAnswers(answers, questions) {
+  const structured = {
+    scope: [],
+    audience: null,
+    facts: [],
+    tone: null,
+    structure: null,
+    clarifications: [],
+    raw: answers
+  };
+
+  // Group answers by question type
+  questions.forEach(q => {
+    const answer = answers[q.id];
+    if (!answer) return;
+
+    switch (q.type) {
+      case 'scope':
+        structured.scope.push(answer);
+        break;
+      case 'audience':
+        structured.audience = answer;
+        break;
+      case 'facts':
+        structured.facts.push(answer);
+        break;
+      case 'tone':
+        structured.tone = answer;
+        break;
+      case 'structure':
+        structured.structure = answer;
+        break;
+      case 'clarification':
+        structured.clarifications.push({
+          refersTo: q.refersTo,
+          answer: answer
+        });
+        break;
+      default:
+        structured.clarifications.push(answer);
+    }
+  });
+
+  // Clean up arrays
+  structured.scope = structured.scope.filter(Boolean);
+  structured.facts = structured.facts.filter(Boolean);
+  structured.clarifications = structured.clarifications.filter(Boolean);
+
+  console.log('[InformationRequestHandler] Extracted structured answers:', {
+    hasScope: structured.scope.length > 0,
+    hasAudience: !!structured.audience,
+    hasFacts: structured.facts.length > 0,
+    hasTone: !!structured.tone,
+    hasClarifications: structured.clarifications.length > 0
+  });
+
+  return structured;
+}
+
+// Add to REQUIRED_FIELDS for experimental Antrag flow
+REQUIRED_FIELDS['antrag_experimental'] = {
+  'clarifications': {
+    field: 'clarifications',
+    displayName: 'Verständnisfragen',
+    generateDynamic: true,
+    maxQuestions: 5,
+    questionTypes: ['scope', 'audience', 'facts', 'tone', 'structure']
+  }
+};
+
 module.exports = {
   handleInformationRequest,
   checkForMissingInformation,
   generateInformationQuestion,
   extractRequestedInformation,
-  completePendingRequest
+  completePendingRequest,
+  // New exports for Antrag experimental flow
+  generateAntragQuestions,
+  analyzeAnswersForFollowup,
+  generateFollowUpQuestions,
+  extractStructuredAnswers
 };

@@ -114,6 +114,9 @@ const BaseFormInternal = ({
   proModeToggle = null,
   useProModeToggle = false,
   proModeConfig = null,
+  interactiveModeToggle = null,
+  useInteractiveModeToggle = false,
+  interactiveModeConfig = null,
   useFeatureIcons: propUseFeatureIcons = false,
   onAttachmentClick,
   onRemoveFile,
@@ -405,6 +408,21 @@ const BaseFormInternal = ({
       toggle: proModeToggle
     };
   }, [proModeConfig, useProModeToggle, proModeToggle, storeProModeConfig]);
+
+  // Consolidated interactiveMode config with store integration
+  const resolvedInteractiveModeConfig = React.useMemo(() => {
+    if (interactiveModeConfig) {
+      return {
+        enabled: interactiveModeConfig.enabled ?? useInteractiveModeToggle,
+        toggle: interactiveModeConfig.toggle ?? interactiveModeToggle,
+        ...interactiveModeConfig
+      };
+    }
+    return {
+      enabled: useInteractiveModeToggle,
+      toggle: interactiveModeToggle
+    };
+  }, [interactiveModeConfig, useInteractiveModeToggle, interactiveModeToggle]);
 
   // Use store form visibility with fallback to useFormVisibility
   const fallbackFormVisibility = useFormVisibility(hasEditableContent, disableAutoCollapse);
@@ -752,6 +770,8 @@ const BaseFormInternal = ({
                 webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
                 privacyModeToggle={resolvedPrivacyModeConfig.toggle}
                 proModeToggle={resolvedProModeConfig.toggle}
+                interactiveModeToggle={resolvedInteractiveModeConfig.enabled ? resolvedInteractiveModeConfig.toggle : null}
+                useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
                 onAttachmentClick={onAttachmentClick}
                 onRemoveFile={onRemoveFile}
                 onPrivacyInfoClick={handlePrivacyInfoClick}
@@ -970,6 +990,9 @@ BaseFormInternal.propTypes = {
     enabled: PropTypes.bool,
     toggle: PropTypes.object
   }),
+  interactiveModeToggle: PropTypes.object,
+  useInteractiveModeToggle: PropTypes.bool,
+  interactiveModeConfig: PropTypes.object,
   displayActions: PropTypes.node,
   formNotice: PropTypes.node,
   enableKnowledgeSelector: PropTypes.bool,
