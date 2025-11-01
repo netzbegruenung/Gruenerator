@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import SubmitButton from '../../SubmitButton';
 import '../../../../assets/styles/components/interactive-antrag.css';
 import {
   getYesNoEmoji,
@@ -18,7 +19,11 @@ const QuestionAnswerSection = ({
   questions,
   answers,
   onAnswerChange,
-  questionRound
+  questionRound,
+  onSubmit,
+  loading,
+  success,
+  submitButtonProps
 }) => {
   const CUSTOM_OPTION_VALUE = '__custom__';
 
@@ -175,12 +180,14 @@ const QuestionAnswerSection = ({
                   return (
                     <>
                       <div className={`question-options-grid ${gridClass}`}>
-                        {predefinedOptions.map(option => {
+                        {predefinedOptions.map((option, optionIndex) => {
                           const isChecked = question.allowMultiSelect
                             ? (Array.isArray(currentAnswer) && currentAnswer.includes(option))
                             : (!isCustomSelected && currentAnswer === option);
 
-                          const optionEmoji = getAnswerOptionEmoji(question.type, option);
+                          // Use AI-provided emoji if available, otherwise fallback to mapper
+                          const optionEmoji = (question.optionEmojis && question.optionEmojis[optionIndex])
+                            || getAnswerOptionEmoji(question.type, option);
 
                           return (
                             <button
@@ -275,21 +282,17 @@ const QuestionAnswerSection = ({
             Weiter →
           </button>
         ) : (
-          <div className="quiz-completion-hint">
-            {allAnswered ? (
-              <span className="quiz-ready-text">🎉 Alle Fragen beantwortet – Klicke auf "Fragen beantworten"</span>
-            ) : (
-              <span className="quiz-not-ready-text">💭 Bitte beantworte diese Frage, um fortzufahren.</span>
-            )}
-          </div>
+          <SubmitButton
+            onClick={onSubmit}
+            loading={loading}
+            success={success}
+            text={submitButtonProps?.defaultText || "Fragen beantworten"}
+            className="quiz-submit-button button-primary"
+            ariaLabel="Fragen beantworten"
+            type="submit"
+            {...submitButtonProps}
+          />
         )}
-      </div>
-
-      {/* Overall progress indicator */}
-      <div className="question-progress">
-        <span className="question-progress-text">
-          {getProgressEmoji((Object.keys(answers).length / questions.length) * 100)} {Object.keys(answers).length} von {questions.length} Fragen beantwortet
-        </span>
       </div>
     </div>
   );
@@ -302,6 +305,7 @@ QuestionAnswerSection.propTypes = {
     type: PropTypes.string.isRequired,
     questionFormat: PropTypes.oneOf(['yes_no', 'multiple_choice']),
     options: PropTypes.arrayOf(PropTypes.string).isRequired,
+    optionEmojis: PropTypes.arrayOf(PropTypes.string),
     allowCustom: PropTypes.bool,
     allowMultiSelect: PropTypes.bool,
     placeholder: PropTypes.string,
@@ -309,11 +313,19 @@ QuestionAnswerSection.propTypes = {
   })).isRequired,
   answers: PropTypes.object.isRequired,
   onAnswerChange: PropTypes.func.isRequired,
-  questionRound: PropTypes.number
+  questionRound: PropTypes.number,
+  onSubmit: PropTypes.func,
+  loading: PropTypes.bool,
+  success: PropTypes.bool,
+  submitButtonProps: PropTypes.object
 };
 
 QuestionAnswerSection.defaultProps = {
-  questionRound: 1
+  questionRound: 1,
+  onSubmit: null,
+  loading: false,
+  success: false,
+  submitButtonProps: {}
 };
 
 export default QuestionAnswerSection;

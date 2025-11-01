@@ -20,7 +20,6 @@ import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import useInteractiveAntrag from '../../../hooks/useInteractiveAntrag';
 import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
 import { HiChatAlt2 } from 'react-icons/hi';
-import FeatureToggle from '../../../components/common/FeatureToggle';
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -324,27 +323,20 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     }));
 
     return (
-      <div className="request-type-section">
-        <PlatformSelector
-          name="requestType"
-          options={requestTypeOptions}
-          value={selectedRequestType}
-          onChange={setSelectedRequestType}
-          label="Art der Anfrage"
-          placeholder="Art der Anfrage auswählen..."
-          isMulti={false}
-          control={null}
-          enableIcons={true}
-          enableSubtitles={false}
-          isSearchable={false}
-          required={true}
-        />
-
-        <FeatureToggle
-          {...interactiveModeToggle}
-          className="interactive-mode-toggle"
-        />
-      </div>
+      <PlatformSelector
+        name="requestType"
+        options={requestTypeOptions}
+        value={selectedRequestType}
+        onChange={setSelectedRequestType}
+        label="Art der Anfrage"
+        placeholder="Art der Anfrage auswählen..."
+        isMulti={false}
+        control={null}
+        enableIcons={true}
+        enableSubtitles={false}
+        isSearchable={false}
+        required={true}
+      />
     );
   };
 
@@ -359,7 +351,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             placeholder={FORM_PLACEHOLDERS.IDEE}
             rules={{ required: 'Idee ist ein Pflichtfeld' }}
             tabIndex={tabIndex.idee}
-            disabled={interactiveState === 'completed'}
           />
 
           <Textarea
@@ -372,7 +363,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             maxRows={10}
             className="form-textarea-large"
             tabIndex={tabIndex.details}
-            disabled={interactiveState === 'completed'}
           />
 
           <SmartInput
@@ -385,7 +375,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             onSubmitSuccess={success ? getValues('gliederung') : null}
             shouldSave={success}
             formName="antrag"
-            disabled={interactiveState === 'completed'}
           />
         </>
       )}
@@ -398,23 +387,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             setCurrentAnswers(prev => ({ ...prev, [questionId]: value }));
           }}
           questionRound={questionRound}
+          onSubmit={handleSubmit(onSubmitRHF)}
+          loading={loading || interactiveLoading}
+          success={success}
+          submitButtonProps={computedSubmitButtonProps}
         />
-      )}
-
-      {useInteractiveMode && interactiveState === 'completed' && questions.length > 0 && (
-        <div className="completed-questions-summary">
-          <h3 style={{ marginBottom: 'var(--spacing-medium)', color: 'var(--button-color)' }}>
-            📋 Beantwortete Fragen
-          </h3>
-          <div style={{ opacity: 0.9, pointerEvents: 'none' }}>
-            <QuestionAnswerSection
-              questions={questions}
-              answers={currentAnswers}
-              onAnswerChange={() => {}}
-              questionRound={questionRound}
-            />
-          </div>
-        </div>
       )}
     </>
   );
@@ -485,7 +462,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       case 'generating':
         return {
           defaultText: 'Grünerieren',
-          statusMessage: 'Generiere Antrag...',
+          statusMessage: 'Grüneriere Antrag...',
           showStatus: true
         };
       case 'completed':
@@ -516,6 +493,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           usePrivacyModeToggle={true}
           proModeToggle={proModeToggle}
           useProModeToggle={true}
+          interactiveModeToggle={interactiveModeToggle}
+          useInteractiveModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
@@ -528,6 +507,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
           submitButtonProps={computedSubmitButtonProps}
           firstExtrasChildren={renderRequestTypeSection()}
+          hideFormExtras={useInteractiveMode && interactiveState === 'questions'}
         >
           {renderFormInputs()}
         </BaseForm>

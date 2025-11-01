@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import EnhancedSelect from '../EnhancedSelect';
 import '../../../assets/styles/components/ui/knowledge-selector.css';
@@ -13,7 +13,7 @@ import { useInstructionsStatusForType } from '../../../features/auth/hooks/useIn
 /**
  * ProfileSelector - Separate component for custom instructions only
  */
-const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social' }) => {
+const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social', disableMenuPortal = false }) => {
   const { 
     source, 
     setSource
@@ -107,8 +107,8 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
         captureMenuScroll={false}
         menuShouldBlockScroll={false}
         menuShouldScrollIntoView={false}
-        menuPortalTarget={document.body}
-        menuPosition="fixed"
+        menuPortalTarget={disableMenuPortal ? null : document.body}
+        menuPosition={disableMenuPortal ? "absolute" : "fixed"}
       />
     </div>
   );
@@ -117,16 +117,18 @@ const ProfileSelector = ({ disabled = false, tabIndex, instructionType = 'social
 ProfileSelector.propTypes = {
   disabled: PropTypes.bool,
   tabIndex: PropTypes.number,
-  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
+  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend']),
+  disableMenuPortal: PropTypes.bool
 };
 
 /**
  * EnhancedKnowledgeSelector - Unified knowledge selector for all sources with React Portal
  */
-const EnhancedKnowledgeSelector = ({ 
-  onKnowledgeSelection, 
+const EnhancedKnowledgeSelector = ({
+  onKnowledgeSelection,
   disabled = false,
-  tabIndex
+  tabIndex,
+  disableMenuPortal = false
 }) => {
   const {
     availableKnowledge,
@@ -493,7 +495,7 @@ const EnhancedKnowledgeSelector = ({
   return (
     <div className="enhanced-knowledge-selector">
       <EnhancedSelect
-        label="Wissen, Dokumente & Texte auswählen"
+        label="Hochgeladene Inhalte"
         inputId="enhanced-knowledge-select"
         classNamePrefix="enhanced-knowledge-select"
         className="enhanced-knowledge-select"
@@ -511,18 +513,18 @@ const EnhancedKnowledgeSelector = ({
         }}
         value={[
           // Find selected options from all sources
-          ...selectedKnowledgeIds.map(id => 
-            allKnowledgeOptions.find(option => 
+          ...selectedKnowledgeIds.map(id =>
+            allKnowledgeOptions.find(option =>
               option.value === `knowledge_${id}` || option.value === `group_knowledge_${id}`
             )
           ).filter(Boolean),
-          ...selectedDocumentIds.map(id => 
-            allKnowledgeOptions.find(option => 
+          ...selectedDocumentIds.map(id =>
+            allKnowledgeOptions.find(option =>
               option.value === `document_${id}` || option.value === `group_document_${id}`
             )
           ).filter(Boolean),
-          ...selectedTextIds.map(id => 
-            allKnowledgeOptions.find(option => 
+          ...selectedTextIds.map(id =>
+            allKnowledgeOptions.find(option =>
               option.value === `text_${id}` || option.value === `group_text_${id}`
             )
           ).filter(Boolean)
@@ -538,9 +540,9 @@ const EnhancedKnowledgeSelector = ({
         captureMenuScroll={false}
         menuShouldBlockScroll={false}
         menuShouldScrollIntoView={false}
-        // React Portal implementation for larger dropdown
-        menuPortalTarget={document.body}
-        menuPosition="fixed"
+        // Conditional portal: disable when inside dropdown to prevent overlap
+        menuPortalTarget={disableMenuPortal ? null : document.body}
+        menuPosition={disableMenuPortal ? "absolute" : "fixed"}
         tabIndex={tabIndex}
         noOptionsMessage={() => {
           if (currentSearchTerm && currentSearchTerm.trim()) {
@@ -595,87 +597,11 @@ const EnhancedKnowledgeSelector = ({
 EnhancedKnowledgeSelector.propTypes = {
   onKnowledgeSelection: PropTypes.func,
   disabled: PropTypes.bool,
-  tabIndex: PropTypes.number
+  tabIndex: PropTypes.number,
+  disableMenuPortal: PropTypes.bool
 };
 
 EnhancedKnowledgeSelector.displayName = 'EnhancedKnowledgeSelector';
 
-/**
- * Main KnowledgeSelector component - now combines ProfileSelector and EnhancedKnowledgeSelector
- */
-const KnowledgeSelector = ({ 
-  onKnowledgeSelection, 
-  disabled = false,
-  tabIndex,
-  sourceTabIndex,
-  showProfileSelector = true,
-  instructionType: propInstructionType = null, // Optional override prop
-  ...rest
-}) => {
-  const { user } = useAuth();
-  
-  // Get instruction type from store (set by useKnowledge hook) or prop override
-  const { instructionType: storeInstructionType } = useGeneratorKnowledgeStore();
-  const instructionType = propInstructionType || storeInstructionType;
-  
-  // Check if user has instructions for this specific generator type
-  const { data: instructionsStatus, isLoading: isLoadingStatus } = useInstructionsStatusForType(
-    instructionType,
-    { enabled: !!(instructionType && user?.id) }
-  );
-  
-  // Determine if ProfileSelector should be shown
-  const shouldShowProfileSelector = useMemo(() => {
-    // Allow prop override to force hide
-    if (!showProfileSelector) return false;
-    
-    // If no instructionType provided, use legacy behavior (always show)
-    if (!instructionType) return true;
-    
-    // While loading, show based on prop default
-    if (isLoadingStatus) return showProfileSelector;
-    
-    // Show only if instructions exist for this specific type
-    return instructionsStatus?.hasAnyInstructions || false;
-  }, [showProfileSelector, instructionType, isLoadingStatus, instructionsStatus]);
-  
-  if (!user) {
-    return null;
-  }
-
-  return (
-    <div className="knowledge-selector-wrapper">
-      {/* Profile selector for instructions only - conditionally rendered based on instruction existence */}
-      {shouldShowProfileSelector && (
-        <ProfileSelector 
-          disabled={disabled}
-          tabIndex={sourceTabIndex || tabIndex}
-          instructionType={instructionType}
-        />
-      )}
-      
-      {/* Enhanced knowledge selector for all content */}
-      <EnhancedKnowledgeSelector
-        onKnowledgeSelection={onKnowledgeSelection}
-        disabled={disabled}
-        tabIndex={tabIndex}
-        {...rest}
-      />
-    </div>
-  );
-};
-
-KnowledgeSelector.propTypes = {
-  onKnowledgeSelection: PropTypes.func,
-  disabled: PropTypes.bool,
-  tabIndex: PropTypes.number,
-  sourceTabIndex: PropTypes.number,
-  showProfileSelector: PropTypes.bool,
-  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
-};
-
-KnowledgeSelector.displayName = 'KnowledgeSelector';
-
-// Export both components
-export { ProfileSelector, EnhancedKnowledgeSelector };
-export default memo(KnowledgeSelector); 
+// Export both components for use in FeatureIcons
+export { ProfileSelector, EnhancedKnowledgeSelector }; 

@@ -156,7 +156,8 @@ const BaseFormInternal = ({
   showImageUpload = false,
   uploadedImage: propUploadedImage = null,
   onImageChange = null,
-  enableKnowledgeSelector = false
+  enableKnowledgeSelector = false,
+  hideFormExtras = false
 }) => {
 
   const baseFormRef = useRef(null);
@@ -788,7 +789,7 @@ const BaseFormInternal = ({
                 useModernForm={useModernForm}
                 onFormChange={onFormChange}
                 bottomSectionChildren={bottomSectionChildren}
-                showHideButton={hasEditableContent} // Show hide button when content is available for manual toggle
+                showHideButton={hasEditableContent}
                 onHide={toggleFormVisibility}
                 firstExtrasChildren={firstExtrasChildren}
                 featureIconsTabIndex={resolvedTabIndexes.featureIcons}
@@ -805,6 +806,7 @@ const BaseFormInternal = ({
                 useEditMode={isEditModeActive}
                 registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
+                hideExtrasSection={hideFormExtras}
               >
                 {children}
               </FormSection>
@@ -863,6 +865,7 @@ const BaseForm = (props) => {
     formErrors: propFormErrors = {},
     useWebSearchFeatureToggle = false,
     usePrivacyModeToggle = false,
+    useInteractiveModeToggle = false,
     useFeatureIcons: propUseFeatureIcons = false,
     attachedFiles: propAttachedFiles = [],
     uploadedImage: propUploadedImage = null,
@@ -888,6 +891,10 @@ const BaseForm = (props) => {
     proModeConfig: {
       isActive: false,
       enabled: true
+    },
+    interactiveModeConfig: {
+      isActive: false,
+      enabled: useInteractiveModeToggle
     },
     useFeatureIcons: propUseFeatureIcons,
     attachedFiles: propAttachedFiles,
@@ -1026,7 +1033,8 @@ BaseFormInternal.propTypes = {
   submitButtonTabIndex: PropTypes.number,
   showImageUpload: PropTypes.bool,
   uploadedImage: PropTypes.object,
-  onImageChange: PropTypes.func
+  onImageChange: PropTypes.func,
+  hideFormExtras: PropTypes.bool
 };
 
 BaseFormInternal.defaultProps = {
@@ -1062,7 +1070,8 @@ BaseFormInternal.defaultProps = {
   submitButtonTabIndex: 17,
   showImageUpload: false,
   uploadedImage: null,
-  onImageChange: null
+  onImageChange: null,
+  hideFormExtras: false
 };
 
 // Wrapper BaseForm PropTypes - same as BaseFormInternal
