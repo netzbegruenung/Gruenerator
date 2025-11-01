@@ -204,8 +204,8 @@ const DocumentOverview = ({
 
         setDeleting(item.id);
         try {
-            await onDelete(item.id);
-            
+            await onDelete(item.id, item);
+
             // Close preview if deleted item was selected
             if (selectedItem?.id === item.id) {
                 setSelectedItem(null);
