@@ -350,7 +350,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
   const renderFormInputs = () => (
     <>
-      {(interactiveState === 'initial' || !useInteractiveMode) && (
+      {(interactiveState === 'initial' || interactiveState === 'completed' || !useInteractiveMode) && (
         <>
           <Input
             name="idee"
@@ -359,6 +359,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             placeholder={FORM_PLACEHOLDERS.IDEE}
             rules={{ required: 'Idee ist ein Pflichtfeld' }}
             tabIndex={tabIndex.idee}
+            disabled={interactiveState === 'completed'}
           />
 
           <Textarea
@@ -371,6 +372,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             maxRows={10}
             className="form-textarea-large"
             tabIndex={tabIndex.details}
+            disabled={interactiveState === 'completed'}
           />
 
           <SmartInput
@@ -383,6 +385,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             onSubmitSuccess={success ? getValues('gliederung') : null}
             shouldSave={success}
             formName="antrag"
+            disabled={interactiveState === 'completed'}
           />
         </>
       )}
@@ -396,6 +399,22 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           }}
           questionRound={questionRound}
         />
+      )}
+
+      {useInteractiveMode && interactiveState === 'completed' && questions.length > 0 && (
+        <div className="completed-questions-summary">
+          <h3 style={{ marginBottom: 'var(--spacing-medium)', color: 'var(--button-color)' }}>
+            📋 Beantwortete Fragen
+          </h3>
+          <div style={{ opacity: 0.9, pointerEvents: 'none' }}>
+            <QuestionAnswerSection
+              questions={questions}
+              answers={currentAnswers}
+              onAnswerChange={() => {}}
+              questionRound={questionRound}
+            />
+          </div>
+        </div>
       )}
     </>
   );
