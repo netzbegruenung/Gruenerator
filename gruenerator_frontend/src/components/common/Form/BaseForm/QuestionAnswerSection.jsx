@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import '../../../../assets/styles/components/interactive-antrag.css';
+import {
+  getYesNoEmoji,
+  getAnswerOptionEmoji,
+  getRoundEmoji,
+  getProgressEmoji
+} from '../../../../utils/questionEmojiMapper';
 
 /**
  * QuestionAnswerSection Component
@@ -73,7 +79,7 @@ const QuestionAnswerSection = ({
       {/* Round indicator for follow-up questions */}
       {questionRound > 1 && (
         <div className="question-round-indicator">
-          <span>Vertiefende Fragen (Runde {questionRound}/2)</span>
+          <span>{getRoundEmoji(questionRound)} Vertiefende Fragen (Runde {questionRound}/2)</span>
         </div>
       )}
 
@@ -131,7 +137,7 @@ const QuestionAnswerSection = ({
               {question.text}
               {question.refersTo && (
                 <span className="question-clarification-badge">
-                  Präzisierung
+                  🔍 Präzisierung
                 </span>
               )}
             </label>
@@ -146,64 +152,103 @@ const QuestionAnswerSection = ({
                     className={`yes-no-button ${currentAnswer === option ? 'selected' : ''}`}
                     onClick={() => handleOptionChange(option)}
                   >
-                    {option}
+                    <span className="yes-no-emoji">{getYesNoEmoji(option)}</span>
+                    <span className="yes-no-text">{option}</span>
                   </button>
                 ))}
               </div>
             ) : (
               <>
-                {/* Radio/Checkbox buttons for multiple choice questions */}
-                <div className="question-options">
-                  {question.options?.map(option => {
-                    const isChecked = question.allowMultiSelect
-                      ? (Array.isArray(currentAnswer) && currentAnswer.includes(option))
-                      : (!isCustomSelected && currentAnswer === option);
+                {/* Quizduell-style grid layout for multiple choice questions */}
+                {(() => {
+                  const predefinedOptions = question.options || [];
+                  const optionCount = predefinedOptions.length;
 
-                    return (
-                      <label key={option} className="question-option">
-                        <input
-                          type={question.allowMultiSelect ? "checkbox" : "radio"}
-                          name={question.id}
-                          value={option}
-                          checked={isChecked}
-                          onChange={(e) => handleOptionChange(e.target.value)}
-                          className="question-radio"
-                        />
-                        <span className="question-option-text">{option}</span>
-                      </label>
-                    );
-                  })}
+                  // Determine grid layout class
+                  let gridClass = 'quiz-grid-2x2'; // Default for 3-4 options
+                  if (optionCount <= 2) {
+                    gridClass = 'quiz-grid-horizontal';
+                  } else if (optionCount === 3) {
+                    gridClass = 'quiz-grid-3';
+                  }
 
-                  {/* Custom input option (only if allowCustom is true) */}
-                  {question.allowCustom && (
-                    <label className="question-option question-option-custom">
-                      <input
-                        type="radio"
-                        name={question.id}
-                        value={CUSTOM_OPTION_VALUE}
-                        checked={isCustomSelected}
-                        onChange={(e) => handleOptionChange(e.target.value)}
-                        className="question-radio"
-                      />
-                      <span className="question-option-text">Eigene Antwort eingeben</span>
-                    </label>
-                  )}
-                </div>
+                  return (
+                    <>
+                      <div className={`question-options-grid ${gridClass}`}>
+                        {predefinedOptions.map(option => {
+                          const isChecked = question.allowMultiSelect
+                            ? (Array.isArray(currentAnswer) && currentAnswer.includes(option))
+                            : (!isCustomSelected && currentAnswer === option);
+
+                          const optionEmoji = getAnswerOptionEmoji(question.type, option);
+
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              className={`quiz-option-button ${isChecked ? 'selected' : ''}`}
+                              onClick={() => handleOptionChange(option)}
+                            >
+                              {optionEmoji && <span className="option-emoji">{optionEmoji}</span>}
+                              <span className="option-text">{option}</span>
+                              {question.allowMultiSelect && (
+                                <span className="checkbox-indicator" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Custom input option - transforms into textarea when clicked */}
+                      {question.allowCustom && (
+                        <>
+                          {!isCustomSelected ? (
+                            <button
+                              type="button"
+                              className="quiz-option-custom"
+                              onClick={() => handleOptionChange(CUSTOM_OPTION_VALUE)}
+                            >
+                              <span className="custom-icon">✏️</span>
+                              <span>Eigene Antwort eingeben</span>
+                            </button>
+                          ) : (
+                            <div className="quiz-option-custom-input-container">
+                              <textarea
+                                ref={(el) => {
+                                  if (el) {
+                                    el.style.height = 'auto';
+                                    el.style.height = Math.max(70, el.scrollHeight) + 'px';
+                                  }
+                                }}
+                                className="quiz-option-custom-textarea"
+                                value={currentAnswer}
+                                onChange={(e) => {
+                                  handleCustomTextChange(e.target.value);
+                                  e.target.style.height = 'auto';
+                                  e.target.style.height = Math.max(70, e.target.scrollHeight) + 'px';
+                                }}
+                                placeholder={question.placeholder || 'Deine Antwort...'}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                className="custom-input-close"
+                                onClick={() => {
+                                  setCustomSelections({ ...customSelections, [question.id]: false });
+                                  onAnswerChange(question.id, '');
+                                }}
+                                aria-label="Schließen"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </>
-            )}
-
-            {/* Expanding custom input section */}
-            {question.allowCustom && isCustomSelected && (
-              <div className="question-custom-input-wrapper">
-                <textarea
-                  className="question-custom-textarea"
-                  value={currentAnswer}
-                  onChange={(e) => handleCustomTextChange(e.target.value)}
-                  placeholder={question.placeholder || 'Deine Antwort...'}
-                  rows={3}
-                  autoFocus
-                />
-              </div>
             )}
           </div>
         );
@@ -232,9 +277,9 @@ const QuestionAnswerSection = ({
         ) : (
           <div className="quiz-completion-hint">
             {allAnswered ? (
-              <span className="quiz-ready-text">✓ Alle Fragen beantwortet – Klicke auf "Fragen beantworten"</span>
+              <span className="quiz-ready-text">🎉 Alle Fragen beantwortet – Klicke auf "Fragen beantworten"</span>
             ) : (
-              <span className="quiz-not-ready-text">Bitte beantworte diese Frage, um fortzufahren.</span>
+              <span className="quiz-not-ready-text">💭 Bitte beantworte diese Frage, um fortzufahren.</span>
             )}
           </div>
         )}
@@ -243,7 +288,7 @@ const QuestionAnswerSection = ({
       {/* Overall progress indicator */}
       <div className="question-progress">
         <span className="question-progress-text">
-          {Object.keys(answers).length} von {questions.length} Fragen beantwortet
+          {getProgressEmoji((Object.keys(answers).length / questions.length) * 100)} {Object.keys(answers).length} von {questions.length} Fragen beantwortet
         </span>
       </div>
     </div>

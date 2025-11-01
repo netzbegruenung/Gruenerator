@@ -23,6 +23,7 @@ import {
   getExperimentalSession,
   updateExperimentalSession
 } from '../../services/chatMemoryService.js';
+import { getQuestionsForType } from '../../config/antragQuestions.js';
 
 // State schema for interactive Antrag flow
 const InteractiveAntragState = Annotation.Root({
@@ -256,8 +257,7 @@ async function webSearchNode(state) {
     console.log(`[InteractiveAntragGraph] Search query: "${query}"`);
 
     // Perform web search
-    const searchResult = await searxngService.performWebSearch({
-      query,
+    const searchResult = await searxngService.performWebSearch(query, {
       maxResults: 10,
       language: 'de-DE',
       categories: 'general,news'
