@@ -133,7 +133,7 @@ function getQuestionGenerationTool() {
         properties: {
           questions: {
             type: 'array',
-            description: 'Array von genau 4 Fragen',
+            description: 'Array von genau 5 Fragen',
             items: {
               type: 'object',
               properties: {
@@ -164,6 +164,13 @@ function getQuestionGenerationTool() {
                   minItems: 2,
                   maxItems: 4
                 },
+                optionEmojis: {
+                  type: 'array',
+                  description: 'Ein passendes Emoji für jede Option im options-Array. Muss gleiche Länge wie options haben. Wähle kontextbezogene, eindeutige Emojis die zur Option passen. Beispiele: Für "Gemeinderat" → 🏛️, "Bürger" → 👥, "Dringend" → ⚡, "Langfristig" → 📅',
+                  items: { type: 'string' },
+                  minItems: 2,
+                  maxItems: 4
+                },
                 allowCustom: {
                   type: 'boolean',
                   description: 'Bei yes_no: false. Bei multiple_choice: true (ermöglicht eigene Antwort)'
@@ -179,8 +186,8 @@ function getQuestionGenerationTool() {
               },
               required: ['id', 'text', 'type', 'questionFormat', 'options', 'allowCustom', 'allowMultiSelect']
             },
-            minItems: 4,
-            maxItems: 4
+            minItems: 5,
+            maxItems: 5
           }
         },
         required: ['questions']
@@ -377,6 +384,27 @@ async function generateQuestionsNode(state) {
           ? JSON.parse(toolCall.input)
           : toolCall.input;
         questions = functionArgs.questions;
+
+        // Validate and clean up optionEmojis
+        questions.forEach((question, qIndex) => {
+          if (question.optionEmojis) {
+            // Ensure optionEmojis length matches options length
+            if (question.optionEmojis.length !== question.options.length) {
+              console.warn(`[InteractiveAntragGraph] Question ${qIndex + 1}: optionEmojis length (${question.optionEmojis.length}) doesn't match options length (${question.options.length}). Padding/truncating.`);
+
+              // Pad with empty strings if too short
+              while (question.optionEmojis.length < question.options.length) {
+                question.optionEmojis.push('');
+              }
+              // Truncate if too long
+              question.optionEmojis = question.optionEmojis.slice(0, question.options.length);
+            }
+          } else {
+            // If AI didn't provide emojis, set to empty array (frontend will use mapper fallback)
+            question.optionEmojis = [];
+          }
+        });
+
         console.log(`[InteractiveAntragGraph] Generated ${questions.length} AI questions successfully`);
       } else {
         throw new Error('No tool call in AI response');

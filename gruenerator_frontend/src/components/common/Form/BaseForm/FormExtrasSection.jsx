@@ -1,13 +1,11 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import FeatureToggle from '../../FeatureToggle';
 import FeatureIcons from '../../FeatureIcons';
 import SubmitButton from '../../SubmitButton';
-import KnowledgeSelector from '../../../common/KnowledgeSelector/KnowledgeSelector';
-import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
-import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useFormStateSelector } from '../FormStateProvider';
+import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
@@ -27,7 +25,7 @@ import { useFormStateSelector } from '../FormStateProvider';
  * @param {boolean} props.showSubmitButton - Soll Submit-Button angezeigt werden
  * @param {node} props.children - Zusätzliche Extra-Komponenten
  * @param {node} props.firstExtrasChildren - Zusätzliche Extra-Komponenten als erstes Element
- * @param {boolean} props.showProfileSelector - Zeige Profile Selector in KnowledgeSelector
+ * @param {Object} props.featureIconsTabIndex - TabIndex-Objekt für FeatureIcons (webSearch, balancedMode, attachment, anweisungen)
  * @returns {JSX.Element} Formular-Extras Sektion
  */
 const FormExtrasSection = ({
@@ -51,17 +49,14 @@ const FormExtrasSection = ({
   featureIconsTabIndex = {
     webSearch: 11,
     balancedMode: 12,
-    attachment: 13
+    attachment: 13,
+    anweisungen: 14
   },
-  knowledgeSelectorTabIndex = 14,
-  knowledgeSourceSelectorTabIndex = 13,
-  documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17,
-  showProfileSelector = true,
   onPrivacyInfoClick,
   onWebSearchInfoClick,
   componentName,
-  enableKnowledgeSelector = false
+  hide = false
 }) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -74,13 +69,35 @@ const FormExtrasSection = ({
   // Pro mode from store (fallback if no prop provided)
   const storeProModeActive = useFormStateSelector(state => state.proModeConfig?.isActive);
   const setStoreProModeActive = useFormStateSelector(state => state.setProModeActive);
-  
-  // Simplified store access
-  const { source, availableKnowledge } = useGeneratorKnowledgeStore();
+
+  // Get current generated content for info link display logic
   const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
-  
-  const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
-  const anweisungenBetaEnabled = true;
+
+  // Anweisungen state from knowledge store
+  const source = useGeneratorKnowledgeStore(state => state.source);
+  const setSource = useGeneratorKnowledgeStore(state => state.setSource);
+  const anweisungenActive = source.type === 'user';
+
+  // Anweisungen toggle handler
+  const handleAnweisungenClick = useCallback(() => {
+    if (source.type === 'user') {
+      setSource({ type: 'neutral', id: null, name: null });
+    } else {
+      setSource({ type: 'user', id: null, name: 'Meine Anweisungen' });
+    }
+  }, [source.type, setSource]);
+
+  // Interactive mode toggle handler
+  const handleInteractiveModeClick = useCallback(() => {
+    if (interactiveModeToggle && interactiveModeToggle.onToggle) {
+      interactiveModeToggle.onToggle(!interactiveModeToggle.isActive);
+    }
+  }, [interactiveModeToggle]);
+
+  // Early return if hide prop is true
+  if (hide) {
+    return null;
+  }
 
   // Don't render if no extras are enabled
   const hasExtras = useWebSearchFeatureToggle ||
@@ -106,21 +123,8 @@ const FormExtrasSection = ({
             {firstExtrasChildren}
           </div>
         )}
-        
-        {/* Knowledge Selector - conditionally rendered based on enableKnowledgeSelector prop */}
-        {enableKnowledgeSelector !== false && (
-          <div className="form-extras__item">
-            <KnowledgeSelector
-              disabled={isLoadingBetaFeatures}
-              tabIndex={knowledgeSelectorTabIndex}
-              sourceTabIndex={knowledgeSourceSelectorTabIndex}
-              documentTabIndex={documentSelectorTabIndex}
-              showProfileSelector={showProfileSelector}
-            />
-          </div>
-        )}
 
-        {/* Feature Icons - alternative to feature toggles */}
+        {/* Feature Icons - now includes integrated knowledge selector and anweisungen */}
         {useFeatureIcons && webSearchFeatureToggle && privacyModeToggle && (
           <div className="form-extras__item">
             <FeatureIcons
@@ -134,9 +138,13 @@ const FormExtrasSection = ({
               onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : () => {}}
               onAttachmentClick={onAttachmentClick}
               onRemoveFile={onRemoveFile}
+              onAnweisungenClick={handleAnweisungenClick}
+              onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
               webSearchActive={webSearchFeatureToggle.isActive}
               privacyModeActive={privacyModeToggle.isActive}
               proModeActive={proModeToggle ? proModeToggle.isActive : !!storeProModeActive}
+              anweisungenActive={anweisungenActive}
+              interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
               attachedFiles={attachedFiles}
               className="form-extras__feature-icons"
               tabIndex={featureIconsTabIndex}
@@ -169,7 +177,7 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Interactive-Mode Feature Toggle - only show if not using feature icons */}
+        {/* Interactive-Mode Feature Toggle - integrated in FeatureIcons when useFeatureIcons is true */}
         {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
           <div className="form-extras__item">
             <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
@@ -264,31 +272,36 @@ FormExtrasSection.propTypes = {
   showSubmitButton: PropTypes.bool,
   children: PropTypes.node,
   firstExtrasChildren: PropTypes.node,
-  knowledgeSelectorTabIndex: PropTypes.number,
-  knowledgeSourceSelectorTabIndex: PropTypes.number,
-  documentSelectorTabIndex: PropTypes.number,
+  featureIconsTabIndex: PropTypes.shape({
+    webSearch: PropTypes.number,
+    balancedMode: PropTypes.number,
+    attachment: PropTypes.number,
+    anweisungen: PropTypes.number
+  }),
   submitButtonTabIndex: PropTypes.number,
   onPrivacyInfoClick: PropTypes.func,
   onWebSearchInfoClick: PropTypes.func,
   componentName: PropTypes.string,
-  enableKnowledgeSelector: PropTypes.bool
+  hide: PropTypes.bool
 };
 
 FormExtrasSection.defaultProps = {
-  enableKnowledgeSelector: false,
-  enableDocumentSelector: false,
   formControl: null,
   formNotice: null,
   isMultiStep: false,
   nextButtonText: null,
   submitButtonProps: {},
   showSubmitButton: true,
-  knowledgeSelectorTabIndex: 14,
-  knowledgeSourceSelectorTabIndex: 13,
-  documentSelectorTabIndex: 15,
+  featureIconsTabIndex: {
+    webSearch: 11,
+    balancedMode: 12,
+    attachment: 13,
+    anweisungen: 14
+  },
   submitButtonTabIndex: 17,
   onPrivacyInfoClick: undefined,
-  componentName: 'default'
+  componentName: 'default',
+  hide: false
 };
 
 FormExtrasSection.displayName = 'FormExtrasSection';
