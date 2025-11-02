@@ -65,11 +65,6 @@
   outline-offset: 2px;
 }
 
-.feature-icon-button.active {
-  background-color: var(--secondary-50);
-  border-color: var(--interactive-accent-color);
-}
-
 .feature-icon-button.active .feature-icons__icon {
   color: var(--interactive-accent-color);
 }
@@ -131,10 +126,6 @@
 /* Dark mode adjustments */
 [data-theme="dark"] .feature-icons {
   background-color: transparent;
-}
-
-[data-theme="dark"] .feature-icon-button.active {
-  background-color: var(--grey-700);
 }
 
 [data-theme="dark"] .feature-icons-button__label {
@@ -305,6 +296,10 @@
   background-color: var(--grey-700);
 }
 
+[data-theme="dark"] .balanced-dropdown-item.active {
+  background-color: var(--secondary-600);
+}
+
 /* Content Mode Dropdown (Attachment + Knowledge) */
 .content-mode-container {
   position: relative;
@@ -366,11 +361,11 @@
 }
 
 .content-dropdown-inline.open {
-  max-height: 280px;
+  max-height: none;
   opacity: 1;
   margin-top: var(--spacing-small);
   padding: var(--spacing-xsmall);
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .content-dropdown-item {
@@ -440,7 +435,6 @@
   width: 100%;
   margin-top: var(--spacing-xxsmall);
   position: relative;
-  min-height: 120px;
 }
 
 [data-theme="dark"] .content-dropdown-inline {
