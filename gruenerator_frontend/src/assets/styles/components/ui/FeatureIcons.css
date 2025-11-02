@@ -207,7 +207,7 @@
 }
 
 .balanced-dropdown-inline.open {
-  max-height: 400px;
+  max-height: none;
   opacity: 1;
   margin-top: var(--spacing-small);
 }
@@ -473,7 +473,11 @@
   }
 
   .balanced-dropdown-inline.open {
+<<<<<<< HEAD
     max-height: 400px;
+=======
+    max-height: none;
+>>>>>>> 64c82c5a8 (fix: Remove max-height limit from dropdown)
   }
 
   .balanced-dropdown-item {
