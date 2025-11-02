@@ -7,6 +7,7 @@
   background-color: transparent;
   transition: var(--input-transition);
   padding: var(--spacing-small) var(--spacing-xsmall);
+  margin-bottom: var(--spacing-xsmall);
   width: 100%;
   box-sizing: border-box;
 }
@@ -211,7 +212,8 @@
   max-height: none;
   opacity: 1;
   margin-top: var(--spacing-small);
-  padding-bottom: var(--spacing-small);
+  margin-bottom: calc(-1 * var(--spacing-xsmall));
+  padding-bottom: 0;
 }
 
 .balanced-dropdown-item {
