@@ -1,6 +1,7 @@
 .feature-icons {
   display: flex;
   flex-direction: column;
+  gap: var(--spacing-xsmall);
   border: 1px solid var(--font-color);
   border-radius: var(--card-border-radius-small);
   background-color: transparent;
@@ -210,6 +211,7 @@
   max-height: none;
   opacity: 1;
   margin-top: var(--spacing-small);
+  padding-bottom: var(--spacing-small);
 }
 
 .balanced-dropdown-item {
