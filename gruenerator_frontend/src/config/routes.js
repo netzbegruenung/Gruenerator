@@ -35,6 +35,7 @@ const PresseSocialGenerator = lazy(() => import('../features/texte/presse/Presse
 const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
+const SurveyPage = lazy(() => import('../features/umfragen'));
 
 
 // NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
@@ -110,7 +111,8 @@ export const GrueneratorenBundle = {
   ELearningTutorial: ELearningPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
-  CustomExamplePage: CustomExamplePage
+  CustomExamplePage: CustomExamplePage,
+  Survey: SurveyPage
 };
 
 // Route Konfigurationen
@@ -165,6 +167,8 @@ const standardRoutes = [
   { path: '/chat', component: GrueneratorenBundle.Chat },
   // E-Learning Routes
   { path: '/e-learning', component: GrueneratorenBundle.ELearning },
+  // Survey Routes
+  { path: '/umfragen/labor/customgrueneratoren', component: GrueneratorenBundle.Survey },
   // Pages Feature Routes
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
