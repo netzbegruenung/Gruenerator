@@ -1,16 +1,28 @@
 .gallery-layout {
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 2rem 2rem 2rem; 
+  margin: 80px auto 0 auto;
+  padding: 2rem 2rem 2rem 2rem;
+  flex-direction: column;
 }
 
 .gallery-header {
-  margin-bottom: 2rem; 
+  margin-bottom: var(--spacing-xxlarge);
+  padding-bottom: var(--spacing-large);
   text-align: center;
 }
 
+.gallery-header::after {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--secondary-600), var(--primary-600));
+  margin: var(--spacing-large) auto 0;
+  border-radius: 2px;
+}
+
 .gallery-header h1 {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 600;
   margin-bottom: 1rem;
   color: var(--font-color-h);
@@ -18,7 +30,7 @@
 
 .gallery-header p {
   max-width: 800px;
-  margin: 0 auto 2rem;
+  margin: 0 auto var(--spacing-xlarge);
   font-size: 1.1rem;
   line-height: 1.6;
   color: var(--font-color);
@@ -91,8 +103,8 @@
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-xxlarge);
   margin: 0 auto;
 }
 
@@ -112,7 +124,12 @@
 
 @media (max-width: 768px) {
   .gallery-layout {
+    margin-top: 0;
     padding: 80px 1rem 1rem 1rem;
+  }
+
+  .gallery-header h1 {
+    font-size: 1.75rem;
   }
 
   .gallery-grid {
