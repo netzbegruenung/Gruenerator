@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { markdownForExport, isMarkdownContent } = require('../utils/markdownService');
+const path = require('path');
+const fs = require('fs').promises;
 
 // Parse content with formatting information preserved
 function parseFormattedContent(input) {
@@ -202,6 +204,40 @@ function parseFormattedParagraph(text) {
   })).filter(segment => segment.text.length > 0);
 }
 
+function htmlToPlainText(html) {
+  if (!html) return '';
+
+  let text = String(html);
+
+  // Convert line breaks to newlines
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/p>/gi, '\n\n');
+  text = text.replace(/<\/div>/gi, '\n');
+  text = text.replace(/<\/h[1-6]>/gi, '\n\n');
+
+  // Convert list items
+  text = text.replace(/<li[^>]*>/gi, '• ');
+  text = text.replace(/<\/li>/gi, '\n');
+
+  // Remove all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, '');
+
+  // Convert HTML entities
+  text = text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+
+  // Clean up whitespace
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.replace(/[ \t]+/g, ' ');
+
+  return text.trim();
+}
+
 function parseSections(plain) {
   const paragraphs = (plain || '').split(/\n\s*\n/);
   const sections = [];
@@ -239,7 +275,7 @@ router.post('/pdf', async (req, res) => {
     const sections = parseSections(plain);
 
     // Lazy import to avoid hard dependency on startup
-    const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+    const { PDFDocument, rgb } = await import('pdf-lib');
 
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage([595.28, 841.89]); // A4
@@ -247,8 +283,13 @@ router.post('/pdf', async (req, res) => {
     const margin = 40;
     let y = height - margin;
 
-    const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Embed custom fonts
+    const fontsDir = path.join(__dirname, '..', 'public', 'fonts');
+    const grueneTypeBytes = await fs.readFile(path.join(fontsDir, 'GrueneType.ttf'));
+    const ptSansRegularBytes = await fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf'));
+
+    const titleFont = await pdfDoc.embedFont(grueneTypeBytes);
+    const bodyFont = await pdfDoc.embedFont(ptSansRegularBytes);
 
     // Title
     const docTitle = title || 'Dokument';
@@ -338,7 +379,7 @@ router.post('/docx', async (req, res) => {
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: docTitle, bold: true, size: 32 }),
+          new TextRun({ text: docTitle, bold: true, size: 32, font: 'GrueneType' }),
         ],
         heading: HeadingLevel.TITLE,
         alignment: AlignmentType.CENTER,
@@ -359,7 +400,8 @@ router.post('/docx', async (req, res) => {
             text: segment.text,
             bold: true,
             italics: segment.italic,
-            size: paragraph.headerLevel === 1 ? 28 : paragraph.headerLevel === 2 ? 26 : 24
+            size: paragraph.headerLevel === 1 ? 28 : paragraph.headerLevel === 2 ? 26 : 24,
+            font: 'GrueneType'
           })
         );
 
@@ -379,7 +421,8 @@ router.post('/docx', async (req, res) => {
             text: segment.text,
             bold: segment.bold,
             italics: segment.italic,
-            size: 22
+            size: 22,
+            font: 'PT Sans'
           })
         );
 
@@ -396,8 +439,8 @@ router.post('/docx', async (req, res) => {
 
     children.push(new Paragraph({
       children: [
-        new TextRun({ text: `Erstellt mit dem Grünerator von Moritz Wächter • ${new Date().toLocaleDateString('de-DE')} • `, size: 18, italics: true, color: '666666' }),
-        new TextRun({ text: 'gruenerator.de', size: 18, italics: true, color: '0066cc', style: 'Hyperlink' })
+        new TextRun({ text: `Erstellt mit dem Grünerator von Moritz Wächter • ${new Date().toLocaleDateString('de-DE')} • `, size: 18, italics: true, color: '666666', font: 'PT Sans' }),
+        new TextRun({ text: 'gruenerator.de', size: 18, italics: true, color: '0066cc', style: 'Hyperlink', font: 'PT Sans' })
       ],
       alignment: AlignmentType.CENTER,
       spacing: { before: 600 },

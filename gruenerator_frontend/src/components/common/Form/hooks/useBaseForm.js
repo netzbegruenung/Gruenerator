@@ -30,17 +30,17 @@ const useFeatureToggles = (control, defaultValues) => {
     defaultValue: defaultValues.usePrivacyMode ?? false
   });
 
-  const bedrock = useWatch({
+  const proMode = useWatch({
     control,
-    name: 'useBedrock',
-    defaultValue: defaultValues.useBedrock ?? false
+    name: 'useProMode',
+    defaultValue: defaultValues.useProMode ?? false
   });
 
   return useMemo(() => ({
     webSearch,
     privacyMode,
-    bedrock
-  }), [webSearch, privacyMode, bedrock]);
+    proMode
+  }), [webSearch, privacyMode, proMode]);
 };
 
 const useBaseForm = ({
@@ -311,14 +311,14 @@ const useBaseForm = ({
       }
 
       return {
-        isActive: Boolean(toggles.bedrock),
+        isActive: Boolean(toggles.proMode),
         onToggle: (checked) => {
-          setFieldValue('useBedrock', checked);
+          setFieldValue('useProMode', checked);
         },
-        label: "Pro Mode",
-        description: "Verwendet fortgeschrittenes KI-Modell"
+        label: "Pro-Mode",
+        description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
       };
-    }, [features, toggles.bedrock, setFieldValue]);
+    }, [features, toggles.proMode, setFieldValue]);
 
     // File attachment handlers
     const handleAttachmentClick = useCallback(async (files) => {
@@ -345,7 +345,7 @@ const useBaseForm = ({
           ...rhfData,
           useWebSearchTool: rhfData.useWebSearchTool,
           usePrivacyMode: rhfData.usePrivacyMode,
-          useBedrock: rhfData.useBedrock,
+          useBedrock: rhfData.useProMode,
           attachments: processedAttachments
         };
 

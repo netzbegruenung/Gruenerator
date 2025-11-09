@@ -29,9 +29,7 @@ import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKno
  * @returns {JSX.Element} Formular-Extras Sektion
  */
 const FormExtrasSection = ({
-  webSearchFeatureToggle,
-  privacyModeToggle,
-  proModeToggle,
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
   balancedModeToggle,
   interactiveModeToggle,
   useInteractiveModeToggle,
@@ -61,14 +59,9 @@ const FormExtrasSection = ({
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
   const success = useFormStateSelector(state => state.success);
-  const useWebSearchFeatureToggle = useFormStateSelector(state => state.webSearchConfig.enabled);
-  const usePrivacyModeToggle = useFormStateSelector(state => state.privacyModeConfig.enabled);
   const useInteractiveModeToggleStore = useFormStateSelector(state => state.interactiveModeConfig?.enabled || false);
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
   const attachedFiles = useFormStateSelector(state => state.attachedFiles);
-  // Pro mode from store (fallback if no prop provided)
-  const storeProModeActive = useFormStateSelector(state => state.proModeConfig?.isActive);
-  const setStoreProModeActive = useFormStateSelector(state => state.setProModeActive);
 
   // Get current generated content for info link display logic
   const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
@@ -100,14 +93,12 @@ const FormExtrasSection = ({
   }
 
   // Don't render if no extras are enabled
-  const hasExtras = useWebSearchFeatureToggle ||
-                   usePrivacyModeToggle ||
-                   useInteractiveModeToggle ||
+  const hasExtras = useInteractiveModeToggle ||
                    formNotice ||
                    showSubmitButton ||
                    children ||
                    firstExtrasChildren ||
-                   true; // Always show to allow KnowledgeSelector to manage its own visibility
+                   true; // Always show to allow FeatureIcons to manage its own visibility
 
   if (!hasExtras) {
     return null;
@@ -124,33 +115,21 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Feature Icons - now includes integrated knowledge selector and anweisungen */}
-        {useFeatureIcons && webSearchFeatureToggle && privacyModeToggle && (
+        {/* Feature Icons - now uses store for feature toggles */}
+        {useFeatureIcons && (
           <div className="form-extras__item">
             <FeatureIcons
-              onWebSearchClick={() => webSearchFeatureToggle.onToggle(!webSearchFeatureToggle.isActive)}
-              onPrivacyModeClick={() => {
-                // If enabling privacy, ensure pro mode is off in store
-                if (!privacyModeToggle.isActive && storeProModeActive) setStoreProModeActive(false);
-                privacyModeToggle.onToggle(!privacyModeToggle.isActive);
-              }}
-              onProModeClick={proModeToggle ? () => proModeToggle.onToggle(!proModeToggle.isActive) : () => setStoreProModeActive(!storeProModeActive)}
-              onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : () => {}}
+              onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
               onAttachmentClick={onAttachmentClick}
               onRemoveFile={onRemoveFile}
               onAnweisungenClick={handleAnweisungenClick}
               onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
-              webSearchActive={webSearchFeatureToggle.isActive}
-              privacyModeActive={privacyModeToggle.isActive}
-              proModeActive={proModeToggle ? proModeToggle.isActive : !!storeProModeActive}
               anweisungenActive={anweisungenActive}
               interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
               attachedFiles={attachedFiles}
               className="form-extras__feature-icons"
               tabIndex={featureIconsTabIndex}
-              showPrivacyInfoLink={privacyModeToggle.isActive && !currentGeneratedContent}
               onPrivacyInfoClick={onPrivacyInfoClick}
-              showWebSearchInfoLink={webSearchFeatureToggle.isActive && !currentGeneratedContent}
               onWebSearchInfoClick={onWebSearchInfoClick}
             />
           </div>
@@ -163,21 +142,7 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Web Search Feature Toggle - only show if not using feature icons */}
-        {!useFeatureIcons && webSearchFeatureToggle && useWebSearchFeatureToggle && (
-          <div className="form-extras__item">
-            <FeatureToggle {...webSearchFeatureToggle} className="form-feature-toggle" />
-          </div>
-        )}
-
-        {/* Privacy-Mode Feature Toggle - only show if not using feature icons */}
-        {!useFeatureIcons && privacyModeToggle && usePrivacyModeToggle && (
-          <div className="form-extras__item">
-            <FeatureToggle {...privacyModeToggle} className="form-feature-toggle" />
-          </div>
-        )}
-
-        {/* Interactive-Mode Feature Toggle - integrated in FeatureIcons when useFeatureIcons is true */}
+        {/* Interactive-Mode Feature Toggle - only if not using feature icons */}
         {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
           <div className="form-extras__item">
             <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
@@ -214,32 +179,7 @@ const FormExtrasSection = ({
 };
 
 FormExtrasSection.propTypes = {
-  webSearchFeatureToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    isSearching: PropTypes.bool,
-    statusMessage: PropTypes.string,
-    tabIndex: PropTypes.number
-  }),
-  privacyModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    tabIndex: PropTypes.number
-  }),
-  proModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    tabIndex: PropTypes.number
-  }),
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
   balancedModeToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,

@@ -406,7 +406,7 @@ const BaseFormInternal = ({
     }
     return {
       enabled: storeProModeConfig.enabled || useProModeToggle,
-      toggle: proModeToggle
+      toggle: proModeToggle // This correctly references the proModeToggle prop from the closure
     };
   }, [proModeConfig, useProModeToggle, proModeToggle, storeProModeConfig]);
 
@@ -768,9 +768,6 @@ const BaseFormInternal = ({
                 showBackButton={showBackButton}
                 nextButtonText={resolvedSubmitConfig.buttonText}
                 submitButtonProps={effectiveSubmitButtonProps}
-                webSearchFeatureToggle={resolvedWebSearchConfig.toggle}
-                privacyModeToggle={resolvedPrivacyModeConfig.toggle}
-                proModeToggle={resolvedProModeConfig.toggle}
                 interactiveModeToggle={resolvedInteractiveModeConfig.enabled ? resolvedInteractiveModeConfig.toggle : null}
                 useInteractiveModeToggle={resolvedInteractiveModeConfig.enabled}
                 onAttachmentClick={onAttachmentClick}

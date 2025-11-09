@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
@@ -60,6 +61,9 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
 
   useOptimizedAuth();
 
+  // Get feature state from store
+  const { getFeatureState, usePrivacyMode } = useGeneratorKnowledgeStore();
+
   // Dynamic component name based on selected type
   const componentName = `accessibility-${selectedType}`;
 
@@ -93,10 +97,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
 
   // Create baseForm based on selected type
   const form = useBaseForm({
-    defaultValues: {
-      useWebSearchTool: false,
-      usePrivacyMode: false
-    },
+    defaultValues: {},
     generatorType: `accessibility-${selectedType}`,
     componentName: componentName,
     endpoint: API_ENDPOINTS[selectedType],
@@ -132,16 +133,16 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
   // Handle URL detection and crawling for Leichte Sprache
   const handleUrlsDetected = useCallback(async (urls) => {
     if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE && !isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), false);
+      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, selectedType]);
+  }, [detectAndCrawlUrls, isCrawling, selectedType, usePrivacyMode]);
 
   // Handle URL retry for Leichte Sprache
   const handleRetryUrl = useCallback(async (url) => {
     if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE) {
-      await retryUrl(url, false);
+      await retryUrl(url, usePrivacyMode);
     }
-  }, [retryUrl, selectedType]);
+  }, [retryUrl, selectedType, usePrivacyMode]);
 
   // Combine loading states from both API submission hooks
   const combinedLoading = altTextLoading || leichteSpracheLoading;
@@ -217,10 +218,14 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
             : imageContext;
         }
 
-        // Generate alt text
+        // Get feature state from store
+        const features = getFeatureState();
+
+        // Generate alt text with feature toggles
         const response = await generateAltTextForImage(
           imageBase64,
-          fullDescription || null
+          fullDescription || null,
+          features
         );
 
         const altText = response?.altText || response || '';
@@ -237,11 +242,13 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
           ...crawledUrls
         ];
 
+        // Get feature state from store
+        const features = getFeatureState();
+
         const formDataToSubmit = {
           originalText: formData.originalText,
           targetLanguage: formData.targetLanguage,
-          useWebSearchTool: false,
-          usePrivacyMode: false,
+          ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
           attachments: allAttachments
         };
 
@@ -266,7 +273,8 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     submitLeichteSprache,
     componentName,
     form,
-    crawledUrls
+    crawledUrls,
+    getFeatureState
   ]);
 
   const handleGeneratedContentChange = useCallback((content) => {
@@ -329,7 +337,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
           firstExtrasChildren={renderTypeSelector()}
           submitButtonText={selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? "Alt-Text generieren" : "In Leichte Sprache übersetzen"}
           isSubmitDisabled={!formRef.current?.isValid?.()}
-          useFeatureIcons={false}
+          useFeatureIcons={true}
           loading={combinedLoading}
           success={combinedSuccess}
           error={combinedError}

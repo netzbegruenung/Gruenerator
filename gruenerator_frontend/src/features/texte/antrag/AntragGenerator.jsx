@@ -82,7 +82,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const {
     control,
     handleSubmit,
-    watch,
     getValues,
     setValue,
     formState: { errors }
@@ -90,16 +89,10 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     defaultValues: {
       idee: '',
       details: '',
-      gliederung: '',
-      useWebSearchTool: false,
-      usePrivacyMode: false,
-      useProMode: false
+      gliederung: ''
+      // Feature toggle fields removed - now using store
     }
   });
-
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
-  const watchUseProMode = watch('useProMode');
 
   const [antragContent, setAntragContent] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
@@ -138,10 +131,16 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     availableKnowledge,
   });
 
+  // Get feature state from store for submission
+  const { getFeatureState } = useGeneratorKnowledgeStore();
+
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
 
     try {
+      // Get current feature toggle state from store
+      const features = getFeatureState();
+
       // INTERACTIVE MODE
       if (useInteractiveMode) {
         // Phase 1: Initial submission → Get questions
@@ -205,15 +204,13 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         }
       }
 
-      // SIMPLE MODE (existing logic unchanged)
+      // SIMPLE MODE
       const formDataToSubmit = {
         requestType: selectedRequestType,
         idee: rhfData.idee,
         details: rhfData.details,
         gliederung: rhfData.gliederung,
-        useWebSearchTool: rhfData.useWebSearchTool,
-        usePrivacyMode: rhfData.usePrivacyMode,
-        useBedrock: rhfData.useProMode,
+        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: processedAttachments
       };
 
@@ -271,7 +268,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     selectedRequestType,
     selectedKnowledgeIds,
     selectedDocumentIds,
-    selectedTextIds
+    selectedTextIds,
+    getFeatureState
   ]);
 
   const handleGeneratedContentChange = useCallback((content) => {
@@ -395,37 +393,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       )}
     </>
   );
-  
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch
-  };
 
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
-  };
-
-  const proModeToggle = {
-    isActive: watchUseProMode,
-    onToggle: (checked) => {
-      setValue('useProMode', checked);
-    },
-    label: "Pro-Mode",
-    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
-  };
+  // Feature toggle objects removed - web search, privacy, and pro mode now use store
 
   const interactiveModeToggle = {
     isActive: useInteractiveMode,
@@ -487,12 +456,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
           helpContent={helpContent}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
-          proModeToggle={proModeToggle}
-          useProModeToggle={true}
           interactiveModeToggle={interactiveModeToggle}
           useInteractiveModeToggle={true}
           useFeatureIcons={true}
