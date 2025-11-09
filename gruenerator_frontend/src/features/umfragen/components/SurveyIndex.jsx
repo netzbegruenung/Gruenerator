@@ -10,7 +10,7 @@ const SurveyIndex = () => {
       id: 'custom-grueneratoren',
       title: 'Custom Grüneratoren Feedback',
       description: 'Teile deine Erfahrungen und Ideen für benutzerdefinierte Grüneratoren. Dein Feedback hilft uns, das Feature zu verbessern.',
-      url: 'https://umfragen.moritz-waechter.de/form/GkcXUL20',
+      url: 'https://tally.so/r/RGKraJ',
       tags: ['Labor', 'Beta'],
       meta: 'ca. 5 Minuten'
     }

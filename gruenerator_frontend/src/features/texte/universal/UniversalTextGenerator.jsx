@@ -11,6 +11,7 @@ import BuergeranfragenForm from './BuergeranfragenForm';
 import UniversalForm from './UniversalForm';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 
 // Text type constants (moved from TextTypeSelector)
 export const TEXT_TYPES = {
@@ -101,6 +102,9 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
 
   useOptimizedAuth();
 
+  // Get feature state from store
+  const { getFeatureState } = useGeneratorKnowledgeStore();
+
   // Update selected type when URL changes
   useEffect(() => {
     const newType = getInitialTextType(location.pathname);
@@ -150,11 +154,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
 
   // Create baseForm - we'll use the knowledge and UI features but handle submission ourselves
   const form = useBaseForm({
-    defaultValues: {
-      useWebSearchTool: false,
-      usePrivacyMode: false,
-      useProMode: false
-    },
+    defaultValues: {},
     // Generator configuration - using a placeholder endpoint since we handle submission manually
     generatorType: 'universal-text',
     componentName: componentName,
@@ -188,10 +188,9 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
       return;
     }
 
-    // Add feature toggles and attachments to form data
-    formData.useWebSearchTool = form.generator.toggles.webSearch;
-    formData.usePrivacyMode = form.generator.toggles.privacyMode;
-    formData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
+    // Add feature toggles from store and attachments to form data
+    const features = getFeatureState();
+    Object.assign(formData, features); // Add useWebSearchTool, usePrivacyMode, useBedrock from store
     formData.attachments = form.generator.attachedFiles;
 
     setIsLoading(true);
@@ -224,7 +223,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedType, form, currentFormRef]);
+  }, [selectedType, form, currentFormRef, getFeatureState]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedContent(content);

@@ -9,6 +9,7 @@
 
 
 .profile-header {
+  margin-top: var(--spacing-large);
   margin-bottom: var(--spacing-large);
   text-align: center;
 }

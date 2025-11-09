@@ -36,6 +36,10 @@ const initialState = {
     enableTexts: false,
     enableSourceSelection: false
   },
+  // New: Feature toggles state
+  useWebSearch: false,
+  usePrivacyMode: false,
+  useProMode: false,
 };
 
 /**
@@ -68,6 +72,10 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
       state.selectedTextIds = [];
       state.isLoadingTexts = false;
     }
+    // Reset feature toggles when source changes (fresh state for each context)
+    state.useWebSearch = false;
+    state.usePrivacyMode = false;
+    state.useProMode = false;
   }),
 
   setAvailableKnowledge: (items) => set((state) => {
@@ -261,6 +269,194 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     const newConfig = { ...state.uiConfig, ...config };
     // setUIConfig called
     state.uiConfig = newConfig;
+  }),
+
+  // Feature toggle management
+  setWebSearch: (enabled) => set((state) => {
+    state.useWebSearch = enabled;
+  }),
+
+  setPrivacyMode: (enabled) => set((state) => {
+    state.usePrivacyMode = enabled;
+    if (enabled) {
+      state.useProMode = false; // Mutual exclusivity
+    }
+  }),
+
+  setProMode: (enabled) => set((state) => {
+    state.useProMode = enabled;
+    if (enabled) {
+      state.usePrivacyMode = false; // Mutual exclusivity
+    }
+  }),
+
+  toggleWebSearch: () => set((state) => {
+    state.useWebSearch = !state.useWebSearch;
+  }),
+
+  togglePrivacyMode: () => {
+    // Debug logging - capture state before toggle
+    const DEBUG_ENABLED = true;
+    const prevState = get().usePrivacyMode;
+    const prevProMode = get().useProMode;
+
+    if (DEBUG_ENABLED) {
+      console.groupCollapsed(
+        `%c[STORE_PRIVACY] %ctogglePrivacyMode() called`,
+        'color: #9C27B0; font-weight: bold',
+        'color: #2196F3'
+      );
+      console.table({
+        'Before Privacy': prevState,
+        'Before Pro': prevProMode,
+        'Will Toggle To': !prevState
+      });
+      console.groupEnd();
+    }
+
+    set((state) => {
+      const newValue = !state.usePrivacyMode;
+
+      if (DEBUG_ENABLED) {
+        console.groupCollapsed(
+          `%c[STORE_PRIVACY] %cInside set() function`,
+          'color: #9C27B0; font-weight: bold',
+          'color: #2196F3'
+        );
+        console.table({
+          'Old Value': state.usePrivacyMode,
+          'New Value': newValue,
+          'Will Disable Pro': newValue && state.useProMode
+        });
+        console.groupEnd();
+      }
+
+      state.usePrivacyMode = newValue;
+      if (newValue) {
+        state.useProMode = false;
+      }
+    });
+
+    // Verify state change after set() completes
+    setTimeout(() => {
+      const afterState = get().usePrivacyMode;
+      const afterProMode = get().useProMode;
+      const stateChanged = prevState !== afterState;
+
+      if (DEBUG_ENABLED) {
+        if (!stateChanged) {
+          console.error(
+            `%c⚠️ PRIVACY MODE STATE NOT CHANGED!`,
+            'background: #ff0000; color: white; font-size: 16px; padding: 4px; font-weight: bold;'
+          );
+        }
+
+        console.groupCollapsed(
+          `%c[STORE_PRIVACY] %ctogglePrivacyMode() completed %c${stateChanged ? '✅' : '❌'}`,
+          'color: #9C27B0; font-weight: bold',
+          'color: #2196F3',
+          stateChanged ? 'color: green' : 'color: red'
+        );
+        console.table({
+          'Before': prevState,
+          'After': afterState,
+          'Changed': stateChanged,
+          'Pro Mode': afterProMode
+        });
+        console.groupEnd();
+      }
+    }, 0);
+  },
+
+  toggleProMode: () => {
+    // Debug logging - capture state before toggle
+    const DEBUG_ENABLED = true;
+    const prevState = get().useProMode;
+    const prevPrivacyMode = get().usePrivacyMode;
+
+    if (DEBUG_ENABLED) {
+      console.groupCollapsed(
+        `%c[STORE_PRO] %ctoggleProMode() called`,
+        'color: #FF9800; font-weight: bold',
+        'color: #2196F3'
+      );
+      console.table({
+        'Before Pro': prevState,
+        'Before Privacy': prevPrivacyMode,
+        'Will Toggle To': !prevState
+      });
+      console.groupEnd();
+    }
+
+    set((state) => {
+      const newValue = !state.useProMode;
+
+      if (DEBUG_ENABLED) {
+        console.groupCollapsed(
+          `%c[STORE_PRO] %cInside set() function`,
+          'color: #FF9800; font-weight: bold',
+          'color: #2196F3'
+        );
+        console.table({
+          'Old Value': state.useProMode,
+          'New Value': newValue,
+          'Will Disable Privacy': newValue && state.usePrivacyMode
+        });
+        console.groupEnd();
+      }
+
+      state.useProMode = newValue;
+      if (newValue) {
+        state.usePrivacyMode = false;
+      }
+    });
+
+    // Verify state change after set() completes
+    setTimeout(() => {
+      const afterState = get().useProMode;
+      const afterPrivacyMode = get().usePrivacyMode;
+      const stateChanged = prevState !== afterState;
+
+      if (DEBUG_ENABLED) {
+        if (!stateChanged) {
+          console.error(
+            `%c⚠️ PRO MODE STATE NOT CHANGED!`,
+            'background: #ff0000; color: white; font-size: 16px; padding: 4px; font-weight: bold;'
+          );
+        }
+
+        console.groupCollapsed(
+          `%c[STORE_PRO] %ctoggleProMode() completed %c${stateChanged ? '✅' : '❌'}`,
+          'color: #FF9800; font-weight: bold',
+          'color: #2196F3',
+          stateChanged ? 'color: green' : 'color: red'
+        );
+        console.table({
+          'Before': prevState,
+          'After': afterState,
+          'Changed': stateChanged,
+          'Privacy Mode': afterPrivacyMode
+        });
+        console.groupEnd();
+      }
+    }, 0);
+  },
+
+  // Helper: Get feature state for backend submission
+  getFeatureState: () => {
+    const state = get();
+    return {
+      useWebSearchTool: state.useWebSearch,
+      usePrivacyMode: state.usePrivacyMode,
+      useBedrock: state.useProMode,
+    };
+  },
+
+  // Reset feature toggles
+  resetFeatures: () => set((state) => {
+    state.useWebSearch = false;
+    state.usePrivacyMode = false;
+    state.useProMode = false;
   }),
 
   reset: () => {

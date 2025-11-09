@@ -6,7 +6,6 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/consta
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -40,24 +39,32 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
     control,
     handleSubmit,
     reset,
-    watch,
-    setValue,
     formState: { errors }
   } = useForm({
     defaultValues: {
       originalText: '',
-      targetLanguage: 'Deutsch',
-      useWebSearchTool: false,
-      usePrivacyMode: false
+      targetLanguage: 'Deutsch'
     }
   });
-
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
 
   const [translatedContent, setTranslatedContent] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
+
+  // Store integration - all knowledge and instructions from store (must be before URL callbacks)
+  const {
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
+    isInstructionsActive,
+    instructions,
+    getActiveInstruction,
+    groupData: groupDetailsData,
+    getFeatureState,
+    usePrivacyMode
+  } = useGeneratorKnowledgeStore();
 
   // URL crawler hook for automatic link processing
   const {
@@ -74,30 +81,17 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
   const handleUrlsDetected = useCallback(async (urls) => {
     // Only crawl if not already crawling and URLs are detected
     if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+  }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url) => {
-    await retryUrl(url, watchUsePrivacyMode);
-  }, [retryUrl, watchUsePrivacyMode]);
+    await retryUrl(url, usePrivacyMode);
+  }, [retryUrl, usePrivacyMode]);
 
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/leichte_sprache');
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  
-  // Store integration - all knowledge and instructions from store
-  const {
-    source,
-    availableKnowledge,
-    selectedKnowledgeIds,
-    selectedDocumentIds,
-    selectedTextIds,
-    isInstructionsActive,
-    instructions,
-    getActiveInstruction,
-    groupData: groupDetailsData
-  } = useGeneratorKnowledgeStore();
   
   // Create form notice
   const formNotice = createKnowledgeFormNotice({
@@ -114,6 +108,9 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
     setStoreIsLoading(true);
 
     try {
+      // Get current feature toggle state from store
+      const features = getFeatureState();
+
       // Combine file attachments with crawled URLs
       const allAttachments = [
         ...processedAttachments,
@@ -123,8 +120,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
       const formDataToSubmit = {
         originalText: rhfData.originalText,
         targetLanguage: rhfData.targetLanguage,
-        useWebSearchTool: rhfData.useWebSearchTool,
-        usePrivacyMode: rhfData.usePrivacyMode,
+        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: allAttachments
       };
       
@@ -166,7 +162,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, crawledUrls, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, crawledUrls, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, getFeatureState]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setTranslatedContent(content);
@@ -201,28 +197,6 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
       "Die Übersetzung erfolgt in kurzen, klaren Sätzen",
       "Schwierige Wörter werden erklärt oder ersetzt"
     ]
-  };
-
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch || 11
-  };
-
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
   };
 
   const renderFormInputs = () => (
@@ -260,10 +234,6 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
           formControl={control}
           helpContent={helpContent}
           componentName={componentName}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}

@@ -12,7 +12,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiInformationCircle, HiShieldCheck } from 'react-icons/hi';
+import { HiInformationCircle } from 'react-icons/hi';
 import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -25,7 +25,6 @@ import FileUpload from '../../../components/common/FileUpload';
 import Icon from '../../../components/common/Icon';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import { HiGlobeAlt } from 'react-icons/hi';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import { getIcon } from '../../../config/icons';
@@ -109,19 +108,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       presseabbinder: '',
       platforms: defaultPlatforms,
       sharepicType: 'default',
-      zitatAuthor: '',
-      useWebSearchTool: false,
-      usePrivacyMode: false,
-      useProMode: false
+      zitatAuthor: ''
     },
     shouldUnregister: false  // Preserve field values when conditionally rendered
   });
 
   const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
   const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
-  const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
-  const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
-  const watchUseProMode = useWatch({ control, name: 'useProMode', defaultValue: false });
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
   const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
@@ -144,6 +137,21 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
 
+  // Store integration - all knowledge and instructions from store (must be before URL callbacks)
+  const {
+    source,
+    availableKnowledge,
+    selectedKnowledgeIds,
+    selectedDocumentIds,
+    selectedTextIds,
+    isInstructionsActive,
+    instructions,
+    getActiveInstruction,
+    groupData: groupDetailsData,
+    getFeatureState,
+    usePrivacyMode
+  } = useGeneratorKnowledgeStore();
+
   // URL crawler hook for automatic link processing
   const {
     crawledUrls,
@@ -159,32 +167,18 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const handleUrlsDetected = useCallback(async (urls) => {
     // Only crawl if not already crawling and URLs are detected
     if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+  }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url) => {
-    await retryUrl(url, watchUsePrivacyMode);
-  }, [retryUrl, watchUsePrivacyMode]);
+    await retryUrl(url, usePrivacyMode);
+  }, [retryUrl, usePrivacyMode]);
   // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  
-  
-  // Store integration - all knowledge and instructions from store
-  const {
-    source,
-    availableKnowledge,
-    selectedKnowledgeIds,
-    selectedDocumentIds,
-    selectedTextIds,
-    isInstructionsActive,
-    instructions,
-    getActiveInstruction,
-    groupData: groupDetailsData
-  } = useGeneratorKnowledgeStore();
   
   // Create form notice
   const formNotice = createKnowledgeFormNotice({
@@ -201,6 +195,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     setStoreIsLoading(true);
 
     try {
+      // Get current feature toggle state from store
+      const features = getFeatureState();
+
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
       const hasSharepic = isAuthenticated && selectedPlatforms.includes('sharepic');
@@ -216,9 +213,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         details: rhfData.details,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
-        useWebSearchTool: rhfData.useWebSearchTool,
-        usePrivacyMode: rhfData.usePrivacyMode,
-        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
+        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: allAttachments
       };
       
@@ -258,9 +253,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             rhfData.zitatAuthor,
             customPrompt, // Pass custom instructions to sharepic generation
             allAttachments, // Include attachments
-            rhfData.usePrivacyMode, // Include privacy mode
+            features.usePrivacyMode, // Include privacy mode from store
             null, // provider - will be handled by privacy mode settings
-            rhfData.useProMode // Pass Pro mode flag for sharepic generation
+            features.useBedrock // Pass Pro mode flag for sharepic generation from store
           );
           // Handle both single sharepic and array of sharepics (default mode)
           const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
@@ -336,7 +331,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, getFeatureState, isAuthenticated]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -468,37 +463,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
       "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics. Weitere Formate: 3-Zeilen Slogan, Zitat mit/ohne Bild, Infopost"
     ]
-  };
-
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch || 11
-  };
-
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
-  };
-
-  const proModeToggle = {
-    isActive: watchUseProMode,
-    onToggle: (checked) => {
-      setValue('useProMode', checked);
-    },
-    label: "Pro-Mode",
-    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
   };
 
   const renderPlatformSection = () => (
@@ -704,12 +668,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           enableDocumentSelector={true}
           helpContent={helpContent}
           componentName={componentName}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
-          proModeToggle={proModeToggle}
-          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}

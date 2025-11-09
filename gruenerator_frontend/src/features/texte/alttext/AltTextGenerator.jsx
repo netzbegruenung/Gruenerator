@@ -7,6 +7,7 @@ import BaseForm from '../../../components/common/BaseForm';
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
+import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import FileUpload from '../../../components/common/FileUpload';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -33,6 +34,9 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
   } = useAltTextGeneration();
   
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+
+  // Get feature state from store
+  const { getFeatureState } = useGeneratorKnowledgeStore();
 
   // Handle pre-selected Canva template from URL parameters
   useEffect(() => {
@@ -112,7 +116,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
   const onSubmitRHF = useCallback(async (formData) => {
     const hasUploadedImage = uploadedImage !== null;
     const hasCanvaImage = selectedCanvaDesign !== null;
-    
+
     if (!hasUploadedImage && !hasCanvaImage) {
       console.error('[AltTextGenerator] No image selected');
       return;
@@ -120,10 +124,13 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
 
     try {
       console.log('[AltTextGenerator] Starting alt text generation');
-      
+
+      // Get current feature toggle state from store
+      const features = getFeatureState();
+
       let imageBase64;
       let imageContext = '';
-      
+
       if (imageSource === 'upload' && hasUploadedImage) {
         // Convert uploaded file to base64
         imageBase64 = await fileToBase64(uploadedImage);
@@ -136,19 +143,20 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
       } else {
         throw new Error('Invalid image source or missing image data');
       }
-      
+
       // Combine user description with image context
       let fullDescription = formData.imageDescription || '';
       if (imageContext) {
-        fullDescription = fullDescription 
+        fullDescription = fullDescription
           ? `${imageContext}. ${fullDescription}`
           : imageContext;
       }
-      
-      // Generate alt text
+
+      // Generate alt text with feature toggles
       const response = await generateAltTextForImage(
-        imageBase64, 
-        fullDescription || null
+        imageBase64,
+        fullDescription || null,
+        features // Pass feature toggles to generation hook
       );
       
       const altText = response?.altText || response || '';
@@ -162,7 +170,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
     } catch (error) {
       console.error('[AltTextGenerator] Error generating alt text:', error);
     }
-  }, [uploadedImage, selectedCanvaDesign, imageSource, generateAltTextForImage, setGeneratedText, resetSuccess]);
+  }, [uploadedImage, selectedCanvaDesign, imageSource, generateAltTextForImage, setGeneratedText, resetSuccess, getFeatureState]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedAltText(content);
@@ -252,6 +260,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
           componentName={componentName}
           submitButtonText="Alt-Text generieren"
           isSubmitDisabled={!uploadedImage && !selectedCanvaDesign}
+          useFeatureIcons={true}
         >
           {renderFormInputs()}
         </BaseForm>

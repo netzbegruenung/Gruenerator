@@ -54,9 +54,7 @@ const FormSection = forwardRef(({
   showBackButton,
   nextButtonText,
   submitButtonProps = {},
-  webSearchFeatureToggle,
-  privacyModeToggle,
-  proModeToggle,
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
   interactiveModeToggle,
   useInteractiveModeToggle,
   onAttachmentClick,
@@ -185,9 +183,6 @@ const FormSection = forwardRef(({
             {/* Extras Section - conditionally rendered */}
             {!hideExtrasSection && !useEditMode && (
               <FormExtrasSection
-                webSearchFeatureToggle={webSearchFeatureToggle}
-                privacyModeToggle={privacyModeToggle}
-                proModeToggle={proModeToggle}
                 interactiveModeToggle={interactiveModeToggle}
                 useInteractiveModeToggle={useInteractiveModeToggle}
                 onAttachmentClick={onAttachmentClick}
@@ -240,28 +235,7 @@ FormSection.propTypes = {
     showStatus: PropTypes.bool,
     defaultText: PropTypes.string
   }),
-  webSearchFeatureToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    isSearching: PropTypes.bool,
-    statusMessage: PropTypes.string
-  }),
-  privacyModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string
-  }),
-  proModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    description: PropTypes.string
-  }),
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
   interactiveModeToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,
