@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification, HiOutlineDocumentText } from 'react-icons/hi';
 import { NotebookIcon } from '../../../../config/icons';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -31,6 +31,7 @@ const LaborTab = ({
     CANVA: 'canva',
     CHAT: 'chat',
     SITES: 'sites',
+    INTERACTIVE_ANTRAG: 'interactiveAntrag',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -171,6 +172,16 @@ const LaborTab = ({
           featureName: 'Web-Visitenkarte',
           checkboxLabel: 'Sites-Funktion in Meine Grüneratoren aktivieren',
           icon: HiOutlineIdentification
+        };
+      case BETA_VIEWS.INTERACTIVE_ANTRAG:
+        return {
+          title: 'Interaktiver Antrag',
+          description: 'KI-gestützte Antragserstellung mit intelligenten Rückfragen. Der Assistent stellt dir gezielte Fragen zu deinem Anliegen und erstellt einen maßgeschneiderten Antrag basierend auf deinen Antworten.',
+          checked: getBetaFeatureState('interactiveAntrag'),
+          setter: (value) => updateUserBetaFeatures('interactiveAntrag', value),
+          featureName: 'Interaktiver Antrag',
+          checkboxLabel: 'Interaktiven Antrag-Modus in Anträgen aktivieren',
+          icon: HiOutlineDocumentText
         };
       default:
         return null;

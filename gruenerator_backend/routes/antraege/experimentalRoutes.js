@@ -17,6 +17,7 @@ const {
 const {
   getExperimentalSession
 } = require('../../services/chatMemoryService');
+const { getPostgresService } = require('../../database/index.js');
 
 // Request logger middleware
 router.use((req, res, next) => {
@@ -33,6 +34,65 @@ router.use((req, res, next) => {
 
   next();
 });
+
+/**
+ * Middleware to check if user has interactive antrag beta feature enabled
+ */
+async function requireInteractiveAntragBeta(req, res, next) {
+  const reqId = req._reqId || 'UNKNOWN';
+
+  try {
+    if (!req.user || !req.user.id) {
+      console.warn(`[experimental][${reqId}] Beta check failed: No user in request`);
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'You must be logged in to access this feature'
+      });
+    }
+
+    const db = getPostgresService();
+
+    if (!db || !db.pool) {
+      console.error(`[experimental][${reqId}] Database not available for beta feature check`);
+      return res.status(503).json({
+        error: 'Service temporarily unavailable',
+        message: 'Database connection not available'
+      });
+    }
+
+    const result = await db.pool.query(
+      'SELECT interactive_antrag_enabled FROM profiles WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (!result.rows || result.rows.length === 0) {
+      console.warn(`[experimental][${reqId}] User profile not found: ${req.user.id}`);
+      return res.status(404).json({
+        error: 'Profile not found',
+        message: 'User profile does not exist'
+      });
+    }
+
+    const isEnabled = result.rows[0].interactive_antrag_enabled;
+
+    if (!isEnabled) {
+      console.log(`[experimental][${reqId}] Interactive antrag beta feature not enabled for user ${req.user.id}`);
+      return res.status(403).json({
+        error: 'Feature not enabled',
+        message: 'Der interaktive Antrag-Modus ist für deinen Account nicht aktiviert. Bitte aktiviere das Feature im Labor-Tab deines Profils.'
+      });
+    }
+
+    console.log(`[experimental][${reqId}] Interactive antrag beta feature check passed for user ${req.user.id}`);
+    next();
+  } catch (error) {
+    console.error(`[experimental][${reqId}] Error checking beta feature:`, error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'Failed to verify beta feature access'
+    });
+  }
+}
 
 /**
  * POST /antraege/experimental/initiate
@@ -69,7 +129,7 @@ router.use((req, res, next) => {
  *   }
  * }
  */
-router.post('/initiate', requireAuth, async (req, res) => {
+router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, res) => {
   const reqId = req._reqId || 'UNKNOWN';
 
   try {
@@ -202,7 +262,7 @@ router.post('/initiate', requireAuth, async (req, res) => {
  *   }
  * }
  */
-router.post('/continue', requireAuth, async (req, res) => {
+router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, res) => {
   const reqId = req._reqId || 'UNKNOWN';
 
   try {
@@ -311,7 +371,7 @@ router.post('/continue', requireAuth, async (req, res) => {
  *   }
  * }
  */
-router.get('/status/:sessionId', requireAuth, async (req, res) => {
+router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, async (req, res) => {
   const reqId = req._reqId || 'UNKNOWN';
 
   try {

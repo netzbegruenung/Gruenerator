@@ -1,4 +1,5 @@
 .feature-icons {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xsmall);
@@ -198,22 +199,18 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  max-height: 0;
+  max-height: 500px;
   overflow: hidden;
-  opacity: 0;
-  transition: max-height 0.3s ease, opacity 0.2s ease, margin-top 0.3s ease;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
   background-color: var(--background-color);
-  margin-top: calc(-1 * var(--spacing-xsmall));
-  margin-left: calc(-1 * var(--spacing-xsmall));
-  margin-right: calc(-1 * var(--spacing-xsmall));
+  border: 1px solid var(--font-color);
+  border-top: none;
+  border-radius: 0 0 var(--card-border-radius-small) var(--card-border-radius-small);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .balanced-dropdown-inline.open {
-  max-height: none;
-  opacity: 1;
-  margin-top: var(--spacing-small);
-  margin-bottom: calc(-1 * var(--spacing-xsmall));
-  padding-bottom: 0;
+  max-height: 500px;
 }
 
 .balanced-dropdown-item {
@@ -287,6 +284,7 @@
 /* Dark mode adjustments for inline dropdowns */
 [data-theme="dark"] .balanced-dropdown-inline {
   background-color: var(--grey-800);
+  border-color: var(--grey-600);
 }
 
 [data-theme="dark"] .balanced-dropdown-item {
@@ -351,22 +349,22 @@
 
 /* Inline Content Dropdown */
 .content-dropdown-inline {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-height 0.3s ease, opacity 0.2s ease, margin-top 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  max-height: 600px;
+  overflow-y: auto;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
   background-color: var(--background-color);
-  margin-top: calc(-1 * var(--spacing-xsmall));
-  margin-left: calc(-1 * var(--spacing-xsmall));
-  margin-right: calc(-1 * var(--spacing-xsmall));
+  border: 1px solid var(--font-color);
+  border-top: none;
+  border-radius: 0 0 var(--card-border-radius-small) var(--card-border-radius-small);
+  padding: var(--spacing-xsmall);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .content-dropdown-inline.open {
-  max-height: none;
-  opacity: 1;
-  margin-top: var(--spacing-small);
+  max-height: 600px;
   padding: var(--spacing-xsmall);
-  overflow-y: visible;
 }
 
 .content-dropdown-item {
@@ -440,6 +438,7 @@
 
 [data-theme="dark"] .content-dropdown-inline {
   background-color: var(--grey-800);
+  border-color: var(--grey-600);
 }
 
 [data-theme="dark"] .content-dropdown-item--file-upload:hover {
@@ -477,11 +476,7 @@
   }
 
   .balanced-dropdown-inline.open {
-<<<<<<< HEAD
-    max-height: 400px;
-=======
     max-height: none;
->>>>>>> 64c82c5a8 (fix: Remove max-height limit from dropdown)
   }
 
   .balanced-dropdown-item {
