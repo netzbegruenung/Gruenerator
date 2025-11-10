@@ -23,25 +23,21 @@ const EnhancedKnowledgeSelector = ({
   tabIndex,
   disableMenuPortal = false
 }) => {
-  const {
-    availableKnowledge,
-    selectedKnowledgeIds,
-    toggleSelection,
-    // Document state
-    selectedDocumentIds,
-    toggleDocumentSelection,
-    isExtractingDocumentContent,
-    documentExtractionInfo,
-    isLoadingDocuments,
-    // Text state
-    availableTexts,
-    selectedTextIds,
-    isLoadingTexts,
-    toggleTextSelection,
-    fetchTexts,
-    // UI Configuration
-    uiConfig
-  } = useGeneratorKnowledgeStore();
+  // Use selective subscriptions for better performance
+  const availableKnowledge = useGeneratorKnowledgeStore(state => state.availableKnowledge);
+  const selectedKnowledgeIds = useGeneratorKnowledgeStore(state => state.selectedKnowledgeIds);
+  const toggleSelection = useGeneratorKnowledgeStore(state => state.toggleSelection);
+  const selectedDocumentIds = useGeneratorKnowledgeStore(state => state.selectedDocumentIds);
+  const toggleDocumentSelection = useGeneratorKnowledgeStore(state => state.toggleDocumentSelection);
+  const isExtractingDocumentContent = useGeneratorKnowledgeStore(state => state.isExtractingDocumentContent);
+  const documentExtractionInfo = useGeneratorKnowledgeStore(state => state.documentExtractionInfo);
+  const isLoadingDocuments = useGeneratorKnowledgeStore(state => state.isLoadingDocuments);
+  const availableTexts = useGeneratorKnowledgeStore(state => state.availableTexts);
+  const selectedTextIds = useGeneratorKnowledgeStore(state => state.selectedTextIds);
+  const isLoadingTexts = useGeneratorKnowledgeStore(state => state.isLoadingTexts);
+  const toggleTextSelection = useGeneratorKnowledgeStore(state => state.toggleTextSelection);
+  const fetchTexts = useGeneratorKnowledgeStore(state => state.fetchTexts);
+  const uiConfig = useGeneratorKnowledgeStore(state => state.uiConfig);
 
   // Extract UI config values for cleaner code
   const {
@@ -79,9 +75,7 @@ const EnhancedKnowledgeSelector = ({
   }, [isLoadingAllGroups, isLoadingTexts, isLoadingDocuments]);
 
   // Get documents from generatorKnowledgeStore (now properly synced by useKnowledge)
-  const {
-    availableDocuments: documentsFromKnowledgeStore
-  } = useGeneratorKnowledgeStore();
+  const documentsFromKnowledgeStore = useGeneratorKnowledgeStore(state => state.availableDocuments);
 
   // Use documents from the knowledge store which are synced from documentsStore
   const documentsStoreData = documentsFromKnowledgeStore;
@@ -501,53 +495,13 @@ const FeatureIcons = ({
   onWebSearchInfoClick,
   instructionType = null
 }) => {
-  // Debug configuration for toggle issue investigation
-  const DEBUG_TOGGLES = {
-    enabled: true,           // Master switch
-    logClicks: true,         // Button click events
-    logStoreUpdates: false,  // Store state changes (handled in store)
-    logDropdown: true,       // Dropdown open/close
-    logRenders: true,        // Component re-renders
-    logTiming: true          // Timestamp deltas
-  };
-
-  // Debug logger utility with timestamps and grouped output
-  const createDebugLogger = (category) => {
-    if (!DEBUG_TOGGLES.enabled) return () => {};
-
-    let lastTimestamp = performance.now();
-
-    return (message, data = {}) => {
-      const now = performance.now();
-      const delta = (now - lastTimestamp).toFixed(2);
-
-      console.groupCollapsed(
-        `%c[${category}] %c${message} %c(+${delta}ms)`,
-        'color: #4CAF50; font-weight: bold',
-        'color: #2196F3',
-        'color: #999; font-size: 0.9em'
-      );
-
-      if (Object.keys(data).length > 0) {
-        console.table(data);
-      }
-
-      console.trace('Stack trace');
-      console.groupEnd();
-
-      lastTimestamp = now;
-    };
-  };
-
-  // Use store for feature toggles instead of props
-  const {
-    useWebSearch,
-    usePrivacyMode,
-    useProMode,
-    toggleWebSearch,
-    togglePrivacyMode,
-    toggleProMode,
-  } = useGeneratorKnowledgeStore();
+  // Use store for feature toggles with selective subscriptions
+  const useWebSearch = useGeneratorKnowledgeStore(state => state.useWebSearch);
+  const usePrivacyMode = useGeneratorKnowledgeStore(state => state.usePrivacyMode);
+  const useProMode = useGeneratorKnowledgeStore(state => state.useProMode);
+  const toggleWebSearch = useGeneratorKnowledgeStore(state => state.toggleWebSearch);
+  const togglePrivacyMode = useGeneratorKnowledgeStore(state => state.togglePrivacyMode);
+  const toggleProMode = useGeneratorKnowledgeStore(state => state.toggleProMode);
   const [clickedIcon, setClickedIcon] = useState(null);
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState(null);
@@ -566,13 +520,11 @@ const FeatureIcons = ({
   // Get user authentication
   const { user } = useAuth();
 
-  // Connect to knowledge store
-  const {
-    selectedKnowledgeIds,
-    selectedDocumentIds,
-    selectedTextIds,
-    instructionType: storeInstructionType
-  } = useGeneratorKnowledgeStore();
+  // Connect to knowledge store with selective subscriptions
+  const selectedKnowledgeIds = useGeneratorKnowledgeStore(state => state.selectedKnowledgeIds);
+  const selectedDocumentIds = useGeneratorKnowledgeStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorKnowledgeStore(state => state.selectedTextIds);
+  const storeInstructionType = useGeneratorKnowledgeStore(state => state.instructionType);
 
   // Use instruction type from prop or store
   const finalInstructionType = instructionType || storeInstructionType;
@@ -608,19 +560,6 @@ const FeatureIcons = ({
       return dropdownName;
     });
   }, []);
-
-  // Debug: Track component re-renders
-  useEffect(() => {
-    if (DEBUG_TOGGLES.logRenders) {
-      const logger = createDebugLogger('RENDER');
-      logger('FeatureIcons re-rendered', {
-        'Privacy Mode': usePrivacyMode,
-        'Pro Mode': useProMode,
-        'Active Dropdown': activeDropdown || 'none',
-        'Clicked Icon': clickedIcon || 'none'
-      });
-    }
-  }, [usePrivacyMode, useProMode, activeDropdown, clickedIcon]);
 
   // Re-validate files when privacy mode changes
   const revalidateFilesForPrivacyMode = useCallback(() => {
@@ -891,38 +830,10 @@ const FeatureIcons = ({
         <button
           className={`balanced-dropdown-item ${usePrivacyMode ? 'active' : ''}`}
           onClick={(event) => {
-            const logger = createDebugLogger('PRIVACY_CLICK');
-
-            if (DEBUG_TOGGLES.logClicks) {
-              logger('Privacy button clicked', {
-                'Current Privacy': usePrivacyMode,
-                'Current Pro': useProMode,
-                'Dropdown': activeDropdown,
-                'Event Type': event.type
-              });
-            }
-
             event.stopPropagation();
-
             handleIconClick(event, 'privacy', () => {
-              if (DEBUG_TOGGLES.logClicks) {
-                logger('Privacy callback executing', {
-                  'Before Toggle': usePrivacyMode,
-                  'Will Close Dropdown': true
-                });
-              }
-
               togglePrivacyMode();
-
-              if (DEBUG_TOGGLES.logClicks) {
-                logger('After togglePrivacyMode() call');
-              }
-
               setActiveDropdown(null);
-
-              if (DEBUG_TOGGLES.logClicks) {
-                logger('Dropdown closed');
-              }
             });
           }}
           type="button"
@@ -937,38 +848,10 @@ const FeatureIcons = ({
         <button
           className={`balanced-dropdown-item ${useProMode ? 'active' : ''}`}
           onClick={(event) => {
-            const logger = createDebugLogger('PRO_CLICK');
-
-            if (DEBUG_TOGGLES.logClicks) {
-              logger('Pro button clicked', {
-                'Current Privacy': usePrivacyMode,
-                'Current Pro': useProMode,
-                'Dropdown': activeDropdown,
-                'Event Type': event.type
-              });
-            }
-
             event.stopPropagation();
-
             handleIconClick(event, 'pro', () => {
-              if (DEBUG_TOGGLES.logClicks) {
-                logger('Pro callback executing', {
-                  'Before Toggle': useProMode,
-                  'Will Close Dropdown': true
-                });
-              }
-
               toggleProMode();
-
-              if (DEBUG_TOGGLES.logClicks) {
-                logger('After toggleProMode() call');
-              }
-
               setActiveDropdown(null);
-
-              if (DEBUG_TOGGLES.logClicks) {
-                logger('Dropdown closed');
-              }
             });
           }}
           type="button"
