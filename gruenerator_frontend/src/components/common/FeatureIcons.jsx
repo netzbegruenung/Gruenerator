@@ -12,6 +12,7 @@ import { useGroups, useAllGroupsContent } from '../../features/groups/hooks/useG
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { useDocumentsStore } from '../../stores/documentsStore';
 import EnhancedSelect from './EnhancedSelect';
+import DropdownPortal from './DropdownPortal';
 
 /**
  * EnhancedKnowledgeSelector - Unified knowledge selector for all sources with React Portal
@@ -860,7 +861,13 @@ const FeatureIcons = ({
       </div>
 
       {/* Inline Balanced Mode Dropdown */}
-      <div className={`balanced-dropdown-inline ${activeDropdown === 'balanced' ? 'open' : ''}`}>
+      <DropdownPortal
+        triggerRef={balancedContainerRef}
+        isOpen={activeDropdown === 'balanced'}
+        onClose={() => setActiveDropdown(null)}
+        className="balanced-dropdown-inline open"
+        width="trigger"
+      >
         <button
           className={`balanced-dropdown-item ${!usePrivacyMode && !useProMode ? 'active' : ''}`}
           onClick={(event) => handleIconClick(event, 'balanced', () => {
@@ -970,13 +977,15 @@ const FeatureIcons = ({
             <span className="balanced-dropdown-desc">Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte.</span>
           </div>
         </button>
-      </div>
+      </DropdownPortal>
 
       {/* Inline Content Dropdown */}
-      <div
-        ref={contentDropdownRef}
-        className={`content-dropdown-inline ${activeDropdown === 'content' ? 'open' : ''}`}
-        onMouseDown={(e) => e.stopPropagation()}
+      <DropdownPortal
+        triggerRef={contentContainerRef}
+        isOpen={activeDropdown === 'content'}
+        onClose={() => setActiveDropdown(null)}
+        className="content-dropdown-inline open"
+        width="trigger"
       >
         <button
           className="content-dropdown-item content-dropdown-item--file-upload"
@@ -1003,7 +1012,7 @@ const FeatureIcons = ({
             />
           </div>
         </div>
-      </div>
+      </DropdownPortal>
 
       {showWebSearchInfoLink && (
         <div className="feature-icons__websearch-info" role="status" aria-live="polite">

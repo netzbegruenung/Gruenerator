@@ -14,6 +14,7 @@ import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowle
 import useKnowledge from '../../../components/hooks/useKnowledge';
 import { useLazyAuth } from '../../../hooks/useAuth';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
@@ -50,6 +51,10 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   useLazyAuth(); // Establish cached auth state for useKnowledge
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+
+  // Beta features check
+  const { canAccessBetaFeature } = useBetaFeatures();
+  const interactiveAntragEnabled = canAccessBetaFeature('interactiveAntrag');
 
   // State for request type - moved outside of form control
   const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
@@ -119,7 +124,19 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       setValue('gliederung', instructions.antragGliederung);
     }
   }, [instructions?.antragGliederung, source.type, setValue]);
-  
+
+  // Disable interactive mode if beta feature is disabled
+  useEffect(() => {
+    if (!interactiveAntragEnabled && useInteractiveMode) {
+      setUseInteractiveMode(false);
+      setInteractiveState('initial');
+      setSessionId(null);
+      setQuestions([]);
+      setCurrentAnswers({});
+      setQuestionRound(0);
+    }
+  }, [interactiveAntragEnabled, useInteractiveMode]);
+
   // Create form notice
   const formNotice = createKnowledgeFormNotice({
     source,
@@ -377,7 +394,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         </>
       )}
 
-      {useInteractiveMode && interactiveState === 'questions' && (
+      {interactiveAntragEnabled && useInteractiveMode && interactiveState === 'questions' && (
         <QuestionAnswerSection
           questions={questions}
           answers={currentAnswers}
@@ -396,7 +413,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
   // Feature toggle objects removed - web search, privacy, and pro mode now use store
 
-  const interactiveModeToggle = {
+  // Interactive mode toggle - only available if beta feature is enabled
+  const interactiveModeToggle = interactiveAntragEnabled ? {
     isActive: useInteractiveMode,
     onToggle: (checked) => {
       setUseInteractiveMode(checked);
@@ -412,7 +430,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     label: "Interaktiver Modus",
     icon: HiChatAlt2,
     description: "KI stellt Verständnisfragen vor der Generierung"
-  };
+  } : null;
 
   // Compute submit button text based on interactive state
   const computedSubmitButtonProps = useMemo(() => {
@@ -457,7 +475,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           enableDocumentSelector={true}
           helpContent={helpContent}
           interactiveModeToggle={interactiveModeToggle}
-          useInteractiveModeToggle={true}
+          useInteractiveModeToggle={interactiveAntragEnabled}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}

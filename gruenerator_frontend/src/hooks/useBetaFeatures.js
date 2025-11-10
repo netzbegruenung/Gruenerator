@@ -16,6 +16,7 @@ const BETA_FEATURES_CONFIG = [
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
   { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true },
+  { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },

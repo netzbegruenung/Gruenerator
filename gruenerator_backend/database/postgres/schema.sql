@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
+    interactive_antrag_enabled BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
     document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
