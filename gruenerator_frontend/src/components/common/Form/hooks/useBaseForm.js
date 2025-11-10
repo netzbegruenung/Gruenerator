@@ -345,7 +345,8 @@ const useBaseForm = ({
           ...rhfData,
           useWebSearchTool: rhfData.useWebSearchTool,
           usePrivacyMode: rhfData.usePrivacyMode,
-          useBedrock: rhfData.useProMode,
+          useProMode: rhfData.useProMode,
+          useBedrock: false,
           attachments: processedAttachments
         };
 

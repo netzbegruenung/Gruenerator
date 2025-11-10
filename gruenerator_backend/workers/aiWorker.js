@@ -94,12 +94,13 @@ async function processAIRequest(requestId, data) {
     metadata: requestMetadata,
     env: process.env
   });
-  let effectiveOptions = { ...options, provider: selection.provider, model: selection.model, useBedrock: !!selection.useBedrock };
+  let effectiveOptions = { ...options, provider: selection.provider, model: selection.model, useProMode: !!options.useProMode, useBedrock: !!selection.useBedrock };
 
   // Log provider selection and temperature settings
   console.log(`[AI Worker ${requestId}] Provider selection:`, {
     selectedProvider: selection.provider,
     selectedModel: selection.model,
+    useProMode: !!effectiveOptions.useProMode,
     useBedrock: !!selection.useBedrock,
     temperature: effectiveOptions.temperature || 'default',
     explicitProvider: data.provider || 'none'
@@ -122,11 +123,15 @@ async function processAIRequest(requestId, data) {
       result = await providers.executeProvider(explicitProvider, requestId, { ...data, options: effectiveOptions });
     }
 
-    // Default logic refactor: prefer Mistral by default; use Claude only when explicitly chosen; Bedrock only when enabled by flow/options.
+    // Default logic refactor: prefer Mistral by default; use Claude only when explicitly chosen; Pro Mode uses Magistral; Bedrock only when enabled by flow/options.
     if (!result && explicitProvider === 'claude') {
       console.log(`[AI Worker ${requestId}] Using Claude provider with temperature: ${effectiveOptions.temperature || 'default'}`);
       sendProgress(requestId, 15);
       result = await providers.executeProvider('claude', requestId, { ...data, options: effectiveOptions });
+    } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
+      console.log(`[AI Worker ${requestId}] Using Pro Mode (Magistral) provider with temperature: ${effectiveOptions.temperature || 'default'}`);
+      sendProgress(requestId, 15);
+      result = await providers.executeProvider('mistral', requestId, { ...data, options: effectiveOptions });
     } else if (!result && effectiveOptions.useBedrock === true && !explicitProvider) {
       console.log(`[AI Worker ${requestId}] Using Bedrock provider with temperature: ${effectiveOptions.temperature || 'default'}`);
       sendProgress(requestId, 15);

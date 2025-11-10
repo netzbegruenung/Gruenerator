@@ -314,7 +314,8 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     return {
       useWebSearchTool: state.useWebSearch,
       usePrivacyMode: state.usePrivacyMode,
-      useBedrock: state.useProMode,
+      useProMode: state.useProMode,
+      useBedrock: false, // Keep for backward compatibility
     };
   },
 

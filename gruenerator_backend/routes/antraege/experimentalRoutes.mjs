@@ -7,17 +7,17 @@
  * 3. GET /status/:sessionId - Check session status and state
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { requireAuth } = require('../../middleware/authMiddleware');
-const {
+import { requireAuth } from '../../middleware/authMiddleware.js';
+import {
   initiateInteractiveAntrag,
   continueInteractiveAntrag
-} = require('../../agents/langgraph/interactiveAntragGraph.mjs');
-const {
+} from '../../agents/langgraph/interactiveAntragGraph.mjs';
+import {
   getExperimentalSession
-} = require('../../services/chatMemoryService');
-const { getPostgresService } = require('../../database/index.js');
+} from '../../services/chatMemoryService.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
 // Request logger middleware
 router.use((req, res, next) => {
@@ -50,7 +50,7 @@ async function requireInteractiveAntragBeta(req, res, next) {
       });
     }
 
-    const db = getPostgresService();
+    const db = getPostgresInstance();
 
     if (!db || !db.pool) {
       console.error(`[experimental][${reqId}] Database not available for beta feature check`);
@@ -443,4 +443,4 @@ router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, asyn
   }
 });
 
-module.exports = router;
+export default router;
