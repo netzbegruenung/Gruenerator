@@ -557,6 +557,7 @@ const FeatureIcons = ({
   const [activeDropdown, setActiveDropdown] = useState(null); // 'balanced' | 'content' | 'anweisungen' | null
 
   // Refs
+  const featureIconsRef = useRef(null);
   const balancedContainerRef = useRef(null);
   const contentContainerRef = useRef(null);
   const contentDropdownRef = useRef(null);
@@ -755,7 +756,7 @@ const FeatureIcons = ({
 
 
   return (
-    <div className={`feature-icons ${className}`}>
+    <div className={`feature-icons ${className}`} ref={featureIconsRef}>
       <div className="feature-icons-row">
         <button
           className={`feature-icon-button ${useWebSearch ? 'active' : ''} ${clickedIcon === 'webSearch' ? 'clicked' : ''}`}
@@ -866,7 +867,8 @@ const FeatureIcons = ({
         isOpen={activeDropdown === 'balanced'}
         onClose={() => setActiveDropdown(null)}
         className="balanced-dropdown-inline open"
-        width="trigger"
+        widthRef={featureIconsRef}
+        gap={8}
       >
         <button
           className={`balanced-dropdown-item ${!usePrivacyMode && !useProMode ? 'active' : ''}`}
@@ -985,7 +987,7 @@ const FeatureIcons = ({
         isOpen={activeDropdown === 'content'}
         onClose={() => setActiveDropdown(null)}
         className="content-dropdown-inline open"
-        width="trigger"
+        widthRef={featureIconsRef}
       >
         <button
           className="content-dropdown-item content-dropdown-item--file-upload"

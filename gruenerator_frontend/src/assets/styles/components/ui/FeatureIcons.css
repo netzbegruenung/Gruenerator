@@ -202,7 +202,7 @@
   max-height: 500px;
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.2s ease;
-  background-color: var(--background-color);
+  background-color: var(--card-background);
   border: 1px solid var(--font-color);
   border-top: none;
   border-radius: 0 0 var(--card-border-radius-small) var(--card-border-radius-small);
@@ -283,8 +283,7 @@
 
 /* Dark mode adjustments for inline dropdowns */
 [data-theme="dark"] .balanced-dropdown-inline {
-  background-color: var(--grey-800);
-  border-color: var(--grey-600);
+  background-color: var(--card-background);
 }
 
 [data-theme="dark"] .balanced-dropdown-item {
@@ -354,7 +353,7 @@
   max-height: 600px;
   overflow-y: auto;
   transition: max-height 0.3s ease, opacity 0.2s ease;
-  background-color: var(--background-color);
+  background-color: var(--card-background);
   border: 1px solid var(--font-color);
   border-top: none;
   border-radius: 0 0 var(--card-border-radius-small) var(--card-border-radius-small);
@@ -437,8 +436,7 @@
 }
 
 [data-theme="dark"] .content-dropdown-inline {
-  background-color: var(--grey-800);
-  border-color: var(--grey-600);
+  background-color: var(--card-background);
 }
 
 [data-theme="dark"] .content-dropdown-item--file-upload:hover {
