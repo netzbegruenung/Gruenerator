@@ -380,6 +380,11 @@ function getAIOptions(config, requestData, typeConfig = null) {
     baseOptions.useBedrock = true;
   }
 
+  // Pass useProMode flag to options
+  if (requestData.useProMode) {
+    baseOptions.useProMode = true;
+  }
+
   return baseOptions;
 }
 

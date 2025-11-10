@@ -41,11 +41,17 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   let model = options.model || 'mistral-medium-latest';
   let useBedrock = false;
 
-  // Pro mode (useBedrock flag) - routes to high-quality Bedrock model
-  if (options.useBedrock === true) {
+  // Pro mode (useProMode flag) - routes to high-quality Magistral model
+  if (options.useProMode === true) {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
+    useBedrock = false;
+  }
+  // Bedrock mode (useBedrock flag) - routes to high-quality Bedrock model
+  else if (options.useBedrock === true) {
     provider = 'bedrock';
     useBedrock = true;
-    // Use Claude 4 for Pro mode unless specific model is requested
+    // Use Claude 4 for Bedrock mode unless specific model is requested
     model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0';
   }
 

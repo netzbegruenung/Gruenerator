@@ -84,11 +84,14 @@ const useApiSubmit = (endpoint) => {
     try {
       // Derive mode flags
       const privacyMode = !!formData.usePrivacyMode;
-      const useBedrock = !!formData.useBedrock; // pro mode should set this
+      const proMode = !!formData.useProMode;
+      const useBedrock = !!formData.useBedrock;
 
       console.log(`[useApiSubmit] Input formData:`, {
+        useProMode: formData.useProMode,
         useBedrock: formData.useBedrock,
         usePrivacyMode: formData.usePrivacyMode,
+        derived_useProMode: proMode,
         derived_useBedrock: useBedrock,
         derived_privacyMode: privacyMode
       });
@@ -97,7 +100,8 @@ const useApiSubmit = (endpoint) => {
       const requestData = {
         ...formData,
         usePrivacyMode: privacyMode,
-        useBedrock: useBedrock, // Always set explicitly instead of conditional spread
+        useProMode: proMode,
+        useBedrock: useBedrock,
         onRetry: (attempt, delay) => {
           setRetryCount(attempt);
           setError(`Verbindungsprobleme. Neuer Versuch in ${Math.round(delay/1000)} Sekunden... (Versuch ${attempt}/3)`);
@@ -105,6 +109,7 @@ const useApiSubmit = (endpoint) => {
       };
 
       console.log(`[useApiSubmit] Final requestData:`, {
+        useProMode: requestData.useProMode,
         useBedrock: requestData.useBedrock,
         usePrivacyMode: requestData.usePrivacyMode,
         endpoint

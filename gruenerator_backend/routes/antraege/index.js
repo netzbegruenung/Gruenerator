@@ -9,7 +9,7 @@ const {
   // Import other needed service functions here, e.g., getAntragById, getAllAntraege
 } = require('../../services/antragService');
 const simpleAntragRouter = require('./antrag_simple'); // Import the simple generator router
-const experimentalAntragRouter = require('./experimentalRoutes'); // Import the experimental interactive generator router
+const experimentalAntragRouter = require('./experimentalRoutes.mjs').default; // Import the experimental interactive generator router (ES6 default export)
 
 /**
  * Claude-API-Router
