@@ -8,7 +8,9 @@ const DropdownPortal = ({
   onClose,
   children,
   className = '',
-  width = 'auto'
+  width = 'auto',
+  widthRef = null,
+  gap = 4
 }) => {
   const [style, setStyle] = useState({ opacity: 0 });
   const dropdownRef = useRef(null);
@@ -21,11 +23,23 @@ const DropdownPortal = ({
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     const space = 8;
-    const overlap = 1;
 
-    let top = triggerRect.bottom + window.scrollY - overlap;
+    let top = triggerRect.bottom + window.scrollY + gap;
     let left = triggerRect.left + window.scrollX;
-    const dropdownWidth = width === 'auto' ? dropdownRect.width : triggerRect.width;
+
+    // Calculate width based on widthRef if provided, otherwise use trigger
+    let dropdownWidth;
+    if (widthRef?.current) {
+      const widthRect = widthRef.current.getBoundingClientRect();
+      dropdownWidth = widthRect.width;
+      left = widthRect.left + window.scrollX;
+    } else if (width === 'trigger') {
+      dropdownWidth = triggerRect.width;
+    } else if (width === 'auto') {
+      dropdownWidth = dropdownRect.width;
+    } else {
+      dropdownWidth = parseInt(width);
+    }
 
     if (left < space) {
       left = space;
@@ -34,18 +48,18 @@ const DropdownPortal = ({
     }
 
     if (top + dropdownRect.height > windowHeight + window.scrollY - space) {
-      top = triggerRect.top + window.scrollY - dropdownRect.height + overlap;
+      top = triggerRect.top + window.scrollY - dropdownRect.height - gap;
     }
 
     setStyle({
       position: 'absolute',
       top: `${top}px`,
       left: `${left}px`,
-      width: width === 'trigger' ? `${triggerRect.width}px` : width,
+      width: widthRef?.current ? `${dropdownWidth}px` : (width === 'trigger' ? `${triggerRect.width}px` : width),
       opacity: 1,
       zIndex: 1000,
     });
-  }, [triggerRef, width]);
+  }, [triggerRef, width, widthRef, gap]);
 
   useEffect(() => {
     if (isOpen) {
@@ -108,7 +122,9 @@ DropdownPortal.propTypes = {
   width: PropTypes.oneOfType([
     PropTypes.oneOf(['auto', 'trigger']),
     PropTypes.string
-  ])
+  ]),
+  widthRef: PropTypes.object,
+  gap: PropTypes.number
 };
 
 export default DropdownPortal;
