@@ -17,6 +17,27 @@ export const truncateForPreview = (content, maxLength = 300) => {
   }
 };
 
+export const stripMarkdownForPreview = (content, maxLength = 300) => {
+  if (!content || typeof content !== 'string') return '';
+
+  let cleaned = content
+    .replace(/^#{1,6}\s+/gm, '')              // # Headers
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')    // ***bold+italic***
+    .replace(/\*\*([^*]+)\*\*/g, '$1')        // **bold**
+    .replace(/\*([^*]+)\*/g, '$1')            // *italic*
+    .replace(/__([^_]+)__/g, '$1')            // __bold__
+    .replace(/_([^_]+)_/g, '$1')              // _italic_
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // [text](url)
+    .replace(/`([^`]+)`/g, '$1')              // `code`
+    .replace(/^[-*+]\s+/gm, '')               // - list items
+    .replace(/^\d+\.\s+/gm, '')               // 1. numbered lists
+    .replace(/^>\s+/gm, '')                   // > blockquotes
+    .replace(/~~([^~]+)~~/g, '$1')            // ~~strikethrough~~
+    .trim();
+
+  return truncateForPreview(cleaned, maxLength);
+};
+
 export const formatDate = (dateString) => {
   if (!dateString) return '';
   try {
