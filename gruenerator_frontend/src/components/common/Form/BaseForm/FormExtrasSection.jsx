@@ -5,7 +5,7 @@ import FeatureIcons from '../../FeatureIcons';
 import SubmitButton from '../../SubmitButton';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useFormStateSelector } from '../FormStateProvider';
-import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
+import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
@@ -67,8 +67,8 @@ const FormExtrasSection = ({
   const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
 
   // Anweisungen state from knowledge store
-  const source = useGeneratorKnowledgeStore(state => state.source);
-  const setSource = useGeneratorKnowledgeStore(state => state.setSource);
+  const source = useGeneratorSelectionStore(state => state.source);
+  const setSource = useGeneratorSelectionStore(state => state.setSource);
   const anweisungenActive = source.type === 'user';
 
   // Anweisungen toggle handler

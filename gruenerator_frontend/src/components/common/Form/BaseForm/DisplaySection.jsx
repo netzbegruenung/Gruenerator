@@ -138,7 +138,7 @@ const DisplaySection = forwardRef(({
 
 
   const actionButtons = (
-    <ActionButtons 
+    <ActionButtons
       content={activeContent}
       isEditing={false}
       showExport={true}

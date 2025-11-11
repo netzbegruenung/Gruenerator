@@ -1,474 +1,38 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
-import '../../assets/styles/components/ui/knowledge-selector.css';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiClipboardList, HiUpload, HiCollection, HiChatAlt2 } from 'react-icons/hi';
+import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiClipboardList, HiUpload, HiChatAlt2 } from 'react-icons/hi';
 import AttachedFilesList from './AttachedFilesList';
-import { validateFilesForPrivacyMode, getPDFPageCount } from '../../utils/fileAttachmentUtils';
-import { useGeneratorKnowledgeStore } from '../../stores/core/generatorKnowledgeStore';
+import SimpleContentSelector from './SimpleContentSelector';
+import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
+import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
 import { useInstructionsStatusForType } from '../../features/auth/hooks/useInstructionsStatus';
 import { useAuth } from '../../hooks/useAuth';
-import { useGroups, useAllGroupsContent } from '../../features/groups/hooks/useGroups';
-import { useBetaFeatures } from '../../hooks/useBetaFeatures';
-import { useDocumentsStore } from '../../stores/documentsStore';
-import EnhancedSelect from './EnhancedSelect';
 import DropdownPortal from './DropdownPortal';
 
 /**
- * EnhancedKnowledgeSelector - Unified knowledge selector for all sources with React Portal
+ * ValidationBanner - Shows file upload limits only when Privacy Mode is active
  */
-const EnhancedKnowledgeSelector = ({
-  onKnowledgeSelection,
-  disabled = false,
-  tabIndex,
-  disableMenuPortal = false
-}) => {
-  // Use selective subscriptions for better performance
-  const availableKnowledge = useGeneratorKnowledgeStore(state => state.availableKnowledge);
-  const selectedKnowledgeIds = useGeneratorKnowledgeStore(state => state.selectedKnowledgeIds);
-  const toggleSelection = useGeneratorKnowledgeStore(state => state.toggleSelection);
-  const selectedDocumentIds = useGeneratorKnowledgeStore(state => state.selectedDocumentIds);
-  const toggleDocumentSelection = useGeneratorKnowledgeStore(state => state.toggleDocumentSelection);
-  const isExtractingDocumentContent = useGeneratorKnowledgeStore(state => state.isExtractingDocumentContent);
-  const documentExtractionInfo = useGeneratorKnowledgeStore(state => state.documentExtractionInfo);
-  const isLoadingDocuments = useGeneratorKnowledgeStore(state => state.isLoadingDocuments);
-  const availableTexts = useGeneratorKnowledgeStore(state => state.availableTexts);
-  const selectedTextIds = useGeneratorKnowledgeStore(state => state.selectedTextIds);
-  const isLoadingTexts = useGeneratorKnowledgeStore(state => state.isLoadingTexts);
-  const toggleTextSelection = useGeneratorKnowledgeStore(state => state.toggleTextSelection);
-  const fetchTexts = useGeneratorKnowledgeStore(state => state.fetchTexts);
-  const uiConfig = useGeneratorKnowledgeStore(state => state.uiConfig);
-
-  // Extract UI config values for cleaner code
-  const {
-    enableKnowledge = false,
-    enableDocuments = false,
-    enableTexts = false
-  } = uiConfig;
-
-  // Get user groups and authentication
-  const {
-    userGroups: groups
-  } = useGroups();
-
-  const { user } = useAuth();
-
-  // Load content from all groups using the new hook
-  const {
-    allGroupContent,
-    groupContentErrors,
-    hasGroupErrors,
-    isLoadingAllGroupsContent,
-    isErrorAllGroupsContent,
-    errorAllGroupsContent
-  } = useAllGroupsContent({
-    isActive: true,
-    enabled: true // Always load group content
-  });
-
-  // For backwards compatibility, alias the loading state
-  const isLoadingAllGroups = isLoadingAllGroupsContent;
-
-  // Derived state: Combined loading state for all content sources
-  const isLoadingAnyContent = useMemo(() => {
-    return isLoadingAllGroups || isLoadingTexts || isLoadingDocuments;
-  }, [isLoadingAllGroups, isLoadingTexts, isLoadingDocuments]);
-
-  // Get documents from generatorKnowledgeStore (now properly synced by useKnowledge)
-  const documentsFromKnowledgeStore = useGeneratorKnowledgeStore(state => state.availableDocuments);
-
-  // Use documents from the knowledge store which are synced from documentsStore
-  const documentsStoreData = documentsFromKnowledgeStore;
-
-  useEffect(() => {
-    if (enableTexts) {
-      fetchTexts();
-    }
-  }, [enableTexts, fetchTexts]);
-
-  // State for current search term to trigger re-sorting
-  const [currentSearchTerm, setCurrentSearchTerm] = useState('');
-
-  // Helper function to truncate long titles
-  const truncateTitle = useCallback((title, maxLength = 80) => {
-    if (!title || title.length <= maxLength) return title;
-    return title.substring(0, maxLength) + '...';
-  }, []);
-
-  // Relevance scoring function for search ranking
-  const calculateRelevanceScore = useCallback((option, searchTerm) => {
-    if (!searchTerm) return 0;
-
-    const title = option.label.toLowerCase();
-    const content = option.searchableContent || '';
-    const searchTermLower = searchTerm.toLowerCase();
-
-    let score = 0;
-
-    // 1. Exact title match (highest priority)
-    if (title === searchTermLower) {
-      score += 100;
-    }
-    // 2. Title starts with search term
-    else if (title.startsWith(searchTermLower)) {
-      score += 80;
-    }
-    // 3. Title contains search term
-    else if (title.includes(searchTermLower)) {
-      score += 50;
-    }
-
-    // 4. Content frequency scoring
-    const occurrences = (content.match(new RegExp(searchTermLower, 'g')) || []).length;
-    score += Math.min(occurrences * 5, 25); // Max 25 points for frequency
-
-    // 5. Position scoring (earlier occurrence = higher score)
-    const firstIndex = content.indexOf(searchTermLower);
-    if (firstIndex !== -1) {
-      const positionScore = Math.max(10 - (firstIndex / content.length) * 10, 1);
-      score += positionScore;
-    }
-
-    // 6. Content type priority
-    if (option.itemType === 'knowledge') score += 10;
-    else if (option.itemType === 'text') score += 5;
-    // documents get no bonus (lowest priority)
-
-    // 7. Multi-word search support
-    const searchWords = searchTermLower.split(' ').filter(word => word.length > 1);
-    if (searchWords.length > 1) {
-      const wordMatches = searchWords.filter(word => content.includes(word)).length;
-      score += (wordMatches / searchWords.length) * 15; // Bonus for multi-word matches
-    }
-
-    return score;
-  }, []);
-
-  // Helper function to highlight search terms in text
-  const highlightSearchTerm = useCallback((text, searchTerm) => {
-    if (!searchTerm || !searchTerm.trim()) return text;
-
-    const terms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 0);
-    let highlightedText = text;
-
-    terms.forEach(term => {
-      const regex = new RegExp(`(${term})`, 'gi');
-      highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
-    });
-
-    return highlightedText;
-  }, []);
-
-  // Unified options from all sources (user + all groups)
-  const allKnowledgeOptions = useMemo(() => {
-    const allOptions = [];
-
-    // User knowledge
-    if (enableKnowledge && availableKnowledge.length > 0) {
-      const userKnowledgeItems = availableKnowledge.map(item => ({
-        value: `knowledge_${item.id}`,
-        label: truncateTitle(item.title),
-        iconType: item.type || 'knowledge',
-        tag: { label: 'Mein Profil', variant: 'user' },
-        itemType: 'knowledge',
-        originalId: item.id,
-        sourceType: 'user',
-        searchableContent: `${item.title} ${item.content || ''}`.toLowerCase(),
-        created_at: item.created_at || null
-      }));
-      allOptions.push(...userKnowledgeItems);
-    }
-
-    // User documents
-    if (enableDocuments && documentsStoreData.length > 0) {
-      const userDocumentItems = documentsStoreData
-        .filter(doc => doc.status === 'completed')
-        .map(doc => ({
-          value: `document_${doc.id}`,
-          label: truncateTitle(doc.title),
-          iconType: 'user_document',
-          tag: { label: 'Mein Profil', variant: 'user' },
-          itemType: 'document',
-          originalId: doc.id,
-          sourceType: 'user',
-          searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
-          created_at: doc.created_at || null
-        }));
-      allOptions.push(...userDocumentItems);
-    }
-
-    // User texts
-    if (enableTexts && availableTexts.length > 0) {
-      const userTextItems = availableTexts.map(text => ({
-        value: `text_${text.id}`,
-        label: truncateTitle(text.title),
-        iconType: 'user_text',
-        tag: { label: 'Mein Profil', variant: 'user' },
-        itemType: 'text',
-        originalId: text.id,
-        sourceType: 'user',
-        searchableContent: `${text.title} ${text.type || ''} ${text.full_content || text.content || ''}`.toLowerCase(),
-        created_at: text.created_at || null
-      }));
-      allOptions.push(...userTextItems);
-    }
-
-    // Group content from all groups
-    if (allGroupContent.length > 0) {
-      const groupItems = allGroupContent.map(item => {
-        const baseItem = {
-          originalId: item.id,
-          sourceType: 'group',
-          tag: { label: item.groupName, variant: 'group' },
-          created_at: item.created_at || null
-        };
-
-        // Determine item type and create appropriate option
-        if (item.type === 'knowledge' || (!item.filename && !item.full_content)) {
-          return {
-            ...baseItem,
-            value: `group_knowledge_${item.id}`,
-            label: truncateTitle(item.title),
-            iconType: 'group_knowledge',
-            itemType: 'knowledge',
-            searchableContent: `${item.title} ${item.content || ''}`.toLowerCase()
-          };
-        } else if (item.filename || item.ocr_text) {
-          return {
-            ...baseItem,
-            value: `group_document_${item.id}`,
-            label: truncateTitle(item.title),
-            iconType: 'group_document',
-            itemType: 'document',
-            searchableContent: `${item.title} ${item.filename || ''} ${item.ocr_text || ''}`.toLowerCase()
-          };
-        } else {
-          return {
-            ...baseItem,
-            value: `group_text_${item.id}`,
-            label: truncateTitle(item.title),
-            iconType: 'group_text',
-            itemType: 'text',
-            searchableContent: `${item.title} ${item.type || ''} ${item.full_content || item.content || ''}`.toLowerCase()
-          };
-        }
-      });
-      allOptions.push(...groupItems);
-    }
-
-    return allOptions;
-  }, [enableKnowledge, enableDocuments, enableTexts, availableKnowledge, documentsStoreData, availableTexts, allGroupContent, truncateTitle]);
-
-  // Sorted and filtered options based on current search term
-  const knowledgeOptions = useMemo(() => {
-    if (!currentSearchTerm || currentSearchTerm.trim() === '') {
-      // No search term - return all options sorted with knowledge items first
-      return allKnowledgeOptions.sort((a, b) => {
-        // Primary sort: knowledge items first (user knowledge, then group knowledge)
-        const getPriority = (item) => {
-          if (item.sourceType === 'user' && item.itemType === 'knowledge') return 0;
-          if (item.sourceType === 'group' && item.itemType === 'knowledge') return 1;
-          if (item.sourceType === 'user' && item.itemType === 'text') return 2;
-          if (item.sourceType === 'group' && item.itemType === 'text') return 3;
-          if (item.sourceType === 'user' && item.itemType === 'document') return 4;
-          if (item.sourceType === 'group' && item.itemType === 'document') return 5;
-          return 6; // fallback
-        };
-
-        const priorityDiff = getPriority(a) - getPriority(b);
-        if (priorityDiff !== 0) return priorityDiff;
-
-        // Secondary sort: recency (newer first)
-        const aDate = new Date(a.created_at || 0);
-        const bDate = new Date(b.created_at || 0);
-        return bDate - aDate;
-      });
-    }
-
-    const searchTerm = currentSearchTerm.trim();
-
-    // Score and filter options
-    const scoredOptions = allKnowledgeOptions
-      .map(option => ({
-        ...option,
-        relevanceScore: calculateRelevanceScore(option, searchTerm)
-      }))
-      .filter(option => option.relevanceScore > 0) // Only show items with matches
-      .sort((a, b) => b.relevanceScore - a.relevanceScore); // Sort by relevance score (highest first)
-
-    return scoredOptions;
-  }, [allKnowledgeOptions, currentSearchTerm, calculateRelevanceScore]);
-
-
-  const handleKnowledgeChange = useCallback((selectedOptions) => {
-    const newSelectedValues = selectedOptions ? selectedOptions.map(option => option.value) : [];
-
-    // Separate different types of selections (including group content)
-    const newKnowledgeIds = newSelectedValues
-      .filter(value => value.startsWith('knowledge_') || value.startsWith('group_knowledge_'))
-      .map(value => value.replace(/^(knowledge_|group_knowledge_)/, ''));
-    const newDocumentIds = newSelectedValues
-      .filter(value => value.startsWith('document_') || value.startsWith('group_document_'))
-      .map(value => value.replace(/^(document_|group_document_)/, ''));
-    const newTextIds = newSelectedValues
-      .filter(value => value.startsWith('text_') || value.startsWith('group_text_'))
-      .map(value => value.replace(/^(text_|group_text_)/, ''));
-
-    // Handle knowledge changes (user + group)
-    const addedKnowledgeIds = newKnowledgeIds.filter(id => !selectedKnowledgeIds.includes(id));
-    const removedKnowledgeIds = selectedKnowledgeIds.filter(id => !newKnowledgeIds.includes(id));
-
-    addedKnowledgeIds.forEach(knowledgeId => {
-      // Try to find in user knowledge first, then in group content
-      let selectedItem = availableKnowledge.find(item => item.id === knowledgeId);
-      if (!selectedItem) {
-        selectedItem = allGroupContent.find(item => item.id === knowledgeId);
-      }
-
-      if (selectedItem) {
-        toggleSelection(knowledgeId);
-        if (onKnowledgeSelection) {
-          onKnowledgeSelection(selectedItem);
-        }
-      }
-    });
-
-    removedKnowledgeIds.forEach(knowledgeId => {
-      toggleSelection(knowledgeId);
-    });
-
-    // Handle document changes (user + group)
-    const addedDocumentIds = newDocumentIds.filter(id => !selectedDocumentIds.includes(id));
-    const removedDocumentIds = selectedDocumentIds.filter(id => !newDocumentIds.includes(id));
-
-    [...addedDocumentIds, ...removedDocumentIds].forEach(documentId => {
-      toggleDocumentSelection(documentId);
-    });
-
-    // Handle text changes (user + group)
-    const addedTextIds = newTextIds.filter(id => !selectedTextIds.includes(id));
-    const removedTextIds = selectedTextIds.filter(id => !newTextIds.includes(id));
-
-    [...addedTextIds, ...removedTextIds].forEach(textId => {
-      toggleTextSelection(textId);
-    });
-  }, [selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, availableKnowledge, allGroupContent, toggleSelection, toggleDocumentSelection, toggleTextSelection, onKnowledgeSelection]);
-
-  // Hide component if user is not authenticated
-  if (!user) {
-    return null;
-  }
-
-  // Only hide component if no functionality is enabled
-  const hasAnyFeatureEnabled = enableKnowledge || enableDocuments || enableTexts;
-
-  if (!hasAnyFeatureEnabled) {
+const ValidationBanner = ({ usePrivacyMode }) => {
+  // Only show banner when Privacy Mode is active (has restrictions)
+  if (!usePrivacyMode) {
     return null;
   }
 
   return (
-    <div className="enhanced-knowledge-selector">
-      <EnhancedSelect
-        label=""
-        inputId="enhanced-knowledge-select"
-        classNamePrefix="enhanced-knowledge-select"
-        className="enhanced-knowledge-select"
-        enableTags={true}
-        enableIcons={true}
-        enableSubtitles={false}
-        isMulti
-        options={knowledgeOptions}
-        placeholder={"Aus­wählen"}
-        isDisabled={disabled}
-        filterOption={() => true}
-        onInputChange={(inputValue) => {
-          setCurrentSearchTerm(inputValue);
-        }}
-        value={[
-          ...selectedKnowledgeIds.map(id =>
-            allKnowledgeOptions.find(option =>
-              option.value === `knowledge_${id}` || option.value === `group_knowledge_${id}`
-            )
-          ).filter(Boolean),
-          ...selectedDocumentIds.map(id =>
-            allKnowledgeOptions.find(option =>
-              option.value === `document_${id}` || option.value === `group_document_${id}`
-            )
-          ).filter(Boolean),
-          ...selectedTextIds.map(id =>
-            allKnowledgeOptions.find(option =>
-              option.value === `text_${id}` || option.value === `group_text_${id}`
-            )
-          ).filter(Boolean)
-        ]}
-        onChange={handleKnowledgeChange}
-        closeMenuOnSelect={false}
-        hideSelectedOptions={true}
-        isClearable={false}
-        isSearchable={true}
-        blurInputOnSelect={true}
-        openMenuOnFocus={false}
-        tabSelectsValue={true}
-        captureMenuScroll={false}
-        menuShouldBlockScroll={false}
-        menuShouldScrollIntoView={false}
-        menuPortalTarget={disableMenuPortal ? null : document.body}
-        menuPosition={disableMenuPortal ? "absolute" : "fixed"}
-        tabIndex={tabIndex}
-        noOptionsMessage={() => {
-          if (currentSearchTerm && currentSearchTerm.trim()) {
-            return `Keine Ergebnisse für "${currentSearchTerm}"`;
-          }
-          if (isLoadingAnyContent) {
-            return 'Lade verfügbare Inhalte...';
-          }
-          if (hasGroupErrors) {
-            return 'Fehler beim Laden einiger Gruppeninhalte';
-          }
-          return 'Keine Inhalte verfügbar. Erstelle Wissen, lade Dokumente hoch oder teile Inhalte mit Gruppen.';
-        }}
-      />
-
-      {groupContentErrors.length > 0 && (
-        <div className="enhanced-knowledge-selector__errors">
-          Einige Gruppeninhalte konnten nicht geladen werden: {groupContentErrors.map(e => e.groupName).join(', ')}
-        </div>
-      )}
-
-      {knowledgeOptions.length === 0 && !disabled && !isLoadingAnyContent && (
-        <p className="enhanced-knowledge-selector__no-options">
-          Keine Inhalte verfügbar.<br />
-          Erstelle Wissen in deinem Profil, lade Dokumente hoch, generiere Texte oder teile Inhalte mit Gruppen.
-        </p>
-      )}
-
-      {enableDocuments && selectedDocumentIds.length > 0 && isExtractingDocumentContent && documentExtractionInfo && (
-        <div className={`enhanced-knowledge-selector__extraction-status extraction-status--${documentExtractionInfo.type}`}>
-          <div className="extraction-status__icon">
-            {documentExtractionInfo.type === 'vector_search' && (
-              <div className="extraction-status__spinner"></div>
-            )}
-            {documentExtractionInfo.type === 'success' && '✅'}
-            {documentExtractionInfo.type === 'fallback' && '⚠️'}
-            {documentExtractionInfo.type === 'error' && '❌'}
-          </div>
-          <div className="extraction-status__message">
-            {documentExtractionInfo.message}
-          </div>
-        </div>
-      )}
+    <div className="content-dropdown__validation-banner content-dropdown__validation-banner--privacy">
+      <HiEye className="validation-banner__icon" />
+      <div className="validation-banner__content">
+        <span className="validation-banner__title">Privacy Mode aktiv</span>
+        <span className="validation-banner__text">PDFs max. 10 Seiten, keine Bilder</span>
+      </div>
     </div>
   );
 };
 
-EnhancedKnowledgeSelector.propTypes = {
-  onKnowledgeSelection: PropTypes.func,
-  disabled: PropTypes.bool,
-  tabIndex: PropTypes.number,
-  disableMenuPortal: PropTypes.bool
+ValidationBanner.propTypes = {
+  usePrivacyMode: PropTypes.bool
 };
-
-EnhancedKnowledgeSelector.displayName = 'EnhancedKnowledgeSelector';
 
 const FeatureIcons = ({
   // Feature toggle props removed - now using store
@@ -495,17 +59,24 @@ const FeatureIcons = ({
   onWebSearchInfoClick,
   instructionType = null
 }) => {
+  // DEBUG: Track parent renders
+  const renderCountRef = React.useRef(0);
+  renderCountRef.current++;
+  if (renderCountRef.current > 5) {
+    console.log('[FeatureIcons] 🔴 Render #', renderCountRef.current);
+  }
   // Use store for feature toggles with selective subscriptions
-  const useWebSearch = useGeneratorKnowledgeStore(state => state.useWebSearch);
-  const usePrivacyMode = useGeneratorKnowledgeStore(state => state.usePrivacyMode);
-  const useProMode = useGeneratorKnowledgeStore(state => state.useProMode);
-  const toggleWebSearch = useGeneratorKnowledgeStore(state => state.toggleWebSearch);
-  const togglePrivacyMode = useGeneratorKnowledgeStore(state => state.togglePrivacyMode);
-  const toggleProMode = useGeneratorKnowledgeStore(state => state.toggleProMode);
+  const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+  const useProMode = useGeneratorSelectionStore(state => state.useProMode);
+  const toggleWebSearch = useGeneratorSelectionStore(state => state.toggleWebSearch);
+  const togglePrivacyMode = useGeneratorSelectionStore(state => state.togglePrivacyMode);
+  const toggleProMode = useGeneratorSelectionStore(state => state.toggleProMode);
   const [clickedIcon, setClickedIcon] = useState(null);
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [fileMetadata, setFileMetadata] = useState({});
+  const [isDragging, setIsDragging] = useState(false);
 
   // Unified dropdown state - only ONE dropdown can be open at a time
   const [activeDropdown, setActiveDropdown] = useState(null); // 'balanced' | 'content' | 'anweisungen' | null
@@ -520,11 +91,10 @@ const FeatureIcons = ({
   // Get user authentication
   const { user } = useAuth();
 
-  // Connect to knowledge store with selective subscriptions
-  const selectedKnowledgeIds = useGeneratorKnowledgeStore(state => state.selectedKnowledgeIds);
-  const selectedDocumentIds = useGeneratorKnowledgeStore(state => state.selectedDocumentIds);
-  const selectedTextIds = useGeneratorKnowledgeStore(state => state.selectedTextIds);
-  const storeInstructionType = useGeneratorKnowledgeStore(state => state.instructionType);
+  // Connect to selection store with selective subscriptions
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const storeInstructionType = useGeneratorSelectionStore(state => state.instructionType);
 
   // Use instruction type from prop or store
   const finalInstructionType = instructionType || storeInstructionType;
@@ -543,13 +113,9 @@ const FeatureIcons = ({
   }, [finalInstructionType, isLoadingInstructions, instructionsStatus]);
 
   // Calculate total content count for badge
-  const totalKnowledgeCount = useMemo(() => {
-    return selectedKnowledgeIds.length + selectedDocumentIds.length + selectedTextIds.length;
-  }, [selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
-
   const totalContentCount = useMemo(() => {
-    return attachedFiles.length + totalKnowledgeCount;
-  }, [attachedFiles.length, totalKnowledgeCount]);
+    return attachedFiles.length + selectedDocumentIds.length + selectedTextIds.length;
+  }, [attachedFiles.length, selectedDocumentIds.length, selectedTextIds.length]);
 
   // Smart dropdown toggle - ensures only one dropdown is open at a time
   const handleDropdownToggle = useCallback((dropdownName) => {
@@ -622,9 +188,8 @@ const FeatureIcons = ({
     setActiveDropdown(null);
   };
 
-  const handleFileSelect = async (event) => {
-    const files = Array.from(event.target.files);
-
+  // Shared file processing logic for both file input and drag-drop
+  const processFiles = useCallback(async (files) => {
     if (files.length === 0) {
       return;
     }
@@ -674,7 +239,6 @@ const FeatureIcons = ({
             .join(', ');
 
           setValidationError(`Privacy Mode Konflikt: ${conflictFiles}`);
-          event.target.value = '';
           setIsValidatingFiles(false);
           return;
         }
@@ -686,12 +250,68 @@ const FeatureIcons = ({
 
     } catch (error) {
       setValidationError('Fehler bei der Dateiverarbeitung. Bitte versuchen Sie es erneut.');
-      event.target.value = '';
     } finally {
       setIsValidatingFiles(false);
-      event.target.value = '';
     }
+  }, [usePrivacyMode, onAttachmentClick]);
+
+  const handleFileSelect = async (event) => {
+    const files = Array.from(event.target.files);
+    await processFiles(files);
+    event.target.value = '';
   };
+
+  // Drag-and-drop handlers
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only set isDragging to false if leaving the content container entirely
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (isValidatingFiles) return;
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+
+    // Filter for accepted file types
+    const acceptedTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+    const validFiles = droppedFiles.filter(file => {
+      const extension = '.' + file.name.split('.').pop().toLowerCase();
+      return acceptedTypes.includes(extension) ||
+             file.type === 'application/pdf' ||
+             file.type.startsWith('image/');
+    });
+
+    if (validFiles.length === 0) {
+      setValidationError('Nur PDF und Bilder (.jpg, .jpeg, .png, .webp) sind erlaubt.');
+      return;
+    }
+
+    if (validFiles.length < droppedFiles.length) {
+      setValidationError(`${droppedFiles.length - validFiles.length} Datei(en) übersprungen (ungültiger Typ).`);
+    }
+
+    await processFiles(validFiles);
+  }, [isValidatingFiles, processFiles]);
 
 
   return (
@@ -732,11 +352,15 @@ const FeatureIcons = ({
         </div>
 
         <div
-          className="content-mode-container"
+          className={`content-mode-container ${isDragging ? 'dragging' : ''}`}
           ref={contentContainerRef}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
           <button
-            className={`feature-icon-button ${totalContentCount > 0 ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''}`}
+            className={`feature-icon-button ${totalContentCount > 0 ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''} ${isDragging ? 'dragging' : ''}`}
             onClick={(event) => {
               handleIconClick(event, 'content');
               handleDropdownToggle('content');
@@ -823,7 +447,7 @@ const FeatureIcons = ({
           <HiAdjustments className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Ausbalanciert</span>
-            <span className="balanced-dropdown-desc">Ideal für die meisten Aufgaben. Läuft auf EU-Servern.</span>
+            <span className="balanced-dropdown-desc">Ausgewogen. Läuft auf EU-Servern.</span>
           </div>
         </button>
 
@@ -841,7 +465,7 @@ const FeatureIcons = ({
           <HiEye className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Privacy</span>
-            <span className="balanced-dropdown-desc">Nutzt ein selbstgehostetes Sprachmodell bei der Netzbegrünung (deutsche Server).</span>
+            <span className="balanced-dropdown-desc">Netzbegrünung-Server (Deutschland).</span>
           </div>
         </button>
 
@@ -859,7 +483,7 @@ const FeatureIcons = ({
           <HiLightningBolt className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Pro</span>
-            <span className="balanced-dropdown-desc">Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte.</span>
+            <span className="balanced-dropdown-desc">Erweiterte KI für komplexe Aufgaben.</span>
           </div>
         </button>
       </DropdownPortal>
@@ -872,30 +496,35 @@ const FeatureIcons = ({
         className="content-dropdown-inline open"
         widthRef={featureIconsRef}
       >
-        <button
-          className="content-dropdown-item content-dropdown-item--file-upload"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={() => handleFileInputTrigger()}
-          type="button"
-          disabled={isValidatingFiles}
+        {/* Drag-Drop Zone */}
+        <div
+          className={`content-dropdown__drag-zone ${isDragging ? 'dragging' : ''}`}
+          onClick={handleFileInputTrigger}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
-          <HiUpload className="content-dropdown-icon" />
-          <div className="content-dropdown-content">
-            <span className="content-dropdown-title">Datei hochladen</span>
-            <span className="content-dropdown-desc">PDF, Bilder (max. 10 Seiten im Privacy Mode)</span>
+          <HiUpload className="drag-zone__icon" />
+          <div className="drag-zone__content">
+            <span className="drag-zone__title">
+              {isDragging ? 'Dateien hier ablegen' : 'Drag & Drop oder klicken'}
+            </span>
+            <span className="drag-zone__desc">PDF, DOCX (Textdateien)</span>
           </div>
-        </button>
+        </div>
 
-        <div className="content-dropdown-separator"></div>
+        {/* Validation Banner - Only shown in Privacy Mode */}
+        <ValidationBanner usePrivacyMode={usePrivacyMode} />
 
-        <div className="content-dropdown-item content-dropdown-item--knowledge-selector">
-          <div className="content-dropdown-knowledge-wrapper content-dropdown-knowledge-wrapper--inline">
-            <EnhancedKnowledgeSelector
-              disabled={isValidatingFiles}
-              tabIndex={-1}
-              disableMenuPortal={false}
-            />
-          </div>
+        {/* Separator before Content Selector */}
+        {(attachedFiles.length > 0 || validationError) && (
+          <div className="content-dropdown-separator"></div>
+        )}
+
+        {/* Simple Content Selector */}
+        <div className="content-dropdown-item content-dropdown-item--content-selector">
+          <SimpleContentSelector disabled={isValidatingFiles} />
         </div>
       </DropdownPortal>
 
@@ -929,6 +558,18 @@ const FeatureIcons = ({
           <span style={{ color: 'var(--error-color, #e74c3c)', fontSize: '0.9em' }}>
             ⚠️ {validationError}
           </span>
+          {validationError.includes('Privacy Mode') && (
+            <button
+              type="button"
+              className="feature-icons__error-action"
+              onClick={() => {
+                togglePrivacyMode();
+                setValidationError(null);
+              }}
+            >
+              Privacy Mode deaktivieren
+            </button>
+          )}
         </div>
       )}
 

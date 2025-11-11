@@ -198,9 +198,9 @@ const ActionButtons = ({
             </button>
           )}
           {(showExport || showDownload || showExportDropdown) && (
-            <ExportDropdown 
-              content={activeContent} 
-              title={title} 
+            <ExportDropdown
+              content={activeContent}
+              title={title}
               onSaveToLibrary={showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null}
               saveToLibraryLoading={saveToLibraryLoading}
             />
