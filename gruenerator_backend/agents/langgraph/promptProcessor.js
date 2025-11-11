@@ -398,7 +398,6 @@ async function processGraphRequest(routeType, req, res) {
       usePrivacyMode,
       provider,
       knowledgeContent,
-      selectedKnowledgeIds,
       selectedDocumentIds,
       selectedTextIds,
       searchQuery
@@ -427,7 +426,6 @@ async function processGraphRequest(routeType, req, res) {
       provider: requestData.provider,
       hasCustomPrompt: !!customPrompt,
       hasKnowledgeContent: !!extractedKnowledgeContent,
-      hasSelectedKnowledge: !!(selectedKnowledgeIds && selectedKnowledgeIds.length > 0),
       hasSelectedDocuments: !!(selectedDocumentIds && selectedDocumentIds.length > 0),
       hasSelectedTexts: !!(selectedTextIds && selectedTextIds.length > 0),
       hasSearchQuery: !!searchQuery,
@@ -489,7 +487,6 @@ async function processGraphRequest(routeType, req, res) {
       outputFormat: outputFormat || null,
       instructions: extractedInstructions || null,
       knowledgeContent: extractedKnowledgeContent || null,
-      selectedKnowledgeIds: selectedKnowledgeIds || [],
       selectedDocumentIds: selectedDocumentIds || [],
       selectedTextIds: selectedTextIds || [],
       searchQuery: searchQuery || null,
