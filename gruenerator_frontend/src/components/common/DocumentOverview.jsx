@@ -11,7 +11,7 @@ import DocumentPreviewModal from './DocumentPreviewModal';
 import SelectAllCheckbox from './SelectAllCheckbox';
 import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import { getActionItems } from './ItemActionBuilder';
-import { truncateForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
+import { truncateForPreview, stripMarkdownForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
 
 // Document Overview Feature CSS - Loaded only when this feature is accessed
 import '../../assets/styles/components/document-overview.css';
@@ -530,8 +530,8 @@ const DocumentOverview = ({
                     ) : (
                         <p className="content-preview">
                             {(() => {
-                                const raw = item.full_content || item.content_preview || item.ocr_text;
-                                const text = truncateForPreview(raw);
+                                const raw = item.markdown_content || item.full_content || item.content_preview || item.ocr_text;
+                                const text = stripMarkdownForPreview(raw);
                                 return text || 'Kein Inhalt verfügbar';
                             })()}
                         </p>
@@ -573,18 +573,13 @@ const DocumentOverview = ({
             <>
                 {/* Source badge */}
                 {itemType === 'document' && item.source_type && (
-                    <span className={`document-source-badge source-${item.source_type}`}>
-                        {item.source_type === 'wolke' ? '☁️ Wolke' :
-                         item.source_type === 'url' ? '🔗 URL' : '📁 Manual'}
+                    <span>
+                        {item.source_type === 'wolke' ? '☁️' :
+                         item.source_type === 'url' ? '🔗' : '📁'}
                     </span>
                 )}
                 {item.similarity_score != null && (
                     <span className="document-stats">Relevanz: {Math.round(item.similarity_score * 100)}%</span>
-                )}
-                {item.type && (
-                    <span className="document-type">
-                        {documentTypes[item.type] || item.type}
-                    </span>
                 )}
                 {item.updated_at && (
                     <span className="document-date">{formatDate(item.updated_at)}</span>
