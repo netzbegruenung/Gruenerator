@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs').promises;
 const redisClient = require('../../../utils/redisClient');
+const { sanitizeFilename } = require('../../../utils/securityUtils');
 
 class AssSubtitleService {
   constructor() {
@@ -572,8 +573,10 @@ ${dialogueLines}`;
   async createTempAssFile(assContent, uploadId) {
     const tempDir = path.join(__dirname, '../../../uploads/temp');
     await fs.mkdir(tempDir, { recursive: true });
-    
-    const assFilePath = path.join(tempDir, `subtitles_${uploadId}_${Date.now()}.ass`);
+
+    // Security: Sanitize uploadId to prevent path traversal and special character injection
+    const safeUploadId = sanitizeFilename(uploadId, 'unknown');
+    const assFilePath = path.join(tempDir, `subtitles_${safeUploadId}_${Date.now()}.ass`);
     
     // Ensure proper UTF-8 encoding with BOM for better FFmpeg compatibility
     const utf8BOM = '\uFEFF'; // UTF-8 BOM

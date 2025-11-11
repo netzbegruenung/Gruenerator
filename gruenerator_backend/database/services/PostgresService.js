@@ -855,14 +855,17 @@ class PostgresService {
      */
     async createBackup(backupPath) {
         const { spawn } = await import('child_process');
-        
+
+        // Security: Sanitize and validate backup path to prevent command injection
+        const sanitizedPath = this.sanitizeBackupPath(backupPath);
+
         return new Promise((resolve, reject) => {
             const pg_dump = spawn('pg_dump', [
                 '-h', this.config.host,
                 '-p', this.config.port,
                 '-U', this.config.user,
                 '-d', this.config.database,
-                '-f', backupPath,
+                '-f', sanitizedPath,
                 '--verbose'
             ], {
                 env: { ...process.env, PGPASSWORD: this.config.password }
@@ -870,8 +873,8 @@ class PostgresService {
 
             pg_dump.on('close', (code) => {
                 if (code === 0) {
-                    console.log(`[PostgresService] Backup created successfully: ${backupPath}`);
-                    resolve(backupPath);
+                    console.log(`[PostgresService] Backup created successfully: ${sanitizedPath}`);
+                    resolve(sanitizedPath);
                 } else {
                     reject(new Error(`pg_dump failed with code ${code}`));
                 }
@@ -881,6 +884,58 @@ class PostgresService {
                 reject(new Error(`Backup failed: ${error.message}`));
             });
         });
+    }
+
+    /**
+     * Sanitize backup path to prevent path traversal and command injection
+     * @param {string} backupPath - The requested backup path
+     * @returns {string} - Sanitized absolute path
+     * @throws {Error} - If path is invalid or contains dangerous patterns
+     */
+    sanitizeBackupPath(backupPath) {
+        if (!backupPath || typeof backupPath !== 'string') {
+            throw new Error('Invalid backup path: path must be a non-empty string');
+        }
+
+        // Remove any null bytes (can be used for command injection)
+        if (backupPath.includes('\0')) {
+            throw new Error('Invalid backup path: contains null bytes');
+        }
+
+        // Normalize and resolve the path to prevent traversal attacks
+        const normalizedPath = path.normalize(backupPath);
+        const resolvedPath = path.resolve(normalizedPath);
+
+        // Define allowed backup directory (default to /tmp/backups or configurable)
+        const backupDir = process.env.BACKUP_DIR || path.join(__dirname, '../../backups');
+        const allowedBackupDir = path.resolve(backupDir);
+
+        // Ensure the resolved path is within the allowed backup directory
+        if (!resolvedPath.startsWith(allowedBackupDir + path.sep) && resolvedPath !== allowedBackupDir) {
+            throw new Error(`Invalid backup path: must be within ${allowedBackupDir}`);
+        }
+
+        // Reject paths with suspicious patterns
+        const dangerousPatterns = [
+            /\.\./,           // Parent directory traversal
+            /[;&|`$()]/,      // Shell metacharacters
+            /\s*>/,           // Output redirection
+            /\s*</,           // Input redirection
+        ];
+
+        for (const pattern of dangerousPatterns) {
+            if (pattern.test(backupPath)) {
+                throw new Error('Invalid backup path: contains dangerous characters or patterns');
+            }
+        }
+
+        // Ensure parent directory exists or create it
+        const parentDir = path.dirname(resolvedPath);
+        if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir, { recursive: true });
+        }
+
+        return resolvedPath;
     }
 
     /**
@@ -957,7 +1012,7 @@ class PostgresService {
     /**
      * Transaction-aware query method
      */
-    async transactionQuery(client, sql, params = [], options = {}) {
+    async transactionQuery(client, sql, params = []) {
         try {
             const result = await client.query(sql, params);
             return result.rows;
@@ -970,8 +1025,8 @@ class PostgresService {
     /**
      * Transaction-aware single query method
      */
-    async transactionQueryOne(client, sql, params = [], options = {}) {
-        const results = await this.transactionQuery(client, sql, params, options);
+    async transactionQueryOne(client, sql, params = []) {
+        const results = await this.transactionQuery(client, sql, params);
         return results.length > 0 ? results[0] : null;
     }
 
