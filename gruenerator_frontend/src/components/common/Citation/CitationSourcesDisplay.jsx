@@ -10,16 +10,14 @@ import PropTypes from 'prop-types';
  * @param {Object} props.linkConfig - Configuration for document links
  * @param {string} props.title - Title for the sources section (default: "Quellen und Zitate")
  * @param {string} props.className - Additional CSS class
- * @param {string} props.crossReferenceMessage - Custom message for cross-reference indicator
  * @returns {JSX.Element|null} Citation sources display or null if no sources/citations
  */
-const CitationSourcesDisplay = ({ 
-  sources = [], 
-  citations = [], 
-  linkConfig = { type: 'none' }, 
+const CitationSourcesDisplay = ({
+  sources = [],
+  citations = [],
+  linkConfig = { type: 'none' },
   title = "Quellen und Zitate",
-  className = "",
-  crossReferenceMessage = "Mehrere Dokumente bestätigen diese Informationen"
+  className = ""
 }) => {
   const navigate = useNavigate();
 
@@ -140,14 +138,6 @@ const CitationSourcesDisplay = ({
           </div>
         ))}
       </div>
-      
-      {/* Cross-reference indicator */}
-      {citations.length > 1 && documentGroups.length > 1 && (
-        <div className="ask-cross-reference-info">
-          <span className="info-icon">ℹ️</span>
-          <span>{crossReferenceMessage}</span>
-        </div>
-      )}
     </div>
   );
 };
@@ -161,8 +151,7 @@ CitationSourcesDisplay.propTypes = {
     titleKey: PropTypes.string
   }),
   title: PropTypes.string,
-  className: PropTypes.string,
-  crossReferenceMessage: PropTypes.string
+  className: PropTypes.string
 };
 
 export default CitationSourcesDisplay;

@@ -290,7 +290,6 @@ const SearchPage = () => {
                     linkConfig={{ type: 'none' }}
                     title="🔗 Quellen des Dossiers"
                     className="search-citation-sources"
-                    crossReferenceMessage="Das Dossier basiert auf mehreren vertrauenswürdigen Quellen"
                   />
                 </div>
               )}

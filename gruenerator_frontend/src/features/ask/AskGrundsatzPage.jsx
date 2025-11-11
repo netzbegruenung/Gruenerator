@@ -155,7 +155,6 @@ const AskGrundsatzPage = () => {
               linkConfig={linkConfig}
               title="Quellen"
               className="qa-citation-sources-inline"
-              crossReferenceMessage="Basierend auf den Grundsatzprogrammen"
             />
           </div>
         )}
@@ -166,7 +165,7 @@ const AskGrundsatzPage = () => {
   // Render sources using shared component
   const renderSourcesDisplay = () => {
     if (!storeGeneratedText || sources.length === 0) return null;
-    
+
     return (
       <CitationSourcesDisplay
         sources={sources}
@@ -174,7 +173,6 @@ const AskGrundsatzPage = () => {
         linkConfig={linkConfig}
         title="Quellen aus Grundsatzprogrammen"
         className="qa-citation-sources"
-        crossReferenceMessage="Mehrere Grundsatzprogramme bestätigen diese Informationen"
       />
     );
   };
