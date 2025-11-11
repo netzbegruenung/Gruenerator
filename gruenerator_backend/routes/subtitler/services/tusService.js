@@ -3,6 +3,7 @@ const { Server } = require('@tus/server');
 const { FileStore } = require('@tus/file-store');
 const path = require('path');
 const fs = require('fs').promises;
+const { sanitizePath } = require('../../../utils/securityUtils');
 
 // Singleton-Pattern um mehrfache Initialisierung zu verhindern
 let isInitialized = false;
@@ -255,7 +256,15 @@ const emergencyCleanup = async () => {
 // Hilfsfunktionen für den Controller
 const getFilePathFromUploadId = (uploadId) => {
   if (!uploadId) throw new Error('Upload ID ist erforderlich');
-  return path.join(TUS_UPLOAD_PATH, uploadId);
+
+  try {
+    // Security: Sanitize and validate the uploadId against the base upload directory
+    // This prevents path traversal attacks like "../../../etc/passwd"
+    return sanitizePath(uploadId, TUS_UPLOAD_PATH);
+  } catch (error) {
+    console.error(`[tusService] Security validation failed for uploadId: ${uploadId}`, error.message);
+    throw new Error('Invalid upload ID: security validation failed');
+  }
 };
 
 const checkFileExists = async (filePath) => {

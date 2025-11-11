@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { markdownForExport, isMarkdownContent } = require('../utils/markdownService');
+const { sanitizeFilename: sanitizeFilenameCentral } = require('../utils/securityUtils');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -258,13 +259,10 @@ function parseSections(plain) {
 }
 
 function sanitizeFilename(name, fallback = 'Dokument') {
-  const base = (name || fallback).toString().trim() || fallback;
-  return base
-    .replace(/[\n\r]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/[^a-zA-Z0-9_\-\u00C0-\u017F\s]/g, '')
-    .trim()
-    .slice(0, 80) || fallback;
+  // Use centralized security utility for consistent sanitization
+  const sanitized = sanitizeFilenameCentral(name, fallback);
+  // Apply document-specific length limit (80 chars for export filenames)
+  return sanitized.slice(0, 80) || fallback;
 }
 
 // POST /api/exports/pdf
