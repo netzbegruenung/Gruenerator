@@ -47,10 +47,6 @@ const DropdownPortal = ({
       left = windowWidth - dropdownWidth - space;
     }
 
-    if (top + dropdownRect.height > windowHeight + window.scrollY - space) {
-      top = triggerRect.top + window.scrollY - dropdownRect.height - gap;
-    }
-
     setStyle({
       position: 'absolute',
       top: `${top}px`,

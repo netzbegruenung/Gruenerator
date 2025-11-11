@@ -7,6 +7,37 @@
   width: 100%;
 }
 
+/* Compact mode for dropdown inline preview */
+.attached-files-list--compact {
+  margin-top: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: var(--spacing-xxsmall);
+}
+
+.attached-files-list--compact .file-tag {
+  font-size: 0.75rem;
+  padding: 4px var(--spacing-xxsmall);
+  max-width: 100%;
+}
+
+.attached-files-list__more {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px var(--spacing-xsmall);
+  background-color: var(--secondary-100);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.7rem;
+  color: var(--font-color);
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .attached-files-list__more {
+  background-color: var(--grey-600);
+}
+
 .file-tag {
   display: inline-flex;
   align-items: center;

@@ -177,6 +177,46 @@
   line-height: 1.4;
 }
 
+/* Validation Error */
+.feature-icons__validation-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+  margin-top: var(--spacing-xsmall);
+  padding: var(--spacing-small);
+  background-color: var(--error-50, rgba(211, 47, 47, 0.05));
+  border-left: 3px solid var(--error-500);
+  border-radius: var(--card-border-radius-small);
+}
+
+.feature-icons__error-action {
+  align-self: flex-start;
+  padding: var(--spacing-xxsmall) var(--spacing-small);
+  background-color: var(--interactive-accent-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--input-transition);
+}
+
+.feature-icons__error-action:hover {
+  opacity: 0.9;
+  transform: scale(1.01);
+}
+
+.feature-icons__error-action:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .feature-icons__validation-error {
+  background-color: rgba(211, 47, 47, 0.1);
+  border-left-color: var(--error-400);
+}
+
 /* Balanced Mode Dropdown */
 .balanced-mode-container {
   position: relative;
@@ -307,6 +347,28 @@
   width: clamp(18px, var(--item-size), 56px);
   height: clamp(18px, var(--item-size), 56px);
   flex: 0 0 auto;
+  transition: var(--input-transition);
+}
+
+/* Drag state styling */
+.content-mode-container.dragging {
+  background-color: var(--interactive-accent-color);
+  border-radius: var(--card-border-radius-small);
+  opacity: 0.9;
+}
+
+.content-mode-container.dragging .feature-icon-button {
+  border-color: transparent;
+}
+
+.content-mode-container.dragging .feature-icons__icon {
+  color: var(--white);
+  opacity: 1;
+}
+
+.feature-icon-button.dragging {
+  background-color: transparent;
+  border-color: transparent;
 }
 
 .content-mode-container > .feature-icon-button {
@@ -359,11 +421,13 @@
   border-radius: 0 0 var(--card-border-radius-small) var(--card-border-radius-small);
   padding: var(--spacing-xsmall);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 100;
 }
 
 .content-dropdown-inline.open {
   max-height: 600px;
-  padding: var(--spacing-xsmall);
+  padding: var(--spacing-medium) var(--spacing-small) var(--spacing-xxsmall) var(--spacing-small);
 }
 
 .content-dropdown-item {
@@ -387,7 +451,7 @@
 .content-dropdown-item--knowledge-selector {
   cursor: default;
   flex-direction: column;
-  padding: var(--spacing-xsmall) var(--spacing-small);
+  padding: var(--spacing-small);
   gap: var(--spacing-xsmall);
   overflow: visible;
 }
@@ -429,18 +493,126 @@
   line-height: 1.3;
 }
 
-.content-dropdown-knowledge-wrapper {
-  width: 100%;
-  margin-top: var(--spacing-xxsmall);
-  position: relative;
-}
-
 [data-theme="dark"] .content-dropdown-inline {
   background-color: var(--card-background);
 }
 
 [data-theme="dark"] .content-dropdown-item--file-upload:hover {
   background-color: var(--grey-700);
+}
+
+[data-theme="dark"] .content-dropdown__drag-zone:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Drag-Drop Zone */
+.content-dropdown__drag-zone {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-medium);
+  border: 2px dashed var(--font-color);
+  border-radius: var(--card-border-radius-small);
+  background-color: transparent;
+  cursor: pointer;
+  transition: var(--input-transition);
+  opacity: 0.7;
+  margin-bottom: var(--spacing-small);
+}
+
+.content-dropdown__drag-zone:hover {
+  opacity: 1;
+  background-color: var(--secondary-50);
+  border-color: var(--interactive-accent-color);
+}
+
+.content-dropdown__drag-zone.dragging {
+  background-color: var(--interactive-accent-color);
+  border-color: var(--interactive-accent-color);
+  opacity: 1;
+}
+
+.content-dropdown__drag-zone.dragging .drag-zone__icon,
+.content-dropdown__drag-zone.dragging .drag-zone__title,
+.content-dropdown__drag-zone.dragging .drag-zone__desc {
+  color: var(--white);
+}
+
+.drag-zone__icon {
+  font-size: 1.5rem;
+  color: var(--font-color);
+  flex-shrink: 0;
+  transition: var(--input-transition);
+}
+
+.drag-zone__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+  flex: 1;
+}
+
+.drag-zone__title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--font-color);
+  line-height: 1.2;
+}
+
+.drag-zone__desc {
+  font-size: 0.75rem;
+  color: var(--font-color);
+  opacity: 0.7;
+  line-height: 1.3;
+}
+
+/* Validation Banner - Only shown in Privacy Mode */
+.content-dropdown__validation-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small);
+  border-radius: var(--card-border-radius-small);
+  margin-bottom: var(--spacing-small);
+  border-left: 3px solid;
+}
+
+.content-dropdown__validation-banner--privacy {
+  background-color: var(--warning-background, rgba(255, 193, 7, 0.1));
+  border-left-color: var(--warning-color, #FFC107);
+}
+
+.validation-banner__icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  opacity: 0.9;
+  color: var(--warning-color, #FFC107);
+}
+
+.validation-banner__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.validation-banner__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--font-color);
+  line-height: 1.2;
+}
+
+.validation-banner__text {
+  font-size: 0.7rem;
+  color: var(--font-color);
+  opacity: 0.8;
+  line-height: 1.3;
+}
+
+/* File Preview in Dropdown */
+.content-dropdown__file-preview {
+  margin-bottom: var(--spacing-small);
 }
 
 
@@ -492,6 +664,28 @@
   /* Avoid hover labels overlapping when space is tight */
   .feature-icons-button__label {
     display: none;
+  }
+
+  /* Make drag-drop zone more touch-friendly on mobile */
+  .content-dropdown__drag-zone {
+    padding: var(--spacing-small);
+    min-height: 60px;
+  }
+
+  .drag-zone__title {
+    font-size: 0.85rem;
+  }
+
+  .drag-zone__desc {
+    font-size: 0.7rem;
+  }
+
+  .validation-banner__title {
+    font-size: 0.75rem;
+  }
+
+  .validation-banner__text {
+    font-size: 0.65rem;
   }
 }
 

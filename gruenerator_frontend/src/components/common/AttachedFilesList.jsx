@@ -4,7 +4,7 @@ import { HiX } from 'react-icons/hi';
 import { truncateWithSuffix } from '../../utils/textUtils';
 import '../../assets/styles/components/ui/AttachedFilesList.css';
 
-const AttachedFilesList = ({ files = [], onRemoveFile, className = '', fileMetadata = {}, privacyModeActive = false }) => {
+const AttachedFilesList = ({ files = [], onRemoveFile, className = '', fileMetadata = {}, privacyModeActive = false, compact = false }) => {
   if (!files || files.length === 0) {
     return null;
   }
@@ -16,10 +16,13 @@ const AttachedFilesList = ({ files = [], onRemoveFile, className = '', fileMetad
     }
   };
 
+  // In compact mode, limit to 5 files with scroll
+  const displayFiles = compact ? files.slice(0, 5) : files;
+  const hasMore = compact && files.length > 5;
 
   return (
-    <div className={`attached-files-list ${className}`}>
-      {files.map((file, index) => {
+    <div className={`attached-files-list ${compact ? 'attached-files-list--compact' : ''} ${className}`}>
+      {displayFiles.map((file, index) => {
         const metadata = fileMetadata[index] || {};
         const hasWarning = privacyModeActive && metadata.hasPrivacyConflict;
         
@@ -60,6 +63,11 @@ const AttachedFilesList = ({ files = [], onRemoveFile, className = '', fileMetad
           </div>
         );
       })}
+      {hasMore && (
+        <div className="attached-files-list__more">
+          +{files.length - 5} weitere
+        </div>
+      )}
     </div>
   );
 };
@@ -69,7 +77,8 @@ AttachedFilesList.propTypes = {
   onRemoveFile: PropTypes.func,
   className: PropTypes.string,
   fileMetadata: PropTypes.object,
-  privacyModeActive: PropTypes.bool
+  privacyModeActive: PropTypes.bool,
+  compact: PropTypes.bool
 };
 
 export default AttachedFilesList;
