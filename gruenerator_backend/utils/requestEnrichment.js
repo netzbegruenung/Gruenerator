@@ -145,9 +145,8 @@ class RequestEnricher {
       outputFormat = null,
       examples = [],
       toolInstructions = [],
-      // New options for KnowledgeSelector documents
+      // New options for content selection
       knowledgeContent = null,
-      selectedKnowledgeIds = [],
       selectedDocumentIds = [],
       selectedTextIds = [],
       searchQuery = null
@@ -157,7 +156,7 @@ class RequestEnricher {
     const userLocale = req ? extractLocaleFromRequest(req) : 'de-DE';
     console.log(`🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`);
 
-    // Initialize state with KnowledgeSelector content and locale
+    // Initialize state with content selection and locale
     const state = {
       type,
       provider: options.provider,
@@ -173,8 +172,7 @@ class RequestEnricher {
       request: requestBody,
       examples,
       toolInstructions: [...toolInstructions],
-      // Store KnowledgeSelector IDs for vector search
-      selectedKnowledgeIds,
+      // Store content selection IDs for vector search
       selectedDocumentIds,
       selectedTextIds,
       searchQuery
@@ -242,18 +240,6 @@ class RequestEnricher {
           .catch(error => {
             console.log('🎯 [RequestEnricher] Vector search failed:', error.message);
             return { type: 'vectorsearch', knowledge: [] };
-          })
-      );
-    }
-
-    // Fetch knowledge entries by IDs (if knowledge items selected)
-    if (selectedKnowledgeIds.length > 0) {
-      enrichmentTasks.push(
-        this.fetchKnowledgeByIds(selectedKnowledgeIds, options.req)
-          .then(result => ({ type: 'knowledge', knowledge: result.knowledge }))
-          .catch(error => {
-            console.log('🎯 [RequestEnricher] Knowledge fetch failed:', error.message);
-            return { type: 'knowledge', knowledge: [] };
           })
       );
     }
