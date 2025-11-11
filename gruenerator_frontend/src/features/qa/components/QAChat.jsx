@@ -198,7 +198,6 @@ const QAChat = () => {
               }}
               title="Quellen"
               className="qa-citation-sources-inline"
-              crossReferenceMessage="Basierend auf den verfügbaren Dokumenten"
             />
           </div>
         )}
@@ -215,7 +214,7 @@ const QAChat = () => {
   // Render sources using shared component
   const renderSourcesDisplay = () => {
     if (!storeGeneratedText || sources.length === 0) return null;
-    
+
     return (
       <CitationSourcesDisplay
         sources={sources}
@@ -227,7 +226,6 @@ const QAChat = () => {
         }}
         title="Quellen aus Notebook"
         className="qa-citation-sources"
-        crossReferenceMessage="Mehrere Dokumente aus der Sammlung bestätigen diese Informationen"
       />
     );
   };
