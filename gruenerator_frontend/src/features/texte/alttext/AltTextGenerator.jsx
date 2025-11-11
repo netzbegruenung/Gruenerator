@@ -7,7 +7,7 @@ import BaseForm from '../../../components/common/BaseForm';
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import FileUpload from '../../../components/common/FileUpload';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -36,7 +36,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
 
   // Get feature state from store
-  const { getFeatureState } = useGeneratorKnowledgeStore();
+  const { getFeatureState } = useGeneratorSelectionStore();
 
   // Handle pre-selected Canva template from URL parameters
   useEffect(() => {

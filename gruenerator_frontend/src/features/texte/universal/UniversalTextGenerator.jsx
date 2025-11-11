@@ -11,7 +11,8 @@ import BuergeranfragenForm from './BuergeranfragenForm';
 import UniversalForm from './UniversalForm';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
+import { useUserInstructions } from '../../../hooks/useUserInstructions';
 
 // Text type constants (moved from TextTypeSelector)
 export const TEXT_TYPES = {
@@ -103,7 +104,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   useOptimizedAuth();
 
   // Get feature state from store
-  const { getFeatureState } = useGeneratorKnowledgeStore();
+  const { getFeatureState, isInstructionsActive } = useGeneratorSelectionStore();
 
   // Update selected type when URL changes
   useEffect(() => {
@@ -138,6 +139,9 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
 
   const currentInstructionType = getInstructionType(selectedType);
 
+  // Fetch user's custom instructions (simple API call, no orchestration)
+  const customPrompt = useUserInstructions(currentInstructionType, isInstructionsActive);
+
   // Memoize helpContent to prevent unnecessary re-renders
   const helpContent = useMemo(() => ({
     content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten.",
@@ -152,14 +156,14 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     ]
   }), [selectedType]);
 
-  // Create baseForm - we'll use the knowledge and UI features but handle submission ourselves
+  // Create baseForm with knowledge system enabled for document/text fetching
   const form = useBaseForm({
     defaultValues: {},
     // Generator configuration - using a placeholder endpoint since we handle submission manually
     generatorType: 'universal-text',
     componentName: componentName,
     endpoint: '/placeholder', // This won't be used
-    instructionType: currentInstructionType,
+    disableKnowledgeSystem: false, // Enable knowledge system for fetching documents/texts
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'UNIVERSAL',
     helpContent: helpContent
@@ -188,9 +192,10 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
       return;
     }
 
-    // Add feature toggles from store and attachments to form data
+    // Add feature toggles from store, custom instructions, and attachments to form data
     const features = getFeatureState();
     Object.assign(formData, features); // Add useWebSearchTool, usePrivacyMode, useBedrock from store
+    formData.customPrompt = customPrompt; // Add custom user instructions
     formData.attachments = form.generator.attachedFiles;
 
     setIsLoading(true);
@@ -223,7 +228,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedType, form, currentFormRef, getFeatureState]);
+  }, [selectedType, form, currentFormRef, getFeatureState, customPrompt]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedContent(content);

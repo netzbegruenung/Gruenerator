@@ -1,11 +1,10 @@
 import { useForm, useWatch } from 'react-hook-form';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import useApiSubmit from '../../../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
-import useKnowledge from '../../../hooks/useKnowledge';
+import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
+import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
-import { createKnowledgeFormNotice } from '../../../../utils/knowledgeFormUtils';
 import { prepareFilesForSubmission } from '../../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
@@ -207,16 +206,39 @@ const useBaseForm = ({
     const { user, isAuthenticated } = useOptimizedAuth();
     const { memoryEnabled } = useAuthStore();
 
-    // Initialize knowledge system (only if not disabled)
+    // Initialize knowledge system (UI config + data fetching)
     if (!disableKnowledgeSystem) {
-      useKnowledge({
-        instructionType,
-        ui: {
+      const { setUIConfig, setAvailableDocuments, setAvailableTexts } = useGeneratorSelectionStore();
+      const { fetchCombinedContent, documents: documentsFromStore, texts: textsFromStore } = useDocumentsStore();
+
+      useEffect(() => {
+        // Set UI configuration to enable knowledge features
+        setUIConfig({
           enableKnowledge: true,
           enableDocuments: true,
-          enableTexts: true
+          enableTexts: true,
+          enableSourceSelection: true
+        });
+
+        // Fetch documents and texts from backend
+        fetchCombinedContent().catch(() => {
+          // Silent fail - non-blocking
+        });
+      }, []); // Run once on mount
+
+      // Sync documents from documentsStore to generatorSelectionStore
+      useEffect(() => {
+        if (documentsFromStore) {
+          setAvailableDocuments(documentsFromStore);
         }
-      });
+      }, [documentsFromStore, setAvailableDocuments]);
+
+      // Sync texts from documentsStore to generatorSelectionStore
+      useEffect(() => {
+        if (textsFromStore) {
+          setAvailableTexts(textsFromStore);
+        }
+      }, [textsFromStore, setAvailableTexts]);
     }
 
     // Tab index management
@@ -226,31 +248,27 @@ const useBaseForm = ({
     // Store integration
     const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-    // Knowledge system integration (only if not disabled)
-    let source, availableKnowledge, isInstructionsActive, instructions, getActiveInstruction, groupDetailsData;
-    let selectedKnowledgeIds, selectedDocumentIds, selectedTextIds;
+    // Selection store integration (only if not disabled)
+    let source, isInstructionsActive, instructions, getActiveInstruction, groupDetailsData;
+    let selectedDocumentIds, selectedTextIds;
 
     if (!disableKnowledgeSystem) {
-      const knowledgeStore = useGeneratorKnowledgeStore();
-      source = knowledgeStore.source;
-      availableKnowledge = knowledgeStore.availableKnowledge;
-      isInstructionsActive = knowledgeStore.isInstructionsActive;
-      instructions = knowledgeStore.instructions;
-      getActiveInstruction = knowledgeStore.getActiveInstruction;
-      groupDetailsData = knowledgeStore.groupData;
+      const selectionStore = useGeneratorSelectionStore();
+      source = selectionStore.source;
+      isInstructionsActive = selectionStore.isInstructionsActive;
+      instructions = selectionStore.instructions;
+      getActiveInstruction = selectionStore.getActiveInstruction;
+      groupDetailsData = selectionStore.groupData;
       // Extract selected IDs for backend processing - backend handles all content extraction
-      selectedKnowledgeIds = knowledgeStore.selectedKnowledgeIds;
-      selectedDocumentIds = knowledgeStore.selectedDocumentIds;
-      selectedTextIds = knowledgeStore.selectedTextIds;
+      selectedDocumentIds = selectionStore.selectedDocumentIds;
+      selectedTextIds = selectionStore.selectedTextIds;
     } else {
-      // Provide default values when knowledge system is disabled
+      // Provide default values when system is disabled
       source = { type: 'neutral' };
-      availableKnowledge = [];
       isInstructionsActive = false;
       instructions = {};
       getActiveInstruction = () => null;
       groupDetailsData = null;
-      selectedKnowledgeIds = [];
       selectedDocumentIds = [];
       selectedTextIds = [];
     }
@@ -261,26 +279,6 @@ const useBaseForm = ({
 
     // API submission
     const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(endpoint);
-
-    // Create form notice
-    const formNotice = useMemo(() => (
-      createKnowledgeFormNotice({
-        source,
-        isLoadingGroupDetails: false,
-        isInstructionsActive,
-        instructions,
-        instructionType,
-        groupDetailsData,
-        availableKnowledge,
-      })
-    ), [
-      source,
-      isInstructionsActive,
-      instructions,
-      instructionType,
-      groupDetailsData,
-      availableKnowledge
-    ]);
 
     // Feature toggles configuration
     const webSearchFeatureToggle = useMemo(() => ({
@@ -383,7 +381,6 @@ const useBaseForm = ({
 
         // Send only IDs and searchQuery - backend handles all content extraction
         formDataToSubmit.customPrompt = customPrompt;
-        formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
         formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
         formDataToSubmit.selectedTextIds = selectedTextIds || [];
         formDataToSubmit.searchQuery = searchQuery || '';
@@ -391,7 +388,6 @@ const useBaseForm = ({
         // Debug logging
         if (process.env.NODE_ENV === 'development') {
           console.log('[useBaseForm] Submitting with IDs:', {
-            selectedKnowledgeIds: formDataToSubmit.selectedKnowledgeIds.length,
             selectedDocumentIds: formDataToSubmit.selectedDocumentIds.length,
             selectedTextIds: formDataToSubmit.selectedTextIds.length,
             hasSearchQuery: Boolean(formDataToSubmit.searchQuery),
@@ -414,7 +410,7 @@ const useBaseForm = ({
       } finally {
         setStoreIsLoading(false);
       }
-    }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, generatorType, instructionType, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+    }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, generatorType, instructionType, selectedDocumentIds, selectedTextIds]);
 
     // Generated content handling
     const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
@@ -431,7 +427,6 @@ const useBaseForm = ({
       error,
       generatedContent,
       onGeneratedContentChange: handleGeneratedContentChange,
-      formNotice,
       enableKnowledgeSelector: !disableKnowledgeSystem,
       enableDocumentSelector: !disableKnowledgeSystem,
       showProfileSelector: !disableKnowledgeSystem,
@@ -462,7 +457,7 @@ const useBaseForm = ({
       formControl: control
     }), [
       helpContent, generatorType, loading, success, error, generatedContent,
-      handleGeneratedContentChange, formNotice, disableKnowledgeSystem, enablePlatformSelector, platformOptions,
+      handleGeneratedContentChange, disableKnowledgeSystem, enablePlatformSelector, platformOptions,
       componentName, features, webSearchFeatureToggle, privacyModeToggle, proModeToggle,
       handleAttachmentClick, handleRemoveFile, attachedFiles, tabIndex, baseFormTabIndex,
       control, useFeatureIcons
@@ -482,8 +477,7 @@ const useBaseForm = ({
       toggles,
       tabIndex,
       baseFormTabIndex,
-      baseFormProps,
-      formNotice
+      baseFormProps
     };
   }
 

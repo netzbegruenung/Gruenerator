@@ -13,11 +13,10 @@ import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiInformationCircle } from 'react-icons/hi';
-import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
 import { useFormFields } from '../../../components/common/Form/hooks';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import useKnowledge from '../../../components/hooks/useKnowledge';
+import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
+import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
 import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
@@ -35,16 +34,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { isAuthenticated, user } = useOptimizedAuth();
   const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-
-  // Initialize knowledge system with UI configuration
-  useKnowledge({ 
-    instructionType: 'social', 
-    ui: {
-      enableKnowledge: true,
-      enableDocuments: true,
-      enableTexts: true
-    }
-  });
 
   // Initialize tabIndex configuration
   const tabIndex = useTabIndex('PRESS_SOCIAL');
@@ -137,20 +126,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
 
-  // Store integration - all knowledge and instructions from store (must be before URL callbacks)
+  // Store integration - simplified (only selection state, not orchestration)
   const {
-    source,
-    availableKnowledge,
-    selectedKnowledgeIds,
     selectedDocumentIds,
     selectedTextIds,
     isInstructionsActive,
-    instructions,
-    getActiveInstruction,
-    groupData: groupDetailsData,
     getFeatureState,
     usePrivacyMode
-  } = useGeneratorKnowledgeStore();
+  } = useGeneratorSelectionStore();
+
+  // Fetch user's custom instructions (simple API call, no orchestration)
+  const customPrompt = useUserInstructions('social', isInstructionsActive);
 
   // URL crawler hook for automatic link processing
   const {
@@ -179,17 +165,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  
-  // Create form notice
-  const formNotice = createKnowledgeFormNotice({
-    source,
-    isLoadingGroupDetails: false, // useKnowledge handles loading
-    isInstructionsActive,
-    instructions,
-    instructionType: 'social',
-    groupDetailsData,
-    availableKnowledge,
-  });
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
@@ -228,14 +203,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-      // Get instructions for backend (if active) - backend handles all content extraction
-      const customPrompt = isInstructionsActive && getActiveInstruction
-        ? getActiveInstruction('social')
-        : null;
-
-      // Send only IDs and searchQuery - backend handles all content extraction
+      // Add custom prompt from user instructions (simplified)
       formDataToSubmit.customPrompt = customPrompt;
-      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
       formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
       formDataToSubmit.selectedTextIds = selectedTextIds || [];
       formDataToSubmit.searchQuery = searchQuery || '';
@@ -331,7 +300,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds, getFeatureState, isAuthenticated]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedDocumentIds, selectedTextIds, getFeatureState, isAuthenticated]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -663,7 +632,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           generatedContent={storeGeneratedText || socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           enableEditMode={true}
-          formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
           helpContent={helpContent}
