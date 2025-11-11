@@ -3,12 +3,9 @@ import { immer } from 'zustand/middleware/immer';
 
 const initialState = {
   source: { type: 'neutral', id: null, name: null },
-  availableKnowledge: [],
-  selectedKnowledgeIds: [],
-  isLoading: false,
-  // New: Instruction type context
+  // Instruction type context
   instructionType: null,
-  // New: Instructions state
+  // Instructions state
   instructions: {
     antrag: null,
     antragGliederung: null,
@@ -19,48 +16,47 @@ const initialState = {
     buergeranfragen: null
   },
   isInstructionsActive: false,
-  // New: Documents state
+  // Documents selection state
   availableDocuments: [],
   selectedDocumentIds: [],
   isLoadingDocuments: false,
   isExtractingDocumentContent: false,
   documentExtractionInfo: null,
-  // New: User texts state
+  // User texts selection state
   availableTexts: [],
   selectedTextIds: [],
   isLoadingTexts: false,
-  // New: UI Configuration state
+  // UI Configuration state
   uiConfig: {
-    enableKnowledge: false,
     enableDocuments: false,
     enableTexts: false,
     enableSourceSelection: false
   },
-  // New: Feature toggles state
+  // Feature toggles state
   useWebSearch: false,
   usePrivacyMode: false,
   useProMode: false,
 };
 
 /**
- * Zustand store to manage knowledge selection state within generators.
- * Now the single source of truth for all knowledge and instructions.
+ * Zustand store to manage content selection and features within generators.
+ *
+ * Purpose:
+ * - Track which documents/texts are selected for the current generation
+ * - Manage feature toggles (web search, privacy mode, pro mode)
+ * - Handle instruction source selection (user/group/neutral)
+ * - Configure UI visibility settings
+ *
+ * Note: This is ephemeral UI state that resets when components unmount.
+ * For document/text CRUD operations, use documentsStore instead.
  */
-export const useGeneratorKnowledgeStore = create(immer((set, get) => {
-  // Store instance created
-  
+export const useGeneratorSelectionStore = create(immer((set, get) => {
   return {
     ...initialState,
 
   setSource: (source) => set((state) => {
-    // setSource called
     state.source = source;
     // Reset selections when source changes
-    state.availableKnowledge = [];
-    state.selectedKnowledgeIds = [];
-    state.isLoading = !!source && source.type !== 'neutral';
-    // Reset instructions when source changes
-    state.instructions = { antrag: null, antragGliederung: null, social: null, universal: null, gruenejugend: null, rede: null, buergeranfragen: null };
     state.isInstructionsActive = false;
     // Reset documents when source changes (documents are user-scoped, not source-scoped)
     // Only clear if switching to neutral to avoid unnecessary reloads
@@ -78,31 +74,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     state.useProMode = false;
   }),
 
-  setAvailableKnowledge: (items) => set((state) => {
-    // setAvailableKnowledge called
-    state.availableKnowledge = items;
-    state.isLoading = false;
-  }),
-
-  toggleSelection: (id) => {
-    // Use setTimeout to batch multiple rapid toggles and reduce re-renders
-    const currentState = get();
-    const wasSelected = currentState.selectedKnowledgeIds.includes(id);
-    
-    set((state) => {
-      if (wasSelected) {
-        state.selectedKnowledgeIds = state.selectedKnowledgeIds.filter(selectedId => selectedId !== id);
-        // toggleSelection: REMOVED
-      } else {
-        state.selectedKnowledgeIds.push(id);
-        // toggleSelection: ADDED
-      }
-    });
-  },
-  
-  setLoading: (isLoading) => set({ isLoading }),
-
-  // New: Instructions management
+  // Instructions management
   setInstructions: (instructions) => set((state) => {
     state.instructions = instructions;
   }),
@@ -111,7 +83,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
     state.isInstructionsActive = active;
   }),
 
-  // New: Set instruction type context
+  // Set instruction type context
   setInstructionType: (type) => set((state) => {
     state.instructionType = type;
   }),
@@ -127,15 +99,14 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
   getSelectedIds: () => {
     const state = get();
     return {
-      knowledgeIds: state.selectedKnowledgeIds,
       documentIds: state.selectedDocumentIds,
       textIds: state.selectedTextIds
     };
   },
 
-  // New: Document management functions
+  // Document management functions
   setAvailableDocuments: (documents) => set((state) => {
-    // setAvailableDocuments called
+    console.log('[SelectionStore] 📁 setAvailableDocuments called:', documents?.length || 0, 'documents');
     state.availableDocuments = documents || [];
     state.isLoadingDocuments = false;
     // Clear any extraction status when documents change
@@ -149,11 +120,10 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
 
   // Helper: Handle document loading errors
   handleDocumentLoadError: (error) => set((state) => {
-    console.error('[KnowledgeStore] Document loading error:', error);
+    console.error('[SelectionStore] Document loading error:', error);
     state.isLoadingDocuments = false;
     state.isExtractingDocumentContent = false;
     state.documentExtractionInfo = null;
-    // Keep existing documents if any
   }),
 
   setExtractingDocumentContent: (isExtracting, info = null) => set((state) => {
@@ -162,32 +132,30 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
   }),
 
   toggleDocumentSelection: (documentId) => {
+    console.log('[SelectionStore] 📄 toggleDocumentSelection called:', documentId);
     const currentState = get();
     const wasSelected = currentState.selectedDocumentIds.includes(documentId);
-    
+
     set((state) => {
       if (wasSelected) {
         state.selectedDocumentIds = state.selectedDocumentIds.filter(id => id !== documentId);
-        // toggleDocumentSelection: REMOVED
       } else {
         state.selectedDocumentIds.push(documentId);
-        // toggleDocumentSelection: ADDED
       }
     });
   },
 
-
   // Helper: Get selected documents for display
   getSelectedDocuments: () => {
     const state = get();
-    return state.availableDocuments.filter(doc => 
+    return state.availableDocuments.filter(doc =>
       state.selectedDocumentIds.includes(doc.id)
     );
   },
 
-  // New: Text management functions
+  // Text management functions
   setAvailableTexts: (texts) => set((state) => {
-    // setAvailableTexts called
+    console.log('[SelectionStore] 📝 setAvailableTexts called:', texts?.length || 0, 'texts');
     state.availableTexts = texts || [];
     state.isLoadingTexts = false;
   }),
@@ -198,36 +166,30 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
 
   // Helper: Handle text loading errors
   handleTextLoadError: (error) => set((state) => {
-    console.error('[KnowledgeStore] Text loading error:', error);
+    console.error('[SelectionStore] Text loading error:', error);
     state.isLoadingTexts = false;
-    // Keep existing texts if any
   }),
 
   toggleTextSelection: (textId) => {
     const currentState = get();
     const wasSelected = currentState.selectedTextIds.includes(textId);
-    
+
     set((state) => {
       if (wasSelected) {
         state.selectedTextIds = state.selectedTextIds.filter(id => id !== textId);
-        // toggleTextSelection: REMOVED
       } else {
         state.selectedTextIds.push(textId);
-        // toggleTextSelection: ADDED
       }
     });
   },
 
   // Helper: Fetch user texts
   fetchTexts: async () => {
-    const state = get();
     const { setLoadingTexts, setAvailableTexts, handleTextLoadError } = get();
-    
+
     setLoadingTexts(true);
-    
+
     try {
-      // Fetching user texts
-      
       const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
       const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts`, {
         method: 'GET',
@@ -249,26 +211,34 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
         throw new Error(result.message || 'Failed to fetch texts');
       }
     } catch (error) {
-      console.error('[KnowledgeStore] Error fetching texts:', error);
+      console.error('[SelectionStore] Error fetching texts:', error);
       handleTextLoadError(error);
-      setAvailableTexts([]); // Clear texts on error
+      setAvailableTexts([]);
     }
   },
 
   // Helper: Get selected texts for display
   getSelectedTexts: () => {
     const state = get();
-    return state.availableTexts.filter(text => 
+    return state.availableTexts.filter(text =>
       state.selectedTextIds.includes(text.id)
     );
   },
 
-
-  // New: UI Configuration management
+  // UI Configuration management
   setUIConfig: (config) => set((state) => {
-    const newConfig = { ...state.uiConfig, ...config };
-    // setUIConfig called
-    state.uiConfig = newConfig;
+    console.log('[SelectionStore] 🔧 setUIConfig called:', config);
+    // Only update properties that have actually changed (prevents infinite loops)
+    let hasChanges = false;
+    for (const key in config) {
+      if (state.uiConfig[key] !== config[key]) {
+        console.log(`[SelectionStore]   ↳ Changing ${key}: ${state.uiConfig[key]} → ${config[key]}`);
+        state.uiConfig[key] = config[key];
+        hasChanges = true;
+      }
+    }
+    console.log('[SelectionStore]   ↳ hasChanges:', hasChanges);
+    // If no changes, immer will not trigger subscribers
   }),
 
   // Feature toggle management
@@ -327,8 +297,7 @@ export const useGeneratorKnowledgeStore = create(immer((set, get) => {
   }),
 
   reset: () => {
-    // reset() called
     return set(initialState);
   },
   };
-})); 
+}));

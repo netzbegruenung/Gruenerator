@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
+import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
@@ -62,7 +62,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
   useOptimizedAuth();
 
   // Get feature state from store
-  const { getFeatureState, usePrivacyMode } = useGeneratorKnowledgeStore();
+  const { getFeatureState, usePrivacyMode } = useGeneratorSelectionStore();
 
   // Dynamic component name based on selected type
   const componentName = `accessibility-${selectedType}`;
