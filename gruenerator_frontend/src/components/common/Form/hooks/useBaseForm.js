@@ -64,6 +64,7 @@ const useBaseForm = ({
   enablePlatformSelector = false,
   disableKnowledgeSystem = false,
   useFeatureIcons = true,
+  defaultMode = null,
 
   ...restOptions
 } = {}) => {
@@ -254,6 +255,19 @@ const useBaseForm = ({
 
   // Selection store integration - always get store, conditionally use values
   const selectionStore = useGeneratorSelectionStore();
+
+  // Track component switches and apply default modes
+  useEffect(() => {
+    if (componentName && generatorType) {
+      const { setActiveComponent } = useGeneratorSelectionStore.getState();
+
+      // This will:
+      // 1. Detect if we switched to a new component
+      // 2. Reset features when switching
+      // 3. Apply this component's default mode (from store or param)
+      setActiveComponent(componentName, defaultMode);
+    }
+  }, [componentName, generatorType]); // Re-run when component changes
 
   // Conditionally extract values based on knowledge system status
   const source = (!generatorType || disableKnowledgeSystem) ? { type: 'neutral' } : selectionStore.source;

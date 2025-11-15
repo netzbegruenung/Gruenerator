@@ -32,6 +32,9 @@ const initialState = {
     enableTexts: false,
     enableSourceSelection: false
   },
+  // Component tracking for default modes
+  activeComponentName: null,
+  defaultModes: {},
   // Feature toggles state
   useWebSearch: false,
   usePrivacyMode: false,
@@ -235,6 +238,40 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     }
     // If no changes, immer will not trigger subscribers
   }),
+
+  // Component tracking and default mode management
+  setActiveComponent: (componentName, defaultMode = null) => {
+    const currentState = get();
+
+    // If switching to a new component
+    if (currentState.activeComponentName !== componentName) {
+      set((state) => {
+        // Update active component
+        state.activeComponentName = componentName;
+
+        // Store the default mode for this component if provided
+        if (defaultMode && !state.defaultModes[componentName]) {
+          state.defaultModes[componentName] = defaultMode;
+        }
+
+        // Reset features to the component's default
+        const modeToApply = state.defaultModes[componentName] || defaultMode || 'balanced';
+
+        // Reset all modes first
+        state.useWebSearch = false;
+        state.usePrivacyMode = false;
+        state.useProMode = false;
+
+        // Apply the appropriate default
+        if (modeToApply === 'pro') {
+          state.useProMode = true;
+        } else if (modeToApply === 'privacy') {
+          state.usePrivacyMode = true;
+        }
+        // 'balanced' = all false (already reset above)
+      });
+    }
+  },
 
   // Feature toggle management
   setWebSearch: (enabled) => set((state) => {

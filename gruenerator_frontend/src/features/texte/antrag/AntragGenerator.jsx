@@ -91,6 +91,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     instructionType: 'antrag',
     features: ['webSearch', 'privacyMode'],
     tabIndexKey: 'ANTRAG',
+    defaultMode: 'pro',
     helpContent: {
       content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
       tips: [
