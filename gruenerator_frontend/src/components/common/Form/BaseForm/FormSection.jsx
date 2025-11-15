@@ -177,7 +177,7 @@ const FormSection = forwardRef(({
           }
 
           onSubmit();
-        }} className="form-section__form form-section__form--animated">
+        }} className="form-section__form">
           
           {/* Mobile: firstExtrasChildren above everything */}
           {isMobileView && firstExtrasChildren && (
