@@ -20,7 +20,12 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Get feature state and selection from store
-  const { getFeatureState, selectedDocumentIds, selectedTextIds, isInstructionsActive, usePrivacyMode } = useGeneratorSelectionStore();
+  // Use proper selectors for reactive subscriptions
+  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
 
   // Fetch user's custom instructions
   const instructionType = 'gruenejugend';
