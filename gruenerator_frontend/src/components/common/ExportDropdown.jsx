@@ -15,7 +15,7 @@ import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
-import { useProfileStore } from '../../stores/profileStore';
+import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { hashContent } from '../../utils/contentHash';
 import '../../assets/styles/components/actions/exportToDocument.css';
@@ -37,7 +37,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const { getGeneratedText } = useGeneratedTextStore();
 
   const { isGenerating, generateDOCX } = useExportStore();
-  const profile = useProfileStore((s) => s.profile);
+  const { canAccessBetaFeature } = useBetaFeatures();
   const { saveToLibrary: autoSaveToLibrary } = useSaveToLibrary();
 
   const isMobileView = window.innerWidth <= 768;
@@ -85,13 +85,15 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       await exportFn();
       console.log('[DEBUG] exportFn completed');
 
+      const isAutoSaveEnabled = canAccessBetaFeature('autoSaveOnExport');
+
       console.log('[Auto-save check]', {
-        enabled: profile?.auto_save_on_export,
+        enabled: isAutoSaveEnabled,
         authenticated: isAuthenticated,
         hasContent: !!content
       });
 
-      if (!profile?.auto_save_on_export || !isAuthenticated || !content) {
+      if (!isAutoSaveEnabled || !isAuthenticated || !content) {
         return;
       }
 
@@ -122,7 +124,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     } catch (error) {
       throw error;
     }
-  }, [profile?.auto_save_on_export, isAuthenticated, content, title, autoSaveToLibrary, getGeneratedText]);
+  }, [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary, getGeneratedText]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

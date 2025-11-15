@@ -64,7 +64,7 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
 router.put('/profile', ensureAuthenticated, async (req, res) => {
   try {
     const profileService = getProfileService();
-    const { display_name, username, avatar_robot_id, email, auto_save_on_export } = req.body;
+    const { display_name, username, avatar_robot_id, email } = req.body;
 
     // Validate input
     if (avatar_robot_id && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
@@ -87,11 +87,6 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
       updateData.email = email || null;
     }
 
-    // Handle auto_save_on_export preference
-    if (auto_save_on_export !== undefined) {
-      updateData.auto_save_on_export = !!auto_save_on_export;
-    }
-    
     // Update profile using ProfileService
     console.log(`[User Profile /profile PUT] Updating profile for user ${req.user.id}:`, updateData);
     const data = await profileService.updateProfile(req.user.id, updateData);

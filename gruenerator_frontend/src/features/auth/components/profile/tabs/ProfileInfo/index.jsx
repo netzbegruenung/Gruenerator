@@ -201,18 +201,6 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     }
   };
 
-  const handleAutoSaveOnExportToggle = async () => {
-    try {
-      const newValue = !profile?.auto_save_on_export;
-      await updateProfile({ auto_save_on_export: newValue });
-      onSuccessMessage(newValue
-        ? 'Auto-Speichern aktiviert! Alle Exporte werden jetzt automatisch in deiner Textbibliothek gespeichert.'
-        : 'Auto-Speichern deaktiviert. Exporte werden nicht mehr automatisch gespeichert.');
-    } catch (error) {
-      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der Auto-Speichern Einstellung.');
-    }
-  };
-
   const handleToggleDeleteAccountForm = () => {
     setShowDeleteAccountForm(!showDeleteAccountForm);
     if (!showDeleteAccountForm) {
@@ -280,8 +268,6 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
         onToggleIgelModus={handleIgelModusToggle}
         laborActive={getBetaFeatureState('labor')}
         onToggleLaborModus={handleLaborToggle}
-        autoSaveOnExportActive={profile?.auto_save_on_export || false}
-        onToggleAutoSaveOnExport={handleAutoSaveOnExportToggle}
         isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         canManageCurrentAccount={canManageCurrentAccount}
         showDeleteAccountForm={showDeleteAccountForm}
