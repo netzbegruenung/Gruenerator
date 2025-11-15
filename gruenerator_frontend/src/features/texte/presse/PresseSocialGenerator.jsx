@@ -25,6 +25,7 @@ import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import { getIcon } from '../../../config/icons';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
@@ -129,13 +130,12 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [processedAttachments, setProcessedAttachments] = useState([]);
 
   // Get selection store state (fetching is now handled by useBaseForm)
-  const {
-    selectedDocumentIds,
-    selectedTextIds,
-    isInstructionsActive,
-    getFeatureState,
-    usePrivacyMode
-  } = useGeneratorSelectionStore();
+  // Use proper selectors for reactive subscriptions
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
+  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
 
   // Fetch user's custom instructions
   const customPrompt = useUserInstructions('social', isInstructionsActive);

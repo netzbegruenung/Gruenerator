@@ -69,7 +69,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Get feature state and selection from store
-  const { getFeatureState, selectedDocumentIds, selectedTextIds, isInstructionsActive } = useGeneratorSelectionStore();
+  // Use proper selectors for reactive subscriptions
+  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
 
   // Fetch user's custom instructions
   const customPrompt = useUserInstructions('antrag', isInstructionsActive);
