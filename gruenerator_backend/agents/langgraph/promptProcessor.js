@@ -400,7 +400,8 @@ async function processGraphRequest(routeType, req, res) {
       knowledgeContent,
       selectedDocumentIds,
       selectedTextIds,
-      searchQuery
+      searchQuery,
+      useAutomaticSearch
     } = requestData;
 
     // Handle structured customPrompt from frontend
@@ -429,6 +430,7 @@ async function processGraphRequest(routeType, req, res) {
       hasSelectedDocuments: !!(selectedDocumentIds && selectedDocumentIds.length > 0),
       hasSelectedTexts: !!(selectedTextIds && selectedTextIds.length > 0),
       hasSearchQuery: !!searchQuery,
+      useAutomaticSearch: useAutomaticSearch || false,
       hasOtherData: Object.keys(requestData).length
     });
 
@@ -490,6 +492,7 @@ async function processGraphRequest(routeType, req, res) {
       selectedDocumentIds: selectedDocumentIds || [],
       selectedTextIds: selectedTextIds || [],
       searchQuery: searchQuery || null,
+      useAutomaticSearch: useAutomaticSearch || false,
       examples: [], // TODO: Implement examples from config
       provider,
       aiWorkerPool: req.app.locals.aiWorkerPool,
@@ -587,6 +590,8 @@ async function processGraphRequest(routeType, req, res) {
       docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
       vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
       webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false,
+      autoSearchUsed: enrichedState.enrichmentMetadata?.autoSearchUsed || false,
+      autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
       sources: [
         ...((enrichedState.enrichmentMetadata?.urlsProcessed || []).map(url => ({
           type: 'url',
@@ -597,6 +602,12 @@ async function processGraphRequest(routeType, req, res) {
           type: 'websearch',
           title: source.title || source.url,
           url: source.url
+        }))),
+        ...((enrichedState.enrichmentMetadata?.autoSelectedDocuments || []).map(doc => ({
+          type: 'auto-document',
+          title: doc.title,
+          filename: doc.filename,
+          relevance: doc.relevance_percent
         })))
       ]
     };

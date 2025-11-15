@@ -5,6 +5,7 @@ import Spinner from '../../../../../../components/common/Spinner';
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
 import { GiHedgehog } from 'react-icons/gi';
+import { HiSave } from 'react-icons/hi';
 import { getIcon } from '../../../../../../config/icons';
 import { useAuthStore } from '../../../../../../stores/authStore';
 
@@ -62,6 +63,8 @@ const ProfileView = ({
   onToggleIgelModus,
   laborActive,
   onToggleLaborModus,
+  autoSaveOnExportActive,
+  onToggleAutoSaveOnExport,
   isBetaFeaturesUpdating,
   // Account deletion
   canManageCurrentAccount,
@@ -220,6 +223,15 @@ const ProfileView = ({
               icon={getIcon('actions', 'labor')}
               description="Aktiviere den Labor-Modus für Zugriff auf experimentelle Features und Beta-Funktionen. Diese Features befinden sich noch in Entwicklung."
               className="labor-modus-toggle"
+              disabled={isBetaFeaturesUpdating}
+            />
+            <FeatureToggle
+              isActive={autoSaveOnExportActive}
+              onToggle={onToggleAutoSaveOnExport}
+              label="Auto-Speichern bei Export"
+              icon={HiSave}
+              description="Speichere jeden Export (PDF, DOCX, Etherpad, Wolke, Kopieren) automatisch in deiner Textbibliothek. Verhindert doppelte Speicherungen innerhalb der gleichen Sitzung."
+              className="auto-save-export-toggle"
               disabled={isBetaFeaturesUpdating}
             />
           </div>

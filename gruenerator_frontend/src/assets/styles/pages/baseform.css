@@ -10,6 +10,22 @@
     transition: all 0.3s ease-in-out;
 }
 
+/* Form Section Animation */
+.form-section__form--animated {
+    animation: fadeInUp 300ms ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 
 
 /* FormSection - 2/3 layout with DisplaySection */

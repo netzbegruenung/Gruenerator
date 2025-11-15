@@ -164,7 +164,9 @@ class QdrantOperations {
             }
 
             const results = await this.client.search(collection, searchParams);
-            
+
+            console.log(`[QdrantOperations] Vector search: ${results.length} results, top score: ${results[0]?.score.toFixed(3) || 'none'}`);
+
             return results.map(hit => ({
                 id: hit.id,
                 score: hit.score,
@@ -223,22 +225,42 @@ class QdrantOperations {
 
             console.log(`[QdrantOperations] Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);
 
-            // Dynamic weight shifting if not using RRF
+            // Smart auto-detection: disable RRF when only token fallback succeeded
+            let shouldUseRRF = useRRF;
             let vW = vectorWeight;
             let tW = textWeight;
-            if (!useRRF) {
-                if (textResults.length === 0) {
-                    // No text hits → rely more on vectors
+
+            // Check if ANY text result came from exact/normalized/folded match (not just token fallback)
+            const hasRealTextMatches = textResults.some(r =>
+                r.matchType && r.matchType !== 'token_fallback'
+            );
+
+            if (!hasRealTextMatches && textResults.length > 0 && useRRF) {
+                console.log(`[QdrantOperations] Only token fallback matches found (${textResults.length} results) - switching from RRF to weighted fusion`);
+                shouldUseRRF = false;
+                vW = 0.85;
+                tW = 0.15;
+            } else if (textResults.length === 0 && useRRF) {
+                console.log('[QdrantOperations] Text search failed (0 results) - switching from RRF to weighted fusion');
+                shouldUseRRF = false;
+                vW = 0.85;
+                tW = 0.15;
+            } else if (useRRF && textResults.length < 3) {
+                console.log(`[QdrantOperations] Too few text results (${textResults.length}) for effective RRF - switching to weighted fusion`);
+                shouldUseRRF = false;
+                vW = 0.85;
+                tW = 0.15;
+            } else if (!useRRF) {
+                if (textResults.length === 0 || !hasRealTextMatches) {
                     vW = 0.85; tW = 0.15;
                 } else {
-                    // Text hits present → balanced
                     vW = 0.5; tW = 0.5;
                 }
                 console.log(`[QdrantOperations] Dynamic weights applied: vectorWeight=${vW}, textWeight=${tW}`);
             }
 
             // Apply fusion method with confidence weighting
-            let combinedResults = useRRF 
+            let combinedResults = shouldUseRRF
                 ? this.applyReciprocalRankFusion(vectorResults, textResults, limit, rrfK)
                 : this.applyWeightedCombination(vectorResults, textResults, vW, tW, limit);
 
@@ -253,11 +275,14 @@ class QdrantOperations {
                 metadata: {
                     vectorResults: vectorResults.length,
                     textResults: textResults.length,
-                    fusionMethod: useRRF ? 'RRF' : 'weighted',
-                    vectorWeight,
-                    textWeight,
+                    fusionMethod: shouldUseRRF ? 'RRF' : 'weighted',
+                    vectorWeight: vW,
+                    textWeight: tW,
                     dynamicThreshold,
-                    qualityFiltered: this.hybridConfig.enableQualityGate
+                    qualityFiltered: this.hybridConfig.enableQualityGate,
+                    autoSwitchedFromRRF: useRRF && !shouldUseRRF,
+                    hasRealTextMatches: hasRealTextMatches,
+                    textMatchTypes: [...new Set(textResults.map(r => r.matchType).filter(Boolean))]
                 }
             };
 
@@ -304,7 +329,10 @@ class QdrantOperations {
             console.log(`[QdrantOperations] Text search raw results: ${scrollResult.points?.length || 0} points found`);
 
             // Query-side normalization & fallbacks if no results
+            // Track which match method succeeded for quality detection
+            let matchType = 'exact';  // Track: exact | normalized | folded | token_fallback
             let mergedPoints = scrollResult.points || [];
+
             if (mergedPoints.length === 0) {
                 // Attempt 1: dehyphenated/cleaned variant
                 const normalizedTerm = this.normalizeQuery(searchTerm);
@@ -319,6 +347,7 @@ class QdrantOperations {
                         with_vector: false
                     });
                     mergedPoints = normRes.points || [];
+                    if (mergedPoints.length > 0) matchType = 'normalized';
                     console.log(`[QdrantOperations] Normalized text search found: ${mergedPoints.length} points`);
                 }
 
@@ -336,6 +365,7 @@ class QdrantOperations {
                             with_vector: false
                         });
                         mergedPoints = foldRes.points || [];
+                        if (mergedPoints.length > 0) matchType = 'folded';
                         console.log(`[QdrantOperations] Folded text search found: ${mergedPoints.length} points`);
                     }
                 }
@@ -358,6 +388,7 @@ class QdrantOperations {
                             (tokRes.points || []).forEach(p => { if (!seen.has(p.id)) seen.set(p.id, p); });
                         }
                         mergedPoints = Array.from(seen.values());
+                        if (mergedPoints.length > 0) matchType = 'token_fallback';
                         console.log(`[QdrantOperations] Token OR fallback found: ${mergedPoints.length} unique points`);
                     }
                 }
@@ -401,10 +432,11 @@ class QdrantOperations {
                 score: this.calculateTextSearchScore(searchTerm, point.payload.chunk_text, index),
                 payload: point.payload,
                 searchMethod: 'text',
-                searchTerm: searchTerm
+                searchTerm: searchTerm,
+                matchType: matchType  // Track which search method found this result
             }));
 
-            console.log(`[QdrantOperations] Text search returning ${results.length} processed results`);
+            console.log(`[QdrantOperations] Text search returning ${results.length} processed results (matchType: ${matchType})`);
             return results;
 
         } catch (error) {

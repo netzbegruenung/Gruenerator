@@ -4,6 +4,7 @@
   flex-wrap: wrap;
   gap: var(--spacing-xsmall);
   margin-top: var(--spacing-small);
+  margin-bottom: var(--spacing-small);
   width: 100%;
 }
 

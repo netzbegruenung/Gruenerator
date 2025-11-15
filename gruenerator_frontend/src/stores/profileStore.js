@@ -219,7 +219,7 @@ export const useProfileStore = create(
       updateProfileOptimistic: (updates, loadingKey = null) => set(state => {
         // Apply optimistic update to UI
         state.profile = { ...state.profile, ...updates };
-        
+
         // Set loading state if provided
         if (loadingKey) {
           state.optimisticLoading[loadingKey] = true;

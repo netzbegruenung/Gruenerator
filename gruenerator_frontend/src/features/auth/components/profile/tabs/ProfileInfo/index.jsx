@@ -19,6 +19,7 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
   const { getBetaFeatureState, updateUserBetaFeatures, isUpdating: isBetaFeaturesUpdating } = useBetaFeatures();
   const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
+  const syncProfile = useProfileStore((s) => s.syncProfile);
 
   if (!user) {
     return (
@@ -34,8 +35,16 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
       return await profileApiService.updateProfile(profileData);
     },
     onSuccess: (updatedProfile) => {
+      console.log('[ProfileInfo] Update success, updatedProfile:', updatedProfile);
       if (user?.id && updatedProfile) {
-        queryClient.setQueryData(['profileData', user.id], (oldData) => ({ ...oldData, ...updatedProfile }));
+        const newProfileData = (oldData) => ({ ...oldData, ...updatedProfile });
+        queryClient.setQueryData(['profileData', user.id], newProfileData);
+        // Manually sync to profileStore for components not using useProfile
+        const currentData = queryClient.getQueryData(['profileData', user.id]);
+        console.log('[ProfileInfo] Syncing to profileStore:', currentData);
+        if (currentData) {
+          syncProfile(currentData);
+        }
       }
     },
     onError: (error) => {
@@ -192,6 +201,18 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     }
   };
 
+  const handleAutoSaveOnExportToggle = async () => {
+    try {
+      const newValue = !profile?.auto_save_on_export;
+      await updateProfile({ auto_save_on_export: newValue });
+      onSuccessMessage(newValue
+        ? 'Auto-Speichern aktiviert! Alle Exporte werden jetzt automatisch in deiner Textbibliothek gespeichert.'
+        : 'Auto-Speichern deaktiviert. Exporte werden nicht mehr automatisch gespeichert.');
+    } catch (error) {
+      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren der Auto-Speichern Einstellung.');
+    }
+  };
+
   const handleToggleDeleteAccountForm = () => {
     setShowDeleteAccountForm(!showDeleteAccountForm);
     if (!showDeleteAccountForm) {
@@ -259,6 +280,8 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
         onToggleIgelModus={handleIgelModusToggle}
         laborActive={getBetaFeatureState('labor')}
         onToggleLaborModus={handleLaborToggle}
+        autoSaveOnExportActive={profile?.auto_save_on_export || false}
+        onToggleAutoSaveOnExport={handleAutoSaveOnExportToggle}
         isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         canManageCurrentAccount={canManageCurrentAccount}
         showDeleteAccountForm={showDeleteAccountForm}

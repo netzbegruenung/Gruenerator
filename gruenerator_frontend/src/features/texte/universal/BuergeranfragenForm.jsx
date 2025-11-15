@@ -1,11 +1,10 @@
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import CreatableSelect from 'react-select/creatable';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 
 const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
-  const { Input, Textarea } = useFormFields();
   const [selectedAntwortart, setSelectedAntwortart] = useState([]);
   const {
     control,
@@ -63,7 +62,7 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
 
   return (
     <>
-      <Input
+      <FormInput
         name="gremium"
         control={control}
         label="Gremium/Zuständigkeit"
@@ -72,7 +71,7 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.formType || 10}
       />
 
-      <Textarea
+      <FormTextarea
         name="anliegen"
         control={control}
         label="Bürger*innenanfrage"
@@ -122,7 +121,7 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
         />
       </FormFieldWrapper>
 
-      <Textarea
+      <FormTextarea
         name="kontext"
         control={control}
         label="Zusätzlicher Kontext (optional)"

@@ -95,11 +95,11 @@ class EmbeddingCache {
       
       if (cached) {
         const embedding = JSON.parse(cached);
-        console.log(`[EmbeddingCache] Cache HIT for query: "${query}"`);
+        console.log(`[EmbeddingCache] Cache HIT for "${query.substring(0, 50)}..."`);
         return embedding;
       }
-      
-      console.log(`[EmbeddingCache] Cache MISS for query: "${query}"`);
+
+      console.log(`[EmbeddingCache] Cache MISS for "${query.substring(0, 50)}..."`);
       return null;
     } catch (error) {
       console.error('[EmbeddingCache] Error retrieving from cache:', error);
@@ -123,7 +123,7 @@ class EmbeddingCache {
     try {
       const key = this.generateCacheKey(query);
       await this.redis.setEx(key, this.ttl, JSON.stringify(embedding));
-      console.log(`[EmbeddingCache] Cached embedding for query: "${query}"`);
+      console.log(`[EmbeddingCache] Cached embedding for "${query.substring(0, 50)}..."`);
       return true;
     } catch (error) {
       console.error('[EmbeddingCache] Error caching embedding:', error);

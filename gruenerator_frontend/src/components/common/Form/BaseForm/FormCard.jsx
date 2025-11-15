@@ -72,4 +72,4 @@ FormCard.propTypes = {
 
 FormCard.displayName = 'FormCard';
 
-export default FormCard; 
+export default React.memo(FormCard); 

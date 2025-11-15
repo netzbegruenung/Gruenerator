@@ -1,10 +1,9 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
 const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
-  const { Input, Textarea } = useFormFields();
   const {
     control,
     getValues,
@@ -26,7 +25,7 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
 
   return (
     <>
-      <Input
+      <FormInput
         name="textForm"
         control={control}
         label="Textform"
@@ -35,7 +34,7 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.formType || 10}
       />
 
-      <Input
+      <FormInput
         name="sprache"
         control={control}
         label="Sprache & Stil"
@@ -44,7 +43,7 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 11}
       />
 
-      <Input
+      <FormInput
         name="thema"
         control={control}
         label={FORM_LABELS.THEME}
@@ -53,7 +52,7 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 12}
       />
 
-      <Textarea
+      <FormTextarea
         name="details"
         control={control}
         label={FORM_LABELS.DETAILS}

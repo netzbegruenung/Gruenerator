@@ -430,6 +430,12 @@
   padding: var(--spacing-medium) var(--spacing-small) var(--spacing-xxsmall) var(--spacing-small);
 }
 
+/* ContentSelector fills dropdown width (same pattern as balanced-dropdown-item) */
+.content-dropdown-inline .content-selector {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .content-dropdown-item {
   display: flex;
   align-items: flex-start;
@@ -707,10 +713,78 @@
     gap: 4px;
   }
   /* Sizes are controlled via clamp and container width; no overrides needed */
-  
+
   /* Hide active circle on even smaller widths as well */
   .balanced-mode-container .feature-icon-button.active {
     background-color: transparent;
     border-color: transparent;
   }
+}
+
+/* Selected Content Display */
+.feature-icons__selected-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsmall);
+  margin-top: var(--spacing-xsmall);
+  width: 100%;
+}
+
+.selected-content-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  background-color: var(--secondary-50);
+  border: 1px solid var(--secondary-200);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.8rem;
+  color: var(--font-color);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.selected-content-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.selected-content-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.selected-content-remove-btn {
+  margin-left: var(--spacing-xxsmall);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--error-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: var(--input-transition);
+  flex-shrink: 0;
+  min-width: 16px;
+}
+
+.selected-content-remove-btn:hover {
+  background-color: var(--error-50);
+}
+
+[data-theme="dark"] .selected-content-tag {
+  background-color: var(--grey-700);
+  border-color: var(--grey-600);
+}
+
+[data-theme="dark"] .selected-content-remove-btn:hover {
+  background-color: var(--grey-600);
 }

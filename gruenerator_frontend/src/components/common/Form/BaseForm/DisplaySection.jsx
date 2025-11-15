@@ -8,6 +8,7 @@ import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
 import HelpDisplay from '../../HelpDisplay';
+import EnrichmentSourcesDisplay from '../../EnrichmentSourcesDisplay';
 import apiClient from '../../../utils/apiClient';
 import { useLazyAuth } from '../../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
@@ -206,6 +207,12 @@ const DisplaySection = forwardRef(({
           renderEmptyState ? renderEmptyState() : null
         )}
       </div>
+      {/* Render enrichment sources if available */}
+      {hasRenderableContent && storeGeneratedTextMetadata?.enrichmentSummary && (
+        <EnrichmentSourcesDisplay
+          enrichmentSummary={storeGeneratedTextMetadata.enrichmentSummary}
+        />
+      )}
       {/* Render additional display actions if provided */}
       {displayActions && (
         <div className="display-action-section">

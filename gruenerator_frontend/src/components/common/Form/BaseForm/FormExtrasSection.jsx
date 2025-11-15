@@ -6,6 +6,7 @@ import SubmitButton from '../../SubmitButton';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useFormStateSelector } from '../FormStateProvider';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
+import '../../../../assets/styles/components/ui/FormExtras.css';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
@@ -54,14 +55,19 @@ const FormExtrasSection = ({
   onPrivacyInfoClick,
   onWebSearchInfoClick,
   componentName,
-  hide = false
+  hide = false,
+  attachedFiles = [],
+  usePrivacyMode = false
 }) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
   const success = useFormStateSelector(state => state.success);
   const useInteractiveModeToggleStore = useFormStateSelector(state => state.interactiveModeConfig?.enabled || false);
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
-  const attachedFiles = useFormStateSelector(state => state.attachedFiles);
+  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
+
+  // Use attachedFiles from props if provided, otherwise from store
+  const finalAttachedFiles = attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles;
 
   // Get current generated content for info link display logic
   const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
@@ -115,7 +121,7 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Feature Icons - now uses store for feature toggles */}
+        {/* Feature Icons */}
         {useFeatureIcons && (
           <div className="form-extras__item">
             <FeatureIcons
@@ -126,7 +132,7 @@ const FormExtrasSection = ({
               onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
               anweisungenActive={anweisungenActive}
               interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
-              attachedFiles={attachedFiles}
+              attachedFiles={finalAttachedFiles}
               className="form-extras__feature-icons"
               tabIndex={featureIconsTabIndex}
               onPrivacyInfoClick={onPrivacyInfoClick}
@@ -222,7 +228,9 @@ FormExtrasSection.propTypes = {
   onPrivacyInfoClick: PropTypes.func,
   onWebSearchInfoClick: PropTypes.func,
   componentName: PropTypes.string,
-  hide: PropTypes.bool
+  hide: PropTypes.bool,
+  attachedFiles: PropTypes.array,
+  usePrivacyMode: PropTypes.bool
 };
 
 FormExtrasSection.defaultProps = {

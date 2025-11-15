@@ -1,10 +1,9 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
 const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
-  const { Input, Textarea } = useFormFields();
   const {
     control,
     getValues,
@@ -24,7 +23,7 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
 
   return (
     <>
-      <Input
+      <FormInput
         name="thema"
         control={control}
         label={FORM_LABELS.THEME}
@@ -33,7 +32,7 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.formType || 10}
       />
 
-      <Textarea
+      <FormTextarea
         name="details"
         control={control}
         label={FORM_LABELS.DETAILS}
@@ -43,7 +42,7 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 11}
       />
 
-      <Input
+      <FormInput
         name="zeichenanzahl"
         control={control}
         type="number"

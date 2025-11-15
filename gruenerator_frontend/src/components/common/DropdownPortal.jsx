@@ -10,6 +10,7 @@ const DropdownPortal = ({
   className = '',
   width = 'auto',
   widthRef = null,
+  minWidth = null,
   gap = 4
 }) => {
   const [style, setStyle] = useState({ opacity: 0 });
@@ -25,21 +26,32 @@ const DropdownPortal = ({
     const space = 8;
 
     let top = triggerRect.bottom + window.scrollY + gap;
-    let left = triggerRect.left + window.scrollX;
 
     // Calculate width based on widthRef if provided, otherwise use trigger
     let dropdownWidth;
+    let referenceRect;
+
     if (widthRef?.current) {
-      const widthRect = widthRef.current.getBoundingClientRect();
-      dropdownWidth = widthRect.width;
-      left = widthRect.left + window.scrollX;
+      referenceRect = widthRef.current.getBoundingClientRect();
+      dropdownWidth = referenceRect.width;
     } else if (width === 'trigger') {
+      referenceRect = triggerRect;
       dropdownWidth = triggerRect.width;
     } else if (width === 'auto') {
+      referenceRect = triggerRect;
       dropdownWidth = dropdownRect.width;
     } else {
+      referenceRect = triggerRect;
       dropdownWidth = parseInt(width);
     }
+
+    // Apply minimum width constraint
+    if (minWidth && dropdownWidth < minWidth) {
+      dropdownWidth = minWidth;
+    }
+
+    // Center the dropdown relative to the reference element
+    let left = referenceRect.left + window.scrollX + (referenceRect.width / 2) - (dropdownWidth / 2);
 
     if (left < space) {
       left = space;
@@ -52,10 +64,11 @@ const DropdownPortal = ({
       top: `${top}px`,
       left: `${left}px`,
       width: widthRef?.current ? `${dropdownWidth}px` : (width === 'trigger' ? `${triggerRect.width}px` : width),
+      minWidth: minWidth ? `${minWidth}px` : undefined,
       opacity: 1,
       zIndex: 1000,
     });
-  }, [triggerRef, width, widthRef, gap]);
+  }, [triggerRef, width, widthRef, minWidth, gap]);
 
   useEffect(() => {
     if (isOpen) {
@@ -120,6 +133,7 @@ DropdownPortal.propTypes = {
     PropTypes.string
   ]),
   widthRef: PropTypes.object,
+  minWidth: PropTypes.number,
   gap: PropTypes.number
 };
 

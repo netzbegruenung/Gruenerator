@@ -700,8 +700,8 @@ const BaseFormInternal = ({
   return (
     <>
       { headerContent }
-      <motion.div 
-        layout
+      <motion.div
+        /* layout */
         transition={{ duration: 0.25, ease: "easeOut" }}
         ref={baseFormRef}
         className={baseContainerClasses}
@@ -718,7 +718,7 @@ const BaseFormInternal = ({
         {/* In mobile edit mode, show DisplaySection first (top 50%) */}
         {isEditModeActive && isMobileView && (
           <motion.div
-            layout
+            /* layout */
             transition={{ duration: 0.25, ease: "easeOut" }}
             className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
           >
@@ -748,7 +748,7 @@ const BaseFormInternal = ({
           {isFormVisible && (
             <motion.div
               key="form-section"
-              layout
+              /* layout="position" */
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -814,7 +814,7 @@ const BaseFormInternal = ({
         {/* In desktop mode or non-edit mode, show DisplaySection after FormSection */}
         {(!isEditModeActive || !isMobileView) && (
           <motion.div
-            layout
+            /* layout */
             transition={{ duration: 0.25, ease: "easeOut" }}
             className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
           >

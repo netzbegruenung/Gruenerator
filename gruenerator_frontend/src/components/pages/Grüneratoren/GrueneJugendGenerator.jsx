@@ -6,7 +6,7 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import { useSharedContent } from '../../hooks/useSharedContent';
 import ErrorBoundary from '../../ErrorBoundary';
-import { useFormFields } from '../../common/Form/hooks';
+import { FormInput, FormTextarea } from '../../common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { useUserInstructions } from '../../../hooks/useUserInstructions';
@@ -17,7 +17,6 @@ import useBaseForm from '../../common/Form/hooks/useBaseForm';
 const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'gruene-jugend';
   const { initialContent } = useSharedContent();
-  const { Input, Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Get feature state and selection from store
@@ -176,7 +175,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
 
   const renderFormInputs = () => (
     <>
-      <Input
+      <FormInput
         name="thema"
         control={control}
         label={FORM_LABELS.THEME}
@@ -185,7 +184,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
         tabIndex={form.generator.tabIndex.thema}
       />
 
-      <Textarea
+      <FormTextarea
         name="details"
         control={control}
         label={FORM_LABELS.DETAILS}

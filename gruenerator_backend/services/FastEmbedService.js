@@ -116,7 +116,12 @@ class FastEmbedService {
     }
 
     // Generate new embedding using client
+    console.log(`[FastEmbedService] Generating embedding for "${query.substring(0, 50)}..."`);
+    const startTime = Date.now();
     const embedding = await this.client.generateEmbedding(query);
+    const duration = Date.now() - startTime;
+    console.log(`[FastEmbedService] Embedding generated in ${duration}ms (${embedding.length} dims)`);
+
     await embeddingCache.cacheEmbedding(query, embedding);
     return embedding;
   }
