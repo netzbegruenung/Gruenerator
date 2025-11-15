@@ -220,7 +220,7 @@ class BaseSearchService {
       
       // Generate query embedding for vector component
       const queryEmbedding = await this.generateQueryEmbedding(query, options);
-      
+
       // Calculate dynamic threshold
       const threshold = options.threshold ?? this.calculateDynamicThreshold(query);
       

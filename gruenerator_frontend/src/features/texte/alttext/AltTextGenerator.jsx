@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { HiUpload, HiTemplate } from 'react-icons/hi';
 import BaseForm from '../../../components/common/BaseForm';
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormInput } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { fileToBase64 } from '../../../utils/fileAttachmentUtils';
@@ -16,7 +16,6 @@ import { convertCanvaDesignToBase64 } from '../../../utils/canvaImageHelper';
 
 const AltTextGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'alt-text';
-  const { Input } = useFormFields();
   const { setGeneratedText } = useGeneratedTextStore();
   const [searchParams] = useSearchParams();
   
@@ -235,7 +234,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
         </div>
       )}
 
-      <Input
+      <FormInput
         name="imageDescription"
         control={control}
         label="Zusätzliche Bildbeschreibung (optional)"

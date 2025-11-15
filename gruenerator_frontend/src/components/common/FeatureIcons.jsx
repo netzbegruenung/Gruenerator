@@ -1,9 +1,9 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiClipboardList, HiUpload, HiChatAlt2 } from 'react-icons/hi';
+import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiPlusCircle, HiClipboardList, HiUpload, HiChatAlt2, HiDocument, HiX } from 'react-icons/hi';
 import AttachedFilesList from './AttachedFilesList';
-import SimpleContentSelector from './SimpleContentSelector';
+import ContentSelector from './ContentSelector';
 import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
 import { useInstructionsStatusForType } from '../../features/auth/hooks/useInstructionsStatus';
@@ -59,16 +59,11 @@ const FeatureIcons = ({
   onWebSearchInfoClick,
   instructionType = null
 }) => {
-  // DEBUG: Track parent renders
-  const renderCountRef = React.useRef(0);
-  renderCountRef.current++;
-  if (renderCountRef.current > 5) {
-    console.log('[FeatureIcons] 🔴 Render #', renderCountRef.current);
-  }
   // Use store for feature toggles with selective subscriptions
   const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
   const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
   const useProMode = useGeneratorSelectionStore(state => state.useProMode);
+  const useAutomaticSearch = useGeneratorSelectionStore(state => state.useAutomaticSearch);
   const toggleWebSearch = useGeneratorSelectionStore(state => state.toggleWebSearch);
   const togglePrivacyMode = useGeneratorSelectionStore(state => state.togglePrivacyMode);
   const toggleProMode = useGeneratorSelectionStore(state => state.toggleProMode);
@@ -94,6 +89,10 @@ const FeatureIcons = ({
   // Connect to selection store with selective subscriptions
   const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
   const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const availableDocuments = useGeneratorSelectionStore(state => state.availableDocuments);
+  const availableTexts = useGeneratorSelectionStore(state => state.availableTexts);
+  const toggleDocumentSelection = useGeneratorSelectionStore(state => state.toggleDocumentSelection);
+  const toggleTextSelection = useGeneratorSelectionStore(state => state.toggleTextSelection);
   const storeInstructionType = useGeneratorSelectionStore(state => state.instructionType);
 
   // Use instruction type from prop or store
@@ -343,7 +342,7 @@ const FeatureIcons = ({
             }}
           >
             {(usePrivacyMode && <HiEye className="feature-icons__icon" />) ||
-             (useProMode && <HiLightningBolt className="feature-icons__icon" />) ||
+             (useProMode && <HiPlusCircle className="feature-icons__icon" />) ||
              (<HiAdjustments className="feature-icons__icon" />)}
             <span className="feature-icons-button__label">
               {usePrivacyMode ? 'Privacy' : (useProMode ? 'Pro' : 'Ausbalanciert')}
@@ -360,19 +359,25 @@ const FeatureIcons = ({
           onDrop={handleDrop}
         >
           <button
-            className={`feature-icon-button ${totalContentCount > 0 ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''} ${isDragging ? 'dragging' : ''}`}
+            className={`feature-icon-button ${(totalContentCount > 0 || useAutomaticSearch) ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''} ${isDragging ? 'dragging' : ''}`}
             onClick={(event) => {
               handleIconClick(event, 'content');
               handleDropdownToggle('content');
             }}
-            aria-label="Inhalt auswählen"
+            aria-label="Inhalt"
             tabIndex={tabIndex.attachment}
             type="button"
             disabled={isValidatingFiles}
           >
-            <HiPaperClip className="feature-icons__icon" />
+            {useAutomaticSearch ? (
+              <HiLightningBolt className="feature-icons__icon" />
+            ) : (
+              <HiPaperClip className="feature-icons__icon" />
+            )}
             <span className="feature-icons-button__label">
-              {isValidatingFiles ? 'Prüfe...' : `Inhalt${totalContentCount > 0 ? ` (${totalContentCount})` : ''}`}
+              {isValidatingFiles ? 'Prüfe...' : (
+                useAutomaticSearch ? 'Auto' : (totalContentCount > 0 ? `${totalContentCount}` : 'Inhalt')
+              )}
             </span>
           </button>
 
@@ -424,6 +429,62 @@ const FeatureIcons = ({
         )}
       </div>
 
+      {/* Attached Files List */}
+      <AttachedFilesList
+        files={attachedFiles}
+        onRemoveFile={onRemoveFile}
+        fileMetadata={fileMetadata}
+        privacyModeActive={usePrivacyMode}
+      />
+
+      {/* Selected Documents and Texts */}
+      {(selectedDocumentIds.length > 0 || selectedTextIds.length > 0) && (
+        <div className="feature-icons__selected-content">
+          {selectedDocumentIds.map(docId => {
+            const doc = availableDocuments.find(d => d.id === docId);
+            if (!doc) return null;
+            return (
+              <div key={`doc-${docId}`} className="selected-content-tag">
+                <HiDocument className="selected-content-icon" />
+                <span className="selected-content-name">{doc.title}</span>
+                <button
+                  type="button"
+                  className="selected-content-remove-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDocumentSelection(docId);
+                  }}
+                  aria-label={`${doc.title} entfernen`}
+                >
+                  <HiX />
+                </button>
+              </div>
+            );
+          })}
+          {selectedTextIds.map(textId => {
+            const text = availableTexts.find(t => t.id === textId);
+            if (!text) return null;
+            return (
+              <div key={`text-${textId}`} className="selected-content-tag">
+                <HiClipboardList className="selected-content-icon" />
+                <span className="selected-content-name">{text.title}</span>
+                <button
+                  type="button"
+                  className="selected-content-remove-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleTextSelection(textId);
+                  }}
+                  aria-label={`${text.title} entfernen`}
+                >
+                  <HiX />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Inline Balanced Mode Dropdown */}
       <DropdownPortal
         triggerRef={balancedContainerRef}
@@ -431,6 +492,7 @@ const FeatureIcons = ({
         onClose={() => setActiveDropdown(null)}
         className="balanced-dropdown-inline open"
         widthRef={featureIconsRef}
+        minWidth={240}
         gap={8}
       >
         <button
@@ -480,7 +542,7 @@ const FeatureIcons = ({
           }}
           type="button"
         >
-          <HiLightningBolt className="balanced-dropdown-icon" />
+          <HiPlusCircle className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Pro</span>
             <span className="balanced-dropdown-desc">Erweiterte KI für komplexe Aufgaben.</span>
@@ -488,44 +550,24 @@ const FeatureIcons = ({
         </button>
       </DropdownPortal>
 
-      {/* Inline Content Dropdown */}
+      {/* Content Dropdown */}
       <DropdownPortal
         triggerRef={contentContainerRef}
         isOpen={activeDropdown === 'content'}
         onClose={() => setActiveDropdown(null)}
         className="content-dropdown-inline open"
         widthRef={featureIconsRef}
+        minWidth={240}
+        gap={8}
       >
-        {/* Drag-Drop Zone */}
-        <div
-          className={`content-dropdown__drag-zone ${isDragging ? 'dragging' : ''}`}
-          onClick={handleFileInputTrigger}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <HiUpload className="drag-zone__icon" />
-          <div className="drag-zone__content">
-            <span className="drag-zone__title">
-              {isDragging ? 'Dateien hier ablegen' : 'Drag & Drop oder klicken'}
-            </span>
-            <span className="drag-zone__desc">PDF, DOCX (Textdateien)</span>
-          </div>
-        </div>
-
-        {/* Validation Banner - Only shown in Privacy Mode */}
-        <ValidationBanner usePrivacyMode={usePrivacyMode} />
-
-        {/* Separator before Content Selector */}
-        {(attachedFiles.length > 0 || validationError) && (
-          <div className="content-dropdown-separator"></div>
-        )}
-
-        {/* Simple Content Selector */}
-        <div className="content-dropdown-item content-dropdown-item--content-selector">
-          <SimpleContentSelector disabled={isValidatingFiles} />
-        </div>
+        <ContentSelector
+          mode="compact"
+          onAttachmentClick={onAttachmentClick}
+          onRemoveFile={onRemoveFile}
+          attachedFiles={attachedFiles}
+          usePrivacyMode={usePrivacyMode}
+          onDropdownClose={() => setActiveDropdown(null)}
+        />
       </DropdownPortal>
 
       {showWebSearchInfoLink && (
@@ -572,13 +614,6 @@ const FeatureIcons = ({
           )}
         </div>
       )}
-
-      <AttachedFilesList
-        files={attachedFiles}
-        onRemoveFile={onRemoveFile}
-        fileMetadata={fileMetadata}
-        privacyModeActive={usePrivacyMode}
-      />
     </div>
   );
 };

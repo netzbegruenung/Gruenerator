@@ -5,7 +5,7 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/consta
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import SmartInput from '../../../components/common/Form/SmartInput';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { useUserInstructions } from '../../../hooks/useUserInstructions';
@@ -43,7 +43,6 @@ const REQUEST_TYPE_TITLES = {
 
 const AntragGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'antrag-generator';
-  const { Input, Textarea } = useFormFields();
 
   // Beta features check
   const { canAccessBetaFeature } = useBetaFeatures();
@@ -281,7 +280,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     <>
       {(interactiveState === 'initial' || interactiveState === 'completed' || !useInteractiveMode) && (
         <>
-          <Input
+          <FormInput
             name="idee"
             control={control}
             label={FORM_LABELS.IDEE}
@@ -290,7 +289,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             tabIndex={form.generator.tabIndex.idee}
           />
 
-          <Textarea
+          <FormTextarea
             name="details"
             control={control}
             label={FORM_LABELS.DETAILS}

@@ -423,12 +423,17 @@ export const {
 export const DEFAULT_TAB_INDEX = {
   // Form fields (100-399)
   form: 100,
-  
-  // Feature icons (400-499) 
+
+  // Feature icons (400-499)
   webSearch: 400,
   privacyMode: 410,
   attachment: 420,
-  
+
+  // Selectors (500-699)
+  platformSelector: 500,
+  knowledgeSourceSelector: 510,
+  knowledgeSelector: 520,
+
   // Actions (900-999)
   submit: 900
 };

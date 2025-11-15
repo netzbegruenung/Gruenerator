@@ -1,0 +1,30 @@
+/* FormExtrasSection - Close button styling when FeatureIcons transforms */
+
+.feature-icons-close-button {
+  width: 100%;
+  justify-content: center;
+  animation: fadeIn 200ms ease-out;
+}
+
+.feature-icons-close-button .pabtn__icon {
+  font-size: 1.2rem;
+}
+
+.feature-icons-close-button .pabtn__label {
+  font-size: 0.9rem;
+}
+
+/* FeatureIcons fade in animation */
+.form-extras__feature-icons {
+  animation: fadeIn 200ms ease-out;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

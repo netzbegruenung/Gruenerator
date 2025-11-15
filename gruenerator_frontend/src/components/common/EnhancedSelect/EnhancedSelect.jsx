@@ -3,17 +3,20 @@ import PropTypes from 'prop-types';
 const Select = lazy(() => import('react-select'));
 const CreatableSelect = lazy(() => import('react-select/creatable'));
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
-import SourceTag from './SourceTag';
 import OptionIcon from './OptionIcon';
 import '../../../assets/styles/components/ui/react-select.css';
 
 /**
  * EnhancedSelect - A wrapper around react-select with native support for tags, icons, and metadata
  *
+ * Props:
+ * - placeholderIcon?: Component - Icon to show in placeholder (e.g., for active mode indicators)
+ *
  * Standardized option format:
  * {
  *   value: string,
  *   label: string,
+ *   selectedLabel?: string,  // Optional: different label when selected (e.g., chip display)
  *   icon?: Component | string,
  *   iconType?: string,
  *   tag?: {
@@ -34,6 +37,7 @@ const EnhancedSelect = forwardRef(({
   enableSubtitles = false,
   tagVariants = {},
   iconConfig = {},
+  placeholderIcon = null,
 
   // Creatable functionality
   isCreatable = false,
@@ -49,6 +53,7 @@ const EnhancedSelect = forwardRef(({
   formatOptionLabel: customFormatOptionLabel,
   className = '',
   classNamePrefix = 'react-select',
+  components: customComponents = {},
   ...selectProps
 }, ref) => {
   
@@ -61,40 +66,26 @@ const EnhancedSelect = forwardRef(({
 
     // Enhanced formatting for menu options
     if (context === 'menu') {
+      const isSpecialMode = option.metadata?.isSpecialMode || false;
+
       return (
-        <div className="enhanced-option">
+        <div className={`enhanced-option ${isSpecialMode ? 'enhanced-option--special-mode' : ''}`}>
           {/* Icon */}
           {enableIcons && (option.icon || option.iconType) && (
-            <OptionIcon 
-              icon={option.icon} 
+            <OptionIcon
+              icon={option.icon}
               iconType={option.iconType}
               size={iconConfig.size || 16}
               config={iconConfig}
             />
           )}
-          
+
           {/* Content */}
           <div className="enhanced-option__content">
             <span className="enhanced-option__label">
               {option.label}
             </span>
-            {enableSubtitles && option.subtitle && (
-              <span className="enhanced-option__subtitle">
-                {option.subtitle}
-              </span>
-            )}
           </div>
-          
-          {/* Tag */}
-          {enableTags && option.tag && (
-            <SourceTag 
-              label={option.tag.label}
-              variant={option.tag.variant || 'custom'}
-              icon={option.tag.icon}
-              type={option.tag.type}
-              customVariants={tagVariants}
-            />
-          )}
         </div>
       );
     }
@@ -102,17 +93,94 @@ const EnhancedSelect = forwardRef(({
     // For selected values, show simplified format
     return (
       <span className="enhanced-selected-option">
-        {option.label}
-        {enableTags && option.tag && option.tag.variant === 'group' && (
-          <span className="enhanced-selected-source">
-            [{option.tag.label}]
-          </span>
-        )}
+        {option.selectedLabel || option.label}
       </span>
     );
   }, [customFormatOptionLabel, enableTags, enableIcons, enableSubtitles, tagVariants, iconConfig]);
 
+  // Custom Placeholder to show icon if provided
+  const CustomPlaceholder = useCallback((props) => {
+    const { children } = props;
+    const Icon = placeholderIcon;
+
+    return (
+      <div className="react-select__placeholder-wrapper">
+        {Icon && (
+          <Icon className="react-select__placeholder-icon" />
+        )}
+        <span>{children}</span>
+      </div>
+    );
+  }, [placeholderIcon]);
+
+  // Custom MultiValueLabel to show icons in selected chips
+  const CustomMultiValueLabel = useCallback((props) => {
+    const { data } = props;
+    const Icon = data.icon;
+    const isSpecialMode = data.metadata?.isSpecialMode || false;
+    const displayLabel = data.selectedLabel || data.label;
+
+    return (
+      <div className={`react-select__multi-value__label-wrapper ${isSpecialMode ? 'special-mode' : ''}`}>
+        {enableIcons && Icon && (
+          <Icon className="react-select__multi-value__icon" />
+        )}
+        <span>{displayLabel}</span>
+      </div>
+    );
+  }, [enableIcons]);
+
+  // Merge custom components
+  const components = {
+    ...customComponents,
+    Placeholder: CustomPlaceholder,
+    MultiValueLabel: CustomMultiValueLabel
+  };
+
+  // Enhanced styles for multi-value chips
+  const enhancedStyles = {
+    multiValue: (base, state) => {
+      const isSpecialMode = state.data?.metadata?.isSpecialMode || false;
+      if (isSpecialMode) {
+        return {
+          ...base,
+          backgroundColor: 'rgba(135, 206, 250, 0.15)',
+          border: '1px solid var(--himmel)',
+          borderRadius: 'var(--card-border-radius-small)'
+        };
+      }
+      return base;
+    },
+    multiValueLabel: (base, state) => {
+      const isSpecialMode = state.data?.metadata?.isSpecialMode || false;
+      if (isSpecialMode) {
+        return {
+          ...base,
+          color: 'var(--himmel-dark, var(--font-color))',
+          fontWeight: 600
+        };
+      }
+      return base;
+    }
+  };
+
   const SelectComponent = isCreatable ? CreatableSelect : Select;
+
+  // Merge enhanced styles with user-provided styles
+  const mergedStyles = {
+    ...enhancedStyles,
+    ...selectProps.styles,
+    // Merge functions for overlapping style keys
+    ...(selectProps.styles && Object.keys(selectProps.styles).reduce((acc, key) => {
+      if (enhancedStyles[key] && typeof enhancedStyles[key] === 'function' && typeof selectProps.styles[key] === 'function') {
+        acc[key] = (base, state) => {
+          const enhancedStyle = enhancedStyles[key](base, state);
+          return selectProps.styles[key](enhancedStyle, state);
+        };
+      }
+      return acc;
+    }, {}))
+  };
 
   const selectElement = (
     <Suspense fallback={<div>Loading...</div>}>
@@ -120,6 +188,8 @@ const EnhancedSelect = forwardRef(({
         ref={ref}
         options={options}
         formatOptionLabel={internalFormatOptionLabel}
+        components={components}
+        styles={mergedStyles}
         className={`react-select ${className}`.trim()}
         classNamePrefix={classNamePrefix}
         {...selectProps}
@@ -153,6 +223,7 @@ EnhancedSelect.propTypes = {
   enableSubtitles: PropTypes.bool,
   tagVariants: PropTypes.object,
   iconConfig: PropTypes.object,
+  placeholderIcon: PropTypes.func,
 
   // Creatable functionality
   isCreatable: PropTypes.bool,
@@ -167,6 +238,7 @@ EnhancedSelect.propTypes = {
   options: PropTypes.arrayOf(PropTypes.shape({
     value: PropTypes.any.isRequired,
     label: PropTypes.string.isRequired,
+    selectedLabel: PropTypes.string,
     icon: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
     iconType: PropTypes.string,
     tag: PropTypes.shape({

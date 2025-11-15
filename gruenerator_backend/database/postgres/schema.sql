@@ -61,7 +61,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     interactive_antrag_enabled BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
-    document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
+    document_mode TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
+    -- Export auto-save preference
+    auto_save_on_export BOOLEAN DEFAULT FALSE
 );
 
 -- Groups table (moved before documents to fix foreign key constraint)

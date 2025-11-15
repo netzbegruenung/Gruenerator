@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
 import { HiCog, HiPencil, HiSave } from "react-icons/hi";
@@ -10,6 +10,9 @@ import ExportDropdown from './ExportDropdown';
 import { useLazyAuth } from '../../hooks/useAuth';
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
+import { useProfileStore } from '../../stores/profileStore';
+import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
+import { hashContent } from '../../utils/contentHash';
 
 const ActionButtons = ({
   onEdit,
@@ -52,6 +55,10 @@ const ActionButtons = ({
   const redo = useGeneratedTextStore(state => state.redo);
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
   const [saveIcon, setSaveIcon] = useState(<HiSave size={16} />);
+
+  const profile = useProfileStore((s) => s.profile);
+  const { saveToLibrary: autoSaveToLibrary } = useSaveToLibrary();
+  const exportedContentHashesRef = useRef(new Set());
   
   // Directly compute undo/redo availability from store without local state
   const canUndoState = useGeneratedTextStore(state => {
@@ -72,6 +79,9 @@ const ActionButtons = ({
 
 
   const handleCopyToClipboard = async () => {
+    console.log('[ActionButtons] Copy button clicked');
+
+    // First do the copy
     await copyFormattedContent(
       activeContent,
       () => {
@@ -82,6 +92,45 @@ const ActionButtons = ({
       },
       () => {}
     );
+
+    console.log('[ActionButtons] Auto-save check', {
+      enabled: profile?.auto_save_on_export,
+      authenticated: isAuthenticated,
+      hasContent: !!activeContent
+    });
+
+    // Then check if auto-save is enabled
+    if (!profile?.auto_save_on_export || !isAuthenticated || !activeContent) {
+      return;
+    }
+
+    // Extract string content for hashing (handle both object and string content)
+    const contentForHash = typeof activeContent === 'string'
+      ? activeContent
+      : (activeContent.content || activeContent.social?.content || JSON.stringify(activeContent));
+
+    const contentHash = hashContent(contentForHash, title);
+    if (exportedContentHashesRef.current.has(contentHash)) {
+      console.log('[ActionButtons Auto-save] Skipping duplicate content');
+      return;
+    }
+
+    try {
+      const contentType = generatedText?.contentType || 'universal';
+      console.log('[ActionButtons Auto-save] Saving to library', { contentType });
+
+      // Use the same content extraction for saving
+      await autoSaveToLibrary(
+        contentForHash,
+        title || 'Auto-gespeichert: Kopieren',
+        contentType
+      );
+
+      exportedContentHashesRef.current.add(contentHash);
+      console.log('[ActionButtons Auto-save] Successfully saved');
+    } catch (error) {
+      console.warn('[ActionButtons Auto-save] Failed:', error);
+    }
   };
 
   const isMobileView = window.innerWidth <= 768;

@@ -40,7 +40,7 @@ const FormTextarea = ({
   // URL detection state
   const [detectedUrls, setDetectedUrls] = useState([]);
   const [fieldValue, setFieldValue] = useState('');
-  
+
   const debouncedValue = useDebounce(fieldValue, 1000); // 1 second debounce
 
   // URL detection effect
@@ -111,12 +111,12 @@ const FormTextarea = ({
                 tabIndex={tabIndex}
                 onChange={(e) => {
                   field.onChange(e);
-                  
+
                   // Update field value for URL detection
                   if (enableUrlDetection) {
                     setFieldValue(e.target.value);
                   }
-                  
+
                   // Call external onChange if provided
                   if (rest.onChange) {
                     rest.onChange(e.target.value);

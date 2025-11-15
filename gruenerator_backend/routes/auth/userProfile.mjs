@@ -64,8 +64,8 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
 router.put('/profile', ensureAuthenticated, async (req, res) => {
   try {
     const profileService = getProfileService();
-    const { display_name, username, avatar_robot_id, email } = req.body;
-    
+    const { display_name, username, avatar_robot_id, email, auto_save_on_export } = req.body;
+
     // Validate input
     if (avatar_robot_id && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
       return res.status(400).json({
@@ -73,18 +73,23 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
         message: 'Avatar Robot ID muss zwischen 1 und 9 liegen.'
       });
     }
-    
+
     // Prepare update data - NEVER include beta_features here
     // Beta features are managed exclusively via /profile/beta-features endpoint
     const updateData = {};
-    
+
     if (display_name !== undefined) updateData.display_name = display_name || null;
     if (username !== undefined) updateData.username = username || null;
     if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
-    
+
     // Handle email updates in profiles table
     if (email !== undefined) {
       updateData.email = email || null;
+    }
+
+    // Handle auto_save_on_export preference
+    if (auto_save_on_export !== undefined) {
+      updateData.auto_save_on_export = !!auto_save_on_export;
     }
     
     // Update profile using ProfileService

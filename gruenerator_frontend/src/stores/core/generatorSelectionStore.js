@@ -36,6 +36,8 @@ const initialState = {
   useWebSearch: false,
   usePrivacyMode: false,
   useProMode: false,
+  // Automatic search mode
+  useAutomaticSearch: false,
 };
 
 /**
@@ -72,6 +74,7 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     state.useWebSearch = false;
     state.usePrivacyMode = false;
     state.useProMode = false;
+    state.useAutomaticSearch = false;
   }),
 
   // Instructions management
@@ -106,7 +109,6 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
 
   // Document management functions
   setAvailableDocuments: (documents) => set((state) => {
-    console.log('[SelectionStore] 📁 setAvailableDocuments called:', documents?.length || 0, 'documents');
     state.availableDocuments = documents || [];
     state.isLoadingDocuments = false;
     // Clear any extraction status when documents change
@@ -132,7 +134,6 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
   }),
 
   toggleDocumentSelection: (documentId) => {
-    console.log('[SelectionStore] 📄 toggleDocumentSelection called:', documentId);
     const currentState = get();
     const wasSelected = currentState.selectedDocumentIds.includes(documentId);
 
@@ -155,7 +156,6 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
 
   // Text management functions
   setAvailableTexts: (texts) => set((state) => {
-    console.log('[SelectionStore] 📝 setAvailableTexts called:', texts?.length || 0, 'texts');
     state.availableTexts = texts || [];
     state.isLoadingTexts = false;
   }),
@@ -227,17 +227,12 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
 
   // UI Configuration management
   setUIConfig: (config) => set((state) => {
-    console.log('[SelectionStore] 🔧 setUIConfig called:', config);
     // Only update properties that have actually changed (prevents infinite loops)
-    let hasChanges = false;
     for (const key in config) {
       if (state.uiConfig[key] !== config[key]) {
-        console.log(`[SelectionStore]   ↳ Changing ${key}: ${state.uiConfig[key]} → ${config[key]}`);
         state.uiConfig[key] = config[key];
-        hasChanges = true;
       }
     }
-    console.log('[SelectionStore]   ↳ hasChanges:', hasChanges);
     // If no changes, immer will not trigger subscribers
   }),
 
@@ -278,6 +273,30 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     }
   }),
 
+  // Automatic search toggle
+  setAutomaticSearch: (enabled) => set((state) => {
+    state.useAutomaticSearch = enabled;
+    // When enabling auto-search, clear manual selections (priority rule)
+    if (enabled) {
+      state.selectedDocumentIds = [];
+      state.selectedTextIds = [];
+    }
+  }),
+
+  toggleAutomaticSearch: () => {
+    const currentState = get();
+    const newValue = !currentState.useAutomaticSearch;
+
+    set((state) => {
+      state.useAutomaticSearch = newValue;
+      // When enabling auto-search, clear manual selections (priority rule)
+      if (newValue) {
+        state.selectedDocumentIds = [];
+        state.selectedTextIds = [];
+      }
+    });
+  },
+
   // Helper: Get feature state for backend submission
   getFeatureState: () => {
     const state = get();
@@ -285,6 +304,7 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
       useWebSearchTool: state.useWebSearch,
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
+      useAutomaticSearch: state.useAutomaticSearch,
       useBedrock: false, // Keep for backward compatibility
     };
   },
@@ -294,6 +314,7 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     state.useWebSearch = false;
     state.usePrivacyMode = false;
     state.useProMode = false;
+    state.useAutomaticSearch = false;
   }),
 
   reset: () => {

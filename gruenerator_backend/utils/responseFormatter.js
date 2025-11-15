@@ -55,7 +55,10 @@ const createSuccessResponseWithAttachments = (result, routePath, formData, attac
   // Extract web search sources from result metadata
   const webSearchSources = result?.metadata?.webSearchSources || null;
   const hasWebSearchSources = webSearchSources && Array.isArray(webSearchSources) && webSearchSources.length > 0;
-  
+
+  // Extract enrichment summary (includes sources and auto-selected documents)
+  const enrichmentSummary = attachmentInfo.enrichmentSummary || null;
+
   const attachmentMetadata = {
     privacyModeUsed: usePrivacyMode,
     provider: usePrivacyMode && provider ? provider : 'default',
@@ -66,7 +69,9 @@ const createSuccessResponseWithAttachments = (result, routePath, formData, attac
     webSearchUsed: hasWebSearchSources,
     webSearchSourcesCount: hasWebSearchSources ? webSearchSources.length : 0,
     // Preserve sources for frontend display
-    webSearchSources: webSearchSources
+    webSearchSources: webSearchSources,
+    // Add enrichment summary (includes all source types including auto-selected documents)
+    enrichmentSummary: enrichmentSummary
   };
 
   return createSuccessResponse(result, routePath, formData, attachmentMetadata);

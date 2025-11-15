@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { useUserInstructions } from '../../../hooks/useUserInstructions';
@@ -12,7 +12,6 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
 const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'leichte-sprache';
-  const { Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
   // Get feature state and selection from store
@@ -139,7 +138,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
 
   const renderFormInputs = () => (
     <>
-      <Textarea
+      <FormTextarea
         name="originalText"
         control={control}
         label="Text für Leichte Sprache"
