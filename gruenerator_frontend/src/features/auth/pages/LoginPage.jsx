@@ -11,6 +11,14 @@ import '../../../assets/styles/features/auth/login-page.css';
 // Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+// Login Provider Configuration - Set enabled: false to hide a provider
+const LOGIN_PROVIDERS = {
+  gruenesNetz: { enabled: true },
+  grueneOesterreich: { enabled: false },
+  netzbegruenung: { enabled: true },
+  gruenerator: { enabled: false }
+};
+
 // Helper function to extract page name from pathname for context
 const getPageName = (pathname, t) => {
   const pathSegments = pathname.split('/').filter(Boolean);
@@ -169,90 +177,98 @@ const LoginPage = ({
   // Helper function to render login buttons
   const getLoginButtons = () => (
     <div className="login-options">
-      <button
-        className="login-option gruenes-netz"
-        onClick={handleGruenesNetzLogin}
-        disabled={isAuthenticating}
-      >
-        <div className="login-content">
-          <img
-            src="/images/Sonnenblume_RGB_gelb.png"
-            alt="Grünes Netz"
-            className="login-logo"
-            width="50"
-            height="50"
-            loading="eager"
-          />
-          <div className="login-text-content">
-            <h3 className="login-title">{t('login.sources.gruenes_netz.title')}</h3>
-            <p className="login-description">
-              {t('login.sources.gruenes_netz.description')}
-            </p>
+      {LOGIN_PROVIDERS.gruenesNetz.enabled && (
+        <button
+          className="login-option gruenes-netz"
+          onClick={handleGruenesNetzLogin}
+          disabled={isAuthenticating}
+        >
+          <div className="login-content">
+            <img
+              src="/images/Sonnenblume_RGB_gelb.png"
+              alt="Grünes Netz"
+              className="login-logo"
+              width="50"
+              height="50"
+              loading="eager"
+            />
+            <div className="login-text-content">
+              <h3 className="login-title">{t('login.sources.gruenes_netz.title')}</h3>
+              <p className="login-description">
+                {t('login.sources.gruenes_netz.description')}
+              </p>
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+      )}
 
-      <button
-        className="login-option gruene-oesterreich"
-        onClick={handleGrueneOesterreichLogin}
-        disabled={isAuthenticating}
-      >
-        <div className="login-content">
-          <img
-            src="/images/Grüne_at_Logo.svg.png"
-            alt="Die Grünen – Die Grüne Alternative"
-            className="login-logo"
-            width="50"
-            height="50"
-            loading="eager"
-          />
-          <div className="login-text-content">
-            <h3 className="login-title">{t('login.sources.gruene_oesterreich.title')}</h3>
-            <p className="login-description">
-              {t('login.sources.gruene_oesterreich.description')}
-            </p>
+      {LOGIN_PROVIDERS.grueneOesterreich.enabled && (
+        <button
+          className="login-option gruene-oesterreich"
+          onClick={handleGrueneOesterreichLogin}
+          disabled={isAuthenticating}
+        >
+          <div className="login-content">
+            <img
+              src="/images/Grüne_at_Logo.svg.png"
+              alt="Die Grünen – Die Grüne Alternative"
+              className="login-logo"
+              width="50"
+              height="50"
+              loading="eager"
+            />
+            <div className="login-text-content">
+              <h3 className="login-title">{t('login.sources.gruene_oesterreich.title')}</h3>
+              <p className="login-description">
+                {t('login.sources.gruene_oesterreich.description')}
+              </p>
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+      )}
 
-      <button
-        className="login-option netzbegruenung"
-        onClick={handleNetzbegrueungLogin}
-        disabled={isAuthenticating}
-      >
-        <div className="login-content">
-          <img
-            src="/images/nb_icon.png"
-            alt="Netzbegrünung"
-            className="login-logo"
-            width="50"
-            height="50"
-            loading="eager"
-          />
-          <div className="login-text-content">
-            <h3 className="login-title">{t('login.sources.netzbegruenung.title')}</h3>
-            <p className="login-description">
-              {t('login.sources.netzbegruenung.description')}
-            </p>
+      {LOGIN_PROVIDERS.netzbegruenung.enabled && (
+        <button
+          className="login-option netzbegruenung"
+          onClick={handleNetzbegrueungLogin}
+          disabled={isAuthenticating}
+        >
+          <div className="login-content">
+            <img
+              src="/images/nb_icon.png"
+              alt="Netzbegrünung"
+              className="login-logo"
+              width="50"
+              height="50"
+              loading="eager"
+            />
+            <div className="login-text-content">
+              <h3 className="login-title">{t('login.sources.netzbegruenung.title')}</h3>
+              <p className="login-description">
+                {t('login.sources.netzbegruenung.description')}
+              </p>
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+      )}
 
-      <button
-        className="login-option gruenerator"
-        onClick={handleGrueneratorLogin}
-        disabled={isAuthenticating}
-      >
-        <div className="login-content">
-          <span className="login-icon">🌱</span>
-          <div className="login-text-content">
-            <h3 className="login-title">Grünerator Login</h3>
-            <p className="login-description">
-              Für Mitarbeitende von Abgeordneten und Geschäftsstellen
-            </p>
+      {LOGIN_PROVIDERS.gruenerator.enabled && (
+        <button
+          className="login-option gruenerator"
+          onClick={handleGrueneratorLogin}
+          disabled={isAuthenticating}
+        >
+          <div className="login-content">
+            <span className="login-icon">🌱</span>
+            <div className="login-text-content">
+              <h3 className="login-title">Grünerator Login</h3>
+              <p className="login-description">
+                Für Mitarbeitende von Abgeordneten und Geschäftsstellen
+              </p>
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+      )}
     </div>
   );
 
