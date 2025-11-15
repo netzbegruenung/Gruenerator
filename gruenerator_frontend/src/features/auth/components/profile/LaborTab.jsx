@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification, HiOutlineDocumentText } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification, HiOutlineDocumentText, HiSave } from 'react-icons/hi';
 import { NotebookIcon } from '../../../../config/icons';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -32,6 +32,7 @@ const LaborTab = ({
     CHAT: 'chat',
     SITES: 'sites',
     INTERACTIVE_ANTRAG: 'interactiveAntrag',
+    AUTO_SAVE_EXPORT: 'autoSaveOnExport',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -182,6 +183,16 @@ const LaborTab = ({
           featureName: 'Interaktiver Antrag',
           checkboxLabel: 'Interaktiven Antrag-Modus in Anträgen aktivieren',
           icon: HiOutlineDocumentText
+        };
+      case BETA_VIEWS.AUTO_SAVE_EXPORT:
+        return {
+          title: 'Auto-Speichern bei Export',
+          description: 'Speichere jeden Export (PDF, DOCX, Etherpad, Wolke, Kopieren) automatisch in deiner Textbibliothek. Verhindert doppelte Speicherungen innerhalb der gleichen Sitzung.',
+          checked: getBetaFeatureState('autoSaveOnExport'),
+          setter: (value) => updateUserBetaFeatures('autoSaveOnExport', value),
+          featureName: 'Auto-Speichern bei Export',
+          checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
+          icon: HiSave
         };
       default:
         return null;
