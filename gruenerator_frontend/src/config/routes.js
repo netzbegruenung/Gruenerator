@@ -32,6 +32,7 @@ const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
+const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/KampagnenGenerator'));
 const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
@@ -85,6 +86,7 @@ export const GrueneratorenBundle = {
   Universal: UniversalTextGenerator,
   Antrag: AntragPage,
   PresseSocial: PresseSocialGenerator,
+  Kampagnen: KampagnenGenerator,
   Accessibility: AccessibilityTextGenerator,
   AltText: AltTextGenerator,
   Imagine: GrueneratorImagine,
@@ -123,6 +125,7 @@ const standardRoutes = [
   { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
   { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
+  { path: '/kampagnen', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/imagine', component: GrueneratorenBundle.Imagine, withForm: true },
   { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
   { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },

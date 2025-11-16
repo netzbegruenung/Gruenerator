@@ -51,8 +51,8 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   else if (options.useBedrock === true) {
     provider = 'bedrock';
     useBedrock = true;
-    // Use Claude 4 for Bedrock mode unless specific model is requested
-    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0';
+    // Use Claude 4.5 for Bedrock mode unless specific model is requested
+    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
   }
 
   // Type-based defaults (preserve existing special cases)

@@ -99,8 +99,10 @@ const FormSection = forwardRef(({
   onWebSearchInfoClick,
   componentName,
   useEditMode = false,
+  isImageEditActive = false,
   registerEditHandler = null,
-  enableKnowledgeSelector = false
+  enableKnowledgeSelector = false,
+  customEditContent = null
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -211,7 +213,9 @@ const FormSection = forwardRef(({
               showImageUpload={showImageUpload}
               onImageChange={onImageChange}
             >
-              {useEditMode ? (
+              {isImageEditActive ? (
+                customEditContent
+              ) : useEditMode ? (
                 <UniversalEditForm componentName={componentName} />
               ) : (
                 children
@@ -219,7 +223,7 @@ const FormSection = forwardRef(({
             </FormInputSection>
 
             {/* Extras Section */}
-            {!hideExtrasSection && !useEditMode && (
+            {!hideExtrasSection && (isImageEditActive || !useEditMode) && (
               <FormExtrasSection
                 interactiveModeToggle={interactiveModeToggle}
                 useInteractiveModeToggle={useInteractiveModeToggle}

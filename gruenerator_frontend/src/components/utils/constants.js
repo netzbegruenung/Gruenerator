@@ -6,7 +6,13 @@ export const SHAREPIC_TYPES = {
   QUOTE_PURE: 'Zitat_Pure',
   THREE_LINES: 'Dreizeilen',
   HEADLINE: 'Headline',
-  INFO: 'Info'
+  INFO: 'Info',
+  CHRISTMAS_POEM_GREEN_FESTIVE: 'christmas_poem_green_festive',
+  CHRISTMAS_POEM_GREEN_PINE: 'christmas_poem_green_pine',
+  CHRISTMAS_POEM_GREEN_SNOWFLAKES: 'christmas_poem_green_snowflakes',
+  CHRISTMAS_POEM_SAND_WINTER: 'christmas_poem_sand_winter',
+  CHRISTMAS_POEM_SAND_SNOWFLAKES: 'christmas_poem_sand_snowflakes',
+  CHRISTMAS_POEM_SAND_DOTS: 'christmas_poem_sand_dots'
 };
 
 // Form Steps
@@ -216,6 +222,8 @@ export const FORM_LABELS = {
   LINE1: 'Zeile 1',
   LINE2: 'Zeile 2',
   LINE3: 'Zeile 3',
+  LINE4: 'Zeile 4',
+  LINE5: 'Zeile 5',
   FILE_UPLOAD: 'Datei hochladen',
   IDEE: 'Idee',
   GLIEDERUNG: 'Gliederung',
@@ -237,6 +245,8 @@ export const FORM_PLACEHOLDERS = {
   LINE1: 'Gib die erste Zeile ein...',
   LINE2: 'Gib die zweite Zeile ein...',
   LINE3: 'Gib die dritte Zeile ein...',
+  LINE4: 'Gib die vierte Zeile ein...',
+  LINE5: 'Gib die fünfte Zeile ein...',
   FILE_UPLOAD: 'Wähle eine Datei...',
   IDEE: 'Worum gehts?',
   DETAILS: 'Alle wichtigen Details und Anweisungen, zum Beispiel wo etwas gebaut wird. Du kannst hier auch Hinweise zur Sprache oder Korrekturen angeben.',

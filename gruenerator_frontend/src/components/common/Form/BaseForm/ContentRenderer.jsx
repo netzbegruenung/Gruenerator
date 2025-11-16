@@ -64,6 +64,7 @@ const ContentRenderer = ({
   useMarkdown = null, // null = auto-detect, true = force markdown, false = force HTML
   componentName = 'default',
   helpContent,
+  onEditModeToggle,
 }) => {
   // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY EARLY RETURNS
   const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
@@ -73,14 +74,14 @@ const ContentRenderer = ({
   
   // Handle API response object structure {success, content, metadata}
   let processedGeneratedContent = generatedContent;
-  if (generatedContent && typeof generatedContent === 'object' && 
-      generatedContent.hasOwnProperty('content') && 
+  if (generatedContent && typeof generatedContent === 'object' &&
+      generatedContent.hasOwnProperty('content') &&
       generatedContent.hasOwnProperty('success')) {
     processedGeneratedContent = generatedContent.content;
   }
-  
+
   // Check if we have mixed content (social + sharepic)
-  const isMixedContent = processedGeneratedContent && typeof processedGeneratedContent === 'object' && 
+  const isMixedContent = processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
     (processedGeneratedContent.sharepic || processedGeneratedContent.social);
   
   const rawContent = isMixedContent 
@@ -137,6 +138,8 @@ const ContentRenderer = ({
                 key="multiple-sharepics"
                 sharepicData={sharepicItems}
                 onEdit={processedGeneratedContent.onEditSharepic}
+                onEditModeToggle={onEditModeToggle}
+                editMode={processedGeneratedContent.inlineSharepicEditEnabled ? 'inline' : processedGeneratedContent.editMode}
                 showEditButton={processedGeneratedContent.showEditButton !== false}
                 title={processedGeneratedContent.sharepicTitle || "Generierte Sharepics"}
                 downloadButtonText={processedGeneratedContent.sharepicDownloadText}
@@ -168,6 +171,8 @@ const ContentRenderer = ({
                     key={sharepicData.id || `${sharepicData.type || 'sharepic'}-${index}`}
                     sharepicData={sharepicData}
                     onEdit={processedGeneratedContent.onEditSharepic}
+                    onEditModeToggle={onEditModeToggle}
+                    editMode={processedGeneratedContent.inlineSharepicEditEnabled ? 'inline' : processedGeneratedContent.editMode}
                     showEditButton={processedGeneratedContent.showEditButton !== false}
                     title={sharepicTitle}
                     downloadButtonText={downloadButtonText}
@@ -337,6 +342,7 @@ ContentRenderer.propTypes = {
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
   }),
+  onEditModeToggle: PropTypes.func,
 };
 
 export default ContentRenderer; 

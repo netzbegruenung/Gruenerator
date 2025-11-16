@@ -13,10 +13,10 @@ import apiClient from '../../../components/utils/apiClient';
 import VerifyFeature from '../../common/VerifyFeature';
 import { SloganAlternativesDisplay } from '../../../features/sharepic/core/components/SloganAlternatives';
 
-import { 
-  FORM_STEPS, 
-  BUTTON_LABELS, 
-  SHAREPIC_GENERATOR, 
+import {
+  FORM_STEPS,
+  BUTTON_LABELS,
+  SHAREPIC_GENERATOR,
   ERROR_MESSAGES,
   SHAREPIC_TYPES,
 } from '../../utils/constants';
@@ -74,7 +74,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             name="type"
             value={defaultSharepicType}
           />
-          
+
           <h3><label htmlFor="thema">Thema</label></h3>
           <input
             id="thema"
@@ -86,7 +86,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             className={`form-input ${formErrors.thema ? 'error-input' : ''}`}
           />
           {formErrors.thema && <div className="error-message">{formErrors.thema}</div>}
-          
+
           <h3><label htmlFor="details">Details</label></h3>
           <textarea
             id="details"
@@ -441,7 +441,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const validateForm = useCallback((formData, currentStep) => {
     const newErrors = {};
-    
+
     // Context-aware validation based on sharepic type and current step
     if (formData.type === 'Info' && (currentStep === FORM_STEPS.RESULT || currentStep === FORM_STEPS.PREVIEW)) {
       // For Info sharepics in RESULT/PREVIEW steps, validate Info-specific fields
@@ -456,7 +456,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       // For INPUT step, validate thema for all types except when we're editing (skip thema validation)
       if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
     }
-    
+
     if (!formData.type) newErrors.type = ERROR_MESSAGES.TYPE;
 
     setErrors(newErrors);
@@ -843,13 +843,11 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   }, [updateFormData]);
 
   const handleZitatSubSelect = useCallback((zitatSubType) => {
-    updateFormData({ 
+    updateFormData({
       type: zitatSubType, // This will be either 'Zitat' or 'Zitat_Pure'
-      currentStep: FORM_STEPS.INPUT 
+      currentStep: FORM_STEPS.INPUT
     });
   }, [updateFormData]);
-
-
 
   if (state.currentStep === FORM_STEPS.WELCOME && !hasSeenWelcome) {
     return (
@@ -942,8 +940,8 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           </div>
           
           <div className="back-button-container">
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="back-button"
               onClick={() => updateFormData({ currentStep: FORM_STEPS.TYPE_SELECT })}
             >

@@ -28,7 +28,9 @@ const ImageDisplay = ({
   downloadFilename,
   enableKiLabel = false,
   onSharepicUpdate,
-  minimal = false
+  minimal = false,
+  onEditModeToggle,
+  editMode
 }) => {
   // Determine if we have multiple sharepics
   const isMultiple = Array.isArray(sharepicData);
@@ -117,13 +119,20 @@ const ImageDisplay = ({
   };
 
   const handleEditSharepic = async () => {
-    // If onEdit prop is provided, use that instead (for social media generator)
+    // Priority 1: Inline edit mode (for Kampagnen)
+    if (editMode === 'inline' && onEditModeToggle && typeof onEditModeToggle === 'function') {
+      console.log('[ImageDisplay] Triggering inline edit mode');
+      onEditModeToggle();
+      return;
+    }
+
+    // Priority 2: Custom onEdit handler (for PresseSocial)
     if (onEdit && typeof onEdit === 'function') {
       onEdit(currentSharepic);
       return;
     }
-    
-    // Default behavior for direct sharepic display
+
+    // Priority 3: Default behavior (new tab with sessionStorage)
     // Create unique editing session ID
     const editingSessionId = `sharepic-edit-${Date.now()}`;
     
@@ -473,14 +482,16 @@ ImageDisplay.propTypes = {
       slogans: PropTypes.array
     }))
   ]).isRequired,
-  onEdit: PropTypes.func, // Optional - for backward compatibility, but not used anymore
+  onEdit: PropTypes.func,
   showEditButton: PropTypes.bool,
   title: PropTypes.string,
   downloadButtonText: PropTypes.string,
   downloadFilename: PropTypes.string,
   enableKiLabel: PropTypes.bool,
   onSharepicUpdate: PropTypes.func,
-  minimal: PropTypes.bool
+  minimal: PropTypes.bool,
+  onEditModeToggle: PropTypes.func,
+  editMode: PropTypes.string
 };
 
 ImageDisplay.defaultProps = {

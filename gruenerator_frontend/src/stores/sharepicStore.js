@@ -15,6 +15,8 @@ const initialState = {
   line1: '',
   line2: '',
   line3: '',
+  line4: '',
+  line5: '',
   quote: '',
   name: '',
   // Info sharepic fields
@@ -29,6 +31,9 @@ const initialState = {
   credit: '',
   searchTerms: [],
   sloganAlternatives: [],
+  // Campaign fields
+  campaignId: '',
+  campaignTypeId: '',
   
   // Cross-component editing state
   editingSource: null, // null, 'presseSocial', 'sharepicGenerator'
@@ -172,7 +177,9 @@ const useSharepicStore = create((set, get) => ({
   selectSlogan: (slogan) => set({
     line1: slogan.line1,
     line2: slogan.line2,
-    line3: slogan.line3
+    line3: slogan.line3,
+    line4: slogan.line4 || '',
+    line5: slogan.line5 || ''
   }),
   handleSloganSelect: (selected) => {
     const { type } = get();

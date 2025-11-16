@@ -215,8 +215,8 @@ const handleDreizeilenRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-
-  const config = prompts.dreizeilen;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.dreizeilen;
   const systemRole = config.systemRole;
 
   const getRequestTemplate = () => {
@@ -423,7 +423,8 @@ const handleZitatRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  const config = prompts.zitat;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.zitat;
   const systemRole = config.systemRole;
 
   const requestTemplate = replaceTemplate(
@@ -558,7 +559,8 @@ const handleZitatPureRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  const config = prompts.zitat_pure;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.zitat_pure;
   const systemRole = config.systemRole;
 
   const requestTemplate = replaceTemplate(
@@ -685,7 +687,8 @@ const handleHeadlineRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  const config = prompts.headline;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.headline;
   const systemRole = config.systemRole;
 
   const requestTemplate = replaceTemplate(
@@ -839,7 +842,8 @@ const handleInfoRequest = async (req, res) => {
 
   console.log('[sharepic_info] Config:', { singleItem, skipShortener, count, source });
 
-  const config = prompts.info;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.info;
   const systemRole = config.systemRole;
 
   const getInfoRequestTemplate = () => {

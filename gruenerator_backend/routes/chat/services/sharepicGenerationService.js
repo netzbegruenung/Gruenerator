@@ -4,14 +4,50 @@ const zitatPureCanvasRouter = require('../../sharepic/sharepic_canvas/zitat_pure
 const zitatCanvasRouter = require('../../sharepic/sharepic_canvas/zitat_canvas');
 const dreizeilenCanvasRouter = require('../../sharepic/sharepic_canvas/dreizeilen_canvas');
 const headlineCanvasRouter = require('../../sharepic/sharepic_canvas/headline_canvas');
+const campaignCanvasRouter = require('../../sharepic/sharepic_canvas/campaign_canvas');
 
 const { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment } = require('../../../utils/attachmentToCanvasAdapter');
 const imagePickerService = require('../../../services/imagePickerService');
+const { parseResponse } = require('../../../utils/campaignResponseParser');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen', 'headline']);
 const IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
+
+/**
+ * Load campaign configuration from JSON file
+ * @param {string} campaignId - Campaign identifier
+ * @param {string} typeId - Campaign type identifier
+ * @returns {Object|null} Campaign type configuration or null if not found
+ */
+const loadCampaignConfig = (campaignId, typeId) => {
+  if (!campaignId || !typeId) return null;
+
+  const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
+
+  if (!fsSync.existsSync(campaignPath)) {
+    console.warn(`[Campaign] Config not found: ${campaignPath}`);
+    return null;
+  }
+
+  try {
+    const campaign = JSON.parse(fsSync.readFileSync(campaignPath, 'utf8'));
+    const typeConfig = campaign.types?.[typeId];
+
+    if (!typeConfig) {
+      console.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);
+      return null;
+    }
+
+    console.log(`[Campaign] Loaded config for ${campaignId}/${typeId}`);
+    return typeConfig;
+  } catch (error) {
+    console.error(`[Campaign] Failed to load config:`, error);
+    return null;
+  }
+};
 
 /**
  * Create a mock image attachment from an AI-selected image file
@@ -608,7 +644,159 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) =>
   }
 };
 
+/**
+ * Generate a campaign sharepic using campaign configuration
+ * @param {Object} expressReq - Express request object
+ * @param {Object} requestBody - Request body containing campaignId and campaignTypeId
+ * @returns {Object} Generated sharepic result
+ */
+const generateCampaignSharepic = async (expressReq, requestBody) => {
+  const { campaignId, campaignTypeId } = requestBody;
+
+  console.log(`[Campaign] Generating ${campaignId}/${campaignTypeId} sharepic`);
+
+  // Load campaign configuration
+  const campaignConfig = loadCampaignConfig(campaignId, campaignTypeId);
+  if (!campaignConfig) {
+    throw new Error(`Campaign configuration not found: ${campaignId}/${campaignTypeId}`);
+  }
+
+  // Determine base type for text generation
+  const baseType = campaignConfig.basedOn || 'dreizeilen';
+
+  console.log(`[Campaign] Using base type: ${baseType}`);
+
+  let textData = {};
+
+  // Check if campaign has custom response parser
+  if (campaignConfig.responseParser) {
+    console.log(`[Campaign] Using declarative parser: ${campaignConfig.responseParser.type}`);
+
+    // Generate raw AI response directly
+    const promptConfig = campaignConfig.prompt;
+
+    // Replace template variables in request
+    let requestText = promptConfig.requestTemplate || promptConfig.singleItemTemplate;
+    Object.keys(requestBody).forEach(key => {
+      const placeholder = `{{${key}}}`;
+      if (requestText.includes(placeholder)) {
+        requestText = requestText.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), requestBody[key] || '');
+      }
+    });
+
+    const aiResult = await expressReq.app.locals.aiWorkerPool.processRequest({
+      type: `campaign_${campaignTypeId}`,
+      systemPrompt: promptConfig.systemRole,
+      messages: [{ role: 'user', content: requestText }],
+      options: promptConfig.options
+    }, expressReq);
+
+    if (!aiResult?.content) {
+      throw new Error('AI response empty or invalid');
+    }
+
+    console.log(`[Campaign] Raw AI response (${aiResult.content.length} chars)`);
+
+    // Parse response using declarative parser
+    try {
+      textData = parseResponse(aiResult.content, campaignConfig.responseParser);
+      console.log(`[Campaign] Parsed text data:`, textData);
+    } catch (parseError) {
+      console.error(`[Campaign] Parser error:`, parseError);
+      throw new Error(`Failed to parse AI response: ${parseError.message}`);
+    }
+  } else {
+    // Use existing handler-based flow for backwards compatibility
+    console.log(`[Campaign] Using handler-based parsing for baseType: ${baseType}`);
+
+    const textResponse = await callSharepicClaude(expressReq, baseType, {
+      ...requestBody,
+      _campaignPrompt: campaignConfig.prompt
+    });
+
+    if (!textResponse?.success) {
+      throw new Error(textResponse?.error || 'Campaign text generation failed');
+    }
+
+    // Extract text data based on base type
+    switch (baseType) {
+      case 'dreizeilen':
+        textData = {
+          line1: textResponse.mainSlogan?.line1,
+          line2: textResponse.mainSlogan?.line2,
+          line3: textResponse.mainSlogan?.line3
+        };
+        break;
+      case 'zitat':
+      case 'zitat_pure':
+        textData = {
+          quote: textResponse.quote,
+          name: textResponse.name || ''
+        };
+        break;
+      case 'headline':
+        textData = {
+          line1: textResponse.mainSlogan?.line1,
+          line2: textResponse.mainSlogan?.line2,
+          line3: textResponse.mainSlogan?.line3
+        };
+        break;
+      case 'info':
+        textData = {
+          header: textResponse.mainInfo?.header,
+          subheader: textResponse.mainInfo?.subheader,
+          body: textResponse.mainInfo?.body
+        };
+        break;
+      default:
+        throw new Error(`Unknown base type for campaign: ${baseType}`);
+    }
+  }
+
+  console.log(`[Campaign] Text data extracted:`, textData);
+
+  // Generate image using campaign canvas
+  const { payload: canvasPayload } = await callCanvasRoute(campaignCanvasRouter, {
+    campaignConfig: campaignConfig,
+    textData: textData
+  });
+
+  if (!canvasPayload?.image) {
+    throw new Error('Campaign canvas did not return an image');
+  }
+
+  // Get campaign name from config
+  const campaignName = campaignConfig.name || campaignTypeId;
+
+  return {
+    success: true,
+    agent: 'campaign',
+    content: {
+      metadata: {
+        sharepicType: 'campaign',
+        campaignId,
+        campaignTypeId
+      },
+      sharepic: {
+        image: canvasPayload.image,
+        type: campaignTypeId,
+        textData,
+        alternatives: textResponse.alternatives || []
+      },
+      sharepicTitle: `${campaignName} Sharepic`,
+      sharepicDownloadText: 'Sharepic herunterladen',
+      sharepicDownloadFilename: `sharepic-${campaignId}-${campaignTypeId}-${Date.now()}.png`
+    }
+  };
+};
+
 const generateSharepicForChat = async (expressReq, type, requestBody) => {
+  // Check for campaign request first
+  if (requestBody.campaignId && requestBody.campaignTypeId) {
+    console.log(`[SharepicGeneration] Campaign sharepic requested: ${requestBody.campaignId}/${requestBody.campaignTypeId}`);
+    return await generateCampaignSharepic(expressReq, requestBody);
+  }
+
   if (!SHAREPIC_TYPES.has(type)) {
     throw new Error(`Unsupported sharepic type: ${type}`);
   }
