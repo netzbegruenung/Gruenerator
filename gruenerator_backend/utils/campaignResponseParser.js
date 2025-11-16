@@ -72,6 +72,69 @@ const lineExtractor = (rawResponse, config) => {
 };
 
 /**
+ * Multi-Line Extractor Parser
+ * Extracts multiple poems from a single AI response separated by a delimiter
+ *
+ * @param {string} rawResponse - Raw text response from AI containing multiple poems
+ * @param {Object} config - Parser configuration
+ * @param {number} config.expectedPoems - Expected number of poems (default: 4)
+ * @param {number} config.linesPerPoem - Lines per poem (default: 5)
+ * @param {string} config.separator - Separator between poems (default: '---')
+ * @param {Array<string>} config.outputFields - Field names for each line
+ * @param {boolean} config.trimLines - Whether to trim whitespace
+ * @param {boolean} config.filterEmpty - Whether to filter empty lines
+ * @param {number} config.minCharsPerLine - Minimum characters per line (optional)
+ * @param {number} config.maxCharsPerLine - Maximum characters per line (optional)
+ * @returns {Array<Object>} Array of parsed poem objects
+ */
+const multiLineExtractor = (rawResponse, config) => {
+  const {
+    expectedPoems = 4,
+    linesPerPoem = 5,
+    separator = '---',
+    outputFields = ['line1', 'line2', 'line3', 'line4', 'line5'],
+    trimLines = true,
+    filterEmpty = true,
+    minCharsPerLine = 0,
+    maxCharsPerLine = Infinity
+  } = config;
+
+  const poemSections = rawResponse.split(separator);
+  const poems = [];
+
+  for (let i = 0; i < Math.min(poemSections.length, expectedPoems); i++) {
+    let lines = poemSections[i].split('\n');
+
+    if (trimLines) {
+      lines = lines.map(line => line.trim());
+    }
+
+    if (filterEmpty) {
+      lines = lines.filter(line => line.length > 0);
+    }
+
+    lines = lines.slice(0, linesPerPoem);
+
+    while (lines.length < linesPerPoem) {
+      lines.push('');
+    }
+
+    const poem = {};
+    outputFields.forEach((fieldName, index) => {
+      poem[fieldName] = lines[index] || '';
+    });
+
+    poems.push(poem);
+  }
+
+  if (poems.length < expectedPoems) {
+    console.warn(`[multiLineExtractor] Expected ${expectedPoems} poems but got ${poems.length}`);
+  }
+
+  return poems;
+};
+
+/**
  * JSON Extractor Parser
  * Parses JSON response and extracts specified fields
  *
@@ -185,6 +248,9 @@ const parseResponse = (rawResponse, parserConfig) => {
     case 'lineExtractor':
       return lineExtractor(rawResponse, config);
 
+    case 'multiLineExtractor':
+      return multiLineExtractor(rawResponse, config);
+
     case 'jsonExtractor':
       return jsonExtractor(rawResponse, config);
 
@@ -199,6 +265,7 @@ const parseResponse = (rawResponse, parserConfig) => {
 module.exports = {
   parseResponse,
   lineExtractor,
+  multiLineExtractor,
   jsonExtractor,
   regexExtractor
 };
