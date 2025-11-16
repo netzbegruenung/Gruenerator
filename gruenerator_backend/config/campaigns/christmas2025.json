@@ -3,252 +3,12 @@
   "name": "Weihnachten 2025",
   "active": true,
   "types": {
-    "christmas_greeting": {
-      "basedOn": "dreizeilen",
-      "prompt": {
-        "systemRole": "Du bist ein erfahrener Texter für die Weihnachtskampagne 2025 von Bündnis 90/Die Grünen. Deine Aufgabe ist es, festliche dreizeilige Weihnachtsgrüße mit grünen Werten zu erstellen.",
-        "requestTemplate": "Erstelle einen festlichen dreizeiligen Weihnachtsgruß zum Thema:\n\n{{thema}}\n\nDetails: {{details}}\n\nREGELN:\n- Genau 3 Zeilen\n- Pro Zeile 10-15 Zeichen\n- Warmherzig und festlich\n- Grüne Klimaschutz-Botschaft\n- Fließender Satz ohne Bindestriche\n- KEIN Markdown, NUR die drei Zeilen\n\nFormat:\nZeile 1\nZeile 2\nZeile 3\n\nSuchbegriff: [Begriff für Weihnachtsbild]",
-        "singleItemTemplate": "Erstelle einen festlichen dreizeiligen Weihnachtsgruß zum Thema:\n\n{{thema}}\n\nDetails: {{details}}\n\nREGELN:\n- Genau 3 Zeilen\n- Pro Zeile 10-15 Zeichen\n- Warmherzig und festlich\n- Grüne Klimaschutz-Botschaft\n- Fließender Satz ohne Bindestriche\n- KEIN Markdown, NUR die drei Zeilen\n\nFormat:\nZeile 1\nZeile 2\nZeile 3\n\nSuchbegriff: [Begriff für Weihnachtsbild]",
-        "options": {
-          "temperature": 0.6,
-          "useBedrock": true,
-          "max_tokens": 300
-        }
-      },
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_dark.png",
-        "textLines": [
-          {
-            "field": "line1",
-            "x": 540,
-            "y": 500,
-            "fontSize": 85,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 900
-          },
-          {
-            "field": "line2",
-            "x": 540,
-            "y": 620,
-            "fontSize": 85,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 900
-          },
-          {
-            "field": "line3",
-            "x": 540,
-            "y": 740,
-            "fontSize": 85,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 900
-          }
-        ],
-        "decorations": [
-          {
-            "type": "image",
-            "path": "/campaigns/christmas2025/snowflake.png",
-            "x": 100,
-            "y": 100,
-            "width": 80,
-            "height": 80,
-            "opacity": 0.3
-          },
-          {
-            "type": "image",
-            "path": "/campaigns/christmas2025/snowflake.png",
-            "x": 900,
-            "y": 1150,
-            "width": 100,
-            "height": 100,
-            "opacity": 0.3
-          }
-        ],
-        "credit": {
-          "text": "gruene.de",
-          "x": 50,
-          "y": 1300,
-          "fontSize": 30,
-          "color": "#FFFFFF",
-          "font": "GrueneType"
-        }
-      }
-    },
-    "christmas_quote": {
-      "basedOn": "zitat_pure",
-      "prompt": {
-        "systemRole": "Du bist ein Texter für inspirierende Weihnachtszitate von Bündnis 90/Die Grünen.",
-        "requestTemplate": "Erstelle ein inspirierendes Weihnachtszitat zum Thema:\n\n{{thema}}\n\nDetails: {{details}}\n\nREGELN:\n- Maximal 140 Zeichen\n- Warmherzig und hoffnungsvoll\n- Grüne Werte (Klimaschutz, Nachhaltigkeit, Zusammenhalt)\n- Festliche Weihnachtsstimmung\n- NUR das Zitat ohne Anführungszeichen\n\nFormat:\nDas Zitat selbst",
-        "singleItemTemplate": "Erstelle ein inspirierendes Weihnachtszitat zum Thema:\n\n{{thema}}\n\nDetails: {{details}}\n\nREGELN:\n- Maximal 140 Zeichen\n- Warmherzig und hoffnungsvoll\n- Grüne Werte (Klimaschutz, Nachhaltigkeit, Zusammenhalt)\n- Festliche Weihnachtsstimmung\n- NUR das Zitat ohne Anführungszeichen\n\nFormat:\nDas Zitat selbst",
-        "options": {
-          "temperature": 0.6,
-          "useBedrock": true,
-          "max_tokens": 200
-        }
-      },
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundColor": "#8B0000",
-        "textLines": [
-          {
-            "field": "quote",
-            "x": 75,
-            "y": 320,
-            "fontSize": 78,
-            "color": "#FFFFFF",
-            "align": "left",
-            "font": "GrueneType",
-            "style": "italic",
-            "maxWidth": 930,
-            "lineHeight": 90
-          },
-          {
-            "field": "name",
-            "x": 75,
-            "y": 800,
-            "fontSize": 40,
-            "color": "#FFFFFF",
-            "align": "left",
-            "font": "GrueneType"
-          }
-        ],
-        "decorations": [],
-        "credit": {
-          "text": "gruene.de",
-          "x": 75,
-          "y": 1300,
-          "fontSize": 30,
-          "color": "#FFFFFF",
-          "font": "GrueneType"
-        }
-      }
-    },
-    "christmas_poem": {
-      "basedOn": "custom",
-      "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "options": {
-          "temperature": 0.75,
-          "useBedrock": true,
-          "max_tokens": 250
-        }
-      },
-      "responseParser": {
-        "type": "lineExtractor",
-        "config": {
-          "expectedLines": 5,
-          "outputFields": ["line1", "line2", "line3", "line4", "line5"],
-          "trimLines": true,
-          "filterEmpty": true,
-          "minCharsPerLine": 10,
-          "maxCharsPerLine": 20
-        }
-      },
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_dark.png",
-        "textLines": [
-          {
-            "field": "line1",
-            "x": 540,
-            "y": 450,
-            "fontSize": 75,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 950
-          },
-          {
-            "field": "line2",
-            "x": 540,
-            "y": 570,
-            "fontSize": 75,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 950
-          },
-          {
-            "field": "line3",
-            "x": 540,
-            "y": 690,
-            "fontSize": 75,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 950
-          },
-          {
-            "field": "line4",
-            "x": 540,
-            "y": 810,
-            "fontSize": 75,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 950
-          },
-          {
-            "field": "line5",
-            "x": 540,
-            "y": 930,
-            "fontSize": 75,
-            "color": "#FFFFFF",
-            "align": "center",
-            "font": "GrueneType",
-            "maxWidth": 950
-          }
-        ],
-        "decorations": [
-          {
-            "type": "image",
-            "path": "/campaigns/christmas2025/snowflake.png",
-            "x": 100,
-            "y": 150,
-            "width": 80,
-            "height": 80,
-            "opacity": 0.35
-          },
-          {
-            "type": "image",
-            "path": "/campaigns/christmas2025/snowflake.png",
-            "x": 900,
-            "y": 1100,
-            "width": 100,
-            "height": 100,
-            "opacity": 0.35
-          }
-        ],
-        "credit": {
-          "text": "Frohe Weihnachten",
-          "x": 540,
-          "y": 1280,
-          "fontSize": 35,
-          "color": "#FFFFFF",
-          "font": "GrueneType"
-        }
-      }
-    },
     "christmas_poem_green_festive": {
       "basedOn": "custom",
       "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
+        "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+        "requestTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "singleItemTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
         "options": {
           "temperature": 0.75,
           "useBedrock": true,
@@ -282,12 +42,90 @@
         "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
       }
     },
+    "christmas_poem_green_pine": {
+      "basedOn": "custom",
+      "prompt": {
+        "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+        "requestTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "singleItemTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "options": {
+          "temperature": 0.75,
+          "useBedrock": true,
+          "max_tokens": 250
+        }
+      },
+      "responseParser": {
+        "type": "lineExtractor",
+        "config": {
+          "expectedLines": 5,
+          "outputFields": ["line1", "line2", "line3", "line4", "line5"],
+          "trimLines": true,
+          "filterEmpty": true,
+          "minCharsPerLine": 10,
+          "maxCharsPerLine": 20
+        }
+      },
+      "canvas": {
+        "type": "campaign",
+        "width": 1080,
+        "height": 1350,
+        "backgroundImage": "/campaigns/christmas2025/bg_green_pine.png",
+        "textLines": [
+          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
+        ],
+        "decorations": [],
+        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
+      }
+    },
+    "christmas_poem_green_snowflakes": {
+      "basedOn": "custom",
+      "prompt": {
+        "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+        "requestTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "singleItemTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "options": {
+          "temperature": 0.75,
+          "useBedrock": true,
+          "max_tokens": 250
+        }
+      },
+      "responseParser": {
+        "type": "lineExtractor",
+        "config": {
+          "expectedLines": 5,
+          "outputFields": ["line1", "line2", "line3", "line4", "line5"],
+          "trimLines": true,
+          "filterEmpty": true,
+          "minCharsPerLine": 10,
+          "maxCharsPerLine": 20
+        }
+      },
+      "canvas": {
+        "type": "campaign",
+        "width": 1080,
+        "height": 1350,
+        "backgroundImage": "/campaigns/christmas2025/bg_green_snowflakes.png",
+        "textLines": [
+          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
+          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
+        ],
+        "decorations": [],
+        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
+      }
+    },
     "christmas_poem_sand_winter": {
       "basedOn": "custom",
       "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
+        "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+        "requestTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "singleItemTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
         "options": {
           "temperature": 0.75,
           "useBedrock": true,
@@ -324,9 +162,9 @@
     "christmas_poem_sand_snowflakes": {
       "basedOn": "custom",
       "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
+        "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+        "requestTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "singleItemTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
         "options": {
           "temperature": 0.75,
           "useBedrock": true,
@@ -360,51 +198,12 @@
         "credit": {"text": "Frohe Weihnachten", "x": 540, "y": 1280, "fontSize": 35, "color": "#005538", "font": "GrueneType"}
       }
     },
-    "christmas_poem_green_snowflakes": {
-      "basedOn": "custom",
-      "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "options": {
-          "temperature": 0.75,
-          "useBedrock": true,
-          "max_tokens": 250
-        }
-      },
-      "responseParser": {
-        "type": "lineExtractor",
-        "config": {
-          "expectedLines": 5,
-          "outputFields": ["line1", "line2", "line3", "line4", "line5"],
-          "trimLines": true,
-          "filterEmpty": true,
-          "minCharsPerLine": 10,
-          "maxCharsPerLine": 20
-        }
-      },
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_snowflakes.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
-      }
-    },
     "christmas_poem_sand_dots": {
       "basedOn": "custom",
       "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
+        "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+        "requestTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+        "singleItemTemplate": "Erstelle ein Weihnachtsgedicht mit GENAU 5 Zeilen für {{location}}.\n\nDetails: {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
         "options": {
           "temperature": 0.75,
           "useBedrock": true,
@@ -436,45 +235,6 @@
         ],
         "decorations": [],
         "credit": {"text": "Frohe Weihnachten", "x": 540, "y": 1280, "fontSize": 35, "color": "#005538", "font": "GrueneType"}
-      }
-    },
-    "christmas_poem_green_pine": {
-      "basedOn": "custom",
-      "prompt": {
-        "systemRole": "Du bist ein Weihnachtspoet. Du schreibst kurze, warmherzige Weihnachtsgedichte mit persönlichem Bezug zum Wohnort. Die Gedichte sind unpolitisch, festlich und schön.",
-        "requestTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "singleItemTemplate": "Erstelle ein einzigartiges Weihnachtsgedicht mit GENAU 5 Zeilen.\n\nOrt: {{location}}\nDetails über den Ort: {{details}}\n\nTECHNISCHE REGELN:\n- GENAU 5 Zeilen\n- Jede Zeile: MAXIMAL 20 Zeichen (inkl. Leerzeichen)\n- Nutze {{location}} im Gedicht\n- Integriere Details wenn passend: {{details}}\n\nKREATIVE VIELFALT (wähle EINEN Ansatz):\n- Erzähle eine Mini-Geschichte ODER\n- Fokussiere auf EINEN Sinn (Duft/Klang/Licht) ODER\n- Beschreibe einen Moment ODER\n- Male ein Stimmungsbild ODER\n- Nutze eine überraschende Perspektive\n\nVARIATION (mische diese Elemente):\n- Tageszeit: Morgen/Mittag/Abend/Nacht\n- Wetter: Schnee/Sterne/Nebel/Frost/Wind\n- Perspektive: Kind/Erwachsener/Tier/Baum\n- Emotion: Freude/Stille/Erwartung/Wärme/Zauber\n- Bilder: Kerzen/Glocken/Tannen/Engel/Lichter\n\nSTIL:\n- Warmherzig und festlich\n- KEINE Politik, nur Weihnachtsstimmung\n- Einfache, lebendige Sprache\n- Vermeide typische Weihnachtsklischees wenn möglich\n- Reime schön aber variabel (AABBA, ABCCB, AABBB, etc.)\n\nWICHTIG: Sei kreativ! Jedes Gedicht soll einzigartig sein.\nVerwende ungewöhnliche Wortverbindungen.\nÜberrasche mit frischen Bildern.\n\nNUR die 5 Zeilen ausgeben:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5",
-        "options": {
-          "temperature": 0.75,
-          "useBedrock": true,
-          "max_tokens": 250
-        }
-      },
-      "responseParser": {
-        "type": "lineExtractor",
-        "config": {
-          "expectedLines": 5,
-          "outputFields": ["line1", "line2", "line3", "line4", "line5"],
-          "trimLines": true,
-          "filterEmpty": true,
-          "minCharsPerLine": 10,
-          "maxCharsPerLine": 20
-        }
-      },
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_pine.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
       }
     }
   }
