@@ -59,6 +59,7 @@ const DisplaySection = forwardRef(({
   showResetButton = false,
   onReset,
   renderEmptyState = null,
+  customEditContent = null,
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -201,6 +202,7 @@ const DisplaySection = forwardRef(({
               useMarkdown={useMarkdown}
               componentName={componentName}
               helpContent={helpContent}
+              onEditModeToggle={onEditModeToggle}
             />
           </>
         ) : (
@@ -257,6 +259,8 @@ DisplaySection.propTypes = {
   showResetButton: PropTypes.bool,
   onReset: PropTypes.func,
   renderEmptyState: PropTypes.func,
+  customEditContent: PropTypes.node,
+  onEditModeToggle: PropTypes.func,
 };
 
 DisplaySection.defaultProps = {

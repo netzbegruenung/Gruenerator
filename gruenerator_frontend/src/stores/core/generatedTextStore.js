@@ -22,7 +22,18 @@ const useGeneratedTextStore = create((set, get) => ({
   // Get generated text for a specific component
   getGeneratedText: (componentName) => {
     const state = get();
-    return state.generatedTexts[componentName] || '';
+    const content = state.generatedTexts[componentName] || '';
+
+    if (process.env.NODE_ENV === 'development' && componentName === 'kampagnen-generator') {
+      console.log('[generatedTextStore] getGeneratedText:', {
+        componentName,
+        contentType: typeof content,
+        contentKeys: content && typeof content === 'object' ? Object.keys(content) : 'N/A',
+        contentStructure: content
+      });
+    }
+
+    return content;
   },
   
   // Get metadata for a specific component
@@ -39,9 +50,13 @@ const useGeneratedTextStore = create((set, get) => ({
       console.log('[generatedTextStore] setGeneratedText:', {
         componentName,
         contentType: typeof text,
+        contentKeys: text && typeof text === 'object' ? Object.keys(text) : 'N/A',
+        contentStructure: text,
         isMixedContent,
         hasSharepic: !!(text && typeof text === 'object' && text.sharepic),
         hasSocial: !!(text && typeof text === 'object' && text.social),
+        hasInlineSharepicEditEnabled: !!(text && typeof text === 'object' && text.inlineSharepicEditEnabled),
+        hasContentProperty: !!(text && typeof text === 'object' && text.content),
         contentLength: typeof text === 'string' ? text.length : 'object'
       });
     }

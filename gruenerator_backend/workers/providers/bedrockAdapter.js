@@ -7,7 +7,7 @@ const { mergeMetadata } = require('./adapterUtils');
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, tools, metadata: requestMetadata = {} } = data;
 
-  const modelIdentifier = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0';
+  const modelIdentifier = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
   const startTime = Date.now();
 
   if (!modelIdentifier) throw new Error('No model identifier provided in options.');
@@ -17,9 +17,12 @@ async function execute(requestId, data) {
     anthropic_version: options.anthropic_version || 'bedrock-2023-05-31',
     max_tokens: options.max_tokens || 4096,
     messages,
-    temperature: options.temperature !== undefined ? options.temperature : 0.7,
-    top_p: options.top_p !== undefined ? options.top_p : 0.9
+    temperature: options.temperature !== undefined ? options.temperature : 0.7
   };
+
+  if (options.top_p !== undefined) {
+    bedrockPayload.top_p = options.top_p;
+  }
   if (systemPrompt) bedrockPayload.system = systemPrompt;
 
   const toolsToUse = options.tools || tools;
@@ -41,6 +44,7 @@ async function execute(requestId, data) {
   const maxRetries = 1;
   let response;
   const bedrockModelHierarchy = [
+    'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0',
     'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0',
     'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-3-7-sonnet-20250219-v1:0',
     'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-3-5-sonnet-20240620-v1:0'

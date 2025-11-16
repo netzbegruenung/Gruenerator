@@ -141,6 +141,7 @@ const BaseFormInternal = ({
   firstExtrasChildren = null,
   useMarkdown = null,
   enableEditMode = false,
+  customEditContent = null, // Custom edit component for specialized editing (e.g., campaign sharepic editor)
   // TabIndex configuration
   featureIconsTabIndex = {
     webSearch: 11,
@@ -157,7 +158,8 @@ const BaseFormInternal = ({
   uploadedImage: propUploadedImage = null,
   onImageChange = null,
   enableKnowledgeSelector = false,
-  hideFormExtras = false
+  hideFormExtras = false,
+  onImageEditModeChange = null // Callback when image edit mode changes (true = active, false = inactive)
 }) => {
 
   const baseFormRef = useRef(null);
@@ -293,10 +295,21 @@ const BaseFormInternal = ({
   const editableText = useMemo(() => {
     const extracted = extractEditableText(editableSource);
     return typeof extracted === 'string' ? extracted.trim() : '';
-  }, [editableSource]);
+  }, [editableSource, componentName]);
   const hasEditableContent = isStreaming || editableText.length > 0;
   const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
   const isEditModeActive = isEditModeToggled && enableEditMode && hasEditableContent;
+
+  // Separate state for image edit (e.g., campaign sharepic inline editor)
+  const [isImageEditActive, setIsImageEditActive] = React.useState(false);
+  const handleToggleImageEdit = React.useCallback(() => {
+    const newState = !isImageEditActive;
+    setIsImageEditActive(newState);
+
+    if (onImageEditModeChange) {
+      onImageEditModeChange(newState);
+    }
+  }, [isImageEditActive, onImageEditModeChange]);
 
   // Auto-activate edit mode when new text is generated (desktop only)
   // const prevHasEditableContentRef = useRef(hasEditableContent);
@@ -322,12 +335,6 @@ const BaseFormInternal = ({
 
   // Handler for edit mode toggle
   const handleToggleEditMode = React.useCallback(() => {
-    console.log('[BaseForm] Toggling edit mode', {
-      currentToggled: isEditModeToggled,
-      enableEditMode,
-      hasEditableContent,
-      willBeActive: !isEditModeToggled && enableEditMode && hasEditableContent
-    });
     setIsEditModeToggled(prev => !prev);
   }, [isEditModeToggled, enableEditMode, hasEditableContent]);
 
@@ -643,13 +650,6 @@ const BaseFormInternal = ({
       // Get current feature states from the store
       const featureState = getFeatureState();
 
-      // Debug: Log feature state
-      console.log('[BaseForm] Feature state:', {
-        proModeActive: featureState.proModeConfig?.isActive,
-        privacyModeActive: featureState.privacyModeConfig?.isActive,
-        webSearchActive: featureState.webSearchConfig?.isActive
-      });
-
       // Enhance form data with current feature states
       const enhancedFormData = {
         ...formData,
@@ -659,12 +659,6 @@ const BaseFormInternal = ({
         useWebSearchTool: featureState.webSearchConfig?.isActive || formData.useWebSearchTool || false,
         usePrivacyMode: featureState.privacyModeConfig?.isActive || formData.usePrivacyMode || false
       };
-
-      console.log('[BaseForm] Enhanced form data:', {
-        useBedrock: enhancedFormData.useBedrock,
-        usePrivacyMode: enhancedFormData.usePrivacyMode,
-        useWebSearchTool: enhancedFormData.useWebSearchTool
-      });
       
       await onSubmit(enhancedFormData);
       // Success is handled in the success useEffect above
@@ -737,9 +731,10 @@ const BaseFormInternal = ({
               onSave={onSave}
               componentName={componentName}
               onErrorDismiss={handleErrorDismiss}
-              onEditModeToggle={handleToggleEditMode}
+              onEditModeToggle={customEditContent ? handleToggleImageEdit : handleToggleEditMode}
               isEditModeActive={isEditModeActive}
               showEditModeToggle={resolvedUIConfig.enableEditMode}
+              customEditContent={customEditContent}
             />
           </motion.div>
         )}
@@ -801,6 +796,8 @@ const BaseFormInternal = ({
                 componentName={componentName}
                 onWebSearchInfoClick={handleWebSearchInfoClick}
                 useEditMode={isEditModeActive}
+                isImageEditActive={isImageEditActive}
+                customEditContent={customEditContent}
                 registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
                 hideExtrasSection={hideFormExtras}
@@ -833,9 +830,10 @@ const BaseFormInternal = ({
               onSave={onSave}
               componentName={componentName}
               onErrorDismiss={handleErrorDismiss}
-              onEditModeToggle={handleToggleEditMode}
+              onEditModeToggle={customEditContent ? handleToggleImageEdit : handleToggleEditMode}
               isEditModeActive={isEditModeActive}
               showEditModeToggle={resolvedUIConfig.enableEditMode}
+              customEditContent={customEditContent}
             />
           </motion.div>
         )}
@@ -1023,6 +1021,7 @@ BaseFormInternal.propTypes = {
   firstExtrasChildren: PropTypes.node,
   useMarkdown: PropTypes.bool,
   enableEditMode: PropTypes.bool,
+  customEditContent: PropTypes.node,
   // TabIndex configuration
   platformSelectorTabIndex: PropTypes.number,
   knowledgeSelectorTabIndex: PropTypes.number,
@@ -1060,6 +1059,7 @@ BaseFormInternal.defaultProps = {
   bottomSectionChildren: null,
   firstExtrasChildren: null,
   enableEditMode: false,
+  customEditContent: null,
   // TabIndex configuration defaults
   platformSelectorTabIndex: 12,
   knowledgeSelectorTabIndex: 14,

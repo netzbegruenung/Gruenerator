@@ -1,0 +1,112 @@
+.campaign-sharepic-editor {
+  padding: var(--spacing-medium);
+  background: var(--background-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  margin-top: var(--spacing-medium);
+}
+
+.editor-header {
+  margin-bottom: var(--spacing-medium);
+}
+
+.editor-title {
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0 0 var(--spacing-xsmall) 0;
+}
+
+.editor-subtitle {
+  font-size: var(--font-size-small);
+  color: var(--font-color-secondary);
+  margin: 0;
+}
+
+.editor-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.editor-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.editor-info-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  background: var(--tanne);
+  color: white;
+  border-radius: var(--border-radius-small);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+}
+
+.editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.editor-field {
+  width: 100%;
+}
+
+.editor-error {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: var(--border-radius-small);
+  color: var(--error-color);
+}
+
+.error-icon {
+  font-size: var(--font-size-large);
+  flex-shrink: 0;
+}
+
+.error-text {
+  font-size: var(--font-size-small);
+  flex: 1;
+}
+
+.editor-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--spacing-small);
+}
+
+.editor-hint {
+  font-size: var(--font-size-small);
+  color: var(--font-color-secondary);
+  margin: 0;
+  padding: var(--spacing-small);
+  background: var(--background-tertiary);
+  border-radius: var(--border-radius-small);
+  border-left: 3px solid var(--tanne);
+}
+
+@media (max-width: 768px) {
+  .campaign-sharepic-editor {
+    padding: var(--spacing-small);
+  }
+
+  .editor-title {
+    font-size: var(--font-size-medium);
+  }
+
+  .editor-actions {
+    flex-direction: column;
+  }
+
+  .editor-actions button {
+    width: 100%;
+  }
+}

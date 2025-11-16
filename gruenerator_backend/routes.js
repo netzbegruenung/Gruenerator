@@ -15,6 +15,8 @@ const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/
 const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/headline_canvas');
 const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
 const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
+const campaignCanvasRoute = require('./routes/sharepic/sharepic_canvas/campaign_canvas');
+const campaignGenerateRoute = require('./routes/sharepic/sharepic_claude/campaign_generate');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
 const { generateSharepicForChat } = require('./routes/chat/services/sharepicGenerationService');
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
@@ -199,6 +201,8 @@ async function setupRoutes(app) {
   app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
   app.use('/api/info_canvas', infoSharepicCanvasRoute);
   app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
+  app.use('/api/campaign_canvas', campaignCanvasRoute);
+  app.use('/api/campaign_generate', campaignGenerateRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
   

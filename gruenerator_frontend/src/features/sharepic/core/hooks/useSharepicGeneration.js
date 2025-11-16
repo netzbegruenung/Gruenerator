@@ -12,6 +12,7 @@ export const useSharepicGeneration = () => {
   const infoSubmit = useApiSubmit('info_claude');
   const headlineSubmit = useApiSubmit('headline_claude');
   const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
+  const campaignSubmit = useApiSubmit('campaign_generate');
   // const abyssaleSubmit = useApiSubmit('zitat_abyssale'); // Commented out for now
 
   const generateText = useCallback(async (type, formData) => {
@@ -27,8 +28,41 @@ export const useSharepicGeneration = () => {
       let submitFn;
       let isQuoteType = false;
       let isInfoType = false;
-      
+      let isCampaignType = false;
+
+      // Check if this is a campaign type
+      if (type && type.startsWith('christmas_poem_')) {
+        isCampaignType = true;
+      }
+
       // Route to correct endpoint based on type
+      if (isCampaignType) {
+        const requestData = {
+          campaignId: 'christmas2025',
+          campaignTypeId: type,
+          thema: formData.thema,
+          details: formData.details,
+          source: 'sharepicgenerator',
+          count: 5
+        };
+
+        console.log('[useSharepicGeneration] Campaign request:', requestData);
+
+        const response = await campaignSubmit.submitForm(requestData);
+        console.log('[useSharepicGeneration] Campaign response:', response);
+
+        if (!response || !response.mainContent) {
+          throw new Error('Unerwartete Antwortstruktur von der API');
+        }
+
+        return {
+          mainSlogan: response.mainContent,
+          alternatives: response.alternatives || [],
+          searchTerms: response.searchTerms || []
+        };
+      }
+
+      // Standard (non-campaign) types
       switch (type) {
         case SHAREPIC_TYPES.QUOTE:
           submitFn = quoteSubmit.submitForm;
@@ -108,25 +142,53 @@ export const useSharepicGeneration = () => {
       console.error("Error generating text:", err);
       throw err;
     }
-  }, [quoteSubmit, dreizeilenSubmit, infoSubmit, headlineSubmit, zitatPureSubmit]);
+  }, [quoteSubmit, dreizeilenSubmit, infoSubmit, headlineSubmit, zitatPureSubmit, campaignSubmit]);
 
   const generateImage = useCallback(async (formData) => {
     setLoading(true);
     setError('');
     try {
       console.log('Generating image with formData:', formData);
+
+      // Check if this is a campaign type
+      const isCampaignType = formData.type && formData.type.startsWith('christmas_poem_');
+
+      if (isCampaignType) {
+        // Campaign types use a different endpoint and data structure
+        const requestData = {
+          campaignId: 'christmas2025',
+          campaignTypeId: formData.type,
+          line1: formData.line1 || '',
+          line2: formData.line2 || '',
+          line3: formData.line3 || '',
+          line4: formData.line4 || '',
+          line5: formData.line5 || ''
+        };
+
+        console.log('Generating campaign image:', requestData);
+
+        const response = await apiClient.post('/api/campaign_canvas', requestData);
+
+        if (!response.data || !response.data.image) {
+          throw new Error('Keine Bilddaten empfangen');
+        }
+
+        return response.data.image;
+      }
+
+      // Standard (non-campaign) types
       const formDataToSend = new FormData();
-      
+
       // Determine if this type needs an image upload
       const needsImageUpload = formData.type === SHAREPIC_TYPES.QUOTE || formData.type === SHAREPIC_TYPES.THREE_LINES;
-      
+
       if (needsImageUpload) {
         const imageToUse = formData.uploadedImage || formData.image;
         if (!imageToUse) {
           throw new Error('Kein Bild ausgewählt');
         }
 
-        const imageFile = imageToUse instanceof File ? imageToUse : 
+        const imageFile = imageToUse instanceof File ? imageToUse :
           new File([imageToUse], 'image.jpg', { type: imageToUse.type || 'image/jpeg' });
         formDataToSend.append('image', imageFile);
       }
