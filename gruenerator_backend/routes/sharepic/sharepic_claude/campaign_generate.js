@@ -9,7 +9,7 @@ const { generateCampaignCanvas } = require('../sharepic_canvas/campaign_canvas')
  * Load campaign configuration from JSON file
  * @param {string} campaignId - Campaign identifier
  * @param {string} typeId - Campaign type identifier
- * @returns {Object|null} Campaign type configuration or null if not found
+ * @returns {Object|null} Merged campaign configuration with defaults or null if not found
  */
 const loadCampaignConfig = (campaignId, typeId) => {
   if (!campaignId || !typeId) return null;
@@ -30,8 +30,17 @@ const loadCampaignConfig = (campaignId, typeId) => {
       return null;
     }
 
-    console.log(`[Campaign] Loaded config for ${campaignId}/${typeId}`);
-    return typeConfig;
+    // Merge with defaults from campaign level
+    const mergedConfig = {
+      prompt: typeConfig.prompt || campaign.defaultPrompt,
+      responseParser: typeConfig.responseParser || campaign.defaultResponseParser,
+      multiResponseParser: typeConfig.multiResponseParser || campaign.defaultMultiResponseParser,
+      canvas: typeConfig.canvas,
+      basedOn: typeConfig.basedOn
+    };
+
+    console.log(`[Campaign] Loaded config for ${campaignId}/${typeId} (using ${mergedConfig.prompt === campaign.defaultPrompt ? 'default' : 'custom'} prompt)`);
+    return mergedConfig;
   } catch (error) {
     console.error(`[Campaign] Failed to load config:`, error);
     return null;
@@ -128,7 +137,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Check if campaign has custom response parser (required for campaign types)
+    // Check if campaign has response parser (required for campaign types)
     if (!campaignConfig.responseParser) {
       return res.status(400).json({
         success: false,
@@ -138,77 +147,99 @@ router.post('/', async (req, res) => {
 
     // Generate AI text using campaign prompt
     const promptConfig = campaignConfig.prompt;
-
-    // Replace template variables in request
-    let requestText = promptConfig.requestTemplate || promptConfig.singleItemTemplate;
     const variables = {
-      location: thema,  // Map thema to location for campaign templates
-      thema,            // Keep for backward compatibility
+      location: thema,
+      thema,
       details,
       count
     };
 
-    Object.keys(variables).forEach(key => {
-      const placeholder = `{{${key}}}`;
-      if (requestText.includes(placeholder)) {
-        requestText = requestText.replace(
-          new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-          variables[key] || ''
-        );
-      }
-    });
+    let allPoems = [];
 
-    console.log(`[Campaign Generate] Calling AI with prompt:`, {
-      systemRole: promptConfig.systemRole.substring(0, 100) + '...',
-      requestLength: requestText.length
-    });
+    // For count > 1, use multiItemTemplate and multiResponseParser for single AI call
+    if (count > 1 && promptConfig.multiItemTemplate && campaignConfig.multiResponseParser) {
+      console.log(`[Campaign Generate] Using multiItemTemplate to generate ${count} poems in single AI call`);
 
-    // Call AI worker pool
-    const aiResult = await req.app.locals.aiWorkerPool.processRequest({
-      type: `campaign_${campaignTypeId}`,
-      systemPrompt: promptConfig.systemRole,
-      messages: [{ role: 'user', content: requestText }],
-      options: promptConfig.options
-    }, req);
+      // Use multi-item template
+      let requestText = promptConfig.multiItemTemplate;
 
-    if (!aiResult?.content) {
-      throw new Error('AI response empty or invalid');
-    }
-
-    console.log(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
-
-    // Parse main response
-    const mainContent = parseResponse(aiResult.content, campaignConfig.responseParser);
-    console.log(`[Campaign Generate] Parsed main content:`, mainContent);
-
-    // Generate alternatives (simulate by making additional AI calls if count > 1)
-    const alternatives = [];
-
-    if (count > 1) {
-      for (let i = 1; i < Math.min(count, 5); i++) {
-        try {
-          const altResult = await req.app.locals.aiWorkerPool.processRequest({
-            type: `campaign_${campaignTypeId}`,
-            systemPrompt: promptConfig.systemRole,
-            messages: [{ role: 'user', content: requestText }],
-            options: promptConfig.options
-          }, req);
-
-          if (altResult?.content) {
-            const altContent = parseResponse(altResult.content, campaignConfig.responseParser);
-            alternatives.push(altContent);
-          }
-        } catch (altError) {
-          console.warn(`[Campaign Generate] Failed to generate alternative ${i}:`, altError.message);
+      // Replace template variables
+      Object.keys(variables).forEach(key => {
+        const placeholder = `{{${key}}}`;
+        if (requestText.includes(placeholder)) {
+          requestText = requestText.replace(
+            new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+            variables[key] || ''
+          );
         }
+      });
+
+      console.log(`[Campaign Generate] Calling AI with multi-item prompt:`, {
+        systemRole: promptConfig.systemRole.substring(0, 100) + '...',
+        requestLength: requestText.length,
+        expectedPoems: count
+      });
+
+      // Single AI call for multiple poems
+      const aiResult = await req.app.locals.aiWorkerPool.processRequest({
+        type: `campaign_${campaignTypeId}`,
+        systemPrompt: promptConfig.systemRole,
+        messages: [{ role: 'user', content: requestText }],
+        options: promptConfig.options
+      }, req);
+
+      if (!aiResult?.content) {
+        throw new Error('AI response empty or invalid');
       }
+
+      console.log(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
+
+      // Parse multi-poem response
+      allPoems = parseResponse(aiResult.content, campaignConfig.multiResponseParser);
+      console.log(`[Campaign Generate] Parsed ${allPoems.length} poems from single AI response`);
+
+    } else {
+      // Fallback: single poem generation (for count=1 or if multiItemTemplate not available)
+      console.log(`[Campaign Generate] Using singleItemTemplate for single poem generation`);
+
+      let requestText = promptConfig.singleItemTemplate || promptConfig.requestTemplate;
+
+      // Replace template variables
+      Object.keys(variables).forEach(key => {
+        const placeholder = `{{${key}}}`;
+        if (requestText.includes(placeholder)) {
+          requestText = requestText.replace(
+            new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+            variables[key] || ''
+          );
+        }
+      });
+
+      console.log(`[Campaign Generate] Calling AI with single-item prompt:`, {
+        systemRole: promptConfig.systemRole.substring(0, 100) + '...',
+        requestLength: requestText.length
+      });
+
+      const aiResult = await req.app.locals.aiWorkerPool.processRequest({
+        type: `campaign_${campaignTypeId}`,
+        systemPrompt: promptConfig.systemRole,
+        messages: [{ role: 'user', content: requestText }],
+        options: promptConfig.options
+      }, req);
+
+      if (!aiResult?.content) {
+        throw new Error('AI response empty or invalid');
+      }
+
+      console.log(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
+
+      const mainContent = parseResponse(aiResult.content, campaignConfig.responseParser);
+      console.log(`[Campaign Generate] Parsed single poem:`, mainContent);
+      allPoems = [mainContent];
     }
 
-    console.log(`[Campaign Generate] Generated ${alternatives.length} alternatives`);
-
-    // If count > 1, generate canvas images for all poems and return as sharepics array
-    if (count > 1) {
-      const allPoems = [mainContent, ...alternatives];
+    // Generate canvas images for all poems and return as sharepics array
+    if (allPoems.length > 0) {
       console.log(`[Campaign Generate] Generating ${allPoems.length} canvas images in parallel`);
 
       // Generate canvas images for all poems in parallel
