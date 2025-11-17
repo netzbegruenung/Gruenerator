@@ -1,0 +1,82 @@
+{
+  "id": "weihnachten",
+  "backendConfigId": "christmas2025",
+  "displayName": "Weihnachten 2025",
+  "description": "Festliche Weihnachtsgedichte für eure Region",
+  "icon": "weihnachten",
+  "color": "#005538",
+  "order": 1,
+  "active": true,
+  "form": {
+    "fields": [
+      {
+        "name": "location",
+        "label": "Ort/Region",
+        "type": "text",
+        "placeholder": "z.B. Berlin",
+        "required": true,
+        "helpText": "Gib den Ort oder die Region ein, für die das Gedicht sein soll"
+      },
+      {
+        "name": "details",
+        "label": "Details (Optional)",
+        "type": "textarea",
+        "placeholder": "z.B. besondere Traditionen, Sehenswürdigkeiten...",
+        "required": false,
+        "maxLength": 200,
+        "helpText": "Optionale Details, die im Gedicht berücksichtigt werden sollen"
+      }
+    ],
+    "submitLabel": "Gedichte generieren",
+    "countSelector": {
+      "enabled": true,
+      "label": "Anzahl",
+      "default": 4,
+      "options": [1, 4]
+    }
+  },
+  "variants": [
+    {
+      "id": "christmas_poem_green_festive",
+      "displayName": "Festlich Grün",
+      "description": "Grüner Hintergrund mit festlichen Elementen",
+      "previewImage": "/campaigns/christmas2025/bg_green_festive.png",
+      "order": 1
+    },
+    {
+      "id": "christmas_poem_green_pine",
+      "displayName": "Tannenzweig",
+      "description": "Grüner Hintergrund mit Tannenzweigen",
+      "previewImage": "/campaigns/christmas2025/bg_green_pine.png",
+      "order": 2
+    },
+    {
+      "id": "christmas_poem_green_snowflakes",
+      "displayName": "Schneeflocken Grün",
+      "description": "Grüner Hintergrund mit Schneeflocken",
+      "previewImage": "/campaigns/christmas2025/bg_green_snowflakes.png",
+      "order": 3
+    },
+    {
+      "id": "christmas_poem_sand_winter",
+      "displayName": "Winter Sand",
+      "description": "Beiger Hintergrund mit winterlichen Elementen",
+      "previewImage": "/campaigns/christmas2025/bg_sand_winter.png",
+      "order": 4
+    },
+    {
+      "id": "christmas_poem_sand_snowflakes",
+      "displayName": "Schneeflocken Sand",
+      "description": "Beiger Hintergrund mit Schneeflocken",
+      "previewImage": "/campaigns/christmas2025/bg_sand_snowflakes.png",
+      "order": 5
+    },
+    {
+      "id": "christmas_poem_sand_dots",
+      "displayName": "Punkte Sand",
+      "description": "Beiger Hintergrund mit dekorativen Punkten",
+      "previewImage": "/campaigns/christmas2025/bg_sand_dots.png",
+      "order": 6
+    }
+  ]
+}

@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import BaseForm from '../../../components/common/Form/BaseForm/BaseForm';
 import { FormInput, FormTextarea, FormImageSelect, FormSelect } from '../../../components/common/Form/Input';
-import { SHAREPIC_TYPES } from '../../../components/utils/constants';
 import apiClient from '../../../components/utils/apiClient';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
@@ -11,64 +10,80 @@ import CampaignSharepicEditor from './components/CampaignSharepicEditor';
 import useCampaignSharepicEdit from './hooks/useCampaignSharepicEdit';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
+import { getActiveCampaigns, getCampaign } from '../../../utils/campaignLoader';
 
 const KampagnenGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'kampagnen-generator';
 
+  // Campaign data loaded from registry
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaignData, setSelectedCampaignData] = useState(null);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
+
   // Campaign selection state
   const [selectedCampaign, setSelectedCampaign] = useState('weihnachten');
 
-  // TODO: When adding more campaigns, use useEffect to watch selectedCampaign and update
-  // campaignVariantOptions dynamically based on the selected campaign
-  // Example: useEffect(() => { setCampaignVariantOptions(getCampaignBackgrounds(selectedCampaign)) }, [selectedCampaign])
+  // Load campaigns from registry on mount
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      try {
+        setIsLoadingCampaigns(true);
+        const activeCampaigns = await getActiveCampaigns();
+        setCampaigns(activeCampaigns);
 
-  const campaignVariantOptions = useMemo(() => [
-    {
-      value: SHAREPIC_TYPES.CHRISTMAS_POEM_GREEN_FESTIVE,
-      label: 'Festlich Grün',
-      imageUrl: '/campaigns/christmas2025/bg_green_festive.png'
-    },
-    {
-      value: SHAREPIC_TYPES.CHRISTMAS_POEM_GREEN_PINE,
-      label: 'Grün mit Tannenzweig',
-      imageUrl: '/campaigns/christmas2025/bg_green_pine.png'
-    },
-    {
-      value: SHAREPIC_TYPES.CHRISTMAS_POEM_GREEN_SNOWFLAKES,
-      label: 'Grün mit Schneeflocken',
-      imageUrl: '/campaigns/christmas2025/bg_green_snowflakes.png'
-    },
-    {
-      value: SHAREPIC_TYPES.CHRISTMAS_POEM_SAND_WINTER,
-      label: 'Sand Winter',
-      imageUrl: '/campaigns/christmas2025/bg_sand_winter.png'
-    },
-    {
-      value: SHAREPIC_TYPES.CHRISTMAS_POEM_SAND_SNOWFLAKES,
-      label: 'Sand mit Schneeflocken',
-      imageUrl: '/campaigns/christmas2025/bg_sand_snowflakes.png'
-    },
-    {
-      value: SHAREPIC_TYPES.CHRISTMAS_POEM_SAND_DOTS,
-      label: 'Sand mit Punkten',
-      imageUrl: '/campaigns/christmas2025/bg_sand_dots.png'
-    }
-  ], []);
+        if (activeCampaigns.length > 0 && !selectedCampaign) {
+          setSelectedCampaign(activeCampaigns[0].id);
+        }
+      } catch (error) {
+        console.error('[KampagnenGenerator] Failed to load campaigns:', error);
+      } finally {
+        setIsLoadingCampaigns(false);
+      }
+    };
 
-  // Campaign type options for selector
-  const campaignOptions = useMemo(() => [
-    {
-      value: 'weihnachten',
-      label: 'Weihnachten 2025',
-      icon: <Icon category="campaigns" name="weihnachten" size={16} />
-    }
-    // TODO: Add more campaigns here (e.g., Ostern, Bundestagswahl)
-  ], []);
+    loadCampaigns();
+  }, []);
+
+  // Load selected campaign data when selection changes
+  useEffect(() => {
+    const loadCampaignData = async () => {
+      if (!selectedCampaign) return;
+
+      try {
+        const campaignData = await getCampaign(selectedCampaign);
+        setSelectedCampaignData(campaignData);
+      } catch (error) {
+        console.error('[KampagnenGenerator] Failed to load campaign data:', error);
+      }
+    };
+
+    loadCampaignData();
+  }, [selectedCampaign]);
+
+  // Campaign variant options (loaded dynamically from registry)
+  const campaignVariantOptions = useMemo(() => {
+    if (!selectedCampaignData?.variants) return [];
+
+    return selectedCampaignData.variants.map(variant => ({
+      value: variant.id,
+      label: variant.displayName,
+      imageUrl: variant.previewImage
+    }));
+  }, [selectedCampaignData]);
+
+  // Campaign type options for selector (loaded from registry)
+  const campaignOptions = useMemo(() => {
+    return campaigns.map(campaign => ({
+      value: campaign.id,
+      label: campaign.displayName,
+      icon: campaign.icon ? <Icon category="campaigns" name={campaign.icon} size={16} /> : null
+    }));
+  }, [campaigns]);
 
   // Use useBaseForm for integrated form management
   const form = useBaseForm({
     defaultValues: {
-      variant: campaignVariantOptions[0].value,
+      variant: campaignVariantOptions[0]?.value || '',
       location: '',
       details: ''
     },
@@ -112,8 +127,10 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
   const handleRegenerateSharepic = useCallback(async (index, editedLines) => {
     try {
       const formValues = getValues();
+      const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
 
       const updatedSharepic = await regenerateSharepic({
+        campaignId: campaignId,
         variant: formValues.variant,
         location: formValues.location,
         details: formValues.details,
@@ -136,7 +153,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
       console.error('[KampagnenGenerator] Failed to regenerate sharepic:', error);
       throw error;
     }
-  }, [regenerateSharepic, storeGeneratedText, setGeneratedText, getFeatureState, getValues, componentName]);
+  }, [regenerateSharepic, storeGeneratedText, setGeneratedText, getFeatureState, getValues, selectedCampaignData, selectedCampaign, componentName]);
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     if (isImageEditMode && editedLines) {
@@ -150,12 +167,8 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
     try {
       const features = getFeatureState();
 
-      // Map campaign type to backend campaign ID
-      const campaignIdMap = {
-        'weihnachten': 'christmas2025'
-        // TODO: Add more mappings when new campaigns are added
-      };
-      const campaignId = campaignIdMap[selectedCampaign] || selectedCampaign;
+      // Get backend campaign ID from selected campaign data
+      const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
 
       const response = await apiClient.post('campaign_generate', {
         campaignId: campaignId,
@@ -187,7 +200,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
       setStoreIsLoading(false);
       setIsGenerating(false);
     }
-  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, getFeatureState, selectedCampaign, componentName]);
+  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, getFeatureState, selectedCampaign, selectedCampaignData, componentName]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedText(componentName, content);
@@ -275,6 +288,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
 
   return (
     <BaseForm
+      key={selectedCampaign}
       title="Weihnachtskampagne 2025"
       subtitle="Erstelle festliche Weihnachtsgrüße mit grünen Werten für deine Region"
       onSubmit={handleSubmit(onSubmitRHF)}

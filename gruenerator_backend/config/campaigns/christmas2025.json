@@ -2,6 +2,20 @@
   "campaignId": "christmas2025",
   "name": "Weihnachten 2025",
   "active": true,
+  "formValidation": {
+    "location": {
+      "required": true,
+      "minLength": 2,
+      "maxLength": 50,
+      "pattern": "^[a-zA-ZäöüÄÖÜß\\s-]+$",
+      "errorMessage": "Bitte gib einen gültigen Ortsnamen ein (2-50 Zeichen)"
+    },
+    "details": {
+      "required": false,
+      "maxLength": 200,
+      "errorMessage": "Details dürfen maximal 200 Zeichen lang sein"
+    }
+  },
   "defaultPrompt": {
     "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
     "singleItemTemplate": "Erstelle ein Weihnachtsgedicht. Es ist über folgenden Ort: {{location}}.\n\nDetails (Optional): {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
@@ -36,114 +50,71 @@
       "maxCharsPerLine": 20
     }
   },
+  "defaultCredit": {
+    "fontSize": 38
+  },
+  "defaultCanvas": {
+    "type": "campaign",
+    "width": 1080,
+    "height": 1350,
+    "textLines": [
+      {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950}
+    ],
+    "decorations": [],
+    "credit": {
+      "text": "Die Grünen {{location}} wünschen dir frohe Feiertage!",
+      "x": 540,
+      "fontSize": 38,
+      "font": "GrueneType",
+      "align": "center"
+    }
+  },
+  "colorThemes": {
+    "green": {
+      "textColor": "#FFFFFF",
+      "creditColor": "#FFFFFF",
+      "creditY": 1050
+    },
+    "sand": {
+      "textColor": "#005538",
+      "creditColor": "#005538",
+      "creditY": 1050
+    }
+  },
   "types": {
     "christmas_poem_green_festive": {
       "basedOn": "custom",
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_festive.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
-      }
+      "theme": "green",
+      "backgroundImage": "/campaigns/christmas2025/bg_green_festive.png"
     },
     "christmas_poem_green_pine": {
       "basedOn": "custom",
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_pine.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
-      }
+      "theme": "green",
+      "backgroundImage": "/campaigns/christmas2025/bg_green_pine.png"
     },
     "christmas_poem_green_snowflakes": {
       "basedOn": "custom",
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_green_snowflakes.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#FFFFFF", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Die Grünen {{location}} wünschen dir frohe Feiertage!", "x": 540, "y": 1050, "fontSize": 30, "color": "#FFFFFF", "font": "GrueneType", "align": "center"}
-      }
+      "theme": "green",
+      "backgroundImage": "/campaigns/christmas2025/bg_green_snowflakes.png"
     },
     "christmas_poem_sand_winter": {
       "basedOn": "custom",
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_sand_winter.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Frohe Weihnachten", "x": 540, "y": 1280, "fontSize": 35, "color": "#005538", "font": "GrueneType"}
-      }
+      "theme": "sand",
+      "backgroundImage": "/campaigns/christmas2025/bg_sand_winter.png"
     },
     "christmas_poem_sand_snowflakes": {
       "basedOn": "custom",
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_sand_snowflakes.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Frohe Weihnachten", "x": 540, "y": 1280, "fontSize": 35, "color": "#005538", "font": "GrueneType"}
-      }
+      "theme": "sand",
+      "backgroundImage": "/campaigns/christmas2025/bg_sand_snowflakes.png"
     },
     "christmas_poem_sand_dots": {
       "basedOn": "custom",
-      "canvas": {
-        "type": "campaign",
-        "width": 1080,
-        "height": 1350,
-        "backgroundImage": "/campaigns/christmas2025/bg_sand_dots.png",
-        "textLines": [
-          {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950},
-          {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "color": "#005538", "align": "center", "font": "GrueneType", "maxWidth": 950}
-        ],
-        "decorations": [],
-        "credit": {"text": "Frohe Weihnachten", "x": 540, "y": 1280, "fontSize": 35, "color": "#005538", "font": "GrueneType"}
-      }
+      "theme": "sand",
+      "backgroundImage": "/campaigns/christmas2025/bg_sand_dots.png"
     }
   }
 }

@@ -12,6 +12,7 @@ const useCampaignSharepicEdit = () => {
   /**
    * Regenerate a single campaign sharepic with edited text
    * @param {Object} params - Regeneration parameters
+   * @param {string} params.campaignId - Campaign backend config ID (e.g., 'christmas2025')
    * @param {string} params.variant - Campaign variant ID (e.g., 'christmas_poem_green_festive')
    * @param {string} params.location - Location/theme for the campaign
    * @param {string} params.details - Additional details
@@ -19,13 +20,13 @@ const useCampaignSharepicEdit = () => {
    * @param {Object} params.features - Feature toggles (usePrivacyMode, useBedrock, etc.)
    * @returns {Promise<Object>} Regenerated sharepic object
    */
-  const regenerateSharepic = useCallback(async ({ variant, location, details, editedLines, features }) => {
+  const regenerateSharepic = useCallback(async ({ campaignId, variant, location, details, editedLines, features }) => {
     setIsRegenerating(true);
     setRegenerationError(null);
 
     try {
       const response = await apiClient.post('/campaign_generate', {
-        campaignId: 'christmas2025',
+        campaignId: campaignId,
         campaignTypeId: variant,
         thema: location,
         details: details || '',

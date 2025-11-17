@@ -6,13 +6,7 @@ export const SHAREPIC_TYPES = {
   QUOTE_PURE: 'Zitat_Pure',
   THREE_LINES: 'Dreizeilen',
   HEADLINE: 'Headline',
-  INFO: 'Info',
-  CHRISTMAS_POEM_GREEN_FESTIVE: 'christmas_poem_green_festive',
-  CHRISTMAS_POEM_GREEN_PINE: 'christmas_poem_green_pine',
-  CHRISTMAS_POEM_GREEN_SNOWFLAKES: 'christmas_poem_green_snowflakes',
-  CHRISTMAS_POEM_SAND_WINTER: 'christmas_poem_sand_winter',
-  CHRISTMAS_POEM_SAND_SNOWFLAKES: 'christmas_poem_sand_snowflakes',
-  CHRISTMAS_POEM_SAND_DOTS: 'christmas_poem_sand_dots'
+  INFO: 'Info'
 };
 
 // Form Steps

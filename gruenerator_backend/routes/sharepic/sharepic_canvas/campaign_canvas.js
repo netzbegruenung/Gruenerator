@@ -36,8 +36,50 @@ function loadCampaignConfig(campaignId, typeId) {
       return null;
     }
 
+    // Build canvas configuration with theme-based inheritance
+    let canvasConfig;
+
+    if (typeConfig.theme && campaign.defaultCanvas && campaign.colorThemes) {
+      // Use theme-based template system
+      const theme = campaign.colorThemes[typeConfig.theme];
+
+      if (!theme) {
+        console.warn(`[CampaignCanvas] Theme ${typeConfig.theme} not found in campaign ${campaignId}`);
+        return null;
+      }
+
+      // Deep clone defaultCanvas to avoid mutation
+      canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas));
+
+      // Apply theme colors to text lines
+      canvasConfig.textLines = canvasConfig.textLines.map(line => ({
+        ...line,
+        color: theme.textColor
+      }));
+
+      // Apply theme colors to credit
+      canvasConfig.credit = {
+        ...canvasConfig.credit,
+        color: theme.creditColor,
+        y: theme.creditY
+      };
+
+      // Set unique background image
+      canvasConfig.backgroundImage = typeConfig.backgroundImage;
+
+      console.log(`[CampaignCanvas] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
+    } else {
+      // Use explicit canvas config (backward compatible)
+      canvasConfig = typeConfig.canvas;
+    }
+
     console.log(`[CampaignCanvas] Loaded config for ${campaignId}/${typeId}`);
-    return typeConfig;
+
+    // Return in expected format with canvas property
+    return {
+      canvas: canvasConfig,
+      basedOn: typeConfig.basedOn
+    };
   } catch (error) {
     console.error(`[CampaignCanvas] Failed to load config:`, error);
     return null;
