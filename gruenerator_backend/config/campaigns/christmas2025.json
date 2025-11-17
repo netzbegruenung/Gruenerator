@@ -50,6 +50,7 @@
       "maxCharsPerLine": 20
     }
   },
+  "textSuffix": "\n\nErstelle zusätzlich EINEN Beitragstext (max 600 Zeichen) für {{location}}, der zu allen vier Gedichten passt. Der Text soll:\n- Weihnachtliche, warmherzige Stimmung vermitteln\n- Emotional und teilbar sein\n- 2-4 passende Emojis enthalten\n- 3-5 relevante Hashtags am Ende haben (z.B. #Weihnachten #{{location}} #DieGrünen)\n\nFormat:\n---TEXT---\n[Dein Beitragstext hier]",
   "defaultCredit": {
     "fontSize": 38
   },

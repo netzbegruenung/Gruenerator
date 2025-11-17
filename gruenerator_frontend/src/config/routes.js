@@ -12,7 +12,6 @@ const WebinarCampaign = lazy(() => import('../features/campaigns/components/Webi
 
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
-const LoggedOutPage = lazy(() => import('../features/auth/pages/LoggedOutPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
 const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
 
@@ -153,7 +152,6 @@ const standardRoutes = [
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegistrationPage },
-  { path: '/logged-out', component: LoggedOutPage },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:tab', component: ProfilePage },
   { path: '/profile/:tab/:subtab', component: ProfilePage },

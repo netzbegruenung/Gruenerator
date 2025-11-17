@@ -83,7 +83,7 @@
 .question-number {
   display: inline-block;
   margin-right: var(--spacing-xxsmall);
-  color: var(--tanne);
+  color: var(--interactive-accent-color);
 }
 
 .question-clarification-badge {

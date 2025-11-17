@@ -17,7 +17,7 @@
 }
 
 .bundestag-option__icon {
-  color: var(--tanne);
+  color: var(--link-color);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -67,7 +67,7 @@
 .bundestag-selector__count {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
-  color: var(--tanne);
+  color: var(--link-color);
 }
 
 .bundestag-selector__types {
@@ -109,12 +109,12 @@
 }
 
 .bundestag-select__control:hover {
-  border-color: var(--tanne) !important;
+  border-color: var(--interactive-accent-color) !important;
 }
 
 .bundestag-select__control--is-focused {
-  border-color: var(--tanne) !important;
-  box-shadow: 0 0 0 2px rgba(var(--tanne-rgb), 0.2) !important;
+  border-color: var(--interactive-accent-color) !important;
+  box-shadow: 0 0 0 2px rgba(95, 133, 117, 0.2) !important;
 }
 
 .bundestag-select__control--is-disabled {
@@ -149,7 +149,7 @@
 }
 
 .bundestag-select__option--is-selected {
-  background-color: var(--tanne) !important;
+  background-color: var(--button-color) !important;
   color: white !important;
 }
 

@@ -788,3 +788,37 @@
 [data-theme="dark"] .selected-content-remove-btn:hover {
   background-color: var(--grey-600);
 }
+
+/* Login Prompt for Non-Authenticated Users */
+.feature-icons__login-prompt {
+  display: inline;
+  padding: var(--spacing-small) var(--spacing-medium);
+  font-size: 0.9rem;
+  color: var(--font-color-secondary);
+  line-height: 1.5;
+}
+
+.feature-icons__login-link {
+  background: none;
+  border: none;
+  color: var(--link-color);
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  padding: 0;
+  transition: color 0.2s ease;
+  display: inline;
+  vertical-align: baseline;
+}
+
+.feature-icons__login-link:hover {
+  color: var(--link-hover-color);
+}
+
+.feature-icons__login-link:focus-visible {
+  outline: 2px solid var(--klee);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

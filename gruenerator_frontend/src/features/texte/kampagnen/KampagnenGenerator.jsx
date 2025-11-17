@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import BaseForm from '../../../components/common/Form/BaseForm/BaseForm';
 import { FormInput, FormTextarea, FormImageSelect, FormSelect } from '../../../components/common/Form/Input';
+import FeatureToggle from '../../../components/common/FeatureToggle';
 import apiClient from '../../../components/utils/apiClient';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
@@ -11,6 +12,8 @@ import useCampaignSharepicEdit from './hooks/useCampaignSharepicEdit';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 import { getActiveCampaigns, getCampaign } from '../../../utils/campaignLoader';
+import { FaInstagram } from 'react-icons/fa';
+import './KampagnenGenerator.css';
 
 const KampagnenGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'kampagnen-generator';
@@ -79,6 +82,9 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
       icon: campaign.icon ? <Icon category="campaigns" name={campaign.icon} size={16} /> : null
     }));
   }, [campaigns]);
+
+  // Campaign text generation toggle state
+  const [generateCampaignText, setGenerateCampaignText] = useState(false);
 
   // Use useBaseForm for integrated form management
   const form = useBaseForm({
@@ -176,6 +182,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
         thema: rhfData.location,
         details: rhfData.details || '',
         count: 4,
+        generateCampaignText: generateCampaignText,
         ...features
       });
 
@@ -191,6 +198,13 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
         content: 'sharepic-content'
       };
 
+      // Add campaign text if generated
+      if (result.campaignText) {
+        finalResult.social = {
+          content: result.campaignText
+        };
+      }
+
       setGeneratedText(componentName, finalResult);
 
     } catch (error) {
@@ -200,7 +214,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
       setStoreIsLoading(false);
       setIsGenerating(false);
     }
-  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, getFeatureState, selectedCampaign, selectedCampaignData, componentName]);
+  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, getFeatureState, selectedCampaign, selectedCampaignData, componentName, generateCampaignText]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setGeneratedText(componentName, content);
@@ -287,28 +301,40 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
   ) : null;
 
   return (
-    <BaseForm
-      key={selectedCampaign}
-      title="Weihnachtskampagne 2025"
-      subtitle="Erstelle festliche Weihnachtsgrüße mit grünen Werten für deine Region"
-      onSubmit={handleSubmit(onSubmitRHF)}
-      loading={isGenerating || isRegenerating}
-      success={!!storeGeneratedText}
-      error={form.generator?.error}
-      generatedContent={storeGeneratedText}
-      onGeneratedContentChange={handleGeneratedContentChange}
-      componentName={componentName}
-      useFeatureIcons={false}
-      helpContent={helpContent}
-      showHeader={showHeaderFooter}
-      showFooter={showHeaderFooter}
-      enableEditMode={true}
-      customEditContent={customEditContent}
-      onImageEditModeChange={setIsImageEditMode}
-      firstExtrasChildren={renderCampaignSelector()}
-    >
-      {renderFormInputs()}
-    </BaseForm>
+    <div className="kampagnen-generator">
+      <BaseForm
+        key={selectedCampaign}
+        title="Weihnachtskampagne 2025"
+        subtitle="Erstelle festliche Weihnachtsgrüße mit grünen Werten für deine Region"
+        onSubmit={handleSubmit(onSubmitRHF)}
+        loading={isGenerating || isRegenerating}
+        success={!!storeGeneratedText}
+        error={form.generator?.error}
+        generatedContent={storeGeneratedText}
+        onGeneratedContentChange={handleGeneratedContentChange}
+        componentName={componentName}
+        useFeatureIcons={false}
+        helpContent={helpContent}
+        showHeader={showHeaderFooter}
+        showFooter={showHeaderFooter}
+        enableEditMode={true}
+        customEditContent={customEditContent}
+        onImageEditModeChange={setIsImageEditMode}
+        firstExtrasChildren={renderCampaignSelector()}
+        extrasChildren={
+          <FeatureToggle
+            isActive={generateCampaignText}
+            onToggle={setGenerateCampaignText}
+            label="Beitragstext generieren"
+            icon={FaInstagram}
+            description="Zusätzlich einen passenden Social-Media-Text erstellen"
+            className="campaign-feature-toggle"
+          />
+        }
+      >
+        {renderFormInputs()}
+      </BaseForm>
+    </div>
   );
 };
 

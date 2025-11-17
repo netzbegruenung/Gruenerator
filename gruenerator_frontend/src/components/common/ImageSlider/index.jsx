@@ -94,13 +94,13 @@ const ImageSlider = ({
         <p style={{ fontSize: '14px', textAlign: 'center' }}>
           Bildergalerie konnte nicht geladen werden
         </p>
-        <button 
+        <button
           onClick={handleLoadGallery}
-          style={{ 
-            marginTop: '8px', 
-            padding: '4px 8px', 
+          style={{
+            marginTop: '8px',
+            padding: '4px 8px',
             fontSize: '12px',
-            background: 'var(--tanne)',
+            background: 'var(--button-color)',
             color: 'white',
             border: 'none',
             borderRadius: '4px',

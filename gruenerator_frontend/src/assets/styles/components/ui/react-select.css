@@ -473,12 +473,12 @@
 }
 
 .canva-select__control:hover {
-  border-color: var(--tanne) !important;
+  border-color: var(--interactive-accent-color) !important;
 }
 
 .canva-select__control--is-focused {
-  border-color: var(--tanne) !important;
-  box-shadow: 0 0 0 1px var(--tanne) !important;
+  border-color: var(--interactive-accent-color) !important;
+  box-shadow: 0 0 0 1px var(--interactive-accent-color) !important;
 }
 
 .canva-select__value-container {
@@ -526,7 +526,7 @@
 }
 
 .canva-select__option--is-selected {
-  background: var(--tanne) !important;
+  background: var(--button-color) !important;
   color: white !important;
 }
 

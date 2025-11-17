@@ -353,10 +353,6 @@ export const useAuth = (options = {}) => {
 
   const { isServerAvailable, isChecking } = useServerAvailability(lazy || (instant && hasCachedData));
 
-  // Check if user is on the logged-out page to prevent automatic re-auth
-  const isJustLoggedOut = typeof window !== 'undefined' && 
-    window.location.pathname === '/logged-out';
-
   // Check if user recently logged out to prevent immediate re-auth
   const hasRecentlyLoggedOut = isRecentlyLoggedOut();
 
@@ -395,7 +391,7 @@ export const useAuth = (options = {}) => {
         throw error;
       }
     },
-    enabled: isServerAvailable && !skipAuth && !isJustLoggedOut && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
+    enabled: isServerAvailable && !skipAuth && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
     staleTime: 5 * 60 * 1000, // 5 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
     retry: 1, 
@@ -406,8 +402,8 @@ export const useAuth = (options = {}) => {
 
   // Handle auth data when it changes
   useEffect(() => {
-    // Don't process auth data if user was just logged out or recently logged out (unless on login page)
-    if (isJustLoggedOut || (hasRecentlyLoggedOut && !isOnLoginPage)) {
+    // Don't process auth data if user recently logged out (unless on login page)
+    if (hasRecentlyLoggedOut && !isOnLoginPage) {
       // Only clear auth if user is currently authenticated
       // This prevents unnecessary clearAuth calls that would reset the logout timestamp
       const { isAuthenticated: currentIsAuthenticated } = useAuthStore.getState();
@@ -490,7 +486,7 @@ export const useAuth = (options = {}) => {
       setError(queryError.message);
       clearAuth();
     }
-  }, [authData, queryError, instant, setAuthState, clearAuth, setError, isJustLoggedOut, hasRecentlyLoggedOut, isOnLoginPage]);
+  }, [authData, queryError, instant, setAuthState, clearAuth, setError, hasRecentlyLoggedOut, isOnLoginPage]);
 
   // Calculate loading states with optimizations
   const isCombinedLoading = (
@@ -500,10 +496,10 @@ export const useAuth = (options = {}) => {
   );
     
   const isAuthResolved = (
-    hasCachedData || 
+    hasCachedData ||
     (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut) ||
     // Force resolve auth state if user recently logged out and not on login page
-    (hasRecentlyLoggedOut && !isOnLoginPage && !isJustLoggedOut)
+    (hasRecentlyLoggedOut && !isOnLoginPage)
   );
 
 

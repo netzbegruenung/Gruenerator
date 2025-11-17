@@ -24,13 +24,13 @@
 
 .toggle-button:hover {
   background: var(--background-color-tertiary);
-  border-color: var(--tanne);
+  border-color: var(--interactive-accent-color);
 }
 
 .toggle-button.active {
-  background: var(--tanne);
+  background: var(--button-color);
   color: white;
-  border-color: var(--tanne);
+  border-color: var(--button-color);
 }
 
 .toggle-icon {
@@ -111,7 +111,7 @@
   width: 24px;
   height: 24px;
   border: 2px solid var(--border-color);
-  border-top: 2px solid var(--tanne);
+  border-top: 2px solid var(--interactive-accent-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -213,13 +213,13 @@
 }
 
 .canva-design-card:hover {
-  border-color: var(--tanne);
+  border-color: var(--interactive-accent-color);
   transform: scale(1.01);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .canva-design-card.selected {
-  border-color: var(--tanne);
+  border-color: var(--interactive-accent-color);
   box-shadow: 0 0 0 2px rgba(125, 42, 232, 0.2);
 }
 
@@ -420,12 +420,12 @@
 }
 
 .canva-select__control:hover {
-  border-color: var(--tanne) !important;
+  border-color: var(--interactive-accent-color) !important;
 }
 
 .canva-select__control--is-focused {
-  border-color: var(--tanne) !important;
-  box-shadow: 0 0 0 1px var(--tanne) !important;
+  border-color: var(--interactive-accent-color) !important;
+  box-shadow: 0 0 0 1px var(--interactive-accent-color) !important;
 }
 
 .canva-select__value-container {
@@ -473,7 +473,7 @@
 }
 
 .canva-select__option--is-selected {
-  background: var(--tanne) !important;
+  background: var(--button-color) !important;
   color: white !important;
 }
 
