@@ -4,12 +4,13 @@ const path = require('path');
 const fs = require('fs');
 const { parseResponse } = require('../../../utils/campaignResponseParser');
 const { generateCampaignCanvas } = require('../sharepic_canvas/campaign_canvas');
+const { validateCampaignInputsOrThrow, ValidationError } = require('../../../utils/campaignValidator');
 
 /**
  * Load campaign configuration from JSON file
  * @param {string} campaignId - Campaign identifier
  * @param {string} typeId - Campaign type identifier
- * @returns {Object|null} Merged campaign configuration with defaults or null if not found
+ * @returns {Object|null} Object with merged config and full campaign, or null if not found
  */
 const loadCampaignConfig = (campaignId, typeId) => {
   if (!campaignId || !typeId) return null;
@@ -30,17 +31,58 @@ const loadCampaignConfig = (campaignId, typeId) => {
       return null;
     }
 
+    // Build canvas configuration with theme-based inheritance
+    let canvasConfig;
+
+    if (typeConfig.theme && campaign.defaultCanvas && campaign.colorThemes) {
+      // Use theme-based template system
+      const theme = campaign.colorThemes[typeConfig.theme];
+
+      if (!theme) {
+        console.warn(`[Campaign] Theme ${typeConfig.theme} not found in campaign ${campaignId}`);
+        return null;
+      }
+
+      // Deep clone defaultCanvas to avoid mutation
+      canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas));
+
+      // Apply theme colors to text lines
+      canvasConfig.textLines = canvasConfig.textLines.map(line => ({
+        ...line,
+        color: theme.textColor
+      }));
+
+      // Apply theme colors to credit
+      canvasConfig.credit = {
+        ...canvasConfig.credit,
+        color: theme.creditColor,
+        y: theme.creditY
+      };
+
+      // Set unique background image
+      canvasConfig.backgroundImage = typeConfig.backgroundImage;
+
+      console.log(`[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
+    } else {
+      // Use explicit canvas config (backward compatible)
+      canvasConfig = typeConfig.canvas;
+    }
+
     // Merge with defaults from campaign level
     const mergedConfig = {
       prompt: typeConfig.prompt || campaign.defaultPrompt,
       responseParser: typeConfig.responseParser || campaign.defaultResponseParser,
       multiResponseParser: typeConfig.multiResponseParser || campaign.defaultMultiResponseParser,
-      canvas: typeConfig.canvas,
+      canvas: canvasConfig,
       basedOn: typeConfig.basedOn
     };
 
     console.log(`[Campaign] Loaded config for ${campaignId}/${typeId} (using ${mergedConfig.prompt === campaign.defaultPrompt ? 'default' : 'custom'} prompt)`);
-    return mergedConfig;
+
+    return {
+      config: mergedConfig,
+      campaign: campaign
+    };
   } catch (error) {
     console.error(`[Campaign] Failed to load config:`, error);
     return null;
@@ -71,12 +113,35 @@ router.post('/', async (req, res) => {
     }
 
     // Load campaign configuration
-    const campaignConfig = loadCampaignConfig(campaignId, campaignTypeId);
-    if (!campaignConfig) {
+    const loadedConfig = loadCampaignConfig(campaignId, campaignTypeId);
+    if (!loadedConfig) {
       return res.status(404).json({
         success: false,
         error: `Campaign configuration not found: ${campaignId}/${campaignTypeId}`
       });
+    }
+
+    const { config: campaignConfig, campaign: fullCampaign } = loadedConfig;
+
+    // Validate form inputs against campaign formValidation rules (skip if using lineOverrides)
+    if (!lineOverrides) {
+      try {
+        const inputs = {
+          location: thema,
+          details: details
+        };
+        validateCampaignInputsOrThrow(inputs, fullCampaign);
+      } catch (validationError) {
+        if (validationError instanceof ValidationError) {
+          console.warn(`[Campaign Generate] Validation failed for ${validationError.field}:`, validationError.message);
+          return res.status(400).json({
+            success: false,
+            error: validationError.message,
+            field: validationError.field
+          });
+        }
+        throw validationError;
+      }
     }
 
     // Check if lineOverrides is provided (for regeneration with edited text)
