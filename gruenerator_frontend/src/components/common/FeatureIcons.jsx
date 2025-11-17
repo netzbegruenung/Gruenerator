@@ -9,8 +9,7 @@ import { useGeneratorSelectionStore } from '../../stores/core/generatorSelection
 import { useInstructionsStatusForType } from '../../features/auth/hooks/useInstructionsStatus';
 import { useAuth } from '../../hooks/useAuth';
 import DropdownPortal from './DropdownPortal';
-import { useLocation } from 'react-router-dom';
-import { getCurrentPath, buildLoginUrl } from '../../utils/authRedirect';
+import LoginPage from '../../features/auth/pages/LoginPage';
 
 /**
  * ValidationBanner - Shows file upload limits only when Privacy Mode is active
@@ -74,6 +73,7 @@ const FeatureIcons = ({
   const [validationError, setValidationError] = useState(null);
   const [fileMetadata, setFileMetadata] = useState({});
   const [isDragging, setIsDragging] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Unified dropdown state - only ONE dropdown can be open at a time
   const [activeDropdown, setActiveDropdown] = useState(null); // 'balanced' | 'content' | 'anweisungen' | null
@@ -87,7 +87,6 @@ const FeatureIcons = ({
 
   // Get user authentication
   const { user } = useAuth();
-  const location = useLocation();
 
   // Connect to selection store with selective subscriptions
   const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
@@ -318,25 +317,30 @@ const FeatureIcons = ({
 
   // Show login prompt for non-authenticated users
   if (!user) {
-    const handleLoginClick = () => {
-      const currentPath = getCurrentPath(location);
-      const loginUrl = buildLoginUrl(currentPath);
-      window.location.href = loginUrl;
-    };
-
     return (
-      <div className={`feature-icons ${className}`} ref={featureIconsRef}>
-        <div className="feature-icons__login-prompt">
-          Für alle Features{' '}
-          <button
-            type="button"
-            onClick={handleLoginClick}
-            className="feature-icons__login-link"
-          >
-            logge dich ein
-          </button>
+      <>
+        <div className={`feature-icons ${className}`} ref={featureIconsRef}>
+          <div className="feature-icons__login-prompt">
+            Für alle Features logge dich mit deinem Parteiaccount ein.{' '}
+            <button
+              type="button"
+              onClick={() => setShowLoginModal(true)}
+              className="feature-icons__login-link"
+            >
+              Login
+            </button>
+          </div>
         </div>
-      </div>
+
+        {showLoginModal && (
+          <LoginPage
+            mode="required"
+            pageName="Features"
+            customMessage="Melde dich an, um alle Features zu nutzen."
+            onClose={() => setShowLoginModal(false)}
+          />
+        )}
+      </>
     );
   }
 
