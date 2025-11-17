@@ -24,7 +24,7 @@
 
 .limit-indicator__progress {
   height: 100%;
-  background-color: var(--tanne);
+  background-color: var(--interactive-accent-color);
   transition: width 0.5s ease;
   border-radius: 3px;
 }
@@ -39,12 +39,12 @@
 
 /* Status variations */
 .limit-indicator--normal {
-  border-color: var(--tanne-light);
+  border-color: var(--interactive-accent-color);
   background-color: var(--background-color-success);
 }
 
 .limit-indicator--normal .limit-indicator__progress {
-  background-color: var(--tanne);
+  background-color: var(--interactive-accent-color);
 }
 
 .limit-indicator--warning {

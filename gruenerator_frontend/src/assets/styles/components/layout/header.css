@@ -118,7 +118,7 @@
 .header-nav > ul > li > span,
 .header-search__link,
 .header-dropdown-trigger {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     font-size: 0.95em;
     font-family: 'PT Sans', Arial, sans-serif;
     font-weight: normal;
@@ -135,7 +135,7 @@
 .header-nav > ul > li > a:hover,
 .header-nav > ul > li > span:hover,
 .header-dropdown-trigger:hover {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 /* Focus indicators for dropdown triggers - keyboard only */
@@ -232,13 +232,13 @@
 }
 
 .header-dropdown-content li a:hover {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     background-color: var(--hover-color-alt);
     border-radius: 8px;
 }
 
 .header-dropdown-content li a:hover svg {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 .header-dropdown span {
@@ -302,9 +302,7 @@
 
     .header-nav ul li a,
     .header-nav ul li span {
-        padding: 20px;
-        color: var(--font-color-h);
-    }
+        padding: 20px;    }
 
     .header-nav ul li a:hover,
     .header-nav ul li span:hover {
@@ -513,7 +511,6 @@ input:not(:checked) + .slider .icon.moon {
 
     .header-nav ul li a,
     .header-nav ul li span {
-        color: var(--font-color-h);
         font-size: 1.1em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
@@ -525,11 +522,11 @@ input:not(:checked) + .slider .icon.moon {
     }
 
     .header-nav ul li a:hover {
-        color: var(--font-color-h);
+        color: var(--font-color-green);
     }
 
     .header-nav ul li a:hover .header-direct-item-icon {
-        color: var(--font-color-h);
+        color: var(--font-color-green);
     }
 
     .header-dropdown:hover .header-dropdown-content,
@@ -562,7 +559,6 @@ input:not(:checked) + .slider .icon.moon {
         display: flex;
         align-items: center;
         gap: 5px;
-        color: var(--font-color-h);
         font-size: 1.1em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
@@ -630,7 +626,7 @@ input:not(:checked) + .slider .icon.moon {
 
 .menu-item-content:hover .menu-item-title,
 .menu-item-content:hover .menu-item-icon {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 
@@ -644,7 +640,7 @@ input:not(:checked) + .slider .icon.moon {
 .header-dropdown-content .menu-item-content .menu-item-header .menu-item-title {
     font-weight: bold;
     font-size: 0.95em;
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     margin: 0;
     line-height: 1.2;
 }
@@ -671,7 +667,7 @@ input:not(:checked) + .slider .icon.moon {
 
 
 .header-nav-item {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     font-size: 0.95em;
     font-family: 'PT Sans', Arial, sans-serif;
     font-weight: normal;
@@ -687,12 +683,12 @@ input:not(:checked) + .slider .icon.moon {
 }
 
 .header-nav-item:hover {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     background-color: var(--hover-color-alt);
 }
 
 .header-nav-item:hover .header-direct-item-icon {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 
@@ -751,7 +747,7 @@ input:not(:checked) + .slider .icon.moon {
 .theme-icon {
   position: absolute;
   font-size: 1.4rem;
-  color: var(--font-color-h);
+  color: var(--font-color-green);
   transition: opacity 0.3s ease, transform 0.5s ease;
 }
 
@@ -835,14 +831,14 @@ input:not(:checked) + .slider .icon.moon {
 
 .profile-icon {
   font-size: 1.4rem;
-  color: var(--font-color-h);
+  color: var(--font-color-green);
 }
 
 /* Style for icons within direct header items (e.g., Suche Icon) */
 .header-direct-item-icon {
     margin-right: 8px;
     font-size: 1.1em; /* Or inherit, or specific size */
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     transition: color 0.3s ease;
 }
 

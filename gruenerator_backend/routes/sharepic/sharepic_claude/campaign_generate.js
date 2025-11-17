@@ -95,13 +95,14 @@ const loadCampaignConfig = (campaignId, typeId) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { campaignId, campaignTypeId, thema, details, count = 5, lineOverrides } = req.body;
+    const { campaignId, campaignTypeId, thema, details, count = 5, lineOverrides, generateCampaignText = false } = req.body;
 
     console.log(`[Campaign Generate] Request: ${campaignId}/${campaignTypeId}`, {
       thema,
       details,
       count,
-      hasLineOverrides: !!lineOverrides
+      hasLineOverrides: !!lineOverrides,
+      generateCampaignText
     });
 
     // Validate required parameters
@@ -220,6 +221,7 @@ router.post('/', async (req, res) => {
     };
 
     let allPoems = [];
+    let campaignText = null;
 
     // For count > 1, use multiItemTemplate and multiResponseParser for single AI call
     if (count > 1 && promptConfig.multiItemTemplate && campaignConfig.multiResponseParser) {
@@ -227,6 +229,12 @@ router.post('/', async (req, res) => {
 
       // Use multi-item template
       let requestText = promptConfig.multiItemTemplate;
+
+      // Add text suffix if requested
+      if (generateCampaignText && fullCampaign.textSuffix) {
+        requestText += fullCampaign.textSuffix;
+        console.log('[Campaign Generate] Added campaign text suffix to prompt');
+      }
 
       // Replace template variables
       Object.keys(variables).forEach(key => {
@@ -259,8 +267,23 @@ router.post('/', async (req, res) => {
 
       console.log(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
 
+      // Extract campaign text if requested
+      let contentForParsing = aiResult.content;
+
+      if (generateCampaignText) {
+        const textMatch = aiResult.content.match(/---TEXT---\s*([\s\S]+?)(?:\n---|\n*$)/);
+        if (textMatch) {
+          campaignText = textMatch[1].trim();
+          console.log(`[Campaign Generate] Extracted campaign text (${campaignText.length} chars)`);
+          // Remove text section from content before parsing poems
+          contentForParsing = aiResult.content.replace(/---TEXT---[\s\S]+$/, '').trim();
+        } else {
+          console.warn('[Campaign Generate] Campaign text requested but not found in AI response');
+        }
+      }
+
       // Parse multi-poem response
-      allPoems = parseResponse(aiResult.content, campaignConfig.multiResponseParser);
+      allPoems = parseResponse(contentForParsing, campaignConfig.multiResponseParser);
       console.log(`[Campaign Generate] Parsed ${allPoems.length} poems from single AI response`);
 
     } else {
@@ -345,8 +368,8 @@ router.post('/', async (req, res) => {
       console.log(`[Campaign Generate] Successfully generated ${sharepics.length} sharepics`);
       console.log('[Campaign Generate] First sharepic creditText:', sharepics[0]?.creditText);
 
-      // Return sharepics array format
-      return res.json({
+      // Build response
+      const response = {
         success: true,
         sharepics,
         metadata: {
@@ -356,7 +379,16 @@ router.post('/', async (req, res) => {
           campaignTypeId,
           timestamp: new Date().toISOString()
         }
-      });
+      };
+
+      // Add campaign text if generated
+      if (campaignText) {
+        response.campaignText = campaignText;
+        console.log('[Campaign Generate] Including campaign text in response');
+      }
+
+      // Return sharepics array format
+      return res.json(response);
     }
 
     // Return response in expected format (count = 1, backward compatible)

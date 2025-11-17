@@ -39,7 +39,7 @@
   display: inline-flex;
   align-items: center;
   padding: var(--spacing-xsmall) var(--spacing-small);
-  background: var(--tanne);
+  background: var(--button-color);
   color: white;
   border-radius: var(--border-radius-small);
   font-size: var(--font-size-small);
@@ -90,7 +90,7 @@
   padding: var(--spacing-small);
   background: var(--background-tertiary);
   border-radius: var(--border-radius-small);
-  border-left: 3px solid var(--tanne);
+  border-left: 3px solid var(--interactive-accent-color);
 }
 
 @media (max-width: 768px) {

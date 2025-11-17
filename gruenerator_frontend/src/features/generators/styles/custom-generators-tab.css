@@ -142,9 +142,9 @@
 }
 
 .field-required.required {
-  background: color-mix(in srgb, var(--tanne) 15%, transparent);
-  color: var(--tanne);
-  border: 1px solid color-mix(in srgb, var(--tanne) 30%, transparent);
+  background: color-mix(in srgb, var(--button-color) 15%, transparent);
+  color: var(--button-color);
+  border: 1px solid color-mix(in srgb, var(--button-color) 30%, transparent);
 }
 
 .field-required.optional {

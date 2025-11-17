@@ -341,29 +341,6 @@ router.get('/logout', async (req, res, next) => {
   });
 });
 
-// Seite, die nach dem Logout von Keycloak angezeigt wird
-router.get('/logged-out', (req, res) => {
-  // Clear any remaining session data
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('[Auth logged-out] Session cleanup error:', err);
-      }
-    });
-  }
-  
-  // Clear session cookie
-  res.clearCookie('gruenerator.sid', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax'
-  });
-  
-  // Redirect to frontend logged-out page
-  const frontendUrl = process.env.BASE_URL || 'http://localhost:3000';
-  res.redirect(`${frontendUrl}/logged-out`);
-});
-
 // API endpoint for frontend-triggered logout (returns JSON instead of redirect)
 router.post('/logout', async (req, res, next) => {
   const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';

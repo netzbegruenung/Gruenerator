@@ -19,7 +19,7 @@
 }
 
 .page-header h1 {
-  color: var(--tanne);
+  color: var(--font-color-h);
   font-size: var(--font-size-xlarge);
   margin-bottom: var(--spacing-medium);
   font-weight: 600;

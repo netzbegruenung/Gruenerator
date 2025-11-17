@@ -30,8 +30,8 @@
 }
 
 .required-switch[data-state="checked"] {
-  background-color: var(--tanne);
-  border-color: var(--tanne);
+  background-color: var(--button-color);
+  border-color: var(--button-color);
 }
 
 [data-theme="dark"] .required-switch[data-state="checked"] {

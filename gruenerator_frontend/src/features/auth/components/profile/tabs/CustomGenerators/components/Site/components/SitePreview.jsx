@@ -15,7 +15,7 @@ const SitePreview = ({ site, onEdit, onPublish }) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="profile-detail-text"
-                        style={{ color: 'var(--tanne)', textDecoration: 'none' }}
+                        style={{ color: 'var(--link-color)', textDecoration: 'none' }}
                     >
                         {site.subdomain}.{getSitesDomain()} ↗
                     </a>

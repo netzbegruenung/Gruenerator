@@ -173,7 +173,7 @@ const RecentValuesDropdown = ({
       borderColor: error
         ? 'var(--error-color, #e74c3c)'
         : state.isFocused
-          ? 'var(--tanne, #00897b)'
+          ? 'var(--interactive-accent-color)'
           : 'var(--input-border)',
       backgroundColor: disabled
         ? 'var(--input-disabled-background, #f5f5f5)'
@@ -181,7 +181,7 @@ const RecentValuesDropdown = ({
       '&:hover': {
         borderColor: error
           ? 'var(--error-color, #e74c3c)'
-          : 'var(--tanne, #00897b)'
+          : 'var(--interactive-accent-color)'
       }
     }),
     menu: (provided) => ({
@@ -191,7 +191,7 @@ const RecentValuesDropdown = ({
     option: (provided, state) => ({
       ...provided,
       backgroundColor: state.isSelected
-        ? 'var(--tanne, #00897b)'
+        ? 'var(--button-color)'
         : state.isFocused
           ? 'var(--klee-light, #e8f5e9)'
           : 'transparent',
@@ -199,7 +199,6 @@ const RecentValuesDropdown = ({
         ? 'white'
         : 'var(--font-color)',
       fontSize: 'var(--form-element-font-size)',
-      // Add visual distinction for recent values
       fontStyle: state.data?.__isRecentValue ? 'normal' : 'normal',
       '&:before': state.data?.__isRecentValue ? {
         content: '"✓ "',

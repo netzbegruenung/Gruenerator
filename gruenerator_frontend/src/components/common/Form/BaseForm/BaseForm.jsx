@@ -139,6 +139,7 @@ const BaseFormInternal = ({
   bottomSectionChildren = null,
   componentName = 'default',
   firstExtrasChildren = null,
+  extrasChildren = null,
   useMarkdown = null,
   enableEditMode = false,
   customEditContent = null, // Custom edit component for specialized editing (e.g., campaign sharepic editor)
@@ -784,6 +785,7 @@ const BaseFormInternal = ({
                 showHideButton={hasEditableContent}
                 onHide={toggleFormVisibility}
                 firstExtrasChildren={firstExtrasChildren}
+                extrasChildren={extrasChildren}
                 featureIconsTabIndex={resolvedTabIndexes.featureIcons}
                 platformSelectorTabIndex={resolvedTabIndexes.platformSelector}
                 knowledgeSelectorTabIndex={resolvedTabIndexes.knowledgeSelector}
@@ -1019,6 +1021,7 @@ BaseFormInternal.propTypes = {
   bottomSectionChildren: PropTypes.node,
   componentName: PropTypes.string,
   firstExtrasChildren: PropTypes.node,
+  extrasChildren: PropTypes.node,
   useMarkdown: PropTypes.bool,
   enableEditMode: PropTypes.bool,
   customEditContent: PropTypes.node,
@@ -1058,6 +1061,7 @@ BaseFormInternal.defaultProps = {
   accessibilityOptions: {},
   bottomSectionChildren: null,
   firstExtrasChildren: null,
+  extrasChildren: null,
   enableEditMode: false,
   customEditContent: null,
   // TabIndex configuration defaults
