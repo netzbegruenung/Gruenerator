@@ -14,7 +14,7 @@ const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 // Login Provider Configuration - Set enabled: false to hide a provider
 const LOGIN_PROVIDERS = {
   gruenesNetz: { enabled: true },
-  grueneOesterreich: { enabled: false },
+  grueneOesterreich: { enabled: true },
   netzbegruenung: { enabled: true },
   gruenerator: { enabled: false }
 };
