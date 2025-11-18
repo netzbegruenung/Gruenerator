@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import DropdownButton from '../../../../../../components/common/DropdownButton';
 
 // Section components
-import GeneratorsSection from './components/GeneratorsSection';
 import NotebooksSection from './components/NotebooksSection';
 import GeneratorDetail from './components/GeneratorDetail';
 import NotebookDetail from './components/NotebookDetail';
@@ -25,6 +24,7 @@ import {
     useCustomGeneratorsMutations,
     useAvailableDocuments,
     useQACollections,
+    useSavedGenerators,
     QUERY_KEYS
 } from '../../../../hooks/useProfileData';
 import { useProfileStore } from '../../../../../../stores/profileStore';
@@ -57,6 +57,7 @@ const CustomGeneratorsView = ({
     
     // State management
     const [selectedGeneratorId, setSelectedGeneratorId] = useState(initialGeneratorId);
+    const [selectedSavedGeneratorId, setSelectedSavedGeneratorId] = useState(null);
     const [selectedQAId, setSelectedQAId] = useState(initialQAId);
     const [view, setView] = useState(initialTab);
     const [site, setSite] = useState(null);
@@ -68,10 +69,14 @@ const CustomGeneratorsView = ({
     const generatorsData = useCustomGeneratorsData({ isActive });
     const generatorMutations = useCustomGeneratorsMutations();
     const generators = useProfileStore(state => state.customGenerators) || [];
-    
+
+    // Saved generators (from other users)
+    const savedGeneratorsHook = useSavedGenerators({ isActive });
+    const savedGenerators = useProfileStore(state => state.savedGenerators) || [];
+
     const qaQuery = useQACollections({ isActive: isActive && isQAEnabled });
     const qaCollections = useProfileStore(state => state.qaCollections) || [];
-    
+
     const availableDocuments = useAvailableDocuments();
 
     // Fetch site data
@@ -102,28 +107,40 @@ const CustomGeneratorsView = ({
     // Navigation handlers
     const handleGeneratorSelect = useCallback((generatorId) => {
         setSelectedGeneratorId(generatorId);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         setView('generator-detail');
+        clearMessages();
+    }, [clearMessages]);
+
+    const handleSavedGeneratorSelect = useCallback((generatorId) => {
+        setSelectedSavedGeneratorId(generatorId);
+        setSelectedGeneratorId(null);
+        setSelectedQAId(null);
+        setView('saved-generator-detail');
         clearMessages();
     }, [clearMessages]);
     
     const handleNotebookSelect = useCallback((qaId) => {
         setSelectedQAId(qaId);
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setView('notebook-detail');
         clearMessages();
     }, [clearMessages]);
-    
+
     const handleCreateGenerator = useCallback(() => {
         setView('create-generator');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
     }, [clearMessages]);
-    
+
     const handleCreateNotebook = useCallback(() => {
         setView('create-notebook');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
     }, [clearMessages]);
@@ -131,6 +148,7 @@ const CustomGeneratorsView = ({
     const handleSiteView = useCallback(() => {
         setView('site-view');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
     }, [clearMessages]);
@@ -138,6 +156,7 @@ const CustomGeneratorsView = ({
     const handleCreateSite = useCallback(() => {
         setView('create-site');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
     }, [clearMessages]);
@@ -145,23 +164,26 @@ const CustomGeneratorsView = ({
     const handleEditSite = useCallback(() => {
         setView('edit-site');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
     }, [clearMessages]);
-    
+
     const handleBackToOverview = useCallback(() => {
         setView('overview');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
         clearMessages();
     }, [clearMessages]);
-    
-    const handleBackToGenerators = useCallback(() => {
-        setView('generators');
+
+    const handleBackToOverviewFromGenerator = useCallback(() => {
+        setView('overview');
         setSelectedGeneratorId(null);
+        setSelectedSavedGeneratorId(null);
         clearMessages();
     }, [clearMessages]);
-    
+
     const handleBackToNotebooks = useCallback(() => {
         setView('notebooks');
         setSelectedQAId(null);
@@ -173,8 +195,18 @@ const CustomGeneratorsView = ({
         try {
             await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customGenerators(authUser?.id) });
             onSuccessMessage(`Custom Grünerator "${name}" erstellt.`);
-        } catch (_) { /* noop */ }
-        setView('generators');
+            // Find the newly created generator by slug and navigate to its detail view
+            const updatedGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(authUser?.id));
+            const newGenerator = updatedGenerators?.find(g => g.slug === slug);
+            if (newGenerator) {
+                setSelectedGeneratorId(newGenerator.id);
+                setView('generator-detail');
+            } else {
+                setView('overview');
+            }
+        } catch (_) {
+            setView('overview');
+        }
     }, [queryClient, authUser?.id, onSuccessMessage]);
     
     const handleNotebookCreated = useCallback(() => {
@@ -241,20 +273,19 @@ const CustomGeneratorsView = ({
                                 <section className="group-overview-section">
                                     <p>
                                         Hier findest du alle von dir erstellten benutzerdefinierten Grüneratoren
-                                        {isQAEnabled ? ', Notebooks' : ''} und deine Web-Visitenkarte. Du kannst neue Grüneratoren erstellen,
+                                        {isQAEnabled ? ' und Notebooks' : ''}. Du kannst neue Grüneratoren erstellen,
                                         bestehende ansehen und sie direkt nutzen.
                                         {isQAEnabled ? ' Zusätzlich kannst du intelligente Notebook-Systeme basierend auf deinen Dokumenten erstellen.' : ''}
-                                        {' '}Erstelle auch deine eigene One-Page-Site unter deiner Subdomain.
                                     </p>
                                     <p>
                                         Wähle oben einen Tab, um deine Inhalte zu verwalten, oder erstelle neue
-                                        Custom Grüneratoren{isQAEnabled ? ', Notebooks' : ''}{isSitesEnabled ? ' oder deine Site' : ''} nach deinen Vorstellungen.
+                                        Custom Grüneratoren{isQAEnabled ? ' oder Notebooks' : ''} nach deinen Vorstellungen.
                                     </p>
                                 </section>
-                                {(!generators || generators.length === 0) && (!isQAEnabled || !qaCollections || qaCollections.length === 0) && (!isSitesEnabled || !site) && (
+                                {(!generators || generators.length === 0) && (!isQAEnabled || !qaCollections || qaCollections.length === 0) && (
                                     <section className="group-overview-section">
                                         <p>
-                                            Du hast noch keine eigenen Grüneratoren{isQAEnabled ? ', Notebooks' : ''}{isSitesEnabled ? ' oder Site' : ''} erstellt.
+                                            Du hast noch keine eigenen Grüneratoren{isQAEnabled ? ' oder Notebooks' : ''} erstellt.
                                             Nutze die Tabs oben, um deine ersten Inhalte zu erstellen!
                                         </p>
                                     </section>
@@ -262,21 +293,6 @@ const CustomGeneratorsView = ({
                             </div>
                         </div>
                     </div>
-                );
-            
-            case 'generators':
-                return (
-                    <GeneratorsSection
-                        isActive={isActive}
-                        onSuccessMessage={onSuccessMessage}
-                        onErrorMessage={onErrorMessage}
-                        onGeneratorSelect={handleGeneratorSelect}
-                        generators={generators}
-                        query={generatorsData.query}
-                        deleteGenerator={generatorMutations.deleteGenerator}
-                        isDeleting={generatorMutations.isDeleting}
-                        deleteError={generatorMutations.deleteError}
-                    />
                 );
             
             case 'notebooks':
@@ -299,17 +315,32 @@ const CustomGeneratorsView = ({
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
                         generatorId={selectedGeneratorId}
-                        onBack={handleBackToGenerators}
+                        onBack={handleBackToOverviewFromGenerator}
                         generators={generators}
                         availableDocuments={availableDocuments.data}
-                        // Pass mutations to avoid running the data hook twice
                         updateGenerator={generatorMutations.updateGenerator}
                         deleteGenerator={generatorMutations.deleteGenerator}
                         isUpdating={generatorMutations.isUpdating}
                         isDeleting={generatorMutations.isDeleting}
                     />
                 );
-            
+
+            case 'saved-generator-detail':
+                return (
+                    <GeneratorDetail
+                        isActive={isActive}
+                        onSuccessMessage={onSuccessMessage}
+                        onErrorMessage={onErrorMessage}
+                        generatorId={selectedSavedGeneratorId}
+                        onBack={handleBackToOverviewFromGenerator}
+                        generators={savedGenerators}
+                        availableDocuments={[]}
+                        isSavedGenerator={true}
+                        unsaveGenerator={savedGeneratorsHook.unsaveGenerator}
+                        isUnsaving={savedGeneratorsHook.isUnsaving}
+                    />
+                );
+
             case 'notebook-detail':
                 if (!isQAEnabled) return <div>Feature nicht verfügbar</div>;
                 return (
@@ -330,7 +361,7 @@ const CustomGeneratorsView = ({
                 return (
                     <GeneratorCreator
                         onCompleted={handleGeneratorCreated}
-                        onCancel={handleBackToGenerators}
+                        onCancel={handleBackToOverview}
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
                     />
@@ -441,6 +472,32 @@ const CustomGeneratorsView = ({
                                     <span>{generator.title || generator.name}</span>
                                 </button>
                             ))}
+                        </>
+                    )}
+
+                    {Array.isArray(savedGenerators) && savedGenerators.length > 0 && (
+                        <>
+                            {savedGenerators.map((generator) => {
+                                const ownerName = generator.owner_first_name
+                                    ? `${generator.owner_first_name} ${generator.owner_last_name || ''}`.trim()
+                                    : generator.owner_email || 'Unbekannt';
+                                return (
+                                    <button
+                                        key={`saved-${generator.id}`}
+                                        className={`profile-vertical-tab saved-generator-tab ${selectedSavedGeneratorId === generator.id && (view === 'saved-generator-detail') ? 'active' : ''}`}
+                                        onClick={() => handleSavedGeneratorSelect(generator.id)}
+                                        role="tab"
+                                        aria-selected={selectedSavedGeneratorId === generator.id && (view === 'saved-generator-detail')}
+                                        aria-controls={`saved-generator-${generator.id}-panel`}
+                                        id={`saved-generator-${generator.id}-tab`}
+                                        aria-label={`Gespeicherter Grünerator ${generator.title || generator.name} von ${ownerName}`}
+                                        title={`Von ${ownerName}`}
+                                    >
+                                        <span>{generator.title || generator.name}</span>
+                                        <small className="saved-generator-owner">von {ownerName}</small>
+                                    </button>
+                                );
+                            })}
                         </>
                     )}
 

@@ -8,6 +8,7 @@ import FormTextarea from '../../components/common/Form/Input/FormTextarea';
 import EnhancedSelect from '../../components/common/EnhancedSelect';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
+import '../../assets/styles/components/ui/button.css';
 import apiClient from '../../components/utils/apiClient';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
@@ -21,6 +22,9 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [localGeneratedContent, setLocalGeneratedContent] = useState('');
+  const [isOwner, setIsOwner] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const { setGeneratedText } = useGeneratedTextStore();
 
@@ -103,6 +107,8 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
 
         if (generator) {
           setGeneratorConfig(generator);
+          setIsOwner(generator.is_owner || false);
+          setIsSaved(generator.is_saved || false);
         } else {
           setError('Generator nicht gefunden.');
         }
@@ -184,9 +190,43 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
     form.generator.handleGeneratedContentChange(content);
   }, [form.generator]);
 
+  // Handle saving generator to user's profile
+  const handleSaveGenerator = useCallback(async () => {
+    if (!generatorConfig?.id || isSaving || isSaved || isOwner) return;
+
+    setIsSaving(true);
+    try {
+      await apiClient.post(`/auth/saved_generators/${generatorConfig.id}`);
+      setIsSaved(true);
+    } catch (err) {
+      console.error('Error saving generator:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [generatorConfig?.id, isSaving, isSaved, isOwner]);
+
   if (loading) return <div>Lade...</div>;
   if (error) return <div>Fehler: {error}</div>;
   if (!generatorConfig) return <div>Generator nicht gefunden</div>;
+
+  // Build owner display name
+  const ownerName = generatorConfig.owner_first_name
+    ? `${generatorConfig.owner_first_name} ${generatorConfig.owner_last_name || ''}`.trim()
+    : generatorConfig.owner_email || 'Unbekannt';
+
+  // Save button component for non-owners
+  const saveButton = !isOwner && (
+    <button
+      type="button"
+      className={`btn-primary size-s ${isSaved ? 'saved' : ''}`}
+      onClick={handleSaveGenerator}
+      disabled={isSaving || isSaved}
+      title={isSaved ? 'Bereits gespeichert' : 'In meinem Profil speichern'}
+      style={isSaved ? { backgroundColor: 'var(--klee)', cursor: 'default' } : {}}
+    >
+      {isSaving ? 'Speichern...' : isSaved ? 'Gespeichert ✓' : 'Speichern'}
+    </button>
+  );
 
   const renderFormInputs = () => (
     <>
@@ -281,6 +321,7 @@ const CustomGeneratorPage = ({ showHeaderFooter = true }) => {
             defaultText: 'Grünerieren'
           }}
           showProfileSelector={false}
+          firstExtrasChildren={saveButton}
         >
           {renderFormInputs()}
         </BaseForm>

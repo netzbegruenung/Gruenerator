@@ -211,17 +211,13 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const handleDocsExportInner = async () => {
     setShowDropdown(false);
     try {
-      const primaryComponentName = getComponentName();
-      const { text: generatedText } = tryGetTextWithFallbacks(primaryComponentName);
-
-      if (!generatedText) {
+      if (!content) {
         alert('Kein Text zum Exportieren verfügbar. Bitte generiere erst einen Text auf dieser Seite.');
         return;
       }
 
-      const plainContent = await extractPlainText(generatedText);
+      const plainContent = await extractPlainText(content);
       if (!plainContent || plainContent.trim().length === 0) {
-
         alert('Der extrahierte Text ist leer.');
         return;
       }

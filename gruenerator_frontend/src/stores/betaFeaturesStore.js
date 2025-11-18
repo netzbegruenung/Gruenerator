@@ -8,7 +8,6 @@ const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const normalizeBetaFeatures = (features = {}) => {
   const keyMap = {
     groups_enabled: 'groups',
-    custom_generators: 'customGenerators',
     database_access: 'database',
     you_generator: 'you',
     bundestag_api_enabled: 'bundestag_api_enabled',
@@ -22,7 +21,8 @@ const normalizeBetaFeatures = (features = {}) => {
     content_management: 'contentManagement',
     canva: 'canva',
     chat: 'chat',
-    labor_enabled: 'labor'
+    labor_enabled: 'labor',
+    customGruenerator: 'customGruenerator'
   };
 
   const normalized = {};

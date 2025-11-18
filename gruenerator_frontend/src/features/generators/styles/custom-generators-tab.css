@@ -452,6 +452,31 @@
   flex-grow: 1;
 }
 
+/* Saved Generator Visual Distinction */
+.saved-generator-tab {
+  border-left: 3px solid var(--sonne);
+  padding-left: calc(var(--spacing-large) - 3px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.saved-generator-tab span {
+  display: block;
+}
+
+.saved-generator-owner {
+  font-size: 0.75rem;
+  color: var(--font-color-subtle);
+  font-weight: normal;
+}
+
+.saved-generator-creator {
+  color: var(--sonne);
+  font-weight: 500;
+}
+
 /* Q&A Visual Distinction */
 .qa-tab {
   border-left: 3px solid var(--himmel);

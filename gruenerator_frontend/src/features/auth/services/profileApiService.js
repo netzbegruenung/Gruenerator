@@ -575,6 +575,17 @@ export const profileApiService = {
     return response.data;
   },
 
+  // === SAVED GENERATORS ===
+  async getSavedGenerators() {
+    const response = await apiClient.get('/auth/saved_generators');
+    return response.data?.generators || [];
+  },
+
+  async unsaveGenerator(generatorId) {
+    const response = await apiClient.delete(`/auth/saved_generators/${generatorId}`);
+    return response.data;
+  },
+
   // === USER TEXTS ===
   async getUserTexts() {
     const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts`, {

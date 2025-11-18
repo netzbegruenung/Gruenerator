@@ -19,12 +19,14 @@ router.get('/:slug', requireAuth, async (req, res) => {
 
     console.log(`[custom_generator] GET /:slug - Fetching generator with slug: ${slug} for user: ${userId}`);
 
-    // Fetch generator by slug
+    // Fetch generator by slug with owner info
     const generator = await postgres.queryOne(
-      `SELECT id, name, slug, title, description, form_schema, prompt, contact_email,
-              created_at, updated_at, is_active, usage_count
-       FROM custom_generators
-       WHERE slug = $1 AND is_active = true`,
+      `SELECT cg.id, cg.name, cg.slug, cg.title, cg.description, cg.form_schema, cg.prompt, cg.contact_email,
+              cg.created_at, cg.updated_at, cg.is_active, cg.usage_count, cg.user_id as owner_id,
+              p.first_name as owner_first_name, p.last_name as owner_last_name, p.email as owner_email
+       FROM custom_generators cg
+       LEFT JOIN profiles p ON p.id = cg.user_id
+       WHERE cg.slug = $1 AND cg.is_active = true`,
       [slug],
       { table: 'custom_generators' }
     );
@@ -37,6 +39,20 @@ router.get('/:slug', requireAuth, async (req, res) => {
       });
     }
 
+    // Check if user is owner
+    const isOwner = generator.owner_id === userId;
+
+    // Check if user has saved this generator
+    let isSaved = false;
+    if (!isOwner) {
+      const savedCheck = await postgres.queryOne(
+        `SELECT id FROM saved_generators WHERE user_id = $1 AND generator_id = $2`,
+        [userId, generator.id],
+        { table: 'saved_generators' }
+      );
+      isSaved = !!savedCheck;
+    }
+
     // Increment usage count
     await postgres.query(
       `UPDATE custom_generators SET usage_count = usage_count + 1 WHERE id = $1`,
@@ -46,7 +62,11 @@ router.get('/:slug', requireAuth, async (req, res) => {
 
     res.json({
       success: true,
-      generator: generator
+      generator: {
+        ...generator,
+        is_owner: isOwner,
+        is_saved: isSaved
+      }
     });
 
   } catch (error) {

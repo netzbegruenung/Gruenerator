@@ -148,8 +148,11 @@ export const getMenuItems = (betaFeatures = {}) => {
 
 
 
+  // Build result with labor items if any
+  let result = staticMenuItems;
+
   if (laborItems.length > 0) {
-    return {
+    result = {
       ...staticMenuItems,
       labor: {
         title: 'Labor',
@@ -158,7 +161,7 @@ export const getMenuItems = (betaFeatures = {}) => {
     };
   }
 
-  return staticMenuItems;
+  return result;
 };
 
 // Gemeinsame Komponente für Menüeinträge

@@ -215,12 +215,11 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
     
     // List of allowed beta features - must match frontend expectations
     const allowedFeatures = [
-      'groups', 
-      'database', 
-      'customGenerators', 
-      'sharepic', 
-      'anweisungen', 
-      'you', 
+      'groups',
+      'database',
+      'sharepic',
+      'anweisungen',
+      'you',
       'qa',
       'advanced_editor',
       'collaborative_editing',
