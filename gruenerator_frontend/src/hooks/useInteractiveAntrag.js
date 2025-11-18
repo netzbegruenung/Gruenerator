@@ -8,17 +8,20 @@ import apiClient from '../components/utils/apiClient';
  * 1. Initiate session - creates session and gets first questions
  * 2. Continue session - submits answers and gets follow-ups or final result
  * 3. Get status - retrieves current session state
+ *
+ * @param {Object} options - Configuration options
+ * @param {string} options.baseEndpoint - Base endpoint (default: '/antraege/experimental')
  */
-const useInteractiveAntrag = () => {
+const useInteractiveAntrag = ({ baseEndpoint = '/antraege/experimental' } = {}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   /**
-   * Initiate a new interactive Antrag session
+   * Initiate a new interactive session
    * @param {Object} params
    * @param {string} params.thema - Main topic/theme
    * @param {string} params.details - Additional details
-   * @param {string} params.requestType - 'antrag' | 'kleine_anfrage' | 'grosse_anfrage'
+   * @param {string} params.requestType - Request type (e.g., 'antrag', 'Dreizeilen', etc.)
    * @param {string} params.locale - Locale (default: 'de-DE')
    * @returns {Promise<Object>} { sessionId, conversationState, questions, questionRound, metadata }
    */
@@ -27,9 +30,9 @@ const useInteractiveAntrag = () => {
     setError(null);
 
     try {
-      console.log('[useInteractiveAntrag] Initiating session:', { thema, requestType });
+      console.log('[useInteractiveAntrag] Initiating session:', { thema, requestType, baseEndpoint });
 
-      const response = await apiClient.post('/antraege/experimental/initiate', {
+      const response = await apiClient.post(`${baseEndpoint}/initiate`, {
         thema,
         details,
         requestType,
@@ -68,7 +71,7 @@ const useInteractiveAntrag = () => {
         answerCount: Object.keys(answers).length
       });
 
-      const response = await apiClient.post('/antraege/experimental/continue', {
+      const response = await apiClient.post(`${baseEndpoint}/continue`, {
         sessionId,
         answers
       });
@@ -99,7 +102,7 @@ const useInteractiveAntrag = () => {
     try {
       console.log('[useInteractiveAntrag] Getting session status:', sessionId);
 
-      const response = await apiClient.get(`/antraege/experimental/status/${sessionId}`);
+      const response = await apiClient.get(`${baseEndpoint}/status/${sessionId}`);
 
       console.log('[useInteractiveAntrag] Session status:', {
         conversationState: response.data.session?.conversationState

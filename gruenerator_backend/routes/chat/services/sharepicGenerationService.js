@@ -267,7 +267,7 @@ const generateInfoSharepic = async (expressReq, requestBody) => {
 const generateZitatPureSharepic = async (expressReq, requestBody) => {
   const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
     ...requestBody,
-    preserveName: requestBody.preserveName || false  // Pass through preserveName flag
+    preserveName: requestBody.preserveName !== undefined ? requestBody.preserveName : !!requestBody.name
   });
 
   if (!textResponse?.success) {
@@ -276,8 +276,8 @@ const generateZitatPureSharepic = async (expressReq, requestBody) => {
 
   const { quote, alternatives = [] } = textResponse;
   // Use preserved name from request body if preserveName flag was set, otherwise use AI response
-  const name = (requestBody.preserveName && expressReq.body.name)
-    ? expressReq.body.name
+  const name = (requestBody.preserveName && requestBody.name)
+    ? requestBody.name
     : textResponse.name || '';
 
   const { payload: canvasPayload } = await callCanvasRoute(zitatPureCanvasRouter, { quote, name });
@@ -417,10 +417,9 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
 
   let tempFile = null;
   try {
-    // Generate text content first
-    // Generate text content first - use expressReq.body to include extracted name parameter
+    // Generate text content first - use requestBody to include extracted name parameter
     const textResponse = await callSharepicClaude(expressReq, 'zitat_pure', {
-      ...expressReq.body,
+      ...requestBody,
       preserveName: true  // Flag to preserve user-provided name for chat requests
     });
     if (!textResponse?.success) {
@@ -429,7 +428,7 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
 
     const { quote, alternatives = [] } = textResponse;
     // Use preserved name from request body if preserveName flag was set
-    const name = expressReq.body.name || textResponse.name || '';
+    const name = requestBody.name || textResponse.name || '';
 
     // Convert attachment to temp file for zitat_canvas
     tempFile = await convertToTempFile(imageAttachment);
@@ -816,10 +815,7 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
     hasImageAttachment = requestBody.attachments &&
       Array.isArray(requestBody.attachments) &&
       requestBody.attachments.some(att => att.type && att.type.startsWith('image/'));
-    console.log(`[SharepicGeneration] Legacy attachment check: hasImage=${hasImageAttachment}`);
   }
-
-  console.log(`[SharepicGeneration] Processing ${type} with image: ${hasImageAttachment}`);
 
   switch (type) {
     case 'info':
@@ -829,7 +825,6 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
     case 'zitat':
       // Image-based zitat - fallback to zitat_pure if no image provided
       if (!hasImageAttachment) {
-        console.log('[SharepicGeneration] No image provided for zitat, generating zitat_pure instead');
         return generateZitatPureSharepic(expressReq, requestBody);
       }
       return generateZitatWithImageSharepic(expressReq, requestBody);

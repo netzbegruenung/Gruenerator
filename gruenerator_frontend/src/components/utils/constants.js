@@ -15,6 +15,7 @@ export const FORM_STEPS = {
   TYPE_SELECT: 'type_select',
   ZITAT_SUB_SELECT: 'zitat_sub_select',
   INPUT: 'input',
+  QUESTION: 'question',  // Interactive slogan selection
   PREVIEW: 'preview',
   RESULT: 'result'
 };
