@@ -237,12 +237,29 @@ export const useSharepicGeneration = () => {
         });
 
         if (formData.colorScheme) {
-          formData.colorScheme.forEach((color, index) => {
-            if (formDataToSend.get(`line${index + 1}`)) {
-              formDataToSend.append(`colors_${index}_background`, color.background);
-              formDataToSend.append(`colors_${index}_text`, color.text);
-            }
-          });
+          // Ensure colorScheme is an array before calling forEach
+          if (!Array.isArray(formData.colorScheme)) {
+            console.error('[useSharepicGeneration] Warning: colorScheme is not an array, using default colors');
+            // Use default colors if colorScheme is not an array
+            const defaultColors = [
+              { background: '#005538', text: '#F5F1E9' },
+              { background: '#F5F1E9', text: '#005538' },
+              { background: '#F5F1E9', text: '#005538' }
+            ];
+            defaultColors.forEach((color, index) => {
+              if (formDataToSend.get(`line${index + 1}`)) {
+                formDataToSend.append(`colors_${index}_background`, color.background);
+                formDataToSend.append(`colors_${index}_text`, color.text);
+              }
+            });
+          } else {
+            formData.colorScheme.forEach((color, index) => {
+              if (formDataToSend.get(`line${index + 1}`)) {
+                formDataToSend.append(`colors_${index}_background`, color.background);
+                formDataToSend.append(`colors_${index}_text`, color.text);
+              }
+            });
+          }
         }
       }
 

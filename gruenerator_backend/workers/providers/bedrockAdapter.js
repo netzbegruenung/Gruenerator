@@ -16,12 +16,13 @@ async function execute(requestId, data) {
   const bedrockPayload = {
     anthropic_version: options.anthropic_version || 'bedrock-2023-05-31',
     max_tokens: options.max_tokens || 4096,
-    messages,
-    temperature: options.temperature !== undefined ? options.temperature : 0.7
+    messages
   };
 
   if (options.top_p !== undefined) {
     bedrockPayload.top_p = options.top_p;
+  } else {
+    bedrockPayload.temperature = options.temperature !== undefined ? options.temperature : 0.7;
   }
   if (systemPrompt) bedrockPayload.system = systemPrompt;
 

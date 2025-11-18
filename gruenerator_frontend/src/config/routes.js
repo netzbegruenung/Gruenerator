@@ -91,6 +91,7 @@ export const GrueneratorenBundle = {
   Imagine: GrueneratorImagine,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
+  SharepicNeue: lazy(() => import('../features/sharepic/SharepicGrueneratorNeue')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
   Rede: UniversalTextGenerator,
   Wahlprogramm: UniversalTextGenerator,
@@ -181,11 +182,17 @@ const standardRoutes = [
 ];
 
 const specialRoutes = [
-  { 
-    path: '/sharepic', 
-    component: GrueneratorenBundle.Sharepic, 
-    withForm: true, 
-    withSharepic: true 
+  {
+    path: '/sharepic',
+    component: GrueneratorenBundle.Sharepic,
+    withForm: true,
+    withSharepic: true
+  },
+  {
+    path: '/sharepic-neue',
+    component: GrueneratorenBundle.SharepicNeue,
+    withForm: true,
+    withSharepic: true
   }
 ];
 

@@ -61,8 +61,8 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     
     // Gradient Overlay hinzufügen
     const gradient = ctx.createLinearGradient(0, 0, 0, 1350);
-    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 1080, 1350);
 
