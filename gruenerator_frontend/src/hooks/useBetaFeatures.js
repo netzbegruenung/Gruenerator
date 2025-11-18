@@ -8,7 +8,6 @@ const BETA_FEATURES_CONFIG = [
   // { key: 'you', label: 'You Generator', isAdminOnly: false },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
-  { key: 'customGenerators', label: 'Grüneratoren', isAdminOnly: false },
   { key: 'qa', label: 'Notebooks', isAdminOnly: false, devOnly: true },
   // { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
   // { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false },
@@ -18,6 +17,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true },
   { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
+  { key: 'customGruenerator', label: 'Eigene Grüneratoren im Menü', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },

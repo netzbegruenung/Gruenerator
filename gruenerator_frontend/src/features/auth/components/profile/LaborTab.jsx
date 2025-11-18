@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from "motion/react";
 import FeatureToggle from '../../../../components/common/FeatureToggle';
-import { HiOutlineExternalLink, HiOutlineGlobe, HiOutlineUserGroup, HiOutlineDatabase, HiOutlineCog, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification, HiOutlineDocumentText, HiSave } from 'react-icons/hi';
+import { HiOutlineExternalLink, HiOutlineUserGroup, HiOutlineDatabase, HiOutlinePhotograph, HiOutlineAcademicCap, HiOutlineUser, HiOutlineUsers, HiOutlineOfficeBuilding, HiChip, HiOutlineIdentification, HiOutlineDocumentText, HiSave, HiOutlineTemplate } from 'react-icons/hi';
 import { NotebookIcon } from '../../../../config/icons';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -20,7 +20,6 @@ const LaborTab = ({
   } = useBetaFeatures();
   const BETA_VIEWS = {
     DATABASE: 'database',
-    GENERATORS: 'customGenerators',
     YOU: 'you',
     COLLAB: 'collab',
     GROUPS: 'groups',
@@ -33,6 +32,7 @@ const LaborTab = ({
     SITES: 'sites',
     INTERACTIVE_ANTRAG: 'interactiveAntrag',
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
+    CUSTOM_GRUENERATOR: 'customGruenerator',
   };
 
   const handleBetaToggle = (setter, currentValue, featureName) => {
@@ -55,16 +55,6 @@ const LaborTab = ({
           linkTo: '/datenbank',
           linkText: 'Zur Datenbank',
           icon: HiOutlineDatabase
-        };
-      case BETA_VIEWS.GENERATORS:
-        return {
-          title: 'Meine Grüneratoren',
-          description: 'Erstelle und verwalte deine eigenen benutzerdefinierten Grüneratoren.',
-          checked: getBetaFeatureState('customGenerators'),
-          setter: (value) => updateUserBetaFeatures('customGenerators', value),
-          featureName: 'Grüneratoren',
-          checkboxLabel: '\'Meine Grüneratoren\'-Tab anzeigen und Funktionalität activieren',
-          icon: HiOutlineCog
         };
       case BETA_VIEWS.YOU:
         return {
@@ -193,6 +183,18 @@ const LaborTab = ({
           featureName: 'Auto-Speichern bei Export',
           checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
           icon: HiSave
+        };
+      case BETA_VIEWS.CUSTOM_GRUENERATOR:
+        return {
+          title: 'Eigene Grüneratoren im Menü',
+          description: 'Zeige deine eigenen Grüneratoren als separates Dropdown-Menü in der Hauptnavigation an. So hast du schnellen Zugriff auf deine personalisierten Generatoren.',
+          checked: getBetaFeatureState('customGruenerator'),
+          setter: (value) => updateUserBetaFeatures('customGruenerator', value),
+          featureName: 'Eigene Grüneratoren im Menü',
+          checkboxLabel: 'Eigene Grüneratoren in der Navigation anzeigen',
+          linkTo: '/profile?tab=generators',
+          linkText: 'Zu meinen Grüneratoren',
+          icon: HiOutlineTemplate
         };
       default:
         return null;

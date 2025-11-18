@@ -13,6 +13,32 @@ router.use((req, res, next) => {
   next();
 });
 
+async function generateUniqueSlug(baseSlug) {
+  const slugBase = baseSlug.replace(/-\d+$/, '');
+
+  const existingSlugs = await postgres.query(
+    `SELECT slug FROM custom_generators
+     WHERE slug = $1 OR slug ~ $2`,
+    [slugBase, `^${slugBase}-\\d+$`],
+    { table: 'custom_generators' }
+  );
+
+  if (!existingSlugs || existingSlugs.length === 0) {
+    return slugBase;
+  }
+
+  const slugSet = new Set(existingSlugs.map(r => r.slug));
+  if (!slugSet.has(slugBase)) {
+    return slugBase;
+  }
+
+  let counter = 1;
+  while (slugSet.has(`${slugBase}-${counter}`)) {
+    counter++;
+  }
+  return `${slugBase}-${counter}`;
+}
+
 // === CUSTOM GENERATORS MANAGEMENT ENDPOINTS ===
 
 // Get user's custom generators
@@ -58,19 +84,8 @@ router.post('/custom_generator/create', ensureAuthenticated, async (req, res) =>
       });
     }
 
-    // Check if slug already exists for this user
-    const existingGenerator = await postgres.queryOne(
-      `SELECT id FROM custom_generators WHERE slug = $1 AND user_id = $2`,
-      [slug, userId],
-      { table: 'custom_generators' }
-    );
-
-    if (existingGenerator) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ein Grünerator mit diesem Slug existiert bereits.'
-      });
-    }
+    // Generate unique slug
+    const uniqueSlug = await generateUniqueSlug(slug.trim());
 
     // Create new generator
     const newGenerator = await postgres.queryOne(
@@ -80,7 +95,7 @@ router.post('/custom_generator/create', ensureAuthenticated, async (req, res) =>
       [
         userId,
         name.trim(),
-        slug.trim(),
+        uniqueSlug,
         title.trim(),
         description?.trim() || null,
         form_schema,
@@ -122,7 +137,7 @@ router.put('/custom_generator/:id', ensureAuthenticated, async (req, res) => {
 
     // Check if generator exists and belongs to user
     const existingGenerator = await postgres.queryOne(
-      `SELECT id, user_id FROM custom_generators WHERE id = $1`,
+      `SELECT id, user_id, slug FROM custom_generators WHERE id = $1`,
       [id],
       { table: 'custom_generators' }
     );
@@ -141,19 +156,10 @@ router.put('/custom_generator/:id', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    // Check if slug conflicts with another generator by same user
-    const conflictGenerator = await postgres.queryOne(
-      `SELECT id FROM custom_generators
-       WHERE slug = $1 AND user_id = $2 AND id != $3`,
-      [slug, userId, id],
-      { table: 'custom_generators' }
-    );
-
-    if (conflictGenerator) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ein anderer Grünerator mit diesem Slug existiert bereits.'
-      });
+    // Generate unique slug if changed
+    let uniqueSlug = slug.trim();
+    if (existingGenerator.slug !== uniqueSlug) {
+      uniqueSlug = await generateUniqueSlug(uniqueSlug);
     }
 
     // Update generator
@@ -165,7 +171,7 @@ router.put('/custom_generator/:id', ensureAuthenticated, async (req, res) => {
        RETURNING *`,
       [
         name.trim(),
-        slug.trim(),
+        uniqueSlug,
         title.trim(),
         description?.trim() || null,
         form_schema,
@@ -442,6 +448,150 @@ router.delete('/custom_generator/:id/documents/:documentId', ensureAuthenticated
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Entfernen des Dokuments.'
+    });
+  }
+});
+
+// === SAVED GENERATORS ENDPOINTS ===
+
+// Get user's saved generators (from other users)
+router.get('/saved_generators', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const savedGenerators = await postgres.query(
+      `SELECT
+        cg.id, cg.name, cg.slug, cg.title, cg.description, cg.form_schema,
+        cg.prompt, cg.contact_email, cg.created_at, cg.updated_at,
+        cg.is_active, cg.usage_count, cg.user_id as owner_id,
+        sg.saved_at,
+        p.first_name as owner_first_name, p.last_name as owner_last_name, p.email as owner_email
+       FROM saved_generators sg
+       JOIN custom_generators cg ON cg.id = sg.generator_id
+       LEFT JOIN profiles p ON p.id = cg.user_id
+       WHERE sg.user_id = $1 AND cg.is_active = true
+       ORDER BY sg.saved_at DESC`,
+      [userId],
+      { table: 'saved_generators' }
+    );
+
+    res.json({
+      success: true,
+      generators: savedGenerators || []
+    });
+
+  } catch (error) {
+    console.error('[User Custom Generators /saved_generators GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Laden der gespeicherten Grüneratoren.'
+    });
+  }
+});
+
+// Save a generator to user's profile
+router.post('/saved_generators/:generatorId', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { generatorId } = req.params;
+
+    // Check if generator exists and is active
+    const generator = await postgres.queryOne(
+      `SELECT id, user_id, name, is_active FROM custom_generators WHERE id = $1`,
+      [generatorId],
+      { table: 'custom_generators' }
+    );
+
+    if (!generator) {
+      return res.status(404).json({
+        success: false,
+        message: 'Grünerator nicht gefunden.'
+      });
+    }
+
+    if (!generator.is_active) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dieser Grünerator ist nicht mehr aktiv.'
+      });
+    }
+
+    // Cannot save your own generator
+    if (generator.user_id === userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Du kannst deinen eigenen Grünerator nicht speichern.'
+      });
+    }
+
+    // Check if already saved
+    const existingSave = await postgres.queryOne(
+      `SELECT id FROM saved_generators WHERE user_id = $1 AND generator_id = $2`,
+      [userId, generatorId],
+      { table: 'saved_generators' }
+    );
+
+    if (existingSave) {
+      return res.status(400).json({
+        success: false,
+        message: 'Grünerator ist bereits gespeichert.'
+      });
+    }
+
+    // Save the generator
+    await postgres.query(
+      `INSERT INTO saved_generators (user_id, generator_id) VALUES ($1, $2)`,
+      [userId, generatorId],
+      { table: 'saved_generators' }
+    );
+
+    console.log(`[User Custom Generators] Generator "${generator.name}" (${generatorId}) saved by user ${userId}`);
+
+    res.json({
+      success: true,
+      message: 'Grünerator erfolgreich gespeichert!'
+    });
+
+  } catch (error) {
+    console.error('[User Custom Generators /saved_generators/:generatorId POST] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Speichern des Grünerators.'
+    });
+  }
+});
+
+// Remove a saved generator from user's profile
+router.delete('/saved_generators/:generatorId', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { generatorId } = req.params;
+
+    const result = await postgres.query(
+      `DELETE FROM saved_generators WHERE user_id = $1 AND generator_id = $2 RETURNING id`,
+      [userId, generatorId],
+      { table: 'saved_generators' }
+    );
+
+    if (!result || result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Gespeicherter Grünerator nicht gefunden.'
+      });
+    }
+
+    console.log(`[User Custom Generators] Saved generator ${generatorId} removed by user ${userId}`);
+
+    res.json({
+      success: true,
+      message: 'Grünerator erfolgreich entfernt!'
+    });
+
+  } catch (error) {
+    console.error('[User Custom Generators /saved_generators/:generatorId DELETE] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Entfernen des Grünerators.'
     });
   }
 });

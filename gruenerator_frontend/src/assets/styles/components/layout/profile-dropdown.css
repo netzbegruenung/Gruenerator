@@ -179,6 +179,101 @@
   padding: 0;
 }
 
+.profile-dropdown-divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: var(--spacing-xsmall) 0;
+}
+
+/* ProfileMenu in dropdown variant */
+.profile-menu--dropdown {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-menu--dropdown .profile-menu-item {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-small) var(--spacing-medium);
+  color: var(--font-color);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font-size: 1rem;
+}
+
+.profile-menu--dropdown .profile-menu-item:hover {
+  background-color: var(--background-color-alt);
+}
+
+.profile-menu--dropdown .profile-menu-item--active {
+  background-color: var(--background-color-alt);
+  font-weight: 600;
+}
+
+.profile-menu-icon {
+  font-size: 1rem;
+  opacity: 0.8;
+  min-width: 18px;
+  margin-right: var(--spacing-small);
+}
+
+/* Submenu styles for custom generators */
+.profile-menu-item-with-submenu {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-menu-item-expandable {
+  justify-content: flex-start;
+}
+
+.profile-menu-chevron {
+  margin-left: auto;
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+}
+
+.profile-menu-chevron svg {
+  font-size: 0.75rem;
+}
+
+.profile-menu-submenu {
+  display: flex;
+  flex-direction: column;
+  border-left: 2px solid var(--tanne);
+  margin-left: var(--spacing-medium);
+  margin-top: var(--spacing-xxsmall);
+  margin-bottom: var(--spacing-xxsmall);
+}
+
+.profile-menu-submenu-item {
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  padding-left: var(--spacing-medium);
+  color: var(--font-color);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-menu-submenu-item:hover {
+  background-color: var(--background-color-alt);
+  color: var(--tanne);
+}
+
+.profile-menu-submenu-item:first-child {
+  font-weight: 500;
+}
+
 .profile-dropdown-link {
   display: flex;
   align-items: center;

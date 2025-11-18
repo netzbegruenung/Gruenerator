@@ -1,14 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FaUserCircle, FaUser, FaSignOutAlt, FaCog } from 'react-icons/fa';
+import { FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
-import { useProfile } from '../../../features/auth/hooks/useProfileData';
+import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
+import { useProfileStore } from '../../../stores/profileStore';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
 
 const ProfileButton = () => {
   const { user, loading, logout, isLoggingOut, isProfileLoading, setLoginIntent } = useOptimizedAuth();
+  const { getBetaFeatureState } = useBetaFeatures();
+
   // Profildaten aus Query holen - now uses backend API via useAuth
   const { data: profile } = useProfile(user?.id);
+
+  // Fetch custom generators when feature is enabled
+  const customGrueneratorBetaEnabled = useMemo(() => getBetaFeatureState('customGruenerator'), [getBetaFeatureState]);
+  useCustomGeneratorsData({ isActive: customGrueneratorBetaEnabled && !!user?.id });
+  const customGenerators = useProfileStore(state => state.customGenerators) || [];
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
   const displayName = profile?.display_name || '';
@@ -155,15 +165,13 @@ const ProfileButton = () => {
             </div>
           </div>
           <div className="profile-dropdown-links">
-            <Link 
-              to="/profile"
-              className="profile-dropdown-link"
-              onClick={() => {}}
-            >
-              <FaUser className="profile-dropdown-icon" />
-              <span>Mein Profil</span>
-            </Link>
-            <button 
+            <ProfileMenu
+              variant="dropdown"
+              onNavigate={() => setIsDropdownOpen(false)}
+              customGenerators={customGenerators}
+            />
+            <div className="profile-dropdown-divider" />
+            <button
               className="profile-dropdown-link logout-link"
               disabled={isLoggingOut}
               onClick={() => {

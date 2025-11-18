@@ -27,6 +27,7 @@ export const useProfileStore = create(
       anweisungenWissen: null,
       qaCollections: [],
       customGenerators: [],
+      savedGenerators: [],
       userTexts: [],
       userTemplates: [],
       memories: [],
@@ -134,6 +135,10 @@ export const useProfileStore = create(
        */
       syncCustomGenerators: (generators) => set(state => {
         state.customGenerators = generators || [];
+      }),
+
+      syncSavedGenerators: (generators) => set(state => {
+        state.savedGenerators = generators || [];
       }),
 
       syncUserTexts: (texts) => set(state => {

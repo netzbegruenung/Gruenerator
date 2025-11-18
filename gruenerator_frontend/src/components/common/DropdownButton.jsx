@@ -21,6 +21,10 @@ const DropdownButton = ({
   const dropdownRef = useRef(null);
   const closeTimeoutRef = useRef(null);
 
+  // Count available options: Custom Grünerator is always available
+  const optionCount = 1 + (showNotebook ? 1 : 0) + (showSite ? 1 : 0);
+  const isSingleOption = optionCount === 1;
+
   const updatePosition = useCallback(() => {
     if (!triggerRef.current || !dropdownRef.current) return;
     
@@ -129,15 +133,33 @@ const DropdownButton = ({
     }
   }, [isOpen, updatePosition, handleClose]);
 
+  // Single option: render simple button that directly creates
+  if (isSingleOption) {
+    return (
+      <div className={`dropdown-button-container ${variant}-variant`}>
+        <button
+          className="button dropdown-button single-option"
+          onClick={() => onCreateCustomGenerator && onCreateCustomGenerator()}
+          aria-label="Neuen Custom Grünerator erstellen"
+        >
+          <span>
+            Neu erstellen
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+  // Multiple options: render dropdown
   return (
-    <div 
+    <div
       className={`dropdown-button-container ${variant}-variant`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <button 
+      <button
         ref={triggerRef}
-        className="button dropdown-button" 
+        className="button dropdown-button"
         onClick={handleToggle}
         aria-label="Neu erstellen"
         aria-expanded={isOpen}
@@ -148,7 +170,7 @@ const DropdownButton = ({
         </span>
         <HiChevronDown className={`dropdown-chevron ${isOpen ? 'open' : ''}`} />
       </button>
-      
+
       {isOpen && createPortal(
         <div
           ref={dropdownRef}
@@ -168,7 +190,7 @@ const DropdownButton = ({
             <HiCog />
             <span>Custom Grünerator</span>
           </button>
-          
+
           {showNotebook && (
             <button
               className="dropdown-button-option"
