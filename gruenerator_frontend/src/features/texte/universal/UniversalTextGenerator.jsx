@@ -74,7 +74,6 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     const initialType = getInitialTextType(location.pathname);
     return initialType;
   });
-  const [generatedContent, setGeneratedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Create separate refs for each form type to avoid stale references
@@ -218,7 +217,6 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
       console.log('[UniversalTextGenerator] Response received:', { responseData, content, metadata });
 
       if (content) {
-        setGeneratedContent(content);
         form.generator.handleGeneratedContentChange(content);
         console.log('[UniversalTextGenerator] Content set successfully');
       }
@@ -229,11 +227,6 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
       setIsLoading(false);
     }
   }, [selectedType, form, currentFormRef, getFeatureState, customPrompt]);
-
-  const handleGeneratedContentChange = useCallback((content) => {
-    setGeneratedContent(content);
-    form.generator.handleGeneratedContentChange(content);
-  }, [form.generator]);
 
   const renderForm = () => {
     switch (selectedType) {
@@ -279,9 +272,8 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
         <BaseForm
           key={selectedType}
           {...form.generator.baseFormProps}
+          enableEditMode={true}
           title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType]}</span>}
-          generatedContent={generatedContent}
-          onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
           loading={isLoading}
           firstExtrasChildren={renderTextTypeSection()}
