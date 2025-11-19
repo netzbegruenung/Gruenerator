@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaUser, FaCog, FaUsers, FaCogs, FaFlask, FaChevronDown, FaChevronUp, FaFileAlt, FaClipboardList, FaCloud, FaSlidersH } from 'react-icons/fa';
+import { FaUser, FaCog, FaFolder, FaUsers, FaCogs, FaFlask, FaChevronDown, FaChevronUp, FaFileAlt, FaClipboardList, FaCloud, FaSlidersH } from 'react-icons/fa';
 import { SiCanva } from 'react-icons/si';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -13,7 +13,7 @@ const PROFILE_MENU_ITEMS = [
     icon: FaCog,
     hasSubmenu: true,
     submenuItems: [
-      { key: 'inhalte', label: 'Inhalte', path: '/profile/inhalte', icon: FaFileAlt },
+      { key: 'inhalte', label: 'Dateien und Inhalte', path: '/profile/inhalte', icon: FaFolder },
       { key: 'anweisungen', label: 'Anweisungen', path: '/profile/inhalte/anweisungen', icon: FaClipboardList },
       { key: 'canva', label: 'Canva', path: '/profile/inhalte/canva', betaFeature: 'canva', icon: SiCanva },
       { key: 'wolke', label: 'Wolke', path: '/profile/inhalte/wolke', icon: FaCloud },

@@ -21,6 +21,7 @@ const Header = () => {
     const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
     const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
     const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
+    const igelModeEnabled = useMemo(() => getBetaFeatureState('igel_modus'), [getBetaFeatureState]);
 
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -33,9 +34,9 @@ const Header = () => {
 
     // Memoize menu items to prevent unnecessary recalculations
     const menuItems = useMemo(() => getMenuItems(
-        { databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }
-    ), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
-    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
+        { databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled }
+    ), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled]);
+    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled]);
 
     // Close dropdown when location changes (navigation occurs)
     useEffect(() => {
