@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
 import { NotebookIcon } from '../../config/icons';
-import { motion } from "motion/react";
 import Spinner from './Spinner';
 import MenuDropdown from './MenuDropdown';
 import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
@@ -110,6 +109,11 @@ const DocumentOverview = ({
 
     // Category options with counts
     const categoryOptions = useMemo(() => {
+        // Early return for empty state - skip reduce computation
+        if (!allItems || allItems.length === 0) {
+            return [{ value: 'all', label: 'Alle Dokumente (0)', icon: '📄' }];
+        }
+
         const counts = allItems.reduce((acc, item) => {
             if (itemType === 'document') {
                 const sourceType = item.source_type || 'manual';

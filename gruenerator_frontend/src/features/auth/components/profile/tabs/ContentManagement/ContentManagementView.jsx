@@ -7,6 +7,7 @@ import ShareToGroupModal from '../../../../../../components/common/ShareToGroupM
 
 // Content sections
 import DocumentsSection from './components/DocumentsSection';
+import AnweisungenSection from './components/AnweisungenSection';
 
 // Integration sections
 import CanvaSection from './components/CanvaSection';
@@ -37,6 +38,7 @@ const ContentManagementView = ({
     // Available tabs - content plus integrations
     const availableTabs = [
         { key: 'inhalte', label: 'Inhalte' },
+        { key: 'anweisungen', label: 'Anweisungen' },
         ...(canAccessBetaFeature('canva') ? [{ key: 'canva', label: 'Canva' }] : []),
         { key: 'wolke', label: 'Wolke' }
     ];
@@ -134,6 +136,16 @@ const ContentManagementView = ({
             );
         }
 
+        if (currentTab === 'anweisungen') {
+            return (
+                <AnweisungenSection
+                    isActive={isActive}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                />
+            );
+        }
+
         if (currentTab === 'canva') {
             return (
                 <CanvaSection
@@ -160,21 +172,25 @@ const ContentManagementView = ({
         return <div>Content not found</div>;
     };
 
+    const isSingleTab = availableTabs.length === 1;
+
     return (
         <motion.div
-            className="profile-content profile-management-layout"
+            className={`profile-content ${isSingleTab ? 'profile-full-width-layout' : 'profile-management-layout'}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            <div className="profile-navigation-panel">
-                <TabNavigation
-                    tabs={availableTabs}
-                    currentTab={currentTab}
-                    onTabClick={handleTabClick}
-                    orientation="vertical"
-                />
-            </div>
+            {!isSingleTab && (
+                <div className="profile-navigation-panel">
+                    <TabNavigation
+                        tabs={availableTabs}
+                        currentTab={currentTab}
+                        onTabClick={handleTabClick}
+                        orientation="vertical"
+                    />
+                </div>
+            )}
             <div className="profile-content-panel profile-form-section">
                 <div className="auth-form">
                     {renderMainContent()}

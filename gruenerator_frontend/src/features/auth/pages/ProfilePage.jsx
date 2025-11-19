@@ -21,7 +21,6 @@ import '../../../assets/styles/features/auth/profile.css';
 import '../../../assets/styles/features/auth/profile-layout.css';
 import '../../../assets/styles/features/auth/profile-cards.css';
 import '../../../assets/styles/features/auth/profile-bubbles.css';
-import '../../../assets/styles/features/auth/mem0ry-tab.css';
 import '../../../assets/styles/features/auth/documents-tab.css';
 import '../styles/meine-texte-tab.css';
 import '../../../assets/styles/components/auth/avatar-selection.css';
@@ -29,7 +28,6 @@ import '../../../assets/styles/components/auth/avatar-selection.css';
 // Enhanced lazy loading with cache support
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
-const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 const LaborTab = lazy(() => import('../components/profile/LaborTab'));
@@ -209,6 +207,12 @@ const ProfilePage = () => {
       navigate('/profile/inhalte', { replace: true });
       return;
     }
+
+    // Redirect old anweisungen tab to new location under inhalte
+    if (tab === 'anweisungen') {
+      navigate('/profile/inhalte/anweisungen', { replace: true });
+      return;
+    }
     
     if (tab && !TAB_MAPPING[tab]) {
       // Invalid tab in URL, redirect to default
@@ -232,7 +236,7 @@ const ProfilePage = () => {
     
     // Validate subtab URLs for content management tab (now includes integrations)
     if (tab === 'inhalte' && subtab) {
-      const validSubtabs = ['inhalte', 'canva', 'wolke'];
+      const validSubtabs = ['inhalte', 'anweisungen', 'canva', 'wolke'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
         return;
@@ -353,19 +357,19 @@ const ProfilePage = () => {
   // Main render
   return (
     <div className="profile-container">
-      <div className="profile-header">
-        <h1>Mein Profil</h1>
-        <p>Alle Profil-Features befinden sich in der Beta-Phase und können instabil sein.</p>
-      </div>
+      {/* Header Row with Title and Tabs - commented out for testing */}
+      {/* <div className="profile-header-row">
+        <div className="profile-header">
+          <h1>Mein Profil</h1>
+        </div> */}
 
-      {/* Tab Navigation */}
-      <div
-        ref={tabsContainerRef}
-        className="profile-tabs"
-        style={{ position: 'relative', zIndex: 5 }}
-        role="tablist"
-        aria-label="Profil Navigation"
-      >
+        {/* Tab Navigation */}
+        <div
+          ref={tabsContainerRef}
+          className="profile-tabs"
+          role="tablist"
+          aria-label="Profil Navigation"
+        >
         {PROFILE_MENU_ITEMS
           .filter(item => {
             if (item.betaFeature) {
@@ -397,7 +401,8 @@ const ProfilePage = () => {
               )}
             </TabButton>
           ))}
-      </div>
+        </div>
+      {/* </div> */}
 
       {/* Global Message Area */}
       {(successMessage || errorMessage) && (
@@ -429,16 +434,7 @@ const ProfilePage = () => {
               isActive={activeTab === 'profile'}
             />
           )}
-          
-          {activeTab === 'anweisungen' && (
-            <IntelligenceTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'anweisungen'}
-            />
-          )}
-          
+
           {activeTab === 'inhalte' && (
             <ContentManagementTab
               user={user}
