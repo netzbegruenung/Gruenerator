@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaUser, FaLightbulb, FaFolderOpen, FaUsers, FaCogs, FaFlask, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaUser, FaFolderOpen, FaUsers, FaCogs, FaFlask, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 const PROFILE_MENU_ITEMS = [
   { key: 'profile', label: 'Profil', path: '/profile', icon: FaUser },
-  { key: 'anweisungen', label: 'Anweisungen', path: '/profile/anweisungen', icon: FaLightbulb },
   { key: 'inhalte', label: 'Inhalte & Integrationen', path: '/profile/inhalte', icon: FaFolderOpen },
   { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers },
   { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/generatoren', icon: FaCogs, hasSubmenu: true },

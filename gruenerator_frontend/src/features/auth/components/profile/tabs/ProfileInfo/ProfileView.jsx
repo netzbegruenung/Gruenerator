@@ -119,6 +119,7 @@ const ProfileView = ({
               <div className="profile-user-email">{email || user?.email || user?.username}</div>
             )}
             {user?.id && <div className="profile-user-id user-id-display">ID: {user.id}</div>}
+            <p className="profile-beta-notice">Alle Profil-Features befinden sich in der Beta-Phase und können instabil sein.</p>
           </div>
         </div>
 
