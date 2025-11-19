@@ -8,6 +8,7 @@ import ShareToGroupModal from '../../../../../../components/common/ShareToGroupM
 // Content sections
 import DocumentsSection from './components/DocumentsSection';
 import AnweisungenSection from './components/AnweisungenSection';
+import SettingsSection from './components/SettingsSection';
 
 // Integration sections
 import CanvaSection from './components/CanvaSection';
@@ -27,7 +28,12 @@ const ContentManagementView = ({
     onErrorMessage,
     initialTab = 'inhalte',
     canvaSubsection = 'overview',
-    onTabChange
+    onTabChange,
+    igelActive,
+    onToggleIgelModus,
+    laborActive,
+    onToggleLaborModus,
+    isBetaFeaturesUpdating
 }) => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
@@ -38,9 +44,10 @@ const ContentManagementView = ({
     // Available tabs - content plus integrations
     const availableTabs = [
         { key: 'inhalte', label: 'Inhalte' },
-        { key: 'anweisungen', label: 'Anweisungen' },
+        { key: 'wolke', label: 'Wolke' },
         ...(canAccessBetaFeature('canva') ? [{ key: 'canva', label: 'Canva' }] : []),
-        { key: 'wolke', label: 'Wolke' }
+        { key: 'anweisungen', label: 'Anweisungen' },
+        { key: 'einstellungen', label: 'Weitere Einstellungen' }
     ];
 
     // Simple tab navigation
@@ -169,6 +176,21 @@ const ContentManagementView = ({
             );
         }
 
+        if (currentTab === 'einstellungen') {
+            return (
+                <SettingsSection
+                    isActive={isActive}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                    igelActive={igelActive}
+                    onToggleIgelModus={onToggleIgelModus}
+                    laborActive={laborActive}
+                    onToggleLaborModus={onToggleLaborModus}
+                    isBetaFeaturesUpdating={isBetaFeaturesUpdating}
+                />
+            );
+        }
+
         return <div>Content not found</div>;
     };
 
@@ -183,6 +205,7 @@ const ContentManagementView = ({
         >
             {!isSingleTab && (
                 <div className="profile-navigation-panel">
+                    <h2 className="profile-section-header">Einstellungen</h2>
                     <TabNavigation
                         tabs={availableTabs}
                         currentTab={currentTab}

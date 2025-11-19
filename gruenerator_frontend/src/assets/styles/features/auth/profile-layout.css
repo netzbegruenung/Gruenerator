@@ -18,6 +18,15 @@
   align-items: center;
 }
 
+/* Section header in navigation panel */
+.profile-section-header {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0;
+  text-align: center;
+}
+
 /* Vertical navigation container */
 .profile-vertical-navigation {
   display: flex;
@@ -75,11 +84,6 @@
 /* Content panel (right column) */
 .profile-content-panel {
   min-width: 0;
-}
-
-/* Content card wrapper */
-.profile-content-card {
-  /* Generic content card - inherits from profile-form-section styling */
 }
 
 /* Header section with title and actions */
