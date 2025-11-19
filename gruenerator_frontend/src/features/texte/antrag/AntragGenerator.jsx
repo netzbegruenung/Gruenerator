@@ -392,6 +392,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           {...form.generator.baseFormProps}
+          enableEditMode={true}
           title={<span className="gradient-title">{REQUEST_TYPE_TITLES[selectedRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || interactiveLoading}
