@@ -53,39 +53,45 @@ export const getMenuItems = (betaFeatures = {}) => {
     icon: getIcon('navigation', 'barrierefreiheit')
   });
 
+  // Build texte items, conditionally including gruene-jugend based on igel mode
+  const texteItems = [
+    {
+      id: 'antrag',
+      path: '/antrag',
+      title: 'Anträge & Anfragen',
+      description: 'Anträge und Anfragen für Kommunalparlamente & Co.',
+      icon: getIcon('navigation', 'antrag')
+    },
+    {
+      id: 'presse-social',
+      path: '/presse-social',
+      title: 'Presse & Social Media',
+      description: 'Pressemitteilungen und Social-Media-Posts',
+      icon: getIcon('navigation', 'presse-social')
+    },
+    {
+      id: 'universal',
+      path: '/universal',
+      title: 'Universal',
+      description: 'Wahlprogramme, Reden oder freie Textformen',
+      icon: getIcon('navigation', 'universal')
+    }
+  ];
+
+  if (betaFeatures.igelModeEnabled) {
+    texteItems.push({
+      id: 'gruene-jugend',
+      path: '/gruene-jugend',
+      title: 'Grüne Jugend',
+      description: 'Der Grünerator in jung',
+      icon: getIcon('navigation', 'gruene-jugend')
+    });
+  }
+
   const staticMenuItems = {
     texte: {
       title: 'Texte',
-      items: [
-        {
-          id: 'antrag',
-          path: '/antrag',
-          title: 'Anträge & Anfragen',
-          description: 'Anträge und Anfragen für Kommunalparlamente & Co.',
-          icon: getIcon('navigation', 'antrag')
-        },
-        {
-          id: 'presse-social',
-          path: '/presse-social',
-          title: 'Presse & Social Media',
-          description: 'Pressemitteilungen und Social-Media-Posts',
-          icon: getIcon('navigation', 'presse-social')
-        },
-        {
-          id: 'universal',
-          path: '/universal',
-          title: 'Universal',
-          description: 'Wahlprogramme, Reden oder freie Textformen',
-          icon: getIcon('navigation', 'universal')
-        },
-        {
-          id: 'gruene-jugend',
-          path: '/gruene-jugend',
-          title: 'Grüne Jugend',
-          description: 'Der Grünerator in jung',
-          icon: getIcon('navigation', 'gruene-jugend')
-        }
-      ]
+      items: texteItems
     },
     bildUndVideo: {
       title: 'Bild und Video',
