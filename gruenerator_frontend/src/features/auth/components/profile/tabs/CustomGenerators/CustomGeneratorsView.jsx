@@ -444,6 +444,7 @@ const CustomGeneratorsView = ({
             transition={{ duration: 0.3 }}
         >
             <div className="profile-navigation-panel">
+                <h2 className="profile-section-header">Meine Grüneratoren</h2>
                 <nav className="profile-vertical-navigation" role="tablist" aria-label="Custom Generators Navigation" aria-orientation="vertical">
                     <button
                         className={`profile-vertical-tab ${view === 'overview' ? 'active' : ''}`}

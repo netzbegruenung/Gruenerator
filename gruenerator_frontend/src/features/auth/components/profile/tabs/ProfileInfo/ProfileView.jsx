@@ -3,9 +3,6 @@ import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import Spinner from '../../../../../../components/common/Spinner';
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
-import FeatureToggle from '../../../../../../components/common/FeatureToggle';
-import { GiHedgehog } from 'react-icons/gi';
-import { getIcon } from '../../../../../../config/icons';
 import { useAuthStore } from '../../../../../../stores/authStore';
 
 const LocaleSelector = () => {
@@ -57,12 +54,6 @@ const ProfileView = ({
   onRetryProfileRefetch,
   // Avatar modal
   onOpenAvatarModal,
-  // Beta features
-  igelActive,
-  onToggleIgelModus,
-  laborActive,
-  onToggleLaborModus,
-  isBetaFeaturesUpdating,
   // Account deletion
   canManageCurrentAccount,
   showDeleteAccountForm,
@@ -90,6 +81,7 @@ const ProfileView = ({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
+        <h2 className="profile-section-header">Profil</h2>
         <div className="profile-avatar-section">
           <div
             className="profile-avatar clickable-avatar"
@@ -193,36 +185,6 @@ const ProfileView = ({
               <LocaleSelector />
             </div>
             <div className="form-help-text">Änderungen werden automatisch gespeichert</div>
-          </div>
-
-          <hr className="form-divider" />
-
-          <div className="form-group">
-            <div className="form-group-title">Mitgliedschaften</div>
-            <FeatureToggle
-              isActive={igelActive}
-              onToggle={onToggleIgelModus}
-              label="Igel-Modus"
-              icon={GiHedgehog}
-              description="Aktiviere den Igel-Modus, um als Mitglied der Grünen Jugend erkannt zu werden. Dies beeinflusst deine Erfahrung und verfügbare Funktionen."
-              className="igel-modus-toggle"
-              disabled={isBetaFeaturesUpdating}
-            />
-          </div>
-
-          <hr className="form-divider" />
-
-          <div className="form-group">
-            <div className="form-group-title">Experimentell</div>
-            <FeatureToggle
-              isActive={laborActive}
-              onToggle={onToggleLaborModus}
-              label="Labor-Modus"
-              icon={getIcon('actions', 'labor')}
-              description="Aktiviere den Labor-Modus für Zugriff auf experimentelle Features und Beta-Funktionen. Diese Features befinden sich noch in Entwicklung."
-              className="labor-modus-toggle"
-              disabled={isBetaFeaturesUpdating}
-            />
           </div>
 
           {canManageCurrentAccount && !showDeleteAccountForm && (

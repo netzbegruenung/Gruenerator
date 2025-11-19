@@ -246,20 +246,23 @@
 .profile-menu-submenu {
   display: flex;
   flex-direction: column;
-  border-left: 2px solid var(--tanne);
-  margin-left: var(--spacing-medium);
+  margin-left: var(--spacing-small);
+  margin-right: var(--spacing-small);
   margin-top: var(--spacing-xxsmall);
   margin-bottom: var(--spacing-xxsmall);
+  border-radius: 8px;
 }
 
 .profile-menu-submenu-item {
   padding: var(--spacing-xsmall) var(--spacing-small);
-  padding-left: var(--spacing-medium);
   color: var(--font-color);
   text-decoration: none;
   font-size: 0.9rem;
   transition: background-color 0.2s ease, color 0.2s ease;
-  display: block;
+  display: flex;
+  border-radius: 8px;
+  align-items: center;
+  gap: var(--spacing-xsmall);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

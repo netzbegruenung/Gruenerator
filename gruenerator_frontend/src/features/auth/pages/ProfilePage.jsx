@@ -236,7 +236,7 @@ const ProfilePage = () => {
     
     // Validate subtab URLs for content management tab (now includes integrations)
     if (tab === 'inhalte' && subtab) {
-      const validSubtabs = ['inhalte', 'anweisungen', 'canva', 'wolke'];
+      const validSubtabs = ['anweisungen', 'canva', 'wolke', 'einstellungen'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
         return;
@@ -363,8 +363,8 @@ const ProfilePage = () => {
           <h1>Mein Profil</h1>
         </div> */}
 
-        {/* Tab Navigation */}
-        <div
+        {/* Tab Navigation - Hidden since navigation is now in profile button menu */}
+        {/* <div
           ref={tabsContainerRef}
           className="profile-tabs"
           role="tablist"
@@ -401,7 +401,7 @@ const ProfilePage = () => {
               )}
             </TabButton>
           ))}
-        </div>
+        </div> */}
       {/* </div> */}
 
       {/* Global Message Area */}
