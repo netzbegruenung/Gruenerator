@@ -11,7 +11,6 @@ import { useVerticalTabNavigation } from '../../../hooks/useKeyboardNavigation';
 
 // Components
 import Spinner from '../../../components/common/Spinner';
-import BubbleAnimation from '../components/profile/BubbleAnimation';
 import ProfileActionButton from '../../../components/profile/actions/ProfileActionButton';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
@@ -20,7 +19,6 @@ import '../../../assets/styles/features/auth/auth.css';
 import '../../../assets/styles/features/auth/profile.css';
 import '../../../assets/styles/features/auth/profile-layout.css';
 import '../../../assets/styles/features/auth/profile-cards.css';
-import '../../../assets/styles/features/auth/profile-bubbles.css';
 import '../../../assets/styles/features/auth/documents-tab.css';
 import '../styles/meine-texte-tab.css';
 import '../../../assets/styles/components/auth/avatar-selection.css';
@@ -30,7 +28,6 @@ const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab')
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
-const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
 // Reusable TabButton component
 const TabButton = ({ 
@@ -143,7 +140,6 @@ const ProfilePage = () => {
   
   // UI State Management
   const [hoveredTab, setHoveredTab] = useState(null);
-  const [burstBubbles, setBurstBubbles] = useState(false);
   
   // Message states
   const [successMessage, setSuccessMessage] = useState('');
@@ -162,12 +158,7 @@ const ProfilePage = () => {
       const urlTabName = REVERSE_TAB_MAPPING[tabName];
       navigate(`/profile/${urlTabName}`, { replace: true });
     }
-
-    if (tabName === 'labor') {
-      setBurstBubbles(true);
-      setTimeout(() => setBurstBubbles(false), 500);
-    }
-  }, [activeTab, navigate, REVERSE_TAB_MAPPING]);
+  }, [navigate, REVERSE_TAB_MAPPING]);
 
   // Handle tab hover with prefetching
   const onTabHover = useCallback((tabName) => {
@@ -384,21 +375,13 @@ const ProfilePage = () => {
               tabKey={item.key}
               onClick={handleTabChange}
               onMouseEnter={() => onTabHover(item.key)}
-              className={item.key === 'labor' ? 'profile-tab bubble-tab-wrapper' : 'profile-tab'}
+              className="profile-tab"
               underlineTransition={underlineTransition}
               tabIndex={getTabIndex(item.key)}
               registerRef={registerItemRef}
               ariaSelected={ariaSelected(item.key)}
             >
               {item.label}
-              {item.key === 'labor' && (
-                <div className="bubbles-position-wrapper">
-                  <BubbleAnimation
-                    isActive={activeTab === 'labor'}
-                    onBurst={burstBubbles}
-                  />
-                </div>
-              )}
             </TabButton>
           ))}
         </div> */}
@@ -463,15 +446,6 @@ const ProfilePage = () => {
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'custom_generators'}
-            />
-          )}
-          
-          {activeTab === 'labor' && shouldShowTab('labor') && (
-            <LaborTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorLaborMessage={handleErrorMessage}
-              isActive={activeTab === 'labor'}
             />
           )}
         </Suspense>

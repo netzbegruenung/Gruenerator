@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaUser, FaCog, FaFolder, FaUsers, FaCogs, FaFlask, FaChevronDown, FaChevronUp, FaFileAlt, FaClipboardList, FaCloud, FaSlidersH } from 'react-icons/fa';
+import { FaUser, FaCog, FaFolder, FaUsers, FaCogs, FaChevronDown, FaChevronUp, FaClipboardList, FaCloud, FaSlidersH } from 'react-icons/fa';
 import { SiCanva } from 'react-icons/si';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
@@ -21,8 +21,7 @@ const PROFILE_MENU_ITEMS = [
     ]
   },
   { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers },
-  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/generatoren', icon: FaCogs, hasSubmenu: true },
-  { key: 'labor', label: 'Labor', path: '/profile/labor', betaFeature: 'labor', icon: FaFlask }
+  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/generatoren', icon: FaCogs, hasSubmenu: true }
 ];
 
 const ProfileMenu = ({

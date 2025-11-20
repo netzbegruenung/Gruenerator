@@ -156,8 +156,7 @@ export const TAB_INDEX_CONFIG = {
     documentsTab: 1020,
     groupsTab: 1030,
     generatorsTab: 1040,
-    laborTab: 1050,
-    
+
     // Legacy aliases for backward compatibility
     tabsStart: 1000,
     contentStart: 1100
@@ -289,15 +288,6 @@ export const TAB_INDEX_CONFIG = {
     documentSelector: 1310,
     removeDocButton: 1320,
     backButton: 1330
-  },
-
-  // Profile Page - LaborTab
-  PROFILE_LABOR: {
-    // Feature toggles (1100-1199)
-    featureToggle: 1100, // Base for all feature toggles
-    
-    // Feature links (1200-1299)
-    featureLink: 1200 // Base for feature links when enabled
   },
 
   // Home Page

@@ -135,15 +135,26 @@ const GeneratorDetail = ({
                         </h3>
                     </div>
                     <div className="custom-generator-actions">
-                        <Link
-                            to={`/gruenerator/${generator.slug}`}
-                            className="pabtn pabtn--ghost pabtn--s"
-                            title="Öffnen"
-                            tabIndex={tabIndex.openButton}
-                            aria-label={`Custom Grünerator ${generator.title || generator.name} öffnen`}
-                        >
-                            <HiArrowRight className="pabtn__icon" />
-                        </Link>
+                        {editableDetail.isEditing ? (
+                            <ProfileIconButton
+                                action="check"
+                                variant="primary"
+                                onClick={editableDetail.saveEdit}
+                                disabled={isUpdating}
+                                title="Speichern"
+                                ariaLabel="Änderungen speichern"
+                            />
+                        ) : (
+                            <Link
+                                to={`/gruenerator/${generator.slug}`}
+                                className="pabtn pabtn--ghost pabtn--s"
+                                title="Öffnen"
+                                tabIndex={tabIndex.openButton}
+                                aria-label={`Custom Grünerator ${generator.title || generator.name} öffnen`}
+                            >
+                                <HiArrowRight className="pabtn__icon" />
+                            </Link>
+                        )}
                         {isSavedGenerator ? (
                             <ProfileIconButton
                                 action="delete"

@@ -753,19 +753,6 @@
   align-items: center;
 }
 
-.labor-tab-title {
-  text-transform: capitalize;
-  margin-bottom: var(--spacing-medium);
-}
-
-.labor-tab-help-text {
-  margin-bottom: var(--spacing-large);
-}
-
-.labor-tab-checkbox-container {
-  /* Container für Checkboxen im Labor Tab */
-}
-
 .labor-tab-external-link-icon {
   margin-left: var(--spacing-xxsmall);
 }
