@@ -4,10 +4,11 @@
  * Multi-step conversation flow:
  * 1. User provides thema, details, requestType
  * 2. Web search (SearXNG)
- * 3. AI generates 4 intelligent questions
- * 4. User answers questions
- * 5. Document enrichment (URL crawl, DocQnA, knowledge)
- * 6. Final generation with all context
+ * 3. AI generates 5 intelligent questions
+ * 4. Graph interrupts to await user answers
+ * 5. User answers questions, graph resumes
+ * 6. Document enrichment (URL crawl, DocQnA, knowledge)
+ * 7. Final generation with all context
  */
 
 import { StateGraph, Annotation, MemorySaver, interrupt, Command } from "@langchain/langgraph";
@@ -324,22 +325,11 @@ async function webSearchNode(state) {
  * Uses Mistral AI to generate contextual questions based on search results
  */
 async function generateQuestionsNode(state) {
-  // Check if we're resuming with existing questions (avoid duplicate generation)
-  if (state.questions && state.questions.length > 0 && state.conversationState === 'questions_asked') {
-    console.log('[InteractiveAntragGraph] Resuming with existing questions, skipping generation');
-    return {
-      conversationState: 'questions_asked',
-      questionRound: state.questionRound || 1,
-      questions: state.questions
-    };
-  }
-
   console.log('[InteractiveAntragGraph] Generating questions');
 
-  let questions; // Declare at function scope so interrupt() can access it
+  let questions;
 
   try {
-
     // Try AI generation via aiWorkerPool
     try {
       const questionConfig = loadPromptConfig('interactive_antrag_questions');
@@ -388,19 +378,15 @@ async function generateQuestionsNode(state) {
         // Validate and clean up optionEmojis
         questions.forEach((question, qIndex) => {
           if (question.optionEmojis) {
-            // Ensure optionEmojis length matches options length
             if (question.optionEmojis.length !== question.options.length) {
               console.warn(`[InteractiveAntragGraph] Question ${qIndex + 1}: optionEmojis length (${question.optionEmojis.length}) doesn't match options length (${question.options.length}). Padding/truncating.`);
 
-              // Pad with empty strings if too short
               while (question.optionEmojis.length < question.options.length) {
                 question.optionEmojis.push('');
               }
-              // Truncate if too long
               question.optionEmojis = question.optionEmojis.slice(0, question.options.length);
             }
           } else {
-            // If AI didn't provide emojis, set to empty array (frontend will use mapper fallback)
             question.optionEmojis = [];
           }
         });
@@ -412,7 +398,6 @@ async function generateQuestionsNode(state) {
 
     } catch (aiError) {
       console.warn('[InteractiveAntragGraph] AI question generation failed, falling back to predefined:', aiError.message);
-      // Fallback to predefined questions
       questions = getQuestionsForType(state.requestType, 1);
     }
 
@@ -422,14 +407,20 @@ async function generateQuestionsNode(state) {
 
     console.log(`[InteractiveAntragGraph] Using ${questions.length} questions for ${state.requestType}`);
 
-    // Update session
+    // Update session with questions
     if (state.sessionId && state.userId) {
       await updateExperimentalSession(state.userId, state.sessionId, {
-        conversationState: 'questions_asked',
+        conversationState: 'questions_generated',
         questionRound: 1,
         questions
       });
     }
+
+    return {
+      conversationState: 'questions_generated',
+      questionRound: 1,
+      questions
+    };
 
   } catch (error) {
     console.error('[InteractiveAntragGraph] Error generating questions:', error);
@@ -438,20 +429,37 @@ async function generateQuestionsNode(state) {
       error: error.message
     };
   }
+}
+
+/**
+ * Node 3.5: Await User Answers
+ * Interrupts the graph to wait for user input, then resumes with answers
+ */
+async function awaitAnswersNode(state) {
+  console.log('[InteractiveAntragGraph] Awaiting user answers');
+
+  // Update session to indicate we're waiting for answers
+  if (state.sessionId && state.userId) {
+    await updateExperimentalSession(state.userId, state.sessionId, {
+      conversationState: 'questions_asked',
+      questionRound: state.questionRound || 1,
+      questions: state.questions
+    });
+  }
 
   console.log('[InteractiveAntragGraph] Interrupting graph to await user answers');
   const userAnswers = interrupt({
     conversationState: 'questions_asked',
-    questionRound: 1,
-    questions,
+    questionRound: state.questionRound || 1,
+    questions: state.questions,
     sessionId: state.sessionId
   });
 
   console.log('[InteractiveAntragGraph] Resumed with user answers');
   return {
     conversationState: 'answers_received',
-    questionRound: 1,
-    questions,
+    questionRound: state.questionRound || 1,
+    questions: state.questions,
     answers: {
       round1: userAnswers
     },
@@ -730,6 +738,7 @@ function createInteractiveAntragGraph() {
   graph.addNode("initiate", initiateNode);
   graph.addNode("web_search", webSearchNode);
   graph.addNode("generate_questions", generateQuestionsNode);
+  graph.addNode("await_answers", awaitAnswersNode);
   graph.addNode("analyze_answers", analyzeAnswersNode);
   graph.addNode("document_enrichment", documentEnrichmentNode);
   graph.addNode("final_generation", finalGenerationNode);
@@ -747,7 +756,8 @@ function createInteractiveAntragGraph() {
     }
   );
   graph.addEdge("web_search", "generate_questions");
-  graph.addEdge("generate_questions", "analyze_answers");
+  graph.addEdge("generate_questions", "await_answers");
+  graph.addEdge("await_answers", "analyze_answers");
 
   graph.addEdge("analyze_answers", "document_enrichment");
   graph.addEdge("document_enrichment", "final_generation");
