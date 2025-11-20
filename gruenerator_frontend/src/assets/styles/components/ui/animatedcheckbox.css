@@ -177,24 +177,6 @@
     }
 }
 
-/* Styles for LaborTab specific checkboxes */
-.labor-tab-checkbox-container .checkbox-wrapper-28 .checkbox-label-wrapper {
-    border-color: var(--font-color-h) !important;
-    color: var(--font-color);
-}
-
-.labor-tab-checkbox-container .checkbox-wrapper-28 .checkbox-label-wrapper:hover {
-    background-color: var(--hover-color-alt);
-}
-
-.labor-tab-checkbox-container .checkbox-wrapper-28 .promoted-input-checkbox {
-    top: 55%;
-}
-
-.labor-tab-checkbox-container .checkbox-wrapper-28 .promoted-input-checkbox[data-state="checked"] ~ .checkbox-label-wrapper .checkbox-svg {
-    stroke: var(--interactive-accent-color);
-}
-
 /* Enhanced styling for checkboxes in form containers */
 .form-container .checkbox-wrapper-28 .checkbox-label-wrapper,
 .form-container .checkbox-wrapper-28 .checkbox-label-wrapper .checkbox-label {

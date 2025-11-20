@@ -545,7 +545,7 @@ export const profileApiService = {
 
   async updateCustomGenerator(generatorId, updateData) {
     const response = await apiClient.put(`/auth/custom_generator/${generatorId}`, updateData);
-    return response.data;
+    return response.data.generator;
   },
 
   async deleteCustomGenerator(generatorId) {
