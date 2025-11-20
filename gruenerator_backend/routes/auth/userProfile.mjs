@@ -230,6 +230,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'canva',
       'chat',
       'labor',
+      'sites',
+      'interactiveAntrag',
+      'autoSaveOnExport',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'
