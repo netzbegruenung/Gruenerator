@@ -41,8 +41,14 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   let model = options.model || 'mistral-medium-latest';
   let useBedrock = false;
 
+  // Ultra mode (useUltraMode flag) - routes to Claude Sonnet 4.5 via Bedrock
+  if (options.useUltraMode === true) {
+    provider = 'bedrock';
+    useBedrock = true;
+    model = 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+  }
   // Pro mode (useProMode flag) - routes to high-quality Magistral model
-  if (options.useProMode === true) {
+  else if (options.useProMode === true) {
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
     useBedrock = false;

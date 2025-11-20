@@ -385,6 +385,11 @@ function getAIOptions(config, requestData, typeConfig = null) {
     baseOptions.useProMode = true;
   }
 
+  // Pass useUltraMode flag to options
+  if (requestData.useUltraMode) {
+    baseOptions.useUltraMode = true;
+  }
+
   return baseOptions;
 }
 
