@@ -39,6 +39,7 @@ const initialState = {
   useWebSearch: false,
   usePrivacyMode: false,
   useProMode: false,
+  useUltraMode: false,
   // Automatic search mode
   useAutomaticSearch: false,
 };
@@ -77,6 +78,7 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     state.useWebSearch = false;
     state.usePrivacyMode = false;
     state.useProMode = false;
+    state.useUltraMode = false;
     state.useAutomaticSearch = false;
   }),
 
@@ -261,9 +263,12 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
         state.useWebSearch = false;
         state.usePrivacyMode = false;
         state.useProMode = false;
+        state.useUltraMode = false;
 
         // Apply the appropriate default
-        if (modeToApply === 'pro') {
+        if (modeToApply === 'ultra') {
+          state.useUltraMode = true;
+        } else if (modeToApply === 'pro') {
           state.useProMode = true;
         } else if (modeToApply === 'privacy') {
           state.usePrivacyMode = true;
@@ -288,7 +293,16 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
   setProMode: (enabled) => set((state) => {
     state.useProMode = enabled;
     if (enabled) {
-      state.usePrivacyMode = false; // Mutual exclusivity
+      state.usePrivacyMode = false;
+      state.useUltraMode = false;
+    }
+  }),
+
+  setUltraMode: (enabled) => set((state) => {
+    state.useUltraMode = enabled;
+    if (enabled) {
+      state.usePrivacyMode = false;
+      state.useProMode = false;
     }
   }),
 
@@ -307,6 +321,15 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     state.useProMode = !state.useProMode;
     if (state.useProMode) {
       state.usePrivacyMode = false;
+      state.useUltraMode = false;
+    }
+  }),
+
+  toggleUltraMode: () => set((state) => {
+    state.useUltraMode = !state.useUltraMode;
+    if (state.useUltraMode) {
+      state.usePrivacyMode = false;
+      state.useProMode = false;
     }
   }),
 
@@ -341,8 +364,9 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
       useWebSearchTool: state.useWebSearch,
       usePrivacyMode: state.usePrivacyMode,
       useProMode: state.useProMode,
+      useUltraMode: state.useUltraMode,
       useAutomaticSearch: state.useAutomaticSearch,
-      useBedrock: false, // Keep for backward compatibility
+      useBedrock: state.useUltraMode,
     };
   },
 
@@ -351,6 +375,7 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
     state.useWebSearch = false;
     state.usePrivacyMode = false;
     state.useProMode = false;
+    state.useUltraMode = false;
     state.useAutomaticSearch = false;
   }),
 
