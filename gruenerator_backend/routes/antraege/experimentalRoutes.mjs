@@ -176,7 +176,7 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
       });
     }
 
-    console.log(`[experimental][${reqId}] Initiating for user ${userId}: ${requestType} - "${thema}"`);
+    console.log(`[experimental][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType} - "${thema}"`);
 
     // Start interactive flow
     const result = await initiateInteractiveAntrag({
@@ -302,7 +302,8 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
       });
     }
 
-    console.log(`[experimental][${reqId}] Continuing session ${sessionId} for user ${userId}`);
+    console.log(`[experimental][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`);
+    console.log(`[experimental][${reqId}] Submitted answers:`, Object.keys(answers));
 
     // Continue interactive flow
     const result = await continueInteractiveAntrag({

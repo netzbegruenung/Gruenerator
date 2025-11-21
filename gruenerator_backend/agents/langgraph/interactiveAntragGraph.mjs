@@ -25,6 +25,8 @@ import {
   updateExperimentalSession
 } from '../../services/chatMemoryService.js';
 import { getQuestionsForType } from '../../config/antragQuestions.js';
+import { RedisCheckpointer } from './RedisCheckpointer.mjs';
+import redisClient from '../../utils/redisClient.js';
 
 // State schema for interactive Antrag flow
 const InteractiveAntragState = Annotation.Root({
@@ -768,7 +770,7 @@ function createInteractiveAntragGraph() {
   graph.addEdge("final_generation", "__end__");
 
   return graph.compile({
-    checkpointer: new MemorySaver()
+    checkpointer: new RedisCheckpointer(redisClient)
   });
 }
 
