@@ -434,11 +434,15 @@ async function generateQuestionsNode(state) {
 /**
  * Node 3.5: Await User Answers
  * Interrupts the graph to wait for user input, then resumes with answers
+ *
+ * IMPORTANT: Code after interrupt() is NEVER executed. When the graph resumes
+ * via Command({ update }), it continues to the NEXT node (analyze_answers).
+ * User answers are injected into state via Command({ update: { answers } }).
  */
 async function awaitAnswersNode(state) {
   console.log('[InteractiveAntragGraph] Awaiting user answers');
 
-  // Update session to indicate we're waiting for answers
+  // Update Redis session to indicate we're waiting for answers
   if (state.sessionId && state.userId) {
     await updateExperimentalSession(state.userId, state.sessionId, {
       conversationState: 'questions_asked',
@@ -447,24 +451,19 @@ async function awaitAnswersNode(state) {
     });
   }
 
-  console.log('[InteractiveAntragGraph] Interrupting graph to await user answers');
-  const userAnswers = interrupt({
+  console.log('[InteractiveAntragGraph] Interrupting graph - will resume at next node');
+
+  // Graph execution terminates here. When resumed via Command({ update }),
+  // the graph continues to the next node (analyze_answers) with updated state.
+  // The answers will be injected via Command({ update: { answers } }).
+  interrupt({
     conversationState: 'questions_asked',
     questionRound: state.questionRound || 1,
     questions: state.questions,
     sessionId: state.sessionId
   });
 
-  console.log('[InteractiveAntragGraph] Resumed with user answers');
-  return {
-    conversationState: 'answers_received',
-    questionRound: state.questionRound || 1,
-    questions: state.questions,
-    answers: {
-      round1: userAnswers
-    },
-    searchResults: null
-  };
+  // Code below this point is NEVER executed - interrupt() terminates the node
 }
 
 /**
@@ -472,7 +471,12 @@ async function awaitAnswersNode(state) {
  * Proceeds directly to enrichment after receiving answers
  */
 async function analyzeAnswersNode(state) {
-  console.log('[InteractiveAntragGraph] Answers received, proceeding to enrichment');
+  console.log('[InteractiveAntragGraph] Resumed after interrupt - analyzing answers');
+  console.log('[InteractiveAntragGraph] Answers received:', {
+    hasAnswers: !!state.answers,
+    hasRound1: !!state.answers?.round1,
+    answerCount: Object.keys(state.answers?.round1 || {}).length
+  });
 
   try {
     // Update session
@@ -894,7 +898,11 @@ export async function continueInteractiveAntrag({
         resume: answers,
         update: {
           aiWorkerPool,
-          req
+          req,
+          answers: {
+            round1: answers
+          },
+          conversationState: 'answers_received'
         }
       }),
       {
