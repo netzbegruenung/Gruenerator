@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useRef, useEffect, useCallback } from 'react';
+import React, { lazy, Suspense, useRef, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
 import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
@@ -8,6 +8,9 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
 import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
 import AttachedFilesList from '../AttachedFilesList';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useProfile } from '../../../features/auth/hooks/useProfileData';
+import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 
 const ChatUI = ({
   messages = [],
@@ -36,6 +39,22 @@ const ChatUI = ({
   const lastMessageIndexRef = useRef(0);
   const scrollTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  const { user } = useOptimizedAuth();
+  const { data: profile } = useProfile(user?.id);
+
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const displayName = profile?.display_name || '';
+
+  const userAvatarProps = useMemo(() => {
+    const props = getAvatarDisplayProps({
+      avatar_robot_id: avatarRobotId,
+      display_name: displayName,
+      email: user?.email
+    });
+    console.log('[ChatUI] userAvatarProps:', props, 'profile:', profile, 'avatarRobotId:', avatarRobotId);
+    return props;
+  }, [avatarRobotId, displayName, user?.email, profile]);
 
   const voiceRecorderHook = useVoiceRecorder((text) => {
     handleVoiceRecorderTranscription(text);
@@ -104,7 +123,7 @@ const ChatUI = ({
 
   const defaultRenderMessage = (msg, index) => {
     return (
-      <motion.div 
+      <motion.div
         key={msg.timestamp || index}
         className={`chat-message ${msg.type}`}
         initial={{ opacity: 0, y: 2, scale: 0.995 }}
@@ -115,15 +134,27 @@ const ChatUI = ({
         {msg.type === 'user' && msg.userName && (
           <div className="chat-message-user-name">{msg.userName}</div>
         )}
-        {msg.type === 'assistant' && <AssistantIcon className="assistant-icon" />}
-        
+        {msg.type === 'assistant' && (
+          userAvatarProps.type === 'robot' ? (
+            <div className="assistant-icon-wrapper">
+              <img
+                src={userAvatarProps.src}
+                alt={userAvatarProps.alt}
+                className="assistant-icon assistant-robot-image"
+              />
+            </div>
+          ) : (
+            <AssistantIcon className="assistant-icon" />
+          )
+        )}
+
         {msg.quotedText && (
           <div className="chat-message-quote">
             „{msg.quotedText}"
           </div>
         )}
-        
-        <Suspense fallback={<div>Loading...</div>}><ReactMarkdown 
+
+        <Suspense fallback={<div>Loading...</div>}><ReactMarkdown
           components={{
             // eslint-disable-next-line react/prop-types
             a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
