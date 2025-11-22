@@ -1,14 +1,19 @@
 import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
 import SubtitleStylingService from '../utils/subtitleStylingService';
+import { useAuthStore } from '../../../stores/authStore';
 
-const LiveSubtitlePreview = ({ 
-  editableSubtitles, 
-  currentTimeInSeconds, 
+const LiveSubtitlePreview = ({
+  editableSubtitles,
+  currentTimeInSeconds,
   videoMetadata,
   stylePreference = 'standard',
   heightPreference = 'standard'
 }) => {
+  // Get user locale for Austria-specific styling
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
+
   const activeSegment = useMemo(() => {
     const segment = SubtitleStylingService.findActiveSegment(editableSubtitles, currentTimeInSeconds);
     console.log('[LivePreview] Active segment search:', {
@@ -26,6 +31,7 @@ const LiveSubtitlePreview = ({
   }, [videoMetadata, editableSubtitles]);
 
   const getStyleForPreference = useMemo(() => {
+    // Base styles - use Montserrat for Austrian users
     const baseStyles = {
       fontWeight: 'bold',
       color: '#ffffff',
@@ -33,7 +39,8 @@ const LiveSubtitlePreview = ({
       lineHeight: '1.2',
       maxWidth: '100%',
       wordWrap: 'break-word',
-      hyphens: 'auto'
+      hyphens: 'auto',
+      ...(isAustrian && { fontFamily: "'Montserrat', Arial, sans-serif" })
     };
 
     switch (stylePreference) {
@@ -50,7 +57,7 @@ const LiveSubtitlePreview = ({
           padding: '0',
           borderRadius: '0'
         };
-      
+
       case 'shadow':
         return {
           ...baseStyles,
@@ -59,11 +66,12 @@ const LiveSubtitlePreview = ({
           padding: '0',
           borderRadius: '0'
         };
-      
+
       case 'tanne':
         return {
           ...baseStyles,
-          backgroundColor: '#005538', // --secondary-600 value
+          // Use Austrian Green (#6baa25) for Austrian users, German Green (#005538) for German users
+          backgroundColor: isAustrian ? '#6baa25' : '#005538',
           textShadow: 'none',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em'
@@ -136,7 +144,7 @@ const LiveSubtitlePreview = ({
           borderRadius: '0.1em'
         };
     }
-  }, [stylePreference]);
+  }, [stylePreference, isAustrian]);
 
   console.log('[LivePreview] Render conditions:', {
     hasActiveSegment: !!activeSegment,
@@ -248,7 +256,11 @@ LiveSubtitlePreview.propTypes = {
     height: PropTypes.number.isRequired,
     duration: PropTypes.number
   }),
-  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne', 'gj_clean', 'gj_shadow', 'gj_lavendel', 'gj_hellgruen']),
+  stylePreference: PropTypes.oneOf([
+    'standard', 'clean', 'shadow', 'tanne',
+    'gj_clean', 'gj_shadow', 'gj_lavendel', 'gj_hellgruen',
+    'at_standard', 'at_clean', 'at_shadow', 'at_gruen'
+  ]),
   heightPreference: PropTypes.oneOf(['standard', 'tief'])
 };
 

@@ -5,11 +5,51 @@ const { sanitizeFilename } = require('../../../utils/securityUtils');
 
 class AssSubtitleService {
   constructor() {
-    // Font paths for GrueneType and GJFontRegular
+    // Font paths for GrueneType, GJFontRegular, and Montserrat (Austria)
     this.grueneTypeFontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
     this.gjFontPath = path.resolve(__dirname, '../../../public/fonts/GJFontRegular.ttf');
+    this.montserratFontPath = path.resolve(__dirname, '../../../public/fonts/Montserrat-Bold.ttf');
     
-    this.defaultStyle = {
+    // Style mapping for locale-based automatic replacement
+    this.localeStyleMapping = {
+      'de-AT': {
+        'standard': 'at_standard',
+        'clean': 'at_clean',
+        'shadow': 'at_shadow',
+        'tanne': 'at_gruen'
+      }
+    };
+  }
+
+  /**
+   * Get the correct font path based on style preference
+   */
+  getFontPathForStyle(stylePreference) {
+    if (stylePreference?.startsWith('gj_')) {
+      return this.gjFontPath;
+    }
+    if (stylePreference?.startsWith('at_')) {
+      return this.montserratFontPath;
+    }
+    return this.grueneTypeFontPath;
+  }
+
+  /**
+   * Map style preference to locale-specific style if needed
+   * For Austrian users (de-AT), automatically maps German styles to Austria equivalents
+   */
+  mapStyleForLocale(stylePreference, locale) {
+    if (locale === 'de-AT' && this.localeStyleMapping['de-AT'][stylePreference]) {
+      const mappedStyle = this.localeStyleMapping['de-AT'][stylePreference];
+      console.log(`[ASS] Locale mapping: ${stylePreference} → ${mappedStyle} for locale ${locale}`);
+      return mappedStyle;
+    }
+    return stylePreference;
+  }
+
+  // Default style configuration
+  get defaultStyle() {
+    return {
       fontName: 'GrueneType Black Condensed Italic', // Full font name from TTF file
       fontSize: 20,
       primaryColor: '&Hffffff', // White text
@@ -176,7 +216,69 @@ class AssSubtitleService {
           secondaryColor: '&H000000', // Black secondary
           spacing: 1 // Character spacing adds horizontal padding effect
         };
-        
+
+      // Grüne Österreich styles with Montserrat Bold
+      case 'at_standard':
+        // AT Klassisch - schwarzer Hintergrund mit Montserrat Bold
+        return {
+          ...baseStyle,
+          fontName: 'Montserrat Bold', // Austria font
+          backColor: '&HCC000000', // rgba(0, 0, 0, 0.8) - Semi-transparent black
+          borderStyle: 3, // Background box
+          outline: 1, // Minimal outline
+          outlineColor: '&H000000', // Black outline
+          shadow: 0, // No shadow
+          primaryColor: '&Hffffff', // White text
+          secondaryColor: '&Hffffff', // White secondary
+          spacing: 1 // Character spacing adds horizontal padding effect
+        };
+
+      case 'at_clean':
+        // AT Minimalistisch - transparent style with Montserrat Bold
+        return {
+          ...baseStyle,
+          fontName: 'Montserrat Bold', // Austria font
+          backColor: '&H00000000', // Transparent background
+          borderStyle: 0, // No background box
+          outline: 0, // No outline for minimalistic style
+          outlineColor: '&H00000000', // Transparent outline
+          shadow: 0, // No shadow
+          primaryColor: '&Hffffff', // White text
+          secondaryColor: '&Hffffff' // White secondary
+        };
+
+      case 'at_shadow':
+        // AT Schatten - shadow effect with Montserrat Bold
+        return {
+          ...baseStyle,
+          fontName: 'Montserrat Bold', // Austria font
+          backColor: '&H00000000', // Transparent background
+          borderStyle: 0, // No background box
+          outline: 0, // No outline - shadow provides contrast
+          shadow: 3, // Shadow effect
+          outlineColor: '&H80000000', // Semi-transparent black shadow
+          primaryColor: '&Hffffff', // White text
+          secondaryColor: '&Hffffff' // White secondary
+        };
+
+      case 'at_gruen':
+        // AT Grün - Grüne Österreich brand green (#6baa25)
+        const atGruenColor = this.convertRgbToAssBgr('#6baa25', 0x00); // Austrian Green
+        const atGruenOutline = this.convertRgbToAssBgr('#4d7f1b', 0x00); // Darker green for outline
+        console.log(`[ASS] Austria Grün color conversion: #6baa25 → ${atGruenColor}`);
+        return {
+          ...baseStyle,
+          fontName: 'Montserrat Bold', // Austria font
+          backColor: atGruenColor, // Austrian Green background
+          borderStyle: 3, // Background box
+          outline: 1, // Minimal outline
+          outlineColor: atGruenOutline, // Darker green outline
+          shadow: 0, // No shadow
+          primaryColor: '&Hffffff', // White text for contrast
+          secondaryColor: '&Hffffff', // White secondary
+          spacing: 1 // Character spacing adds horizontal padding effect
+        };
+
       default:
         return this.getStylePreset('standard');
     }
@@ -184,28 +286,41 @@ class AssSubtitleService {
 
   /**
    * Generate ASS content from subtitle segments
+   * @param {Array} segments - Subtitle segments
+   * @param {Object} videoMetadata - Video dimensions and metadata
+   * @param {Object} styleOptions - Additional style overrides
+   * @param {string} subtitlePreference - Subtitle mode (manual, word, etc.)
+   * @param {string} stylePreference - Style preset name
+   * @param {string} locale - User locale (de-DE, de-AT) for automatic style mapping
    */
-  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard') {
+  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE') {
+    // Map style to locale-specific variant if needed (e.g., Austrian users get Austria styles)
+    const effectiveStyle = this.mapStyleForLocale(stylePreference, locale);
+
     // Get the appropriate style preset
-    const presetStyle = this.getStylePreset(stylePreference);
+    const presetStyle = this.getStylePreset(effectiveStyle);
     const style = { ...presetStyle, ...styleOptions };
-    
+
     // Calculate dynamic font size based on video resolution, mode, and style preference
-    const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference, stylePreference);
+    const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference, effectiveStyle);
     style.fontSize = fontSize;
 
-    console.log(`[AssSubtitleService] Using style preset: ${stylePreference}`, {
+    console.log(`[AssSubtitleService] Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`, {
       backColor: style.backColor,
       borderStyle: style.borderStyle,
       outline: style.outline,
-      shadow: style.shadow
+      shadow: style.shadow,
+      fontName: style.fontName
     });
 
     const header = this.generateAssHeader(videoMetadata);
     const stylesSection = this.generateStylesSection(style);
-    const eventsSection = this.generateEventsSection(segments, subtitlePreference, stylePreference);
+    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle);
 
-    return `${header}\n${stylesSection}\n${eventsSection}`;
+    return {
+      content: `${header}\n${stylesSection}\n${eventsSection}`,
+      effectiveStyle // Return the effective style so controller knows which font to use
+    };
   }
 
   /**
@@ -239,6 +354,13 @@ class AssSubtitleService {
     if (isGjStyle) {
       fontSize = Math.floor(fontSize * 0.70);
       console.log(`[ASS] GJ style detected: reduced font size by 30% to ${fontSize}px for GJFontRegular`);
+    }
+
+    // For AT (Austria) styles, adjust font size since Montserrat Bold has different metrics
+    const isAtStyle = stylePreference?.startsWith('at_');
+    if (isAtStyle) {
+      fontSize = Math.floor(fontSize * 0.85);
+      console.log(`[ASS] AT style detected: adjusted font size by 15% to ${fontSize}px for Montserrat Bold`);
     }
     
     // COMMENTED OUT - Word mode functionality (TikTok style):
@@ -359,12 +481,13 @@ Style: ${styleLine}`;
    */
   addHorizontalPadding(text, stylePreference) {
     // Only add padding for styles with background boxes
-    if (stylePreference === 'standard' || stylePreference === 'tanne' || 
-        stylePreference === 'gj_lavendel' || stylePreference === 'gj_hellgruen') {
+    if (stylePreference === 'standard' || stylePreference === 'tanne' ||
+        stylePreference === 'gj_lavendel' || stylePreference === 'gj_hellgruen' ||
+        stylePreference === 'at_standard' || stylePreference === 'at_gruen') {
       // Add thin spaces for subtle padding
       return `\u2009${text}\u2009`; // Thin space (U+2009) for minimal padding
     }
-    return text; // No padding for clean/shadow styles (including gj_clean and gj_shadow)
+    return text; // No padding for clean/shadow styles (including gj_clean, gj_shadow, at_clean, at_shadow)
   }
 
   /**

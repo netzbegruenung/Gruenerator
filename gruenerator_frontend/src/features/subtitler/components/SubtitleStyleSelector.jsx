@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 import { FaPalette, FaCog, FaCheckCircle, FaPlay } from 'react-icons/fa';
+import { useAuthStore } from '../../../stores/authStore';
 
 const SubtitleStyleSelector = ({ 
   videoFile, 
@@ -25,6 +26,10 @@ const SubtitleStyleSelector = ({
   const [videoMetadata, setVideoMetadata] = useState(null);
   const [error, setError] = useState(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+
+  // Get user locale for Austria-specific styling
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
 
   // Enhanced style options with better descriptions and previews
   const baseStyleOptions = [
@@ -134,10 +139,73 @@ const SubtitleStyleSelector = ({
     }
   ];
 
+  // Grüne Österreich styles (automatically shown for Austrian users)
+  const austriaStyleOptions = [
+    {
+      id: 'standard',
+      name: 'Klassischer Stil',
+      description: 'Schwarzer Hintergrund für beste Lesbarkeit',
+      preview: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        color: '#ffffff',
+        textShadow: 'none',
+        padding: '0.25em 0.5em',
+        borderRadius: '0.2em',
+        fontFamily: 'Montserrat, sans-serif',
+        fontWeight: 'bold'
+      }
+    },
+    {
+      id: 'clean',
+      name: 'Minimalistisch',
+      description: 'Reiner Text ohne jegliche Effekte',
+      preview: {
+        backgroundColor: 'transparent',
+        color: 'var(--font-color)',
+        textShadow: 'none',
+        padding: '0',
+        borderRadius: '0',
+        fontFamily: 'Montserrat, sans-serif',
+        fontWeight: 'bold'
+      }
+    },
+    {
+      id: 'shadow',
+      name: 'Schatten-Effekt',
+      description: 'Eleganter Schlagschatten für moderne Optik',
+      preview: {
+        backgroundColor: 'transparent',
+        color: 'var(--font-color)',
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+        padding: '0',
+        borderRadius: '0',
+        fontFamily: 'Montserrat, sans-serif',
+        fontWeight: 'bold'
+      }
+    },
+    {
+      id: 'tanne',
+      name: 'Grüner Stil',
+      description: 'Österreichisches Grün für besondere Betonung',
+      preview: {
+        backgroundColor: '#6baa25',
+        color: '#ffffff',
+        textShadow: 'none',
+        padding: '0.3em 0.6em',
+        borderRadius: '0.2em',
+        fontFamily: 'Montserrat, sans-serif',
+        fontWeight: 'bold'
+      }
+    }
+  ];
+
+  // Select appropriate styles based on locale
+  const displayStyleOptions = isAustrian ? austriaStyleOptions : baseStyleOptions;
+
   // Combine base styles with Grüne Jugend styles if igel mode is active (for internal logic)
-  const allStyleOptions = igelModus 
-    ? [...baseStyleOptions, ...grueneJugendStyleOptions]
-    : baseStyleOptions;
+  const allStyleOptions = igelModus
+    ? [...displayStyleOptions, ...grueneJugendStyleOptions]
+    : displayStyleOptions;
 
   // Height options for subtitle positioning
   const heightOptions = [
@@ -369,7 +437,7 @@ const SubtitleStyleSelector = ({
               </h3>
               
               <div className="style-options-grid">
-                {baseStyleOptions.map((option) => (
+                {displayStyleOptions.map((option) => (
                   <label 
                     key={option.id} 
                     className={`style-option-card ${selectedStyle === option.id ? 'selected' : ''}`}
