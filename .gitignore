@@ -66,6 +66,8 @@ gruenerator_backend/uploads/exports/*
 !gruenerator_backend/uploads/exports/.gitkeep
 gruenerator_backend/uploads/tus-temp/*
 !gruenerator_backend/uploads/tus-temp/.gitkeep
+gruenerator_backend/uploads/temp/*
+!gruenerator_backend/uploads/temp/.gitkeep
 gruenerator_backend/uploads/*.zip
 gruenerator_backend/uploads/*.png
 gruenerator_backend/uploads/*.zip:Zone.Identifier
