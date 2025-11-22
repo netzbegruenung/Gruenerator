@@ -5,10 +5,16 @@ import apiClient from '../../../utils/apiClient';
 import useTextEditActions from '../../../../stores/hooks/useTextEditActions';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
+import { useOptimizedAuth } from '../../../../hooks/useAuth';
+import { useProfile } from '../../../../features/auth/hooks/useProfileData';
 
 const UniversalEditForm = ({ componentName }) => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
   const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || null);
+
+  const { user } = useOptimizedAuth();
+  const { data: profile } = useProfile(user?.id);
+  const displayName = profile?.display_name || '';
 
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -31,17 +37,19 @@ const UniversalEditForm = ({ componentName }) => {
       if (existingMessages.length > 0) {
         setMessages(existingMessages);
       } else {
+        const firstName = displayName ? displayName.split(' ')[0] : '';
+        const greeting = firstName ? `Hey ${firstName}! ` : '';
         setMessages([
           {
             type: 'assistant',
-            content: 'Beschreibe kurz, was wir am Text verbessern sollen – ich mache Vorschläge und wende sie direkt an. ✨',
+            content: `${greeting}Beschreibe kurz, was wir am Text verbessern sollen – ich mache Vorschläge und wende sie direkt an. ✨`,
             timestamp: Date.now()
           }
         ]);
       }
       initializedRef.current = true;
     }
-  }, [componentName, isSharepicOnly]);
+  }, [componentName, isSharepicOnly, displayName]);
 
   // Save messages to store whenever they change (but skip initial load)
   useEffect(() => {
