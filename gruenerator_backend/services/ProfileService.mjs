@@ -181,8 +181,10 @@ class ProfileService {
                 'memory': 'memory',
                 'canva': 'canva',
                 'labor': 'labor_enabled',
-                'sites': 'sites',
-                'chat': 'chat'
+                'sites': 'sites_enabled',
+                'chat': 'chat',
+                'interactiveAntrag': 'interactive_antrag_enabled',
+                'autoSaveOnExport': 'auto_save_on_export'
             };
 
             if (featureColumnMap[feature]) {

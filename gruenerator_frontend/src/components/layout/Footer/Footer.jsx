@@ -8,12 +8,6 @@ const Footer = () => {
             <div className="footer-container">
                 <div className="footer-content">
                     <div className="footer-main">
-                        <div className="footer-logo">
-                            <Link to="/" aria-label="Zur Grünerator Homepage">
-                                <img src="/images/Logo_Sand.svg" alt="Grünerator Logo" />
-                            </Link>
-                        </div>
-                        
                         <div className="footer-sections">
                             <section className="footer-section" aria-labelledby="footer-texte">
                                 <h3 id="footer-texte">Texte</h3>
@@ -29,31 +23,36 @@ const Footer = () => {
                                 <h3 id="footer-tools">Tools</h3>
                                 <ul>
                                     <li><Link to="/suche">Suche</Link></li>
-                                    <li><Link to="/imagine">Imagine</Link></li>
-                                    <li><Link to="/reel">Reel</Link></li>
-                                    <li><Link to="/sharepic">Sharepics</Link></li>
                                     <li><Link to="/barrierefreiheit">Barrierefreiheit</Link></li>
+                                    <li><Link to="/kampagnen">Kampagnen</Link></li>
                                 </ul>
                             </section>
 
-                            <section className="footer-section" aria-labelledby="footer-external">
-                                <div className="subsection">
-                                    <h3 id="footer-gpts">GPTs für ChatGPT</h3>
-                                    <ul>
-                                        <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer">Social Media</a></li>
-                                        <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer">Pressemitteilung</a></li>
-                                    </ul>
-                                </div>
+                            <section className="footer-section" aria-labelledby="footer-media">
+                                <h3 id="footer-media">Bild und Video</h3>
+                                <ul>
+                                    <li><Link to="/reel">Reel</Link></li>
+                                    <li><Link to="/sharepic">Sharepics</Link></li>
+                                    <li><Link to="/imagine">Imagine</Link></li>
+                                </ul>
+                            </section>
 
-                                <div className="subsection">
-                                    <h3 id="footer-legal">Informationen</h3>
-                                    <ul>
-                                        <li><Link to="/support">Support</Link></li>
-                                        <li><Link to="/impressum">Impressum</Link></li>
-                                        <li><Link to="/datenschutz">Datenschutz</Link></li>
-                                        <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer">Newsletter</a></li>
-                                    </ul>
-                                </div>
+                            <section className="footer-section" aria-labelledby="footer-legal">
+                                <h3 id="footer-legal">Informationen</h3>
+                                <ul>
+                                    <li><Link to="/support">Support</Link></li>
+                                    <li><Link to="/impressum">Impressum</Link></li>
+                                    <li><Link to="/datenschutz">Datenschutz</Link></li>
+                                    <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer">Newsletter</a></li>
+                                </ul>
+                            </section>
+
+                            <section className="footer-section" aria-labelledby="footer-gpts">
+                                <h3 id="footer-gpts">GPTs für ChatGPT</h3>
+                                <ul>
+                                    <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer">Social Media</a></li>
+                                    <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer">Pressemitteilung</a></li>
+                                </ul>
                             </section>
                         </div>
                     </div>

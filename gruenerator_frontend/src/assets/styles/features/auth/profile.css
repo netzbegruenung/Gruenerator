@@ -7,15 +7,22 @@
   box-shadow: var(--shadow-md);
 }
 
+.profile-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-large);
+  margin-bottom: var(--spacing-large);
+  gap: var(--spacing-medium);
+}
 
 .profile-header {
-  margin-bottom: var(--spacing-large);
-  text-align: center;
+  flex-shrink: 0;
 }
 
 .profile-header h1 {
   color: var(--font-color-h);
-  margin-bottom: var(--spacing-small);
+  margin: 0;
 }
 
 .profile-header p {
@@ -24,16 +31,23 @@
   margin: 0 auto;
 }
 
+.profile-beta-notice {
+  color: var(--font-color);
+  opacity: 0.8;
+  font-size: 0.9rem;
+  margin: 0 0 var(--spacing-medium) 0;
+}
+
 
 .profile-tabs {
   display: flex;
-  justify-content: flex-start;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: var(--spacing-large);
+  justify-content: center;
+  border-bottom: none;
   overflow-x: auto;
   padding-bottom: var(--spacing-xsmall);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  flex: 1;
 }
 
 .profile-tabs::-webkit-scrollbar {
@@ -119,11 +133,6 @@
   .antraege-section .profile-form-section {
     grid-column: 2;
   }
-  
-  
-  .profile-tabs {
-    justify-content: center;
-  }
 }
 
 
@@ -133,31 +142,39 @@
     box-shadow: none;
     border-radius: 0;
   }
-  
+
+  .profile-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-small);
+  }
+
   .profile-tabs {
+    justify-content: flex-start;
     padding-left: 0;
     padding-right: 0;
     margin-left: calc(-1 * var(--spacing-medium));
     margin-right: calc(-1 * var(--spacing-medium));
     padding-left: var(--spacing-medium);
     padding-right: var(--spacing-medium);
+    width: calc(100% + var(--spacing-medium) * 2);
   }
-  
+
   .profile-tab {
     padding: var(--spacing-small) var(--spacing-small);
     font-size: 0.9rem;
   }
-  
+
   .profile-form-section,
   .profile-avatar-section {
     padding: var(--spacing-medium);
   }
-  
+
   .profile-avatar {
     width: 120px;
     height: 120px;
   }
-  
+
   .profile-avatar-placeholder {
     font-size: 2.5rem;
   }
@@ -734,19 +751,6 @@
   margin-top: var(--spacing-medium);
   display: inline-flex;
   align-items: center;
-}
-
-.labor-tab-title {
-  text-transform: capitalize;
-  margin-bottom: var(--spacing-medium);
-}
-
-.labor-tab-help-text {
-  margin-bottom: var(--spacing-large);
-}
-
-.labor-tab-checkbox-container {
-  /* Container für Checkboxen im Labor Tab */
 }
 
 .labor-tab-external-link-icon {

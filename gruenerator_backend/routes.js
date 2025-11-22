@@ -15,8 +15,12 @@ const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/
 const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/headline_canvas');
 const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
 const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
+const campaignCanvasRoute = require('./routes/sharepic/sharepic_canvas/campaign_canvas');
+const campaignGenerateRoute = require('./routes/sharepic/sharepic_claude/campaign_generate');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
 const { generateSharepicForChat } = require('./routes/chat/services/sharepicGenerationService');
+// Experimental interactive sharepic routes (ES6 module)
+let experimentalSharepicRouter = null;
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
@@ -127,6 +131,10 @@ async function setupRoutes(app) {
   // MOBILE AUTH DISABLED
   // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
+
+  // Experimental interactive sharepic routes - dynamic import for ES module
+  const { default: experimentalSharepicModule } = await import('./routes/sharepic/experimentalSharepic.mjs');
+  experimentalSharepicRouter = experimentalSharepicModule;
   const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
   
   // Import claude_social as ES6 module
@@ -199,9 +207,17 @@ async function setupRoutes(app) {
   app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
   app.use('/api/info_canvas', infoSharepicCanvasRoute);
   app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
+  app.use('/api/campaign_canvas', campaignCanvasRoute);
+  app.use('/api/campaign_generate', campaignGenerateRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
-  
+
+  // Experimental interactive sharepic routes
+  if (experimentalSharepicRouter) {
+    app.use('/api/sharepic/experimental', experimentalSharepicRouter);
+    console.log('[Routes] Experimental sharepic routes mounted at /api/sharepic/experimental');
+  }
+
   // Use unified handler for all sharepic claude routes
   app.post('/api/zitat_claude', async (req, res) => {
     await sharepicClaudeRoute.handleClaudeRequest(req, res, 'zitat');
@@ -234,8 +250,6 @@ async function setupRoutes(app) {
           error: 'Sharepic type is required'
         });
       }
-
-      console.log(`[UnifiedSharepic] Generating ${type} sharepic`);
 
       const result = await generateSharepicForChat(req, type, requestBody);
 

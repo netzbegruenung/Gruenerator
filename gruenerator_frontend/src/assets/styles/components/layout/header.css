@@ -118,7 +118,7 @@
 .header-nav > ul > li > span,
 .header-search__link,
 .header-dropdown-trigger {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     font-size: 0.95em;
     font-family: 'PT Sans', Arial, sans-serif;
     font-weight: normal;
@@ -135,7 +135,7 @@
 .header-nav > ul > li > a:hover,
 .header-nav > ul > li > span:hover,
 .header-dropdown-trigger:hover {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 /* Focus indicators for dropdown triggers - keyboard only */
@@ -232,13 +232,13 @@
 }
 
 .header-dropdown-content li a:hover {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     background-color: var(--hover-color-alt);
     border-radius: 8px;
 }
 
 .header-dropdown-content li a:hover svg {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 .header-dropdown span {
@@ -264,6 +264,89 @@
     font-size: inherit;
     font-weight: inherit;
     font-family: inherit;
+}
+
+/* Sub-dropdown styles */
+.header-dropdown-content .has-submenu {
+    position: relative;
+}
+
+.header-dropdown-content .submenu-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 0.6rem 0.8rem;
+    transition: color 0.3s ease, background-color 0.3s ease;
+    border-radius: 0.5rem;
+    width: 100%;
+}
+
+.header-dropdown-content .submenu-trigger:hover {
+    color: var(--font-color-green);
+    background-color: var(--hover-color-alt);
+}
+
+.header-dropdown-content .submenu-trigger .submenu-caret {
+    transform: rotate(-90deg);
+    transition: transform 0.3s ease;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.header-dropdown-content .has-submenu:hover .submenu-caret,
+.header-dropdown-content .submenu-trigger:focus .submenu-caret {
+    transform: rotate(0deg);
+}
+
+.header-dropdown-content .submenu-content {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    min-width: 180px;
+    background-color: var(--background-color);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--card-border-radius-small);
+    padding: var(--spacing-xxsmall);
+    margin-left: var(--spacing-xxsmall);
+    flex-direction: column;
+    gap: 2px;
+    z-index: 2;
+}
+
+.header-dropdown-content .has-submenu:hover .submenu-content,
+.header-dropdown-content .submenu-trigger:focus + .submenu-content,
+.header-dropdown-content .submenu-content:hover {
+    display: flex;
+}
+
+.header-dropdown-content .submenu-content li {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.header-dropdown-content .submenu-content li a {
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    transition: color 0.3s ease, background-color 0.3s ease;
+    border-radius: var(--spacing-xxsmall);
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.header-dropdown-content .submenu-content li a:hover {
+    color: var(--font-color-green);
+    background-color: var(--hover-color-alt);
+}
+
+.header-dropdown-content .submenu-content .menu-item-content .menu-item-header .menu-item-title {
+    font-size: 0.85rem;
+}
+
+.header-dropdown-content .submenu-content .menu-item-content .menu-item-icon {
+    display: none;
 }
 
 @media (max-width: 768px) {
@@ -302,9 +385,7 @@
 
     .header-nav ul li a,
     .header-nav ul li span {
-        padding: 20px;
-        color: var(--font-color-h);
-    }
+        padding: 20px;    }
 
     .header-nav ul li a:hover,
     .header-nav ul li span:hover {
@@ -513,7 +594,6 @@ input:not(:checked) + .slider .icon.moon {
 
     .header-nav ul li a,
     .header-nav ul li span {
-        color: var(--font-color-h);
         font-size: 1.1em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
@@ -525,11 +605,11 @@ input:not(:checked) + .slider .icon.moon {
     }
 
     .header-nav ul li a:hover {
-        color: var(--font-color-h);
+        color: var(--font-color-green);
     }
 
     .header-nav ul li a:hover .header-direct-item-icon {
-        color: var(--font-color-h);
+        color: var(--font-color-green);
     }
 
     .header-dropdown:hover .header-dropdown-content,
@@ -562,7 +642,6 @@ input:not(:checked) + .slider .icon.moon {
         display: flex;
         align-items: center;
         gap: 5px;
-        color: var(--font-color-h);
         font-size: 1.1em;
         font-family: 'PT Sans', Arial, sans-serif;
         font-weight: bold;
@@ -630,7 +709,7 @@ input:not(:checked) + .slider .icon.moon {
 
 .menu-item-content:hover .menu-item-title,
 .menu-item-content:hover .menu-item-icon {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 
@@ -644,7 +723,7 @@ input:not(:checked) + .slider .icon.moon {
 .header-dropdown-content .menu-item-content .menu-item-header .menu-item-title {
     font-weight: bold;
     font-size: 0.95em;
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     margin: 0;
     line-height: 1.2;
 }
@@ -671,7 +750,7 @@ input:not(:checked) + .slider .icon.moon {
 
 
 .header-nav-item {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     font-size: 0.95em;
     font-family: 'PT Sans', Arial, sans-serif;
     font-weight: normal;
@@ -687,12 +766,12 @@ input:not(:checked) + .slider .icon.moon {
 }
 
 .header-nav-item:hover {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     background-color: var(--hover-color-alt);
 }
 
 .header-nav-item:hover .header-direct-item-icon {
-    color: var(--font-color-h);
+    color: var(--font-color-green);
 }
 
 
@@ -751,7 +830,7 @@ input:not(:checked) + .slider .icon.moon {
 .theme-icon {
   position: absolute;
   font-size: 1.4rem;
-  color: var(--font-color-h);
+  color: var(--font-color-green);
   transition: opacity 0.3s ease, transform 0.5s ease;
 }
 
@@ -835,14 +914,14 @@ input:not(:checked) + .slider .icon.moon {
 
 .profile-icon {
   font-size: 1.4rem;
-  color: var(--font-color-h);
+  color: var(--font-color-green);
 }
 
 /* Style for icons within direct header items (e.g., Suche Icon) */
 .header-direct-item-icon {
     margin-right: 8px;
     font-size: 1.1em; /* Or inherit, or specific size */
-    color: var(--font-color-h);
+    color: var(--font-color-green);
     transition: color 0.3s ease;
 }
 

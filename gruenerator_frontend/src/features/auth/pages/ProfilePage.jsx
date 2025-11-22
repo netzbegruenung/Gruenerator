@@ -11,16 +11,14 @@ import { useVerticalTabNavigation } from '../../../hooks/useKeyboardNavigation';
 
 // Components
 import Spinner from '../../../components/common/Spinner';
-import BubbleAnimation from '../components/profile/BubbleAnimation';
 import ProfileActionButton from '../../../components/profile/actions/ProfileActionButton';
+import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
 
 // Profile Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/auth/auth.css';
 import '../../../assets/styles/features/auth/profile.css';
 import '../../../assets/styles/features/auth/profile-layout.css';
 import '../../../assets/styles/features/auth/profile-cards.css';
-import '../../../assets/styles/features/auth/profile-bubbles.css';
-import '../../../assets/styles/features/auth/mem0ry-tab.css';
 import '../../../assets/styles/features/auth/documents-tab.css';
 import '../styles/meine-texte-tab.css';
 import '../../../assets/styles/components/auth/avatar-selection.css';
@@ -28,10 +26,8 @@ import '../../../assets/styles/components/auth/avatar-selection.css';
 // Enhanced lazy loading with cache support
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
 const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
-const IntelligenceTab = lazy(() => import('../components/profile/IntelligenceTab'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
-const LaborTab = lazy(() => import('../components/profile/LaborTab'));
 
 // Reusable TabButton component
 const TabButton = ({ 
@@ -123,28 +119,27 @@ const ProfilePage = () => {
   
   const { data: profile, isLoading: isLoadingProfile } = useProfile();
 
-  // Tab mapping for URL paths to internal tab names
-  const TAB_MAPPING = {
-    'profil': 'profile',
-    'anweisungen': 'anweisungen',
-    'inhalte': 'inhalte',
-    'integrationen': 'integrationen',
-    'gruppen': 'gruppen',
-    'generatoren': 'custom_generators',
-    'labor': 'labor'
-  };
+  // Generate TAB_MAPPING from PROFILE_MENU_ITEMS
+  const TAB_MAPPING = PROFILE_MENU_ITEMS.reduce((acc, item) => {
+    const urlPath = item.path.replace('/profile/', '') || 'profil';
+    acc[urlPath === '' ? 'profil' : urlPath] = item.key;
+    return acc;
+  }, {});
+  // Add legacy mappings for redirects
+  TAB_MAPPING['integrationen'] = 'integrationen';
 
   // Reverse mapping for internal tab names to URL paths
-  const REVERSE_TAB_MAPPING = Object.fromEntries(
-    Object.entries(TAB_MAPPING).map(([key, value]) => [value, key])
-  );
+  const REVERSE_TAB_MAPPING = PROFILE_MENU_ITEMS.reduce((acc, item) => {
+    const urlPath = item.path.replace('/profile/', '') || 'profil';
+    acc[item.key] = urlPath === '' ? 'profil' : urlPath;
+    return acc;
+  }, {});
 
   // Get active tab from URL path, default to 'profile' when no tab specified
   const activeTab = tab ? (TAB_MAPPING[tab] || 'profile') : 'profile';
   
   // UI State Management
   const [hoveredTab, setHoveredTab] = useState(null);
-  const [burstBubbles, setBurstBubbles] = useState(false);
   
   // Message states
   const [successMessage, setSuccessMessage] = useState('');
@@ -163,12 +158,7 @@ const ProfilePage = () => {
       const urlTabName = REVERSE_TAB_MAPPING[tabName];
       navigate(`/profile/${urlTabName}`, { replace: true });
     }
-
-    if (tabName === 'labor') {
-      setBurstBubbles(true);
-      setTimeout(() => setBurstBubbles(false), 500);
-    }
-  }, [activeTab, navigate, REVERSE_TAB_MAPPING]);
+  }, [navigate, REVERSE_TAB_MAPPING]);
 
   // Handle tab hover with prefetching
   const onTabHover = useCallback((tabName) => {
@@ -177,15 +167,15 @@ const ProfilePage = () => {
     handleTabHover(tabName, activeTab, hoveredTab);
   }, [activeTab, hoveredTab, handleTabHover]);
   
-  // Available tabs (filtered based on feature flags)
-  const availableTabs = [
-    'profile',
-    'anweisungen',
-    'inhalte', // ContentManagementTab with integrated Canva and Wolke
-    ...(shouldShowTab('groups') ? ['gruppen'] : []),
-    ...(shouldShowTab('customGenerators') ? ['custom_generators'] : []),
-    ...(shouldShowTab('labor') ? ['labor'] : [])
-  ];
+  // Available tabs (filtered based on feature flags from PROFILE_MENU_ITEMS)
+  const availableTabs = PROFILE_MENU_ITEMS
+    .filter(item => {
+      if (item.betaFeature) {
+        return shouldShowTab(item.betaFeature);
+      }
+      return true;
+    })
+    .map(item => item.key);
   
   // Keyboard navigation for tabs
   const { registerItemRef, tabIndex: getTabIndex, ariaSelected } = useVerticalTabNavigation({
@@ -206,6 +196,12 @@ const ProfilePage = () => {
     // Redirect old separate tabs to new unified content tab (always available now)
     if (tab === 'dokumente' || tab === 'grafik') {
       navigate('/profile/inhalte', { replace: true });
+      return;
+    }
+
+    // Redirect old anweisungen tab to new location under inhalte
+    if (tab === 'anweisungen') {
+      navigate('/profile/inhalte/anweisungen', { replace: true });
       return;
     }
     
@@ -231,7 +227,7 @@ const ProfilePage = () => {
     
     // Validate subtab URLs for content management tab (now includes integrations)
     if (tab === 'inhalte' && subtab) {
-      const validSubtabs = ['inhalte', 'canva', 'wolke'];
+      const validSubtabs = ['anweisungen', 'canva', 'wolke', 'einstellungen'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
         return;
@@ -352,111 +348,44 @@ const ProfilePage = () => {
   // Main render
   return (
     <div className="profile-container">
-      <div className="profile-header">
-        <h1>Mein Profil</h1>
-        <p>Alle Profil-Features befinden sich in der Beta-Phase und können instabil sein.</p>
-      </div>
+      {/* Header Row with Title and Tabs - commented out for testing */}
+      {/* <div className="profile-header-row">
+        <div className="profile-header">
+          <h1>Mein Profil</h1>
+        </div> */}
 
-      {/* Tab Navigation */}
-      <div 
-        ref={tabsContainerRef}
-        className="profile-tabs" 
-        style={{ position: 'relative', zIndex: 5 }}
-        role="tablist"
-        aria-label="Profil Navigation"
-      >
-        <TabButton
-          activeTab={activeTab}
-          tabKey="profile"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('profile')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('profile')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('profile')}
+        {/* Tab Navigation - Hidden since navigation is now in profile button menu */}
+        {/* <div
+          ref={tabsContainerRef}
+          className="profile-tabs"
+          role="tablist"
+          aria-label="Profil Navigation"
         >
-          Profil
-        </TabButton>
-        
-        <TabButton
-          activeTab={activeTab}
-          tabKey="anweisungen"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('anweisungen')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('anweisungen')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('anweisungen')}
-        >
-          Anweisungen
-        </TabButton>
-        
-        <TabButton
-          activeTab={activeTab}
-          tabKey="inhalte"
-          onClick={handleTabChange}
-          onMouseEnter={() => onTabHover('inhalte')}
-          underlineTransition={underlineTransition}
-          tabIndex={getTabIndex('inhalte')}
-          registerRef={registerItemRef}
-          ariaSelected={ariaSelected('inhalte')}
-        >
-          Inhalte & Integrationen
-        </TabButton>
-
-        {shouldShowTab('groups') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="gruppen"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('groups')}
-            underlineTransition={underlineTransition}
-            tabIndex={getTabIndex('gruppen')}
-            registerRef={registerItemRef}
-            ariaSelected={ariaSelected('gruppen')}
-          >
-            Gruppen
-          </TabButton>
-        )}
-        
-        
-        {shouldShowTab('customGenerators') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="custom_generators"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('generators')}
-            underlineTransition={underlineTransition}
-            tabIndex={getTabIndex('custom_generators')}
-            registerRef={registerItemRef}
-            ariaSelected={ariaSelected('custom_generators')}
-          >
-            Meine Grüneratoren
-          </TabButton>
-        )}
-        
-        {shouldShowTab('labor') && (
-          <TabButton
-            activeTab={activeTab}
-            tabKey="labor"
-            onClick={handleTabChange}
-            onMouseEnter={() => onTabHover('labor')}
-            className="profile-tab bubble-tab-wrapper"
-            underlineTransition={underlineTransition}
-            tabIndex={getTabIndex('labor')}
-            registerRef={registerItemRef}
-            ariaSelected={ariaSelected('labor')}
-          >
-            Labor
-            <div className="bubbles-position-wrapper">
-              <BubbleAnimation 
-                isActive={activeTab === 'labor'} 
-                onBurst={burstBubbles}
-              />
-            </div>
-          </TabButton>
-        )}
-      </div>
+        {PROFILE_MENU_ITEMS
+          .filter(item => {
+            if (item.betaFeature) {
+              return shouldShowTab(item.betaFeature);
+            }
+            return true;
+          })
+          .map(item => (
+            <TabButton
+              key={item.key}
+              activeTab={activeTab}
+              tabKey={item.key}
+              onClick={handleTabChange}
+              onMouseEnter={() => onTabHover(item.key)}
+              className="profile-tab"
+              underlineTransition={underlineTransition}
+              tabIndex={getTabIndex(item.key)}
+              registerRef={registerItemRef}
+              ariaSelected={ariaSelected(item.key)}
+            >
+              {item.label}
+            </TabButton>
+          ))}
+        </div> */}
+      {/* </div> */}
 
       {/* Global Message Area */}
       {(successMessage || errorMessage) && (
@@ -488,16 +417,7 @@ const ProfilePage = () => {
               isActive={activeTab === 'profile'}
             />
           )}
-          
-          {activeTab === 'anweisungen' && (
-            <IntelligenceTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorMessage={handleErrorMessage}
-              isActive={activeTab === 'anweisungen'}
-            />
-          )}
-          
+
           {activeTab === 'inhalte' && (
             <ContentManagementTab
               user={user}
@@ -520,21 +440,12 @@ const ProfilePage = () => {
           )}
           
           
-          {activeTab === 'custom_generators' && shouldShowTab('customGenerators') && (
+          {activeTab === 'custom_generators' && (
             <CustomGeneratorsTab
               user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'custom_generators'}
-            />
-          )}
-          
-          {activeTab === 'labor' && shouldShowTab('labor') && (
-            <LaborTab
-              user={user}
-              onSuccessMessage={handleSuccessMessage}
-              onErrorLaborMessage={handleErrorMessage}
-              isActive={activeTab === 'labor'}
             />
           )}
         </Suspense>

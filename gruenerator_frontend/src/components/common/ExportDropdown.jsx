@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { IoDownloadOutline, IoShareSocialSharp, IoCloudUploadOutline, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
 import { FaCloud } from "react-icons/fa";
@@ -15,6 +15,9 @@ import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
+import { useBetaFeatures } from '../../hooks/useBetaFeatures';
+import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
+import { hashContent } from '../../utils/contentHash';
 import '../../assets/styles/components/actions/exportToDocument.css';
 
 const ExportDropdown = ({ content, title, className = 'action-button', onSaveToLibrary, saveToLibraryLoading }) => {
@@ -32,10 +35,14 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const location = useLocation();
   const { submitForm, loading: docsLoading } = useApiSubmit('etherpad/create');
   const { getGeneratedText } = useGeneratedTextStore();
-  
+
   const { isGenerating, generateDOCX } = useExportStore();
+  const { canAccessBetaFeature } = useBetaFeatures();
+  const { saveToLibrary: autoSaveToLibrary } = useSaveToLibrary();
 
   const isMobileView = window.innerWidth <= 768;
+
+  const exportedContentHashes = useRef(new Set());
 
   // Local modal state for copy/paste instruction
   const [showPastePopup, setShowPastePopup] = useState(false);
@@ -70,6 +77,54 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       loadShareLinks();
     }
   };
+
+  const handleExportWithAutoSave = useCallback(async (exportFn, exportName = 'Export') => {
+    console.log('[DEBUG] handleExportWithAutoSave called', exportName);
+    try {
+      console.log('[DEBUG] About to call exportFn');
+      await exportFn();
+      console.log('[DEBUG] exportFn completed');
+
+      const isAutoSaveEnabled = canAccessBetaFeature('autoSaveOnExport');
+
+      console.log('[Auto-save check]', {
+        enabled: isAutoSaveEnabled,
+        authenticated: isAuthenticated,
+        hasContent: !!content
+      });
+
+      if (!isAutoSaveEnabled || !isAuthenticated || !content) {
+        return;
+      }
+
+      const contentHash = hashContent(content, title);
+
+      if (exportedContentHashes.current.has(contentHash)) {
+        console.log('[Auto-save] Skipping duplicate content');
+        return;
+      }
+
+      try {
+        const generatedText = getGeneratedText();
+        const contentType = generatedText?.contentType || 'universal';
+
+        console.log('[Auto-save] Saving to library', { exportName, contentType });
+
+        await autoSaveToLibrary(
+          content,
+          title || `Auto-gespeichert: ${exportName}`,
+          contentType
+        );
+
+        exportedContentHashes.current.add(contentHash);
+        console.log('[Auto-save] Successfully saved');
+      } catch (error) {
+        console.warn('[Auto-save on export] Failed to auto-save:', error);
+      }
+    } catch (error) {
+      throw error;
+    }
+  }, [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary, getGeneratedText]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -153,30 +208,25 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     return { text: null, componentName: primaryComponentName };
   };
 
-  const handleDocsExport = async () => {
+  const handleDocsExportInner = async () => {
     setShowDropdown(false);
     try {
-      const primaryComponentName = getComponentName();
-      const { text: generatedText } = tryGetTextWithFallbacks(primaryComponentName);
-      
-      if (!generatedText) {
+      if (!content) {
         alert('Kein Text zum Exportieren verfügbar. Bitte generiere erst einen Text auf dieser Seite.');
         return;
       }
-      
-      const plainContent = await extractPlainText(generatedText);
+
+      const plainContent = await extractPlainText(content);
       if (!plainContent || plainContent.trim().length === 0) {
-        
         alert('Der extrahierte Text ist leer.');
         return;
       }
-      
-      const response = await submitForm({ 
+
+      const response = await submitForm({
         text: plainContent,
         documentType: getDocumentType()
       });
 
-      // Copy content to clipboard so user can paste into pad
       try {
         await navigator.clipboard.writeText(plainContent);
         setCopySucceeded(true);
@@ -186,7 +236,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       } finally {
         setShowPastePopup(true);
       }
-      
+
       if (response && response.padURL) {
         setPadURL(response.padURL);
       }
@@ -196,7 +246,9 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     }
   };
 
-  const handleCopyText = async () => {
+  const handleDocsExport = async () => await handleExportWithAutoSave(handleDocsExportInner, 'Etherpad');
+
+  const handleCopyTextInner = async () => {
     await copyFormattedContent(
       content,
       () => {
@@ -209,7 +261,12 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     );
   };
 
-  const handleDOCXDownload = useCallback(async () => {
+  const handleCopyText = async () => {
+    console.log('[DEBUG] handleCopyText called');
+    await handleExportWithAutoSave(handleCopyTextInner, 'Kopieren');
+  };
+
+  const handleDOCXDownloadInner = useCallback(async () => {
     setShowDropdown(false);
     try {
       const formattedContent = await extractFormattedText(content);
@@ -219,6 +276,8 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       alert('DOCX Download fehlgeschlagen: ' + error.message);
     }
   }, [generateDOCX, content, title]);
+
+  const handleDOCXDownload = async () => await handleExportWithAutoSave(handleDOCXDownloadInner, 'DOCX');
 
   const handleWolkeClick = async () => {
     if (!isAuthenticated) return;
@@ -240,35 +299,32 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     }
   };
 
-  const handleWolkeUpload = async (shareLinkId) => {
+  const handleWolkeUploadInner = async (shareLinkId) => {
     setShowDropdown(false);
     setShowWolkeSubDropdown(false);
     setUploadingToWolke(true);
-    
+
     try {
       const { extractFilenameFromContent } = await import('../utils/titleExtractor');
       const formattedContent = await extractFormattedText(content);
       const baseFileName = extractFilenameFromContent(formattedContent, title);
       const filename = `${baseFileName}.docx`;
 
-      // Request backend to generate DOCX blob
-      const response = await apiClient.post('/exports/docx', { 
-        content: formattedContent, 
-        title 
+      const response = await apiClient.post('/exports/docx', {
+        content: formattedContent,
+        title
       }, {
         responseType: 'blob'
       });
       const blob = response.data;
 
-      // Convert blob to base64 for upload
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64Content = reader.result.split(',')[1]; // Remove data:application/vnd...;base64, prefix
-        
+        const base64Content = reader.result.split(',')[1];
+
         const result = await NextcloudShareManager.upload(shareLinkId, base64Content, filename);
-        
+
         if (result.success) {
-          // Show checkmark icon instead of alert
           setExportIcon('checkmark');
           setTimeout(() => {
             setExportIcon('share');
@@ -278,20 +334,22 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
         }
         setUploadingToWolke(false);
       };
-      
+
       reader.onerror = () => {
         alert('Fehler beim Konvertieren der DOCX-Datei');
         setUploadingToWolke(false);
       };
-      
+
       reader.readAsDataURL(blob);
-      
+
     } catch (error) {
       console.error('Wolke upload failed:', error);
       alert('Wolke Upload fehlgeschlagen: ' + error.message);
       setUploadingToWolke(false);
     }
   };
+
+  const handleWolkeUpload = async (shareLinkId) => await handleExportWithAutoSave(() => handleWolkeUploadInner(shareLinkId), 'Wolke');
 
   const handleSaveToLibrary = () => {
     setShowDropdown(false);

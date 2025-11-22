@@ -280,6 +280,254 @@ async function healthCheck() {
   }
 }
 
+// Experimental Antrag session management
+const EXPERIMENTAL_SESSION_TTL = 2 * 60 * 60; // 2 hours in seconds
+
+/**
+ * Create or update experimental Antrag session
+ * @param {string} userId - User ID
+ * @param {object} sessionData - Complete session state
+ * @returns {Promise<string>} Session ID
+ */
+async function setExperimentalSession(userId, sessionData) {
+  if (!userId || !sessionData) {
+    throw new Error('Missing required parameters: userId and sessionData required');
+  }
+
+  try {
+    // Generate session ID if not provided
+    const sessionId = sessionData.sessionId || `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Add timestamps if not present
+    const now = Date.now();
+    const completeSessionData = {
+      ...sessionData,
+      sessionId,
+      userId,
+      createdAt: sessionData.createdAt || now,
+      updatedAt: now,
+      expiresAt: now + (EXPERIMENTAL_SESSION_TTL * 1000)
+    };
+
+    // Store in Redis with TTL
+    const key = `experimental_session:${userId}:${sessionId}`;
+    await redisClient.setEx(key, EXPERIMENTAL_SESSION_TTL, JSON.stringify(completeSessionData));
+
+    console.log(`[ChatMemory] Created/updated experimental session for ${userId}: ${sessionId}`);
+    return sessionId;
+
+  } catch (error) {
+    console.error('[ChatMemory] Error setting experimental session:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieve experimental Antrag session
+ * @param {string} userId - User ID
+ * @param {string} sessionId - Session ID
+ * @returns {Promise<object|null>} Session data or null if not found/expired
+ */
+async function getExperimentalSession(userId, sessionId) {
+  if (!userId || !sessionId) {
+    console.warn('[ChatMemory] Missing userId or sessionId');
+    return null;
+  }
+
+  try {
+    const key = `experimental_session:${userId}:${sessionId}`;
+    const data = await redisClient.get(key);
+
+    if (!data) {
+      console.log(`[ChatMemory] Experimental session not found: ${userId}:${sessionId}`);
+      return null;
+    }
+
+    const sessionData = JSON.parse(data);
+
+    // Check if expired (extra validation)
+    if (sessionData.expiresAt && Date.now() > sessionData.expiresAt) {
+      console.log(`[ChatMemory] Experimental session expired: ${userId}:${sessionId}`);
+      await redisClient.del(key);
+      return null;
+    }
+
+    console.log(`[ChatMemory] Retrieved experimental session for ${userId}: ${sessionId} (state: ${sessionData.conversationState})`);
+    return sessionData;
+
+  } catch (error) {
+    console.error('[ChatMemory] Error retrieving experimental session:', error);
+    return null;
+  }
+}
+
+/**
+ * Update experimental session with partial data
+ * @param {string} userId - User ID
+ * @param {string} sessionId - Session ID
+ * @param {object} updates - Partial state updates
+ * @returns {Promise<boolean>} Success status
+ */
+async function updateExperimentalSession(userId, sessionId, updates) {
+  if (!userId || !sessionId || !updates) {
+    console.warn('[ChatMemory] Missing required parameters for update');
+    return false;
+  }
+
+  try {
+    // Get existing session
+    const existingSession = await getExperimentalSession(userId, sessionId);
+    if (!existingSession) {
+      console.warn(`[ChatMemory] Cannot update non-existent session: ${userId}:${sessionId}`);
+      return false;
+    }
+
+    // Merge updates
+    const updatedSession = {
+      ...existingSession,
+      ...updates,
+      updatedAt: Date.now()
+    };
+
+    // Save back to Redis
+    const key = `experimental_session:${userId}:${sessionId}`;
+    await redisClient.setEx(key, EXPERIMENTAL_SESSION_TTL, JSON.stringify(updatedSession));
+
+    console.log(`[ChatMemory] Updated experimental session ${userId}:${sessionId} (state: ${updatedSession.conversationState})`);
+    return true;
+
+  } catch (error) {
+    console.error('[ChatMemory] Error updating experimental session:', error);
+    return false;
+  }
+}
+
+/**
+ * Delete experimental session
+ * @param {string} userId - User ID
+ * @param {string} sessionId - Session ID
+ * @returns {Promise<boolean>} Success status
+ */
+async function deleteExperimentalSession(userId, sessionId) {
+  if (!userId || !sessionId) {
+    return false;
+  }
+
+  try {
+    const key = `experimental_session:${userId}:${sessionId}`;
+    const result = await redisClient.del(key);
+
+    console.log(`[ChatMemory] Deleted experimental session ${userId}:${sessionId}: ${result > 0 ? 'success' : 'not found'}`);
+    return result > 0;
+
+  } catch (error) {
+    console.error('[ChatMemory] Error deleting experimental session:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all experimental sessions for a user
+ * @param {string} userId - User ID
+ * @returns {Promise<array>} Array of session summaries
+ */
+async function getUserExperimentalSessions(userId) {
+  if (!userId) {
+    return [];
+  }
+
+  try {
+    const pattern = `experimental_session:${userId}:*`;
+    const keys = await redisClient.keys(pattern);
+
+    if (!keys || keys.length === 0) {
+      return [];
+    }
+
+    // Get all sessions
+    const sessions = await Promise.all(
+      keys.map(async (key) => {
+        try {
+          const data = await redisClient.get(key);
+          if (!data) return null;
+
+          const session = JSON.parse(data);
+          // Return summary only
+          return {
+            sessionId: session.sessionId,
+            conversationState: session.conversationState,
+            thema: session.thema,
+            requestType: session.requestType,
+            createdAt: session.createdAt,
+            expiresAt: session.expiresAt
+          };
+        } catch (error) {
+          console.error(`[ChatMemory] Error parsing session ${key}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out nulls and sort by creation time
+    const validSessions = sessions
+      .filter(s => s !== null)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    console.log(`[ChatMemory] Found ${validSessions.length} experimental sessions for ${userId}`);
+    return validSessions;
+
+  } catch (error) {
+    console.error('[ChatMemory] Error getting user sessions:', error);
+    return [];
+  }
+}
+
+/**
+ * Cleanup expired experimental sessions (run periodically)
+ * @returns {Promise<number>} Number of sessions cleaned
+ */
+async function cleanupExpiredSessions() {
+  try {
+    const pattern = 'experimental_session:*';
+    const keys = await redisClient.keys(pattern);
+
+    if (!keys || keys.length === 0) {
+      console.log('[ChatMemory] No experimental sessions to clean up');
+      return 0;
+    }
+
+    let cleanedCount = 0;
+    const now = Date.now();
+
+    for (const key of keys) {
+      try {
+        const data = await redisClient.get(key);
+        if (!data) continue;
+
+        const session = JSON.parse(data);
+
+        // Check if expired
+        if (session.expiresAt && now > session.expiresAt) {
+          await redisClient.del(key);
+          cleanedCount++;
+        }
+      } catch (error) {
+        console.error(`[ChatMemory] Error checking session ${key}:`, error);
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`[ChatMemory] Cleaned up ${cleanedCount} expired experimental sessions`);
+    }
+
+    return cleanedCount;
+
+  } catch (error) {
+    console.error('[ChatMemory] Error during cleanup:', error);
+    return 0;
+  }
+}
+
 module.exports = {
   getConversation,
   addMessage,
@@ -289,5 +537,12 @@ module.exports = {
   setPendingRequest,
   getPendingRequest,
   clearPendingRequest,
-  hasPendingRequest
+  hasPendingRequest,
+  // Experimental Antrag session management
+  setExperimentalSession,
+  getExperimentalSession,
+  updateExperimentalSession,
+  deleteExperimentalSession,
+  getUserExperimentalSessions,
+  cleanupExpiredSessions
 };

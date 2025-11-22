@@ -16,9 +16,7 @@ import { TAB_INDEX_CONFIG, TabIndexHelpers, DEFAULT_TAB_INDEX } from '../utils/t
 export const useTabIndex = (pageType) => {
   const config = useMemo(() => {
     if (!pageType) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('useTabIndex: No pageType provided, using default config');
-      }
+      // Silently use default config when no pageType is provided (expected behavior)
       return DEFAULT_TAB_INDEX;
     }
 

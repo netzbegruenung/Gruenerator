@@ -4,7 +4,6 @@ import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields }
 import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useProfile } from '../../../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
-import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useProfileStore } from '../../../../../../stores/profileStore';
 import ProfileView from './ProfileView';
 
@@ -16,9 +15,9 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
 
   // Move all hooks before conditional returns to avoid React hooks violation
   const queryClient = useQueryClient();
-  const { getBetaFeatureState, updateUserBetaFeatures, isUpdating: isBetaFeaturesUpdating } = useBetaFeatures();
   const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
+  const syncProfile = useProfileStore((s) => s.syncProfile);
 
   if (!user) {
     return (
@@ -34,8 +33,16 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
       return await profileApiService.updateProfile(profileData);
     },
     onSuccess: (updatedProfile) => {
+      console.log('[ProfileInfo] Update success, updatedProfile:', updatedProfile);
       if (user?.id && updatedProfile) {
-        queryClient.setQueryData(['profileData', user.id], (oldData) => ({ ...oldData, ...updatedProfile }));
+        const newProfileData = (oldData) => ({ ...oldData, ...updatedProfile });
+        queryClient.setQueryData(['profileData', user.id], newProfileData);
+        // Manually sync to profileStore for components not using useProfile
+        const currentData = queryClient.getQueryData(['profileData', user.id]);
+        console.log('[ProfileInfo] Syncing to profileStore:', currentData);
+        if (currentData) {
+          syncProfile(currentData);
+        }
       }
     },
     onError: (error) => {
@@ -174,24 +181,6 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     }
   };
 
-  const handleIgelModusToggle = async (enabled) => {
-    try {
-      await updateUserBetaFeatures('igel_modus', enabled);
-      onSuccessMessage(enabled ? 'Igel-Modus aktiviert! Du bist jetzt Mitglied der Grünen Jugend.' : 'Igel-Modus deaktiviert.');
-    } catch (error) {
-      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren des Igel-Modus.');
-    }
-  };
-
-  const handleLaborToggle = async (enabled) => {
-    try {
-      await updateUserBetaFeatures('labor', enabled);
-      onSuccessMessage(enabled ? 'Labor-Modus aktiviert! Experimentelle Features sind jetzt verfügbar.' : 'Labor-Modus deaktiviert.');
-    } catch (error) {
-      onErrorProfileMessage(error.message || 'Fehler beim Aktualisieren des Labor-Modus.');
-    }
-  };
-
   const handleToggleDeleteAccountForm = () => {
     setShowDeleteAccountForm(!showDeleteAccountForm);
     if (!showDeleteAccountForm) {
@@ -255,11 +244,6 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
         errorProfileQueryMessage={errorProfileQuery?.message}
         onRetryProfileRefetch={() => queryClient.refetchQueries({ queryKey: ['profileData', user?.id] })}
         onOpenAvatarModal={() => setShowAvatarModal(true)}
-        igelActive={getBetaFeatureState('igel_modus')}
-        onToggleIgelModus={handleIgelModusToggle}
-        laborActive={getBetaFeatureState('labor')}
-        onToggleLaborModus={handleLaborToggle}
-        isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         canManageCurrentAccount={canManageCurrentAccount}
         showDeleteAccountForm={showDeleteAccountForm}
         onToggleDeleteAccountForm={handleToggleDeleteAccountForm}

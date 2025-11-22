@@ -433,13 +433,14 @@ router.get('/export-download/:exportToken', async (req, res) => {
 
 // Route zum Herunterladen des fertigen Videos (Legacy - kept for backward compatibility)
 router.post('/export', async (req, res) => {
-  // Expect uploadId, subtitles, subtitlePreference, and stylePreference in body
-  const { 
-    uploadId, 
-    subtitles, 
+  // Expect uploadId, subtitles, subtitlePreference, stylePreference, and locale in body
+  const {
+    uploadId,
+    subtitles,
     subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
     stylePreference = 'standard', // Style preference parameter
-    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+    heightPreference = 'standard', // Height positioning: 'standard' or 'tief'
+    locale = 'de-DE' // User locale for Austria-specific styling
   } = req.body; 
   let inputPath = null;
   let outputPath = null;
@@ -450,7 +451,7 @@ router.post('/export', async (req, res) => {
     return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
   }
 
-  console.log(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}`);
+  console.log(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}, locale: ${locale}`);
 
   try {
     inputPath = getFilePathFromUploadId(uploadId);
@@ -708,8 +709,8 @@ router.post('/export', async (req, res) => {
       finalSpacing: `${finalSpacing}px`
     });
 
-    // Updated cache key to include stylePreference and heightPreference
-    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${metadata.width}x${metadata.height}`;
+    // Updated cache key to include stylePreference, heightPreference, and locale
+    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
     
     // Try to generate ASS subtitles with the selected style
     let assFilePath = null;
@@ -737,33 +738,40 @@ router.post('/export', async (req, res) => {
           // Note: outline, borderStyle, backColor, primaryColor are handled by style presets
         };
         
-        // Pass style preference to ASS service
-        assContent = assService.generateAssContent(
-          segments, 
-          metadata, 
-          styleOptions, 
+        // Pass style preference and locale to ASS service
+        const assResult = assService.generateAssContent(
+          segments,
+          metadata,
+          styleOptions,
           subtitlePreference,
-          stylePreference // Add style preference parameter
+          stylePreference,
+          locale // Add locale parameter for Austria-specific styling
         );
-        
-        // Cache the generated content (includes style in cache key)
+        assContent = assResult.content;
+
+        // Cache the generated content (includes style and locale in cache key)
         await assService.cacheAssContent(cacheKey, assContent);
       }
       
       // Create temporary ASS file
       assFilePath = await assService.createTempAssFile(assContent, uploadId);
-      
-      // Copy font to temp directory for FFmpeg access
-      tempFontPath = path.join(path.dirname(assFilePath), 'GrueneType.ttf');
+
+      // Get the effective style (may be mapped for Austrian users)
+      const effectiveStyle = assService.mapStyleForLocale(stylePreference, locale);
+
+      // Copy the correct font to temp directory based on effective style
+      const sourceFontPath = assService.getFontPathForStyle(effectiveStyle);
+      const fontFilename = path.basename(sourceFontPath);
+      tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
       try {
-        await fsPromises.copyFile(FONT_PATH, tempFontPath);
-        console.log(`[ASS] Copied font to temp: ${tempFontPath}`);
+        await fsPromises.copyFile(sourceFontPath, tempFontPath);
+        console.log(`[ASS] Copied font ${fontFilename} to temp: ${tempFontPath}`);
       } catch (fontCopyError) {
         console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
         tempFontPath = null;
       }
-      
-      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
+
+      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference} → ${effectiveStyle}, height: ${heightPreference}, locale: ${locale}`);
       console.log(`[ASS] Processing ${segments.length} segments with GrueneType font`);
       if (subtitlePreference === 'word') {
         console.log(`[ASS] TikTok word mode positioning: center screen (50% height)`);
@@ -798,6 +806,7 @@ router.post('/export', async (req, res) => {
       subtitlePreference,
       stylePreference,
       heightPreference,
+      locale,
       finalFontSize,
       uploadId,
       originalFilename
@@ -835,6 +844,7 @@ async function processVideoExportInBackground(params) {
     subtitlePreference,
     stylePreference,
     heightPreference,
+    locale = 'de-DE',
     finalFontSize,
     uploadId,
     originalFilename
@@ -855,54 +865,61 @@ async function processVideoExportInBackground(params) {
     const referenceDimension = isVertical ? metadata.width : metadata.height;
     const fileSizeMB = fileStats.size / 1024 / 1024;
 
-    // Create cache key and generate ASS subtitles
-    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${metadata.width}x${metadata.height}`;
+    // Create cache key and generate ASS subtitles (includes locale for Austria support)
+    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
     let assFilePath = null;
     let tempFontPath = null;
 
     try {
       // Check for cached ASS content first
       let assContent = await assService.getCachedAssContent(cacheKey);
-      
+
       if (!assContent) {
         // Generate new ASS content with optimized styling
         const styleOptions = {
           fontSize: Math.floor(finalFontSize / 2),
           marginL: 10,
           marginR: 10,
-          marginV: subtitlePreference === 'word' 
+          marginV: subtitlePreference === 'word'
             ? Math.floor(metadata.height * 0.50)
-            : (heightPreference === 'tief' 
+            : (heightPreference === 'tief'
                 ? Math.floor(metadata.height * 0.20)
                 : Math.floor(metadata.height * 0.33)),
           alignment: subtitlePreference === 'word' ? 5 : 2
         };
-        
-        assContent = assService.generateAssContent(
-          segments, 
-          metadata, 
-          styleOptions, 
+
+        const assResult = assService.generateAssContent(
+          segments,
+          metadata,
+          styleOptions,
           subtitlePreference,
-          stylePreference
+          stylePreference,
+          locale // Add locale for Austria-specific styling
         );
-        
+        assContent = assResult.content;
+
         await assService.cacheAssContent(cacheKey, assContent);
       }
-      
+
       // Create temporary ASS file
       assFilePath = await assService.createTempAssFile(assContent, uploadId);
-      
-      // Copy font to temp directory
-      tempFontPath = path.join(path.dirname(assFilePath), 'GrueneType.ttf');
+
+      // Get the effective style (may be mapped for Austrian users)
+      const effectiveStyle = assService.mapStyleForLocale(stylePreference, locale);
+
+      // Copy the correct font to temp directory based on effective style
+      const sourceFontPath = assService.getFontPathForStyle(effectiveStyle);
+      const fontFilename = path.basename(sourceFontPath);
+      tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
       try {
-        await fsPromises.copyFile(FONT_PATH, tempFontPath);
-        console.log(`[ASS] Copied font to temp: ${tempFontPath}`);
+        await fsPromises.copyFile(sourceFontPath, tempFontPath);
+        console.log(`[ASS] Copied font ${fontFilename} to temp: ${tempFontPath}`);
       } catch (fontCopyError) {
         console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
         tempFontPath = null;
       }
-      
-      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
+
+      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference} → ${effectiveStyle}, height: ${heightPreference}, locale: ${locale}`);
       
     } catch (assError) {
       console.error('[ASS] Error generating ASS subtitles:', assError);

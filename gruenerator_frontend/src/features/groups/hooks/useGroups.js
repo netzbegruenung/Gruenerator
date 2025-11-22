@@ -855,10 +855,14 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
   };
 
   // React Query for fetching all groups content
+  // Enable query when user is authenticated and groups are loaded (even if empty)
+  const shouldFetchGroupContent = enabled && !!user?.id && isAuthenticated && !authLoading && !isLoadingGroups;
+  const hasGroups = groups?.length > 0;
+
   const query = useQuery({
     queryKey: allGroupsContentQueryKey,
     queryFn: fetchAllGroupsContentFn,
-    enabled: enabled && !!user?.id && !!groups?.length && isAuthenticated && !authLoading && !isLoadingGroups,
+    enabled: shouldFetchGroupContent && hasGroups,
     staleTime: 10 * 60 * 1000, // 10 minutes for all groups content
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -879,23 +883,29 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     }
   }, [isActive, query.isStale, query.isFetching, query.dataUpdatedAt, query.refetch]);
 
+  // Determine the actual loading state
+  // If groups are still loading, we're loading
+  // If groups are loaded but empty, we're not loading (no content to fetch)
+  // If groups exist and query is pending, we're loading
+  const isActuallyLoading = isLoadingGroups || (hasGroups && query.isPending);
+
   return {
     // Data
     allGroupContent: query.data?.allContent || [],
     groupContentErrors: query.data?.errors || [],
     hasGroupErrors: (query.data?.errors || []).length > 0,
-    
+
     // Loading states
-    isLoadingAllGroupsContent: query.isPending || isLoadingGroups, // Fixed: was isLoading (React Query v5)
+    isLoadingAllGroupsContent: isActuallyLoading,
     isFetchingAllGroupsContent: query.isFetching,
-    
+
     // Error states
     isErrorAllGroupsContent: query.isError,
     errorAllGroupsContent: query.error,
-    
+
     // Actions
     refetchAllGroupsContent: query.refetch,
-    
+
     // Invalidate cache when needed
     invalidateAllGroupsContent: () => {
       queryClient.invalidateQueries({ queryKey: allGroupsContentQueryKey });

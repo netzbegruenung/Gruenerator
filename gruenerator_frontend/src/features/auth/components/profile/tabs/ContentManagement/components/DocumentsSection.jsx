@@ -23,6 +23,7 @@ import { useWolkeStore } from '../../../../../../../stores/wolkeStore';
 // Utils
 import { handleError } from '../../../../../../../components/utils/errorHandling';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
+import apiClient from '../../../../../../../components/utils/apiClient';
 
 // Memoized DocumentUpload wrapper to prevent re-renders
 const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }) => {
@@ -177,16 +178,8 @@ const DocumentsSection = ({
 
     const handleTextDelete = async (textId) => {
         try {
-            // Direct API call for text deletion
-            const response = await fetch(`/api/auth/saved-texts/${textId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            // Use apiClient for proper backend URL handling
+            await apiClient.delete(`/auth/saved-texts/${textId}`);
 
             onSuccessMessage('Text wurde erfolgreich gelöscht.');
             // Refresh combined content after deletion

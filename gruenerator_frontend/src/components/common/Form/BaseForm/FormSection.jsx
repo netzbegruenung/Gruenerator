@@ -1,11 +1,13 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { useShallow } from 'zustand/react/shallow';
 import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
 import useResponsive from '../hooks/useResponsive';
 import UniversalEditForm from '../EditMode/UniversalEditForm';
 import { useFormStateSelector } from '../FormStateProvider';
+import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
 
 /**
  * Hauptkomponente für den Formular-Container (Inputs + Extras)
@@ -54,9 +56,9 @@ const FormSection = forwardRef(({
   showBackButton,
   nextButtonText,
   submitButtonProps = {},
-  webSearchFeatureToggle,
-  privacyModeToggle,
-  proModeToggle,
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
+  interactiveModeToggle,
+  useInteractiveModeToggle,
   onAttachmentClick,
   onRemoveFile,
   enablePlatformSelector = false,
@@ -97,8 +99,10 @@ const FormSection = forwardRef(({
   onWebSearchInfoClick,
   componentName,
   useEditMode = false,
+  isImageEditActive = false,
   registerEditHandler = null,
-  enableKnowledgeSelector = false
+  enableKnowledgeSelector = false,
+  customEditContent = null
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -109,13 +113,49 @@ const FormSection = forwardRef(({
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
   const attachedFiles = useFormStateSelector(state => state.attachedFiles);
   const uploadedImage = useFormStateSelector(state => state.uploadedImage);
-  
+  const setStoreAttachedFiles = useFormStateSelector(state => state.setAttachedFiles);
+
+  // Privacy mode for ContentSelector (with shallow comparison to prevent unnecessary rerenders)
+  const usePrivacyMode = useGeneratorSelectionStore(
+    useShallow((state) => state.usePrivacyMode)
+  );
+
   const formContainerClasses = `form-container ${isFormVisible ? 'visible' : ''}`;
   const { isMobileView } = useResponsive();
 
+  // Ref to store latest attachedFiles value (prevents callback recreation)
+  const attachedFilesRef = useRef(attachedFiles);
+  useEffect(() => {
+    attachedFilesRef.current = attachedFiles;
+  }, [attachedFiles]);
+
+  // Wrapper for onAttachmentClick that updates store state (stable callback)
+  const handleAttachmentClick = useCallback((files) => {
+    // Update store state using ref to avoid dependency on attachedFiles
+    const newFiles = [...attachedFilesRef.current, ...files];
+    setStoreAttachedFiles(newFiles);
+
+    // Call parent callback if provided
+    if (onAttachmentClick) {
+      onAttachmentClick(files);
+    }
+  }, [setStoreAttachedFiles, onAttachmentClick]);
+
+  // Wrapper for onRemoveFile that updates store state (stable callback)
+  const handleRemoveFile = useCallback((index) => {
+    // Update store state using ref to avoid dependency on attachedFiles
+    const newFiles = attachedFilesRef.current.filter((_, i) => i !== index);
+    setStoreAttachedFiles(newFiles);
+
+    // Call parent callback if provided
+    if (onRemoveFile) {
+      onRemoveFile(index);
+    }
+  }, [setStoreAttachedFiles, onRemoveFile]);
+
   return (
     <div className={`form-section ${formContainerClasses}`} ref={ref}>
-      <FormCard 
+      <FormCard
         className={useEditMode ? 'form-card--editmode' : ''}
         variant="elevated"
         size="large"
@@ -126,18 +166,18 @@ const FormSection = forwardRef(({
       >
         <form onSubmit={(e) => {
           e.preventDefault();
-          
+
           // Check if the submission was triggered by Enter key from react-select
           const activeElement = document.activeElement;
-          
+
           if (activeElement && (
-            activeElement.closest('.react-select') || 
+            activeElement.closest('.react-select') ||
             activeElement.closest('.react-select__input') ||
             activeElement.className?.includes('react-select')
           )) {
             return;
           }
-          
+
           onSubmit();
         }} className="form-section__form">
           
@@ -173,21 +213,22 @@ const FormSection = forwardRef(({
               showImageUpload={showImageUpload}
               onImageChange={onImageChange}
             >
-              {useEditMode ? (
+              {isImageEditActive ? (
+                customEditContent
+              ) : useEditMode ? (
                 <UniversalEditForm componentName={componentName} />
               ) : (
                 children
               )}
             </FormInputSection>
 
-            {/* Extras Section - conditionally rendered */}
-            {!hideExtrasSection && !useEditMode && (
+            {/* Extras Section */}
+            {!hideExtrasSection && (isImageEditActive || !useEditMode) && (
               <FormExtrasSection
-                webSearchFeatureToggle={webSearchFeatureToggle}
-                privacyModeToggle={privacyModeToggle}
-                proModeToggle={proModeToggle}
-                onAttachmentClick={onAttachmentClick}
-                onRemoveFile={onRemoveFile}
+                interactiveModeToggle={interactiveModeToggle}
+                useInteractiveModeToggle={useInteractiveModeToggle}
+                onAttachmentClick={handleAttachmentClick}
+                onRemoveFile={handleRemoveFile}
                 formControl={formControl}
                 formNotice={formNotice}
                 onSubmit={onSubmit}
@@ -206,6 +247,8 @@ const FormSection = forwardRef(({
                 onWebSearchInfoClick={onWebSearchInfoClick}
                 componentName={componentName}
                 enableKnowledgeSelector={enableKnowledgeSelector}
+                attachedFiles={attachedFiles}
+                usePrivacyMode={usePrivacyMode}
               >
                 {extrasChildren}
               </FormExtrasSection>
@@ -236,28 +279,15 @@ FormSection.propTypes = {
     showStatus: PropTypes.bool,
     defaultText: PropTypes.string
   }),
-  webSearchFeatureToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    isSearching: PropTypes.bool,
-    statusMessage: PropTypes.string
-  }),
-  privacyModeToggle: PropTypes.shape({
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
+  interactiveModeToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,
     label: PropTypes.string,
     icon: PropTypes.elementType,
     description: PropTypes.string
   }),
-  proModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    description: PropTypes.string
-  }),
+  useInteractiveModeToggle: PropTypes.bool,
   enableKnowledgeSelector: PropTypes.bool,
   enableDocumentSelector: PropTypes.bool,
   enablePlatformSelector: PropTypes.bool,

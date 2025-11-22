@@ -101,14 +101,21 @@
 
 .generator-form-fields {
   display: grid;
-  gap: var(--spacing-small);
+  gap: var(--spacing-medium);
 }
 
 .field-item {
-  background: var(--background-color-alt);
+  background: var(--background-color-pure);
   border: 1px solid var(--border-subtle);
   border-radius: var(--border-radius-medium);
-  padding: var(--spacing-small);
+  padding: var(--spacing-large);
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition);
+}
+
+.field-item:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .field-header {
@@ -135,9 +142,9 @@
 }
 
 .field-required.required {
-  background: color-mix(in srgb, var(--tanne) 15%, transparent);
-  color: var(--tanne);
-  border: 1px solid color-mix(in srgb, var(--tanne) 30%, transparent);
+  background: color-mix(in srgb, var(--button-color) 15%, transparent);
+  color: var(--button-color);
+  border: 1px solid color-mix(in srgb, var(--button-color) 30%, transparent);
 }
 
 .field-required.optional {
@@ -172,20 +179,20 @@
 
 .field-editor-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto auto;
+  grid-template-columns: 2fr 1fr auto auto;
   gap: var(--spacing-small);
   align-items: center;
 }
 
 .field-placeholder-input {
-  margin-top: var(--spacing-xsmall);
+  margin-top: var(--spacing-small);
 }
 
 /* Select Options Editor */
 .select-options-container {
   margin-top: var(--spacing-small);
   padding: var(--spacing-medium);
-  background: var(--background-color-alt);
+  background: var(--input-background);
   border-radius: var(--border-radius-small);
   border: 1px solid var(--border-subtle);
 }
@@ -200,7 +207,7 @@
 
 .option-input-group {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1.5fr 1fr auto;
   gap: var(--spacing-small);
   align-items: center;
   margin-bottom: var(--spacing-small);
@@ -443,6 +450,31 @@
 
 .group-title-area {
   flex-grow: 1;
+}
+
+/* Saved Generator Visual Distinction */
+.saved-generator-tab {
+  border-left: 3px solid var(--sonne);
+  padding-left: calc(var(--spacing-large) - 3px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.saved-generator-tab span {
+  display: block;
+}
+
+.saved-generator-owner {
+  font-size: 0.75rem;
+  color: var(--font-color-subtle);
+  font-weight: normal;
+}
+
+.saved-generator-creator {
+  color: var(--sonne);
+  font-weight: 500;
 }
 
 /* Q&A Visual Distinction */

@@ -15,19 +15,6 @@ const useSharepicGeneration = () => {
     setError(null);
 
     try {
-      console.log('[useSharepicGeneration] Starting sharepic generation:', {
-        thema,
-        details,
-        hasImage: !!uploadedImage,
-        sharepicType,
-        zitatAuthor,
-        hasCustomPrompt: !!customPrompt,
-        hasAttachments: attachments && attachments.length > 0,
-        usePrivacyMode,
-        provider,
-        useProMode
-      });
-
       // Route to appropriate generation function based on type
       switch (sharepicType) {
         case 'default':
@@ -56,8 +43,6 @@ const useSharepicGeneration = () => {
 
   // Unified sharepic generation function - handles all types via single backend endpoint
   const generateUnifiedSharepic = useCallback(async (type, thema, details, uploadedImage = null, zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null, useProMode = false) => {
-    console.log(`[useSharepicGeneration] Starting ${type} sharepic generation via unified endpoint`);
-
     const requestData = {
       type,
       thema,
@@ -93,7 +78,7 @@ const useSharepicGeneration = () => {
     }
 
     // Handle uploaded image for relevant types
-    if (uploadedImage && (type === 'dreizeilen' || type === 'quote')) {
+    if (uploadedImage && (type === 'dreizeilen' || type === 'zitat')) {
       // Convert image to base64 for backend processing
       let imageBase64 = null;
       if (uploadedImage instanceof File || uploadedImage instanceof Blob) {
@@ -109,10 +94,16 @@ const useSharepicGeneration = () => {
       }
 
       if (imageBase64) {
-        requestData.uploadedImage = imageBase64;
+        // Format as attachment (backend expects attachments array)
+        const imageAttachment = {
+          type: imageBase64.split(';')[0].split(':')[1], // Extract MIME type (e.g., 'image/jpeg')
+          data: imageBase64
+        };
+        // Add to attachments array
+        requestData.attachments = requestData.attachments || [];
+        requestData.attachments.push(imageAttachment);
       }
     }
-
     const response = await apiClient.post('/generate-sharepic', requestData);
     const responseData = response.data || response;
 
@@ -144,8 +135,6 @@ const useSharepicGeneration = () => {
 
 
   const generateDefaultSharepics = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
-    console.log('[useSharepicGeneration] Starting default sharepic generation (3 types) - using backend service');
-
     // Prepare request data
     const requestData = {
       thema,
@@ -173,7 +162,6 @@ const useSharepicGeneration = () => {
     try {
       // Use backend service to generate all 3 sharepics
       const response = await apiClient.post('/default_claude', requestData);
-      console.log('[useSharepicGeneration] Default backend response:', response);
 
       // Handle Axios response wrapper - extract data
       const responseData = response.data || response;
@@ -181,8 +169,6 @@ const useSharepicGeneration = () => {
       if (!responseData.success || !responseData.sharepics) {
         throw new Error('Backend failed to generate default sharepics');
       }
-
-      console.log('[useSharepicGeneration] All 3 default sharepics generated successfully via backend');
 
       // Return the sharepics array directly (backend already formats them properly)
       return responseData.sharepics;

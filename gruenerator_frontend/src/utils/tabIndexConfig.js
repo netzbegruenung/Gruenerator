@@ -156,8 +156,7 @@ export const TAB_INDEX_CONFIG = {
     documentsTab: 1020,
     groupsTab: 1030,
     generatorsTab: 1040,
-    laborTab: 1050,
-    
+
     // Legacy aliases for backward compatibility
     tabsStart: 1000,
     contentStart: 1100
@@ -291,15 +290,6 @@ export const TAB_INDEX_CONFIG = {
     backButton: 1330
   },
 
-  // Profile Page - LaborTab
-  PROFILE_LABOR: {
-    // Feature toggles (1100-1199)
-    featureToggle: 1100, // Base for all feature toggles
-    
-    // Feature links (1200-1299)
-    featureLink: 1200 // Base for feature links when enabled
-  },
-
   // Home Page
   HOME: {
     // Primary buttons (100-199)
@@ -423,12 +413,17 @@ export const {
 export const DEFAULT_TAB_INDEX = {
   // Form fields (100-399)
   form: 100,
-  
-  // Feature icons (400-499) 
+
+  // Feature icons (400-499)
   webSearch: 400,
   privacyMode: 410,
   attachment: 420,
-  
+
+  // Selectors (500-699)
+  platformSelector: 500,
+  knowledgeSourceSelector: 510,
+  knowledgeSelector: 520,
+
   // Actions (900-999)
   submit: 900
 };

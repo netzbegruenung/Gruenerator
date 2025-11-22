@@ -1,63 +1,59 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { useForm } from 'react-hook-form';
 import BaseForm from '../../../components/common/BaseForm';
-import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import useKnowledge from '../../../components/hooks/useKnowledge';
-import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
-import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
+import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
+import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import useApiSubmit from '../../../components/hooks/useApiSubmit';
 
 const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'leichte-sprache';
-  const { isAuthenticated } = useOptimizedAuth();
-  const { Textarea } = useFormFields();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  // Initialize knowledge system with UI configuration
-  useKnowledge({ 
-    instructionType: 'leichte_sprache', 
-    ui: {
-      enableKnowledge: true,
-      enableDocuments: true,
-      enableTexts: true
-    }
-  });
+  // Get feature state and selection from store
+  // Use proper selectors for reactive subscriptions
+  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
 
-  // Initialize tabIndex configuration
-  const tabIndex = useTabIndex('LEICHTE_SPRACHE');
-  const baseFormTabIndex = useBaseFormTabIndex('LEICHTE_SPRACHE');
+  // Fetch user's custom instructions
+  const customPrompt = useUserInstructions('leichte_sprache', isInstructionsActive);
 
-  const {
-    control,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors }
-  } = useForm({
+  // Initialize useBaseForm with knowledge system enabled
+  const form = useBaseForm({
     defaultValues: {
       originalText: '',
-      targetLanguage: 'Deutsch',
-      useWebSearchTool: false,
-      usePrivacyMode: false
+      targetLanguage: 'Deutsch'
+    },
+    generatorType: 'leichte-sprache',
+    componentName: componentName,
+    endpoint: '/leichte_sprache',
+    instructionType: 'leichte_sprache',
+    features: ['webSearch', 'privacyMode'],
+    tabIndexKey: 'LEICHTE_SPRACHE',
+    helpContent: {
+      content: "Dieser Grünerator übersetzt Texte in Leichte Sprache. Leichte Sprache ist eine vereinfachte Form des Deutschen für Menschen mit kognitiven Beeinträchtigungen, Lernschwierigkeiten oder begrenzten Sprachkenntnissen.",
+      tips: [
+        "Füge den zu übersetzenden Text in das Textfeld ein",
+        "Der Text wird automatisch nach den Regeln der Leichten Sprache übersetzt",
+        "Die Regeln folgen dem Netzwerk Leichte Sprache e.V. (Neuauflage 2022)",
+        "Die Übersetzung erfolgt in kurzen, klaren Sätzen",
+        "Schwierige Wörter werden erklärt oder ersetzt"
+      ]
     }
   });
 
-  const watchUseWebSearch = watch('useWebSearchTool');
-  const watchUsePrivacyMode = watch('usePrivacyMode');
+  const { control, handleSubmit } = form;
 
   const [translatedContent, setTranslatedContent] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [processedAttachments, setProcessedAttachments] = useState([]);
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/leichte_sprache');
+  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
 
   // URL crawler hook for automatic link processing
   const {
@@ -74,77 +70,49 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
   const handleUrlsDetected = useCallback(async (urls) => {
     // Only crawl if not already crawling and URLs are detected
     if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+  }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url) => {
-    await retryUrl(url, watchUsePrivacyMode);
-  }, [retryUrl, watchUsePrivacyMode]);
+    await retryUrl(url, usePrivacyMode);
+  }, [retryUrl, usePrivacyMode]);
 
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/leichte_sprache');
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  
-  // Store integration - all knowledge and instructions from store
-  const {
-    source,
-    availableKnowledge,
-    selectedKnowledgeIds,
-    selectedDocumentIds,
-    selectedTextIds,
-    isInstructionsActive,
-    instructions,
-    getActiveInstruction,
-    groupData: groupDetailsData
-  } = useGeneratorKnowledgeStore();
-  
-  // Create form notice
-  const formNotice = createKnowledgeFormNotice({
-    source,
-    isLoadingGroupDetails: false, // useKnowledge handles loading
-    isInstructionsActive,
-    instructions,
-    instructionType: 'leichte_sprache',
-    groupDetailsData,
-    availableKnowledge,
-  });
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
 
     try {
+      // Get current feature toggle state from store
+      const features = getFeatureState();
+
       // Combine file attachments with crawled URLs
       const allAttachments = [
-        ...processedAttachments,
+        ...form.generator.attachedFiles,
         ...crawledUrls
       ];
 
       const formDataToSubmit = {
         originalText: rhfData.originalText,
         targetLanguage: rhfData.targetLanguage,
-        useWebSearchTool: rhfData.useWebSearchTool,
-        usePrivacyMode: rhfData.usePrivacyMode,
+        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: allAttachments
       };
-      
+
       // Extract search query from form data for intelligent document content
       const extractQueryFromFormData = (data) => {
         const queryParts = [];
         if (data.originalText) queryParts.push(data.originalText);
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
-      
+
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-      // Get instructions for backend (if active) - backend handles all content extraction
-      const customPrompt = isInstructionsActive && getActiveInstruction
-        ? getActiveInstruction('leichte_sprache')
-        : null;
-
-      // Send only IDs and searchQuery - backend handles all content extraction
+      // Add custom prompt from user instructions (simplified)
       formDataToSubmit.customPrompt = customPrompt;
-      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
       formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
       formDataToSubmit.selectedTextIds = selectedTextIds || [];
       formDataToSubmit.searchQuery = searchQuery || '';
@@ -154,7 +122,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
         // Handle both old string format and new {content, metadata} format
         const content = typeof response === 'string' ? response : response.content;
         const metadata = typeof response === 'object' ? response.metadata : {};
-        
+
         if (content) {
           setTranslatedContent(content);
           setGeneratedText(componentName, content, metadata);
@@ -166,68 +134,16 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, crawledUrls, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, form.generator, crawledUrls, selectedDocumentIds, selectedTextIds, getFeatureState]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setTranslatedContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
-  const handleAttachmentClick = useCallback(async (files) => {
-    try {
-      const processed = await prepareFilesForSubmission(files);
-      
-      // Accumulate files instead of replacing
-      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-    } catch (error) {
-      console.error('[LeichteSpracheGenerator] File processing error:', error);
-      // Here you could show a toast notification or error message to the user
-      // For now, we'll just log the error
-    }
-  }, []);
-
-  const handleRemoveFile = useCallback((index) => {
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
-  }, []);
-
-  const helpContent = {
-    content: "Dieser Grünerator übersetzt Texte in Leichte Sprache. Leichte Sprache ist eine vereinfachte Form des Deutschen für Menschen mit kognitiven Beeinträchtigungen, Lernschwierigkeiten oder begrenzten Sprachkenntnissen.",
-    tips: [
-      "Füge den zu übersetzenden Text in das Textfeld ein",
-      "Der Text wird automatisch nach den Regeln der Leichten Sprache übersetzt",
-      "Die Regeln folgen dem Netzwerk Leichte Sprache e.V. (Neuauflage 2022)",
-      "Die Übersetzung erfolgt in kurzen, klaren Sätzen",
-      "Schwierige Wörter werden erklärt oder ersetzt"
-    ]
-  };
-
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch || 11
-  };
-
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
-  };
-
   const renderFormInputs = () => (
     <>
-      <Textarea
+      <FormTextarea
         name="originalText"
         control={control}
         label="Text für Leichte Sprache"
@@ -236,7 +152,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
         minRows={5}
         maxRows={15}
         className="form-textarea-large"
-        tabIndex={tabIndex.originalText}
+        tabIndex={form.generator.tabIndex.originalText}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
       />
@@ -247,6 +163,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
+          {...form.generator.baseFormProps}
           title="Leichte Sprache Grünerator"
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
@@ -254,24 +171,6 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
           error={error}
           generatedContent={storeGeneratedText || translatedContent}
           onGeneratedContentChange={handleGeneratedContentChange}
-          formNotice={formNotice}
-          enableKnowledgeSelector={true}
-          enableDocumentSelector={true}
-          formControl={control}
-          helpContent={helpContent}
-          componentName={componentName}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
-          useFeatureIcons={true}
-          onAttachmentClick={handleAttachmentClick}
-          onRemoveFile={handleRemoveFile}
-          attachedFiles={attachedFiles}
-          knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
-          knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
-          documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
-          submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
         >
           {renderFormInputs()}
         </BaseForm>

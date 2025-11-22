@@ -336,11 +336,11 @@ class DocumentSearchService extends BaseSearchService {
     async storeDocumentVectors(userId, documentId, chunks, embeddings, metadata = {}) {
         try {
             await this.ensureInitialized();
-            
+
             if (chunks.length !== embeddings.length) {
                 throw new Error('Number of chunks and embeddings must match');
             }
-            
+
             const points = chunks.map((chunk, index) => ({
                 id: uuidv4(),
                 vector: embeddings[index],
@@ -359,13 +359,21 @@ class DocumentSearchService extends BaseSearchService {
                     ...metadata.additionalPayload
                 }
             }));
-            
-            const result = await this.qdrantOps.batchUpsert('documents', points, { wait: true });
-            
-            console.log(`[DocumentSearchService] Stored ${points.length} vectors for document ${documentId}`);
+
+            const BATCH_SIZE = 20;
+            let totalUpserted = 0;
+
+            for (let i = 0; i < points.length; i += BATCH_SIZE) {
+                const batch = points.slice(i, i + BATCH_SIZE);
+                await this.qdrantOps.batchUpsert('documents', batch, { wait: true });
+                totalUpserted += batch.length;
+                console.log(`[DocumentSearchService] Upserted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(points.length / BATCH_SIZE)} (${batch.length} vectors)`);
+            }
+
+            console.log(`[DocumentSearchService] Stored ${totalUpserted} vectors for document ${documentId}`);
             return {
                 success: true,
-                vectorsStored: points.length,
+                vectorsStored: totalUpserted,
                 collectionName: 'documents'
             };
 

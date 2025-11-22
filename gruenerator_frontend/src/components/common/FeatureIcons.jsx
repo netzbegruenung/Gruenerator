@@ -1,103 +1,156 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
-import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt } from 'react-icons/hi';
+import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiPlusCircle, HiClipboardList, HiUpload, HiChatAlt2, HiDocument, HiX } from 'react-icons/hi';
+import { HiRocketLaunch } from 'react-icons/hi2';
 import AttachedFilesList from './AttachedFilesList';
-import { validateFilesForPrivacyMode, getPDFPageCount } from '../../utils/fileAttachmentUtils';
+import ContentSelector from './ContentSelector';
+import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
+import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
+import { useInstructionsStatusForType } from '../../features/auth/hooks/useInstructionsStatus';
+import { useAuth } from '../../hooks/useAuth';
+import DropdownPortal from './DropdownPortal';
+import LoginPage from '../../features/auth/pages/LoginPage';
 
-const FeatureIcons = ({ 
-  onWebSearchClick, 
-  onPrivacyModeClick,
-  onProModeClick,
-  onBalancedModeClick,
+/**
+ * ValidationBanner - Shows file upload limits only when Privacy Mode is active
+ */
+const ValidationBanner = ({ usePrivacyMode }) => {
+  // Only show banner when Privacy Mode is active (has restrictions)
+  if (!usePrivacyMode) {
+    return null;
+  }
+
+  return (
+    <div className="content-dropdown__validation-banner content-dropdown__validation-banner--privacy">
+      <HiEye className="validation-banner__icon" />
+      <div className="validation-banner__content">
+        <span className="validation-banner__title">Privacy Mode aktiv</span>
+        <span className="validation-banner__text">PDFs max. 10 Seiten, keine Bilder</span>
+      </div>
+    </div>
+  );
+};
+
+ValidationBanner.propTypes = {
+  usePrivacyMode: PropTypes.bool
+};
+
+const FeatureIcons = ({
+  // Feature toggle props removed - now using store
+  onBalancedModeClick, // Keep for backward compatibility
   onAttachmentClick,
   onRemoveFile,
-  webSearchActive = false,
-  privacyModeActive = false,
-  proModeActive = false,
+  onAnweisungenClick,
+  onInteractiveModeClick,
+  anweisungenActive = false,
+  interactiveModeActive = false,
   attachedFiles = [],
   attachmentActive = false,
   className = '',
   tabIndex = {
     webSearch: 11,
     balancedMode: 12,
-    attachment: 13
+    attachment: 13,
+    interactiveMode: 14,
+    anweisungen: 15
   },
-  // Show a small info line when privacy mode is active and there is no generated content
   showPrivacyInfoLink = false,
   onPrivacyInfoClick,
-  // Show a small info line when web search is active and there is no generated content
   showWebSearchInfoLink = false,
-  onWebSearchInfoClick
+  onWebSearchInfoClick,
+  instructionType = null
 }) => {
+  // Use store for feature toggles with selective subscriptions
+  const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+  const useProMode = useGeneratorSelectionStore(state => state.useProMode);
+  const useUltraMode = useGeneratorSelectionStore(state => state.useUltraMode);
+  const useAutomaticSearch = useGeneratorSelectionStore(state => state.useAutomaticSearch);
+  const toggleWebSearch = useGeneratorSelectionStore(state => state.toggleWebSearch);
+  const togglePrivacyMode = useGeneratorSelectionStore(state => state.togglePrivacyMode);
+  const toggleProMode = useGeneratorSelectionStore(state => state.toggleProMode);
+  const toggleUltraMode = useGeneratorSelectionStore(state => state.toggleUltraMode);
   const [clickedIcon, setClickedIcon] = useState(null);
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [fileMetadata, setFileMetadata] = useState({});
-  const [showBalancedDropdown, setShowBalancedDropdown] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Unified dropdown state - only ONE dropdown can be open at a time
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'balanced' | 'content' | 'anweisungen' | null
+
+  // Refs
+  const featureIconsRef = useRef(null);
   const balancedContainerRef = useRef(null);
-  const hoverTimeoutRef = useRef(null);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
-  const dropdownRef = useRef(null);
-
-  const updateDropdownPosition = () => {
-    const triggerEl = balancedContainerRef.current;
-    if (!triggerEl) return;
-    const triggerRect = triggerEl.getBoundingClientRect();
-    const centerX = triggerRect.left + triggerRect.width / 2;
-    let dropdownWidth = 0;
-    if (dropdownRef.current) {
-      const dr = dropdownRef.current.getBoundingClientRect();
-      dropdownWidth = dr.width;
-    }
-    // Calculate left so that dropdown is slightly right of perfect center (approx 25% of width)
-    const offsetRatio = 0.33; // shift dropdown right by ~33% of its width
-    let left = centerX - dropdownWidth * (0.5 - offsetRatio);
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
-    // Clamp within viewport with small margin
-    const margin = 8;
-    if (left < margin) left = margin;
-    if (left + dropdownWidth > viewportWidth - margin) left = Math.max(margin, viewportWidth - margin - dropdownWidth);
-    setDropdownPosition({ top: triggerRect.bottom + 6, left });
-  };
-
-  React.useEffect(() => {
-    if (!showBalancedDropdown) return;
-    updateDropdownPosition();
-    const onScrollOrResize = () => updateDropdownPosition();
-    window.addEventListener('scroll', onScrollOrResize, true);
-    window.addEventListener('resize', onScrollOrResize, true);
-    return () => {
-      window.removeEventListener('scroll', onScrollOrResize, true);
-      window.removeEventListener('resize', onScrollOrResize, true);
-    };
-  }, [showBalancedDropdown]);
+  const contentContainerRef = useRef(null);
+  const contentDropdownRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Get user authentication
+  const { user } = useAuth();
+
+  // Connect to selection store with selective subscriptions
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const availableDocuments = useGeneratorSelectionStore(state => state.availableDocuments);
+  const availableTexts = useGeneratorSelectionStore(state => state.availableTexts);
+  const toggleDocumentSelection = useGeneratorSelectionStore(state => state.toggleDocumentSelection);
+  const toggleTextSelection = useGeneratorSelectionStore(state => state.toggleTextSelection);
+  const storeInstructionType = useGeneratorSelectionStore(state => state.instructionType);
+
+  // Use instruction type from prop or store
+  const finalInstructionType = instructionType || storeInstructionType;
+
+  // Check if instructions exist for this type (smart contextual)
+  const { data: instructionsStatus, isLoading: isLoadingInstructions } = useInstructionsStatusForType(
+    finalInstructionType,
+    { enabled: !!(finalInstructionType && user?.id) }
+  );
+
+  // Determine if Anweisungen button should be shown (smart contextual)
+  const shouldShowAnweisungen = useMemo(() => {
+    if (!finalInstructionType) return false;
+    if (isLoadingInstructions) return false;
+    return instructionsStatus?.hasAnyInstructions || false;
+  }, [finalInstructionType, isLoadingInstructions, instructionsStatus]);
+
+  // Calculate total content count for badge
+  const totalContentCount = useMemo(() => {
+    return attachedFiles.length + selectedDocumentIds.length + selectedTextIds.length;
+  }, [attachedFiles.length, selectedDocumentIds.length, selectedTextIds.length]);
+
+  // Smart dropdown toggle - ensures only one dropdown is open at a time
+  const handleDropdownToggle = useCallback((dropdownName) => {
+    setActiveDropdown(prev => {
+      // If clicking same dropdown, close it
+      if (prev === dropdownName) return null;
+      // Otherwise, open the new one (auto-closes previous)
+      return dropdownName;
+    });
+  }, []);
+
   // Re-validate files when privacy mode changes
-  const revalidateFilesForPrivacyMode = () => {
+  const revalidateFilesForPrivacyMode = useCallback(() => {
     if (!attachedFiles || attachedFiles.length === 0) return;
-    
+
     const updatedMetadata = { ...fileMetadata };
     let hasConflicts = false;
-    
+
     attachedFiles.forEach((file, index) => {
       if (updatedMetadata[index]) {
         const metadata = updatedMetadata[index];
-        
-        // Reset conflict state
+
         metadata.hasPrivacyConflict = false;
         metadata.conflictReason = null;
-        
-        if (privacyModeActive) {
-          // Check PDF page limit
+
+        if (usePrivacyMode) {
           if (file.type === 'application/pdf' && metadata.pageCount > 10) {
             metadata.hasPrivacyConflict = true;
             metadata.conflictReason = `PDF hat ${metadata.pageCount} Seiten, maximal 10 erlaubt`;
             hasConflicts = true;
           }
-          // Check image restriction
           else if (file.type.startsWith('image/')) {
             metadata.hasPrivacyConflict = true;
             metadata.conflictReason = 'Bilder werden im Privacy Mode ignoriert';
@@ -106,10 +159,9 @@ const FeatureIcons = ({
         }
       }
     });
-    
+
     setFileMetadata(updatedMetadata);
-    
-    // Clear validation error if no conflicts, or set if conflicts exist
+
     if (hasConflicts) {
       const conflictFiles = Object.entries(updatedMetadata)
         .filter(([, meta]) => meta.hasPrivacyConflict)
@@ -119,12 +171,11 @@ const FeatureIcons = ({
     } else {
       setValidationError(null);
     }
-  };
+  }, [attachedFiles, fileMetadata, usePrivacyMode]);
 
-  // Re-validate when privacy mode changes
-  React.useEffect(() => {
+  useEffect(() => {
     revalidateFilesForPrivacyMode();
-  }, [privacyModeActive]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [usePrivacyMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleIconClick = (event, type, callback) => {
     event.preventDefault();
@@ -133,31 +184,27 @@ const FeatureIcons = ({
     if (callback) {
       callback();
     }
-    // Reset animation after completion
     setTimeout(() => setClickedIcon(null), 300);
   };
 
-  const handleAttachmentClick = (event) => {
-    handleIconClick(event, 'attachment');
+  const handleFileInputTrigger = () => {
     fileInputRef.current?.click();
+    setActiveDropdown(null);
   };
 
-  const handleFileSelect = async (event) => {
-    const files = Array.from(event.target.files);
-    
+  // Shared file processing logic for both file input and drag-drop
+  const processFiles = useCallback(async (files) => {
     if (files.length === 0) {
       return;
     }
 
-    // Clear previous validation error and metadata
     setValidationError(null);
     setFileMetadata({});
     setIsValidatingFiles(true);
-    
+
     try {
-      // Build metadata for all files
       const metadata = {};
-      
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         metadata[i] = {
@@ -165,71 +212,147 @@ const FeatureIcons = ({
           hasPrivacyConflict: false,
           conflictReason: null
         };
-        
-        // Count PDF pages
+
         if (file.type === 'application/pdf') {
           try {
             const pageCount = await getPDFPageCount(file);
             metadata[i].pageCount = pageCount;
-            
-            // Check privacy mode conflict
-            if (privacyModeActive && pageCount > 10) {
+
+            if (usePrivacyMode && pageCount > 10) {
               metadata[i].hasPrivacyConflict = true;
               metadata[i].conflictReason = `PDF hat ${pageCount} Seiten, maximal 10 erlaubt`;
             }
           } catch (error) {
-            metadata[i].pageCount = null; // Will show (?S.)
+            metadata[i].pageCount = null;
           }
-        } 
-        // Check image privacy conflict
-        else if (file.type.startsWith('image/') && privacyModeActive) {
+        }
+        else if (file.type.startsWith('image/') && usePrivacyMode) {
           metadata[i].hasPrivacyConflict = true;
           metadata[i].conflictReason = 'Bilder werden im Privacy Mode ignoriert';
         }
       }
-      
-      // Store metadata
+
       setFileMetadata(metadata);
-      
-      // Check for privacy mode violations
-      if (privacyModeActive) {
+
+      if (usePrivacyMode) {
         const hasConflicts = Object.values(metadata).some(m => m.hasPrivacyConflict);
         if (hasConflicts) {
           const conflictFiles = Object.entries(metadata)
             .filter(([, meta]) => meta.hasPrivacyConflict)
             .map(([index, meta]) => `${files[index].name}: ${meta.conflictReason}`)
             .join(', ');
-          
+
           setValidationError(`Privacy Mode Konflikt: ${conflictFiles}`);
-          // Reset file input
-          event.target.value = '';
           setIsValidatingFiles(false);
           return;
         }
       }
-      
-      // Files are valid, proceed with attachment
+
       if (onAttachmentClick) {
         onAttachmentClick(files);
       }
-      
+
     } catch (error) {
       setValidationError('Fehler bei der Dateiverarbeitung. Bitte versuchen Sie es erneut.');
-      event.target.value = '';
     } finally {
       setIsValidatingFiles(false);
-      // Reset file input to allow selecting the same file again
-      event.target.value = '';
     }
+  }, [usePrivacyMode, onAttachmentClick]);
+
+  const handleFileSelect = async (event) => {
+    const files = Array.from(event.target.files);
+    await processFiles(files);
+    event.target.value = '';
   };
 
+  // Drag-and-drop handlers
+  const handleDragEnter = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only set isDragging to false if leaving the content container entirely
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (isValidatingFiles) return;
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+
+    // Filter for accepted file types
+    const acceptedTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+    const validFiles = droppedFiles.filter(file => {
+      const extension = '.' + file.name.split('.').pop().toLowerCase();
+      return acceptedTypes.includes(extension) ||
+             file.type === 'application/pdf' ||
+             file.type.startsWith('image/');
+    });
+
+    if (validFiles.length === 0) {
+      setValidationError('Nur PDF und Bilder (.jpg, .jpeg, .png, .webp) sind erlaubt.');
+      return;
+    }
+
+    if (validFiles.length < droppedFiles.length) {
+      setValidationError(`${droppedFiles.length - validFiles.length} Datei(en) übersprungen (ungültiger Typ).`);
+    }
+
+    await processFiles(validFiles);
+  }, [isValidatingFiles, processFiles]);
+
+
+  // Show login prompt for non-authenticated users
+  if (!user) {
+    return (
+      <>
+        <div className={`feature-icons ${className}`} ref={featureIconsRef}>
+          <div className="feature-icons__login-prompt">
+            Für alle Features logge dich mit deinem Parteiaccount ein.{' '}
+            <button
+              type="button"
+              onClick={() => setShowLoginModal(true)}
+              className="feature-icons__login-link"
+            >
+              Login
+            </button>
+          </div>
+        </div>
+
+        {showLoginModal && (
+          <LoginPage
+            mode="required"
+            pageName="Features"
+            customMessage="Melde dich an, um alle Features zu nutzen."
+            onClose={() => setShowLoginModal(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
-    <div className={`feature-icons ${className}`}>
+    <div className={`feature-icons ${className}`} ref={featureIconsRef}>
       <div className="feature-icons-row">
         <button
-          className={`feature-icon-button ${webSearchActive ? 'active' : ''} ${clickedIcon === 'webSearch' ? 'clicked' : ''}`}
-          onClick={(event) => handleIconClick(event, 'webSearch', onWebSearchClick)}
+          className={`feature-icon-button ${useWebSearch ? 'active' : ''} ${clickedIcon === 'webSearch' ? 'clicked' : ''}`}
+          onClick={(event) => handleIconClick(event, 'webSearch', toggleWebSearch)}
           aria-label="Websuche aktivieren"
           tabIndex={tabIndex.webSearch}
           type="button"
@@ -237,125 +360,62 @@ const FeatureIcons = ({
           <HiGlobeAlt className="feature-icons__icon" />
           <span className="feature-icons-button__label">Websuche</span>
         </button>
-        
-        <div 
+
+        <div
           className="balanced-mode-container"
           ref={balancedContainerRef}
-          onMouseEnter={() => {
-            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-            setShowBalancedDropdown(true);
-          }}
-          onMouseLeave={() => {
-            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = setTimeout(() => setShowBalancedDropdown(false), 120);
-          }}
         >
           <button
-            className={`feature-icon-button ${(privacyModeActive || proModeActive) ? 'active' : ''} ${clickedIcon === 'balanced' ? 'clicked' : ''}`}
-            aria-label={privacyModeActive ? 'Privacy' : (proModeActive ? 'Pro' : 'Ausbalanciert')}
+            className={`feature-icon-button ${(usePrivacyMode || useProMode || useUltraMode) ? 'active' : ''} ${clickedIcon === 'balanced' ? 'clicked' : ''}`}
+            aria-label={useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Privacy' : (useProMode ? 'Pro' : 'Ausbalanciert'))}
             tabIndex={tabIndex.balancedMode}
             type="button"
-            onClick={(event) => handleIconClick(event, 'balanced', () => {
-              // Cycle modes on click: Balance -> Privacy -> Pro -> Balance
-              if (!privacyModeActive && !proModeActive) {
-                // Balanced -> Privacy
-                if (onPrivacyModeClick) onPrivacyModeClick();
-              } else if (privacyModeActive) {
-                // Privacy -> Pro
-                if (onProModeClick) onProModeClick();
-                if (onPrivacyModeClick) onPrivacyModeClick();
-              } else if (proModeActive) {
-                // Pro -> Balance
-                if (onProModeClick) onProModeClick();
-                if (onBalancedModeClick) onBalancedModeClick();
-              }
-            })}
+            onClick={(event) => {
+              handleIconClick(event, 'balanced');
+              handleDropdownToggle('balanced');
+            }}
           >
-            {(privacyModeActive && <HiEye className="feature-icons__icon" />) ||
-             (proModeActive && <HiLightningBolt className="feature-icons__icon" />) ||
+            {(useUltraMode && <HiRocketLaunch className="feature-icons__icon" />) ||
+             (usePrivacyMode && <HiEye className="feature-icons__icon" />) ||
+             (useProMode && <HiPlusCircle className="feature-icons__icon" />) ||
              (<HiAdjustments className="feature-icons__icon" />)}
             <span className="feature-icons-button__label">
-              {privacyModeActive ? 'Privacy' : (proModeActive ? 'Pro' : 'Ausbalanciert')}
+              {useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Privacy' : (useProMode ? 'Pro' : 'Ausbalanciert'))}
             </span>
           </button>
-          
-          {showBalancedDropdown && createPortal(
-            <div
-              className="balanced-dropdown-portal-wrapper"
-              style={{ top: dropdownPosition.top, left: dropdownPosition.left, zIndex: 2000, position: 'fixed' }}
-              onMouseEnter={() => {
-                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-                setShowBalancedDropdown(true);
-              }}
-              onMouseLeave={() => setShowBalancedDropdown(false)}
-            >
-              <div className="balanced-dropdown balanced-dropdown--portal" ref={dropdownRef}>
-              <button
-                className={`balanced-dropdown-item`}
-                onClick={(event) => handleIconClick(event, 'balanced', () => {
-                  // Ensure balanced mode clears other modes
-                  if (privacyModeActive && onPrivacyModeClick) onPrivacyModeClick();
-                  if (proModeActive && onProModeClick) onProModeClick();
-                  if (onBalancedModeClick) onBalancedModeClick();
-                })}
-                type="button"
-              >
-                <HiAdjustments className="balanced-dropdown-icon" />
-                <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Ausbalanciert</span>
-                  <span className="balanced-dropdown-desc">Ideal für die meisten Aufgaben. Läuft auf EU-Servern.</span>
-                </div>
-              </button>
-              
-              <button
-                className={`balanced-dropdown-item`}
-                onClick={(event) => handleIconClick(event, 'privacy', () => {
-                  // Ensure mutual exclusivity: turn off Pro if active
-                  if (proModeActive && onProModeClick) onProModeClick();
-                  if (onPrivacyModeClick) onPrivacyModeClick();
-                })}
-                type="button"
-              >
-                <HiEye className="balanced-dropdown-icon" />
-                <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Privacy</span>
-                  <span className="balanced-dropdown-desc">Nutzt ein selbstgehostetes Sprachmodell bei der Netzbegrünung (deutsche Server).</span>
-                </div>
-              </button>
-              
-              <button
-                className={`balanced-dropdown-item`}
-                onClick={(event) => handleIconClick(event, 'pro', () => {
-                  // Ensure mutual exclusivity: turn off Privacy if active
-                  if (privacyModeActive && onPrivacyModeClick) onPrivacyModeClick();
-                  if (onProModeClick) onProModeClick();
-                })}
-                type="button"
-              >
-                <HiLightningBolt className="balanced-dropdown-icon" />
-                <div className="balanced-dropdown-content">
-                  <span className="balanced-dropdown-title">Pro</span>
-                  <span className="balanced-dropdown-desc">Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte.</span>
-                </div>
-              </button>
-              </div>
-            </div>,
-            document.body
-          )}
         </div>
-        
-        <button
-          className={`feature-icon-button ${attachmentActive || attachedFiles.length > 0 ? 'active' : ''} ${clickedIcon === 'attachment' ? 'clicked' : ''}`}
-          onClick={handleAttachmentClick}
-          aria-label="Anhang hinzufügen"
-          tabIndex={tabIndex.attachment}
-          type="button"
-          disabled={isValidatingFiles}
+
+        <div
+          className={`content-mode-container ${isDragging ? 'dragging' : ''}`}
+          ref={contentContainerRef}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
-          <HiPaperClip className="feature-icons__icon" />
-          <span className="feature-icons-button__label">
-            {isValidatingFiles ? 'Prüfe Dateien...' : 'Anhang hinzufügen'}
-          </span>
+          <button
+            className={`feature-icon-button ${(totalContentCount > 0 || useAutomaticSearch) ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''} ${isDragging ? 'dragging' : ''}`}
+            onClick={(event) => {
+              handleIconClick(event, 'content');
+              handleDropdownToggle('content');
+            }}
+            aria-label="Inhalt"
+            tabIndex={tabIndex.attachment}
+            type="button"
+            disabled={isValidatingFiles}
+          >
+            {useAutomaticSearch ? (
+              <HiLightningBolt className="feature-icons__icon" />
+            ) : (
+              <HiPaperClip className="feature-icons__icon" />
+            )}
+            <span className="feature-icons-button__label">
+              {isValidatingFiles ? 'Prüfe...' : (
+                useAutomaticSearch ? 'Auto' : (totalContentCount > 0 ? `${totalContentCount}` : 'Inhalt')
+              )}
+            </span>
+          </button>
+
           <input
             ref={fileInputRef}
             type="file"
@@ -367,8 +427,201 @@ const FeatureIcons = ({
             aria-hidden="true"
             disabled={isValidatingFiles}
           />
-        </button>
+        </div>
+
+        {onInteractiveModeClick && (
+          <div className="interactive-mode-container">
+            <button
+              className={`feature-icon-button ${interactiveModeActive ? 'active' : ''} ${clickedIcon === 'interactiveMode' ? 'clicked' : ''}`}
+              onClick={(event) => handleIconClick(event, 'interactiveMode', onInteractiveModeClick)}
+              aria-label="Interaktiver Modus"
+              tabIndex={tabIndex.interactiveMode}
+              type="button"
+            >
+              <HiChatAlt2 className="feature-icons__icon" />
+              <span className="feature-icons-button__label">
+                {interactiveModeActive ? 'Interaktiv aktiv' : 'Interaktiv'}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {shouldShowAnweisungen && (
+          <div className="anweisungen-mode-container">
+            <button
+              className={`feature-icon-button ${anweisungenActive ? 'active' : ''} ${clickedIcon === 'anweisungen' ? 'clicked' : ''}`}
+              onClick={(event) => handleIconClick(event, 'anweisungen', onAnweisungenClick)}
+              aria-label="Anweisungen aktivieren"
+              tabIndex={tabIndex.anweisungen}
+              type="button"
+            >
+              <HiClipboardList className="feature-icons__icon" />
+              <span className="feature-icons-button__label">
+                {anweisungenActive ? 'Meine Anweisungen' : 'Anweisungen'}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Attached Files List */}
+      <AttachedFilesList
+        files={attachedFiles}
+        onRemoveFile={onRemoveFile}
+        fileMetadata={fileMetadata}
+        privacyModeActive={usePrivacyMode}
+      />
+
+      {/* Selected Documents and Texts */}
+      {(selectedDocumentIds.length > 0 || selectedTextIds.length > 0) && (
+        <div className="feature-icons__selected-content">
+          {selectedDocumentIds.map(docId => {
+            const doc = availableDocuments.find(d => d.id === docId);
+            if (!doc) return null;
+            return (
+              <div key={`doc-${docId}`} className="selected-content-tag">
+                <HiDocument className="selected-content-icon" />
+                <span className="selected-content-name">{doc.title}</span>
+                <button
+                  type="button"
+                  className="selected-content-remove-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleDocumentSelection(docId);
+                  }}
+                  aria-label={`${doc.title} entfernen`}
+                >
+                  <HiX />
+                </button>
+              </div>
+            );
+          })}
+          {selectedTextIds.map(textId => {
+            const text = availableTexts.find(t => t.id === textId);
+            if (!text) return null;
+            return (
+              <div key={`text-${textId}`} className="selected-content-tag">
+                <HiClipboardList className="selected-content-icon" />
+                <span className="selected-content-name">{text.title}</span>
+                <button
+                  type="button"
+                  className="selected-content-remove-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleTextSelection(textId);
+                  }}
+                  aria-label={`${text.title} entfernen`}
+                >
+                  <HiX />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Inline Balanced Mode Dropdown */}
+      <DropdownPortal
+        triggerRef={balancedContainerRef}
+        isOpen={activeDropdown === 'balanced'}
+        onClose={() => setActiveDropdown(null)}
+        className="balanced-dropdown-inline open"
+        widthRef={featureIconsRef}
+        gap={8}
+      >
+        <button
+          className={`balanced-dropdown-item ${!usePrivacyMode && !useProMode && !useUltraMode ? 'active' : ''}`}
+          onClick={(event) => handleIconClick(event, 'balanced', () => {
+            // Turn off all special modes for balanced
+            if (usePrivacyMode) togglePrivacyMode();
+            if (useProMode) toggleProMode();
+            if (useUltraMode) toggleUltraMode();
+            if (onBalancedModeClick) onBalancedModeClick();
+            setActiveDropdown(null);
+          })}
+          type="button"
+        >
+          <HiAdjustments className="balanced-dropdown-icon" />
+          <div className="balanced-dropdown-content">
+            <span className="balanced-dropdown-title">Ausbalanciert</span>
+            <span className="balanced-dropdown-desc">Ausgewogen. Läuft auf EU-Servern.</span>
+          </div>
+        </button>
+
+        <button
+          className={`balanced-dropdown-item ${usePrivacyMode ? 'active' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleIconClick(event, 'privacy', () => {
+              togglePrivacyMode();
+              setActiveDropdown(null);
+            });
+          }}
+          type="button"
+        >
+          <HiEye className="balanced-dropdown-icon" />
+          <div className="balanced-dropdown-content">
+            <span className="balanced-dropdown-title">Privacy</span>
+            <span className="balanced-dropdown-desc">Netzbegrünung-Server (Deutschland).</span>
+          </div>
+        </button>
+
+        <button
+          className={`balanced-dropdown-item ${useProMode ? 'active' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleIconClick(event, 'pro', () => {
+              toggleProMode();
+              setActiveDropdown(null);
+            });
+          }}
+          type="button"
+        >
+          <HiPlusCircle className="balanced-dropdown-icon" />
+          <div className="balanced-dropdown-content">
+            <span className="balanced-dropdown-title">Pro</span>
+            <span className="balanced-dropdown-desc">Erweiterte KI für komplexe Aufgaben.</span>
+          </div>
+        </button>
+
+        <button
+          className={`balanced-dropdown-item ${useUltraMode ? 'active' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleIconClick(event, 'ultra', () => {
+              toggleUltraMode();
+              setActiveDropdown(null);
+            });
+          }}
+          type="button"
+        >
+          <HiRocketLaunch className="balanced-dropdown-icon" />
+          <div className="balanced-dropdown-content">
+            <span className="balanced-dropdown-title">Ultra</span>
+            <span className="balanced-dropdown-desc">Maximale KI-Leistung für komplexe Aufgaben.</span>
+          </div>
+        </button>
+      </DropdownPortal>
+
+      {/* Content Dropdown */}
+      <DropdownPortal
+        triggerRef={contentContainerRef}
+        isOpen={activeDropdown === 'content'}
+        onClose={() => setActiveDropdown(null)}
+        className="content-dropdown-inline open"
+        widthRef={featureIconsRef}
+        gap={8}
+      >
+        <ContentSelector
+          mode="compact"
+          onAttachmentClick={onAttachmentClick}
+          onRemoveFile={onRemoveFile}
+          attachedFiles={attachedFiles}
+          usePrivacyMode={usePrivacyMode}
+          onDropdownClose={() => setActiveDropdown(null)}
+        />
+      </DropdownPortal>
+
       {showWebSearchInfoLink && (
         <div className="feature-icons__websearch-info" role="status" aria-live="polite">
           <span>Websuche aktiviert. </span>
@@ -393,48 +646,54 @@ const FeatureIcons = ({
           </button>
         </div>
       )}
-      
-      {/* Privacy mode file validation error */}
+
       {validationError && (
         <div className="feature-icons__validation-error" role="alert" aria-live="assertive">
           <span style={{ color: 'var(--error-color, #e74c3c)', fontSize: '0.9em' }}>
             ⚠️ {validationError}
           </span>
+          {validationError.includes('Privacy Mode') && (
+            <button
+              type="button"
+              className="feature-icons__error-action"
+              onClick={() => {
+                togglePrivacyMode();
+                setValidationError(null);
+              }}
+            >
+              Privacy Mode deaktivieren
+            </button>
+          )}
         </div>
       )}
-      
-      <AttachedFilesList 
-        files={attachedFiles}
-        onRemoveFile={onRemoveFile}
-        fileMetadata={fileMetadata}
-        privacyModeActive={privacyModeActive}
-      />
     </div>
   );
 };
 
 FeatureIcons.propTypes = {
-  onWebSearchClick: PropTypes.func.isRequired,
-  onPrivacyModeClick: PropTypes.func.isRequired,
-  onProModeClick: PropTypes.func.isRequired,
-  onBalancedModeClick: PropTypes.func.isRequired,
+  // Feature toggle props removed - now using store
+  onBalancedModeClick: PropTypes.func, // Optional callback for backward compatibility
   onAttachmentClick: PropTypes.func,
   onRemoveFile: PropTypes.func,
-  webSearchActive: PropTypes.bool,
-  privacyModeActive: PropTypes.bool,
-  proModeActive: PropTypes.bool,
+  onAnweisungenClick: PropTypes.func.isRequired,
+  onInteractiveModeClick: PropTypes.func,
+  anweisungenActive: PropTypes.bool,
+  interactiveModeActive: PropTypes.bool,
   attachedFiles: PropTypes.array,
   attachmentActive: PropTypes.bool,
   className: PropTypes.string,
   tabIndex: PropTypes.shape({
     webSearch: PropTypes.number,
     balancedMode: PropTypes.number,
-    attachment: PropTypes.number
+    attachment: PropTypes.number,
+    interactiveMode: PropTypes.number,
+    anweisungen: PropTypes.number
   }),
   showPrivacyInfoLink: PropTypes.bool,
   onPrivacyInfoClick: PropTypes.func,
   showWebSearchInfoLink: PropTypes.bool,
-  onWebSearchInfoClick: PropTypes.func
+  onWebSearchInfoClick: PropTypes.func,
+  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
 };
 
 export default FeatureIcons;

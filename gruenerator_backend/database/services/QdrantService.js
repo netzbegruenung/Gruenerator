@@ -1508,17 +1508,16 @@ class QdrantService {
      */
     async batchUpsertSocialMediaExamples(examples) {
         console.warn('[QdrantService] batchUpsertSocialMediaExamples is deprecated. Use QdrantOperations.batchUpsert() instead');
-        
+
         if (!examples || examples.length === 0) {
             return { success: true, indexed: 0, errors: [] };
         }
 
-        // Import QdrantOperations for delegation
         const { QdrantOperations } = await import('./QdrantOperations.js');
         const operations = new QdrantOperations(this.client);
 
         const points = examples.map(example => {
-            const numericId = Math.abs(example.id.split('').reduce((hash, char) => 
+            const numericId = Math.abs(example.id.split('').reduce((hash, char) =>
                 ((hash << 5) - hash) + char.charCodeAt(0), 0));
 
             return {
@@ -1534,16 +1533,24 @@ class QdrantService {
         });
 
         try {
-            await operations.batchUpsert(this.collections.social_media_examples, points, { maxRetries: 3 });
-            return { 
-                success: true, 
-                indexed: examples.length,
+            const BATCH_SIZE = 20;
+            let totalIndexed = 0;
+
+            for (let i = 0; i < points.length; i += BATCH_SIZE) {
+                const batch = points.slice(i, i + BATCH_SIZE);
+                await operations.batchUpsert(this.collections.social_media_examples, batch, { maxRetries: 3 });
+                totalIndexed += batch.length;
+            }
+
+            return {
+                success: true,
+                indexed: totalIndexed,
                 errors: []
             };
         } catch (error) {
             console.error('[QdrantService] Batch upsert failed:', error);
-            return { 
-                success: false, 
+            return {
+                success: false,
                 indexed: 0,
                 errors: [{ message: error.message, count: examples.length }]
             };

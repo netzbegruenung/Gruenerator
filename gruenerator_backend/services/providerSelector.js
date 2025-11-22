@@ -41,18 +41,38 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   let model = options.model || 'mistral-medium-latest';
   let useBedrock = false;
 
-  // Pro mode (useBedrock flag) - routes to high-quality Bedrock model
-  if (options.useBedrock === true) {
+  // Ultra mode (useUltraMode flag) - routes to Claude Sonnet 4.5 via Bedrock
+  if (options.useUltraMode === true) {
     provider = 'bedrock';
     useBedrock = true;
-    // Use Claude 4 for Pro mode unless specific model is requested
-    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-20250514-v1:0';
+    model = 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+  }
+  // Pro mode (useProMode flag) - routes to high-quality Magistral model
+  else if (options.useProMode === true) {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
+    useBedrock = false;
+  }
+  // Bedrock mode (useBedrock flag) - routes to high-quality Bedrock model
+  else if (options.useBedrock === true) {
+    provider = 'bedrock';
+    useBedrock = true;
+    // Use Claude 4.5 for Bedrock mode unless specific model is requested
+    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
   }
 
   // Type-based defaults (preserve existing special cases)
   if (type === 'qa_tools') {
     provider = 'mistral';
     model = options.model || 'mistral-medium-latest';
+    useBedrock = false;
+  } else if (type === 'antrag_simple' || type === 'antrag' || type === 'kleine_anfrage' || type === 'grosse_anfrage') {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
+    useBedrock = false;
+  } else if (type === 'antrag_question_generation') {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
     useBedrock = false;
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
     provider = 'bedrock';

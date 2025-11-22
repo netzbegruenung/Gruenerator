@@ -8,6 +8,7 @@ import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
 import HelpDisplay from '../../HelpDisplay';
+import EnrichmentSourcesDisplay from '../../EnrichmentSourcesDisplay';
 import apiClient from '../../../utils/apiClient';
 import { useLazyAuth } from '../../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
@@ -58,6 +59,7 @@ const DisplaySection = forwardRef(({
   showResetButton = false,
   onReset,
   renderEmptyState = null,
+  customEditContent = null,
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -138,7 +140,7 @@ const DisplaySection = forwardRef(({
 
 
   const actionButtons = (
-    <ActionButtons 
+    <ActionButtons
       content={activeContent}
       isEditing={false}
       showExport={true}
@@ -200,12 +202,19 @@ const DisplaySection = forwardRef(({
               useMarkdown={useMarkdown}
               componentName={componentName}
               helpContent={helpContent}
+              onEditModeToggle={onEditModeToggle}
             />
           </>
         ) : (
           renderEmptyState ? renderEmptyState() : null
         )}
       </div>
+      {/* Render enrichment sources if available */}
+      {hasRenderableContent && storeGeneratedTextMetadata?.enrichmentSummary && (
+        <EnrichmentSourcesDisplay
+          enrichmentSummary={storeGeneratedTextMetadata.enrichmentSummary}
+        />
+      )}
       {/* Render additional display actions if provided */}
       {displayActions && (
         <div className="display-action-section">
@@ -250,6 +259,8 @@ DisplaySection.propTypes = {
   showResetButton: PropTypes.bool,
   onReset: PropTypes.func,
   renderEmptyState: PropTypes.func,
+  customEditContent: PropTypes.node,
+  onEditModeToggle: PropTypes.func,
 };
 
 DisplaySection.defaultProps = {

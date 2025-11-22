@@ -1,11 +1,10 @@
 import { useForm, useWatch } from 'react-hook-form';
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import useApiSubmit from '../../../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
-import useKnowledge from '../../../hooks/useKnowledge';
+import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
+import { useDocumentsStore } from '../../../../stores/documentsStore';
 import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex';
-import { createKnowledgeFormNotice } from '../../../../utils/knowledgeFormUtils';
 import { prepareFilesForSubmission } from '../../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
@@ -30,17 +29,17 @@ const useFeatureToggles = (control, defaultValues) => {
     defaultValue: defaultValues.usePrivacyMode ?? false
   });
 
-  const bedrock = useWatch({
+  const proMode = useWatch({
     control,
-    name: 'useBedrock',
-    defaultValue: defaultValues.useBedrock ?? false
+    name: 'useProMode',
+    defaultValue: defaultValues.useProMode ?? false
   });
 
   return useMemo(() => ({
     webSearch,
     privacyMode,
-    bedrock
-  }), [webSearch, privacyMode, bedrock]);
+    proMode
+  }), [webSearch, privacyMode, proMode]);
 };
 
 const useBaseForm = ({
@@ -65,6 +64,7 @@ const useBaseForm = ({
   enablePlatformSelector = false,
   disableKnowledgeSystem = false,
   useFeatureIcons = true,
+  defaultMode = null,
 
   ...restOptions
 } = {}) => {
@@ -107,6 +107,27 @@ const useBaseForm = ({
   } = hookFormMethods;
 
   const toggles = useFeatureToggles(control, defaultValues);
+
+  // ALWAYS call hooks unconditionally (Rules of Hooks)
+  // Authentication hooks
+  const { user, isAuthenticated } = useOptimizedAuth();
+  const { memoryEnabled } = useAuthStore();
+
+  // Tab index hooks - pass undefined (not null) when not needed to avoid warnings
+  const tabIndex = useTabIndex(tabIndexKey || undefined);
+  const baseFormTabIndex = useBaseFormTabIndex(tabIndexKey || undefined);
+
+  // Store hooks
+  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
+  const { setUIConfig, setAvailableDocuments, setAvailableTexts } = useGeneratorSelectionStore();
+  const { fetchCombinedContent, documents: documentsFromStore, texts: textsFromStore } = useDocumentsStore();
+
+  // State hooks
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [processedAttachments, setProcessedAttachments] = useState([]);
+
+  // API hook - pass null when not needed
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(generatorType ? endpoint : null);
 
   // Enhanced reset function that preserves original API
   const enhancedReset = useCallback((values = defaultValues) => {
@@ -199,91 +220,84 @@ const useBaseForm = ({
     setGlobalError('');
   }, []);
 
-  // Generator-specific logic
-  let generatorLogic = null;
+  // Initialize knowledge system (UI config + data fetching)
+  // Hook must be called unconditionally, condition goes inside
+  useEffect(() => {
+    if (generatorType && !disableKnowledgeSystem) {
+      // Set UI configuration to enable knowledge features
+      setUIConfig({
+        enableKnowledge: true,
+        enableDocuments: true,
+        enableTexts: true,
+        enableSourceSelection: true
+      });
 
-  if (generatorType) {
-    // Authentication
-    const { user, isAuthenticated } = useOptimizedAuth();
-    const { memoryEnabled } = useAuthStore();
-
-    // Initialize knowledge system (only if not disabled)
-    if (!disableKnowledgeSystem) {
-      useKnowledge({
-        instructionType,
-        ui: {
-          enableKnowledge: true,
-          enableDocuments: true,
-          enableTexts: true
-        }
+      // Fetch documents and texts from backend
+      fetchCombinedContent().catch((error) => {
+        console.error('[useBaseForm] Failed to fetch combined content:', error);
       });
     }
+  }, [generatorType, disableKnowledgeSystem, setUIConfig, fetchCombinedContent]);
 
-    // Tab index management
-    const tabIndex = useTabIndex(tabIndexKey);
-    const baseFormTabIndex = useBaseFormTabIndex(tabIndexKey);
-
-    // Store integration
-    const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-
-    // Knowledge system integration (only if not disabled)
-    let source, availableKnowledge, isInstructionsActive, instructions, getActiveInstruction, groupDetailsData;
-    let selectedKnowledgeIds, selectedDocumentIds, selectedTextIds;
-
-    if (!disableKnowledgeSystem) {
-      const knowledgeStore = useGeneratorKnowledgeStore();
-      source = knowledgeStore.source;
-      availableKnowledge = knowledgeStore.availableKnowledge;
-      isInstructionsActive = knowledgeStore.isInstructionsActive;
-      instructions = knowledgeStore.instructions;
-      getActiveInstruction = knowledgeStore.getActiveInstruction;
-      groupDetailsData = knowledgeStore.groupData;
-      // Extract selected IDs for backend processing - backend handles all content extraction
-      selectedKnowledgeIds = knowledgeStore.selectedKnowledgeIds;
-      selectedDocumentIds = knowledgeStore.selectedDocumentIds;
-      selectedTextIds = knowledgeStore.selectedTextIds;
-    } else {
-      // Provide default values when knowledge system is disabled
-      source = { type: 'neutral' };
-      availableKnowledge = [];
-      isInstructionsActive = false;
-      instructions = {};
-      getActiveInstruction = () => null;
-      groupDetailsData = null;
-      selectedKnowledgeIds = [];
-      selectedDocumentIds = [];
-      selectedTextIds = [];
+  // Sync documents from documentsStore to generatorSelectionStore
+  useEffect(() => {
+    if (generatorType && !disableKnowledgeSystem && documentsFromStore) {
+      setAvailableDocuments(documentsFromStore);
     }
+  }, [generatorType, disableKnowledgeSystem, documentsFromStore, setAvailableDocuments]);
 
-    // File attachments
-    const [attachedFiles, setAttachedFiles] = useState([]);
-    const [processedAttachments, setProcessedAttachments] = useState([]);
+  // Sync texts from documentsStore to generatorSelectionStore
+  useEffect(() => {
+    if (generatorType && !disableKnowledgeSystem && textsFromStore) {
+      setAvailableTexts(textsFromStore);
+    }
+  }, [generatorType, disableKnowledgeSystem, textsFromStore, setAvailableTexts]);
 
-    // API submission
-    const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(endpoint);
+  // Selection store integration - always get store, conditionally use values
+  const selectionStore = useGeneratorSelectionStore();
 
-    // Create form notice
-    const formNotice = useMemo(() => (
-      createKnowledgeFormNotice({
-        source,
-        isLoadingGroupDetails: false,
-        isInstructionsActive,
-        instructions,
-        instructionType,
-        groupDetailsData,
-        availableKnowledge,
-      })
-    ), [
-      source,
-      isInstructionsActive,
-      instructions,
-      instructionType,
-      groupDetailsData,
-      availableKnowledge
-    ]);
+  // Track component switches and apply default modes
+  useEffect(() => {
+    if (componentName && generatorType) {
+      const { setActiveComponent } = useGeneratorSelectionStore.getState();
 
-    // Feature toggles configuration
-    const webSearchFeatureToggle = useMemo(() => ({
+      // This will:
+      // 1. Detect if we switched to a new component
+      // 2. Reset features when switching
+      // 3. Apply this component's default mode (from store or param)
+      setActiveComponent(componentName, defaultMode);
+    }
+  }, [componentName, generatorType]); // Re-run when component changes
+
+  // Conditionally extract values based on knowledge system status
+  const source = (!generatorType || disableKnowledgeSystem) ? { type: 'neutral' } : selectionStore.source;
+  const isInstructionsActive = (!generatorType || disableKnowledgeSystem) ? false : selectionStore.isInstructionsActive;
+  const instructions = (!generatorType || disableKnowledgeSystem) ? {} : selectionStore.instructions;
+  const getActiveInstruction = (!generatorType || disableKnowledgeSystem) ? () => null : selectionStore.getActiveInstruction;
+  const groupDetailsData = (!generatorType || disableKnowledgeSystem) ? null : selectionStore.groupData;
+  const selectedDocumentIds = (!generatorType || disableKnowledgeSystem) ? [] : selectionStore.selectedDocumentIds;
+  const selectedTextIds = (!generatorType || disableKnowledgeSystem) ? [] : selectionStore.selectedTextIds;
+  const useAutomaticSearch = (!generatorType || disableKnowledgeSystem) ? false : selectionStore.useAutomaticSearch;
+
+  // File attachment handlers - always define, conditionally use
+  const handleAttachmentClick = useCallback(async (files) => {
+    if (!generatorType) return;
+    try {
+      const processed = await prepareFilesForSubmission(files);
+      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
+      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+    } catch (error) {
+      console.error(`[${generatorType}] File processing error:`, error);
+    }
+  }, [generatorType]);
+
+  const handleRemoveFile = useCallback((index) => {
+    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+  }, []);
+
+  // Feature toggles configuration
+  const webSearchFeatureToggle = useMemo(() => ({
       isActive: Boolean(toggles.webSearch),
       onToggle: (checked) => {
         setFieldValue('useWebSearchTool', checked);
@@ -292,9 +306,9 @@ const useBaseForm = ({
       icon: HiGlobeAlt,
       description: "",
       tabIndex: tabIndex?.webSearch || 11
-    }), [toggles.webSearch, setFieldValue, tabIndex?.webSearch]);
+  }), [toggles.webSearch, setFieldValue, tabIndex?.webSearch]);
 
-    const privacyModeToggle = useMemo(() => ({
+  const privacyModeToggle = useMemo(() => ({
       isActive: Boolean(toggles.privacyMode),
       onToggle: (checked) => {
         setFieldValue('usePrivacyMode', checked);
@@ -303,41 +317,26 @@ const useBaseForm = ({
       icon: HiShieldCheck,
       description: "Verwendet deutsche Server der Netzbegrünung.",
       tabIndex: tabIndex?.privacyMode || 13
-    }), [toggles.privacyMode, setFieldValue, tabIndex?.privacyMode]);
+  }), [toggles.privacyMode, setFieldValue, tabIndex?.privacyMode]);
 
-    const proModeToggle = useMemo(() => {
-      if (!features.includes('proMode')) {
+  const proModeToggle = useMemo(() => {
+      if (!generatorType || !features.includes('proMode')) {
         return null;
       }
 
       return {
-        isActive: Boolean(toggles.bedrock),
+        isActive: Boolean(toggles.proMode),
         onToggle: (checked) => {
-          setFieldValue('useBedrock', checked);
+          setFieldValue('useProMode', checked);
         },
-        label: "Pro Mode",
-        description: "Verwendet fortgeschrittenes KI-Modell"
+        label: "Pro-Mode",
+        description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
       };
-    }, [features, toggles.bedrock, setFieldValue]);
+  }, [generatorType, features, toggles.proMode, setFieldValue]);
 
-    // File attachment handlers
-    const handleAttachmentClick = useCallback(async (files) => {
-      try {
-        const processed = await prepareFilesForSubmission(files);
-        setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-        setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-      } catch (error) {
-        console.error(`[${generatorType}] File processing error:`, error);
-      }
-    }, [generatorType]);
-
-    const handleRemoveFile = useCallback((index) => {
-      setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-      setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
-    }, []);
-
-    // Unified submission handler
-    const onSubmitGenerator = useCallback(async (rhfData) => {
+  // Unified submission handler
+  const onSubmitGenerator = useCallback(async (rhfData) => {
+      if (!generatorType) return;
       setStoreIsLoading(true);
 
       try {
@@ -345,7 +344,8 @@ const useBaseForm = ({
           ...rhfData,
           useWebSearchTool: rhfData.useWebSearchTool,
           usePrivacyMode: rhfData.usePrivacyMode,
-          useBedrock: rhfData.useBedrock,
+          useProMode: rhfData.useProMode,
+          useBedrock: false,
           attachments: processedAttachments
         };
 
@@ -382,19 +382,19 @@ const useBaseForm = ({
 
         // Send only IDs and searchQuery - backend handles all content extraction
         formDataToSubmit.customPrompt = customPrompt;
-        formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
         formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
         formDataToSubmit.selectedTextIds = selectedTextIds || [];
         formDataToSubmit.searchQuery = searchQuery || '';
+        formDataToSubmit.useAutomaticSearch = useAutomaticSearch || false;
 
         // Debug logging
         if (process.env.NODE_ENV === 'development') {
           console.log('[useBaseForm] Submitting with IDs:', {
-            selectedKnowledgeIds: formDataToSubmit.selectedKnowledgeIds.length,
             selectedDocumentIds: formDataToSubmit.selectedDocumentIds.length,
             selectedTextIds: formDataToSubmit.selectedTextIds.length,
             hasSearchQuery: Boolean(formDataToSubmit.searchQuery),
-            hasCustomPrompt: Boolean(formDataToSubmit.customPrompt)
+            hasCustomPrompt: Boolean(formDataToSubmit.customPrompt),
+            useAutomaticSearch: formDataToSubmit.useAutomaticSearch
           });
         }
 
@@ -413,24 +413,23 @@ const useBaseForm = ({
       } finally {
         setStoreIsLoading(false);
       }
-    }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, generatorType, instructionType, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+  }, [generatorType, submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, instructionType, selectedDocumentIds, selectedTextIds, useAutomaticSearch]);
 
-    // Generated content handling
-    const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
+  // Generated content handling
+  const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
 
-    const handleGeneratedContentChange = useCallback((content) => {
+  const handleGeneratedContentChange = useCallback((content) => {
       setGeneratedText(componentName, content);
-    }, [setGeneratedText, componentName]);
+  }, [setGeneratedText, componentName]);
 
-    // Base form props compilation
-    const baseFormProps = useMemo(() => ({
+  // Base form props compilation
+  const baseFormProps = useMemo(() => ({
       title: helpContent?.title || `${generatorType} Generator`,
       loading,
       success,
       error,
       generatedContent,
       onGeneratedContentChange: handleGeneratedContentChange,
-      formNotice,
       enableKnowledgeSelector: !disableKnowledgeSystem,
       enableDocumentSelector: !disableKnowledgeSystem,
       showProfileSelector: !disableKnowledgeSystem,
@@ -459,15 +458,16 @@ const useBaseForm = ({
       documentSelectorTabIndex: baseFormTabIndex?.documentSelectorTabIndex,
       submitButtonTabIndex: baseFormTabIndex?.submitButtonTabIndex,
       formControl: control
-    }), [
+  }), [
       helpContent, generatorType, loading, success, error, generatedContent,
-      handleGeneratedContentChange, formNotice, disableKnowledgeSystem, enablePlatformSelector, platformOptions,
+      handleGeneratedContentChange, disableKnowledgeSystem, enablePlatformSelector, platformOptions,
       componentName, features, webSearchFeatureToggle, privacyModeToggle, proModeToggle,
       handleAttachmentClick, handleRemoveFile, attachedFiles, tabIndex, baseFormTabIndex,
       control, useFeatureIcons
-    ]);
+  ]);
 
-    generatorLogic = {
+  // Build generator logic object (conditionally included in return)
+  const generatorLogic = generatorType ? {
       loading,
       success,
       error,
@@ -481,10 +481,8 @@ const useBaseForm = ({
       toggles,
       tabIndex,
       baseFormTabIndex,
-      baseFormProps,
-      formNotice
-    };
-  }
+      baseFormProps
+  } : null;
 
   // Return simplified form interface
   return {

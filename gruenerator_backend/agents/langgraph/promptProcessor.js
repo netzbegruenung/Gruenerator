@@ -192,33 +192,6 @@ function buildSystemRole(config, requestData, generatorData = null) {
     systemRole += ' ' + config.systemRoleAppendix;
   }
 
-  // Add bundestagApi instructions if applicable
-  if (config.features?.bundestagApi && requestData.useBundestagApi) {
-    systemRole += ' ' + config.features.bundestagApiInstructions;
-  }
-
-  // Add platform-specific style guidelines
-  if (requestData.platforms && Array.isArray(requestData.platforms) && config.platforms) {
-    const platformGuidelines = [];
-    for (const platform of requestData.platforms) {
-      const platformConfig = config.platforms[platform];
-      if (platformConfig) {
-        const guidelines = [];
-        if (platformConfig.style) guidelines.push(`Stil: ${platformConfig.style}`);
-        if (platformConfig.focus) guidelines.push(`Fokus: ${platformConfig.focus}`);
-        if (platformConfig.additionalGuidelines) guidelines.push(`Zusätzliche Richtlinien:\n${platformConfig.additionalGuidelines}`);
-
-        if (guidelines.length > 0) {
-          const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
-          platformGuidelines.push(`\n\n**${platformName}:**\n${guidelines.join('\n')}`);
-        }
-      }
-    }
-    if (platformGuidelines.length > 0) {
-      systemRole += platformGuidelines.join('');
-    }
-  }
-
   return systemRole;
 }
 
@@ -306,13 +279,55 @@ function getFormattingInstructions(config) {
   return config.formatting || null;
 }
 
+// Build platform-specific guidelines
+function buildPlatformGuidelines(config, requestData) {
+  if (!requestData.platforms || !Array.isArray(requestData.platforms) || !config.platforms) {
+    return null;
+  }
+
+  const platformGuidelines = [];
+  for (const platform of requestData.platforms) {
+    const platformConfig = config.platforms[platform];
+    if (platformConfig) {
+      const guidelines = [];
+      if (platformConfig.style) guidelines.push(`Stil: ${platformConfig.style}`);
+      if (platformConfig.focus) guidelines.push(`Fokus: ${platformConfig.focus}`);
+      if (platformConfig.additionalGuidelines) guidelines.push(`Zusätzliche Richtlinien:\n${platformConfig.additionalGuidelines}`);
+
+      if (guidelines.length > 0) {
+        const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+        platformGuidelines.push(`**${platformName}:**\n${guidelines.join('\n')}`);
+      }
+    }
+  }
+
+  return platformGuidelines.length > 0 ? platformGuidelines.join('\n\n') : null;
+}
+
 // Get task-specific instructions
 function getTaskInstructions(config, requestData) {
-  if (!config.taskInstructions) return null;
-  return SimpleTemplateEngine.render(config.taskInstructions, {
-    ...requestData,
-    config
-  });
+  const parts = [];
+
+  // Add base task instructions
+  if (config.taskInstructions) {
+    parts.push(SimpleTemplateEngine.render(config.taskInstructions, {
+      ...requestData,
+      config
+    }));
+  }
+
+  // Add bundestagApi instructions if applicable
+  if (config.features?.bundestagApi && requestData.useBundestagApi && config.features.bundestagApiInstructions) {
+    parts.push(config.features.bundestagApiInstructions);
+  }
+
+  // Add platform-specific guidelines
+  const platformGuidelines = buildPlatformGuidelines(config, requestData);
+  if (platformGuidelines) {
+    parts.push(platformGuidelines);
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : null;
 }
 
 // Get output format instructions
@@ -365,6 +380,16 @@ function getAIOptions(config, requestData, typeConfig = null) {
     baseOptions.useBedrock = true;
   }
 
+  // Pass useProMode flag to options
+  if (requestData.useProMode) {
+    baseOptions.useProMode = true;
+  }
+
+  // Pass useUltraMode flag to options
+  if (requestData.useUltraMode) {
+    baseOptions.useUltraMode = true;
+  }
+
   return baseOptions;
 }
 
@@ -378,10 +403,10 @@ async function processGraphRequest(routeType, req, res) {
       usePrivacyMode,
       provider,
       knowledgeContent,
-      selectedKnowledgeIds,
       selectedDocumentIds,
       selectedTextIds,
-      searchQuery
+      searchQuery,
+      useAutomaticSearch
     } = requestData;
 
     // Handle structured customPrompt from frontend
@@ -407,10 +432,10 @@ async function processGraphRequest(routeType, req, res) {
       provider: requestData.provider,
       hasCustomPrompt: !!customPrompt,
       hasKnowledgeContent: !!extractedKnowledgeContent,
-      hasSelectedKnowledge: !!(selectedKnowledgeIds && selectedKnowledgeIds.length > 0),
       hasSelectedDocuments: !!(selectedDocumentIds && selectedDocumentIds.length > 0),
       hasSelectedTexts: !!(selectedTextIds && selectedTextIds.length > 0),
       hasSearchQuery: !!searchQuery,
+      useAutomaticSearch: useAutomaticSearch || false,
       hasOtherData: Object.keys(requestData).length
     });
 
@@ -469,10 +494,10 @@ async function processGraphRequest(routeType, req, res) {
       outputFormat: outputFormat || null,
       instructions: extractedInstructions || null,
       knowledgeContent: extractedKnowledgeContent || null,
-      selectedKnowledgeIds: selectedKnowledgeIds || [],
       selectedDocumentIds: selectedDocumentIds || [],
       selectedTextIds: selectedTextIds || [],
       searchQuery: searchQuery || null,
+      useAutomaticSearch: useAutomaticSearch || false,
       examples: [], // TODO: Implement examples from config
       provider,
       aiWorkerPool: req.app.locals.aiWorkerPool,
@@ -570,6 +595,8 @@ async function processGraphRequest(routeType, req, res) {
       docQnAUsed: enrichedState.enrichmentMetadata?.enableDocQnA || false,
       vectorSearchUsed: (selectedDocumentIds && selectedDocumentIds.length > 0) || false,
       webSearchUsed: enrichedState.enrichmentMetadata?.webSearchSources?.length > 0 || false,
+      autoSearchUsed: enrichedState.enrichmentMetadata?.autoSearchUsed || false,
+      autoSelectedDocuments: enrichedState.enrichmentMetadata?.autoSelectedDocuments || [],
       sources: [
         ...((enrichedState.enrichmentMetadata?.urlsProcessed || []).map(url => ({
           type: 'url',
@@ -580,6 +607,12 @@ async function processGraphRequest(routeType, req, res) {
           type: 'websearch',
           title: source.title || source.url,
           url: source.url
+        }))),
+        ...((enrichedState.enrichmentMetadata?.autoSelectedDocuments || []).map(doc => ({
+          type: 'auto-document',
+          title: doc.title,
+          filename: doc.filename,
+          relevance: doc.relevance_percent
         })))
       ]
     };
@@ -612,5 +645,7 @@ module.exports = {
   buildWebSearchQuery,
   getFormattingInstructions,
   buildConstraints,
-  getAIOptions
+  getAIOptions,
+  buildPlatformGuidelines,
+  getTaskInstructions
 };

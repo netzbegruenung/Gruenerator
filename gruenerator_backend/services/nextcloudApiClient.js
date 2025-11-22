@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { sanitizeFilename } from '../utils/securityUtils.js';
 
 class NextcloudApiClient {
     constructor(shareLink) {
@@ -288,14 +289,10 @@ class NextcloudApiClient {
     
     /**
      * Sanitize filename for safe upload
+     * Uses centralized security utility to ensure consistent sanitization
      */
     sanitizeFilename(filename) {
-        // Remove or replace unsafe characters
-        return filename
-            .replace(/[<>:"/\\|?*]/g, '_')  // Replace unsafe chars with underscore
-            .replace(/\.\./g, '_')          // Replace .. with underscore
-            .replace(/^\./, '_')            // Replace leading dot
-            .trim();
+        return sanitizeFilename(filename);
     }
     
     /**

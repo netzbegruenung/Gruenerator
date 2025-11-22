@@ -74,21 +74,33 @@ const replaceTemplate = (template, data) => {
     return template;
   }
 
-  const result = template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+  let result = template;
+
+  // Handle {{#if preserveName}}...{{else}}...{{/if}} conditional
+  if (result.includes('{{#if preserveName}}')) {
+    const preserveNameRegex = /\{\{#if preserveName\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/;
+    const match = result.match(preserveNameRegex);
+    if (match) {
+      const preserveBranch = match[1];
+      const nonPreserveBranch = match[2];
+      result = result.replace(match[0], data.preserveName ? preserveBranch : nonPreserveBranch);
+    }
+  }
+
+  // Handle {{#if (and thema details)}}...{{else}}...{{/if}} conditional
+  if (result.includes('{{#if (and thema details)}}')) {
+    const themaDetailsRegex = /\{\{#if \(and thema details\)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/;
+    const match = result.match(themaDetailsRegex);
+    if (match) {
+      const themaBranch = match[1];
+      const quoteBranch = match[2];
+      result = result.replace(match[0], (data.thema && data.details) ? themaBranch : quoteBranch);
+    }
+  }
+
+  // Replace simple placeholders
+  result = result.replace(/\{\{([^#/}][^}]*)\}\}/g, (match, key) => {
     const cleanKey = key.trim();
-
-    // Handle conditional logic
-    if (cleanKey.includes('#if')) {
-      // Simple conditional handling for (and thema details)
-      if (cleanKey.includes('and thema details')) {
-        return data.thema && data.details ? '' : '{{else}}';
-      }
-      return '';
-    }
-
-    if (cleanKey === '#else' || cleanKey === '/if') {
-      return '';
-    }
 
     // Handle default values
     if (cleanKey.includes('|default:')) {
@@ -99,7 +111,7 @@ const replaceTemplate = (template, data) => {
         : defaultValue.replace(/'/g, '');
     }
 
-    return data[cleanKey] || '';
+    return data[cleanKey] !== undefined ? data[cleanKey] : '';
   });
 
   return result;
@@ -215,8 +227,8 @@ const handleDreizeilenRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-
-  const config = prompts.dreizeilen;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.dreizeilen;
   const systemRole = config.systemRole;
 
   const getRequestTemplate = () => {
@@ -423,7 +435,8 @@ const handleZitatRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  const config = prompts.zitat;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.zitat;
   const systemRole = config.systemRole;
 
   const requestTemplate = replaceTemplate(
@@ -558,7 +571,8 @@ const handleZitatPureRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  const config = prompts.zitat_pure;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.zitat_pure;
   const systemRole = config.systemRole;
 
   const requestTemplate = replaceTemplate(
@@ -685,7 +699,8 @@ const handleHeadlineRequest = async (req, res) => {
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  const config = prompts.headline;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.headline;
   const systemRole = config.systemRole;
 
   const requestTemplate = replaceTemplate(
@@ -839,7 +854,8 @@ const handleInfoRequest = async (req, res) => {
 
   console.log('[sharepic_info] Config:', { singleItem, skipShortener, count, source });
 
-  const config = prompts.info;
+  // Use campaign prompt if provided, otherwise use standard
+  const config = req.body._campaignPrompt || prompts.info;
   const systemRole = config.systemRole;
 
   const getInfoRequestTemplate = () => {

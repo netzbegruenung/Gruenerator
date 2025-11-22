@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactSelect from 'react-select';
 import BaseForm from '../../../components/common/BaseForm';
@@ -8,48 +8,29 @@ import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWra
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import apiClient from '../../../components/utils/apiClient';
-// import { useDynamicTextSize } from '../../../components/utils/commonFunctions';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { HiInformationCircle, HiShieldCheck } from 'react-icons/hi';
-import { createKnowledgeFormNotice } from '../../../utils/knowledgeFormUtils';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { HiInformationCircle } from 'react-icons/hi';
+import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorKnowledgeStore } from '../../../stores/core/generatorKnowledgeStore';
-import useKnowledge from '../../../components/hooks/useKnowledge';
-import { useTabIndex, useBaseFormTabIndex } from '../../../hooks/useTabIndex';
+import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
+import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
 import FileUpload from '../../../components/common/FileUpload';
 import Icon from '../../../components/common/Icon';
 import PlatformSelector from '../../../components/common/PlatformSelector';
-import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
-import { HiGlobeAlt } from 'react-icons/hi';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import { getIcon } from '../../../config/icons';
+import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { isAuthenticated, user } = useOptimizedAuth();
-  const { Input, Textarea } = useFormFields();
-  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
-
-  // Initialize knowledge system with UI configuration
-  useKnowledge({ 
-    instructionType: 'social', 
-    ui: {
-      enableKnowledge: true,
-      enableDocuments: true,
-      enableTexts: true
-    }
-  });
-
-  // Initialize tabIndex configuration
-  const tabIndex = useTabIndex('PRESS_SOCIAL');
-  const baseFormTabIndex = useBaseFormTabIndex('PRESS_SOCIAL');
 
   const platformOptions = useMemo(() => {
     const options = [
@@ -94,14 +75,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic'); // No default selection or filtered
   }, [initialContent, isAuthenticated]);
 
-  const {
-    control,
-    handleSubmit,
-    reset,
-    setValue,
-    getValues,
-    formState: { errors }
-  } = useForm({
+  // Use useBaseForm to get automatic document/text fetching
+  const form = useBaseForm({
     defaultValues: {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
@@ -109,19 +84,29 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       presseabbinder: '',
       platforms: defaultPlatforms,
       sharepicType: 'default',
-      zitatAuthor: '',
-      useWebSearchTool: false,
-      usePrivacyMode: false,
-      useProMode: false
+      zitatAuthor: ''
     },
-    shouldUnregister: false  // Preserve field values when conditionally rendered
+    shouldUnregister: false,  // Preserve field values when conditionally rendered
+    generatorType: 'presse-social',
+    componentName: 'presse-social',
+    endpoint: '/claude_social',
+    instructionType: 'social',
+    features: ['webSearch', 'privacyMode', 'proMode'],
+    tabIndexKey: 'PRESS_SOCIAL',
+    disableKnowledgeSystem: false  // Enable knowledge system for document/text fetching
   });
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    setValue,
+    getValues,
+    errors
+  } = form;
 
   const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
   const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
-  const watchUseWebSearch = useWatch({ control, name: 'useWebSearchTool', defaultValue: false });
-  const watchUsePrivacyMode = useWatch({ control, name: 'usePrivacyMode', defaultValue: false });
-  const watchUseProMode = useWatch({ control, name: 'useProMode', defaultValue: false });
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
   const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
@@ -144,6 +129,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
 
+  // Get selection store state (fetching is now handled by useBaseForm)
+  // Use proper selectors for reactive subscriptions
+  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
+  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
+  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
+  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+
+  // Fetch user's custom instructions
+  const customPrompt = useUserInstructions('social', isInstructionsActive);
+
   // URL crawler hook for automatic link processing
   const {
     crawledUrls,
@@ -159,48 +155,28 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const handleUrlsDetected = useCallback(async (urls) => {
     // Only crawl if not already crawling and URLs are detected
     if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), watchUsePrivacyMode);
+      await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, watchUsePrivacyMode]);
+  }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url) => {
-    await retryUrl(url, watchUsePrivacyMode);
-  }, [retryUrl, watchUsePrivacyMode]);
-  // const textSize = useDynamicTextSize(socialMediaContent, 1.2, 0.8, [1000, 2000]);
+    await retryUrl(url, usePrivacyMode);
+  }, [retryUrl, usePrivacyMode]);
+
+  // Get generator utilities from useBaseForm
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_social');
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
+  const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  
-  
-  // Store integration - all knowledge and instructions from store
-  const {
-    source,
-    availableKnowledge,
-    selectedKnowledgeIds,
-    selectedDocumentIds,
-    selectedTextIds,
-    isInstructionsActive,
-    instructions,
-    getActiveInstruction,
-    groupData: groupDetailsData
-  } = useGeneratorKnowledgeStore();
-  
-  // Create form notice
-  const formNotice = createKnowledgeFormNotice({
-    source,
-    isLoadingGroupDetails: false, // useKnowledge handles loading
-    isInstructionsActive,
-    instructions,
-    instructionType: 'social',
-    groupDetailsData,
-    availableKnowledge,
-  });
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
 
     try {
+      // Get current feature toggle state from store
+      const features = getFeatureState();
+
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
       const hasSharepic = isAuthenticated && selectedPlatforms.includes('sharepic');
@@ -216,9 +192,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         details: rhfData.details,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
-        useWebSearchTool: rhfData.useWebSearchTool,
-        usePrivacyMode: rhfData.usePrivacyMode,
-        useBedrock: rhfData.useProMode,  // Pro mode flag for backend API
+        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: allAttachments
       };
       
@@ -233,14 +207,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
-      // Get instructions for backend (if active) - backend handles all content extraction
-      const customPrompt = isInstructionsActive && getActiveInstruction
-        ? getActiveInstruction('social')
-        : null;
-
-      // Send only IDs and searchQuery - backend handles all content extraction
+      // Add custom prompt from user instructions (simplified)
       formDataToSubmit.customPrompt = customPrompt;
-      formDataToSubmit.selectedKnowledgeIds = selectedKnowledgeIds || [];
       formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
       formDataToSubmit.selectedTextIds = selectedTextIds || [];
       formDataToSubmit.searchQuery = searchQuery || '';
@@ -258,9 +226,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
             rhfData.zitatAuthor,
             customPrompt, // Pass custom instructions to sharepic generation
             allAttachments, // Include attachments
-            rhfData.usePrivacyMode, // Include privacy mode
+            features.usePrivacyMode, // Include privacy mode from store
             null, // provider - will be handled by privacy mode settings
-            rhfData.useProMode // Pass Pro mode flag for sharepic generation
+            features.useBedrock // Pass Pro mode flag for sharepic generation from store
           );
           // Handle both single sharepic and array of sharepics (default mode)
           const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
@@ -336,7 +304,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedKnowledgeIds, selectedDocumentIds, selectedTextIds]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedDocumentIds, selectedTextIds, getFeatureState, isAuthenticated]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -344,6 +312,22 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, [setGeneratedText, componentName]);
 
   
+
+  const handleAttachmentClick = useCallback(async (files) => {
+    try {
+      const processed = await prepareFilesForSubmission(files);
+
+      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
+      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
+    } catch (error) {
+      console.error('[PresseSocialGenerator] File processing error:', error);
+    }
+  }, []);
+
+  const handleRemoveFile = useCallback((index) => {
+    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
+  }, []);
 
   const handleEditSharepic = useCallback(async (sharepicData) => {
     // Clean up old edit sessions to prevent sessionStorage accumulation
@@ -439,26 +423,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     window.open(url.toString(), '_blank');
   }, []);
 
-  const handleAttachmentClick = useCallback(async (files) => {
-    try {
-      const processed = await prepareFilesForSubmission(files);
-      
-      // Accumulate files instead of replacing
-      setAttachedFiles(prevFiles => [...prevFiles, ...files]);
-      setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-    } catch (error) {
-      console.error('[PresseSocialGenerator] File processing error:', error);
-      // Here you could show a toast notification or error message to the user
-      // For now, we'll just log the error
-    }
-  }, []);
-
-  const handleRemoveFile = useCallback((index) => {
-    setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
-    setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
-  }, []);
-
-
   const helpContent = {
     content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
     tips: [
@@ -470,37 +434,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     ]
   };
 
-  const webSearchFeatureToggle = {
-    isActive: watchUseWebSearch,
-    onToggle: (checked) => {
-      setValue('useWebSearchTool', checked);
-    },
-    label: "Websuche verwenden",
-    icon: HiGlobeAlt,
-    description: "",
-    tabIndex: tabIndex.webSearch || 11
-  };
-
-  const privacyModeToggle = {
-    isActive: watchUsePrivacyMode,
-    onToggle: (checked) => {
-      setValue('usePrivacyMode', checked);
-    },
-    label: "Privacy-Mode",
-    icon: HiShieldCheck,
-    description: "Verwendet deutsche Server der Netzbegrünung.",
-    tabIndex: tabIndex.privacyMode || 13
-  };
-
-  const proModeToggle = {
-    isActive: watchUseProMode,
-    onToggle: (checked) => {
-      setValue('useProMode', checked);
-    },
-    label: "Pro-Mode",
-    description: "Nutzt ein fortgeschrittenes Sprachmodell – ideal für komplexere Texte."
-  };
-
   const renderPlatformSection = () => (
     <PlatformSelector
       name="platforms"
@@ -509,22 +442,22 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       label="Formate"
       placeholder="Formate auswählen..."
       required={true}
-      tabIndex={baseFormTabIndex.platformSelectorTabIndex}
+      tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
     />
   );
 
   const renderFormInputs = () => (
     <>
-      <Input
+      <FormInput
         name="thema"
         control={control}
         label={FORM_LABELS.THEME}
         placeholder={FORM_PLACEHOLDERS.THEME}
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.thema}
+        tabIndex={form.generator?.tabIndex?.thema}
       />
 
-      <Textarea
+      <FormTextarea
         name="details"
         control={control}
         label={FORM_LABELS.DETAILS}
@@ -533,7 +466,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         minRows={3}
         maxRows={10}
         className="form-textarea-large"
-        tabIndex={tabIndex.details}
+        tabIndex={form.generator?.tabIndex?.details}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
       />
@@ -588,7 +521,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                       captureMenuScroll={false}
                       menuShouldBlockScroll={false}
                       menuShouldScrollIntoView={false}
-                      tabIndex={tabIndex.sharepicType}
+                      tabIndex={form.generator?.tabIndex?.sharepicType}
                       noOptionsMessage={() => 'Keine Optionen verfügbar'}
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
@@ -619,7 +552,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                     label="Autor/Urheber des Zitats"
                     placeholder="z.B. Anton Hofreiter"
                     rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
-                    tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatAuthor, watchSharepicType === 'quote' || watchSharepicType === 'quote_pure')}
+                    tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.zitatAuthor, watchSharepicType === 'quote' || watchSharepicType === 'quote_pure')}
                     onSubmitSuccess={success ? getValues('zitatAuthor') : null}
                     shouldSave={success}
                   />
@@ -664,7 +597,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               subtext="Mehrere Personen können genannt werden."
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
               rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
-              tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber, watchPressemitteilung)}
+              tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.zitatgeber, watchPressemitteilung)}
               onSubmitSuccess={success ? getValues('zitatgeber') : null}
               shouldSave={success}
             />
@@ -676,7 +609,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               label="Presseabbinder (optional)"
               subtext="Standard-Abbinder, der an die Pressemitteilung angehängt wird (z.B. Kontaktdaten, Vereinsinformationen)."
               placeholder="z.B. Kontakt: Max Mustermann, presse@gruene-example.de"
-              tabIndex={TabIndexHelpers.getConditional(tabIndex.presseabbinder, watchPressemitteilung)}
+              tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.presseabbinder, watchPressemitteilung)}
               onSubmitSuccess={success ? getValues('presseabbinder') : null}
               shouldSave={success}
             />
@@ -699,30 +632,23 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           generatedContent={storeGeneratedText || socialMediaContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           enableEditMode={true}
-          formNotice={formNotice}
           enableKnowledgeSelector={true}
           enableDocumentSelector={true}
           helpContent={helpContent}
           componentName={componentName}
-          webSearchFeatureToggle={webSearchFeatureToggle}
-          useWebSearchFeatureToggle={true}
-          privacyModeToggle={privacyModeToggle}
-          usePrivacyModeToggle={true}
-          proModeToggle={proModeToggle}
-          useProModeToggle={true}
           useFeatureIcons={true}
           onAttachmentClick={handleAttachmentClick}
           onRemoveFile={handleRemoveFile}
           attachedFiles={attachedFiles}
           featureIconsTabIndex={{
-            webSearch: tabIndex.webSearch,
-            privacyMode: tabIndex.privacyMode,
-            attachment: tabIndex.attachment
+            webSearch: form.generator?.tabIndex?.webSearch,
+            privacyMode: form.generator?.tabIndex?.privacyMode,
+            attachment: form.generator?.tabIndex?.attachment
           }}
-          knowledgeSelectorTabIndex={baseFormTabIndex.knowledgeSelectorTabIndex}
-          knowledgeSourceSelectorTabIndex={baseFormTabIndex.knowledgeSourceSelectorTabIndex}
-          documentSelectorTabIndex={baseFormTabIndex.documentSelectorTabIndex}
-          submitButtonTabIndex={baseFormTabIndex.submitButtonTabIndex}
+          knowledgeSelectorTabIndex={form.generator?.baseFormTabIndex?.knowledgeSelectorTabIndex}
+          knowledgeSourceSelectorTabIndex={form.generator?.baseFormTabIndex?.knowledgeSourceSelectorTabIndex}
+          documentSelectorTabIndex={form.generator?.baseFormTabIndex?.documentSelectorTabIndex}
+          submitButtonTabIndex={form.generator?.baseFormTabIndex?.submitButtonTabIndex}
           firstExtrasChildren={renderPlatformSection()}
         >
           {renderFormInputs()}

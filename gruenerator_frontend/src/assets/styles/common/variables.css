@@ -3,18 +3,18 @@
     --black: #000000;
     --white: #ffffff;
     
-    /* Primary Color System ("Tanne") - Primary digital interaction color */
-    --primary-50: #e8f2ee;
-    --primary-100: #c8dfd5;
-    --primary-200: #a3c9b8;
-    --primary-300: #7db39a;
-    --primary-400: #60a183;
-    --primary-500: #428f6c;
-    --primary-600: #005538;  /* Base "Tanne" color */
-    --primary-700: #004a2f;
-    --primary-800: #003e26;
-    --primary-900: #00321d;
-    --primary-950: #002315;
+    /* Primary Color System (Phtalo Green) - Primary digital interaction color */
+    --primary-50: #F0F8F4;
+    --primary-100: #D8F0E6;
+    --primary-200: #B1E0C9;  /* Jet stream */
+    --primary-300: #8AC9B0;
+    --primary-400: #6BAA91;
+    --primary-500: #52907A;
+    --primary-600: #316049;  /* Base "Deep moss green" color */
+    --primary-700: #285040;
+    --primary-800: #1F3F33;
+    --primary-900: #1A332A;
+    --primary-950: #123624;  /* Phtalo green */
 
     /* Secondary Color System ("Eucalyptus") */
     --secondary-50: #F0F4F3;
@@ -48,7 +48,6 @@
     --neutral-700: #e8e0d4;
     
     /* Semantic color mapping based on brand guidelines */
-    --tanne: var(--primary-600);         /* Tanne - primary color */
     --eucalyptus: var(--secondary-600);  /* Eucalyptus - secondary color */
 
     /* Legacy compatibility - maintaining old variable names */
@@ -61,8 +60,8 @@
     --dunkelgruen-alt: var(--primary-800); 
     --error-red: #D32F2F;
 
-    --backgroundgruen: var(--secondary-50);
-    --backgroundgruen-dark: var(--secondary-100);
+    --backgroundgruen: var(--primary-50);
+    --backgroundgruen-dark: var(--primary-100);
     --background-red-light: #f5e8e8; /* Very light red for preview mode */
     --dunkelgrau: var(--grey-900);
     --anthrazit: var(--grey-950);
@@ -74,8 +73,9 @@
     --background-color-sand: var(--neutral-600);
     --hover-color-alt: var(--secondary-50);
     --font-color: var(--grey-800);
-    --font-color-h: var(--primary-600);
-    --font-color-h3: var(--primary-600);
+    --font-color-green: var(--primary-600);
+    --font-color-h: var(--grey-800);
+    --font-color-h3: var(--grey-800);
     --link-color: var(--primary-600);
     --button-background-color: var(--grey-200);
     --button-color: var(--primary-600);
@@ -203,6 +203,7 @@
         --hover-color-alt: var(--grey-700);
         --font-color: var(--neutral-600);
         --font-color-h: var(--neutral-600);
+        --font-color-green: var(--neutral-600)
         --font-color-h3: var(--neutral-600);
         --link-color: var(--neutral-600);
         --button-background-color: var(--secondary-600);

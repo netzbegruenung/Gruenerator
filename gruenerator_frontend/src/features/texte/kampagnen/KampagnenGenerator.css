@@ -1,0 +1,8 @@
+.kampagnen-generator .image-display {
+  margin-top: var(--spacing-xlarge);
+}
+
+.kampagnen-generator .campaign-feature-toggle {
+  margin-top: var(--spacing-medium);
+  margin-bottom: var(--spacing-small);
+}

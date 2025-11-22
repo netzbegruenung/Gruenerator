@@ -15,9 +15,9 @@ import '../../../../../../../assets/styles/components/profile/profile-action-but
 // No data hook here; mutations are passed down from parent
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 
-const GeneratorDetail = ({ 
+const GeneratorDetail = ({
     isActive,
-    onSuccessMessage, 
+    onSuccessMessage,
     onErrorMessage,
     generatorId,
     onBack,
@@ -27,6 +27,10 @@ const GeneratorDetail = ({
     deleteGenerator: deleteGeneratorProp,
     isUpdating: isUpdatingProp,
     isDeleting: isDeletingProp,
+    // Saved generator props (read-only mode)
+    isSavedGenerator = false,
+    unsaveGenerator,
+    isUnsaving = false,
 }) => {
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_GENERATORS');
@@ -56,7 +60,7 @@ const GeneratorDetail = ({
     // Handle delete generator
     const handleDeleteGenerator = async () => {
         if (!generator) return;
-        
+
         if (!window.confirm('Möchten Sie diesen Grünerator wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
             return;
         }
@@ -72,6 +76,33 @@ const GeneratorDetail = ({
             // Error already handled by useCustomGenerators hook
         }
     };
+
+    // Handle unsave generator
+    const handleUnsaveGenerator = async () => {
+        if (!generator || !unsaveGenerator) return;
+
+        if (!window.confirm('Möchten Sie diesen Grünerator aus Ihrer Sammlung entfernen?')) {
+            return;
+        }
+
+        onErrorMessage('');
+        onSuccessMessage('');
+
+        try {
+            await unsaveGenerator(generatorId);
+            onSuccessMessage('Grünerator aus Ihrer Sammlung entfernt.');
+            onBack();
+        } catch (err) {
+            onErrorMessage('Fehler beim Entfernen des Grünerators.');
+        }
+    };
+
+    // Build owner name for saved generators
+    const ownerName = isSavedGenerator && generator
+        ? (generator.owner_first_name
+            ? `${generator.owner_first_name} ${generator.owner_last_name || ''}`.trim()
+            : generator.owner_email || 'Unbekannt')
+        : null;
 
 
     // Generator not found
@@ -104,37 +135,67 @@ const GeneratorDetail = ({
                         </h3>
                     </div>
                     <div className="custom-generator-actions">
-                        <Link 
-                            to={`/gruenerator/${generator.slug}`} 
-                            className="pabtn pabtn--ghost pabtn--s"
-                            title="Öffnen"
-                            tabIndex={tabIndex.openButton}
-                            aria-label={`Custom Grünerator ${generator.title || generator.name} öffnen`}
-                        >
-                            <HiArrowRight className="pabtn__icon" />
-                        </Link>
-                        {!editableDetail.isEditing && (
+                        {editableDetail.isEditing ? (
                             <ProfileIconButton
-                                action="edit"
-                                variant="ghost"
-                                onClick={editableDetail.startEdit}
-                                disabled={isUpdating || isDeleting}
-                                title="Bearbeiten"
-                                ariaLabel={`Custom Grünerator ${generator.title || generator.name} bearbeiten`}
+                                action="check"
+                                variant="primary"
+                                onClick={editableDetail.saveEdit}
+                                disabled={isUpdating}
+                                title="Speichern"
+                                ariaLabel="Änderungen speichern"
                             />
+                        ) : (
+                            <Link
+                                to={`/gruenerator/${generator.slug}`}
+                                className="pabtn pabtn--ghost pabtn--s"
+                                title="Öffnen"
+                                tabIndex={tabIndex.openButton}
+                                aria-label={`Custom Grünerator ${generator.title || generator.name} öffnen`}
+                            >
+                                <HiArrowRight className="pabtn__icon" />
+                            </Link>
                         )}
-                        <ProfileIconButton
-                            action="delete"
-                            variant="ghost"
-                            onClick={handleDeleteGenerator}
-                            disabled={isDeleting || isUpdating}
-                            title="Löschen"
-                            ariaLabel={`Custom Grünerator ${generator.title || generator.name} löschen`}
-                        />
+                        {isSavedGenerator ? (
+                            <ProfileIconButton
+                                action="delete"
+                                variant="ghost"
+                                onClick={handleUnsaveGenerator}
+                                disabled={isUnsaving}
+                                title="Aus Sammlung entfernen"
+                                ariaLabel={`Grünerator ${generator.title || generator.name} aus Sammlung entfernen`}
+                            />
+                        ) : (
+                            <>
+                                {!editableDetail.isEditing && (
+                                    <ProfileIconButton
+                                        action="edit"
+                                        variant="ghost"
+                                        onClick={editableDetail.startEdit}
+                                        disabled={isUpdating || isDeleting}
+                                        title="Bearbeiten"
+                                        ariaLabel={`Custom Grünerator ${generator.title || generator.name} bearbeiten`}
+                                    />
+                                )}
+                                <ProfileIconButton
+                                    action="delete"
+                                    variant="ghost"
+                                    onClick={handleDeleteGenerator}
+                                    disabled={isDeleting || isUpdating}
+                                    title="Löschen"
+                                    ariaLabel={`Custom Grünerator ${generator.title || generator.name} löschen`}
+                                />
+                            </>
+                        )}
                     </div>
                 </div>
 
                 <div className="generator-info-grid">
+                    {isSavedGenerator && ownerName && (
+                        <>
+                            <span className="generator-info-label">Erstellt von</span>
+                            <span className="generator-info-value saved-generator-creator">{ownerName}</span>
+                        </>
+                    )}
                     {generator.description && (
                         <>
                             <span className="generator-info-label">Beschreibung</span>
@@ -157,7 +218,7 @@ const GeneratorDetail = ({
             <hr className="form-divider-large" />
             
             <div className="generator-details-content">
-                {editableDetail.isEditing ? (
+                {!isSavedGenerator && editableDetail.isEditing ? (
                     <EditableDetailForm
                         entityType="generator"
                         getDisplayValue={editableDetail.getDisplayValue}

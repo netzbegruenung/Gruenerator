@@ -217,10 +217,10 @@ class AISearchAgent {
           content: userContent
         }],
         options: {
-          model: 'anthropic.claude-3-haiku-20240307-v1:0', // Use Haiku for cost efficiency
+          model: 'mistral-medium-latest',
           max_tokens: 1000,
-          temperature: 0.3, // Low temperature for consistent, focused results
-          provider: 'bedrock' // Use Bedrock for EU compliance
+          temperature: 0.3,
+          provider: 'mistral'
         }
       }, req);
 
@@ -249,12 +249,23 @@ KONTEXT:
 
 ANWEISUNGEN:
 1. Analysiere die Suchintention der ursprünglichen Anfrage
-2. Identifiziere verwandte Begriffe und Synonyme im deutschen politischen Kontext
-3. Generiere 3-5 erweiterte Suchvarianten, die semantisch verwandt aber unterschiedlich formuliert sind
-4. Berücksichtige den Inhaltstyp bei der Erweiterung
-5. Fokussiere auf deutsche Begriffe und Konzepte
+2. ENTFERNE Füllwörter und Stopwords: "mehr", "der", "die", "das", "im", "in", "ausdenken", "ich möchte"
+3. ENTFERNE Ortsnamen die nicht in der Datenbank sind
+4. Identifiziere das KERNTHEMA (z.B. "Radwege" → Kernthema: Fahrräder)
+5. Generiere 3-5 KURZE, FOKUSSIERTE Suchbegriffe (1-2 Wörter):
+   - Jeder Begriff muss DIREKT und SPEZIFISCH zum Kernthema passen
+   - KEINE langen Phrasen, KEINE allgemeinen Politikbegriffe
+   - KEINE Verben wie "ausbauen", "planen", "entwickeln"
+   - NUR konkrete Substantive die eng verwandt sind
 
-Antworte ausschließlich im JSON-Format ohne zusätzliche Erklärungen.`;
+BEISPIELE:
+❌ FALSCH: "Radverkehrsinfrastruktur ausbauen Verkehrswende" (zu breit, matched alles)
+❌ FALSCH: "kommunale Konzepte entwickeln" (zu allgemein)
+✅ RICHTIG: "Radwege" (konkret)
+✅ RICHTIG: "Fahrradinfrastruktur" (konkret)
+✅ RICHTIG: "Radverkehr" (konkret)
+
+WICHTIG: Antworte NUR mit reinem JSON. KEINE Markdown-Code-Blöcke, KEINE Backticks, KEINE Erklärungen. Nur das reine JSON-Objekt.`;
   }
 
   /**
@@ -262,25 +273,34 @@ Antworte ausschließlich im JSON-Format ohne zusätzliche Erklärungen.`;
    * @private
    */
   buildEnhancementUserContent(query, contentType, options) {
-    return `AUFGABE: Erweitere die folgende Suchanfrage für bessere Ergebnisse in einer Vektordatenbank.
+    return `AUFGABE: Extrahiere KURZE, FOKUSSIERTE Suchbegriffe aus der Anfrage.
 
 ORIGINAL SUCHANFRAGE: "${query}"
 INHALTSTYP: ${contentType}
-ZIELANZAHL: ${options.limit || 3} Beispiele
 
-AUSGABEFORMAT (JSON):
+SCHRITT 1: Entferne Stopwords ("mehr", "der", "im", "ausdenken")
+SCHRITT 2: Identifiziere das KERNTHEMA
+SCHRITT 3: Generiere 3-5 KURZE Begriffe (1-2 Wörter), die DIREKT zum Kernthema passen
+
+WICHTIG:
+- NUR konkrete Substantive (z.B. "Radwege", "Fahrrad")
+- KEINE langen Phrasen (FALSCH: "Radverkehrsinfrastruktur ausbauen Verkehrswende")
+- KEINE Verben (FALSCH: "planen", "ausbauen", "entwickeln")
+- KEINE allgemeinen Begriffe (FALSCH: "kommunale Konzepte", "Verkehrswende")
+
+Antworte NUR mit diesem JSON (keine Markdown-Blöcke):
 {
   "originalQuery": "${query}",
   "contentType": "${contentType}",
   "enhancedQueries": [
-    "Erweiterte Suchanfrage 1",
-    "Erweiterte Suchanfrage 2", 
-    "Erweiterte Suchanfrage 3"
+    "Kurzer Begriff 1",
+    "Kurzer Begriff 2",
+    "Kurzer Begriff 3"
   ],
   "semanticContext": {
-    "mainTopics": ["Hauptthema 1", "Hauptthema 2"],
-    "relatedTerms": ["Begriff 1", "Begriff 2", "Begriff 3"],
-    "politicalContext": "Kurze Erklärung des politischen Kontexts"
+    "mainTopics": ["Kernthema"],
+    "relatedTerms": ["eng verwandter Begriff 1", "eng verwandter Begriff 2"],
+    "politicalContext": "Kurze Erklärung"
   },
   "confidence": 0.85
 }`;
@@ -296,21 +316,23 @@ AUSGABEFORMAT (JSON):
         throw new Error('Invalid AI worker response');
       }
 
-      const jsonResponse = JSON.parse(aiResult.content);
+      let content = aiResult.content.trim();
+
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+      } else if (content.startsWith('```')) {
+        content = content.replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+      }
+
+      const jsonResponse = JSON.parse(content);
 
       // Validate required fields
       if (!jsonResponse.enhancedQueries || !Array.isArray(jsonResponse.enhancedQueries)) {
         throw new Error('Missing enhancedQueries array');
       }
 
-      // Ensure we have at least the original query
       if (jsonResponse.enhancedQueries.length === 0) {
-        jsonResponse.enhancedQueries = [originalQuery];
-      }
-
-      // Add original query as first entry if not present
-      if (!jsonResponse.enhancedQueries.includes(originalQuery)) {
-        jsonResponse.enhancedQueries.unshift(originalQuery);
+        throw new Error('AI returned empty enhancedQueries array');
       }
 
       return {

@@ -1,0 +1,121 @@
+{
+  "campaignId": "christmas2025",
+  "name": "Weihnachten 2025",
+  "active": true,
+  "formValidation": {
+    "location": {
+      "required": true,
+      "minLength": 2,
+      "maxLength": 50,
+      "pattern": "^[a-zA-ZäöüÄÖÜß\\s-]+$",
+      "errorMessage": "Bitte gib einen gültigen Ortsnamen ein (2-50 Zeichen)"
+    },
+    "details": {
+      "required": false,
+      "maxLength": 200,
+      "errorMessage": "Details dürfen maximal 200 Zeichen lang sein"
+    }
+  },
+  "defaultPrompt": {
+    "systemRole": "Du bist ein Weihnachtspoet für festliche, warmherzige Gedichte.",
+    "singleItemTemplate": "Erstelle ein Weihnachtsgedicht. Es ist über folgenden Ort: {{location}}.\n\nDetails (Optional): {{details}}\n\nRegeln:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nNur die 5 Zeilen ausgeben.",
+    "multiItemTemplate": "Erstelle 4 VERSCHIEDENE Weihnachtsgedichte mit je GENAU 5 Zeilen für diesen Ort: {{location}}.\n\nDetails (Optional): {{details}}\n\nRegeln für JEDES Gedicht:\n- GENAU 5 Zeilen\n- Max 20 Zeichen pro Zeile\n- Nutze {{location}} im Gedicht\n- Warmherzig und festlich\n- Einfache Sprache\n- Gerne Reime\n\nWICHTIG:\n- Erstelle 4 UNTERSCHIEDLICHE Gedichte\n- Trenne die Gedichte mit '---'\n- Nur die Zeilen ausgeben, getrennt durch '---'\n\nFormat:\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5\n---\nZeile 1\nZeile 2\nZeile 3\nZeile 4\nZeile 5\n---\n(2 weitere Gedichte)",
+    "options": {
+      "temperature": 0.9,
+      "useBedrock": true,
+      "max_tokens": 1000
+    }
+  },
+  "defaultResponseParser": {
+    "type": "lineExtractor",
+    "config": {
+      "expectedLines": 5,
+      "outputFields": ["line1", "line2", "line3", "line4", "line5"],
+      "trimLines": true,
+      "filterEmpty": true,
+      "minCharsPerLine": 10,
+      "maxCharsPerLine": 20
+    }
+  },
+  "defaultMultiResponseParser": {
+    "type": "multiLineExtractor",
+    "config": {
+      "expectedPoems": 4,
+      "linesPerPoem": 5,
+      "separator": "---",
+      "outputFields": ["line1", "line2", "line3", "line4", "line5"],
+      "trimLines": true,
+      "filterEmpty": true,
+      "minCharsPerLine": 10,
+      "maxCharsPerLine": 20
+    }
+  },
+  "textSuffix": "\n\nErstelle zusätzlich EINEN Beitragstext (max 600 Zeichen) für {{location}}, der zu allen vier Gedichten passt. Der Text soll:\n- Weihnachtliche, warmherzige Stimmung vermitteln\n- Emotional und teilbar sein\n- 2-4 passende Emojis enthalten\n- 3-5 relevante Hashtags am Ende haben (z.B. #Weihnachten #{{location}} #DieGrünen)\n\nFormat:\n---TEXT---\n[Dein Beitragstext hier]",
+  "defaultCredit": {
+    "fontSize": 38
+  },
+  "defaultCanvas": {
+    "type": "campaign",
+    "width": 1080,
+    "height": 1350,
+    "textLines": [
+      {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
+      {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950}
+    ],
+    "decorations": [],
+    "credit": {
+      "text": "Die Grünen {{location}} wünschen dir frohe Feiertage!",
+      "x": 540,
+      "fontSize": 38,
+      "font": "GrueneType",
+      "align": "center"
+    }
+  },
+  "colorThemes": {
+    "green": {
+      "textColor": "#FFFFFF",
+      "creditColor": "#FFFFFF",
+      "creditY": 1050
+    },
+    "sand": {
+      "textColor": "#005538",
+      "creditColor": "#005538",
+      "creditY": 1050
+    }
+  },
+  "types": {
+    "christmas_poem_green_festive": {
+      "basedOn": "custom",
+      "theme": "green",
+      "backgroundImage": "/campaigns/christmas2025/bg_green_festive.png"
+    },
+    "christmas_poem_green_pine": {
+      "basedOn": "custom",
+      "theme": "green",
+      "backgroundImage": "/campaigns/christmas2025/bg_green_pine.png"
+    },
+    "christmas_poem_green_snowflakes": {
+      "basedOn": "custom",
+      "theme": "green",
+      "backgroundImage": "/campaigns/christmas2025/bg_green_snowflakes.png"
+    },
+    "christmas_poem_sand_winter": {
+      "basedOn": "custom",
+      "theme": "sand",
+      "backgroundImage": "/campaigns/christmas2025/bg_sand_winter.png"
+    },
+    "christmas_poem_sand_snowflakes": {
+      "basedOn": "custom",
+      "theme": "sand",
+      "backgroundImage": "/campaigns/christmas2025/bg_sand_snowflakes.png"
+    },
+    "christmas_poem_sand_dots": {
+      "basedOn": "custom",
+      "theme": "sand",
+      "backgroundImage": "/campaigns/christmas2025/bg_sand_dots.png"
+    }
+  }
+}

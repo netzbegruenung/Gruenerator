@@ -545,7 +545,7 @@ export const profileApiService = {
 
   async updateCustomGenerator(generatorId, updateData) {
     const response = await apiClient.put(`/auth/custom_generator/${generatorId}`, updateData);
-    return response.data;
+    return response.data.generator;
   },
 
   async deleteCustomGenerator(generatorId) {
@@ -572,6 +572,17 @@ export const profileApiService = {
 
   async createCustomGenerator(generatorData) {
     const response = await apiClient.post('/auth/custom_generator/create', generatorData);
+    return response.data;
+  },
+
+  // === SAVED GENERATORS ===
+  async getSavedGenerators() {
+    const response = await apiClient.get('/auth/saved_generators');
+    return response.data?.generators || [];
+  },
+
+  async unsaveGenerator(generatorId) {
+    const response = await apiClient.delete(`/auth/saved_generators/${generatorId}`);
     return response.data;
   },
 

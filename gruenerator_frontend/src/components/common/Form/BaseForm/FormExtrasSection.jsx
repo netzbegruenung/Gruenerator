@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import FeatureToggle from '../../FeatureToggle';
 import FeatureIcons from '../../FeatureIcons';
 import SubmitButton from '../../SubmitButton';
-import KnowledgeSelector from '../../../common/KnowledgeSelector/KnowledgeSelector';
-import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
-import { useGeneratorKnowledgeStore } from '../../../../stores/core/generatorKnowledgeStore';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useFormStateSelector } from '../FormStateProvider';
+import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
+import '../../../../assets/styles/components/ui/FormExtras.css';
 
 /**
  * Komponente für zusätzliche Formular-Features (Extras)
@@ -27,14 +26,14 @@ import { useFormStateSelector } from '../FormStateProvider';
  * @param {boolean} props.showSubmitButton - Soll Submit-Button angezeigt werden
  * @param {node} props.children - Zusätzliche Extra-Komponenten
  * @param {node} props.firstExtrasChildren - Zusätzliche Extra-Komponenten als erstes Element
- * @param {boolean} props.showProfileSelector - Zeige Profile Selector in KnowledgeSelector
+ * @param {Object} props.featureIconsTabIndex - TabIndex-Objekt für FeatureIcons (webSearch, balancedMode, attachment, anweisungen)
  * @returns {JSX.Element} Formular-Extras Sektion
  */
 const FormExtrasSection = ({
-  webSearchFeatureToggle,
-  privacyModeToggle,
-  proModeToggle,
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
   balancedModeToggle,
+  interactiveModeToggle,
+  useInteractiveModeToggle,
   onAttachmentClick,
   onRemoveFile,
   formControl = null,
@@ -49,43 +48,63 @@ const FormExtrasSection = ({
   featureIconsTabIndex = {
     webSearch: 11,
     balancedMode: 12,
-    attachment: 13
+    attachment: 13,
+    anweisungen: 14
   },
-  knowledgeSelectorTabIndex = 14,
-  knowledgeSourceSelectorTabIndex = 13,
-  documentSelectorTabIndex = 15,
   submitButtonTabIndex = 17,
-  showProfileSelector = true,
   onPrivacyInfoClick,
   onWebSearchInfoClick,
   componentName,
-  enableKnowledgeSelector = false
+  hide = false,
+  attachedFiles = [],
+  usePrivacyMode = false
 }) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
   const success = useFormStateSelector(state => state.success);
-  const useWebSearchFeatureToggle = useFormStateSelector(state => state.webSearchConfig.enabled);
-  const usePrivacyModeToggle = useFormStateSelector(state => state.privacyModeConfig.enabled);
+  const useInteractiveModeToggleStore = useFormStateSelector(state => state.interactiveModeConfig?.enabled || false);
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
-  const attachedFiles = useFormStateSelector(state => state.attachedFiles);
-  // Pro mode from store (fallback if no prop provided)
-  const storeProModeActive = useFormStateSelector(state => state.proModeConfig?.isActive);
-  const setStoreProModeActive = useFormStateSelector(state => state.setProModeActive);
-  
-  // Simplified store access
-  const { source, availableKnowledge } = useGeneratorKnowledgeStore();
-  const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
-  
-  const { getBetaFeatureState, isLoading: isLoadingBetaFeatures } = useBetaFeatures();
-  const anweisungenBetaEnabled = true;
+  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
 
-  // Don't render if no extras are enabled  
-  const hasExtras = useWebSearchFeatureToggle || 
-                   formNotice || 
+  // Use attachedFiles from props if provided, otherwise from store
+  const finalAttachedFiles = attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles;
+
+  // Get current generated content for info link display logic
+  const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
+
+  // Anweisungen state from knowledge store
+  const source = useGeneratorSelectionStore(state => state.source);
+  const setSource = useGeneratorSelectionStore(state => state.setSource);
+  const anweisungenActive = source.type === 'user';
+
+  // Anweisungen toggle handler
+  const handleAnweisungenClick = useCallback(() => {
+    if (source.type === 'user') {
+      setSource({ type: 'neutral', id: null, name: null });
+    } else {
+      setSource({ type: 'user', id: null, name: 'Meine Anweisungen' });
+    }
+  }, [source.type, setSource]);
+
+  // Interactive mode toggle handler
+  const handleInteractiveModeClick = useCallback(() => {
+    if (interactiveModeToggle && interactiveModeToggle.onToggle) {
+      interactiveModeToggle.onToggle(!interactiveModeToggle.isActive);
+    }
+  }, [interactiveModeToggle]);
+
+  // Early return if hide prop is true
+  if (hide) {
+    return null;
+  }
+
+  // Don't render if no extras are enabled
+  const hasExtras = useInteractiveModeToggle ||
+                   formNotice ||
                    showSubmitButton ||
                    children ||
                    firstExtrasChildren ||
-                   true; // Always show to allow KnowledgeSelector to manage its own visibility
+                   true; // Always show to allow FeatureIcons to manage its own visibility
 
   if (!hasExtras) {
     return null;
@@ -101,43 +120,22 @@ const FormExtrasSection = ({
             {firstExtrasChildren}
           </div>
         )}
-        
-        {/* Knowledge Selector - conditionally rendered based on enableKnowledgeSelector prop */}
-        {enableKnowledgeSelector !== false && (
-          <div className="form-extras__item">
-            <KnowledgeSelector
-              disabled={isLoadingBetaFeatures}
-              tabIndex={knowledgeSelectorTabIndex}
-              sourceTabIndex={knowledgeSourceSelectorTabIndex}
-              documentTabIndex={documentSelectorTabIndex}
-              showProfileSelector={showProfileSelector}
-            />
-          </div>
-        )}
 
-        {/* Feature Icons - alternative to feature toggles */}
-        {useFeatureIcons && webSearchFeatureToggle && privacyModeToggle && (
+        {/* Feature Icons */}
+        {useFeatureIcons && (
           <div className="form-extras__item">
             <FeatureIcons
-              onWebSearchClick={() => webSearchFeatureToggle.onToggle(!webSearchFeatureToggle.isActive)}
-              onPrivacyModeClick={() => {
-                // If enabling privacy, ensure pro mode is off in store
-                if (!privacyModeToggle.isActive && storeProModeActive) setStoreProModeActive(false);
-                privacyModeToggle.onToggle(!privacyModeToggle.isActive);
-              }}
-              onProModeClick={proModeToggle ? () => proModeToggle.onToggle(!proModeToggle.isActive) : () => setStoreProModeActive(!storeProModeActive)}
-              onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : () => {}}
+              onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
               onAttachmentClick={onAttachmentClick}
               onRemoveFile={onRemoveFile}
-              webSearchActive={webSearchFeatureToggle.isActive}
-              privacyModeActive={privacyModeToggle.isActive}
-              proModeActive={proModeToggle ? proModeToggle.isActive : !!storeProModeActive}
-              attachedFiles={attachedFiles}
+              onAnweisungenClick={handleAnweisungenClick}
+              onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
+              anweisungenActive={anweisungenActive}
+              interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
+              attachedFiles={finalAttachedFiles}
               className="form-extras__feature-icons"
               tabIndex={featureIconsTabIndex}
-              showPrivacyInfoLink={privacyModeToggle.isActive && !currentGeneratedContent}
               onPrivacyInfoClick={onPrivacyInfoClick}
-              showWebSearchInfoLink={webSearchFeatureToggle.isActive && !currentGeneratedContent}
               onWebSearchInfoClick={onWebSearchInfoClick}
             />
           </div>
@@ -150,17 +148,10 @@ const FormExtrasSection = ({
           </div>
         )}
 
-        {/* Web Search Feature Toggle - only show if not using feature icons */}
-        {!useFeatureIcons && webSearchFeatureToggle && useWebSearchFeatureToggle && (
+        {/* Interactive-Mode Feature Toggle - only if not using feature icons */}
+        {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
           <div className="form-extras__item">
-            <FeatureToggle {...webSearchFeatureToggle} className="form-feature-toggle" />
-          </div>
-        )}
-
-        {/* Privacy-Mode Feature Toggle - only show if not using feature icons */}
-        {!useFeatureIcons && privacyModeToggle && usePrivacyModeToggle && (
-          <div className="form-extras__item">
-            <FeatureToggle {...privacyModeToggle} className="form-feature-toggle" />
+            <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
           </div>
         )}
 
@@ -194,32 +185,7 @@ const FormExtrasSection = ({
 };
 
 FormExtrasSection.propTypes = {
-  webSearchFeatureToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    isSearching: PropTypes.bool,
-    statusMessage: PropTypes.string,
-    tabIndex: PropTypes.number
-  }),
-  privacyModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    tabIndex: PropTypes.number
-  }),
-  proModeToggle: PropTypes.shape({
-    isActive: PropTypes.bool,
-    onToggle: PropTypes.func,
-    label: PropTypes.string,
-    icon: PropTypes.elementType,
-    description: PropTypes.string,
-    tabIndex: PropTypes.number
-  }),
+  // Feature toggle props removed - web search, privacy, and pro mode now use store
   balancedModeToggle: PropTypes.shape({
     isActive: PropTypes.bool,
     onToggle: PropTypes.func,
@@ -228,6 +194,15 @@ FormExtrasSection.propTypes = {
     description: PropTypes.string,
     tabIndex: PropTypes.number
   }),
+  interactiveModeToggle: PropTypes.shape({
+    isActive: PropTypes.bool,
+    onToggle: PropTypes.func,
+    label: PropTypes.string,
+    icon: PropTypes.elementType,
+    description: PropTypes.string,
+    tabIndex: PropTypes.number
+  }),
+  useInteractiveModeToggle: PropTypes.bool,
   onAttachmentClick: PropTypes.func,
   onRemoveFile: PropTypes.func,
   formControl: PropTypes.object,
@@ -243,31 +218,38 @@ FormExtrasSection.propTypes = {
   showSubmitButton: PropTypes.bool,
   children: PropTypes.node,
   firstExtrasChildren: PropTypes.node,
-  knowledgeSelectorTabIndex: PropTypes.number,
-  knowledgeSourceSelectorTabIndex: PropTypes.number,
-  documentSelectorTabIndex: PropTypes.number,
+  featureIconsTabIndex: PropTypes.shape({
+    webSearch: PropTypes.number,
+    balancedMode: PropTypes.number,
+    attachment: PropTypes.number,
+    anweisungen: PropTypes.number
+  }),
   submitButtonTabIndex: PropTypes.number,
   onPrivacyInfoClick: PropTypes.func,
   onWebSearchInfoClick: PropTypes.func,
   componentName: PropTypes.string,
-  enableKnowledgeSelector: PropTypes.bool
+  hide: PropTypes.bool,
+  attachedFiles: PropTypes.array,
+  usePrivacyMode: PropTypes.bool
 };
 
 FormExtrasSection.defaultProps = {
-  enableKnowledgeSelector: false,
-  enableDocumentSelector: false,
   formControl: null,
   formNotice: null,
   isMultiStep: false,
   nextButtonText: null,
   submitButtonProps: {},
   showSubmitButton: true,
-  knowledgeSelectorTabIndex: 14,
-  knowledgeSourceSelectorTabIndex: 13,
-  documentSelectorTabIndex: 15,
+  featureIconsTabIndex: {
+    webSearch: 11,
+    balancedMode: 12,
+    attachment: 13,
+    anweisungen: 14
+  },
   submitButtonTabIndex: 17,
   onPrivacyInfoClick: undefined,
-  componentName: 'default'
+  componentName: 'default',
+  hide: false
 };
 
 FormExtrasSection.displayName = 'FormExtrasSection';

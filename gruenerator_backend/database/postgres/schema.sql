@@ -58,9 +58,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
+    interactive_antrag_enabled BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
-    document_mode TEXT DEFAULT 'manual' -- 'manual' or 'wolke'
+    document_mode TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
+    -- Export auto-save preference
+    auto_save_on_export BOOLEAN DEFAULT FALSE
 );
 
 -- Groups table (moved before documents to fix foreign key constraint)
@@ -323,10 +326,25 @@ CREATE TABLE IF NOT EXISTS custom_generator_documents (
     custom_generator_id UUID NOT NULL REFERENCES custom_generators(id) ON DELETE CASCADE,
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- Ensure unique combination of generator + document
     UNIQUE(custom_generator_id, document_id)
 );
+
+-- Saved Generators Junction Table
+-- Users can save other users' generators to their profile (read-only access)
+CREATE TABLE IF NOT EXISTS saved_generators (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    generator_id UUID NOT NULL REFERENCES custom_generators(id) ON DELETE CASCADE,
+    saved_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Ensure user can only save a generator once
+    UNIQUE(user_id, generator_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_generators_user_id ON saved_generators(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_generators_generator_id ON saved_generators(generator_id);
 
 -- Memories (for AI memory feature)
 CREATE TABLE IF NOT EXISTS memories (

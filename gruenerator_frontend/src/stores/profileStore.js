@@ -27,6 +27,7 @@ export const useProfileStore = create(
       anweisungenWissen: null,
       qaCollections: [],
       customGenerators: [],
+      savedGenerators: [],
       userTexts: [],
       userTemplates: [],
       memories: [],
@@ -136,6 +137,10 @@ export const useProfileStore = create(
         state.customGenerators = generators || [];
       }),
 
+      syncSavedGenerators: (generators) => set(state => {
+        state.savedGenerators = generators || [];
+      }),
+
       syncUserTexts: (texts) => set(state => {
         state.userTexts = texts || [];
       }),
@@ -219,7 +224,7 @@ export const useProfileStore = create(
       updateProfileOptimistic: (updates, loadingKey = null) => set(state => {
         // Apply optimistic update to UI
         state.profile = { ...state.profile, ...updates };
-        
+
         // Set loading state if provided
         if (loadingKey) {
           state.optimisticLoading[loadingKey] = true;

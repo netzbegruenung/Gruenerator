@@ -65,7 +65,7 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
   try {
     const profileService = getProfileService();
     const { display_name, username, avatar_robot_id, email } = req.body;
-    
+
     // Validate input
     if (avatar_robot_id && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
       return res.status(400).json({
@@ -73,20 +73,20 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
         message: 'Avatar Robot ID muss zwischen 1 und 9 liegen.'
       });
     }
-    
+
     // Prepare update data - NEVER include beta_features here
     // Beta features are managed exclusively via /profile/beta-features endpoint
     const updateData = {};
-    
+
     if (display_name !== undefined) updateData.display_name = display_name || null;
     if (username !== undefined) updateData.username = username || null;
     if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
-    
+
     // Handle email updates in profiles table
     if (email !== undefined) {
       updateData.email = email || null;
     }
-    
+
     // Update profile using ProfileService
     console.log(`[User Profile /profile PUT] Updating profile for user ${req.user.id}:`, updateData);
     const data = await profileService.updateProfile(req.user.id, updateData);
@@ -215,12 +215,11 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
     
     // List of allowed beta features - must match frontend expectations
     const allowedFeatures = [
-      'groups', 
-      'database', 
-      'customGenerators', 
-      'sharepic', 
-      'anweisungen', 
-      'you', 
+      'groups',
+      'database',
+      'sharepic',
+      'anweisungen',
+      'you',
       'qa',
       'advanced_editor',
       'collaborative_editing',
@@ -231,6 +230,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'canva',
       'chat',
       'labor',
+      'sites',
+      'interactiveAntrag',
+      'autoSaveOnExport',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'

@@ -16,6 +16,7 @@ export const QUERY_KEYS = {
   anweisungenWissen: (userId) => ['anweisungenWissen', userId],
   qaCollections: (userId) => ['qaCollections', userId],
   customGenerators: (userId) => ['customGenerators', userId],
+  savedGenerators: (userId) => ['savedGenerators', userId],
   generatorDocuments: (generatorId) => ['generatorDocuments', generatorId],
   userTexts: (userId) => ['userTexts', userId],
   userTemplates: (userId) => ['userTemplates', userId],
@@ -391,6 +392,56 @@ export const useCustomGenerators = ({ isActive, enabled = true } = {}) => {
   const data = useCustomGeneratorsData({ isActive, enabled });
   const mutations = useCustomGeneratorsMutations();
   return { ...data, ...mutations };
+};
+
+// === SAVED GENERATORS ===
+export const useSavedGenerators = ({ isActive, enabled = true } = {}) => {
+  const { user } = useOptimizedAuth();
+  const queryClient = useQueryClient();
+  const syncSavedGenerators = useProfileStore(state => state.syncSavedGenerators);
+
+  const query = useQuery({
+    queryKey: QUERY_KEYS.savedGenerators(user?.id),
+    queryFn: profileApiService.getSavedGenerators,
+    enabled: enabled && !!user?.id && isActive,
+    staleTime: 15 * 60 * 1000,
+    cacheTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always',
+    retry: 1
+  });
+
+  const unsaveMutation = useMutation({
+    mutationFn: profileApiService.unsaveGenerator,
+    onMutate: async (generatorId) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.savedGenerators(user?.id) });
+      const previousGenerators = queryClient.getQueryData(QUERY_KEYS.savedGenerators(user?.id));
+      queryClient.setQueryData(QUERY_KEYS.savedGenerators(user?.id), (old) => {
+        if (!old) return old;
+        return old.filter(generator => String(generator.id) !== String(generatorId));
+      });
+      return { previousGenerators };
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousGenerators) {
+        queryClient.setQueryData(QUERY_KEYS.savedGenerators(user?.id), context.previousGenerators);
+      }
+    }
+  });
+
+  // Sync with profileStore
+  useEffect(() => {
+    if (query.data) {
+      syncSavedGenerators(query.data);
+    }
+  }, [query.data, syncSavedGenerators]);
+
+  return {
+    query,
+    unsaveGenerator: unsaveMutation.mutateAsync,
+    isUnsaving: unsaveMutation.isPending,
+    unsaveError: unsaveMutation.error
+  };
 };
 
 // === GENERATOR DOCUMENTS ===

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
 import { NotebookIcon } from '../../config/icons';
-import { motion } from "motion/react";
 import Spinner from './Spinner';
 import MenuDropdown from './MenuDropdown';
 import BulkDeleteConfirmModal from './BulkDeleteConfirmModal';
@@ -11,7 +10,7 @@ import DocumentPreviewModal from './DocumentPreviewModal';
 import SelectAllCheckbox from './SelectAllCheckbox';
 import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import { getActionItems } from './ItemActionBuilder';
-import { truncateForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
+import { truncateForPreview, stripMarkdownForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
 
 // Document Overview Feature CSS - Loaded only when this feature is accessed
 import '../../assets/styles/components/document-overview.css';
@@ -110,6 +109,11 @@ const DocumentOverview = ({
 
     // Category options with counts
     const categoryOptions = useMemo(() => {
+        // Early return for empty state - skip reduce computation
+        if (!allItems || allItems.length === 0) {
+            return [{ value: 'all', label: 'Alle Dokumente (0)', icon: '📄' }];
+        }
+
         const counts = allItems.reduce((acc, item) => {
             if (itemType === 'document') {
                 const sourceType = item.source_type || 'manual';
@@ -204,8 +208,8 @@ const DocumentOverview = ({
 
         setDeleting(item.id);
         try {
-            await onDelete(item.id);
-            
+            await onDelete(item.id, item);
+
             // Close preview if deleted item was selected
             if (selectedItem?.id === item.id) {
                 setSelectedItem(null);
@@ -530,8 +534,8 @@ const DocumentOverview = ({
                     ) : (
                         <p className="content-preview">
                             {(() => {
-                                const raw = item.full_content || item.content_preview || item.ocr_text;
-                                const text = truncateForPreview(raw);
+                                const raw = item.markdown_content || item.full_content || item.content_preview || item.ocr_text;
+                                const text = stripMarkdownForPreview(raw);
                                 return text || 'Kein Inhalt verfügbar';
                             })()}
                         </p>
@@ -573,18 +577,13 @@ const DocumentOverview = ({
             <>
                 {/* Source badge */}
                 {itemType === 'document' && item.source_type && (
-                    <span className={`document-source-badge source-${item.source_type}`}>
-                        {item.source_type === 'wolke' ? '☁️ Wolke' :
-                         item.source_type === 'url' ? '🔗 URL' : '📁 Manual'}
+                    <span>
+                        {item.source_type === 'wolke' ? '☁️' :
+                         item.source_type === 'url' ? '🔗' : '📁'}
                     </span>
                 )}
                 {item.similarity_score != null && (
                     <span className="document-stats">Relevanz: {Math.round(item.similarity_score * 100)}%</span>
-                )}
-                {item.type && (
-                    <span className="document-type">
-                        {documentTypes[item.type] || item.type}
-                    </span>
                 )}
                 {item.updated_at && (
                     <span className="document-date">{formatDate(item.updated_at)}</span>

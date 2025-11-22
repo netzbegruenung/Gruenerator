@@ -1,9 +1,8 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
-import { useFormFields } from '../../../components/common/Form/hooks';
+import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
 const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
-  const { Input, Textarea } = useFormFields();
   const {
     control,
     getValues,
@@ -25,7 +24,7 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
 
   return (
     <>
-      <Input
+      <FormInput
         name="rolle"
         control={control}
         label="Rolle/Position"
@@ -34,7 +33,7 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.formType || 10}
       />
 
-      <Input
+      <FormInput
         name="thema"
         control={control}
         label="Spezifisches Thema oder Anlass der Rede"
@@ -43,7 +42,7 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 11}
       />
 
-      <Input
+      <FormInput
         name="zielgruppe"
         control={control}
         label="Zielgruppe"
@@ -52,7 +51,7 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 12}
       />
 
-      <Textarea
+      <FormTextarea
         name="schwerpunkte"
         control={control}
         label="Besondere Schwerpunkte oder lokale Aspekte"
@@ -62,7 +61,7 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 12}
       />
 
-      <Input
+      <FormInput
         name="redezeit"
         control={control}
         type="number"

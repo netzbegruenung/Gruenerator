@@ -15,6 +15,7 @@ export const FORM_STEPS = {
   TYPE_SELECT: 'type_select',
   ZITAT_SUB_SELECT: 'zitat_sub_select',
   INPUT: 'input',
+  QUESTION: 'question',  // Interactive slogan selection
   PREVIEW: 'preview',
   RESULT: 'result'
 };
@@ -216,6 +217,8 @@ export const FORM_LABELS = {
   LINE1: 'Zeile 1',
   LINE2: 'Zeile 2',
   LINE3: 'Zeile 3',
+  LINE4: 'Zeile 4',
+  LINE5: 'Zeile 5',
   FILE_UPLOAD: 'Datei hochladen',
   IDEE: 'Idee',
   GLIEDERUNG: 'Gliederung',
@@ -237,6 +240,8 @@ export const FORM_PLACEHOLDERS = {
   LINE1: 'Gib die erste Zeile ein...',
   LINE2: 'Gib die zweite Zeile ein...',
   LINE3: 'Gib die dritte Zeile ein...',
+  LINE4: 'Gib die vierte Zeile ein...',
+  LINE5: 'Gib die fünfte Zeile ein...',
   FILE_UPLOAD: 'Wähle eine Datei...',
   IDEE: 'Worum gehts?',
   DETAILS: 'Alle wichtigen Details und Anweisungen, zum Beispiel wo etwas gebaut wird. Du kannst hier auch Hinweise zur Sprache oder Korrekturen angeben.',

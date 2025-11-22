@@ -12,7 +12,6 @@ const WebinarCampaign = lazy(() => import('../features/campaigns/components/Webi
 
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
-const LoggedOutPage = lazy(() => import('../features/auth/pages/LoggedOutPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
 const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationPage'));
 
@@ -32,9 +31,12 @@ const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
+const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/KampagnenGenerator'));
 const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
+const SurveyIndex = lazy(() => import('../features/umfragen'));
+const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ default: module.SurveyPage })));
 
 
 // NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
@@ -83,11 +85,13 @@ export const GrueneratorenBundle = {
   Universal: UniversalTextGenerator,
   Antrag: AntragPage,
   PresseSocial: PresseSocialGenerator,
+  Kampagnen: KampagnenGenerator,
   Accessibility: AccessibilityTextGenerator,
   AltText: AltTextGenerator,
   Imagine: GrueneratorImagine,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
+  SharepicNeue: lazy(() => import('../features/sharepic/SharepicGrueneratorNeue')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
   Rede: UniversalTextGenerator,
   Wahlprogramm: UniversalTextGenerator,
@@ -110,7 +114,9 @@ export const GrueneratorenBundle = {
   ELearningTutorial: ELearningPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
-  CustomExamplePage: CustomExamplePage
+  CustomExamplePage: CustomExamplePage,
+  SurveyIndex: SurveyIndex,
+  SurveyPage: SurveyPage
 };
 
 // Route Konfigurationen
@@ -119,6 +125,7 @@ const standardRoutes = [
   { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
   { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
+  { path: '/kampagnen', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/imagine', component: GrueneratorenBundle.Imagine, withForm: true },
   { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
   { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
@@ -146,7 +153,6 @@ const standardRoutes = [
   // Auth-Routen (only components still used after Authentic integration)
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegistrationPage },
-  { path: '/logged-out', component: LoggedOutPage },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:tab', component: ProfilePage },
   { path: '/profile/:tab/:subtab', component: ProfilePage },
@@ -165,6 +171,8 @@ const standardRoutes = [
   { path: '/chat', component: GrueneratorenBundle.Chat },
   // E-Learning Routes
   { path: '/e-learning', component: GrueneratorenBundle.ELearning },
+  // Survey Routes
+  { path: '/umfragen', component: GrueneratorenBundle.SurveyIndex },
   // Pages Feature Routes
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
@@ -174,11 +182,17 @@ const standardRoutes = [
 ];
 
 const specialRoutes = [
-  { 
-    path: '/sharepic', 
-    component: GrueneratorenBundle.Sharepic, 
-    withForm: true, 
-    withSharepic: true 
+  {
+    path: '/sharepic',
+    component: GrueneratorenBundle.Sharepic,
+    withForm: true,
+    withSharepic: true
+  },
+  {
+    path: '/sharepic-neue',
+    component: GrueneratorenBundle.SharepicNeue,
+    withForm: true,
+    withSharepic: true
   }
 ];
 

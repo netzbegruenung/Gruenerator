@@ -9,17 +9,20 @@ import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles } from './menuData';
 import Icon from '../../common/Icon';
 
-import { useLazyAuth } from '../../../hooks/useAuth';
+import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const Header = () => {
     useLazyAuth(); // Keep for other auth functionality
+    const { user } = useOptimizedAuth();
     const location = useLocation();
     const { getBetaFeatureState } = useBetaFeatures();
 
     const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
     const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
     const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
+    const igelModeEnabled = useMemo(() => getBetaFeatureState('igel_modus'), [getBetaFeatureState]);
+
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [scrolled, setScrolled] = useState(false);
@@ -30,8 +33,10 @@ const Header = () => {
     const openTimeoutRef = useRef(null);
 
     // Memoize menu items to prevent unnecessary recalculations
-    const menuItems = useMemo(() => getMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
-    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled]);
+    const menuItems = useMemo(() => getMenuItems(
+        { databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled }
+    ), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled]);
+    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled]);
 
     // Close dropdown when location changes (navigation occurs)
     useEffect(() => {
@@ -203,18 +208,57 @@ const Header = () => {
 
     const renderDropdownContent = (menuType) => {
         const menu = menuItems[menuType];
-        return menu.items.map((item) => (
-            <li key={item.id} role="none">
-                <Link 
-                    to={item.path} 
-                    onClick={(e) => handleLinkClick(e)}
-                    role="menuitem"
-                    tabIndex="0"
-                >
-                    <MenuItem item={item} />
-                </Link>
-            </li>
-        ));
+        return menu.items.map((item) => {
+            // Handle items with sub-menus
+            if (item.hasSubmenu && item.items) {
+                return (
+                    <li key={item.id} role="none" className="has-submenu">
+                        <span
+                            className="submenu-trigger"
+                            role="menuitem"
+                            tabIndex="0"
+                            aria-haspopup="true"
+                        >
+                            <MenuItem item={item} />
+                            <Icon
+                                category="ui"
+                                name="caretDown"
+                                className="submenu-caret"
+                                aria-hidden="true"
+                            />
+                        </span>
+                        <ul className="submenu-content" role="menu" aria-label={`${item.title} Untermenü`}>
+                            {item.items.map((subItem) => (
+                                <li key={subItem.id} role="none">
+                                    <Link
+                                        to={subItem.path}
+                                        onClick={(e) => handleLinkClick(e)}
+                                        role="menuitem"
+                                        tabIndex="0"
+                                    >
+                                        <MenuItem item={subItem} />
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </li>
+                );
+            }
+
+            // Regular menu items
+            return (
+                <li key={item.id} role="none">
+                    <Link
+                        to={item.path}
+                        onClick={(e) => handleLinkClick(e)}
+                        role="menuitem"
+                        tabIndex="0"
+                    >
+                        <MenuItem item={item} />
+                    </Link>
+                </li>
+            );
+        });
     };
 
 

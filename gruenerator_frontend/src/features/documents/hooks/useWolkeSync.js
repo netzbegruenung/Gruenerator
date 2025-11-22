@@ -220,24 +220,16 @@ export const useWolkeSync = (useStore = true) => {
         };
     }, [useStore, storeGetSyncStats, syncStatuses]);
 
-    // Initialize on mount - ensure sync statuses are loaded
+    // Initialize on mount - deferred to avoid blocking initial render
+    // Sync statuses will be loaded when actually needed (e.g., when user accesses Wolke features)
     useEffect(() => {
-        if (useStore) {
-            // For store mode, ensure sync statuses are available
-            const { syncStatuses, initialized } = useWolkeStore.getState();
-            if (!initialized || syncStatuses.length === 0) {
-                console.log('[useWolkeSync] Ensuring sync statuses are loaded...');
-                storeFetchSyncStatuses().catch(error => {
-                    console.error('[useWolkeSync] Failed to ensure sync statuses:', error);
-                });
-            }
-        } else {
-            // For local mode, fetch if not initialized
-            if (!localInitialized) {
-                fetchSyncStatuses();
-            }
+        // Skip auto-initialization - let components explicitly call refresh() when needed
+        // This prevents unnecessary API calls on every DocumentsSection mount
+        if (!useStore && !localInitialized) {
+            // For local mode only, initialize if explicitly needed
+            // Store mode should be triggered by explicit user action
         }
-    }, [useStore, localInitialized, fetchSyncStatuses, storeFetchSyncStatuses]);
+    }, [useStore, localInitialized]);
 
     // Auto-refresh sync statuses only when syncs are active
     useEffect(() => {

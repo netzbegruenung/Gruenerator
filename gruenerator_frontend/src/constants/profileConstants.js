@@ -36,11 +36,6 @@ export const SUCCESS_MESSAGES = {
 };
 
 // Tab configurations
-export const INTELLIGENCE_TABS = [
-    { key: 'anweisungen', label: 'Anweisungen' },
-    { key: 'wissen', label: 'Wissen' }
-];
-
 export const CONTENT_MANAGEMENT_TABS = [
     { key: 'canva', label: 'Canva' },
     { key: 'documents', label: 'Dokumente & Texte' }

@@ -1,0 +1,109 @@
+.index-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-large);
+  transition: var(--input-transition);
+  cursor: pointer;
+  height: 100%;
+}
+
+.index-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--card-shadow-elevated);
+}
+
+.index-card:focus {
+  outline: 2px solid var(--primary-600);
+  outline-offset: 2px;
+}
+
+.index-card--elevated {
+  box-shadow: var(--card-shadow-subtle);
+}
+
+.index-card--elevated:hover {
+  box-shadow: var(--card-shadow-elevated);
+}
+
+.index-card--subtle {
+  background: var(--background-color-alt);
+  border-color: transparent;
+}
+
+.index-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-medium);
+}
+
+.index-card__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--font-color-h);
+  margin: 0;
+  flex: 1;
+}
+
+.index-card__header-actions {
+  margin-left: var(--spacing-small);
+}
+
+.index-card__content {
+  flex: 1;
+  margin-bottom: var(--spacing-medium);
+}
+
+.index-card__description {
+  color: var(--font-color);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.index-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsmall);
+  margin-bottom: var(--spacing-small);
+}
+
+.index-card__tag {
+  padding: var(--spacing-xxsmall) var(--spacing-small);
+  background: var(--secondary-600);
+  color: var(--background-color);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.index-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--font-color);
+  font-size: 0.875rem;
+  padding-top: var(--spacing-small);
+  border-top: 1px solid var(--card-border);
+}
+
+.index-card--non-clickable {
+  cursor: default;
+}
+
+.index-card--non-clickable:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .index-card {
+    padding: var(--spacing-medium);
+  }
+
+  .index-card__title {
+    font-size: 1.125rem;
+  }
+}

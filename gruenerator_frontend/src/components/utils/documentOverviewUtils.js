@@ -17,6 +17,49 @@ export const truncateForPreview = (content, maxLength = 300) => {
   }
 };
 
+// Cache for memoized markdown stripping - prevents expensive regex operations on re-renders
+const stripMarkdownCache = new Map();
+const CACHE_MAX_SIZE = 500;
+
+export const stripMarkdownForPreview = (content, maxLength = 300) => {
+  if (!content || typeof content !== 'string') return '';
+
+  // Create cache key from content hash (first 100 chars + length for uniqueness)
+  const cacheKey = `${content.slice(0, 100)}_${content.length}_${maxLength}`;
+
+  // Return cached result if available
+  if (stripMarkdownCache.has(cacheKey)) {
+    return stripMarkdownCache.get(cacheKey);
+  }
+
+  let cleaned = content
+    .replace(/^#{1,6}\s+/gm, '')              // # Headers
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')    // ***bold+italic***
+    .replace(/\*\*([^*]+)\*\*/g, '$1')        // **bold**
+    .replace(/\*([^*]+)\*/g, '$1')            // *italic*
+    .replace(/__([^_]+)__/g, '$1')            // __bold__
+    .replace(/_([^_]+)_/g, '$1')              // _italic_
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // [text](url)
+    .replace(/`([^`]+)`/g, '$1')              // `code`
+    .replace(/^[-*+]\s+/gm, '')               // - list items
+    .replace(/^\d+\.\s+/gm, '')               // 1. numbered lists
+    .replace(/^>\s+/gm, '')                   // > blockquotes
+    .replace(/~~([^~]+)~~/g, '$1')            // ~~strikethrough~~
+    .trim();
+
+  const result = truncateForPreview(cleaned, maxLength);
+
+  // Cache the result (with size limit to prevent memory leaks)
+  if (stripMarkdownCache.size >= CACHE_MAX_SIZE) {
+    // Clear oldest entries (simple strategy: clear first 100)
+    const keys = Array.from(stripMarkdownCache.keys()).slice(0, 100);
+    keys.forEach(key => stripMarkdownCache.delete(key));
+  }
+  stripMarkdownCache.set(cacheKey, result);
+
+  return result;
+};
+
 export const formatDate = (dateString) => {
   if (!dateString) return '';
   try {
