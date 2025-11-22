@@ -59,12 +59,12 @@ async function createZitatPureImage(processedText, validatedParams) {
     console.log('Background filled with color:', backgroundColor);
 
     // Test font loading
-    ctx.font = `italic ${quoteFontSize}px GrueneType`;
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
     const testText = "Test";
     const beforeWidth = ctx.measureText(testText).width;
     ctx.font = `italic ${quoteFontSize}px serif`; // Fallback
     const serifWidth = ctx.measureText(testText).width;
-    ctx.font = `italic ${quoteFontSize}px GrueneType`; // Set back
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`; // Set back
     const afterWidth = ctx.measureText(testText).width;
     
     console.log('Font loading test:', {
@@ -93,7 +93,7 @@ async function createZitatPureImage(processedText, validatedParams) {
 
     // Render Quote Text (italic)
     console.log('Rendering quote text:', processedText.quote);
-    ctx.font = `italic ${quoteFontSize}px GrueneType`;
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -113,7 +113,7 @@ async function createZitatPureImage(processedText, validatedParams) {
     
     // Render Author Name (italic, smaller, bottom-left positioned)
     console.log('Rendering author name:', processedText.name);
-    ctx.font = `italic ${nameFontSize}px GrueneType`;
+    ctx.font = `italic ${nameFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left'; // LEFT-aligned for bottom left positioning
     ctx.textBaseline = 'top';

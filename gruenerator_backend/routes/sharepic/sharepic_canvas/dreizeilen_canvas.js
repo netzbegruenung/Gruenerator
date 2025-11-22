@@ -88,7 +88,7 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
     }
 
     const { balkenGruppenOffset, fontSize, colors, balkenOffset, sunflowerOffset, sunflowerPosition, credit } = validatedParams;
-    ctx.font = `${fontSize}px GrueneType`;
+    ctx.font = `${fontSize}px GrueneTypeNeue`;
     
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
@@ -209,7 +209,7 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
     });
 
     if (credit) {
-      ctx.font = '60px GrueneType';
+      ctx.font = '60px GrueneTypeNeue';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
 

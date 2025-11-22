@@ -73,7 +73,7 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     ctx.drawImage(quotationMark, 50, quoteMarkY, quoteMarkSize, quoteMarkSize);
 
     // Zitat hinzufügen
-    ctx.font = '60px GrueneType';
+    ctx.font = '60px GrueneTypeNeue';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -100,7 +100,7 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     ctx.fillText(line, quoteX, y);
 
     // Name hinzufügen
-    ctx.font = '40px GrueneType';
+    ctx.font = '40px GrueneTypeNeue';
     ctx.fillStyle = 'white';
     ctx.fillText(name, quoteX, y + 80);
 

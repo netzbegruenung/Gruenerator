@@ -4,7 +4,7 @@ const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH, TESTBI
 
 async function checkFiles() {
   const files = [
-    { path: FONT_PATH, name: 'GrueneType Schriftartdatei' },
+    { path: FONT_PATH, name: 'GrueneTypeNeue Schriftartdatei' },
     { path: PTSANS_REGULAR_PATH, name: 'PTSans Regular Schriftartdatei' },
     { path: PTSANS_BOLD_PATH, name: 'PTSans Bold Schriftartdatei' },
     { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' }
@@ -24,7 +24,7 @@ function registerFonts() {
   const fs = require('fs');
 
   const fonts = [
-    { path: FONT_PATH, family: 'GrueneType', name: 'GrueneType' },
+    { path: FONT_PATH, family: 'GrueneTypeNeue', name: 'GrueneTypeNeue' },
     { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
     { path: PTSANS_BOLD_PATH, family: 'PTSans-Bold', name: 'PTSans Bold' }
   ];

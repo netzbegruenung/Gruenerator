@@ -1,7 +1,7 @@
 const path = require('path');
 
 module.exports = {
-  FONT_PATH: path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf'),
+  FONT_PATH: path.resolve(__dirname, '../../../public/fonts/GrueneTypeNeue-Regular.ttf'),
   PTSANS_REGULAR_PATH: path.resolve(__dirname, '../../../public/fonts/PTSans-Regular.ttf'),
   PTSANS_BOLD_PATH: path.resolve(__dirname, '../../../public/fonts/PTSans-Bold.ttf'),
   SUNFLOWER_PATH: path.resolve(__dirname, '../../../public/Sonnenblume.png'),

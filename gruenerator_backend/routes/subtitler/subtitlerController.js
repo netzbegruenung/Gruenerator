@@ -14,7 +14,7 @@ const { generateDownloadToken, processDirectDownload, processChunkedDownload } =
 const { getCompressionStatus } = require('./services/backgroundCompressionService'); // Import compression service
 
 // Font configuration
-const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneType.ttf');
+const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
 
 // Create ASS service instance
 const assService = new AssSubtitleService();
@@ -23,9 +23,9 @@ const assService = new AssSubtitleService();
 async function checkFont() {
   try {
     await fsPromises.access(FONT_PATH);
-    console.log('GrueneType Font found for ASS subtitles:', FONT_PATH);
+    console.log('GrueneTypeNeue Font found for ASS subtitles:', FONT_PATH);
   } catch (err) {
-    console.warn('GrueneType Font not found, ASS will use system fallback:', err.message);
+    console.warn('GrueneTypeNeue Font not found, ASS will use system fallback:', err.message);
     // Don't throw error for ASS - it can handle font fallbacks
   }
 }
@@ -772,7 +772,7 @@ router.post('/export', async (req, res) => {
       }
 
       console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference} → ${effectiveStyle}, height: ${heightPreference}, locale: ${locale}`);
-      console.log(`[ASS] Processing ${segments.length} segments with GrueneType font`);
+      console.log(`[ASS] Processing ${segments.length} segments`);
       if (subtitlePreference === 'word') {
         console.log(`[ASS] TikTok word mode positioning: center screen (50% height)`);
       } else {

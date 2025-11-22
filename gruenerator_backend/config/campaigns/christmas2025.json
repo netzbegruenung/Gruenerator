@@ -59,18 +59,18 @@
     "width": 1080,
     "height": 1350,
     "textLines": [
-      {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
-      {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
-      {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
-      {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950},
-      {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "align": "center", "font": "GrueneType", "maxWidth": 950}
+      {"field": "line1", "x": 540, "y": 450, "fontSize": 75, "align": "center", "font": "GrueneTypeNeue", "maxWidth": 950},
+      {"field": "line2", "x": 540, "y": 570, "fontSize": 75, "align": "center", "font": "GrueneTypeNeue", "maxWidth": 950},
+      {"field": "line3", "x": 540, "y": 690, "fontSize": 75, "align": "center", "font": "GrueneTypeNeue", "maxWidth": 950},
+      {"field": "line4", "x": 540, "y": 810, "fontSize": 75, "align": "center", "font": "GrueneTypeNeue", "maxWidth": 950},
+      {"field": "line5", "x": 540, "y": 930, "fontSize": 75, "align": "center", "font": "GrueneTypeNeue", "maxWidth": 950}
     ],
     "decorations": [],
     "credit": {
       "text": "Die Grünen {{location}} wünschen dir frohe Feiertage!",
       "x": 540,
       "fontSize": 38,
-      "font": "GrueneType",
+      "font": "GrueneTypeNeue",
       "align": "center"
     }
   },
