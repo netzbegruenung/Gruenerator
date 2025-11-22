@@ -6,7 +6,7 @@ const fs = require('fs');
 const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } = require('./config');
 
 // Register fonts
-registerFont(FONT_PATH, { family: 'GrueneType' });
+registerFont(FONT_PATH, { family: 'GrueneTypeNeue' });
 if (fs.existsSync(PTSANS_REGULAR_PATH)) {
   registerFont(PTSANS_REGULAR_PATH, { family: 'PTSans-Regular' });
 }

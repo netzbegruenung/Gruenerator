@@ -83,7 +83,7 @@ async function createInfoImage(processedText, validatedParams) {
 
     // Render Header Text
     if (processedText.header) {
-      ctx.font = `${headerFontSize}px GrueneType`;
+      ctx.font = `${headerFontSize}px GrueneTypeNeue`;
       ctx.fillStyle = headerColor;
       ctx.textAlign = 'left'; // Left-aligned header
       ctx.textBaseline = 'top';

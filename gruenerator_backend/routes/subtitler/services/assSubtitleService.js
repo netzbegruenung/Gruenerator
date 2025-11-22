@@ -5,8 +5,8 @@ const { sanitizeFilename } = require('../../../utils/securityUtils');
 
 class AssSubtitleService {
   constructor() {
-    // Font paths for GrueneType, GJFontRegular, and Montserrat (Austria)
-    this.grueneTypeFontPath = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
+    // Font paths for GrueneTypeNeue, GJFontRegular, and Montserrat (Austria)
+    this.grueneTypeFontPath = path.resolve(__dirname, '../../../public/fonts/GrueneTypeNeue-Regular.ttf');
     this.gjFontPath = path.resolve(__dirname, '../../../public/fonts/GJFontRegular.ttf');
     this.montserratFontPath = path.resolve(__dirname, '../../../public/fonts/Montserrat-Bold.ttf');
     
@@ -50,7 +50,7 @@ class AssSubtitleService {
   // Default style configuration
   get defaultStyle() {
     return {
-      fontName: 'GrueneType Black Condensed Italic', // Full font name from TTF file
+      fontName: 'GrueneTypeNeue-Regular', // Full font name from TTF file
       fontSize: 20,
       primaryColor: '&Hffffff', // White text
       secondaryColor: '&Hffffff', // White secondary
