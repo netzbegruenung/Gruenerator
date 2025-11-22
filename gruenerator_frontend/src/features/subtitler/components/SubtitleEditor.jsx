@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+import { useAuthStore } from '../../../stores/authStore';
 import '../../../assets/styles/components/subtitler/download-fallback.css';
 
 const SubtitleEditor = ({ 
@@ -27,6 +28,9 @@ const SubtitleEditor = ({
     resetExport,
     subscribe
   } = exportStore;
+
+  // Get user locale for Austria-specific styling
+  const locale = useAuthStore((state) => state.locale);
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
   const [editableSubtitles, setEditableSubtitles] = useState([]);
@@ -245,11 +249,12 @@ const SubtitleEditor = ({
         })
         .join('\n\n');
 
-      console.log('[SubtitleEditor] Starting export via store:', { 
-        uploadId, 
+      console.log('[SubtitleEditor] Starting export via store:', {
+        uploadId,
         subtitlesLength: subtitlesText.length,
         stylePreference,
-        heightPreference 
+        heightPreference,
+        locale
       });
 
       // Use the centralized store for export
@@ -257,7 +262,8 @@ const SubtitleEditor = ({
         uploadId,
         subtitlePreference,
         stylePreference,
-        heightPreference
+        heightPreference,
+        locale // Pass locale for Austria-specific styling
       });
 
     } catch (error) {
