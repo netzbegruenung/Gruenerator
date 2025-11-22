@@ -85,10 +85,8 @@ class QdrantService {
         this.isInitializing = true;
 
         try {
-            // Hardcoded configuration (comment out and use env vars below to reactivate)
             const apiKey = process.env.QDRANT_API_KEY;
-            const qdrantUrl = 'https://qdrant.netzbegruenung.verdigado.net/';
-            // const qdrantUrl = process.env.QDRANT_URL;
+            const qdrantUrl = process.env.QDRANT_URL;
 
             if (!apiKey || apiKey.trim() === '') {
                 throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
@@ -108,11 +106,8 @@ class QdrantService {
                 freeSocketTimeout: 15000
             });
 
-            // Hardcoded basic auth (comment out and use env vars below to reactivate)
-            const basicAuthUsername = 'moritz';
-            const basicAuthPassword = 'hZgdYH9zwQWvVXSq5SxfKCgtqtJjsvnE';
-            // const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
-            // const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+            const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
+            const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;
             const headers = {};
 
             if (basicAuthUsername && basicAuthPassword) {
