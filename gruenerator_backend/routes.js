@@ -269,97 +269,10 @@ async function setupRoutes(app) {
     }
   });
 
-  // Zitat with Abyssale generation route - combines text generation + professional template
-  app.post('/api/zitat_abyssale', async (req, res) => {
-    try {
-      console.log('[Zitat-Abyssale] Processing request with body:', req.body);
-      
-      // Step 1: Generate text using existing zitat handler
-      const textResponse = await new Promise((resolve, reject) => {
-        const mockRes = {
-          json: (data) => resolve(data),
-          status: (code) => ({
-            json: (data) => reject(new Error(`Status ${code}: ${JSON.stringify(data)}`)),
-            send: (message) => reject(new Error(`Status ${code}: ${message}`))
-          })
-        };
-        
-        sharepicClaudeRoute.handleClaudeRequest(req, mockRes, 'zitat').catch(reject);
-      });
-      
-      console.log('[Zitat-Abyssale] Text generation response:', textResponse);
-      
-      if (!textResponse || !textResponse.quote) {
-        throw new Error('Failed to generate quote text');
-      }
-      
-      // Step 2: Map to Abyssale elements format
-      const abyssaleData = {
-        designId: 'fc939548-a4e4-426c-be66-66034d612542',
-        elements: {
-          text_0: {
-            payload: textResponse.quote
-          },
-          text_1: {
-            payload: req.body.name || 'Moritz Wächter'
-          }
-        }
-      };
-      
-      console.log('[Zitat-Abyssale] Sending to Abyssale API:', abyssaleData);
-      
-      // Step 3: Generate image using Abyssale
-      const axios = require('axios');
-      const abyssaleResponse = await axios.post(
-        `${req.protocol}://${req.get('host')}/api/abyssale/generate`,
-        abyssaleData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': req.headers.cookie // Forward auth cookies
-          }
-        }
-      );
-      
-      console.log('[Zitat-Abyssale] Abyssale API response:', abyssaleResponse.data);
-      
-      if (!abyssaleResponse.data || !abyssaleResponse.data.success) {
-        throw new Error('Abyssale image generation failed');
-      }
-      
-      // Step 4: Convert local image to base64 (like regular generation)
-      const fs = require('fs');
-      const localImagePath = abyssaleResponse.data.data.local?.path;
-      
-      if (!localImagePath || !fs.existsSync(localImagePath)) {
-        throw new Error('Local image file not found');
-      }
-      
-      // Read image file and convert to base64
-      const imageBuffer = fs.readFileSync(localImagePath);
-      const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
-      
-      // Step 5: Return response in same format as regular generation
-      const result = {
-        success: true,
-        quote: textResponse.quote,
-        name: req.body.name || 'Moritz Wächter',
-        alternatives: textResponse.alternatives || [],
-        image: base64Image, // Same format as regular generation
-        imageData: abyssaleResponse.data.data // Keep for debugging if needed
-      };
-      
-      console.log('[Zitat-Abyssale] Final response:', result);
-      res.json(result);
-      
-    } catch (error) {
-      console.error('[Zitat-Abyssale] Error:', error.message);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to generate Abyssale sharepic'
-      });
-    }
-  });
+  // Zitat with Abyssale generation route - DISABLED until needed
+  // const zitatAbyssaleRouter = require('./routes/sharepic/sharepic_abyssale/zitat_abyssale');
+  // app.use('/api/zitat_abyssale', zitatAbyssaleRouter);
+
   app.use('/api/ai-image-modification', aiImageModificationRouter);
   app.use('/api/imageupload', imageUploadRouter);
   app.use('/api/processText', processTextRouter);
