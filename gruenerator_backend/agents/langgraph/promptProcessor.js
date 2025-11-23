@@ -15,6 +15,20 @@ const {
 } = require('../../utils/promptUtils');
 const { localizePromptObject, extractLocaleFromRequest } = require('../../utils/localizationHelper');
 
+// Generation stats logging (lazy-loaded ES module)
+let generationStatsService = null;
+async function logGeneration(data) {
+  try {
+    if (!generationStatsService) {
+      const module = await import('../../database/services/GenerationStatsService.js');
+      generationStatsService = module.getGenerationStatsService();
+    }
+    await generationStatsService.logGeneration(data);
+  } catch (err) {
+    // Silent failure - stats logging should not affect generation
+  }
+}
+
 // For custom_generator database access
 // PostgresService imported dynamically in loadCustomGeneratorPrompt function
 
@@ -550,8 +564,25 @@ async function processGraphRequest(routeType, req, res) {
 
     if (!result.success) {
       console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
+      // Log failed generation
+      logGeneration({
+        userId: req.user?.id || req.session?.passport?.user?.id || null,
+        generationType: routeType,
+        platform: requestData.platforms?.[0] || null,
+        tokensUsed: null,
+        success: false
+      });
       throw new Error(result.error);
     }
+
+    // Log successful generation (fire-and-forget)
+    logGeneration({
+      userId: req.user?.id || req.session?.passport?.user?.id || null,
+      generationType: routeType,
+      platform: requestData.platforms?.[0] || null,
+      tokensUsed: result.usage?.total_tokens || null,
+      success: true
+    });
 
     // Cache enriched context for future edit requests
     if (req.session?.id) {
