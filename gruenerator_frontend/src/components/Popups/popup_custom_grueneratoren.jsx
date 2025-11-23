@@ -36,7 +36,7 @@ const CustomGrueneratorenPopup = () => {
 
   const handleTryNow = () => {
     localStorage.setItem(CUSTOM_GRUENERATOREN_CONFIG.storageKey, 'true');
-    window.open('/profile', '_self');
+    window.open('/profile/grueneratoren', '_self');
   };
 
   return (
