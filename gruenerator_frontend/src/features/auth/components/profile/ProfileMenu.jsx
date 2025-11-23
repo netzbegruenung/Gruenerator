@@ -21,7 +21,7 @@ const PROFILE_MENU_ITEMS = [
     ]
   },
   { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers },
-  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/generatoren', icon: FaCogs, hasSubmenu: true }
+  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/grueneratoren', icon: FaCogs, hasSubmenu: true }
 ];
 
 const ProfileMenu = ({
