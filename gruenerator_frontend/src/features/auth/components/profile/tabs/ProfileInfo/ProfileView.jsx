@@ -81,7 +81,6 @@ const ProfileView = ({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <h2 className="profile-section-header">Profil</h2>
         <div className="profile-avatar-section">
           <div
             className="profile-avatar clickable-avatar"
@@ -110,8 +109,6 @@ const ProfileView = ({
             {(email || user?.email || user?.username) && (
               <div className="profile-user-email">{email || user?.email || user?.username}</div>
             )}
-            {user?.id && <div className="profile-user-id user-id-display">ID: {user.id}</div>}
-            <p className="profile-beta-notice">Alle Profil-Features befinden sich in der Beta-Phase und können instabil sein.</p>
           </div>
         </div>
 
