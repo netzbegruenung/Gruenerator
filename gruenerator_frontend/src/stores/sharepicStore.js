@@ -23,6 +23,9 @@ const initialState = {
   header: '',
   subheader: '',
   body: '',
+  // Text2Sharepic fields
+  description: '',
+  mood: '',
   fontSize: FONT_SIZES.M,
   balkenOffset: [50, -100, 50],
   colorScheme: DEFAULT_COLORS,

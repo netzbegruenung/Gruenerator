@@ -414,6 +414,19 @@ const useApiSubmit = (endpoint) => {
           });
           throw new Error('Keine Alt-Text-Antwort von der KI erhalten.');
         }
+      } else if (endpoint === 'sharepic/text2sharepic/generate-ai') {
+        console.log('[useApiSubmit] Processing text2sharepic response:', response);
+        if (response && response.success && response.image) {
+          setSuccess(true);
+          return response;
+        } else {
+          console.error('[useApiSubmit] Invalid text2sharepic response structure:', {
+            response: response,
+            hasSuccess: response?.success,
+            hasImage: !!response?.image
+          });
+          throw new Error('Keine Bilddaten vom KI-Sharepic-Generator erhalten.');
+        }
       }
 
       // Fallback für alle anderen Endpoints
