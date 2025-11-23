@@ -110,7 +110,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
     }
 
     console.log('Setting up text rendering with font size:', fontSize);
-    ctx.font = `${fontSize}px GrueneType`;
+    ctx.font = `${fontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -120,7 +120,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
     const beforeWidth = ctx.measureText(testText).width;
     ctx.font = `${fontSize}px serif`; // Fallback
     const serifWidth = ctx.measureText(testText).width;
-    ctx.font = `${fontSize}px GrueneType`; // Set back
+    ctx.font = `${fontSize}px GrueneTypeNeue`; // Set back
     const afterWidth = ctx.measureText(testText).width;
     
     console.log('Font loading test:', {
@@ -161,7 +161,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
     // Credit text at bottom
     if (credit) {
       console.log('Adding credit text:', credit);
-      ctx.font = '60px GrueneType';
+      ctx.font = '60px GrueneTypeNeue';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';

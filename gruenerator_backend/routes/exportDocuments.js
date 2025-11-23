@@ -283,7 +283,7 @@ router.post('/pdf', async (req, res) => {
 
     // Embed custom fonts
     const fontsDir = path.join(__dirname, '..', 'public', 'fonts');
-    const grueneTypeBytes = await fs.readFile(path.join(fontsDir, 'GrueneType.ttf'));
+    const grueneTypeBytes = await fs.readFile(path.join(fontsDir, 'GrueneTypeNeue-Regular.ttf'));
     const ptSansRegularBytes = await fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf'));
 
     const titleFont = await pdfDoc.embedFont(grueneTypeBytes);
@@ -377,7 +377,7 @@ router.post('/docx', async (req, res) => {
     children.push(
       new Paragraph({
         children: [
-          new TextRun({ text: docTitle, bold: true, size: 32, font: 'GrueneType' }),
+          new TextRun({ text: docTitle, bold: true, size: 32, font: 'GrueneTypeNeue' }),
         ],
         heading: HeadingLevel.TITLE,
         alignment: AlignmentType.CENTER,
@@ -399,7 +399,7 @@ router.post('/docx', async (req, res) => {
             bold: true,
             italics: segment.italic,
             size: paragraph.headerLevel === 1 ? 28 : paragraph.headerLevel === 2 ? 26 : 24,
-            font: 'GrueneType'
+            font: 'GrueneTypeNeue'
           })
         );
 

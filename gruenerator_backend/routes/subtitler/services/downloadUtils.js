@@ -9,7 +9,7 @@ const redisClient = require('../../../utils/redisClient');
 const AssSubtitleService = require('./assSubtitleService');
 
 // Font configuration
-const FONT_PATH = path.resolve(__dirname, '../../../public/fonts/GrueneType.ttf');
+const FONT_PATH = path.resolve(__dirname, '../../../public/fonts/GrueneTypeNeue-Regular.ttf');
 
 // Create ASS service instance
 const assService = new AssSubtitleService();
@@ -347,9 +347,9 @@ async function streamVideoFile(outputPath, originalFilename, uploadId, res) {
 async function checkFont() {
   try {
     await fsPromises.access(FONT_PATH);
-    console.log('GrueneType Font found for ASS subtitles:', FONT_PATH);
+    console.log('GrueneTypeNeue Font found for ASS subtitles:', FONT_PATH);
   } catch (err) {
-    console.warn('GrueneType Font not found, ASS will use system fallback:', err.message);
+    console.warn('GrueneTypeNeue Font not found, ASS will use system fallback:', err.message);
   }
 }
 
@@ -539,7 +539,7 @@ async function generateAssSubtitles(segments, metadata, subtitlePreference, styl
     assFilePath = await assService.createTempAssFile(assContent, cacheKey);
     
     // Copy font to temp directory
-    tempFontPath = path.join(path.dirname(assFilePath), 'GrueneType.ttf');
+    tempFontPath = path.join(path.dirname(assFilePath), 'GrueneTypeNeue-Regular.ttf');
     try {
       await fsPromises.copyFile(FONT_PATH, tempFontPath);
       console.log(`[ASS] Copied font to temp: ${tempFontPath}`);

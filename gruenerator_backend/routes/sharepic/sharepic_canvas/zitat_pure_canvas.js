@@ -13,6 +13,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Path to the quotation mark SVG
 const QUOTE_SVG_PATH = path.resolve(__dirname, '../../../public/quote.svg');
+// Path to the sunflower SVG (watermark)
+const SUNFLOWER_SVG_PATH = path.resolve(__dirname, '../../../public/sonnenblume_dunkelgruen.svg');
 
 async function processZitatPureText(textData) {
   console.log('processZitatPureText aufgerufen mit:', textData);
@@ -42,10 +44,22 @@ async function createZitatPureImage(processedText, validatedParams) {
       throw new Error(`Anführungszeichen-SVG nicht gefunden: ${QUOTE_SVG_PATH}`);
     }
 
+    // Check if sunflower SVG exists
+    try {
+      await fs.access(SUNFLOWER_SVG_PATH);
+    } catch (error) {
+      throw new Error(`Sonnenblumen-SVG nicht gefunden: ${SUNFLOWER_SVG_PATH}`);
+    }
+
     // Load the quotation mark SVG
     console.log('Loading quotation mark SVG from:', QUOTE_SVG_PATH);
     const quotationMark = await loadImage(QUOTE_SVG_PATH);
     console.log('Quotation mark loaded successfully');
+
+    // Load the sunflower SVG
+    console.log('Loading sunflower SVG from:', SUNFLOWER_SVG_PATH);
+    const sunflower = await loadImage(SUNFLOWER_SVG_PATH);
+    console.log('Sunflower loaded successfully');
 
     // Create canvas with standard sharepic dimensions
     const canvas = createCanvas(1080, 1350);
@@ -58,13 +72,25 @@ async function createZitatPureImage(processedText, validatedParams) {
     ctx.fillRect(0, 0, 1080, 1350);
     console.log('Background filled with color:', backgroundColor);
 
+    // Draw sunflower watermark in upper-right corner with 6% opacity
+    // The sunflower bleeds off top and right edges, creating a cropped effect
+    const sunflowerSize = 800; // Large size so it bleeds off edges
+    const sunflowerX = 1080 - sunflowerSize + 200; // Positioned to bleed off right edge
+    const sunflowerY = -200; // Positioned to bleed off top edge
+
+    ctx.save();
+    ctx.globalAlpha = 0.06; // 6% opacity for subtle watermark effect
+    ctx.drawImage(sunflower, sunflowerX, sunflowerY, sunflowerSize, sunflowerSize);
+    ctx.restore();
+    console.log(`Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`);
+
     // Test font loading
-    ctx.font = `italic ${quoteFontSize}px GrueneType`;
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
     const testText = "Test";
     const beforeWidth = ctx.measureText(testText).width;
     ctx.font = `italic ${quoteFontSize}px serif`; // Fallback
     const serifWidth = ctx.measureText(testText).width;
-    ctx.font = `italic ${quoteFontSize}px GrueneType`; // Set back
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`; // Set back
     const afterWidth = ctx.measureText(testText).width;
     
     console.log('Font loading test:', {
@@ -93,7 +119,7 @@ async function createZitatPureImage(processedText, validatedParams) {
 
     // Render Quote Text (italic)
     console.log('Rendering quote text:', processedText.quote);
-    ctx.font = `italic ${quoteFontSize}px GrueneType`;
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -113,7 +139,7 @@ async function createZitatPureImage(processedText, validatedParams) {
     
     // Render Author Name (italic, smaller, bottom-left positioned)
     console.log('Rendering author name:', processedText.name);
-    ctx.font = `italic ${nameFontSize}px GrueneType`;
+    ctx.font = `italic ${nameFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left'; // LEFT-aligned for bottom left positioning
     ctx.textBaseline = 'top';
@@ -170,7 +196,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       backgroundColor: isValidHexColor(backgroundColor) ? backgroundColor : COLORS.ZITAT_BG, // Default to new zitat background
       textColor: isValidHexColor(textColor) ? textColor : '#005437', // Tanne color for text
       quoteMarkColor: isValidHexColor(quoteMarkColor) ? quoteMarkColor : '#005437', // Tanne color for quote marks
-      quoteFontSize: parseInt(quoteFontSize, 10) || 78, // Increased to better match original (75-80px range)
+      quoteFontSize: parseInt(quoteFontSize, 10) || 81, // Match original template size
       nameFontSize: parseInt(nameFontSize, 10) || 35 // Smaller author text
     };
 

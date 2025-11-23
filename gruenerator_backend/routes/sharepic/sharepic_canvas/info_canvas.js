@@ -13,6 +13,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Path to the pre-made Info background
 const INFO_BG_PATH = path.resolve(__dirname, '../../../public/Info_bg_tanne.png');
+const ARROW_PATH = path.resolve(__dirname, '../../../public/arrow_right.svg');
+const SUNFLOWER_PATH = path.resolve(__dirname, '../../../public/sonnenblume_dunkelgruen.svg');
 
 // Function to parse body text into first sentence and remaining text
 function parseBodyText(bodyText) {
@@ -83,7 +85,7 @@ async function createInfoImage(processedText, validatedParams) {
 
     // Render Header Text
     if (processedText.header) {
-      ctx.font = `${headerFontSize}px GrueneType`;
+      ctx.font = `${headerFontSize}px GrueneTypeNeue`;
       ctx.fillStyle = headerColor;
       ctx.textAlign = 'left'; // Left-aligned header
       ctx.textBaseline = 'top';
@@ -99,6 +101,22 @@ async function createInfoImage(processedText, validatedParams) {
     }
 
 
+    // Render Arrow Icon - aligned with header text
+    let arrowSize = 60;
+    let arrowX = margin; // Same alignment as header
+    let arrowY = currentY; // Align with first line of body text
+
+    try {
+      const arrowImage = await loadImage(ARROW_PATH);
+      ctx.drawImage(arrowImage, arrowX, arrowY, arrowSize, arrowSize);
+    } catch (error) {
+      console.warn('Could not load arrow icon:', error.message);
+    }
+
+    // Body text starts after the arrow
+    const bodyTextMargin = margin + arrowSize + 15; // Arrow width + spacing
+    const bodyTextWidth = canvasWidth - bodyTextMargin - margin; // Adjusted width
+
     // Render Body Text as continuous block with mixed fonts
     if (processedText.bodyFirstSentence || processedText.bodyRemaining) {
       // Pre-process: mark each word with its font type
@@ -110,12 +128,12 @@ async function createInfoImage(processedText, validatedParams) {
         text: word,
         font: index < firstSentenceWordCount ? `${bodyFontSize}px PTSans-Bold` : `${bodyFontSize}px PTSans-Regular`
       }));
-      
+
       ctx.fillStyle = bodyColor;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      
-      let currentX = margin;
+
+      let currentX = bodyTextMargin;
       let bodyY = currentY;
       let currentLine = [];
       
@@ -133,19 +151,19 @@ async function createInfoImage(processedText, validatedParams) {
           }
         });
         
-        if (testWidth > textWidth && currentLine.length > 0) {
+        if (testWidth > bodyTextWidth && currentLine.length > 0) {
           // Line is full, render current line and start new one
-          renderWordsWithFonts(ctx, currentLine, margin, bodyY, bodyColor);
+          renderWordsWithFonts(ctx, currentLine, bodyTextMargin, bodyY, bodyColor);
           currentLine = [wordObj];
           bodyY += bodyFontSize * 1.4;
         } else {
           currentLine = testLine;
         }
       }
-      
+
       // Render final line
       if (currentLine.length > 0) {
-        renderWordsWithFonts(ctx, currentLine, margin, bodyY, bodyColor);
+        renderWordsWithFonts(ctx, currentLine, bodyTextMargin, bodyY, bodyColor);
       }
     }
 
