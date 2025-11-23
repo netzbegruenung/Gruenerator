@@ -265,7 +265,7 @@ const CustomGeneratorsView = ({
                             <div className="profile-header-section">
                                 <div className="group-title-area">
                                     <h2 className="profile-user-name large-profile-title">
-                                        Meine Custom Grüneratoren
+                                        Meine Grüneratoren (Open Beta)
                                     </h2>
                                 </div>
                             </div>
