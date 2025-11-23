@@ -103,43 +103,69 @@ async function createZitatPureImage(processedText, validatedParams) {
     // Define layout constants
     const margin = 75;
     const textWidth = 1080 - (margin * 2);
-    const quoteMarkSize = 100; // Reduced from 120px to match original
-    
-    // Position quotation marks in upper left (lower than before)
+    const quoteMarkSize = 100;
     const quoteMarkX = margin;
-    const quoteMarkY = 200; // Moved down from 75px to 200px
-    
-    // Draw quotation marks (outline style in Tanne color)
+    const gapBetweenQuoteMarkAndText = 20;
+    const gapBetweenQuoteAndName = 60;
+
+    // Set font for initial line count calculation
+    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    // Calculate initial line count to determine if we need larger font
+    const initialQuoteLines = wrapText(ctx, processedText.quote, textWidth);
+
+    // Scale up font size for short quotes (5 lines or fewer)
+    let adjustedQuoteFontSize = quoteFontSize;
+    let adjustedNameFontSize = nameFontSize;
+    if (initialQuoteLines.length <= 5) {
+      adjustedQuoteFontSize = Math.min(Math.round(quoteFontSize * 1.2), 97);
+      adjustedNameFontSize = Math.min(Math.round(nameFontSize * 1.2), 42);
+      ctx.font = `italic ${adjustedQuoteFontSize}px GrueneTypeNeue`;
+    }
+
+    // Recalculate with final font size
+    const quoteLines = wrapText(ctx, processedText.quote, textWidth);
+    const lineHeight = adjustedQuoteFontSize * 1.2;
+    const quoteTextHeight = quoteLines.length * lineHeight;
+    const totalContentHeight = quoteMarkSize + gapBetweenQuoteMarkAndText + quoteTextHeight + gapBetweenQuoteAndName + adjustedNameFontSize;
+
+    // Define vertical boundaries
+    const topBoundary = 120;
+    const bottomBoundary = 1350 - 100;
+    const availableHeight = bottomBoundary - topBoundary;
+
+    // Center content vertically
+    const contentStartY = topBoundary + (availableHeight - totalContentHeight) / 2;
+
+    // Position elements based on centered content
+    const quoteMarkY = contentStartY;
+    const quoteTextY = quoteMarkY + quoteMarkSize + gapBetweenQuoteMarkAndText;
+
+    // Draw quotation marks
     ctx.fillStyle = quoteMarkColor;
     ctx.drawImage(quotationMark, quoteMarkX, quoteMarkY, quoteMarkSize, quoteMarkSize);
     console.log(`Quotation marks drawn at position (${quoteMarkX}, ${quoteMarkY})`);
 
-    // Position main quote text much lower to match original template
-    let currentY = 320; // Fixed position at 320px from top, matching original
-
     // Render Quote Text (italic)
     console.log('Rendering quote text:', processedText.quote);
-    ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    
-    // Wrap text if necessary
-    const quoteLines = wrapText(ctx, processedText.quote, textWidth);
-    let finalQuoteY = currentY;
+
+    let finalQuoteY = quoteTextY;
     quoteLines.forEach((line, index) => {
-      const textY = currentY + (index * (quoteFontSize * 1.2));
+      const textY = quoteTextY + (index * lineHeight);
       ctx.fillText(line, margin, textY);
       console.log(`Quote line ${index}: "${line}" at position (${margin}, ${textY})`);
-      finalQuoteY = textY; // Track the Y position of the last line
+      finalQuoteY = textY;
     });
-    
-    // Calculate position for author name (relative to quote text end, not fixed bottom position)
-    const nameY = finalQuoteY + quoteFontSize + 60; // 60px gap below the last quote line
-    
+
+    // Calculate position for author name
+    const nameY = finalQuoteY + adjustedQuoteFontSize + gapBetweenQuoteAndName;
+
     // Render Author Name (italic, smaller, bottom-left positioned)
     console.log('Rendering author name:', processedText.name);
-    ctx.font = `italic ${nameFontSize}px GrueneTypeNeue`;
+    ctx.font = `italic ${adjustedNameFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left'; // LEFT-aligned for bottom left positioning
     ctx.textBaseline = 'top';
