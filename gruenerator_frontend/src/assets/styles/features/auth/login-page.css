@@ -313,9 +313,9 @@
   }
   
   .auth-container--modal {
-    max-width: 900px;
-    width: 90%;
-    max-width: 1000px;
+    width: auto;
+    min-width: 700px;
+    max-width: 95vw;
   }
   
   .auth-content-wrapper {
@@ -387,7 +387,7 @@
     width: 60px;
     height: 4px;
     background: linear-gradient(90deg, var(--primary-500), var(--secondary-500));
-    margin-top: var(--spacing-medium);
+    margin: var(--spacing-medium) auto 0 auto;
   }
   
   /* Add subtle pattern */
