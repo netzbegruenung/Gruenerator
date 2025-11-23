@@ -21,8 +21,7 @@ const normalizeBetaFeatures = (features = {}) => {
     content_management: 'contentManagement',
     canva: 'canva',
     chat: 'chat',
-    labor_enabled: 'labor',
-    customGruenerator: 'customGruenerator'
+    labor_enabled: 'labor'
   };
 
   const normalized = {};

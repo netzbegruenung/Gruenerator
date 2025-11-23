@@ -1,23 +1,20 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
 import { useProfileStore } from '../../../stores/profileStore';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
 
 const ProfileButton = () => {
   const { user, loading, logout, isLoggingOut, isProfileLoading, setLoginIntent } = useOptimizedAuth();
-  const { getBetaFeatureState } = useBetaFeatures();
 
   // Profildaten aus Query holen - now uses backend API via useAuth
   const { data: profile } = useProfile(user?.id);
 
-  // Fetch custom generators when feature is enabled
-  const customGrueneratorBetaEnabled = useMemo(() => getBetaFeatureState('customGruenerator'), [getBetaFeatureState]);
-  useCustomGeneratorsData({ isActive: customGrueneratorBetaEnabled && !!user?.id });
+  // Fetch custom generators for authenticated users
+  useCustomGeneratorsData({ isActive: !!user?.id });
   const customGenerators = useProfileStore(state => state.customGenerators) || [];
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
