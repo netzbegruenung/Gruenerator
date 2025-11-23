@@ -196,7 +196,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       backgroundColor: isValidHexColor(backgroundColor) ? backgroundColor : COLORS.ZITAT_BG, // Default to new zitat background
       textColor: isValidHexColor(textColor) ? textColor : '#005437', // Tanne color for text
       quoteMarkColor: isValidHexColor(quoteMarkColor) ? quoteMarkColor : '#005437', // Tanne color for quote marks
-      quoteFontSize: parseInt(quoteFontSize, 10) || 78, // Increased to better match original (75-80px range)
+      quoteFontSize: parseInt(quoteFontSize, 10) || 81, // Match original template size
       nameFontSize: parseInt(nameFontSize, 10) || 35 // Smaller author text
     };
 
