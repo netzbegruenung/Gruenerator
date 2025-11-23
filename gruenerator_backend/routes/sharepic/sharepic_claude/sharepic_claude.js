@@ -27,14 +27,23 @@ const extractCleanJSON = (content) => {
     .replace(/```\s*/g, '')
     .trim();
 
-  // Try to find the first valid JSON object
-  const jsonMatch = cleanedContent.match(/\{[\s\S]*?\}/);
+  // Try to find the last valid JSON object (greedy match to get complete object)
+  const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
       return parsed;
     } catch (parseError) {
       console.warn('[extractCleanJSON] Parse error:', parseError.message);
+      // Try non-greedy fallback for nested objects
+      const fallbackMatch = cleanedContent.match(/\{[^{}]*\}/);
+      if (fallbackMatch) {
+        try {
+          return JSON.parse(fallbackMatch[0]);
+        } catch (fallbackError) {
+          console.warn('[extractCleanJSON] Fallback parse error:', fallbackError.message);
+        }
+      }
     }
   }
 
@@ -53,8 +62,8 @@ const extractCleanJSONArray = (content) => {
     .replace(/```\s*/g, '')
     .trim();
 
-  // Try to find valid JSON array
-  const jsonMatch = cleanedContent.match(/\[[\s\S]*?\]/);
+  // Try to find valid JSON array (greedy match to get complete array)
+  const jsonMatch = cleanedContent.match(/\[[\s\S]*\]/);
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
