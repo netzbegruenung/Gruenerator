@@ -15,7 +15,8 @@ import {
     HiOutlineOfficeBuilding,
     HiChip,
     HiOutlineDocumentText,
-    HiSave
+    HiSave,
+    HiSparkles
 } from 'react-icons/hi';
 
 const BETA_VIEWS = {
@@ -29,6 +30,7 @@ const BETA_VIEWS = {
     CANVA: 'canva',
     INTERACTIVE_ANTRAG: 'interactiveAntrag',
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
+    AI_SHAREPIC: 'aiSharepic',
 };
 
 const SettingsSection = ({
@@ -157,6 +159,18 @@ const SettingsSection = ({
                     featureName: 'Auto-Speichern bei Export',
                     checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
                     icon: HiSave
+                };
+            case BETA_VIEWS.AI_SHAREPIC:
+                return {
+                    title: 'KI-Sharepic',
+                    description: 'KI-gestützte Sharepic-Erstellung aus natürlicher Sprache. Beschreibe einfach, was du möchtest, und die KI erstellt automatisch das passende Sharepic.',
+                    checked: getBetaFeatureState('aiSharepic'),
+                    setter: (value) => updateUserBetaFeatures('aiSharepic', value),
+                    featureName: 'KI-Sharepic',
+                    checkboxLabel: 'KI-Sharepic im Sharepic-Grünerator aktivieren',
+                    linkTo: '/sharepic',
+                    linkText: 'Zum Sharepic-Grünerator',
+                    icon: HiSparkles
                 };
             default:
                 return null;

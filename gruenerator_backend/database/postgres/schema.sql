@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
+    ai_sharepic BOOLEAN DEFAULT FALSE,
     interactive_antrag_enabled BOOLEAN DEFAULT FALSE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
@@ -753,3 +754,19 @@ CREATE TABLE IF NOT EXISTS route_usage_stats (
 CREATE INDEX IF NOT EXISTS idx_route_usage_count ON route_usage_stats(request_count DESC);
 CREATE INDEX IF NOT EXISTS idx_route_usage_pattern ON route_usage_stats(route_pattern);
 CREATE INDEX IF NOT EXISTS idx_route_usage_last_accessed ON route_usage_stats(last_accessed DESC);
+
+-- Generation logs table for tracking AI content generation
+CREATE TABLE IF NOT EXISTS generation_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    generation_type TEXT NOT NULL,
+    platform TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    tokens_used INTEGER,
+    success BOOLEAN DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_logs_type ON generation_logs(generation_type);
+CREATE INDEX IF NOT EXISTS idx_generation_logs_created ON generation_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_generation_logs_user ON generation_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_generation_logs_type_created ON generation_logs(generation_type, created_at);

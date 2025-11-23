@@ -115,6 +115,10 @@ if (cluster.isMaster) {
 
   // Security: Environment-based CORS configuration
   const productionOrigins = [
+    'https://gruenerator.at',
+    'https://www.gruenerator.at',
+    'https://gruenerator.eu',
+    'https://www.gruenerator.eu',
     'https://gruenerator-test.de',
     'https://www.gruenerator-test.de',
     'https://gruenerator.netzbegruenung.verdigado.net',

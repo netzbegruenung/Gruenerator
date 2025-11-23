@@ -21,8 +21,9 @@ import {
   SHAREPIC_TYPES,
 } from '../../utils/constants';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { withAuthRequired } from '../../common/LoginRequired';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const getHelpContent = (step, showingAlternatives = false) => {
   switch (step) {
@@ -56,6 +57,22 @@ const getHelpContent = (step, showingAlternatives = false) => {
   }
 };
 
+const URL_TYPE_MAP = {
+  'dreizeilen': SHAREPIC_TYPES.THREE_LINES,
+  'zitat': SHAREPIC_TYPES.QUOTE,
+  'zitat-pure': SHAREPIC_TYPES.QUOTE_PURE,
+  'info': SHAREPIC_TYPES.INFO,
+  'ki': SHAREPIC_TYPES.TEXT2SHAREPIC
+};
+
+const TYPE_TO_URL_MAP = {
+  [SHAREPIC_TYPES.THREE_LINES]: 'dreizeilen',
+  [SHAREPIC_TYPES.QUOTE]: 'zitat',
+  [SHAREPIC_TYPES.QUOTE_PURE]: 'zitat-pure',
+  [SHAREPIC_TYPES.INFO]: 'info',
+  [SHAREPIC_TYPES.TEXT2SHAREPIC]: 'ki'
+};
+
 function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     return localStorage.getItem('hasSeenSharepicWelcome') === 'true';
@@ -66,39 +83,79 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     let fields = null;
 
     if (currentStep === FORM_STEPS.INPUT) {
-      fields = (
-        <>
-          <input
-            type="hidden"
-            id="type"
-            name="type"
-            value={defaultSharepicType}
-          />
+      if (formData.type === 'Text2Sharepic') {
+        fields = (
+          <>
+            <input
+              type="hidden"
+              id="type"
+              name="type"
+              value={defaultSharepicType}
+            />
 
-          <h3><label htmlFor="thema">Thema</label></h3>
-          <input
-            id="thema"
-            name="thema"
-            type="text"
-            placeholder="Klimaschutzinitiative"
-            value={formData.thema || ''}
-            onChange={handleChange}
-            className={`form-input ${formErrors.thema ? 'error-input' : ''}`}
-          />
-          {formErrors.thema && <div className="error-message">{formErrors.thema}</div>}
+            <h3><label htmlFor="description">Beschreibung</label></h3>
+            <textarea
+              id="description"
+              name="description"
+              placeholder="Beschreibe, was auf dem Sharepic zu sehen sein soll. Z.B.: Ein Sharepic über Klimaschutz mit einem motivierenden Slogan für mehr erneuerbare Energien."
+              value={formData.description || ''}
+              onChange={handleChange}
+              className={`form-textarea ${formErrors.description ? 'error-input' : ''}`}
+              rows={5}
+            />
+            {formErrors.description && <div className="error-message">{formErrors.description}</div>}
 
-          <h3><label htmlFor="details">Details</label></h3>
-          <textarea
-            id="details"
-            name="details"
-            placeholder="Details zur Initiative, beteiligte Personen und geplante Aktionen."
-            value={formData.details || ''}
-            onChange={handleChange}
-            className={`form-textarea ${formErrors.details ? 'error-input' : ''}`}
-          />
-          {formErrors.details && <div className="error-message">{formErrors.details}</div>}
-        </>
-      );
+            <h3><label htmlFor="mood">Stimmung (optional)</label></h3>
+            <select
+              id="mood"
+              name="mood"
+              value={formData.mood || ''}
+              onChange={handleChange}
+              className="form-input"
+            >
+              <option value="">Automatisch wählen</option>
+              <option value="serious">Seriös</option>
+              <option value="energetic">Energetisch</option>
+              <option value="warm">Warm</option>
+              <option value="fresh">Frisch</option>
+            </select>
+          </>
+        );
+      } else {
+        fields = (
+          <>
+            <input
+              type="hidden"
+              id="type"
+              name="type"
+              value={defaultSharepicType}
+            />
+
+            <h3><label htmlFor="thema">Thema</label></h3>
+            <input
+              id="thema"
+              name="thema"
+              type="text"
+              placeholder="Klimaschutzinitiative"
+              value={formData.thema || ''}
+              onChange={handleChange}
+              className={`form-input ${formErrors.thema ? 'error-input' : ''}`}
+            />
+            {formErrors.thema && <div className="error-message">{formErrors.thema}</div>}
+
+            <h3><label htmlFor="details">Details</label></h3>
+            <textarea
+              id="details"
+              name="details"
+              placeholder="Details zur Initiative, beteiligte Personen und geplante Aktionen."
+              value={formData.details || ''}
+              onChange={handleChange}
+              className={`form-textarea ${formErrors.details ? 'error-input' : ''}`}
+            />
+            {formErrors.details && <div className="error-message">{formErrors.details}</div>}
+          </>
+        );
+      }
     }
 
     if (currentStep === FORM_STEPS.PREVIEW || currentStep === FORM_STEPS.RESULT) {
@@ -219,6 +276,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     // State
     type, thema, details, line1, line2, line3, quote, name, fontSize,
     header, subheader, body, // Info type fields
+    description, mood, // Text2Sharepic fields
     balkenOffset, colorScheme, balkenGruppenOffset, sunflowerOffset, credit,
     searchTerms, sloganAlternatives, currentStep, isAdvancedEditingOpen,
     isSearchBarActive, isSubmitting, currentSubmittingStep, loading, error,
@@ -234,6 +292,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
     formData: {
       type, thema, details, line1, line2, line3, quote, name, fontSize,
       header, subheader, body, // Info type fields
+      description, mood, // Text2Sharepic fields
       balkenOffset, colorScheme, balkenGruppenOffset, sunflowerOffset, credit,
       searchTerms, sloganAlternatives
     },
@@ -251,8 +310,22 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
   const [isFromPresseSocial, setIsFromPresseSocial] = useState(false);
 
   const { user, loading: authLoading, isAuthResolved } = useOptimizedAuth();
+  const { canAccessBetaFeature } = useBetaFeatures();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { type: urlType } = useParams();
+
+  // Handle URL-based type selection (e.g., /sharepic/zitat)
+  useEffect(() => {
+    if (urlType && URL_TYPE_MAP[urlType] && !searchParams.get('editSession')) {
+      const mappedType = URL_TYPE_MAP[urlType];
+      updateFormData({
+        type: mappedType,
+        currentStep: FORM_STEPS.INPUT,
+        ...(mappedType === SHAREPIC_TYPES.TEXT2SHAREPIC && { description: '', mood: '' })
+      });
+    }
+  }, [urlType, updateFormData, searchParams]);
 
   // Handle editing mode from PresseSocialGenerator
   useEffect(() => {
@@ -452,6 +525,15 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       // For Quote sharepics in RESULT/PREVIEW steps, validate Quote-specific fields
       if (!formData.quote) newErrors.quote = "Zitat ist erforderlich";
       if (!formData.name) newErrors.name = "Name ist erforderlich";
+    } else if (formData.type === 'Text2Sharepic' && currentStep === FORM_STEPS.INPUT) {
+      // For Text2Sharepic, validate description field (5-2000 chars)
+      if (!formData.description) {
+        newErrors.description = "Beschreibung ist erforderlich";
+      } else if (formData.description.length < 5) {
+        newErrors.description = "Beschreibung muss mindestens 5 Zeichen haben";
+      } else if (formData.description.length > 2000) {
+        newErrors.description = "Beschreibung darf maximal 2000 Zeichen haben";
+      }
     } else if (currentStep === FORM_STEPS.INPUT) {
       // For INPUT step, validate thema for all types except when we're editing (skip thema validation)
       if (!formData.thema) newErrors.thema = ERROR_MESSAGES.THEMA;
@@ -480,44 +562,62 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
       }
   
       if (state.currentStep === FORM_STEPS.INPUT) {
-        const result = await generateText(state.formData.type, { 
-          thema: state.formData.thema, 
-          details: state.formData.details,
-          quote: state.formData.quote,
-          name: state.formData.name
-        });
-        
-        if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
-        
-        if (state.formData.type === 'Zitat' || state.formData.type === 'Zitat_Pure') {
-          await updateFormData({ 
-            ...state.formData,
-            quote: result.quote,
-            name: result.name || state.formData.name,
-            currentStep: FORM_STEPS.PREVIEW,
-            sloganAlternatives: result.alternatives || []
+        if (state.formData.type === 'Text2Sharepic') {
+          // Text2Sharepic: skip text generation, go directly to image generation via AI
+          const imageResult = await generateImage({
+            type: 'Text2Sharepic',
+            description: state.formData.description,
+            mood: state.formData.mood || undefined
           });
-          setAlternatives(result.alternatives || []);
-        } else if (state.formData.type === 'Info') {
-          await updateFormData({ 
-            ...state.formData,
-            header: result.header,
-            subheader: result.subheader,
-            body: result.body,
-            currentStep: FORM_STEPS.PREVIEW,
-            sloganAlternatives: result.alternatives || []
+
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+
+          await updateFormData({
+            generatedImageSrc: imageResult,
+            currentStep: FORM_STEPS.RESULT
           });
-          setAlternatives(result.alternatives || []);
         } else {
-          // Dreizeilen and Headline types
-          await updateFormData({ 
-            ...result.mainSlogan,
-            type: state.formData.type, 
-            currentStep: FORM_STEPS.PREVIEW,
-            searchTerms: result.searchTerms,
-            sloganAlternatives: result.alternatives || []
+          const result = await generateText(state.formData.type, {
+            thema: state.formData.thema,
+            details: state.formData.details,
+            quote: state.formData.quote,
+            name: state.formData.name
           });
-          setAlternatives(result.alternatives || []);
+
+          if (!result) throw new Error(ERROR_MESSAGES.NO_TEXT_DATA);
+
+          if (state.formData.type === 'Zitat' || state.formData.type === 'Zitat_Pure') {
+            await updateFormData({
+              ...state.formData,
+              quote: result.quote,
+              name: result.name || state.formData.name,
+              currentStep: FORM_STEPS.PREVIEW,
+              sloganAlternatives: result.alternatives || []
+            });
+            setAlternatives(result.alternatives || []);
+          } else if (state.formData.type === 'Info') {
+            await updateFormData({
+              ...state.formData,
+              header: result.header,
+              subheader: result.subheader,
+              body: result.body,
+              currentStep: FORM_STEPS.PREVIEW,
+              sloganAlternatives: result.alternatives || []
+            });
+            setAlternatives(result.alternatives || []);
+          } else {
+            // Dreizeilen and Headline types
+            await updateFormData({
+              ...result.mainSlogan,
+              type: state.formData.type,
+              currentStep: FORM_STEPS.PREVIEW,
+              searchTerms: result.searchTerms,
+              sloganAlternatives: result.alternatives || []
+            });
+            setAlternatives(result.alternatives || []);
+          }
         }
       } else if (state.currentStep === FORM_STEPS.PREVIEW) {
         // Handle image generation based on sharepic type
@@ -572,7 +672,22 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
           });
         }
       } else if (state.currentStep === FORM_STEPS.RESULT) {
-        if (state.formData.type === 'Info' || state.formData.type === 'Zitat_Pure' || state.formData.type === 'Headline') {
+        if (state.formData.type === 'Text2Sharepic') {
+          // For Text2Sharepic: regenerate with same description
+          const imageResult = await generateImage({
+            type: 'Text2Sharepic',
+            description: state.formData.description,
+            mood: state.formData.mood || undefined
+          });
+
+          if (!imageResult) {
+            throw new Error("Keine Bilddaten empfangen");
+          }
+
+          await updateFormData({
+            generatedImageSrc: imageResult
+          });
+        } else if (state.formData.type === 'Info' || state.formData.type === 'Zitat_Pure' || state.formData.type === 'Headline') {
           // For types that don't need image upload: regenerate with current form data
           const imageResult = await generateImage({
             type: state.formData.type,
@@ -585,12 +700,12 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
             line2: state.formData.line2,
             line3: state.formData.line3
           });
-          
+
           if (!imageResult) {
             throw new Error("Keine Bilddaten empfangen");
           }
-          
-          await updateFormData({ 
+
+          await updateFormData({
             generatedImageSrc: imageResult
           });
         } else if (state.formData.type === 'Zitat' && (state.formData.isEditSession || (!state.formData.uploadedImage && !state.formData.image && !state.file))) {
@@ -748,10 +863,22 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const submitButtonText = useMemo(() => {
     const isMobile = window.innerWidth <= 768;
-    return state.currentStep === FORM_STEPS.INPUT ? BUTTON_LABELS.GENERATE_TEXT :
-    state.currentStep === FORM_STEPS.PREVIEW ? (isMobile ? BUTTON_LABELS.GENERATE_IMAGE_MOBILE : BUTTON_LABELS.GENERATE_IMAGE) :
-    BUTTON_LABELS.MODIFY_IMAGE;
-  }, [state.currentStep]);
+    if (state.currentStep === FORM_STEPS.INPUT) {
+      // Text2Sharepic goes directly to image generation
+      if (state.formData.type === 'Text2Sharepic') {
+        return isMobile ? BUTTON_LABELS.GENERATE_IMAGE_MOBILE : 'KI-Sharepic erstellen';
+      }
+      return BUTTON_LABELS.GENERATE_TEXT;
+    }
+    if (state.currentStep === FORM_STEPS.PREVIEW) {
+      return isMobile ? BUTTON_LABELS.GENERATE_IMAGE_MOBILE : BUTTON_LABELS.GENERATE_IMAGE;
+    }
+    // Text2Sharepic in RESULT step: regenerate button
+    if (state.formData.type === 'Text2Sharepic') {
+      return 'Neu erstellen';
+    }
+    return BUTTON_LABELS.MODIFY_IMAGE;
+  }, [state.currentStep, state.formData.type]);
 
   const memoizedFormFields = useMemo(() => {
     const fields = renderFormFields(state.currentStep, state.formData, handleChange, errors);
@@ -828,26 +955,27 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
   const handleTypeSelect = useCallback((selectedType) => {
     if (selectedType === SHAREPIC_TYPES.QUOTE) {
-      // For Zitat, go to sub-selection first
-      updateFormData({ 
+      // For Zitat, go to sub-selection first (stay on /sharepic, show sub-selection UI)
+      updateFormData({
         type: selectedType,
-        currentStep: FORM_STEPS.ZITAT_SUB_SELECT 
+        currentStep: FORM_STEPS.ZITAT_SUB_SELECT
       });
     } else {
-      // For other types, go directly to input
-      updateFormData({ 
-        type: selectedType,
-        currentStep: FORM_STEPS.INPUT 
-      });
+      // Navigate to the type-specific URL
+      const urlPath = TYPE_TO_URL_MAP[selectedType];
+      if (urlPath) {
+        navigate(`/sharepic/${urlPath}`);
+      }
     }
-  }, [updateFormData]);
+  }, [updateFormData, navigate]);
 
   const handleZitatSubSelect = useCallback((zitatSubType) => {
-    updateFormData({
-      type: zitatSubType, // This will be either 'Zitat' or 'Zitat_Pure'
-      currentStep: FORM_STEPS.INPUT
-    });
-  }, [updateFormData]);
+    // Navigate to the specific zitat URL
+    const urlPath = TYPE_TO_URL_MAP[zitatSubType];
+    if (urlPath) {
+      navigate(`/sharepic/${urlPath}`);
+    }
+  }, [navigate]);
 
   if (state.currentStep === FORM_STEPS.WELCOME && !hasSeenWelcome) {
     return (
@@ -905,11 +1033,13 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
               <p>Strukturierte Informationsposts mit Überschrift und Text. Ideal für Erklärungen und Details.</p>
             </div>
 
-            {/* <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.HEADLINE)}>
-              <div className="type-icon">📰</div>
-              <h3>Header</h3>
-              <p>Große, markante Headlines in drei Zeilen. Perfect für Schlagzeilen und wichtige Botschaften.</p>
-            </div> */}
+            {canAccessBetaFeature('aiSharepic') && (
+              <div className="type-card" onClick={() => handleTypeSelect(SHAREPIC_TYPES.TEXT2SHAREPIC)}>
+                <div className="type-icon">✨</div>
+                <h3>KI-Sharepic</h3>
+                <p>Beschreibe einfach, was du möchtest. Die KI erstellt automatisch das passende Sharepic.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -934,7 +1064,7 @@ function SharepicGeneratorContent({ showHeaderFooter = true, darkMode }) {
 
             <div className="type-card" onClick={() => handleZitatSubSelect(SHAREPIC_TYPES.QUOTE_PURE)}>
               <div className="type-icon">📝</div>
-              <h3>Zitat Pure</h3>
+              <h3>Zitat ohne Bild</h3>
               <p>Reines Text-Zitat auf grünem Hintergrund. Schnell und ohne Bildauswahl.</p>
             </div>
           </div>

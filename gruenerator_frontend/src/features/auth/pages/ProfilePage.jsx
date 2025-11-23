@@ -13,6 +13,7 @@ import { useVerticalTabNavigation } from '../../../hooks/useKeyboardNavigation';
 import Spinner from '../../../components/common/Spinner';
 import ProfileActionButton from '../../../components/profile/actions/ProfileActionButton';
 import { PROFILE_MENU_ITEMS } from '../components/profile/ProfileMenu';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 
 // Profile Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/auth/auth.css';
@@ -317,19 +318,6 @@ const ProfilePage = () => {
     );
   }
 
-  if (isAuthResolved && !user && !isLoggingOut) {
-     return (
-        <div className="profile-container">
-          <div className="profile-header">
-            <h1>Nicht angemeldet</h1>
-            <p>Du musst angemeldet sein, um dein Profil zu verwalten.</p>
-          </div>
-          <div className="auth-links">
-            <Link to="/login" className="button primary">Zum Login</Link>
-          </div>
-        </div>
-      );
-  }
 
   if (resourcesError) {
     return (
@@ -454,4 +442,7 @@ const ProfilePage = () => {
   );
 };
 
-export default ProfilePage; 
+export default withAuthRequired(ProfilePage, {
+  title: 'Profil',
+  message: 'Melde dich an, um dein Profil zu verwalten und eigene Grüneratoren zu erstellen.'
+}); 
