@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,17 +48,16 @@ const NavMenu = ({ open, onClose }) => {
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
   const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
-  const customGrueneratorBetaEnabled = useMemo(() => getBetaFeatureState('customGruenerator'), [getBetaFeatureState]);
 
-  // Fetch custom generators when feature is enabled
-  useCustomGeneratorsData({ isActive: customGrueneratorBetaEnabled && !!user?.id });
+  // Fetch custom generators for authenticated users
+  useCustomGeneratorsData({ isActive: !!user?.id });
   const customGenerators = useProfileStore(state => state.customGenerators) || [];
 
   // Memoize menu items to prevent unnecessary recalculations
   const menuItems = useMemo(() => getMenuItems(
-    { databaseBetaEnabled, chatBetaEnabled, customGrueneratorBetaEnabled },
+    { databaseBetaEnabled, chatBetaEnabled },
     customGenerators
-  ), [databaseBetaEnabled, chatBetaEnabled, customGrueneratorBetaEnabled, customGenerators]);
+  ), [databaseBetaEnabled, chatBetaEnabled, customGenerators]);
   const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, chatBetaEnabled]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const dynamicTopLevelItems = useMemo(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
