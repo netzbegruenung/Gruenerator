@@ -7,6 +7,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { formatExportContent } from '../../../components/utils/exportUtils';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
 import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 
 // Search Feature CSS - Loaded only when this feature is accessed
 import '../styles/SearchPage.css';
@@ -356,4 +357,7 @@ const SearchPage = () => {
   );
 };
 
-export default SearchPage; 
+export default withAuthRequired(SearchPage, {
+  title: 'Suche',
+  message: 'Melde dich an, um die Suche zu nutzen.'
+}); 

@@ -13,6 +13,7 @@ import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 import { getActiveCampaigns, getCampaign } from '../../../utils/campaignLoader';
 import { FaInstagram } from 'react-icons/fa';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import './KampagnenGenerator.css';
 
 const KampagnenGenerator = ({ showHeaderFooter = true }) => {
@@ -338,4 +339,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
   );
 };
 
-export default KampagnenGenerator;
+export default withAuthRequired(KampagnenGenerator, {
+  title: 'Kampagnen',
+  message: 'Melde dich an, um den Kampagnen-Grünerator zu nutzen.'
+});
