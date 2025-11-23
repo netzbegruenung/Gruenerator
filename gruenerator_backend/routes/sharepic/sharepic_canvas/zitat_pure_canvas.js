@@ -13,6 +13,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Path to the quotation mark SVG
 const QUOTE_SVG_PATH = path.resolve(__dirname, '../../../public/quote.svg');
+// Path to the sunflower SVG (watermark)
+const SUNFLOWER_SVG_PATH = path.resolve(__dirname, '../../../public/sonnenblume_dunkelgruen.svg');
 
 async function processZitatPureText(textData) {
   console.log('processZitatPureText aufgerufen mit:', textData);
@@ -42,10 +44,22 @@ async function createZitatPureImage(processedText, validatedParams) {
       throw new Error(`Anführungszeichen-SVG nicht gefunden: ${QUOTE_SVG_PATH}`);
     }
 
+    // Check if sunflower SVG exists
+    try {
+      await fs.access(SUNFLOWER_SVG_PATH);
+    } catch (error) {
+      throw new Error(`Sonnenblumen-SVG nicht gefunden: ${SUNFLOWER_SVG_PATH}`);
+    }
+
     // Load the quotation mark SVG
     console.log('Loading quotation mark SVG from:', QUOTE_SVG_PATH);
     const quotationMark = await loadImage(QUOTE_SVG_PATH);
     console.log('Quotation mark loaded successfully');
+
+    // Load the sunflower SVG
+    console.log('Loading sunflower SVG from:', SUNFLOWER_SVG_PATH);
+    const sunflower = await loadImage(SUNFLOWER_SVG_PATH);
+    console.log('Sunflower loaded successfully');
 
     // Create canvas with standard sharepic dimensions
     const canvas = createCanvas(1080, 1350);
@@ -57,6 +71,18 @@ async function createZitatPureImage(processedText, validatedParams) {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, 1080, 1350);
     console.log('Background filled with color:', backgroundColor);
+
+    // Draw sunflower watermark in upper-right corner with 6% opacity
+    // The sunflower bleeds off top and right edges, creating a cropped effect
+    const sunflowerSize = 800; // Large size so it bleeds off edges
+    const sunflowerX = 1080 - sunflowerSize + 200; // Positioned to bleed off right edge
+    const sunflowerY = -200; // Positioned to bleed off top edge
+
+    ctx.save();
+    ctx.globalAlpha = 0.06; // 6% opacity for subtle watermark effect
+    ctx.drawImage(sunflower, sunflowerX, sunflowerY, sunflowerSize, sunflowerSize);
+    ctx.restore();
+    console.log(`Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`);
 
     // Test font loading
     ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
