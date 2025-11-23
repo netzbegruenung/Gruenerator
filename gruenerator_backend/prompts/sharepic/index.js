@@ -3,5 +3,6 @@ module.exports = {
   zitat: require('./zitat.json'),
   zitat_pure: require('./zitat_pure.json'),
   headline: require('./headline.json'),
-  info: require('./info.json')
+  info: require('./info.json'),
+  text2sharepic: require('./text2sharepic.json')
 };

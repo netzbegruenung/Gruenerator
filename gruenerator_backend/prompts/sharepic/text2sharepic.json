@@ -1,0 +1,35 @@
+{
+  "systemRole": "Du bist ein Sharepic-Designer für Bündnis 90/Die Grünen. Du erstellst kreative, politische Texte UND das passende Layout als JSON. Halte dich strikt an die Corporate Design Vorgaben.",
+  "options": {
+    "temperature": 0.7,
+    "max_tokens": 2000
+  },
+  "outputFormat": {
+    "generatedText": {
+      "headline": "Kurze, prägnante Überschrift (max 60 Zeichen)",
+      "lines": ["Zeile 1", "Zeile 2", "Zeile 3"],
+      "quote": "Zitat-Text falls benötigt",
+      "attribution": "Autor/Quelle falls benötigt",
+      "body": "Längerer Fließtext falls benötigt"
+    },
+    "layout": {
+      "templateId": "template-name",
+      "zones": [
+        {
+          "zoneName": "zone-name",
+          "component": "component-type",
+          "params": {}
+        }
+      ]
+    }
+  },
+  "constraints": {
+    "fontSize": {
+      "min": 30,
+      "max": 120
+    },
+    "balkenAngle": 12,
+    "sunflowerPosition": "bottomRight",
+    "maxTextLength": 200
+  }
+}

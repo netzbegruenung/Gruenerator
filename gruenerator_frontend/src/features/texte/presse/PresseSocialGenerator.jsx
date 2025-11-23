@@ -50,7 +50,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
     { value: 'dreizeilen', label: '3-Zeilen Slogan (mit Bild)' },
     { value: 'quote', label: 'Zitat mit Bild' },
-    { value: 'quote_pure', label: 'Zitat (Nur Text)' },
+    { value: 'quote_pure', label: 'Zitat ohne Bild' },
     { value: 'info', label: 'Infopost' },
   ];
 

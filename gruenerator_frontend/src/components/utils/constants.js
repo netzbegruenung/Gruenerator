@@ -6,7 +6,8 @@ export const SHAREPIC_TYPES = {
   QUOTE_PURE: 'Zitat_Pure',
   THREE_LINES: 'Dreizeilen',
   HEADLINE: 'Headline',
-  INFO: 'Info'
+  INFO: 'Info',
+  TEXT2SHAREPIC: 'Text2Sharepic'
 };
 
 // Form Steps

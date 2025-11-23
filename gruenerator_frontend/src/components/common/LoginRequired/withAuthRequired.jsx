@@ -1,6 +1,5 @@
 import React from 'react';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import Spinner from '../Spinner';
 import LoginRequired from './LoginRequired';
 
 /**
@@ -13,23 +12,10 @@ const withAuthRequired = (Component, options = {}) => {
   const {
     title, // Optional: will auto-generate from route if not provided
     message, // Optional: will use standard message if not provided
-    loadingComponent = null
   } = options;
 
   return function AuthRequiredComponent(props) {
-    const { user, isAuthenticated, loading, isAuthResolved } = useOptimizedAuth();
-
-    // Show loading state
-    if (!isAuthResolved || loading) {
-      if (loadingComponent) {
-        return loadingComponent;
-      }
-      return (
-        <div className="auth-loading-container">
-          <Spinner size="large" withBackground />
-        </div>
-      );
-    }
+    const { user, isAuthenticated } = useOptimizedAuth();
 
     // Show login required if not authenticated
     if (!isAuthenticated || !user) {

@@ -18,9 +18,8 @@ const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagi
 const campaignCanvasRoute = require('./routes/sharepic/sharepic_canvas/campaign_canvas');
 const campaignGenerateRoute = require('./routes/sharepic/sharepic_claude/campaign_generate');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
+const text2SharepicRoute = require('./routes/sharepic/text2sharepic');
 const { generateSharepicForChat } = require('./routes/chat/services/sharepicGenerationService');
-// Experimental interactive sharepic routes (ES6 module)
-let experimentalSharepicRouter = null;
 const aiImageModificationRouter = require('./routes/sharepic/sharepic_canvas/aiImageModification');
 const imageUploadRouter = require('./routes/sharepic/sharepic_canvas/imageUploadRouter');
 const processTextRouter = require('./routes/sharepic/sharepic_canvas/processTextRouter');
@@ -132,9 +131,6 @@ async function setupRoutes(app) {
   // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
 
-  // Experimental interactive sharepic routes - dynamic import for ES module
-  const { default: experimentalSharepicModule } = await import('./routes/sharepic/experimentalSharepic.mjs');
-  experimentalSharepicRouter = experimentalSharepicModule;
   const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
   
   // Import claude_social as ES6 module
@@ -212,11 +208,9 @@ async function setupRoutes(app) {
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
 
-  // Experimental interactive sharepic routes
-  if (experimentalSharepicRouter) {
-    app.use('/api/sharepic/experimental', experimentalSharepicRouter);
-    console.log('[Routes] Experimental sharepic routes mounted at /api/sharepic/experimental');
-  }
+  // Text2Sharepic - AI-powered text-to-sharepic generation
+  app.use('/api/sharepic/text2sharepic', text2SharepicRoute);
+  console.log('[Routes] Text2Sharepic routes mounted at /api/sharepic/text2sharepic');
 
   // Use unified handler for all sharepic claude routes
   app.post('/api/zitat_claude', async (req, res) => {

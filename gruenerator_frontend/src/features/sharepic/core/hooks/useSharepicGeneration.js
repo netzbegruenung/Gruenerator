@@ -13,6 +13,7 @@ export const useSharepicGeneration = () => {
   const headlineSubmit = useApiSubmit('headline_claude');
   const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
   const campaignSubmit = useApiSubmit('campaign_generate');
+  const text2SharepicSubmit = useApiSubmit('sharepic/text2sharepic/generate-ai');
   // const abyssaleSubmit = useApiSubmit('zitat_abyssale'); // Commented out for now
 
   const generateText = useCallback(async (type, formData) => {
@@ -176,6 +177,24 @@ export const useSharepicGeneration = () => {
         return response.data.image;
       }
 
+      // Handle Text2Sharepic type - uses AI-powered generation
+      if (formData.type === SHAREPIC_TYPES.TEXT2SHAREPIC) {
+        const requestData = {
+          description: formData.description,
+          mood: formData.mood || undefined
+        };
+
+        console.log('Generating Text2Sharepic image:', requestData);
+
+        const response = await text2SharepicSubmit.submitForm(requestData);
+
+        if (!response || !response.image) {
+          throw new Error('Keine Bilddaten empfangen');
+        }
+
+        return response.image;
+      }
+
       // Standard (non-campaign) types
       const formDataToSend = new FormData();
 
@@ -300,7 +319,7 @@ export const useSharepicGeneration = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [text2SharepicSubmit]);
 
   // Commented out for now - Abyssale professional template mode
   // const generateAbyssaleImage = useCallback(async (formData) => {
