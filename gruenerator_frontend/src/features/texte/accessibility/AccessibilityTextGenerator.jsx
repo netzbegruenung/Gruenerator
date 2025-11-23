@@ -354,6 +354,6 @@ AccessibilityTextGenerator.propTypes = {
 };
 
 export default withAuthRequired(AccessibilityTextGenerator, {
-  title: 'Barrierefreiheit Generator',
+  title: 'Barrierefreiheit Grünerator',
   message: 'Anmeldung erforderlich für den Barrierefreiheit Generator'
 });
