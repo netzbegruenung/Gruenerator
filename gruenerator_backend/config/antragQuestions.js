@@ -10,6 +10,304 @@
  * - requiresText: boolean, if true user must provide text answer
  */
 
+/**
+ * V2 Questions - New 6-question structure (hybrid static + AI)
+ * Used as fallback when AI generation fails
+ */
+const ANTRAG_QUESTIONS_V2 = {
+  antrag: {
+    round1: [
+      {
+        id: 'q1_action_type',
+        text: 'Handlung oder Prüfung? (Der Kern des Beschlusses)',
+        type: 'action_type',
+        questionFormat: 'yes_no',
+        options: [
+          'Handlungsantrag (direkte Umsetzung)',
+          'Prüfantrag (Machbarkeit klären)'
+        ],
+        optionEmojis: ['🚀', '🔍'],
+        allowCustom: false,
+        allowMultiSelect: false
+      },
+      {
+        id: 'q2_pain_point',
+        text: 'Was ist das exakte Problem (\'Pain Point\')?',
+        type: 'pain_point',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Aktuelle Situation ist unzureichend',
+          'Dringender Handlungsbedarf besteht',
+          'Verbesserungspotenzial vorhanden'
+        ],
+        optionEmojis: ['⚠️', '🚨', '📈'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'Eigenes Problem beschreiben...'
+      },
+      {
+        id: 'q3_beneficiaries',
+        text: 'Wer profitiert davon? (Der Nutzen)',
+        type: 'beneficiaries',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Alle Bürger*innen',
+          'Spezifische Bevölkerungsgruppen',
+          'Übergeordnete Ziele (Klimaschutz, Verkehrssicherheit)'
+        ],
+        optionEmojis: ['👥', '👨‍👩‍👧‍👦', '🌍'],
+        allowCustom: true,
+        allowMultiSelect: true,
+        placeholder: 'Weitere Nutznießer...'
+      },
+      {
+        id: 'q4_budget',
+        text: 'Gibt es finanzielle Vorstellungen?',
+        type: 'budget',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Ja, konkrete Kostenschätzung vorhanden',
+          'Ja, Deckungsvorschlag soll genannt werden',
+          'Verwaltung soll Kosten im Rahmen der Prüfung ermitteln',
+          'Überspringen'
+        ],
+        optionEmojis: ['💶', '💰', '🔍', '⏭️'],
+        allowCustom: false,
+        allowMultiSelect: false,
+        skipOption: 'Überspringen'
+      },
+      {
+        id: 'q5_history',
+        text: 'Gibt es eine Vorgeschichte?',
+        type: 'history',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Keine bekannte Vorgeschichte',
+          'Thema wurde bereits diskutiert',
+          'Reaktion auf Bürgeranfragen',
+          'Anknüpfung an bestehendes Programm'
+        ],
+        optionEmojis: ['❌', '💬', '👥', '🔄'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'Eigene Vorgeschichte angeben...'
+      },
+      {
+        id: 'q6_urgency',
+        text: 'Wie hoch ist die Dringlichkeit?',
+        type: 'urgency',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Sofort / Eilantrag',
+          'In den nächsten 3 Monaten',
+          'In den nächsten 6 Monaten',
+          'Bis zum Jahresende',
+          'Langfristig (über 1 Jahr)'
+        ],
+        optionEmojis: ['⚡', '📅', '📆', '🗓️', '🕐'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'z.B. \'Vor Beginn der Sommerferien\', \'Vor Haushaltsverabschiedung\'...'
+      }
+    ]
+  },
+  kleine_anfrage: {
+    round1: [
+      {
+        id: 'q1_action_type',
+        text: 'Handlung oder Prüfung? (Der Kern des Beschlusses)',
+        type: 'action_type',
+        questionFormat: 'yes_no',
+        options: [
+          'Handlungsantrag (direkte Umsetzung)',
+          'Prüfantrag (Machbarkeit klären)'
+        ],
+        optionEmojis: ['🚀', '🔍'],
+        allowCustom: false,
+        allowMultiSelect: false
+      },
+      {
+        id: 'q2_pain_point',
+        text: 'Was ist das exakte Problem (\'Pain Point\')?',
+        type: 'pain_point',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Fehlende Informationen und Transparenz',
+          'Unklare Zuständigkeiten oder Prozesse',
+          'Kritische Entwicklung beobachtet'
+        ],
+        optionEmojis: ['❓', '🔄', '📊'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'Eigenes Problem beschreiben...'
+      },
+      {
+        id: 'q3_beneficiaries',
+        text: 'Wer profitiert davon? (Der Nutzen)',
+        type: 'beneficiaries',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Transparenz für alle Bürger*innen',
+          'Grundlage für weitere politische Arbeit',
+          'Aufklärung von Missständen'
+        ],
+        optionEmojis: ['👥', '📋', '🔍'],
+        allowCustom: true,
+        allowMultiSelect: true,
+        placeholder: 'Weitere Nutznießer...'
+      },
+      {
+        id: 'q4_budget',
+        text: 'Gibt es finanzielle Vorstellungen?',
+        type: 'budget',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Ja, konkrete Kostenschätzung vorhanden',
+          'Ja, Deckungsvorschlag soll genannt werden',
+          'Verwaltung soll Kosten im Rahmen der Prüfung ermitteln',
+          'Überspringen'
+        ],
+        optionEmojis: ['💶', '💰', '🔍', '⏭️'],
+        allowCustom: false,
+        allowMultiSelect: false,
+        skipOption: 'Überspringen'
+      },
+      {
+        id: 'q5_history',
+        text: 'Gibt es eine Vorgeschichte?',
+        type: 'history',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Keine bekannte Vorgeschichte',
+          'Frühere Anfrage zu diesem Thema',
+          'Reaktion auf Medienberichte',
+          'Bürgeranfragen oder -beschwerden'
+        ],
+        optionEmojis: ['❌', '📋', '📰', '👥'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'Eigene Vorgeschichte angeben...'
+      },
+      {
+        id: 'q6_urgency',
+        text: 'Wie hoch ist die Dringlichkeit?',
+        type: 'urgency',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Sofort / Eilantrag',
+          'In den nächsten 3 Monaten',
+          'In den nächsten 6 Monaten',
+          'Bis zum Jahresende',
+          'Langfristig (über 1 Jahr)'
+        ],
+        optionEmojis: ['⚡', '📅', '📆', '🗓️', '🕐'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'z.B. \'Vor Beginn der Sommerferien\', \'Vor Haushaltsverabschiedung\'...'
+      }
+    ]
+  },
+  grosse_anfrage: {
+    round1: [
+      {
+        id: 'q1_action_type',
+        text: 'Handlung oder Prüfung? (Der Kern des Beschlusses)',
+        type: 'action_type',
+        questionFormat: 'yes_no',
+        options: [
+          'Handlungsantrag (direkte Umsetzung)',
+          'Prüfantrag (Machbarkeit klären)'
+        ],
+        optionEmojis: ['🚀', '🔍'],
+        allowCustom: false,
+        allowMultiSelect: false
+      },
+      {
+        id: 'q2_pain_point',
+        text: 'Was ist das exakte Problem (\'Pain Point\')?',
+        type: 'pain_point',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Grundsätzliche strategische Defizite',
+          'Mangelnde politische Aufmerksamkeit',
+          'Komplexe Problemlage erfordert umfassende Debatte'
+        ],
+        optionEmojis: ['📉', '🎯', '💬'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'Eigenes Problem beschreiben...'
+      },
+      {
+        id: 'q3_beneficiaries',
+        text: 'Wer profitiert davon? (Der Nutzen)',
+        type: 'beneficiaries',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Gesamte Stadtgesellschaft',
+          'Langfristige strategische Entwicklung',
+          'Politische Meinungsbildung'
+        ],
+        optionEmojis: ['🏙️', '🎯', '💬'],
+        allowCustom: true,
+        allowMultiSelect: true,
+        placeholder: 'Weitere Nutznießer...'
+      },
+      {
+        id: 'q4_budget',
+        text: 'Gibt es finanzielle Vorstellungen?',
+        type: 'budget',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Ja, konkrete Kostenschätzung vorhanden',
+          'Ja, Deckungsvorschlag soll genannt werden',
+          'Verwaltung soll Kosten im Rahmen der Prüfung ermitteln',
+          'Überspringen'
+        ],
+        optionEmojis: ['💶', '💰', '🔍', '⏭️'],
+        allowCustom: false,
+        allowMultiSelect: false,
+        skipOption: 'Überspringen'
+      },
+      {
+        id: 'q5_history',
+        text: 'Gibt es eine Vorgeschichte?',
+        type: 'history',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Keine bekannte Vorgeschichte',
+          'Langjährige politische Debatte',
+          'Reaktion auf gesellschaftliche Entwicklungen',
+          'Aufgriff von überregionalen Themen'
+        ],
+        optionEmojis: ['❌', '📋', '🌍', '📰'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'Eigene Vorgeschichte angeben...'
+      },
+      {
+        id: 'q6_urgency',
+        text: 'Wie hoch ist die Dringlichkeit?',
+        type: 'urgency',
+        questionFormat: 'multiple_choice',
+        options: [
+          'Sofort / Eilantrag',
+          'In den nächsten 3 Monaten',
+          'In den nächsten 6 Monaten',
+          'Bis zum Jahresende',
+          'Langfristig (über 1 Jahr)'
+        ],
+        optionEmojis: ['⚡', '📅', '📆', '🗓️', '🕐'],
+        allowCustom: true,
+        allowMultiSelect: false,
+        placeholder: 'z.B. \'Vor Beginn der Sommerferien\', \'Vor Haushaltsverabschiedung\'...'
+      }
+    ]
+  }
+};
+
+/**
+ * V1 Questions - Original question structure (kept for backwards compatibility)
+ */
 const ANTRAG_QUESTIONS = {
   /**
    * Questions for standard Antrag (motion)
@@ -225,23 +523,27 @@ const ANTRAG_QUESTIONS = {
  * Get questions for a specific request type and round
  * @param {string} requestType - 'antrag' | 'kleine_anfrage' | 'grosse_anfrage'
  * @param {number} round - 1 or 2
+ * @param {number} version - 1 (legacy) or 2 (new 7-question hybrid)
  * @returns {array} Array of question objects
  */
-function getQuestionsForType(requestType, round = 1) {
+function getQuestionsForType(requestType, round = 1, version = 2) {
   const roundKey = `round${round}`;
+  const questionSet = version === 2 ? ANTRAG_QUESTIONS_V2 : ANTRAG_QUESTIONS;
 
   // Validate request type
-  if (!ANTRAG_QUESTIONS[requestType]) {
+  if (!questionSet[requestType]) {
     console.warn(`[AntragQuestions] Unknown request type: ${requestType}, using 'antrag' as fallback`);
-    return ANTRAG_QUESTIONS.antrag[roundKey] || [];
+    return questionSet.antrag[roundKey] || [];
   }
 
   // Get questions for this type and round
-  const questions = ANTRAG_QUESTIONS[requestType][roundKey];
+  const questions = questionSet[requestType][roundKey];
 
   if (!questions) {
-    console.warn(`[AntragQuestions] No questions defined for ${requestType} round ${round}`);
-    return [];
+    console.warn(`[AntragQuestions] No questions defined for ${requestType} round ${round} version ${version}`);
+    // Fallback to v2 if v1 fails, or vice versa
+    const fallbackSet = version === 2 ? ANTRAG_QUESTIONS : ANTRAG_QUESTIONS_V2;
+    return fallbackSet[requestType]?.[roundKey] || [];
   }
 
   return questions;
@@ -266,6 +568,7 @@ function getAvailableRequestTypes() {
 
 module.exports = {
   ANTRAG_QUESTIONS,
+  ANTRAG_QUESTIONS_V2,
   getQuestionsForType,
   hasFollowUpQuestions,
   getAvailableRequestTypes
