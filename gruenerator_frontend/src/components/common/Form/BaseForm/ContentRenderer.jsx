@@ -286,7 +286,7 @@ const ContentRenderer = ({
       
       return (
         <div className="generated-content-wrapper">
-          <div className="content-display markdown-content antrag-text-content">
+          <div className="content-display markdown-content">
             <Suspense fallback={<div>Loading...</div>}><ReactMarkdown components={customComponents}>
               {contentToRender}
             </ReactMarkdown></Suspense>
@@ -297,7 +297,7 @@ const ContentRenderer = ({
       // No citations, render normal markdown
       return (
         <div className="generated-content-wrapper">
-          <div className="content-display markdown-content antrag-text-content">
+          <div className="content-display markdown-content">
             <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>
               {contentToRender}
             </ReactMarkdown></Suspense>

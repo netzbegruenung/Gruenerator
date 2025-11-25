@@ -140,7 +140,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
 
         <div className="social-text-result">
           <h3>Dein Instagram Reel Text:</h3>
-          <div className="antrag-text-content">
+          <div className="markdown-content">
             <Suspense fallback={<div>Loading...</div>}>
               <ReactMarkdown>{socialText}</ReactMarkdown>
             </Suspense>

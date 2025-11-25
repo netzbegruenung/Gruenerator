@@ -157,3 +157,18 @@
     padding: var(--spacing-small, 12px);
   }
 }
+
+@media (max-width: 768px) {
+  .results-deck-card-header {
+    justify-content: flex-end;
+  }
+
+  .results-deck-card-title {
+    display: none;
+  }
+
+  .results-deck-card-actions {
+    position: static;
+    margin-bottom: var(--spacing-small, 12px);
+  }
+}

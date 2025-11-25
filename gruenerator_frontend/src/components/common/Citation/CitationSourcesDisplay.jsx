@@ -68,8 +68,17 @@ const CitationSourcesDisplay = ({
       }
     });
     
-    // Sort by relevance (highest first)
-    return Array.from(groupMap.values()).sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
+    // Sort citations within each group by index
+    groupMap.forEach(group => {
+      group.citations.sort((a, b) => a.index - b.index);
+    });
+
+    // Sort documents by lowest citation index (so documents appear in order of first citation)
+    return Array.from(groupMap.values()).sort((a, b) => {
+      const aMinIndex = a.citations.length > 0 ? Math.min(...a.citations.map(c => c.index)) : Infinity;
+      const bMinIndex = b.citations.length > 0 ? Math.min(...b.citations.map(c => c.index)) : Infinity;
+      return aMinIndex - bMinIndex;
+    });
   }, [sources, citations, linkConfig]);
 
   // Handle document link click
@@ -113,7 +122,7 @@ const CitationSourcesDisplay = ({
                 {group.citations.map((citation, idx) => (
                   <div key={idx} className="ask-citation-inline">
                     <span className="citation-number">[{citation.index}]</span>
-                    <span className="citation-text">"{citation.cited_text}"</span>
+                    <span className="citation-text">"{citation.cited_text?.replace(/\*\*/g, '') || ''}"</span>
                   </div>
                 ))}
               </div>
