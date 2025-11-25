@@ -8,6 +8,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
 import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
 import AttachedFilesList from '../AttachedFilesList';
+import ChatActionButtons from './ChatActionButtons';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
@@ -162,6 +163,24 @@ const ChatUI = ({
         >
           {msg.content}
         </ReactMarkdown></Suspense>
+
+        {msg.attachments && msg.attachments.length > 0 && (
+          <div className="chat-message-attachments">
+            {msg.attachments.map((att, i) => (
+              <span key={i} className="chat-message-attachment">
+                {att.type?.startsWith('image/') ? '🖼️' : '📎'} {att.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {msg.actions && msg.actions.length > 0 && (
+          <ChatActionButtons
+            actions={msg.actions}
+            onAction={(action) => onSubmit && onSubmit(action.value)}
+            disabled={isProcessing}
+          />
+        )}
       </motion.div>
     );
   };

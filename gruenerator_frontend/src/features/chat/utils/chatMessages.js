@@ -7,40 +7,64 @@ export const CHAT_MESSAGES = {
   // Single result messages with variations
   SINGLE_RESULT: {
     dreizeilen: [
-      "Dein Dreizeilen-Sharepic ist bereit:",
-      "Hier ist dein Dreizeilen-Format:",
-      "Das Dreizeilen-Sharepic ist fertig ✓",
-      "Deine drei Zeilen sind erstellt:"
+      "Dein Sharepic ist bereit:",
+      "Hier ist dein Sharepic:",
+      "Das Sharepic ist fertig ✓",
+      "Dein Sharepic ist erstellt:"
     ],
     headline: [
-      "Deine Schlagzeile ist fertig:",
-      "Hier ist die Headline:",
-      "Die Schlagzeile steht ✓",
-      "Deine Headline ist bereit:"
+      "Dein Sharepic ist bereit:",
+      "Hier ist dein Sharepic:",
+      "Das Sharepic ist fertig ✓",
+      "Dein Sharepic ist erstellt:"
     ],
     info: [
-      "Die Infografik ist erstellt:",
-      "Hier ist dein Infotext:",
-      "Der strukturierte Info-Content:",
-      "Deine Infografik ist fertig 📊"
+      "Dein Sharepic ist bereit:",
+      "Hier ist dein Sharepic:",
+      "Das Sharepic ist fertig ✓",
+      "Dein Sharepic ist erstellt:"
     ],
     zitat: [
-      "Das Zitat ist bereit:",
-      "Hier ist dein Zitat:",
-      "Das passende Zitat für dich:",
-      "Dein Zitat ist erstellt 💬"
+      "Dein Sharepic ist bereit:",
+      "Hier ist dein Sharepic:",
+      "Das Sharepic ist fertig ✓",
+      "Dein Sharepic ist erstellt:"
     ],
     quote: [
-      "Das Zitat ist bereit:",
-      "Hier ist dein Zitat:",
-      "Das passende Zitat für dich:",
-      "Dein Zitat ist erstellt 💬"
+      "Dein Sharepic ist bereit:",
+      "Hier ist dein Sharepic:",
+      "Das Sharepic ist fertig ✓",
+      "Dein Sharepic ist erstellt:"
     ],
     social_media: [
       "Dein Social Media Post ist fertig:",
       "Der Post für die sozialen Medien:",
       "Hier ist dein Social Media Content:",
       "Der Post ist bereit 📱"
+    ],
+    twitter: [
+      "Dein Tweet ist fertig:",
+      "Hier ist dein Tweet:",
+      "Der Tweet ist bereit 🐦",
+      "Dein Twitter/X Post:"
+    ],
+    instagram: [
+      "Dein Instagram Post ist fertig:",
+      "Hier ist dein Instagram Content:",
+      "Der Insta-Post ist bereit 📸",
+      "Dein Instagram Beitrag:"
+    ],
+    facebook: [
+      "Dein Facebook Post ist fertig:",
+      "Hier ist dein Facebook Beitrag:",
+      "Der FB-Post ist bereit:",
+      "Dein Facebook Content:"
+    ],
+    linkedin: [
+      "Dein LinkedIn Post ist fertig:",
+      "Hier ist dein LinkedIn Beitrag:",
+      "Der LinkedIn-Post ist bereit 💼",
+      "Dein professioneller Beitrag:"
     ],
     pressemitteilung: [
       "Die Pressemitteilung ist fertig:",
@@ -61,14 +85,6 @@ export const CHAT_MESSAGES = {
       "Das Ergebnis steht:"
     ]
   },
-
-  // Multi-result messages with variations
-  MULTI_RESULT: [
-    "Ich habe {count} {resultWord} für dich erstellt:",
-    "Hier sind deine {count} {resultWord}:",
-    "Fertig! {count} {resultWord} sind bereit ✓",
-    "Alles erledigt - {count} {resultWord}:"
-  ],
 
   // Edit success messages
   EDIT_SUCCESS: [
@@ -123,19 +139,6 @@ export const getSingleResultMessage = (agent, title) => {
     return getRandomMessage(messages);
   }
   return `Neuer ${title} erstellt! ✨`;
-};
-
-/**
- * Get a multi-result message
- * @param {number} count - Number of results
- * @returns {string} Multi-result message
- */
-export const getMultiResultMessage = (count) => {
-  const resultWord = count === 1 ? 'Vorschlag' : 'Vorschläge';
-  const template = getRandomMessage(CHAT_MESSAGES.MULTI_RESULT);
-  return template
-    .replace('{count}', count)
-    .replace('{resultWord}', resultWord);
 };
 
 /**

@@ -1,6 +1,6 @@
 /**
  * Base Search Service - Template method pattern for search services
- * 
+ *
  * Provides shared utilities and template methods for all search implementations.
  * Eliminates code duplication while allowing customization through inheritance.
  */
@@ -10,35 +10,13 @@ import { InputValidator, ValidationError } from '../utils/inputValidation.js';
 import { createCache } from '../utils/lruCache.js';
 import { SearchError, DatabaseError, createErrorHandler } from '../utils/errorHandling.js';
 import { vectorConfig } from '../config/vectorConfig.js';
-
-// ------- Simple lexical helpers for better on-topic excerpts -------
-function foldUmlauts(s) {
-  return (s || '')
-    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
-    .replace(/ß/g, 'ss');
-}
-
-function normalizeQuery(q) {
-  if (!q) return '';
-  let out = q.replace(/\u00AD/g, ''); // soft hyphen
-  out = out.replace(/([A-Za-zÄÖÜäöüß])\s*[-–—]\s*([A-Za-zÄÖÜäöüß])/g, '$1$2'); // dehyphenate
-  out = foldUmlauts(out).toLowerCase().trim();
-  return out;
-}
-
-function normalizeText(t) {
-  if (!t) return '';
-  let out = t.replace(/\u00AD/g, '');
-  out = out.replace(/([A-Za-zÄÖÜäöüß])\s*[-–—]\s*([A-Za-zÄÖÜäöüß])/g, '$1$2');
-  out = foldUmlauts(out).toLowerCase();
-  return out;
-}
-
-function containsNormalized(text, normQuery) {
-  if (!normQuery) return false;
-  return normalizeText(text).includes(normQuery);
-}
+import {
+  foldUmlauts,
+  normalizeQuery,
+  normalizeText,
+  generateQueryVariants,
+  containsNormalized
+} from '../utils/textNormalization.js';
 
 function looksLikeTOC(text) {
   if (!text) return false;
@@ -66,18 +44,102 @@ function highlightTerm(text, term) {
   }
 }
 
-function extractMatchedExcerpt(text, term, maxLen = 300) {
+function trimToSentenceBoundary(text, position, direction = 'start', maxSearch = 150) {
+  if (!text || position < 0 || position >= text.length) return position;
+  const sentenceEnders = /[.!?]/;
+
+  if (direction === 'start') {
+    let searchStart = Math.max(0, position - maxSearch);
+    let lastSentenceEnd = -1;
+    for (let i = searchStart; i < position; i++) {
+      if (sentenceEnders.test(text[i])) {
+        lastSentenceEnd = i;
+      }
+    }
+    if (lastSentenceEnd !== -1) {
+      let newPos = lastSentenceEnd + 1;
+      while (newPos < text.length && /\s/.test(text[newPos])) {
+        newPos++;
+      }
+      return newPos;
+    }
+    while (position < text.length && !/\s/.test(text[position])) {
+      position++;
+    }
+    while (position < text.length && /\s/.test(text[position])) {
+      position++;
+    }
+    return position;
+  } else {
+    let searchEnd = Math.min(text.length, position + maxSearch);
+    for (let i = position; i < searchEnd; i++) {
+      if (sentenceEnders.test(text[i])) {
+        return i + 1;
+      }
+    }
+    while (position > 0 && !/\s/.test(text[position - 1])) {
+      position--;
+    }
+    return position;
+  }
+}
+
+function needsLeadingEllipsis(text, start) {
+  if (start === 0) return false;
+  const charBefore = text[start - 1];
+  if (/[.!?]/.test(charBefore)) return false;
+  const textBefore = text.slice(Math.max(0, start - 3), start).trim();
+  if (/[.!?]$/.test(textBefore)) return false;
+  return true;
+}
+
+function needsTrailingEllipsis(text, end) {
+  if (end >= text.length) return false;
+  const lastChar = text[end - 1];
+  if (/[.!?]/.test(lastChar)) return false;
+  return true;
+}
+
+function extractMatchedExcerpt(text, term, maxLen = 400) {
   if (!text) return '';
-  if (!term) return text.length <= maxLen ? text : text.slice(0, maxLen) + '...';
+  if (!term) {
+    if (text.length <= maxLen) return text;
+    let end = trimToSentenceBoundary(text, maxLen, 'end', 100);
+    if (end > maxLen * 1.3) end = maxLen;
+    const snippet = text.slice(0, end).trim();
+    return snippet + (needsTrailingEllipsis(text, end) ? '...' : '');
+  }
+
   const lower = text.toLowerCase();
   const q = term.toLowerCase();
   const idx = lower.indexOf(q);
   if (idx === -1) {
-    return text.length <= maxLen ? text : text.slice(0, maxLen) + '...';
+    if (text.length <= maxLen) return text;
+    let end = trimToSentenceBoundary(text, maxLen, 'end', 100);
+    if (end > maxLen * 1.3) end = maxLen;
+    const snippet = text.slice(0, end).trim();
+    return snippet + (needsTrailingEllipsis(text, end) ? '...' : '');
   }
-  const start = Math.max(0, idx - Math.floor(maxLen * 0.4));
-  const end = Math.min(text.length, start + maxLen);
-  const snippet = (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
+
+  let start = Math.max(0, idx - Math.floor(maxLen * 0.4));
+  let end = Math.min(text.length, idx + Math.floor(maxLen * 0.6));
+
+  if (start > 0) {
+    start = trimToSentenceBoundary(text, start, 'start', 120);
+  }
+  if (end < text.length) {
+    end = trimToSentenceBoundary(text, end, 'end', 120);
+    if (end > start + maxLen * 1.4) {
+      end = start + maxLen;
+      while (end > start && !/\s/.test(text[end - 1])) {
+        end--;
+      }
+    }
+  }
+
+  const prefix = needsLeadingEllipsis(text, start) ? '...' : '';
+  const suffix = needsTrailingEllipsis(text, end) ? '...' : '';
+  const snippet = prefix + text.slice(start, end).trim() + suffix;
   return highlightTerm(snippet, term);
 }
 
@@ -569,24 +631,36 @@ class BaseSearchService {
   extractRelevantExcerpt(text, maxLength = null) {
     const contentConfig = vectorConfig.get('content');
     const actualMaxLength = maxLength || contentConfig.maxExcerptLength;
-    
+
     if (!text || text.length <= actualMaxLength) {
       return text;
     }
-    
-    // Smart truncation at sentence boundary using config
-    const truncated = text.substring(0, actualMaxLength);
-    const lastPunctuation = Math.max(
-      truncated.lastIndexOf('.'),
-      truncated.lastIndexOf('?'),
-      truncated.lastIndexOf('!')
-    );
-    
-    if (lastPunctuation > actualMaxLength * contentConfig.excerptSentenceBoundary) {
-      return truncated.substring(0, lastPunctuation + 1);
+
+    let end = trimToSentenceBoundary(text, actualMaxLength, 'end', 120);
+
+    if (end > actualMaxLength * 1.3) {
+      const truncated = text.substring(0, actualMaxLength);
+      const lastPunctuation = Math.max(
+        truncated.lastIndexOf('.'),
+        truncated.lastIndexOf('?'),
+        truncated.lastIndexOf('!')
+      );
+
+      if (lastPunctuation > actualMaxLength * 0.5) {
+        return truncated.substring(0, lastPunctuation + 1);
+      }
+
+      end = actualMaxLength;
+      while (end > 0 && !/\s/.test(text[end - 1])) {
+        end--;
+      }
+      if (end < actualMaxLength * 0.8) {
+        end = actualMaxLength;
+      }
     }
-    
-    return truncated + '...';
+
+    const snippet = text.substring(0, end).trim();
+    return snippet + (needsTrailingEllipsis(text, end) ? '...' : '');
   }
 
   // Abstract methods to be implemented by subclasses

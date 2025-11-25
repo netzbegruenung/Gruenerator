@@ -6,13 +6,79 @@ import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { applyChangesToContent, extractEditableText } from '../../../stores/hooks/useTextEditActions';
 import {
   getSingleResultMessage,
-  getMultiResultMessage,
   getEditSuccessMessage,
   getErrorMessage,
   getNoChangesMessage
 } from '../utils/chatMessages';
+import { generateMultiResultMessage } from '../utils/assistantPhrases';
 
 const SHAREPIC_AGENT_SET = new Set(['dreizeilen', 'headline', 'info', 'zitat', 'quote', 'zitat_pure']);
+
+const mergeRelatedResults = (results) => {
+  if (!results || results.length < 2) {
+    return results;
+  }
+
+  const textResults = [];
+  const sharepicResults = [];
+
+  for (const result of results) {
+    const hasSharepic = !!result?.content?.sharepic;
+    const isSharepicAgent = SHAREPIC_AGENT_SET.has(result?.agent);
+
+    if (hasSharepic || isSharepicAgent) {
+      sharepicResults.push(result);
+    } else {
+      textResults.push(result);
+    }
+  }
+
+  console.log('[useChatApi] mergeRelatedResults analysis:', {
+    total: results.length,
+    textResults: textResults.length,
+    sharepicResults: sharepicResults.length,
+    textAgents: textResults.map(r => r.agent),
+    sharepicAgents: sharepicResults.map(r => r.agent)
+  });
+
+  if (textResults.length === 1 && sharepicResults.length === 1) {
+    const textResult = textResults[0];
+    const sharepicResult = sharepicResults[0];
+
+    const mergedResult = {
+      ...textResult,
+      id: textResult.id || `merged_${Date.now()}`,
+      title: 'Text & Sharepic',
+      content: {
+        ...textResult.content,
+        text: textResult.content.text,
+        sharepic: sharepicResult.content.sharepic,
+        sharepicTitle: sharepicResult.content.sharepicTitle || sharepicResult.title,
+        sharepicDownloadText: sharepicResult.content.sharepicDownloadText,
+        sharepicDownloadFilename: sharepicResult.content.sharepicDownloadFilename,
+        enableKiLabel: sharepicResult.content.enableKiLabel,
+        onSharepicUpdate: sharepicResult.content.onSharepicUpdate,
+        onEditSharepic: sharepicResult.content.onEditSharepic,
+        showEditButton: sharepicResult.content.showEditButton
+      },
+      mergedFrom: {
+        text: textResult.agent,
+        sharepic: sharepicResult.agent
+      }
+    };
+
+    console.log('[useChatApi] Merged text and sharepic results:', {
+      textAgent: textResult.agent,
+      sharepicAgent: sharepicResult.agent,
+      mergedTitle: mergedResult.title
+    });
+
+    return [mergedResult];
+  }
+
+  return results;
+};
+
 const normalizeChatResponse = (response) => {
   if (!response) {
     return response;
@@ -176,7 +242,29 @@ export const useChatApi = () => {
               ...content.metadata,
               isInformationRequest: true
             }
-          }
+          },
+          actions: [
+            { label: 'Ja', value: 'ja', style: 'primary' },
+            { label: 'Nein', value: 'nein', style: 'secondary' }
+          ]
+        };
+
+      case 'websearch_offer':
+        // Handle web search offers - ask user if they want to search
+        return {
+          ...normalized,
+          content: {
+            ...content,
+            text: content.text,
+            metadata: {
+              ...content.metadata,
+              isWebSearchOffer: true
+            }
+          },
+          actions: [
+            { label: 'Ja', value: 'ja', style: 'primary' },
+            { label: 'Nein', value: 'nein', style: 'secondary' }
+          ]
         };
 
       default:
@@ -201,12 +289,23 @@ export const useChatApi = () => {
     setLoading(true);
     setError(null);
 
-    // Add user message immediately
+    // Add user message immediately with attachment metadata
+    const safeOptions = options || {};
+    const attachmentMeta = safeOptions.attachments?.length > 0
+      ? safeOptions.attachments.map(f => ({
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          displayType: f.displayType || f.type
+        }))
+      : null;
+
     const userMessage = {
       type: 'user',
       content: message.trim(),
       timestamp: Date.now(),
-      userName: user?.user_metadata?.firstName || user?.email || 'Sie'
+      userName: user?.user_metadata?.firstName || user?.email || 'Sie',
+      attachments: attachmentMeta
     };
 
     addMessage(userMessage);
@@ -214,7 +313,6 @@ export const useChatApi = () => {
     try {
       // Prepare API request with context
       const context = getApiContext();
-      const safeOptions = options || {};
       const requestData = {
         message: message.trim(),
         context,
@@ -309,13 +407,14 @@ export const useChatApi = () => {
             continue;
           }
 
-          // Handle information requests as direct chat messages in multi-agent flow
-          if (parsedIntentResponse.agent === 'information_request') {
+          // Handle information requests and websearch offers as direct chat messages in multi-agent flow
+          if (parsedIntentResponse.agent === 'information_request' || parsedIntentResponse.agent === 'websearch_offer') {
             addMessage({
               type: 'assistant',
               content: parsedIntentResponse.content.text,
               timestamp: Date.now(),
-              agent: 'information_request'
+              agent: parsedIntentResponse.agent,
+              actions: parsedIntentResponse.actions
             });
             continue; // Don't add to results, just show in chat
           }
@@ -329,21 +428,17 @@ export const useChatApi = () => {
           return [];
         }
 
-        handleMultiAgentResponses(successfulResponses);
-
-        const summaryLines = successfulResponses.map((response, index) => {
-          const label = response.content?.title || response.content?.metadata?.title || response.agent || `Ergebnis ${index + 1}`;
-          return `- ${label}`;
-        });
+        const mergedResponses = mergeRelatedResults(successfulResponses);
+        handleMultiAgentResponses(mergedResponses);
 
         addMessage({
           type: 'assistant',
-          content: `${getMultiResultMessage(successfulResponses.length)}\n${summaryLines.join('\n')}`,
+          content: generateMultiResultMessage(mergedResponses),
           timestamp: Date.now(),
           agent: 'multi_intent_summary'
         });
 
-        return successfulResponses;
+        return mergedResponses;
       }
 
       const normalizedResponse = normalizeChatResponse(rawResponse);
@@ -366,17 +461,18 @@ export const useChatApi = () => {
         throw new Error(getErrorMessage('no_agent'));
       }
 
-      if (!parsedResponse.content?.text && !parsedResponse.content?.sharepic && parsedResponse.agent !== 'information_request') {
+      if (!parsedResponse.content?.text && !parsedResponse.content?.sharepic && parsedResponse.agent !== 'information_request' && parsedResponse.agent !== 'websearch_offer' && parsedResponse.agent !== 'simple_response') {
         throw new Error(getErrorMessage('no_content'));
       }
 
-      // Handle information requests as direct chat messages
-      if (parsedResponse.agent === 'information_request') {
+      // Handle information requests, websearch offers, and simple responses as direct chat messages
+      if (parsedResponse.agent === 'information_request' || parsedResponse.agent === 'websearch_offer' || parsedResponse.agent === 'simple_response') {
         addMessage({
           type: 'assistant',
           content: parsedResponse.content.text,
           timestamp: Date.now(),
-          agent: 'information_request'
+          agent: parsedResponse.agent,
+          actions: parsedResponse.actions
         });
         return parsedResponse;
       }

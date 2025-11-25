@@ -5,11 +5,36 @@
 
 // Agent mappings with routing information
 const AGENT_MAPPINGS = {
-  // Text generation agents (existing prompt configs)
+  // Platform-specific social media agents
+  'twitter': {
+    route: 'social',
+    keywords: ['tweet', 'twitter', 'x post', 'x.com', 'x-post'],
+    description: 'Twitter/X posts with character limit (280 chars)',
+    params: { platforms: ['twitter'] }
+  },
+  'instagram': {
+    route: 'social',
+    keywords: ['instagram', 'insta', 'ig post', 'ig-post', 'reel'],
+    description: 'Instagram posts and captions',
+    params: { platforms: ['instagram'] }
+  },
+  'facebook': {
+    route: 'social',
+    keywords: ['facebook', 'fb post', 'fb-post'],
+    description: 'Facebook posts',
+    params: { platforms: ['facebook'] }
+  },
+  'linkedin': {
+    route: 'social',
+    keywords: ['linkedin', 'berufsnetzwerk', 'karriere-post'],
+    description: 'LinkedIn professional posts',
+    params: { platforms: ['linkedin'] }
+  },
+  // Generic social media fallback (when no specific platform mentioned)
   'social_media': {
     route: 'social',
-    keywords: ['social media', 'facebook', 'instagram', 'twitter', 'linkedin', 'post', 'beitrag'],
-    description: 'Social media posts for various platforms',
+    keywords: ['social media', 'post', 'beitrag', 'social-media'],
+    description: 'Generic social media posts (asks for platform or uses defaults)',
     params: {}
   },
   'pressemitteilung': {
@@ -115,13 +140,29 @@ async function classifyIntent(message, context = {}, aiWorkerPool = null) {
   if (aiWorkerPool) {
     try {
       const aiResult = await classifyWithAI(message, context, aiWorkerPool);
-      if (aiResult && aiResult.length > 0) {
-        console.log('[IntentClassifier] AI detected', aiResult.length, 'intents');
+      if (aiResult && aiResult.intents && aiResult.intents.length > 0) {
+        const { requestType, subIntent, intents } = aiResult;
+        console.log('[IntentClassifier] AI detected', intents.length, 'intents, requestType:', requestType, 'subIntent:', subIntent);
+
+        // Force single universal intent for conversation requests
+        if (requestType === 'conversation') {
+          console.log('[IntentClassifier] Conversation detected - routing to conversation handler, subIntent:', subIntent);
+          return {
+            isMultiIntent: false,
+            intents: [{ agent: 'conversation', route: 'conversation', params: {}, confidence: 0.9 }],
+            method: 'ai',
+            confidence: 0.9,
+            requestType: 'conversation',
+            subIntent: subIntent || 'general'
+          };
+        }
+
         return {
-          isMultiIntent: aiResult.length > 1,
-          intents: aiResult,
+          isMultiIntent: intents.length > 1,
+          intents: intents,
           method: 'ai',
-          confidence: Math.max(...aiResult.map(i => i.confidence || 0.8))
+          confidence: Math.max(...intents.map(i => i.confidence || 0.8)),
+          requestType: requestType
         };
       }
     } catch (error) {
@@ -244,41 +285,62 @@ ${recentMessages}
   const hasImageAttachment = context.hasImageAttachment || false;
   const imageContext = hasImageAttachment ? '\nBILD HOCHGELADEN: Ja (Benutzer hat ein Bild angehängt)' : '\nBILD HOCHGELADEN: Nein';
 
-  const classificationPrompt = `${conversationContext}Analysiere diese neue Nachricht und erkenne ALLE gewünschten Aktionen:
+  const classificationPrompt = `${conversationContext}Analysiere diese neue Nachricht:
 "${message}"${imageContext}
 
 ${context.lastAgent ? `Letzter verwendeter Agent: ${context.lastAgent}` : ''}
 ${context.topic ? `Aktuelles Thema: ${context.topic}` : ''}
 
+SCHRITT 1 - REQUEST-TYP BESTIMMEN (WICHTIGSTER SCHRITT!):
+
+1. "content_creation" - Benutzer will INHALT ERSTELLEN
+   Signale: "erstelle", "mache", "schreibe", "generiere", Plattform-Namen, Format-Anfragen
+   Beispiele: "Erstelle einen Tweet", "Mach ein Sharepic", "Schreib eine PM"
+
+2. "document_query" - Benutzer fragt nach SEINEN Dokumenten/Texten
+   Signale: "meine Dokumente", "in meinen Unterlagen", "was steht in", "habe ich", "such in meinen"
+   Beispiele: "Was steht in meinem Klimadokument?", "Such in meinen Texten"
+
+3. "conversation" - ALLGEMEINE Wissensfrage oder Chat (KEINE Inhaltserstellung!)
+   Signale: Philosophische Fragen, wissenschaftliche Fragen, Smalltalk, Meinungsfragen
+   Beispiele: "Was kam zuerst, Huhn oder Ei?", "Warum ist der Himmel blau?", "Was meinst du?"
+
+SCHRITT 2 - AGENT BESTIMMEN:
+
 Verfügbare Agenten:
 ${agentDescriptions}
 
-WICHTIG:
-- Berücksichtige den Gesprächskontext bei der Klassifikation
-- Erkenne mehrere Intents wenn der Nutzer Wörter wie "und", "sowie", "außerdem", "auch" verwendet
-- Bei unklaren Anfragen nutze den bisherigen Kontext zur Interpretation
-- BILD-KONTEXT: Wenn ein Bild hochgeladen wurde und Nutzer "zitat" oder "quote" erwähnt, wähle "zitat_with_image", nicht "zitat"
-- BILD-KONTEXT: "dreizeilen" benötigt immer ein Bild, verwende "dreizeilen" bei vorhandenem Bild
-- OHNE BILD: Für reine Text-Zitate verwende "zitat" (wird zu zitat_pure)
+REGELN:
+- Bei "conversation" → NUR {"agent": "universal"}, NIEMALS mehrere Intents!
+- Bei "document_query" → NUR {"agent": "universal"}
+- Bei "content_creation" → passende Agents (social, sharepic, antrag, etc.)
+- Mit Bild + zitat → zitat_with_image
+- Ohne Bild + zitat → zitat
+- Im Zweifel: "conversation" mit "universal" (weniger ist mehr!)
 
-Beispiele:
-- "erstelle ein sharepic und einen instagram text" → 2 Intents: sharepic_auto + social_media
-- "schreibe einen presseartikel" → 1 Intent: pressemitteilung
-- "mache ein zitat und eine pressemitteilung" → 2 Intents: zitat + pressemitteilung
-- "erstelle ein zitat sharepic" (mit Bild) → 1 Intent: zitat_with_image
-- "erstelle ein zitat sharepic" (ohne Bild) → 1 Intent: zitat
-- "mache dreizeilen" (mit Bild) → 1 Intent: dreizeilen
-- "mache dreizeilen" (ohne Bild) → 1 Intent: dreizeilen_text_only
-- "mache ein info sharepic" → 1 Intent: info (nicht sharepic_auto + info!)
-- Bei vorherigem Text: "mache daraus ein sharepic" → 1 Intent: sharepic_auto
+SCHRITT 3 - BEI CONVERSATION: SUB-INTENT BESTIMMEN
 
-Antworte als JSON Array mit allen erkannten Intents:
-[
-  {"agent": "sharepic_auto", "confidence": 0.95},
-  {"agent": "social_media", "confidence": 0.90, "params": {"platforms": ["instagram"]}}
-]
+Wenn requestType "conversation" ist, bestimme auch den Sub-Intent:
+- "summarize" - Benutzer will etwas zusammenfassen ("fasse zusammen", "kürze", "zusammenfassung")
+- "translate" - Benutzer will übersetzen ("übersetze", "auf englisch", "ins deutsche")
+- "compare" - Benutzer will vergleichen ("vergleiche", "unterschied zwischen", "was ist besser")
+- "explain" - Benutzer will Erklärung ("erkläre", "was ist", "wie funktioniert")
+- "brainstorm" - Benutzer will Ideen ("ideen für", "brainstorming", "vorschläge")
+- "general" - Allgemeine Frage (Standard)
 
-Wenn nur ein Intent erkannt wird, verwende trotzdem Array-Format.`;
+Beispiele für requestType:
+- "Was kam zuerst, das Huhn oder das Ei?" → conversation, subIntent: general
+- "Fasse diesen Text zusammen" → conversation, subIntent: summarize
+- "Übersetze ins Englische" → conversation, subIntent: translate
+- "Was ist besser, Solar oder Wind?" → conversation, subIntent: compare
+- "Erkläre mir Photosynthese" → conversation, subIntent: explain
+- "Ideen für Klimaschutz" → conversation, subIntent: brainstorm
+- "Was steht in meinem Klimadokument?" → document_query
+- "Erstelle einen Tweet über Klima" → content_creation, twitter
+- "Sharepic und Instagram Post" → content_creation, [sharepic_auto, instagram]
+
+Antworte als JSON:
+{"requestType": "conversation|document_query|content_creation", "subIntent": "summarize|translate|compare|explain|brainstorm|general", "intents": [{"agent": "...", "confidence": 0.9}]}`;
 
   try {
     console.log('[IntentClassifier] Calling AI for multi-intent classification');
@@ -298,14 +360,28 @@ Wenn nur ein Intent erkannt wird, verwende trotzdem Array-Format.`;
     }
 
     // Parse the AI response
+    let parsedResponse;
     let parsedIntents;
+    let requestType = 'content_creation'; // Default for backward compatibility
+    let subIntent = 'general'; // Default subIntent for conversation
+
     try {
-      // Try to extract JSON from response
-      const jsonMatch = result.content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        parsedIntents = JSON.parse(jsonMatch[0]);
+      // Try to parse as full JSON object first (new format)
+      const jsonObjectMatch = result.content.match(/\{[\s\S]*"requestType"[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        parsedResponse = JSON.parse(jsonObjectMatch[0]);
+        requestType = parsedResponse.requestType || 'content_creation';
+        subIntent = parsedResponse.subIntent || 'general';
+        parsedIntents = parsedResponse.intents || [];
+        console.log('[IntentClassifier] Parsed requestType:', requestType, 'subIntent:', subIntent);
       } else {
-        parsedIntents = JSON.parse(result.content);
+        // Fallback: Try to extract JSON array (old format)
+        const jsonArrayMatch = result.content.match(/\[[\s\S]*\]/);
+        if (jsonArrayMatch) {
+          parsedIntents = JSON.parse(jsonArrayMatch[0]);
+        } else {
+          parsedIntents = JSON.parse(result.content);
+        }
       }
     } catch (parseError) {
       console.warn('[IntentClassifier] Failed to parse AI response:', result.content);
@@ -353,8 +429,14 @@ Wenn nur ein Intent erkannt wird, verwende trotzdem Array-Format.`;
     });
 
     console.log('[IntentClassifier] AI successfully classified', processedIntents.length, 'intents:',
-                processedIntents.map(i => i.agent));
-    return processedIntents;
+                processedIntents.map(i => i.agent), 'requestType:', requestType, 'subIntent:', subIntent);
+
+    // Return requestType, subIntent, and intents
+    return {
+      requestType: requestType,
+      subIntent: subIntent,
+      intents: processedIntents
+    };
 
   } catch (error) {
     console.warn('[IntentClassifier] AI classification error:', error.message);
@@ -442,6 +524,35 @@ function getAvailableAgents() {
   }, {});
 }
 
+/**
+ * Check if a message is a question (for web search detection)
+ * @param {string} message - User message
+ * @returns {boolean} True if message appears to be a question
+ */
+function isQuestionMessage(message) {
+  const normalized = message.toLowerCase().trim();
+
+  // Ends with question mark
+  if (normalized.endsWith('?')) return true;
+
+  // Starts with German question words
+  const questionStarters = [
+    'wie ', 'was ', 'warum ', 'wo ', 'wann ', 'wer ',
+    'welche ', 'welcher ', 'welches ', 'ob ', 'wieso ',
+    'weshalb ', 'woher ', 'wohin ', 'womit '
+  ];
+  if (questionStarters.some(q => normalized.startsWith(q))) return true;
+
+  // Contains question phrases
+  const questionPhrases = [
+    'kannst du mir sagen', 'weißt du', 'hast du informationen',
+    'gibt es', 'was bedeutet', 'was ist'
+  ];
+  if (questionPhrases.some(p => normalized.includes(p))) return true;
+
+  return false;
+}
+
 module.exports = {
   classifyIntent,
   classifyWithAI,
@@ -449,5 +560,7 @@ module.exports = {
   AGENT_MAPPINGS,
   // Legacy exports for backward compatibility
   findKeywordMatch,
-  classifyFromContext
+  classifyFromContext,
+  // Web search helper
+  isQuestionMessage
 };

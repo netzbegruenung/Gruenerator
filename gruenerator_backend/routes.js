@@ -1,6 +1,9 @@
 //routes.js
-const antraegeRouter = require('./routes/antraege/index'); // Import the consolidated Anträge router
-const recentValuesRouter = require('./routes/recentValues'); // Import recent values router
+const { createLogger } = require('./utils/logger.js');
+const log = createLogger('Routes');
+
+const antraegeRouter = require('./routes/antraege/index');
+const recentValuesRouter = require('./routes/recentValues');
 // const saveAntragRoute = require('./routes/antraege/saveAntrag');
 // const getMyAntraegeRouter = require('./routes/antraege/getMyAntraege');
 // const deleteAntragRouter = require('./routes/antraege/deleteAntrag');
@@ -47,12 +50,10 @@ let snapshottingRouter = null;
 try {
   if (process.env.YJS_ENABLED === 'true') {
     snapshottingRouter = require('./routes/internal/snapshottingController');
-    console.log('[Routes] Snapshotting controller loaded');
-  } else {
-    console.log('[Routes] Snapshotting controller not loaded (YJS_ENABLED!=true)');
+    log.debug('Snapshotting controller loaded');
   }
 } catch (e) {
-  console.log('[Routes] Snapshotting controller unavailable, skipping:', e.message);
+  log.debug(`Snapshotting unavailable: ${e.message}`);
 }
 const offboardingRouter = require('./routes/internal/offboardingController'); // Import the offboarding controller
 const webSearchRouter = require('./routes/webSearch'); // Import the web search router
@@ -80,26 +81,6 @@ function normalizeRoute(path) {
 }
 
 async function setupRoutes(app) {
-  // Add debug middleware to trace ALL requests before anything else
-  app.use('*', (req, res, next) => {
-    next();
-  });
-
-  // Add debug middleware to trace all API requests
-  app.use('/api/*', (req, res, next) => {
-    // Only log for claude_social to avoid bloat
-    if (req.originalUrl.includes('/claude_social')) {
-      console.log(`[Route Debug] ${req.method} ${req.originalUrl} - Session: ${req.sessionID}`);
-      console.log(`[Route Debug] Session info:`, {
-        hasSession: !!req.session,
-        sessionId: req.sessionID,
-        hasUser: !!req.user,
-        hasPassportUser: !!req.session?.passport?.user,
-        passportUserId: req.session?.passport?.user?.id
-      });
-    }
-    next();
-  });
 
   // Route usage tracking middleware - non-blocking, fire-and-forget
   app.use('/api/*', (req, res, next) => {
@@ -210,7 +191,6 @@ async function setupRoutes(app) {
 
   // Text2Sharepic - AI-powered text-to-sharepic generation
   app.use('/api/sharepic/text2sharepic', text2SharepicRoute);
-  console.log('[Routes] Text2Sharepic routes mounted at /api/sharepic/text2sharepic');
 
   // Use unified handler for all sharepic claude routes
   app.post('/api/zitat_claude', async (req, res) => {
@@ -324,7 +304,7 @@ async function setupRoutes(app) {
         currentBuffer: Object.fromEntries(routeStats)
       });
     } catch (error) {
-      console.error('[Route Stats] Error fetching stats:', error);
+      log.error(`Route stats fetch failed: ${error.message}`);
       res.status(500).json({
         success: false,
         error: error.message
@@ -332,25 +312,20 @@ async function setupRoutes(app) {
     }
   });
 
-  // Add Canva routes (basic functionality)
+  // Add Canva routes
   app.use('/api/canva/auth', canvaAuthRouter);
   app.use('/api/canva', canvaApiRouter);
-  // app.use('/api/canva/webhooks', canvaWebhooksRouter); // Optional - uncomment if you need real-time webhook updates
-  console.log('[Setup] Canva basic routes registered');
 
   // Add Nextcloud routes
   app.use('/api/nextcloud', nextcloudApiRouter);
-  console.log('[Setup] Nextcloud routes registered');
 
   // Add Abyssale routes
   app.use('/api/abyssale', abyssaleRouter);
-  console.log('[Setup] Abyssale routes registered');
 
   // Add Sites routes (Web-Visitenkarte)
   const { default: sitesRouter } = await import('./routes/sites.mjs');
   const { default: publicSiteRouter } = await import('./routes/publicSite.mjs');
   app.use('/api/sites', sitesRouter);
-  console.log('[Setup] Sites routes registered');
 
   // Add Flux greener edit prompt route (ES module)
   const { default: fluxGreenEditPrompt } = await import('./routes/flux/greenEditPrompt.js');
@@ -373,7 +348,7 @@ async function setupRoutes(app) {
     }
   }, 60000);
 
-  console.log('[Setup] Route usage tracking initialized');
+  log.info('Routes initialized');
 }
 
 module.exports = { setupRoutes };

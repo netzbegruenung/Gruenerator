@@ -258,18 +258,19 @@ class RequestEnricher {
     }
 
     // Automatic vector search (if enabled and NO manual selections - manual takes priority)
+    // Now works in privacy mode too (with local-only search, no AI query enhancement)
     if (useAutomaticSearch &&
         selectedDocumentIds.length === 0 &&
         selectedTextIds.length === 0 &&
-        searchQuery &&
-        !usePrivacyMode) {
+        searchQuery) {
 
-      console.log('🎯 [RequestEnricher] Automatic search mode enabled - searching all user documents');
+      console.log(`🎯 [RequestEnricher] Automatic search mode enabled - searching all user documents${usePrivacyMode ? ' (privacy mode: local only)' : ''}`);
 
       enrichmentTasks.push(
         this.performAutomaticVectorSearch(searchQuery, options.req, {
           limit: 3,
-          threshold: 0.6
+          threshold: 0.6,
+          usePrivacyMode: usePrivacyMode
         })
           .then(result => ({
             type: 'autovectorsearch',
@@ -723,7 +724,7 @@ class RequestEnricher {
    * @returns {Object} { knowledge: [], metadata: { autoSelectedDocuments: [] } }
    */
   async performAutomaticVectorSearch(searchQuery, req, options = {}) {
-    const { limit = 3, threshold = 0.6 } = options;
+    const { limit = 3, threshold = 0.6, usePrivacyMode = false } = options;
     const userId = req?.user?.id;
 
     if (!userId) {
@@ -739,40 +740,45 @@ class RequestEnricher {
     const startTime = Date.now();
 
     try {
-      console.log(`🎯 [RequestEnricher] AUTO VECTOR SEARCH: "${searchQuery}" (limit=${limit}, threshold=${threshold})`);
+      console.log(`🎯 [RequestEnricher] AUTO VECTOR SEARCH: "${searchQuery}" (limit=${limit}, threshold=${threshold}, privacyMode=${usePrivacyMode})`);
 
       let searchQueries = [searchQuery];
       let enhancementMetadata = null;
 
-      try {
-        const aiSearchAgent = require('../services/aiSearchAgent.js');
+      // Only use AI query enhancement if NOT in privacy mode
+      if (!usePrivacyMode) {
+        try {
+          const aiSearchAgent = require('../services/aiSearchAgent.js');
 
-        const enhancement = await aiSearchAgent.enhanceQuery(
-          searchQuery,
-          {
-            contentType: 'general',
-            limit: 3,
-            includeContext: true,
-            useCache: true
-          },
-          req
-        );
+          const enhancement = await aiSearchAgent.enhanceQuery(
+            searchQuery,
+            {
+              contentType: 'general',
+              limit: 3,
+              includeContext: true,
+              useCache: true
+            },
+            req
+          );
 
-        if (enhancement.success && enhancement.enhancedQueries) {
-          searchQueries = enhancement.enhancedQueries;
-          enhancementMetadata = {
-            originalQuery: enhancement.originalQuery,
-            enhancedQueries: enhancement.enhancedQueries,
-            confidence: enhancement.confidence,
-            source: enhancement.source,
-            semanticContext: enhancement.semanticContext
-          };
-          console.log(`🎯 [RequestEnricher] Query enhanced: ${searchQueries.length} variants`);
-          console.log(`   - Original: "${enhancement.originalQuery}"`);
-          console.log(`   - Enhanced: ${searchQueries.slice(0, 3).map(q => `"${q}"`).join(', ')}`);
+          if (enhancement.success && enhancement.enhancedQueries) {
+            searchQueries = enhancement.enhancedQueries;
+            enhancementMetadata = {
+              originalQuery: enhancement.originalQuery,
+              enhancedQueries: enhancement.enhancedQueries,
+              confidence: enhancement.confidence,
+              source: enhancement.source,
+              semanticContext: enhancement.semanticContext
+            };
+            console.log(`🎯 [RequestEnricher] Query enhanced: ${searchQueries.length} variants`);
+            console.log(`   - Original: "${enhancement.originalQuery}"`);
+            console.log(`   - Enhanced: ${searchQueries.slice(0, 3).map(q => `"${q}"`).join(', ')}`);
+          }
+        } catch (enhanceError) {
+          console.warn('🎯 [RequestEnricher] Query enhancement failed, using original:', enhanceError.message);
         }
-      } catch (enhanceError) {
-        console.warn('🎯 [RequestEnricher] Query enhancement failed, using original:', enhanceError.message);
+      } else {
+        console.log('🎯 [RequestEnricher] Privacy mode: Skipping AI query enhancement, using original query only');
       }
 
       const documentSearchService = getQdrantDocumentService();

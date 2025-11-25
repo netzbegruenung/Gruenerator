@@ -411,7 +411,7 @@ const Antragsversteher = ({ showHeaderFooter = true }) => {
               </div>
               
               <div 
-                className="analysis-content antrag-text-content"
+                className="analysis-content markdown-content"
                 style={{ fontSize: '1.2em' }}
                 dangerouslySetInnerHTML={{ __html: processMarkdown(generatedContent) }}
               />

@@ -127,7 +127,7 @@ const AntragDetailView = ({ antrag, onClose }) => {
 
         {/* Antragstext Section (remains the same) */}
         <h3>Antragstext:</h3>
-        <div className="antrag-text-content">
+        <div className="markdown-content">
           {antrag.antragstext ? (
              <ReactMarkdown>{antrag.antragstext}</ReactMarkdown>
            ) : (

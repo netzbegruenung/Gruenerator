@@ -98,11 +98,11 @@
 
 [data-theme="dark"] .qa-chat-dossier-input-wrapper {
   background: var(--background-color);
+  box-shadow: none;
 }
 
 [data-theme="dark"] .qa-chat-dossier-input-wrapper:hover {
-  background: rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--background-color);
 }
 
 .qa-chat-dossier-input-wrapper .qa-chat-mode-selector {
@@ -137,10 +137,19 @@
   box-sizing: border-box;
 }
 
-.textarea-wrapper textarea:focus {
-  outline: none;
-  border: none;
-  box-shadow: none;
+.textarea-wrapper textarea:focus,
+.textarea-wrapper textarea:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .textarea-wrapper textarea:focus,
+[data-theme="dark"] .textarea-wrapper textarea:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: var(--chat-input-background);
 }
 
 .textarea-wrapper textarea::placeholder {
@@ -242,15 +251,60 @@
   flex-direction: column;
 }
 
+/* Mobile-specific dossier layout - uses MobileSwipeContainer */
+.qa-chat-dossier-mobile {
+  position: relative;
+  height: 100%;
+}
+
+.qa-chat-dossier-mobile .qa-chat-right-panel {
+  flex: 1;
+  height: auto;
+  max-height: none;
+  padding: var(--spacing-small);
+  padding-bottom: 160px;
+  overflow-y: auto;
+}
+
+.qa-chat-dossier-mobile .qa-chat-dossier-input-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  margin: 0;
+  padding: var(--spacing-small);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  background: var(--background-color);
+  min-height: auto;
+}
+
+.qa-chat-dossier-mobile .qa-chat-dossier-input-wrapper .textarea-wrapper textarea {
+  min-height: 80px;
+}
+
+@media (max-width: 480px) {
+  .qa-chat-dossier-mobile .qa-chat-right-panel {
+    padding: var(--spacing-xsmall);
+    padding-bottom: 150px;
+  }
+
+  .qa-chat-dossier-mobile .qa-chat-dossier-input-wrapper {
+    padding: var(--spacing-xsmall);
+    border-radius: 16px 16px 0 0;
+  }
+}
+
 @media (max-width: 768px) {
   .qa-chat-container {
     padding: var(--spacing-small);
   }
-  
+
   .qa-chat-main.qa-chat-dossier {
     flex-direction: column;
   }
-  
+
   .qa-chat-dossier .qa-chat-left-panel {
     max-width: none;
     min-width: auto;
@@ -258,7 +312,7 @@
     margin-right: 0;
     margin-bottom: var(--spacing-small);
   }
-  
+
   .qa-chat-dossier .qa-chat-right-panel {
     height: 60vh;
   }
@@ -268,38 +322,38 @@
     padding: 0;
     gap: 0;
   }
-  
+
   .qa-chat-fullscreen-content {
     flex: 1;
   }
-  
+
   .qa-chat-ui-fullscreen {
     border-radius: 0;
     border: none;
   }
-  
-  
-  
+
+
+
   .qa-chat-floating-input {
     bottom: var(--spacing-medium);
     left: var(--spacing-medium);
     right: var(--spacing-medium);
     max-width: none;
   }
-  
+
 }
 
 @media (max-width: 480px) {
   .qa-chat-container {
     padding: var(--spacing-xsmall);
   }
-  
+
   .qa-chat-dossier .qa-chat-left-panel {
     height: 50vh;
     margin-right: 0;
     margin-bottom: var(--spacing-xsmall);
   }
-  
+
   .qa-chat-dossier .qa-chat-right-panel {
     height: 50vh;
   }
@@ -308,17 +362,17 @@
     width: 40px;
     height: 40px;
   }
-  
+
   .qa-chat-mode-selector .mode-button svg {
     width: 18px;
     height: 18px;
   }
-  
+
   .qa-chat-dossier-input-wrapper {
     padding: var(--spacing-small);
     gap: var(--spacing-xsmall);
   }
-  
+
   .qa-chat-floating-input {
     bottom: var(--spacing-small);
     max-width: 400px;
@@ -326,20 +380,20 @@
     padding: var(--spacing-xsmall);
     gap: var(--spacing-xsmall);
   }
-  
-  
+
+
   .qa-floating-input {
     font-size: 16px;
     min-height: 36px;
     padding: var(--spacing-xsmall) var(--spacing-small);
   }
-  
+
   .qa-floating-submit {
     width: 36px;
     height: 36px;
     font-size: 14px;
   }
-  
+
 }
 
 .qa-collection-info {
@@ -563,4 +617,11 @@
   transform: none !important;
   box-shadow: none !important;
   color: var(--font-color) !important;
+}
+
+/* Mobile: Move file upload button to bottom-right, next to submit button */
+.qa-chat-dossier-mobile .textarea-wrapper .chat-file-upload-button-workbench {
+  bottom: var(--spacing-small);
+  left: auto;
+  right: 56px;
 }
