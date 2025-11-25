@@ -6,7 +6,7 @@
 class ImageGenerationCounter {
   constructor(redisClient) {
     this.redis = redisClient;
-    this.DAILY_LIMIT = 5; // Maximum images per day per user
+    this.DAILY_LIMIT = 10; // Maximum images per day per user
   }
 
   /**
