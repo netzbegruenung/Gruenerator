@@ -3,6 +3,9 @@ import { fastEmbedService } from '../../services/FastEmbedService.js';
 import http from 'http';
 import https from 'https';
 import dotenv from 'dotenv';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('Qdrant');
 
 // Load environment variables
 dotenv.config();
@@ -92,8 +95,7 @@ class QdrantService {
                 throw new Error('QDRANT_API_KEY environment variable is required but not set or empty');
             }
 
-            console.log(`[QdrantService] Initializing with API key: ${apiKey.substring(0, 8)}...`);
-            console.log(`[QdrantService] Connecting to: ${qdrantUrl}`);
+            log.debug(`Connecting to ${qdrantUrl}`);
 
             // Configure HTTP agent for better connection handling
             const isHttps = qdrantUrl.startsWith('https');
@@ -113,7 +115,6 @@ class QdrantService {
             if (basicAuthUsername && basicAuthPassword) {
                 const basicAuth = Buffer.from(`${basicAuthUsername}:${basicAuthPassword}`).toString('base64');
                 headers['Authorization'] = `Basic ${basicAuth}`;
-                console.log(`[QdrantService] Using basic authentication for user: ${basicAuthUsername}`);
             }
 
             // Use host/port approach for HTTPS support due to Qdrant client URL parsing bug
@@ -152,22 +153,20 @@ class QdrantService {
             // Wait for FastEmbed to initialize to get dimensions
             await fastEmbedService.init();
             this.vectorSize = fastEmbedService.getDimensions();
-            console.log(`[QdrantService] Using vector dimensions: ${this.vectorSize}`);
-            
+
             // Create collections if they don't exist
             await this.createCollections();
-            
+
             this.isConnected = true;
             this.isInitializing = false;
             this.lastHealthCheck = Date.now();
-            console.log('[QdrantService] Successfully connected to Qdrant');
-            
+            log.info('Connected');
+
         } catch (error) {
-            console.error('[QdrantService] Failed to initialize Qdrant:', error);
+            log.error(`Init failed: ${error.message}`);
             this.isConnected = false;
             this.isInitializing = false;
-            // Don't throw error to allow app to start without Qdrant
-            console.warn('[QdrantService] Vector search will be disabled');
+            log.warn('Vector search will be disabled');
         }
     }
 
@@ -193,23 +192,14 @@ class QdrantService {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 await this.client.getCollections();
-                console.log(`[QdrantService] Connection test successful (attempt ${attempt})`);
+                log.debug(`Connection test successful (attempt ${attempt})`);
                 return true;
             } catch (error) {
                 lastError = error;
-                console.warn(`[QdrantService] Connection test attempt ${attempt}/${maxRetries} failed:`, error.message);
-                
-                // Log additional error details for debugging
-                if (error.cause) {
-                    console.warn(`[QdrantService] Error cause:`, error.cause.message);
-                }
-                if (error.code) {
-                    console.warn(`[QdrantService] Error code:`, error.code);
-                }
-                
+                log.debug(`Connection attempt ${attempt}/${maxRetries} failed: ${error.message}`);
+
                 if (attempt < maxRetries) {
                     const delay = Math.pow(2, attempt) * 1000;
-                    console.log(`[QdrantService] Retrying connection in ${delay}ms...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             }
@@ -231,22 +221,19 @@ class QdrantService {
 
         try {
             if (!this.isConnected) {
-                console.log('[QdrantService] Connection lost, attempting to reconnect...');
-                // Reset initPromise to allow new initialization attempt
+                log.debug('Connection lost, reconnecting...');
                 this.initPromise = null;
                 await this.init();
                 return;
             }
 
-            // Test current connection with a simple operation
             await this.client.getCollections();
             this.lastHealthCheck = now;
         } catch (error) {
-            console.warn('[QdrantService] Health check failed, reconnecting:', error.message);
-            
-            // Check for SSL-related errors and force full reinitialize
+            log.debug(`Health check failed: ${error.message}`);
+
             if (error.message && (error.message.includes('SSL') || error.message.includes('wrong version'))) {
-                console.log('[QdrantService] SSL error detected, forcing full reconnection...');
+                log.debug('SSL error detected, forcing full reconnection...');
                 // Force complete reinitialization
                 this.client = null;
                 this.isConnected = false;
@@ -570,73 +557,45 @@ class QdrantService {
      */
     async createTextSearchIndexes() {
         try {
-            console.log('[QdrantService] Creating text search indexes for hybrid search...');
-            
-            // Define collections that need text search indexes
             const collectionsToIndex = [
                 this.collections.documents,
                 this.collections.grundsatz_documents,
                 this.collections.user_knowledge
             ];
 
+            let indexedCount = 0;
             for (const collectionName of collectionsToIndex) {
                 try {
-                    // Create text index for chunk_text field
                     await this.client.createPayloadIndex(collectionName, {
                         field_name: 'chunk_text',
-                        field_schema: {
-                            type: 'text',
-                            tokenizer: 'word',
-                            min_token_len: 2,
-                            max_token_len: 50,
-                            lowercase: true
-                        }
+                        field_schema: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true }
                     });
-                    console.log(`[QdrantService] Created text index for chunk_text in ${collectionName}`);
-                    
-                    // Create keyword index for title field
                     await this.client.createPayloadIndex(collectionName, {
                         field_name: 'title',
-                        field_schema: {
-                            type: 'keyword'
-                        }
+                        field_schema: { type: 'keyword' }
                     });
-                    console.log(`[QdrantService] Created keyword index for title in ${collectionName}`);
-
-                    // Create keyword index for filename field
                     await this.client.createPayloadIndex(collectionName, {
                         field_name: 'filename',
-                        field_schema: {
-                            type: 'keyword'
-                        }
+                        field_schema: { type: 'keyword' }
                     });
-                    console.log(`[QdrantService] Created keyword index for filename in ${collectionName}`);
-
-                    // Create keyword index for user_id field for filtering
                     await this.client.createPayloadIndex(collectionName, {
                         field_name: 'user_id',
-                        field_schema: {
-                            type: 'keyword',
-                            is_tenant: true  // Optimize for user-based filtering
-                        }
+                        field_schema: { type: 'keyword', is_tenant: true }
                     });
-                    console.log(`[QdrantService] Created user_id tenant index in ${collectionName}`);
-
+                    indexedCount++;
                 } catch (indexError) {
-                    // Indexes might already exist, log warning but continue
-                    if (indexError.message && (indexError.message.includes('already exists') || indexError.message.includes('index already created'))) {
-                        console.log(`[QdrantService] Text indexes already exist for ${collectionName}, skipping...`);
-                    } else {
-                        console.warn(`[QdrantService] Failed to create text index for ${collectionName}:`, indexError.message);
+                    if (!indexError.message?.includes('already exists') && !indexError.message?.includes('index already created')) {
+                        log.debug(`Index creation failed for ${collectionName}: ${indexError.message}`);
                     }
                 }
             }
-            
-            console.log('[QdrantService] Text search indexes creation completed');
-            
+
+            if (indexedCount > 0) {
+                log.debug(`Created indexes for ${indexedCount} collections`);
+            }
+
         } catch (error) {
-            console.error('[QdrantService] Failed to create text search indexes:', error);
-            // Don't throw - this is not critical for basic functionality
+            log.debug(`Text search indexes error: ${error.message}`);
         }
     }
 

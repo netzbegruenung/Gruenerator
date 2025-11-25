@@ -260,7 +260,6 @@ class VectorConfig {
       }
     });
     
-    console.log(`[VectorConfig] Configuration validated successfully`);
   }
 
   /**
@@ -361,10 +360,6 @@ class VectorConfig {
 // Create singleton instance
 const vectorConfig = new VectorConfig();
 
-// Log configuration summary on startup
-if (vectorConfig.isVerboseMode()) {
-  console.log('[VectorConfig] Loaded configuration:', vectorConfig.getSummary());
-}
 
 module.exports = {
   vectorConfig,

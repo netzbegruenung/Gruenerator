@@ -1,18 +1,17 @@
 import passport from 'passport';
 import { initializeKeycloakOIDCStrategy } from './keycloakOIDCStrategy.mjs';
-
-// Import ProfileService for database operations
 import { getProfileService } from '../services/ProfileService.mjs';
+import { createLogger } from '../utils/logger.js';
 
-console.log('[PassportSetup] Initializing Keycloak OpenID Connect strategy with openid-client');
+const log = createLogger('Passport');
 
 // Initialize the new OpenID Connect strategy
 try {
   const keycloakStrategy = await initializeKeycloakOIDCStrategy();
   passport.use(keycloakStrategy);
-  console.log('[PassportSetup] Keycloak OIDC strategy registered successfully');
+  log.info('Keycloak OIDC initialized');
 } catch (error) {
-  console.error('[PassportSetup] Failed to initialize Keycloak OIDC strategy:', error);
+  log.error(`OIDC init failed: ${error.message}`);
   throw error;
 }
 

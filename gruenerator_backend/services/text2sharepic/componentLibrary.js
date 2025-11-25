@@ -9,6 +9,8 @@ const { createCanvas, loadImage, registerFont } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, COLORS } = require('../../routes/sharepic/sharepic_canvas/config');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('Components');
 
 // Register fonts on module load
 try {
@@ -20,8 +22,11 @@ try {
     registerFont(PTSANS_BOLD_PATH, { family: 'PTSans-Bold' });
   }
 } catch (err) {
-  console.warn('[ComponentLibrary] Font registration warning:', err.message);
+  log.warn(`Font registration warning: ${err.message}`);
 }
+
+// Track registered components for summary logging
+const registeredComponents = [];
 
 /**
  * Corporate Design constants
@@ -65,7 +70,7 @@ function registerComponent(type, definition) {
     ...definition,
     registeredAt: Date.now()
   });
-  console.log(`[ComponentLibrary] Registered component: ${type}`);
+  registeredComponents.push(type);
 }
 
 /**
@@ -782,6 +787,11 @@ async function renderComponent(ctx, componentType, params, bounds) {
  */
 function getCorporateDesign() {
   return { ...CORPORATE_DESIGN };
+}
+
+// Log summary after all components are registered
+if (registeredComponents.length > 0) {
+  log.info(`Registered ${registeredComponents.length} components`);
 }
 
 module.exports = {

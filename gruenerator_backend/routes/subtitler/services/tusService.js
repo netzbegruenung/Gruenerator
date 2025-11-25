@@ -4,6 +4,8 @@ const { FileStore } = require('@tus/file-store');
 const path = require('path');
 const fs = require('fs').promises;
 const { sanitizePath } = require('../../../utils/securityUtils');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('TusService');
 
 // Singleton-Pattern um mehrfache Initialisierung zu verhindern
 let isInitialized = false;
@@ -31,13 +33,11 @@ const processedUploads = new Set();
 (async () => {
   try {
     await fs.mkdir(TUS_UPLOAD_PATH, { recursive: true });
-    console.log('[tusService] Tus Upload Verzeichnis erstellt:', TUS_UPLOAD_PATH);
+    log.debug(`Upload directory: ${TUS_UPLOAD_PATH}`);
   } catch (err) {
-    console.error('[tusService] Fehler beim Erstellen des Tus Upload Verzeichnisses:', err);
+    log.error(`Failed to create upload directory: ${err.message}`);
   }
 })();
-
-console.log('[tusService] Initializing Hybrid File-Lifecycle Management...');
 
 // Konfiguriere Tus Server
 const tusServer = new Server({
@@ -68,7 +68,7 @@ const getUploadStatus = async (uploadId) => {
         const metadataContent = await fs.readFile(metadataPath, 'utf8');
         metadata = JSON.parse(metadataContent);
       } catch (err) {
-        console.warn(`[tusService] Fehler beim Lesen der Metadaten für ${uploadId}:`, err);
+        log.debug(`Metadata read error for ${uploadId}: ${err.message}`);
       }
     }
 
@@ -82,7 +82,7 @@ const getUploadStatus = async (uploadId) => {
       metadata
     };
   } catch (err) {
-    console.error(`[tusService] Fehler beim Ermitteln des Upload-Status für ${uploadId}:`, err);
+    log.debug(`Upload status error for ${uploadId}: ${err.message}`);
     return { exists: false, error: true };
   }
 };
@@ -91,37 +91,19 @@ const cleanupUploadFiles = async (uploadId, reason = 'TTL expired') => {
   try {
     const metadataPath = path.join(TUS_UPLOAD_PATH, `${uploadId}.json`);
     const videoPath = path.join(TUS_UPLOAD_PATH, uploadId);
-    
-    const cleanupPromises = [];
-    
-    // Lösche Metadaten-Datei
-    cleanupPromises.push(
-      fs.unlink(metadataPath).catch(err => {
-        if (err.code !== 'ENOENT') {
-          console.warn(`[tusService] Fehler beim Löschen der Metadaten ${uploadId}:`, err.message);
-        }
-      })
-    );
-    
-    // Lösche Video-Datei
-    cleanupPromises.push(
-      fs.unlink(videoPath).catch(err => {
-        if (err.code !== 'ENOENT') {
-          console.warn(`[tusService] Fehler beim Löschen der Video-Datei ${uploadId}:`, err.message);
-        }
-      })
-    );
 
-    await Promise.all(cleanupPromises);
-    
-    // Entferne aus Sets
+    await Promise.all([
+      fs.unlink(metadataPath).catch(() => {}),
+      fs.unlink(videoPath).catch(() => {})
+    ]);
+
     activeUploads.delete(uploadId);
     processedUploads.delete(uploadId);
-    
-    console.log(`[tusService] Upload-Dateien gelöscht: ${uploadId} (Grund: ${reason})`);
+
+    log.debug(`Cleaned up ${uploadId} (${reason})`);
     return true;
   } catch (err) {
-    console.error(`[tusService] Fehler beim Cleanup von ${uploadId}:`, err);
+    log.debug(`Cleanup error for ${uploadId}: ${err.message}`);
     return false;
   }
 };
@@ -129,12 +111,9 @@ const cleanupUploadFiles = async (uploadId, reason = 'TTL expired') => {
 const markUploadAsProcessed = (uploadId) => {
   activeUploads.delete(uploadId);
   processedUploads.add(uploadId);
-  console.log(`[tusService] Upload als verarbeitet markiert: ${uploadId}`);
 };
 
 const scheduleImmediateCleanup = async (uploadId, reason = 'immediate') => {
-  console.log(`[tusService] Sofortiges Cleanup geplant für ${uploadId} (${reason})`);
-  // Kurze Verzögerung um sicherzustellen, dass alle Streams geschlossen sind
   setTimeout(async () => {
     await cleanupUploadFiles(uploadId, reason);
   }, 5000);
@@ -142,33 +121,24 @@ const scheduleImmediateCleanup = async (uploadId, reason = 'immediate') => {
 
 // Event-basiertes sofortiges Cleanup
 tusServer.on('upload-create', (event) => {
-  const uploadId = event.upload.id;
-  activeUploads.add(uploadId);
-  console.log(`[tusService] Upload erstellt: ${uploadId}`);
+  activeUploads.add(event.upload.id);
 });
 
 tusServer.on('upload-complete', (event) => {
-  const uploadId = event.upload.id;
-  console.log(`[tusService] Upload abgeschlossen: ${uploadId}`);
-  markUploadAsProcessed(uploadId);
+  markUploadAsProcessed(event.upload.id);
 });
 
 tusServer.on('upload-abort', (event) => {
-  const uploadId = event.upload.id;
-  console.log(`[tusService] Upload abgebrochen: ${uploadId}`);
-  scheduleImmediateCleanup(uploadId, 'upload aborted');
+  scheduleImmediateCleanup(event.upload.id, 'aborted');
 });
 
 tusServer.on('upload-error', (event) => {
-  const uploadId = event.upload.id;
-  console.log(`[tusService] Upload-Fehler: ${uploadId}`);
-  scheduleImmediateCleanup(uploadId, 'upload error');
+  scheduleImmediateCleanup(event.upload.id, 'error');
 });
 
 // Intelligentes TTL-basiertes Cleanup
 const intelligentCleanup = async () => {
   try {
-    console.log('[tusService] Starte intelligentes Cleanup...');
     const files = await fs.readdir(TUS_UPLOAD_PATH);
     const now = Date.now();
     let cleanedCount = 0;
@@ -216,40 +186,38 @@ const intelligentCleanup = async () => {
       }
     }
     
-    console.log(`[tusService] Intelligentes Cleanup abgeschlossen. ${cleanedCount} Dateien bereinigt.`);
+    if (cleanedCount > 0) log.debug(`Cleanup: ${cleanedCount} files removed`);
   } catch (err) {
-    console.error('[tusService] Fehler beim intelligenten Cleanup:', err);
+    log.debug(`Cleanup error: ${err.message}`);
   }
 };
 
 // Emergency Cleanup (aggressiver)
 const emergencyCleanup = async () => {
   try {
-    console.log('[tusService] Starte Emergency-Cleanup...');
     const files = await fs.readdir(TUS_UPLOAD_PATH);
     const now = Date.now();
     let cleanedCount = 0;
-    
+
     for (const file of files) {
       if (file === '.gitkeep') continue;
-      
+
       const filePath = path.join(TUS_UPLOAD_PATH, file);
       const stats = await fs.stat(filePath).catch(() => null);
       if (!stats) continue;
-      
+
       const fileAge = now - stats.mtime.getTime();
-      
-      // Emergency Cleanup: Lösche alles was älter als die Hälfte der maximalen Zeit ist
+
       if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE / 2) {
         const uploadId = file.endsWith('.json') ? file.slice(0, -5) : file;
-        const success = await cleanupUploadFiles(uploadId, 'emergency cleanup');
+        const success = await cleanupUploadFiles(uploadId, 'emergency');
         if (success) cleanedCount++;
       }
     }
-    
-    console.log(`[tusService] Emergency-Cleanup abgeschlossen. ${cleanedCount} Dateien bereinigt.`);
+
+    if (cleanedCount > 0) log.debug(`Emergency cleanup: ${cleanedCount} files removed`);
   } catch (err) {
-    console.error('[tusService] Fehler beim Emergency-Cleanup:', err);
+    log.debug(`Emergency cleanup error: ${err.message}`);
   }
 };
 
@@ -258,11 +226,9 @@ const getFilePathFromUploadId = (uploadId) => {
   if (!uploadId) throw new Error('Upload ID ist erforderlich');
 
   try {
-    // Security: Sanitize and validate the uploadId against the base upload directory
-    // This prevents path traversal attacks like "../../../etc/passwd"
     return sanitizePath(uploadId, TUS_UPLOAD_PATH);
   } catch (error) {
-    console.error(`[tusService] Security validation failed for uploadId: ${uploadId}`, error.message);
+    log.warn(`Security validation failed for uploadId: ${uploadId}`);
     throw new Error('Invalid upload ID: security validation failed');
   }
 };
@@ -276,29 +242,22 @@ const checkFileExists = async (filePath) => {
   }
 };
 
-// Legacy Cleanup-Funktion (vereinfacht, wird von intelligentCleanup ersetzt)
+// Legacy Cleanup-Funktion
 const cleanupTusUploads = async (maxAgeHours = 24) => {
-  console.log('[tusService] Legacy Cleanup aufgerufen - weitergeleitet an intelligentCleanup');
   await intelligentCleanup();
 };
 
 // Starte initiales Cleanup beim Server-Start
 if (!isInitialized) {
-  console.log('[tusService] Starte initiales Cleanup...');
   intelligentCleanup();
 
-  // Plane regelmäßige Cleanup-Zyklen
   cleanupIntervalId = setInterval(intelligentCleanup, TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL);
   emergencyCleanupIntervalId = setInterval(emergencyCleanup, TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL);
 
-  console.log(`[tusService] Cleanup-Intervalle konfiguriert:
-- Intelligent: alle ${TUS_CLEANUP_CONFIG.CLEANUP_INTERVAL / 60000} Minuten
-- Emergency: alle ${TUS_CLEANUP_CONFIG.EMERGENCY_CLEANUP_INTERVAL / 60000} Minuten`);
+  log.debug('Cleanup intervals configured');
 
-  // Graceful Shutdown - nur einmal registrieren
   const shutdownHandler = () => {
     if (cleanupIntervalId) {
-      console.log('[tusService] Stoppe Cleanup-Intervalle...');
       clearInterval(cleanupIntervalId);
       clearInterval(emergencyCleanupIntervalId);
       cleanupIntervalId = null;
@@ -308,9 +267,8 @@ if (!isInitialized) {
 
   process.on('SIGTERM', shutdownHandler);
   process.on('SIGINT', shutdownHandler);
-  
+
   isInitialized = true;
-  console.log('[tusService] Initialisierung abgeschlossen.');
 }
 
 module.exports = {

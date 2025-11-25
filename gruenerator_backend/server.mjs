@@ -12,10 +12,10 @@ import https from 'https';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import helmet from 'helmet';
-import winston from 'winston';
 import multer from 'multer';
 import axios from 'axios';
 import { createRequire } from 'module';
+import { createLogger } from './utils/logger.js';
 
 import routesModule from './routes.js';
 const { setupRoutes } = routesModule;
@@ -39,35 +39,35 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const log = createLogger('Server');
+
 let aiWorkerPool;
 let masterShutdownInProgress = false;
 
 if (cluster.isMaster) {
-  console.log(`Master ${process.pid} is running`);
-
   const workerCount = parseInt(process.env.WORKER_COUNT, 10) || 2;
-  console.log(`Starting ${workerCount} workers (WORKER_COUNT: ${workerCount})`);
+  log.info(`Master ${process.pid} starting ${workerCount} workers`);
 
   for (let i = 0; i < workerCount; i++) {
     cluster.fork();
   }
 
   cluster.on('exit', (worker, code, signal) => {
-    console.log(`Worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
+    log.warn(`Worker ${worker.process.pid} died (code: ${code}, signal: ${signal})`);
     if (!worker.exitedAfterDisconnect && !masterShutdownInProgress) {
-      console.log('Starting new worker...');
+      log.info('Starting replacement worker');
       cluster.fork();
     }
   });
 
   const masterShutdown = async (signal) => {
     if (masterShutdownInProgress) {
-      console.log(`Master shutdown already in progress, ignoring ${signal}`);
+      log.debug(`Shutdown already in progress, ignoring ${signal}`);
       return;
     }
     masterShutdownInProgress = true;
-    
-    console.log(`Master received ${signal}, initiating graceful shutdown...`);
+
+    log.info(`Received ${signal}, initiating graceful shutdown`);
 
     const workers = Object.values(cluster.workers);
     workers.forEach(worker => {
@@ -77,20 +77,20 @@ if (cluster.isMaster) {
     const shutdownPromises = workers.map(worker => {
       return new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          console.log(`Worker ${worker.process.pid} shutdown timeout, forcing kill`);
+          log.warn(`Worker ${worker.process.pid} timeout, forcing kill`);
           worker.kill('SIGKILL');
           resolve();
-        }, 10000); // 10 Sekunden Timeout
-        
+        }, 10000);
+
         worker.send({ type: 'shutdown' });
         worker.on('message', (msg) => {
           if (msg.type === 'shutdown-complete') {
             clearTimeout(timeout);
-            console.log(`Worker ${worker.process.pid} shutdown complete`);
+            log.debug(`Worker ${worker.process.pid} shutdown complete`);
             resolve();
           }
         });
-        
+
         worker.on('exit', () => {
           clearTimeout(timeout);
           resolve();
@@ -100,7 +100,7 @@ if (cluster.isMaster) {
 
     await Promise.all(shutdownPromises);
 
-    console.log('All workers shut down successfully');
+    log.info('All workers shut down successfully');
     process.exit(0);
   };
 
@@ -249,7 +249,7 @@ if (cluster.isMaster) {
   });
 
   const aiWorkerCount = parseInt(process.env.AI_WORKER_COUNT, 10) || 7;
-  console.log(`Initializing AI worker pool with ${aiWorkerCount} workers (with Redis support for privacy mode)`);
+  log.debug(`Initializing AI worker pool with ${aiWorkerCount} workers`);
   aiWorkerPool = new AIWorkerPool(aiWorkerCount, redisClient);
   app.locals.aiWorkerPool = aiWorkerPool;
 
@@ -258,9 +258,9 @@ if (cluster.isMaster) {
     const require = createRequire(import.meta.url);
     const aiSearchAgent = require('./services/aiSearchAgent.js');
     aiSearchAgent.setAIWorkerPool(aiWorkerPool);
-    console.log('AI Search Agent initialized with worker pool');
+    log.debug('AI Search Agent initialized');
   } catch (error) {
-    console.error('Warning: Could not initialize AI Search Agent:', error.message);
+    log.warn(`AI Search Agent init failed: ${error.message}`);
   }
 
   try {
@@ -269,28 +269,27 @@ if (cluster.isMaster) {
     const SharepicImageManager = require('./services/sharepicImageManager.js');
     const sharepicImageManager = new SharepicImageManager(redisClient);
     app.locals.sharepicImageManager = sharepicImageManager;
-    console.log(`[Worker ${process.pid}] SharepicImageManager initialized with Redis client`);
+    log.debug('SharepicImageManager initialized');
   } catch (error) {
-    console.error(`[Worker ${process.pid}] Warning: Could not initialize SharepicImageManager:`, error.message);
+    log.warn(`SharepicImageManager init failed: ${error.message}`);
   }
 
   try {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
     const postgresService = getPostgresInstance();
-    console.log(`[Worker ${process.pid}] Initializing PostgreSQL connection...`);
-    await postgresService.init(); // This now only does connection + pool setup
-    console.log(`[Worker ${process.pid}] PostgreSQL connection initialized successfully`);
+    await postgresService.init();
+    log.info('PostgreSQL connected');
   } catch (error) {
-    console.error(`[Worker ${process.pid}] Warning: Could not initialize PostgreSQL connection:`, error.message);
+    log.error(`PostgreSQL connection failed: ${error.message}`);
   }
 
   try {
     const { getProfileService } = await import('./services/ProfileService.js');
     const profileService = getProfileService();
     await profileService.init();
-    console.log(`[Worker ${process.pid}] ProfileService initialized successfully`);
+    log.debug('ProfileService initialized');
   } catch (error) {
-    console.error(`[Worker ${process.pid}] Warning: Could not initialize ProfileService:`, error.message);
+    log.warn(`ProfileService init failed: ${error.message}`);
   }
 
   app.use(compression({
@@ -346,57 +345,36 @@ if (cluster.isMaster) {
   process.on('message', async (msg) => {
     if (msg.type === 'shutdown' && !workerShutdownInProgress) {
       workerShutdownInProgress = true;
-      console.log(`Worker ${process.pid} received shutdown signal`);
+      log.debug(`Worker ${process.pid} received shutdown signal`);
 
       try {
-        if (aiWorkerPool) {
-          console.log('Shutting down AI worker pool...');
-          await aiWorkerPool.shutdown();
-        }
-
-        if (redisClient && redisClient.isOpen) {
-          console.log('Closing Redis connection...');
-          await redisClient.quit();
-        }
+        if (aiWorkerPool) await aiWorkerPool.shutdown();
+        if (redisClient && redisClient.isOpen) await redisClient.quit();
 
         server.close(() => {
-          console.log(`Worker ${process.pid} server closed`);
-          if (process.send) {
-            process.send({ type: 'shutdown-complete' });
-          }
+          log.debug(`Worker ${process.pid} server closed`);
+          if (process.send) process.send({ type: 'shutdown-complete' });
           process.exit(0);
         });
       } catch (error) {
-        console.error(`Error during worker ${process.pid} shutdown:`, error);
-        if (process.send) {
-          process.send({ type: 'shutdown-complete' });
-        }
+        log.error(`Worker ${process.pid} shutdown error: ${error.message}`);
+        if (process.send) process.send({ type: 'shutdown-complete' });
         process.exit(1);
       }
     }
   });
 
   const workerShutdown = async (signal) => {
-    if (workerShutdownInProgress) {
-      console.log(`Worker ${process.pid} shutdown already in progress, ignoring ${signal}`);
-      return;
-    }
+    if (workerShutdownInProgress) return;
     workerShutdownInProgress = true;
-    
-    console.log(`Worker ${process.pid} received ${signal}`);
+
+    log.debug(`Worker ${process.pid} received ${signal}`);
     try {
-      if (aiWorkerPool) {
-        await aiWorkerPool.shutdown();
-      }
-      if (redisClient && redisClient.isOpen) {
-        await redisClient.quit();
-      }
-      server.close(() => {
-        console.log(`Worker ${process.pid} server closed`);
-        process.exit(0);
-      });
+      if (aiWorkerPool) await aiWorkerPool.shutdown();
+      if (redisClient && redisClient.isOpen) await redisClient.quit();
+      server.close(() => process.exit(0));
     } catch (error) {
-      console.error(`Error during worker ${process.pid} shutdown:`, error);
+      log.error(`Worker shutdown error: ${error.message}`);
       process.exit(1);
     }
   };
@@ -433,18 +411,9 @@ if (cluster.isMaster) {
   };
 
   // Session and Authentication setup
-  console.log('[Server.mjs] Setting up session middleware...');
-
-  // Commented out for mobile-only usage - uncomment when sessions are needed
-  // if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
-  //   console.error('[CRITICAL] SESSION_SECRET must be set and at least 32 characters');
-  //   process.exit(1);
-  // }
-
-  // Use SESSION_SECRET if available, otherwise use fallback with warning
   const sessionSecret = process.env.SESSION_SECRET || 'temporary-fallback-secret-for-mobile-only';
   if (!process.env.SESSION_SECRET) {
-    console.warn('[WARNING] SESSION_SECRET not set - using temporary fallback. Set SESSION_SECRET for production!');
+    log.warn('SESSION_SECRET not set - using temporary fallback');
   }
 
   app.use(session({
@@ -459,20 +428,12 @@ if (cluster.isMaster) {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days (extended for anonymous session tracking)
       sameSite: 'lax', // Use 'lax' for OAuth flows - 'strict' blocks cross-site redirects from Keycloak
       domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Don't set domain in development
-      path: '/' // Ensure cookie is available for all paths
+      path: '/'
     }
   }));
-  
-  console.log('[Server.mjs] Session middleware setup complete.');
 
   // Passport middleware
-  console.log('[Server.mjs] Initializing Passport...');
   app.use(passport.initialize());
-  console.log('[Server.mjs] Passport initialized.');
-  // ENTFERNT: Globale Passport-Session - wird nur für Auth-Routen benötigt
-  // console.log('[Server.mjs] Initializing Passport session...');
-  // app.use(passport.session());
-  // console.log('[Server.mjs] Passport session initialized.');
 
   // Initialize Passport OIDC strategy
   // ... existing code ...
@@ -511,16 +472,11 @@ if (cluster.isMaster) {
   // app.use(subdomainHandler);
   // === Ende Subdomain Handler ===
 
-  // === TUS Upload Handler ===
-  // WICHTIG: Muss VOR setupRoutes und VOR den statischen Fallbacks stehen!
-  const tusUploadPath = '/api/subtitler/upload'; // Pfad aus tusService.js
-  app.all(tusUploadPath + '*', (req, res) => { // .all() für alle Methoden, '*' für Upload-IDs
-    // Leite die Anfrage an den tusServer weiter
-    // Der tusServer kümmert sich intern um die verschiedenen HTTP-Methoden (POST, HEAD, PATCH etc.)
-    console.log(`[Server] Routing request for ${req.method} ${req.url} to tusServer`); // Logging hinzufügen
+  // TUS Upload Handler (must be before setupRoutes)
+  const tusUploadPath = '/api/subtitler/upload';
+  app.all(tusUploadPath + '*', (req, res) => {
     tusServer.handle(req, res);
   });
-  // === Ende TUS Upload Handler ===
 
   // Routen einrichten
   await setupRoutes(app);
@@ -743,12 +699,7 @@ if (cluster.isMaster) {
     socket.setKeepAlive(true, 30000); // 30 Sekunden
   });
 
-  // DIAGNOSTIC LOGS FOR PORT
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: process.env.PORT is: ${process.env.PORT}`);
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: desiredPort is: ${desiredPort}`);
-  console.log(`[DIAGNOSTIC] Worker ${process.pid}: host is: ${host}`);
-
   server.listen(desiredPort, host, () => {
-    console.log(`Main Backend Worker ${process.pid} started - Server running at http://${host}:${desiredPort}`);
+    log.info(`Worker ${process.pid} listening on http://${host}:${desiredPort}`);
   });
 }

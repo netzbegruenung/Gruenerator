@@ -6,14 +6,16 @@
  */
 
 import { BaseCheckpointSaver } from "@langchain/langgraph";
+import { createLogger } from '../../utils/logger.js';
 
+const log = createLogger('Checkpointer');
 const CHECKPOINT_TTL = 7200; // 2 hours to match session TTL
 
 export class RedisCheckpointer extends BaseCheckpointSaver {
   constructor(redisClient) {
     super();
     this.client = redisClient;
-    console.log(`[RedisCheckpointer] Initialized with TTL=${CHECKPOINT_TTL}s`);
+    log.debug(`Initialized (TTL=${CHECKPOINT_TTL}s)`);
   }
 
   /**
@@ -91,46 +93,28 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
     const threadId = config?.configurable?.thread_id;
     const checkpointNs = config?.configurable?.checkpoint_ns || "";
 
-    if (!threadId) {
-      console.log(`[RedisCheckpointer] getTuple: No thread_id provided`);
-      return undefined;
-    }
-
-    const pid = process.pid;
-    console.log(`[RedisCheckpointer][PID:${pid}] getTuple: ${threadId}:${checkpointNs}`);
+    if (!threadId) return undefined;
 
     try {
       const checkpointKey = this._getCheckpointKey(threadId, checkpointNs);
       const metadataKey = this._getMetadataKey(threadId, checkpointNs);
       const writesKey = this._getWritesKey(threadId, checkpointNs);
 
-      // Fetch checkpoint, metadata, and pending writes in parallel
       const [checkpointData, metadataData, writesData] = await Promise.all([
         this.client.get(checkpointKey),
         this.client.get(metadataKey),
         this.client.get(writesKey)
       ]);
 
-      if (!checkpointData) {
-        console.log(`[RedisCheckpointer][PID:${pid}] No checkpoint found for ${threadId}`);
-        return undefined;
-      }
+      if (!checkpointData) return undefined;
 
       const checkpoint = JSON.parse(checkpointData);
       const metadata = metadataData ? JSON.parse(metadataData) : {};
       const pendingWrites = writesData ? JSON.parse(writesData) : [];
 
-      console.log(`[RedisCheckpointer][PID:${pid}] Retrieved checkpoint for ${threadId} (writes: ${pendingWrites.length})`);
-
-      // Return checkpoint tuple structure expected by LangGraph
-      return {
-        config,
-        checkpoint,
-        metadata,
-        pendingWrites
-      };
+      return { config, checkpoint, metadata, pendingWrites };
     } catch (error) {
-      console.error(`[RedisCheckpointer][PID:${pid}] Error getting checkpoint for ${threadId}:`, error.message);
+      log.debug(`getTuple error for ${threadId}: ${error.message}`);
       return undefined;
     }
   }
@@ -143,32 +127,21 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
     const threadId = config?.configurable?.thread_id;
     const checkpointNs = config?.configurable?.checkpoint_ns || "";
 
-    if (!threadId) {
-      console.error(`[RedisCheckpointer] put: No thread_id provided`);
-      return config;
-    }
-
-    const pid = process.pid;
-    console.log(`[RedisCheckpointer][PID:${pid}] put: ${threadId}:${checkpointNs}`);
+    if (!threadId) return config;
 
     try {
       const checkpointKey = this._getCheckpointKey(threadId, checkpointNs);
       const metadataKey = this._getMetadataKey(threadId, checkpointNs);
-
-      // Use replacer to filter out circular refs and non-serializable objects during stringify
       const replacer = this._createReplacer();
 
-      // Store checkpoint and metadata with TTL
       await Promise.all([
         this.client.setEx(checkpointKey, CHECKPOINT_TTL, JSON.stringify(checkpoint, replacer)),
         this.client.setEx(metadataKey, CHECKPOINT_TTL, JSON.stringify(metadata || {}, this._createReplacer()))
       ]);
 
-      console.log(`[RedisCheckpointer][PID:${pid}] Stored checkpoint for ${threadId} (TTL: ${CHECKPOINT_TTL}s)`);
-
       return config;
     } catch (error) {
-      console.error(`[RedisCheckpointer][PID:${pid}] Error storing checkpoint for ${threadId}:`, error.message);
+      log.debug(`put error for ${threadId}: ${error.message}`);
       return config;
     }
   }
@@ -181,30 +154,17 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
     const threadId = config?.configurable?.thread_id;
     const checkpointNs = config?.configurable?.checkpoint_ns || "";
 
-    if (!threadId) {
-      console.error(`[RedisCheckpointer] putWrites: No thread_id provided`);
-      return;
-    }
-
-    const pid = process.pid;
-    console.log(`[RedisCheckpointer][PID:${pid}] putWrites: ${threadId}:${checkpointNs} (task: ${taskId}, writes: ${writes.length})`);
+    if (!threadId) return;
 
     try {
       const writesKey = this._getWritesKey(threadId, checkpointNs);
-
-      // Get existing writes
       const existingData = await this.client.get(writesKey);
       const existingWrites = existingData ? JSON.parse(existingData) : [];
-
-      // Append new writes (keep as-is, no modification)
       const allWrites = [...existingWrites, ...writes];
 
-      // Store with TTL using replacer to handle circular refs
       await this.client.setEx(writesKey, CHECKPOINT_TTL, JSON.stringify(allWrites, this._createReplacer()));
-
-      console.log(`[RedisCheckpointer][PID:${pid}] Stored ${writes.length} writes for ${threadId} (total: ${allWrites.length})`);
     } catch (error) {
-      console.error(`[RedisCheckpointer][PID:${pid}] Error storing writes for ${threadId}:`, error.message);
+      log.debug(`putWrites error for ${threadId}: ${error.message}`);
     }
   }
 
@@ -214,48 +174,28 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    */
   async *list(config, filter = {}) {
     const threadId = config?.configurable?.thread_id;
-
-    if (!threadId) {
-      console.log(`[RedisCheckpointer] list: No thread_id provided`);
-      return;
-    }
-
-    const pid = process.pid;
-    console.log(`[RedisCheckpointer][PID:${pid}] list: ${threadId}`);
+    if (!threadId) return;
 
     try {
-      // Find all checkpoint keys for this thread
       const pattern = `langgraph:checkpoint:${threadId}:*`;
       const keys = [];
 
-      // Scan for matching keys
       let cursor = 0;
       do {
-        const result = await this.client.scan(cursor, {
-          MATCH: pattern,
-          COUNT: 100
-        });
+        const result = await this.client.scan(cursor, { MATCH: pattern, COUNT: 100 });
         cursor = result.cursor;
         keys.push(...result.keys);
       } while (cursor !== 0);
 
-      console.log(`[RedisCheckpointer][PID:${pid}] Found ${keys.length} checkpoints for ${threadId}`);
-
-      // Yield each checkpoint
       for (const key of keys) {
         const checkpointData = await this.client.get(key);
         if (checkpointData) {
           const checkpoint = JSON.parse(checkpointData);
-          yield {
-            config,
-            checkpoint,
-            metadata: {},
-            pendingWrites: []
-          };
+          yield { config, checkpoint, metadata: {}, pendingWrites: [] };
         }
       }
     } catch (error) {
-      console.error(`[RedisCheckpointer][PID:${pid}] Error listing checkpoints for ${threadId}:`, error.message);
+      log.debug(`list error for ${threadId}: ${error.message}`);
     }
   }
 
@@ -264,9 +204,6 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
    * Optional method for cleanup
    */
   async deleteThread(threadId) {
-    const pid = process.pid;
-    console.log(`[RedisCheckpointer][PID:${pid}] deleteThread: ${threadId}`);
-
     try {
       const patterns = [
         `langgraph:checkpoint:${threadId}:*`,
@@ -277,21 +214,13 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
       for (const pattern of patterns) {
         let cursor = 0;
         do {
-          const result = await this.client.scan(cursor, {
-            MATCH: pattern,
-            COUNT: 100
-          });
+          const result = await this.client.scan(cursor, { MATCH: pattern, COUNT: 100 });
           cursor = result.cursor;
-
-          if (result.keys.length > 0) {
-            await this.client.del(result.keys);
-          }
+          if (result.keys.length > 0) await this.client.del(result.keys);
         } while (cursor !== 0);
       }
-
-      console.log(`[RedisCheckpointer][PID:${pid}] Deleted all data for thread ${threadId}`);
     } catch (error) {
-      console.error(`[RedisCheckpointer][PID:${pid}] Error deleting thread ${threadId}:`, error.message);
+      log.debug(`deleteThread error for ${threadId}: ${error.message}`);
     }
   }
 }

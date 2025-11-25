@@ -6,6 +6,8 @@
  */
 
 const { CORPORATE_DESIGN } = require('./componentLibrary');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('Templates');
 
 /**
  * Standard canvas dimensions
@@ -21,6 +23,7 @@ const CANVAS_DIMENSIONS = {
  * Zone template registry
  */
 const zoneTemplateRegistry = new Map();
+const registeredTemplates = [];
 
 /**
  * Register a zone template
@@ -31,7 +34,7 @@ function registerTemplate(id, template) {
     ...template,
     registeredAt: Date.now()
   });
-  console.log(`[ZoneTemplates] Registered template: ${id}`);
+  registeredTemplates.push(id);
 }
 
 /**
@@ -636,6 +639,11 @@ function getTemplateZonesWithBounds(templateId) {
     ...zone,
     bounds: calculateZoneBounds(zone, template.dimensions)
   }));
+}
+
+// Log summary after all templates are registered
+if (registeredTemplates.length > 0) {
+  log.info(`Registered ${registeredTemplates.length} templates`);
 }
 
 module.exports = {

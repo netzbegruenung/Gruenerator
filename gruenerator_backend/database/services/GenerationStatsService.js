@@ -17,9 +17,7 @@ class GenerationStatsService {
     async logGeneration({ userId, generationType, platform, tokensUsed, success = true }) {
         try {
             const postgres = this.getPostgres();
-            if (!postgres.isConnected) {
-                await postgres.connect();
-            }
+            await postgres.ensureInitialized();
 
             const sql = `
                 INSERT INTO generation_logs (user_id, generation_type, platform, tokens_used, success)
@@ -41,9 +39,7 @@ class GenerationStatsService {
     async getGenerationStats({ days = 30, limit = 50 } = {}) {
         try {
             const postgres = this.getPostgres();
-            if (!postgres.isConnected) {
-                await postgres.connect();
-            }
+            await postgres.ensureInitialized();
 
             const sql = `
                 SELECT
@@ -71,9 +67,7 @@ class GenerationStatsService {
     async getGenerationStatsByType({ days = 30 } = {}) {
         try {
             const postgres = this.getPostgres();
-            if (!postgres.isConnected) {
-                await postgres.connect();
-            }
+            await postgres.ensureInitialized();
 
             const sql = `
                 SELECT
@@ -97,9 +91,7 @@ class GenerationStatsService {
     async getGenerationTimeline({ days = 30, generationType = null } = {}) {
         try {
             const postgres = this.getPostgres();
-            if (!postgres.isConnected) {
-                await postgres.connect();
-            }
+            await postgres.ensureInitialized();
 
             let sql = `
                 SELECT
@@ -133,9 +125,7 @@ class GenerationStatsService {
     async getTotalStats() {
         try {
             const postgres = this.getPostgres();
-            if (!postgres.isConnected) {
-                await postgres.connect();
-            }
+            await postgres.ensureInitialized();
 
             const sql = `
                 SELECT

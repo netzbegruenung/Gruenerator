@@ -10,15 +10,15 @@ async function execute(requestId, data) {
 
   // Content-aware top_p resolution for Mistral
   function determineTopP(type, platforms, temperature) {
-    // Platform-specific values for social content
+    // Platform-specific values for social content (aligned with social.json)
     if (type === 'social' && platforms && Array.isArray(platforms)) {
-      if (platforms.includes('pressemitteilung')) return 0.85;
-      if (platforms.includes('linkedin')) return 0.9;
-      if (platforms.includes('twitter')) return 0.9;
-      if (platforms.includes('facebook')) return 0.95;
-      if (platforms.includes('instagram')) return 0.95;
-      if (platforms.includes('reelScript')) return 0.95;
-      if (platforms.includes('actionIdeas')) return 0.95;
+      if (platforms.includes('pressemitteilung')) return 0.7;   // Match social.json
+      if (platforms.includes('linkedin')) return 0.75;          // Match social.json
+      if (platforms.includes('twitter')) return 0.95;           // Match social.json
+      if (platforms.includes('facebook')) return 0.9;           // Match social.json
+      if (platforms.includes('instagram')) return 0.9;          // Match social.json
+      if (platforms.includes('reelScript')) return 0.95;        // Match social.json
+      if (platforms.includes('actionIdeas')) return 0.95;       // Match social.json
     }
 
     // Type-specific values for all sharepic text generation (needs precise instruction following)
@@ -40,13 +40,13 @@ async function execute(requestId, data) {
       // Single platform optimization
       if (platforms.length === 1) {
         const platform = platforms[0];
-        if (platform === 'pressemitteilung') return 600;
-        if (platform === 'twitter') return 150; // Very short tweets
-        if (platform === 'linkedin') return 400;
-        if (platform === 'facebook') return 350;
-        if (platform === 'instagram') return 350;
-        if (platform === 'reelScript') return 500;
-        if (platform === 'actionIdeas') return 500;
+        if (platform === 'pressemitteilung') return 700;  // 2000 chars ≈ 500 tokens + 40% buffer
+        if (platform === 'twitter') return 120;           // 280 chars ≈ 70 tokens + 70% buffer
+        if (platform === 'linkedin') return 250;          // 600 chars ≈ 150 tokens + 66% buffer
+        if (platform === 'facebook') return 250;          // 600 chars ≈ 150 tokens + 66% buffer
+        if (platform === 'instagram') return 250;         // 600 chars ≈ 150 tokens + 66% buffer
+        if (platform === 'reelScript') return 550;        // 1500 chars ≈ 375 tokens + 46% buffer
+        if (platform === 'actionIdeas') return 400;       // 1000 chars ≈ 250 tokens + 60% buffer
       }
 
       // Multiple platforms - use higher limit to accommodate all
