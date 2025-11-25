@@ -1,332 +1,47 @@
-import React, { useState, useCallback, useEffect, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { HiDocumentText, HiInformationCircle, HiChip } from 'react-icons/hi';
-import { NotebookIcon } from '../../../config/icons';
-const ReactMarkdown = lazy(() => import('react-markdown'));
-import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
-import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import FormStateProvider from '../../../components/common/Form/FormStateProvider';
-import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
+import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
+import { CitationModal } from '../../../components/common/Citation';
 import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
-import UniversalEditForm from '../../../components/common/Form/EditMode/UniversalEditForm';
+import ResultsDeck from '../../chat/components/ResultsDeck';
 import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import useApiSubmit from '../../../components/hooks/useApiSubmit';
-import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import useResponsive from '../../../components/common/Form/hooks/useResponsive';
+import useQAChatLogic from '../hooks/useQAChatLogic.jsx';
+import QAChatMessage from './QAChatMessage';
+import { QA_CHAT_MODES } from '../config/qaChatModes';
 import '../../../assets/styles/features/qa/qa-chat.css';
 
 const QAChat = () => {
   const { id } = useParams();
   const { user } = useOptimizedAuth();
-  const { isMobileView } = useResponsive(768);
   const { getQACollection, fetchQACollections, qaCollections, loading: storeLoading } = useQAStore();
-  const [chatMessages, setChatMessages] = useState([]);
-  const [inputValue, setInputValue] = useState("");
   const [collection, setCollection] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState(isMobileView ? 'chat' : 'dossier');
-  const [showEditTools, setShowEditTools] = useState(false);
-  
-  const componentName = `qa-${id}`;
-  const { setGeneratedText, setGeneratedTextMetadata, getGeneratedTextMetadata, getLinkConfig } = useGeneratedTextStore();
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
-  
-  const { submitForm, loading: submitLoading } = useApiSubmit(`/auth/qa/${id}/ask`);
 
-  // Load Q&A collection on mount
   useEffect(() => {
     const loadCollection = async () => {
-      try {
-        setLoading(true);
-        console.log('[QAChat] Loading collection with ID:', id);
-        console.log('[QAChat] User authenticated:', !!user);
-        console.log('[QAChat] Current collections in store:', qaCollections);
-        
-        // First try to get from store
-        let foundCollection = getQACollection(id);
-        console.log('[QAChat] Found collection in store:', foundCollection);
-        
-        // If not in store, fetch all collections
-        if (!foundCollection) {
-          console.log('[QAChat] Collection not in store, fetching all collections...');
-          await fetchQACollections();
-          foundCollection = getQACollection(id);
-          console.log('[QAChat] Found collection after fetch:', foundCollection);
-        }
-        
-        if (foundCollection) {
-          setCollection(foundCollection);
-          
-          // Initialize chat with welcome message
-          const welcomeMessage = {
-            type: 'assistant',
-            content: `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${foundCollection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.`,
-            timestamp: Date.now()
-          };
-          setChatMessages([welcomeMessage]);
-        } else {
-          console.log('[QAChat] Collection not found after fetch');
-        }
-      } catch (error) {
-        console.error('[QAChat] Error loading collection:', error);
-      } finally {
-        setLoading(false);
+      setLoading(true);
+      let found = getQACollection(id);
+      if (!found) {
+        await fetchQACollections();
+        found = getQACollection(id);
       }
+      setCollection(found);
+      setLoading(false);
     };
-
-    if (id && user) {
-      loadCollection();
-    }
+    if (id && user) loadCollection();
   }, [id, getQACollection, fetchQACollections, user, qaCollections]);
 
-  // Force chat mode on mobile devices
-  useEffect(() => {
-    if (isMobileView && viewMode !== 'chat') {
-      setViewMode('chat');
-    }
-  }, [isMobileView, viewMode]);
+  const {
+    chatMessages, inputValue, viewMode, qaResults, submitLoading,
+    setInputValue, setViewMode, handleSubmitQuestion, clearResults
+  } = useQAChatLogic({
+    collectionId: id,
+    collectionName: collection?.name,
+    welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : null
+  });
 
-  const handleSubmitQuestion = useCallback(async (question) => {
-    const userMessage = {
-      type: 'user',
-      content: question,
-      timestamp: Date.now(),
-      userName: user?.user_metadata?.firstName || user?.email || 'Sie'
-    };
-
-    // Add user message to chat
-    setChatMessages(prev => [...prev, userMessage]);
-    setInputValue("");
-
-    try {
-      const result = await submitForm({ question, mode: viewMode });
-      
-      if (result && result.answer) {
-        // Add assistant response to chat
-        const assistantMessage = {
-          type: 'assistant',
-          content: 'Hier ist meine Antwort basierend auf Ihren Dokumenten:',
-          timestamp: Date.now()
-        };
-        setChatMessages(prev => [...prev, assistantMessage]);
-
-        // Store answer and metadata in generatedTextStore
-        setGeneratedText(componentName, result.answer);
-        setGeneratedTextMetadata(componentName, { 
-          sources: result.sources || [],
-          citations: result.citations || []
-        });
-      }
-    } catch (error) {
-      console.error('[QAChat] Error submitting question:', error);
-      const errorMessage = {
-        type: 'error',
-        content: 'Entschuldigung, es gab einen Fehler beim Verarbeiten Ihrer Frage. Bitte versuchen Sie es erneut.',
-        timestamp: Date.now()
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
-    }
-  }, [submitForm, user, viewMode, setGeneratedText, setGeneratedTextMetadata, componentName]);
-
-  // Mode configuration for the mode selector
-  const modes = {
-    dossier: {
-      label: 'Dossier-Modus',
-      icon: HiDocumentText,
-      title: 'Zum Chat-Modus wechseln'
-    },
-    chat: {
-      label: 'Chat-Modus', 
-      icon: NotebookIcon,
-      title: 'Zum Dossier-Modus wechseln'
-    }
-  };
-
-  const handleModeChange = (newMode) => {
-    setViewMode(newMode);
-  };
-
-  // Custom message renderer for chat mode with inline citations
-  const renderChatMessage = (msg, index) => (
-    <motion.div 
-      key={msg.timestamp || index}
-      className={`chat-message ${msg.type} ${viewMode === 'chat' ? 'chat-message-with-citations' : ''}`}
-      initial={{ opacity: 0, y: 2, scale: 0.995 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: "easeOut" } }}
-      transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
-    >
-      {msg.type === 'user' && msg.userName && (
-        <div className="chat-message-user-name">{msg.userName}</div>
-      )}
-      {msg.type === 'assistant' && viewMode === 'chat' && (
-        <div className="chat-message-user-name">{collection.name}</div>
-      )}
-      {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
-      
-      <div className="chat-message-content">
-        {msg.type === 'assistant' && msg.content === 'Hier ist meine Antwort basierend auf Ihren Dokumenten:' && storeGeneratedText ? (
-          <ContentRenderer
-            value={storeGeneratedText}
-            generatedContent={storeGeneratedText}
-            isEditing={false}
-            useMarkdown={true}
-            componentName={componentName}
-          />
-        ) : (
-          <ReactMarkdown 
-            components={{
-              a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
-            }}
-          >
-            {msg.content}
-          </ReactMarkdown>
-        )}
-        
-        {/* Show sources inline for chat mode */}
-        {msg.type === 'assistant' && viewMode === 'chat' && sources.length > 0 && (
-          <div className="chat-message-sources">
-            <CitationSourcesDisplay
-              sources={sources}
-              citations={citations}
-              linkConfig={linkConfig || {
-                type: 'vectorDocument',
-                linkKey: 'document_id',
-                titleKey: 'document_title'
-              }}
-              title="Quellen"
-              className="qa-citation-sources-inline"
-            />
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-
-  // Get sources and citations from store metadata
-  const metadata = getGeneratedTextMetadata(componentName);
-  const sources = metadata?.sources || [];
-  const citations = metadata?.citations || [];
-  const linkConfig = getLinkConfig(componentName);
-
-  // Render sources using shared component
-  const renderSourcesDisplay = () => {
-    if (!storeGeneratedText || sources.length === 0) return null;
-
-    return (
-      <CitationSourcesDisplay
-        sources={sources}
-        citations={citations}
-        linkConfig={linkConfig || {
-          type: 'vectorDocument',
-          linkKey: 'document_id',
-          titleKey: 'document_title'
-        }}
-        title="Quellen aus Notebook"
-        className="qa-citation-sources"
-      />
-    );
-  };
-
-  // Render collection info panel
-  const renderCollectionInfo = () => {
-    const documents = collection.documents || collection.qa_collection_documents?.map(qcd => qcd.documents) || [];
-    
-    return (
-      <div className={`qa-collection-info qa-collection-info-${viewMode}`}>
-        <div className="qa-collection-info-header">
-          <HiInformationCircle className="qa-collection-info-icon" />
-          <h3>{collection.name}</h3>
-        </div>
-        
-        {collection.description && (
-          <div className="qa-collection-info-description">
-            {collection.description}
-          </div>
-        )}
-        
-        <div className="qa-collection-info-documents">
-          <h4>Enthaltene Dokumente:</h4>
-          <ul>
-            {documents.map((doc, index) => (
-              <li key={doc.id || index}>
-                <HiDocumentText className="document-icon" />
-                <span>{doc.title || doc.name || `Dokument ${index + 1}`}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    );
-  };
-
-  useEffect(() => {
-    if (!storeGeneratedText) {
-      setShowEditTools(false);
-    }
-  }, [storeGeneratedText]);
-
-  const renderRightPanel = () => {
-    if (!storeGeneratedText) {
-      return renderCollectionInfo();
-    }
-
-    return (
-      <div className="qa-chat-answer">
-        <FormStateProvider 
-          formId={`qa-chat-${id}`}
-          initialState={{
-            loading: false,
-            error: null
-          }}
-        >
-          <DisplaySection
-            title="Antwort"
-            generatedContent={storeGeneratedText}
-            isEditing={false}
-            allowEditing={false}
-            hideEditButton={true}
-            useMarkdown={true}
-            componentName={componentName}
-            handleToggleEditMode={() => {}}
-            getExportableContent={() => storeGeneratedText}
-            displayActions={renderSourcesDisplay()}
-          />
-        </FormStateProvider>
-      </div>
-    );
-  };
-
-  const renderEditTools = () => {
-    if (!storeGeneratedText) return null;
-
-    return (
-      <div className={`qa-edit-tools ${showEditTools ? 'qa-edit-tools-active' : ''}`}>
-        <button
-          type="button"
-          className="qa-edit-tools-toggle"
-          onClick={() => setShowEditTools(prev => !prev)}
-        >
-          {showEditTools ? 'Editor ausblenden' : 'Text bearbeiten'}
-        </button>
-        {showEditTools && (
-          <div className="qa-edit-tools-form">
-            <UniversalEditForm componentName={componentName} />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="qa-chat-error">
-        <p>Notebook wird geladen...</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="qa-chat-error"><p>Notebook wird geladen...</p></div>;
 
   if (!collection) {
     return (
@@ -341,13 +56,36 @@ const QAChat = () => {
     );
   }
 
+  const documents = collection.documents || collection.qa_collection_documents?.map(qcd => qcd.documents) || [];
+
+  const renderInfoPanel = () => (
+    <div className={`qa-collection-info qa-collection-info-${viewMode}`}>
+      <div className="qa-collection-info-header">
+        <HiInformationCircle className="qa-collection-info-icon" />
+        <h3>{collection.name}</h3>
+      </div>
+      {collection.description && <div className="qa-collection-info-description">{collection.description}</div>}
+      <div className="qa-collection-info-documents">
+        <h4>Enthaltene Dokumente:</h4>
+        <ul>
+          {documents.map((doc, i) => (
+            <li key={doc.id || i}>
+              <HiDocumentText className="document-icon" />
+              <span>{doc.title || doc.name || `Dokument ${i + 1}`}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <CitationModal />
       <ChatWorkbenchLayout
         mode={viewMode}
-        modes={modes}
-        onModeChange={handleModeChange}
+        modes={QA_CHAT_MODES}
+        onModeChange={setViewMode}
         title={collection.name}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
@@ -356,10 +94,9 @@ const QAChat = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={renderChatMessage}
-        rightPanelContent={renderRightPanel()}
-        rightPanelFooter={renderEditTools()}
-        infoPanelContent={renderCollectionInfo()}
+        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={viewMode} assistantName={collection.name} />}
+        rightPanelContent={qaResults.length > 0 ? <ResultsDeck results={qaResults} onClear={clearResults} /> : renderInfoPanel()}
+        infoPanelContent={renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}
       />
