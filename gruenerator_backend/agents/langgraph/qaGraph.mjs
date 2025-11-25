@@ -13,19 +13,40 @@ import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 
 const documentSearchService = new DocumentSearchService();
 
-function normalizeSearchResult(r) {
-  const title = r.title || r.document_title || r.filename || 'Unbenanntes Dokument';
-  const snippet = (r.relevant_content || r.chunk_text || '').slice(0, 500);
-  const top = r.top_chunks?.[0] || {};
-  return {
-    document_id: r.document_id,
-    title,
-    snippet,
-    filename: r.filename || null,
-    similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
-    chunk_index: (top.chunk_index ?? r.chunk_index) || 0,
-    page_number: top.page_number ?? null
-  };
+function expandSearchResultsToChunks(results) {
+  // Expand each document result into individual chunk results for granular citations
+  const expanded = [];
+  for (const r of results) {
+    const title = r.title || r.document_title || r.filename || 'Unbenanntes Dokument';
+    const topChunks = r.top_chunks || [];
+
+    if (topChunks.length > 0) {
+      // Create one result per chunk for individual citations
+      for (const chunk of topChunks) {
+        expanded.push({
+          document_id: r.document_id,
+          title,
+          snippet: chunk.preview || '',
+          filename: r.filename || null,
+          similarity: r.similarity_score || 0,
+          chunk_index: chunk.chunk_index,
+          page_number: chunk.page_number ?? null
+        });
+      }
+    } else {
+      // Fallback: use relevant_content if no top_chunks
+      expanded.push({
+        document_id: r.document_id,
+        title,
+        snippet: (r.relevant_content || r.chunk_text || ''),
+        filename: r.filename || null,
+        similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
+        chunk_index: r.chunk_index || 0,
+        page_number: null
+      });
+    }
+  }
+  return expanded;
 }
 
 function adaptiveWeights(query) {
@@ -89,17 +110,20 @@ function determineDraftParams(referencesMap, question) {
   const isComplexQuestion = question.length > 50 ||
                             /\b(wie|warum|weshalb|wieso|analysier|erkl[äa]r|begr[üu]nd|vergleich)\b/i.test(question);
 
-  // Scale tokens based on content richness
+  // Scale tokens based on content richness (increased for NotebookLM-style synthesis)
   let maxTokens;
   if (referenceCount >= 15 && uniqueDocs >= 8) {
     // Rich content available - comprehensive answer
-    maxTokens = isComplexQuestion ? 2500 : 2000;
+    maxTokens = isComplexQuestion ? 3000 : 2500;
   } else if (referenceCount >= 8 && uniqueDocs >= 4) {
     // Standard content - detailed answer
+    maxTokens = 2000;
+  } else if (referenceCount >= 4 && uniqueDocs >= 2) {
+    // Medium content - adequate answer
     maxTokens = 1500;
   } else {
     // Limited content - concise answer
-    maxTokens = 800;
+    maxTokens = 1000;
   }
 
   return { maxTokens };
@@ -325,7 +349,7 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
       // hybrid tuning
       recallLimit: 80
     });
-    const list = (resp.results || []).map(normalizeSearchResult);
+    const list = expandSearchResultsToChunks(resp.results || []);
     all.push(...list);
   }
   // Deduplicate by doc_id + chunk_index
@@ -433,7 +457,7 @@ export async function runQaGraph({ question, collection, aiWorkerPool, searchCol
           recallLimit: recallLimit || 80,
           qualityMin: collection.settings?.min_quality || 0.35
         });
-        const list = (resp.results || []).map(normalizeSearchResult);
+        const list = expandSearchResultsToChunks(resp.results || []);
         all.push(...list);
       }
       // Deduplicate per doc:chunk
