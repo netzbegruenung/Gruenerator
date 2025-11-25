@@ -187,9 +187,10 @@ const GrueneratorImagine = ({ showHeaderFooter = true }) => {
     componentName: componentName,
     endpoint: '/flux/green-edit/prompt',
     disableKnowledgeSystem: true,
-    features: [], // No webSearch or privacyMode for image generation
+    features: [],
     tabIndexKey: 'IMAGINE',
-    helpContent: helpContent
+    helpContent: helpContent,
+    useFeatureIcons: false
   });
 
   // Use local loading state for manual management
