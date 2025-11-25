@@ -6,6 +6,40 @@
 const chatMemory = require('../../services/chatMemoryService');
 
 /**
+ * Web search confirmation detection
+ */
+const WEBSEARCH_CONFIRMATIONS = ['ja', 'bitte', 'gerne', 'ok', 'mach das', 'such', 'recherchiere', 'klar', 'sicher'];
+const WEBSEARCH_REJECTIONS = ['nein', 'nicht', 'lass', 'abbrechen', 'cancel', 'stop', 'vergiss'];
+
+/**
+ * Question templates for offering web search
+ */
+const WEBSEARCH_QUESTIONS = [
+  'Das kann ich leider nicht direkt beantworten. Soll ich im Internet danach suchen?',
+  'Dazu habe ich keine Informationen. Möchtest du, dass ich eine Websuche durchführe?',
+  'Diese Frage kann ich nicht aus meinem Wissen beantworten. Soll ich online recherchieren?'
+];
+
+/**
+ * Check if user confirmed web search
+ * @param {string} message - User message
+ * @returns {boolean} True if confirmed, false if rejected or unclear
+ */
+function isWebSearchConfirmation(message) {
+  const normalized = message.toLowerCase().trim();
+  if (WEBSEARCH_REJECTIONS.some(r => normalized.includes(r))) return false;
+  return WEBSEARCH_CONFIRMATIONS.some(c => normalized.includes(c));
+}
+
+/**
+ * Get a random web search question
+ * @returns {string} Question text
+ */
+function getWebSearchQuestion() {
+  return WEBSEARCH_QUESTIONS[Math.floor(Math.random() * WEBSEARCH_QUESTIONS.length)];
+}
+
+/**
  * Required fields configuration for different intent types
  */
 const REQUIRED_FIELDS = {
@@ -527,5 +561,8 @@ module.exports = {
   generateAntragQuestions,
   analyzeAnswersForFollowup,
   generateFollowUpQuestions,
-  extractStructuredAnswers
+  extractStructuredAnswers,
+  // Web search confirmation exports
+  isWebSearchConfirmation,
+  getWebSearchQuestion
 };
