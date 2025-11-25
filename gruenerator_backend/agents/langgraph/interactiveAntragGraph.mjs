@@ -123,77 +123,42 @@ function formatSearchResultsForPrompt(searchResults) {
 }
 
 /**
- * Helper: Question generation tool schema for Mistral function calling
+ * Helper: Question generation tool schema for Mistral function calling (AI questions only)
  */
-function getQuestionGenerationTool() {
+function getQuestionOptionsGenerationTool() {
   return {
     type: 'function',
     function: {
-      name: 'create_antrag_questions',
-      description: 'Erstellt strukturierte Fragen für die interaktive Antrag/Anfrage-Erstellung',
+      name: 'generate_question_options',
+      description: 'Generates answer options for a specific question based on topic, details, and search results',
       parameters: {
         type: 'object',
         properties: {
-          questions: {
+          questionId: {
+            type: 'string',
+            enum: ['q2_pain_point', 'q3_beneficiaries', 'q5_history'],
+            description: 'The ID of the question for which options are generated'
+          },
+          options: {
             type: 'array',
-            description: 'Array von genau 5 Fragen',
+            description: 'Array of 3-4 answer options for this question',
             items: {
-              type: 'object',
-              properties: {
-                id: {
-                  type: 'string',
-                  description: 'Eindeutige ID im Format q{nummer}_{kategorie}, z.B. q1_scope',
-                  pattern: '^q[0-9]_[a-z_]+$'
-                },
-                text: {
-                  type: 'string',
-                  description: 'Die Fragestellung',
-                  minLength: 10
-                },
-                type: {
-                  type: 'string',
-                  description: 'Kategorie der Frage',
-                  enum: ['measures', 'legal_basis', 'committee', 'budget', 'stakeholders', 'justification', 'goals', 'timeline', 'scope', 'audience', 'tone', 'structure', 'facts']
-                },
-                questionFormat: {
-                  type: 'string',
-                  description: 'Format der Frage: "yes_no" für einfache Ja/Nein-Fragen, "multiple_choice" für 2-4 Optionen',
-                  enum: ['yes_no', 'multiple_choice']
-                },
-                options: {
-                  type: 'array',
-                  description: 'Bei yes_no: Genau ["Ja", "Nein"] oder beschreibende Varianten. Bei multiple_choice: 2-4 Antwortoptionen',
-                  items: { type: 'string' },
-                  minItems: 2,
-                  maxItems: 4
-                },
-                optionEmojis: {
-                  type: 'array',
-                  description: 'Ein passendes Emoji für jede Option im options-Array. Muss gleiche Länge wie options haben. Wähle kontextbezogene, eindeutige Emojis die zur Option passen. Beispiele: Für "Gemeinderat" → 🏛️, "Bürger" → 👥, "Dringend" → ⚡, "Langfristig" → 📅',
-                  items: { type: 'string' },
-                  minItems: 2,
-                  maxItems: 4
-                },
-                allowCustom: {
-                  type: 'boolean',
-                  description: 'Bei yes_no: false. Bei multiple_choice: true (ermöglicht eigene Antwort)'
-                },
-                allowMultiSelect: {
-                  type: 'boolean',
-                  description: 'Bei multiple_choice: true = Mehrfachauswahl möglich (Checkboxen), false = nur eine Option (Radio). Bei yes_no: immer false'
-                },
-                placeholder: {
-                  type: 'string',
-                  description: 'Platzhaltertext für das Eingabefeld bei eigener Antwort'
-                }
-              },
-              required: ['id', 'text', 'type', 'questionFormat', 'options', 'allowCustom', 'allowMultiSelect']
+              type: 'string'
             },
-            minItems: 5,
-            maxItems: 5
+            minItems: 3,
+            maxItems: 4
+          },
+          optionEmojis: {
+            type: 'array',
+            description: 'Array of emojis matching each option (same length as options)',
+            items: {
+              type: 'string'
+            },
+            minItems: 3,
+            maxItems: 4
           }
         },
-        required: ['questions']
+        required: ['questionId', 'options', 'optionEmojis']
       }
     }
   };
@@ -323,113 +288,200 @@ async function webSearchNode(state) {
 }
 
 /**
- * Node 3: Generate Questions
- * Uses Mistral AI to generate contextual questions based on search results
+ * Node 3: Generate Questions (Hybrid: Static + AI)
+ * Combines static questions with AI-generated options for specific questions
  */
 async function generateQuestionsNode(state) {
-  console.log('[InteractiveAntragGraph] Generating questions');
-
-  let questions;
+  console.log('[InteractiveAntragGraph] Generating hybrid questions (static + AI)');
 
   try {
-    // Try AI generation via aiWorkerPool
-    try {
-      const questionConfig = loadPromptConfig('interactive_antrag_questions');
-      const searchSummary = formatSearchResultsForPrompt(state.searchResults);
+    const questionConfig = loadPromptConfig('interactive_antrag_questions');
+    const searchSummary = formatSearchResultsForPrompt(state.searchResults);
 
-      const requestTypeNames = questionConfig.questionGeneration.requestTypeNames;
-      const typeName = requestTypeNames[state.requestType] || state.requestType;
+    // Initialize questions array with 6 static question templates
+    const questions = [
+      // Q1: Static question (action_type)
+      { ...questionConfig.staticQuestions.q1_action_type },
+      // Q2: AI-generated (pain_point)
+      null,
+      // Q3: AI-generated (beneficiaries)
+      null,
+      // Q4: Static question (budget)
+      { ...questionConfig.staticQuestions.q4_budget },
+      // Q5: AI-generated (history)
+      null,
+      // Q6: Static question (urgency)
+      { ...questionConfig.staticQuestions.q6_urgency }
+    ];
 
-      const systemPrompt = SimpleTemplateEngine.render(
-        questionConfig.questionGeneration.systemPrompt,
-        { typeName }
-      );
+    // AI question IDs and their templates
+    const aiQuestionIds = ['q2_pain_point', 'q3_beneficiaries', 'q5_history'];
+    const aiQuestionTemplates = questionConfig.aiQuestionGeneration.questionTemplates;
 
-      const userPrompt = SimpleTemplateEngine.render(
-        questionConfig.questionGeneration.userPromptTemplate,
-        {
-          typeName,
+    // Try to generate AI options for questions 2, 3, 5
+    const aiGenerationPromises = aiQuestionIds.map(async (questionId, index) => {
+      const template = aiQuestionTemplates[questionId];
+      if (!template) {
+        console.warn(`[InteractiveAntragGraph] No template found for ${questionId}`);
+        return { questionId, success: false };
+      }
+
+      try {
+        const systemPrompt = questionConfig.aiQuestionGeneration.systemPrompt;
+        const userPrompt = SimpleTemplateEngine.render(template.generationPrompt, {
           thema: state.thema,
           details: state.details,
           searchSummary
-        }
-      );
-
-      const tools = [getQuestionGenerationTool()];
-
-      console.log('[InteractiveAntragGraph] Calling Mistral via aiWorkerPool for question generation...');
-
-      const result = await state.aiWorkerPool.processRequest({
-        type: 'antrag_question_generation',
-        systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        options: {
-          ...questionConfig.options,
-          tools
-        }
-      }, state.req);
-
-      // Extract questions from tool call
-      if (result.tool_calls && result.tool_calls.length > 0) {
-        const toolCall = result.tool_calls[0];
-        const functionArgs = typeof toolCall.input === 'string'
-          ? JSON.parse(toolCall.input)
-          : toolCall.input;
-        questions = functionArgs.questions;
-
-        // Validate and clean up optionEmojis
-        questions.forEach((question, qIndex) => {
-          if (question.optionEmojis) {
-            if (question.optionEmojis.length !== question.options.length) {
-              console.warn(`[InteractiveAntragGraph] Question ${qIndex + 1}: optionEmojis length (${question.optionEmojis.length}) doesn't match options length (${question.options.length}). Padding/truncating.`);
-
-              while (question.optionEmojis.length < question.options.length) {
-                question.optionEmojis.push('');
-              }
-              question.optionEmojis = question.optionEmojis.slice(0, question.options.length);
-            }
-          } else {
-            question.optionEmojis = [];
-          }
         });
 
-        console.log(`[InteractiveAntragGraph] Generated ${questions.length} AI questions successfully`);
-      } else {
-        throw new Error('No tool call in AI response');
+        const tools = [getQuestionOptionsGenerationTool()];
+
+        console.log(`[InteractiveAntragGraph] Generating AI options for ${questionId}...`);
+
+        const result = await state.aiWorkerPool.processRequest({
+          type: 'antrag_question_generation',
+          systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+          options: {
+            ...questionConfig.options,
+            tools
+          }
+        }, state.req);
+
+        if (result.tool_calls && result.tool_calls.length > 0) {
+          const toolCall = result.tool_calls[0];
+          const functionArgs = typeof toolCall.input === 'string'
+            ? JSON.parse(toolCall.input)
+            : toolCall.input;
+
+          // Validate emoji array length
+          if (functionArgs.optionEmojis?.length !== functionArgs.options?.length) {
+            console.warn(`[InteractiveAntragGraph] ${questionId}: Emoji count mismatch, padding...`);
+            while (functionArgs.optionEmojis.length < functionArgs.options.length) {
+              functionArgs.optionEmojis.push('❓');
+            }
+            functionArgs.optionEmojis = functionArgs.optionEmojis.slice(0, functionArgs.options.length);
+          }
+
+          return {
+            questionId,
+            success: true,
+            options: functionArgs.options,
+            optionEmojis: functionArgs.optionEmojis
+          };
+        } else {
+          console.warn(`[InteractiveAntragGraph] No tool call for ${questionId}`);
+          return { questionId, success: false };
+        }
+
+      } catch (error) {
+        console.warn(`[InteractiveAntragGraph] AI generation failed for ${questionId}:`, error.message);
+        return { questionId, success: false };
       }
+    });
 
-    } catch (aiError) {
-      console.warn('[InteractiveAntragGraph] AI question generation failed, falling back to predefined:', aiError.message);
-      questions = getQuestionsForType(state.requestType, 1);
+    // Wait for all AI generations
+    const aiResults = await Promise.all(aiGenerationPromises);
+
+    // Build final questions array
+    aiResults.forEach((result) => {
+      if (result.success) {
+        const template = aiQuestionTemplates[result.questionId];
+        const questionIndex = result.questionId === 'q2_pain_point' ? 1 :
+                             result.questionId === 'q3_beneficiaries' ? 2 : 4;
+
+        questions[questionIndex] = {
+          id: template.id,
+          text: template.text,
+          type: template.type,
+          questionFormat: template.questionFormat,
+          options: result.options,
+          optionEmojis: result.optionEmojis,
+          allowCustom: template.allowCustom,
+          allowMultiSelect: template.allowMultiSelect,
+          placeholder: template.placeholder
+        };
+      } else {
+        // Fallback to predefined for this specific question
+        console.warn(`[InteractiveAntragGraph] Using fallback for ${result.questionId}`);
+        const fallbackQuestions = getQuestionsForType(state.requestType, 1);
+        const questionIndex = result.questionId === 'q2_pain_point' ? 1 :
+                             result.questionId === 'q3_beneficiaries' ? 2 : 4;
+
+        // Use fallback question if available, otherwise create generic
+        if (fallbackQuestions && fallbackQuestions[questionIndex]) {
+          questions[questionIndex] = fallbackQuestions[questionIndex];
+        } else {
+          const template = aiQuestionTemplates[result.questionId];
+          questions[questionIndex] = {
+            id: template.id,
+            text: template.text,
+            type: template.type,
+            questionFormat: template.questionFormat,
+            options: ['Keine Angabe'],
+            optionEmojis: ['❓'],
+            allowCustom: true,
+            allowMultiSelect: template.allowMultiSelect,
+            placeholder: template.placeholder
+          };
+        }
+      }
+    });
+
+    // Defensive: Ensure Q4 always has exactly 4 options (including skip)
+    if (questions[3]) {
+      const q4 = questions[3];
+      if (!q4.options || q4.options.length !== 4 || !q4.options.includes('Überspringen')) {
+        console.warn('[InteractiveAntragGraph] Q4 options corrupted, restoring from static config');
+        questions[3] = { ...questionConfig.staticQuestions.q4_budget };
+      }
     }
 
-    if (!questions || questions.length === 0) {
-      throw new Error(`No questions could be generated for request type: ${state.requestType}`);
+    // Final validation - ensure all questions are filled
+    const validQuestions = questions.filter(q => q !== null);
+    if (validQuestions.length !== 6) {
+      console.error('[InteractiveAntragGraph] Not all 6 questions were generated, falling back completely');
+      const fallbackQuestions = getQuestionsForType(state.requestType, 1);
+      return {
+        conversationState: 'questions_generated',
+        questionRound: 1,
+        questions: fallbackQuestions
+      };
     }
 
-    console.log(`[InteractiveAntragGraph] Using ${questions.length} questions for ${state.requestType}`);
+    console.log(`[InteractiveAntragGraph] Successfully generated 6 hybrid questions (3 static + 3 AI)`);
 
     // Update session with questions
     if (state.sessionId && state.userId) {
       await updateExperimentalSession(state.userId, state.sessionId, {
         conversationState: 'questions_generated',
         questionRound: 1,
-        questions
+        questions: validQuestions
       });
     }
 
     return {
       conversationState: 'questions_generated',
       questionRound: 1,
-      questions
+      questions: validQuestions
     };
 
   } catch (error) {
     console.error('[InteractiveAntragGraph] Error generating questions:', error);
-    return {
-      conversationState: 'error',
-      error: error.message
-    };
+    // Complete fallback
+    try {
+      const fallbackQuestions = getQuestionsForType(state.requestType, 1);
+      return {
+        conversationState: 'questions_generated',
+        questionRound: 1,
+        questions: fallbackQuestions
+      };
+    } catch (fallbackError) {
+      return {
+        conversationState: 'error',
+        error: error.message
+      };
+    }
   }
 }
 

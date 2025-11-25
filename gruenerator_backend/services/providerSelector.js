@@ -62,7 +62,14 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   }
 
   // Type-based defaults (preserve existing special cases)
-  if (type === 'qa_tools') {
+  // QA draft (final answer) uses magistral for higher quality
+  if (type === 'qa_draft') {
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
+    useBedrock = false;
+  }
+  // QA intermediate steps (planner, repair, tools) use standard model
+  else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
     provider = 'mistral';
     model = options.model || 'mistral-medium-latest';
     useBedrock = false;

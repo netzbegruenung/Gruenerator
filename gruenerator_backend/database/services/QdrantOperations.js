@@ -4,6 +4,15 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
+import { createLogger } from '../../utils/logger.js';
+import {
+  foldUmlauts,
+  normalizeQuery,
+  tokenizeQuery,
+  generateQueryVariants
+} from '../../utils/textNormalization.js';
+
+const logger = createLogger('QdrantOperations');
 
 class QdrantOperations {
     constructor(qdrantClient) {
@@ -165,7 +174,7 @@ class QdrantOperations {
 
             const results = await this.client.search(collection, searchParams);
 
-            console.log(`[QdrantOperations] Vector search: ${results.length} results, top score: ${results[0]?.score.toFixed(3) || 'none'}`);
+            logger.info(`Vector search: ${results.length} results, top score: ${results[0]?.score.toFixed(3) || 'none'}`);
 
             return results.map(hit => ({
                 id: hit.id,
@@ -175,7 +184,7 @@ class QdrantOperations {
             }));
 
         } catch (error) {
-            console.error('[QdrantOperations] Vector search failed:', error);
+            logger.error(`Vector search failed: ${error.message}`);
             throw new Error(`Vector search failed: ${error.message}`);
         }
     }
@@ -201,20 +210,17 @@ class QdrantOperations {
         } = options;
 
         try {
-            console.log(`[QdrantOperations] Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
+            logger.debug(`Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
-            // Execute text search first (with query normalization) to determine dynamic threshold
             const recallText = Math.max(limit, recallLimit || (limit * 4));
             const textResults = await this.performTextSearch(collection, query, filter, recallText);
 
-            // Apply dynamic threshold adjustment based on text match presence
-            const dynamicThreshold = this.hybridConfig.enableDynamicThresholds 
+            const dynamicThreshold = this.hybridConfig.enableDynamicThresholds
                 ? this.calculateDynamicThreshold(threshold, textResults.length > 0)
                 : threshold;
-                
-            console.log(`[QdrantOperations] Using dynamic threshold: ${dynamicThreshold} (text matches: ${textResults.length})`);
 
-            // Execute vector search with dynamic threshold
+            logger.debug(`Using dynamic threshold: ${dynamicThreshold} (text matches: ${textResults.length})`);
+
             const recallVec = Math.max(limit, Math.round((recallLimit || (limit * 4)) * 1.5));
             const vectorResults = await this.vectorSearch(collection, queryVector, filter, {
                 limit: recallVec,
@@ -223,30 +229,28 @@ class QdrantOperations {
                 ef: Math.max(100, recallVec * 2)
             });
 
-            console.log(`[QdrantOperations] Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);
+            logger.info(`Vector: ${vectorResults.length} results, Text: ${textResults.length} results`);
 
-            // Smart auto-detection: disable RRF when only token fallback succeeded
             let shouldUseRRF = useRRF;
             let vW = vectorWeight;
             let tW = textWeight;
 
-            // Check if ANY text result came from exact/normalized/folded match (not just token fallback)
             const hasRealTextMatches = textResults.some(r =>
                 r.matchType && r.matchType !== 'token_fallback'
             );
 
             if (!hasRealTextMatches && textResults.length > 0 && useRRF) {
-                console.log(`[QdrantOperations] Only token fallback matches found (${textResults.length} results) - switching from RRF to weighted fusion`);
+                logger.debug(`Only token fallback matches found (${textResults.length} results) - switching from RRF to weighted fusion`);
                 shouldUseRRF = false;
                 vW = 0.85;
                 tW = 0.15;
             } else if (textResults.length === 0 && useRRF) {
-                console.log('[QdrantOperations] Text search failed (0 results) - switching from RRF to weighted fusion');
+                logger.debug('Text search failed (0 results) - switching from RRF to weighted fusion');
                 shouldUseRRF = false;
                 vW = 0.85;
                 tW = 0.15;
             } else if (useRRF && textResults.length < 3) {
-                console.log(`[QdrantOperations] Too few text results (${textResults.length}) for effective RRF - switching to weighted fusion`);
+                logger.debug(`Too few text results (${textResults.length}) for effective RRF - switching to weighted fusion`);
                 shouldUseRRF = false;
                 vW = 0.85;
                 tW = 0.15;
@@ -256,7 +260,7 @@ class QdrantOperations {
                 } else {
                     vW = 0.5; tW = 0.5;
                 }
-                console.log(`[QdrantOperations] Dynamic weights applied: vectorWeight=${vW}, textWeight=${tW}`);
+                logger.debug(`Dynamic weights applied: vectorWeight=${vW}, textWeight=${tW}`);
             }
 
             // Apply fusion method with confidence weighting
@@ -287,13 +291,14 @@ class QdrantOperations {
             };
 
         } catch (error) {
-            console.error('[QdrantOperations] Hybrid search failed:', error);
+            logger.error(`Hybrid search failed: ${error.message}`);
             throw new Error(`Hybrid search failed: ${error.message}`);
         }
     }
 
     /**
-     * Perform text-based search using Qdrant's scroll API
+     * Perform text-based search using Qdrant's scroll API with multi-variant support
+     * Searches all query variants in parallel for robust matching of hyphenated/spaced terms
      * @param {string} collection - Collection name
      * @param {string} searchTerm - Text to search for
      * @param {Object} baseFilter - Base filter object
@@ -303,177 +308,124 @@ class QdrantOperations {
      */
     async performTextSearch(collection, searchTerm, baseFilter = {}, limit = 10) {
         try {
-            console.log(`[QdrantOperations] Text search: "${searchTerm}" in collection "${collection}"`);
-            
-            // Create text match filter
-            const textFilter = {
-                must: [...(baseFilter.must || [])]
-            };
+            logger.debug(`Text search: "${searchTerm}" in collection "${collection}"`);
 
-            // Add text match condition
-            textFilter.must.push({
-                key: 'chunk_text',
-                match: { text: searchTerm }
-            });
+            // Generate all query variants for robust matching
+            const variants = generateQueryVariants(searchTerm);
+            logger.debug(`Generated ${variants.length} query variants: ${variants.join(', ')}`);
 
-            console.log(`[QdrantOperations] Text filter:`, JSON.stringify(textFilter, null, 2));
+            // Search all variants in parallel
+            const variantSearchPromises = variants.map(async (variant) => {
+                const textFilter = {
+                    must: [...(baseFilter.must || [])]
+                };
+                textFilter.must.push({
+                    key: 'chunk_text',
+                    match: { text: variant }
+                });
 
-            // Use scroll API for text search
-            const scrollResult = await this.client.scroll(collection, {
-                filter: textFilter,
-                limit: limit,
-                with_payload: true,
-                with_vector: false
-            });
-
-            console.log(`[QdrantOperations] Text search raw results: ${scrollResult.points?.length || 0} points found`);
-
-            // Query-side normalization & fallbacks if no results
-            // Track which match method succeeded for quality detection
-            let matchType = 'exact';  // Track: exact | normalized | folded | token_fallback
-            let mergedPoints = scrollResult.points || [];
-
-            if (mergedPoints.length === 0) {
-                // Attempt 1: dehyphenated/cleaned variant
-                const normalizedTerm = this.normalizeQuery(searchTerm);
-                if (normalizedTerm && normalizedTerm !== searchTerm) {
-                    const normFilter = { must: [...(baseFilter.must || [])] };
-                    normFilter.must.push({ key: 'chunk_text', match: { text: normalizedTerm } });
-                    console.log(`[QdrantOperations] Retrying text search with normalized term: "${normalizedTerm}"`);
-                    const normRes = await this.client.scroll(collection, {
-                        filter: normFilter,
-                        limit: limit,
+                try {
+                    const scrollResult = await this.client.scroll(collection, {
+                        filter: textFilter,
+                        limit: Math.ceil(limit / variants.length) + 5, // Distribute limit across variants
                         with_payload: true,
                         with_vector: false
                     });
-                    mergedPoints = normRes.points || [];
-                    if (mergedPoints.length > 0) matchType = 'normalized';
-                    console.log(`[QdrantOperations] Normalized text search found: ${mergedPoints.length} points`);
+                    return {
+                        variant,
+                        points: scrollResult.points || [],
+                        matchType: variant === searchTerm.toLowerCase() ? 'exact' : 'variant'
+                    };
+                } catch (err) {
+                    logger.warn(`Variant search failed for "${variant}": ${err.message}`);
+                    return { variant, points: [], matchType: 'error' };
                 }
+            });
 
-                // Attempt 2: umlaut-folded variant
-                if (mergedPoints.length === 0) {
-                    const folded = this.foldUmlauts(normalizedTerm || searchTerm);
-                    if (folded && folded !== searchTerm) {
-                        const foldFilter = { must: [...(baseFilter.must || [])] };
-                        foldFilter.must.push({ key: 'chunk_text', match: { text: folded } });
-                        console.log(`[QdrantOperations] Retrying text search with folded term: "${folded}"`);
-                        const foldRes = await this.client.scroll(collection, {
-                            filter: foldFilter,
-                            limit: limit,
-                            with_payload: true,
-                            with_vector: false
-                        });
-                        mergedPoints = foldRes.points || [];
-                        if (mergedPoints.length > 0) matchType = 'folded';
-                        console.log(`[QdrantOperations] Folded text search found: ${mergedPoints.length} points`);
+            const variantResults = await Promise.all(variantSearchPromises);
+
+            // Merge and deduplicate results from all variants
+            const seen = new Map();
+            let bestMatchType = 'variant';
+
+            for (const result of variantResults) {
+                if (result.points.length > 0 && result.matchType === 'exact') {
+                    bestMatchType = 'exact';
+                }
+                for (const point of result.points) {
+                    if (!seen.has(point.id)) {
+                        seen.set(point.id, { point, variant: result.variant, matchType: result.matchType });
                     }
                 }
+            }
 
-                // Attempt 3: token OR fallback (merge per-token hits)
-                if (mergedPoints.length === 0) {
-                    const tokens = this.tokenizeQuery(normalizedTerm || searchTerm).filter(t => t.length >= 4);
-                    if (tokens.length > 1) {
-                        console.log(`[QdrantOperations] Token fallback for terms: ${tokens.join(', ')}`);
-                        const seen = new Map();
-                        for (const tok of tokens) {
-                            const tokFilter = { must: [...(baseFilter.must || [])] };
-                            tokFilter.must.push({ key: 'chunk_text', match: { text: tok } });
+            let mergedPoints = Array.from(seen.values());
+            let matchType = mergedPoints.length > 0 ? bestMatchType : 'none';
+
+            logger.debug(`Variant search found ${mergedPoints.length} unique points from ${variants.length} variants`);
+
+            // If no results from variant search, try token fallback
+            if (mergedPoints.length === 0) {
+                const normalizedTerm = normalizeQuery(searchTerm);
+                const tokens = tokenizeQuery(normalizedTerm || searchTerm).filter(t => t.length >= 4);
+                if (tokens.length > 1) {
+                    logger.debug(`Token fallback for terms: ${tokens.join(', ')}`);
+                    const tokenSearchPromises = tokens.map(async (tok) => {
+                        const tokFilter = { must: [...(baseFilter.must || [])] };
+                        tokFilter.must.push({ key: 'chunk_text', match: { text: tok } });
+                        try {
                             const tokRes = await this.client.scroll(collection, {
                                 filter: tokFilter,
-                                limit: limit,
+                                limit: Math.ceil(limit / tokens.length) + 3,
                                 with_payload: true,
                                 with_vector: false
                             });
-                            (tokRes.points || []).forEach(p => { if (!seen.has(p.id)) seen.set(p.id, p); });
+                            return tokRes.points || [];
+                        } catch {
+                            return [];
                         }
-                        mergedPoints = Array.from(seen.values());
-                        if (mergedPoints.length > 0) matchType = 'token_fallback';
-                        console.log(`[QdrantOperations] Token OR fallback found: ${mergedPoints.length} unique points`);
+                    });
+
+                    const tokenResults = await Promise.all(tokenSearchPromises);
+                    const tokenSeen = new Map();
+                    for (const points of tokenResults) {
+                        for (const p of points) {
+                            if (!tokenSeen.has(p.id)) tokenSeen.set(p.id, { point: p, variant: 'token', matchType: 'token_fallback' });
+                        }
                     }
+                    mergedPoints = Array.from(tokenSeen.values());
+                    if (mergedPoints.length > 0) matchType = 'token_fallback';
+                    logger.debug(`Token OR fallback found: ${mergedPoints.length} unique points`);
                 }
             }
 
-            if (scrollResult.points && scrollResult.points.length > 0) {
-                console.log(`[QdrantOperations] Text search matches found:`);
-                (scrollResult.points || []).forEach((point, index) => {
-                    const chunkText = point.payload?.chunk_text || '';
-                    const title = point.payload?.title || 'Untitled';
-                    const filename = point.payload?.filename || 'No filename';
-                    
-                    // Find and highlight the matching text
-                    const lowerText = chunkText.toLowerCase();
-                    const lowerTerm = searchTerm.toLowerCase();
-                    const matchIndex = lowerText.indexOf(lowerTerm);
-                    
-                    let excerpt = '';
-                    if (matchIndex !== -1) {
-                        const start = Math.max(0, matchIndex - 30);
-                        const end = Math.min(chunkText.length, matchIndex + searchTerm.length + 30);
-                        excerpt = '...' + chunkText.slice(start, end) + '...';
-                        // Highlight the match
-                        const highlightStart = matchIndex - start + 3; // +3 for '...'
-                        excerpt = excerpt.slice(0, highlightStart) + `**${chunkText.slice(matchIndex, matchIndex + searchTerm.length)}**` + excerpt.slice(highlightStart + searchTerm.length);
-                    } else {
-                        excerpt = chunkText.slice(0, 100) + '...';
-                    }
-                    
-                    console.log(`   ${index + 1}. Document: "${title}" (${filename})`);
-                    console.log(`      Match: ${excerpt}`);
-                    console.log(`      Chunk ID: ${point.id}, Document ID: ${point.payload?.document_id}`);
-                });
+            if (mergedPoints.length > 0) {
+                logger.debug(`Text search matches found: ${mergedPoints.length}`);
             } else {
-                console.log(`[QdrantOperations] No text matches found for "${searchTerm}"`);
+                logger.debug(`No text matches found for "${searchTerm}"`);
             }
 
-            // Add search metadata and scores
-            const results = (mergedPoints || []).map((point, index) => ({
+            const results = mergedPoints.map(({ point, variant }, index) => ({
                 id: point.id,
                 score: this.calculateTextSearchScore(searchTerm, point.payload.chunk_text, index),
                 payload: point.payload,
                 searchMethod: 'text',
                 searchTerm: searchTerm,
-                matchType: matchType  // Track which search method found this result
+                matchedVariant: variant,
+                matchType: matchType
             }));
 
-            console.log(`[QdrantOperations] Text search returning ${results.length} processed results (matchType: ${matchType})`);
-            return results;
+            // Sort by score and limit
+            results.sort((a, b) => b.score - a.score);
+            const limitedResults = results.slice(0, limit);
+
+            logger.debug(`Text search returning ${limitedResults.length} processed results (matchType: ${matchType})`);
+            return limitedResults;
 
         } catch (error) {
-            console.warn(`[QdrantOperations] Text search failed for "${searchTerm}":`, error.message);
-            console.error(`[QdrantOperations] Text search error stack:`, error.stack);
+            logger.warn(`Text search failed for "${searchTerm}": ${error.message}`);
             return [];
         }
-    }
-
-    /** Replace German umlauts with ASCII folds */
-    foldUmlauts(q) {
-        if (!q) return q;
-        return q
-            .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-            .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
-            .replace(/ß/g, 'ss');
-    }
-
-    /** Tokenize a query conservatively */
-    tokenizeQuery(q) {
-        return (q || '')
-            .replace(/[\u00AD]/g, '')
-            .replace(/[^A-Za-zÄÖÜäöüß0-9\-\s]/g, ' ')
-            .split(/\s+/)
-            .map(s => s.trim())
-            .filter(Boolean);
-    }
-
-    /** Normalize query for robust text matching (domain-agnostic) */
-    normalizeQuery(q) {
-        if (!q) return q;
-        let out = q.replace(/\u00AD/g, ''); // soft hyphen
-        // dehyphenate across spaces (simple): turn "Wärm- ewende" into "Wärmewende"
-        out = out.replace(/([A-Za-zÄÖÜäöüß])\s*[-–—]\s*([A-Za-zÄÖÜäöüß])/g, '$1$2');
-        // collapse whitespace
-        out = out.replace(/\s+/g, ' ').trim();
-        return out;
     }
 
     /**
@@ -680,39 +632,32 @@ class QdrantOperations {
             return results;
         }
 
-        console.log(`[QdrantOperations] Quality gate: filtering ${results.length} results (hasTextMatches: ${hasTextMatches})`);
-        
-        // Log score distribution for debugging RRF ranges
+        logger.debug(`Quality gate: filtering ${results.length} results (hasTextMatches: ${hasTextMatches})`);
+
         if (results.length > 0) {
             const scores = results.map(r => r.score);
             const minScore = Math.min(...scores);
             const maxScore = Math.max(...scores);
             const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-            console.log(`[QdrantOperations] Score distribution: min=${minScore.toFixed(6)}, max=${maxScore.toFixed(6)}, avg=${avgScore.toFixed(6)}`);
-            console.log(`[QdrantOperations] Quality thresholds: minFinal=${this.hybridConfig.minFinalScore}, minVectorOnly=${this.hybridConfig.minVectorOnlyFinalScore}`);
+            logger.debug(`Score distribution: min=${minScore.toFixed(6)}, max=${maxScore.toFixed(6)}, avg=${avgScore.toFixed(6)}`);
         }
 
-        const filteredResults = results.filter((result, index) => {
-            // Check minimum final score
+        const filteredResults = results.filter((result) => {
             if (result.score < this.hybridConfig.minFinalScore) {
-                if ((this.logging?.level) === 'debug') console.log(`   Filtered out #${index + 1}: score ${result.score.toFixed(6)} < minFinal ${this.hybridConfig.minFinalScore}`);
                 return false;
             }
 
-            // Apply stricter threshold for vector-only results
             if (result.searchMethod === 'vector' && !hasTextMatches) {
                 if (result.score < this.hybridConfig.minVectorOnlyFinalScore) {
-                    if ((this.logging?.level) === 'debug') console.log(`   Filtered out #${index + 1}: vector-only score ${result.score.toFixed(6)} < minVectorOnly ${this.hybridConfig.minVectorOnlyFinalScore}`);
                     return false;
                 }
             }
 
-            if ((this.logging?.level) === 'debug') console.log(`   Kept #${index + 1}: ${result.searchMethod} method, score ${result.score.toFixed(6)} (doc: ${result.payload?.document_id})`);
             return true;
         });
 
         const removedCount = results.length - filteredResults.length;
-        console.log(`[QdrantOperations] Quality gate: kept ${filteredResults.length}/${results.length}${removedCount > 0 ? `, removed ${removedCount}` : ''}`);
+        logger.debug(`Quality gate: kept ${filteredResults.length}/${results.length}${removedCount > 0 ? `, removed ${removedCount}` : ''}`);
 
         return filteredResults;
     }
@@ -735,16 +680,16 @@ class QdrantOperations {
                     points: points
                 });
 
-                console.log(`[QdrantOperations] Batch upserted ${points.length} points to ${collection}`);
-                return { 
-                    success: true, 
+                logger.info(`Batch upserted ${points.length} points to ${collection}`);
+                return {
+                    success: true,
                     pointsUpserted: points.length,
                     collection: collection
                 };
 
             } catch (error) {
                 lastError = error;
-                console.warn(`[QdrantOperations] Batch upsert attempt ${attempt}/${maxRetries} failed:`, error.message);
+                logger.warn(`Batch upsert attempt ${attempt}/${maxRetries} failed: ${error.message}`);
                 
                 if (attempt < maxRetries) {
                     const delay = Math.pow(2, attempt) * 1000;
@@ -765,12 +710,12 @@ class QdrantOperations {
     async batchDelete(collection, filter) {
         try {
             await this.client.delete(collection, { filter });
-            
-            console.log(`[QdrantOperations] Batch deleted points from ${collection}`);
+
+            logger.info(`Batch deleted points from ${collection}`);
             return { success: true, collection };
 
         } catch (error) {
-            console.error('[QdrantOperations] Batch delete failed:', error);
+            logger.error(`Batch delete failed: ${error.message}`);
             throw new Error(`Batch delete failed: ${error.message}`);
         }
     }
@@ -785,9 +730,8 @@ class QdrantOperations {
     async scrollDocuments(collection, filter = {}, options = {}) {
         const { limit = 100, withPayload = true, withVector = false, offset = null } = options;
 
-        // Defensive validation: Qdrant requires limit >= 1
         if (limit <= 0) {
-            console.warn(`[QdrantOperations] Invalid limit value: ${limit}. Returning empty array.`);
+            logger.warn(`Invalid limit value: ${limit}. Returning empty array.`);
             return [];
         }
 
@@ -807,15 +751,14 @@ class QdrantOperations {
             return result.points || [];
 
         } catch (error) {
-            console.error('[QdrantOperations] Scroll failed:', error);
-            
-            // Check for SSL/connection errors that might indicate stale connection
-            if (error.message && (error.message.includes('SSL') || 
-                                  error.message.includes('wrong version') || 
+            logger.error(`Scroll failed: ${error.message}`);
+
+            if (error.message && (error.message.includes('SSL') ||
+                                  error.message.includes('wrong version') ||
                                   error.message.includes('fetch failed'))) {
-                console.warn('[QdrantOperations] Connection error detected, suggesting connection reset');
+                logger.warn('Connection error detected, suggesting connection reset');
             }
-            
+
             throw new Error(`Scroll operation failed: ${error.message}`);
         }
     }
@@ -829,7 +772,7 @@ class QdrantOperations {
             await this.client.getCollections();
             return true;
         } catch (error) {
-            console.error('[QdrantOperations] Health check failed:', error);
+            logger.error(`Health check failed: ${error.message}`);
             return false;
         }
     }
@@ -850,7 +793,7 @@ class QdrantOperations {
                 status: info.status
             };
         } catch (error) {
-            console.error('[QdrantOperations] Failed to get collection stats:', error);
+            logger.error(`Failed to get collection stats: ${error.message}`);
             return { error: error.message };
         }
     }
