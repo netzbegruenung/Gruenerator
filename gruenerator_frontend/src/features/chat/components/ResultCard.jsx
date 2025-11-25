@@ -33,7 +33,8 @@ const ResultCard = React.memo(({
   isEditModeActive,
   introHelpContent,
   onEditRequest,
-  onReset
+  onReset,
+  displayActions
 }) => {
   const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
 
@@ -263,6 +264,7 @@ const ResultCard = React.memo(({
             showRedoControls={false}
             showResetButton={!!onReset}
             onReset={onReset}
+            displayActions={displayActions || result.displayActions}
             renderActions={(actions) => (
               actions ? (
                 <div className="results-deck-card-actions">
@@ -298,7 +300,8 @@ ResultCard.propTypes = {
     ]),
     metadata: PropTypes.object,
     title: PropTypes.string,
-    error: PropTypes.string
+    error: PropTypes.string,
+    displayActions: PropTypes.node
   }).isRequired,
   index: PropTypes.number.isRequired,
   activeResultId: PropTypes.string,
@@ -308,7 +311,8 @@ ResultCard.propTypes = {
     tips: PropTypes.arrayOf(PropTypes.string)
   }),
   onEditRequest: PropTypes.func,
-  onReset: PropTypes.func
+  onReset: PropTypes.func,
+  displayActions: PropTypes.node
 };
 
 ResultCard.defaultProps = {
@@ -316,7 +320,8 @@ ResultCard.defaultProps = {
   isEditModeActive: false,
   introHelpContent: undefined,
   onEditRequest: undefined,
-  onReset: undefined
+  onReset: undefined,
+  displayActions: undefined
 };
 
 ResultCard.displayName = 'ResultCard';

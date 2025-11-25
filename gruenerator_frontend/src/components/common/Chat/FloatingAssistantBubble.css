@@ -1,0 +1,142 @@
+.floating-assistant-bubble {
+  position: fixed;
+  top: calc(60px + var(--spacing-small));
+  left: var(--spacing-small);
+  right: var(--spacing-small);
+  z-index: 1001;
+
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--card-border-radius-medium, 12px);
+  box-shadow: var(--shadow-lg);
+
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.floating-assistant-bubble:hover {
+  box-shadow: var(--shadow-xl);
+}
+
+.floating-assistant-bubble:focus {
+  outline: 2px solid var(--klee);
+  outline-offset: 2px;
+}
+
+[data-theme="dark"] .floating-assistant-bubble {
+  background: rgba(38, 38, 38, 0.92);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.floating-assistant-bubble-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+}
+
+.floating-assistant-bubble-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ai-message-background, var(--secondary-700));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.floating-assistant-bubble-icon svg {
+  width: 18px;
+  height: 18px;
+  color: var(--ai-message-text-color, var(--white));
+}
+
+.floating-assistant-bubble-preview {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--font-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-assistant-bubble-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--font-color);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+  margin-left: auto;
+}
+
+.floating-assistant-bubble-close:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .floating-assistant-bubble-close {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .floating-assistant-bubble-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.floating-assistant-bubble-content {
+  padding: 0 var(--spacing-medium) var(--spacing-medium);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--font-color);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.floating-assistant-bubble-content p {
+  margin: 0 0 var(--spacing-small);
+}
+
+.floating-assistant-bubble-content p:last-child {
+  margin-bottom: 0;
+}
+
+.floating-assistant-bubble.expanded {
+  cursor: default;
+}
+
+.floating-assistant-bubble.collapsed::after {
+  content: '';
+  position: absolute;
+  right: var(--spacing-medium);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--font-color);
+  opacity: 0.5;
+}
+
+@supports (top: env(safe-area-inset-top)) {
+  .floating-assistant-bubble {
+    top: calc(60px + env(safe-area-inset-top, 0px) + var(--spacing-small));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-assistant-bubble,
+  .floating-assistant-bubble * {
+    animation: none !important;
+    transition: opacity 0.1s ease !important;
+  }
+}
