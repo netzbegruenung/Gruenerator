@@ -1,12 +1,20 @@
 import express from 'express';
 import { createAuthenticatedRouter } from '../../utils/createAuthenticatedRouter.js';
 import { createRequire } from 'module';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
-const { classifyIntent } = require('../../agents/chat/intentClassifier');
+const { classifyIntent, isQuestionMessage } = require('../../agents/chat/intentClassifier');
 const { extractParameters, analyzeParameterConfidence } = require('../../agents/chat/parameterExtractor');
-const { handleInformationRequest } = require('../../agents/chat/informationRequestHandler');
+const { handleInformationRequest, isWebSearchConfirmation, getWebSearchQuestion } = require('../../agents/chat/informationRequestHandler');
+const searxngWebSearchService = require('../../services/searxngWebSearchService');
 const { processGraphRequest } = require('../../agents/langgraph/promptProcessor');
 const { withErrorHandler } = require('../../utils/errorHandler');
 const { generateSharepicForChat } = require('./services/sharepicGenerationService');
@@ -17,12 +25,145 @@ const SharepicImageManager = require('../../services/sharepicImageManager');
 const redisClient = require('../../utils/redisClient');
 const mistralClient = require('../../workers/mistralClient');
 const crypto = require('crypto');
+const { localizePlaceholders } = require('../../utils/localizationHelper');
+const { detectSimpleMessage, generateSimpleResponse } = require('../../utils/simpleMessageDetector');
 
 // Create authenticated router
 const router = createAuthenticatedRouter();
 
 // Initialize DocumentQnA service
 const documentQnAService = new DocumentQnAService(redisClient, mistralClient);
+
+// Cache for conversation config
+let conversationConfigCache = null;
+
+/**
+ * Load conversation config from JSON file (with caching)
+ */
+function loadConversationConfig() {
+  if (conversationConfigCache) return conversationConfigCache;
+
+  const configPath = path.join(__dirname, '../../prompts/conversation.json');
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  conversationConfigCache = config;
+  return config;
+}
+
+/**
+ * Build messages array from conversation history
+ */
+function buildConversationMessages(history, currentMessage) {
+  const messages = [];
+
+  // Add recent history (last 10 messages max)
+  if (history && history.length > 0) {
+    const recentHistory = history.slice(-10);
+    for (const msg of recentHistory) {
+      messages.push({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      });
+    }
+  }
+
+  // Add current message
+  messages.push({ role: 'user', content: currentMessage });
+
+  return messages;
+}
+
+/**
+ * Process conversation requests - lightweight handler for general chat
+ * @param {Object} intentResult - Classification result with subIntent
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Object} baseContext - Context including message, history, userId
+ */
+async function processConversationRequest(intentResult, req, res, baseContext) {
+  const { originalMessage, chatContext, userId, subIntent } = baseContext;
+
+  console.log('[GrueneratorChat] Processing conversation request:', {
+    subIntent,
+    messageLength: originalMessage?.length,
+    hasHistory: chatContext?.messageHistory?.length > 0
+  });
+
+  try {
+    // Load conversation config
+    const conversationConfig = loadConversationConfig();
+    const subIntentConfig = conversationConfig.subIntents[subIntent] || conversationConfig.subIntents.general;
+
+    // Determine if pro mode should be used for complex tasks
+    const useProMode = subIntentConfig.useProMode || false;
+
+    // Build system prompt with Green identity (localized)
+    const systemPrompt = localizePlaceholders(conversationConfig.systemRole, req.user?.locale || 'de-DE');
+
+    // Build user message with sub-intent instruction
+    let userMessage = originalMessage;
+    if (subIntentConfig.instruction) {
+      userMessage = `${subIntentConfig.instruction}\n\n${originalMessage}`;
+    }
+
+    // Build messages array with conversation history
+    const messages = buildConversationMessages(chatContext?.messageHistory, userMessage);
+
+    // Determine options based on mode
+    const options = useProMode ? conversationConfig.proModeOptions : conversationConfig.options;
+
+    console.log('[GrueneratorChat] Calling AI for conversation:', {
+      subIntent,
+      useProMode,
+      messageCount: messages.length,
+      temperature: options.temperature,
+      maxTokens: options.max_tokens
+    });
+
+    const result = await req.app.locals.aiWorkerPool.processRequest({
+      type: 'conversation',
+      systemPrompt: systemPrompt,
+      messages: messages,
+      options: {
+        ...options,
+        useProMode: useProMode
+      }
+    }, req);
+
+    if (!result.success) {
+      throw new Error(result.error || 'AI request failed');
+    }
+
+    // Store in chat memory
+    await chatMemory.addMessage(userId, 'assistant', result.content, 'conversation');
+
+    console.log('[GrueneratorChat] Conversation response generated:', {
+      subIntent,
+      responseLength: result.content?.length,
+      useProMode
+    });
+
+    return res.json({
+      success: true,
+      agent: 'conversation',
+      subIntent: subIntent,
+      content: {
+        text: result.content,
+        type: 'conversation'
+      },
+      metadata: {
+        useProMode: useProMode,
+        subIntent: subIntent
+      }
+    });
+  } catch (error) {
+    console.error('[GrueneratorChat] Conversation processing error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Conversation processing failed',
+      code: 'CONVERSATION_ERROR'
+    });
+  }
+}
 
 /**
  * Main chat endpoint for Grünerator Chat
@@ -76,6 +217,19 @@ router.post('/', withErrorHandler(async (req, res) => {
     // Retrieve conversation history for context
     const conversation = await chatMemory.getConversation(userId);
     const trimmedHistory = trimMessagesToTokenLimit(conversation.messages, 6000);
+
+    // Check for simple conversational messages (bypass AI for instant response)
+    const simpleCheck = detectSimpleMessage(message);
+    if (simpleCheck.isSimple) {
+      const locale = req.user?.locale || 'de-DE';
+      const response = generateSimpleResponse(simpleCheck.category, locale);
+
+      return res.json({
+        success: true,
+        agent: 'simple_response',
+        content: { text: response }
+      });
+    }
 
     // Step 1.5: Separate attachments by type and handle appropriately
     const requestId = crypto.randomBytes(8).toString('hex');
@@ -218,6 +372,72 @@ router.post('/', withErrorHandler(async (req, res) => {
 
     // Step 1.8: Check for pending information requests first
     const pendingRequest = await chatMemory.getPendingRequest(userId);
+
+    // Handle web search confirmation
+    if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
+      console.log('[GrueneratorChat] Found pending websearch confirmation');
+      const confirmed = isWebSearchConfirmation(message);
+      await chatMemory.clearPendingRequest(userId);
+
+      if (confirmed) {
+        console.log('[GrueneratorChat] Web search confirmed, executing search');
+        try {
+          const searchResults = await searxngWebSearchService.performWebSearch(
+            pendingRequest.originalQuery,
+            { maxResults: 8, language: 'de-DE' }
+          );
+
+          const resultsWithSummary = await searxngWebSearchService.generateAISummary(
+            searchResults,
+            pendingRequest.originalQuery,
+            req.app.locals.aiWorkerPool,
+            {},
+            req
+          );
+
+          const responseText = resultsWithSummary.summary?.text || 'Leider konnte ich keine relevanten Informationen finden.';
+          await chatMemory.addMessage(userId, 'assistant', responseText, 'websearch');
+
+          return res.json({
+            success: true,
+            agent: 'websearch',
+            content: {
+              text: responseText,
+              type: 'websearch_answer'
+            },
+            sources: resultsWithSummary.results?.slice(0, 5).map(r => ({
+              title: r.title,
+              url: r.url,
+              domain: r.domain
+            })),
+            metadata: {
+              searchQuery: pendingRequest.originalQuery,
+              resultCount: searchResults.resultCount || 0,
+              generated: resultsWithSummary.summary?.generated || false
+            }
+          });
+        } catch (error) {
+          console.error('[GrueneratorChat] Web search failed:', error);
+          const errorText = 'Entschuldigung, bei der Websuche ist ein Fehler aufgetreten. Kann ich dir anders helfen?';
+          await chatMemory.addMessage(userId, 'assistant', errorText, 'websearch_error');
+          return res.json({
+            success: true,
+            agent: 'universal',
+            content: { text: errorText, type: 'text' }
+          });
+        }
+      } else {
+        console.log('[GrueneratorChat] Web search declined');
+        const declineText = 'Alles klar! Kann ich dir bei etwas anderem helfen?';
+        await chatMemory.addMessage(userId, 'assistant', declineText, 'websearch_declined');
+        return res.json({
+          success: true,
+          agent: 'universal',
+          content: { text: declineText, type: 'text' }
+        });
+      }
+    }
+
     if (pendingRequest && pendingRequest.type === 'missing_information') {
       console.log('[GrueneratorChat] Found pending information request, checking if this is a new command or answer');
 
@@ -388,17 +608,29 @@ router.post('/', withErrorHandler(async (req, res) => {
       return originalJson.call(this, data);
     };
 
-    // Step 3: Handle multi-intent vs single-intent processing
+    // Step 3: Handle conversation requests separately (lightweight processing)
+    if (intentResult.requestType === 'conversation') {
+      console.log('[GrueneratorChat] Routing to conversation handler, subIntent:', intentResult.subIntent);
+      return await processConversationRequest(intentResult, req, res, {
+        originalMessage: message,
+        chatContext: enhancedContext,
+        userId: userId,
+        subIntent: intentResult.subIntent || 'general'
+      });
+    }
+
+    // Step 4: Handle multi-intent vs single-intent processing
     if (intentResult.isMultiIntent) {
       console.log('[GrueneratorChat] Processing multi-intent request with', intentResult.intents.length, 'intents');
       await processMultiIntentRequest(intentResult.intents, req, res, {
         originalMessage: message,
-        chatContext: enhancedContext,
+        chatContext: { ...enhancedContext, requestType: intentResult.requestType },
         usePrivacyMode: usePrivacyMode || false,
         provider: provider || null,
         attachments: allAttachments || [],
         documentIds: documentIds || [],
-        userId: userId
+        userId: userId,
+        requestType: intentResult.requestType
       });
 
       // Store multi-intent response in memory
@@ -408,17 +640,21 @@ router.post('/', withErrorHandler(async (req, res) => {
       }
     } else {
       // Single intent - existing flow with minor adaptations
-      const intent = intentResult.intents[0];
-      console.log('[GrueneratorChat] Processing single intent:', intent.agent);
+      const intent = {
+        ...intentResult.intents[0],
+        requestType: intentResult.requestType  // Propagate requestType to intent
+      };
+      console.log('[GrueneratorChat] Processing single intent:', intent.agent, 'requestType:', intent.requestType);
 
       await processSingleIntentRequest(intent, req, res, {
         originalMessage: message,
-        chatContext: enhancedContext,
+        chatContext: { ...enhancedContext, requestType: intentResult.requestType },
         usePrivacyMode: usePrivacyMode || false,
         provider: provider || null,
         attachments: allAttachments || [],
         documentIds: documentIds || [],
-        userId: userId
+        userId: userId,
+        requestType: intentResult.requestType
       });
 
       // Store single intent response in memory (skip sharepic responses to avoid text content conflicts)
@@ -515,6 +751,46 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
 }
 
 /**
+ * Build search query from user message for automatic document research
+ * @param {string} message - Original user message
+ * @param {object} extractedParams - Parameters extracted by parameterExtractor
+ * @param {object} intent - Classified intent
+ * @returns {string} Search query for vector search
+ */
+function buildAutoSearchQuery(message, extractedParams, intent) {
+  // Priority 1: Use extracted thema if meaningful
+  if (extractedParams.thema &&
+      extractedParams.thema !== 'Grüne Politik' &&
+      extractedParams.thema !== 'Politisches Thema') {
+    return extractedParams.thema;
+  }
+
+  // Priority 2: Use extracted idee (for antrag agents)
+  if (extractedParams.idee) {
+    return extractedParams.idee;
+  }
+
+  // Priority 3: Use details if focused
+  if (extractedParams.details &&
+      extractedParams.details.length > 10 &&
+      extractedParams.details.length < 200) {
+    return extractedParams.details;
+  }
+
+  // Priority 4: Clean the message - remove common command phrases
+  const cleanedMessage = message
+    .replace(/(?:erstelle|mache|schreibe|generiere)\s+(?:mir|uns|einen?|eine?|das|die|der)/gi, '')
+    .replace(/(?:bitte|danke|könntest du|kannst du)/gi, '')
+    .replace(/(?:post|beitrag|pressemitteilung|antrag|zitat|sharepic)/gi, '')
+    .replace(/(?:für|über|zum thema|bezüglich)/gi, '')
+    .trim();
+
+  return cleanedMessage.length > 10 && cleanedMessage.length < 300
+    ? cleanedMessage
+    : cleanedMessage.substring(0, 300);
+}
+
+/**
  * Process single intent (backward compatibility with existing flow)
  * @param {Object} intent - Single intent object
  * @param {Object} req - Express request object
@@ -522,6 +798,40 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
  * @param {Object} baseContext - Base context for processing
  */
 async function processSingleIntentRequest(intent, req, res, baseContext) {
+  // Get requestType from intent (set by AI classification)
+  const requestType = intent.requestType || baseContext.chatContext?.requestType || 'content_creation';
+
+  console.log('[GrueneratorChat] Processing single intent with requestType:', requestType);
+
+  // Check for low-confidence universal fallback with a question - offer web search
+  if (intent.agent === 'universal' &&
+      intent.confidence <= 0.3 &&
+      isQuestionMessage(baseContext.originalMessage)) {
+
+    console.log('[GrueneratorChat] Low-confidence question detected, offering web search');
+    const userId = req.user?.id || `anon_${req.ip}`;
+
+    // Store pending web search request
+    await chatMemory.setPendingRequest(userId, {
+      type: 'websearch_confirmation',
+      originalQuery: baseContext.originalMessage,
+      timestamp: Date.now()
+    });
+
+    const question = getWebSearchQuestion();
+    await chatMemory.addMessage(userId, 'assistant', question, 'websearch_offer');
+
+    return res.json({
+      success: true,
+      agent: 'websearch_offer',
+      content: {
+        text: question,
+        type: 'question'
+      },
+      requiresResponse: true
+    });
+  }
+
   // Extract parameters for this intent
   const extractedParams = await extractParameters(baseContext.originalMessage, intent.agent, baseContext.chatContext);
 
@@ -581,13 +891,30 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
     }
   }
 
+  // Determine if auto-search should be enabled based on AI-classified requestType
+  // conversation → NO document search (general knowledge questions)
+  // document_query → YES document search (questions about user's documents)
+  // content_creation → YES document search (creating content)
+  const enableAutoSearch = requestType !== 'conversation';
+
+  if (!enableAutoSearch) {
+    console.log('[GrueneratorChat] Conversation request - skipping document search');
+  }
+
+  const autoSearchQuery = enableAutoSearch
+    ? buildAutoSearchQuery(baseContext.originalMessage, extractedParams, intent)
+    : null;
+
   // Update request body for single intent processing
   req.body = {
     ...extractedParams,
     ...intent.params,
     agent: intent.agent,
     documentKnowledge: documentKnowledge,
-    ...baseContext
+    ...baseContext,
+    // Enable automatic document research for chat (conditionally)
+    useAutomaticSearch: enableAutoSearch,
+    searchQuery: autoSearchQuery
   };
 
   // Route to appropriate processor (existing logic)
@@ -596,6 +923,7 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
   console.log('[GrueneratorChat] Routing single intent to:', {
     routeType,
     agent: intent.agent,
+    platforms: req.body.platforms || 'none',
     paramsCount: Object.keys(req.body).length
   });
 
@@ -618,6 +946,9 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
 async function processIntentAsync(intent, req, baseContext) {
   return new Promise(async (resolve, reject) => {
     try {
+      // Get requestType from baseContext (set by AI classification)
+      const requestType = baseContext.requestType || 'content_creation';
+
       // Extract parameters for this specific intent
       const extractedParams = await extractParameters(baseContext.originalMessage, intent.agent, baseContext.chatContext);
 
@@ -639,6 +970,12 @@ async function processIntentAsync(intent, req, baseContext) {
         }
       }
 
+      // Determine if auto-search should be enabled based on AI-classified requestType
+      const enableAutoSearch = requestType !== 'conversation';
+      const autoSearchQuery = enableAutoSearch
+        ? buildAutoSearchQuery(baseContext.originalMessage, extractedParams, intent)
+        : null;
+
       // Create a copy of the request for this intent, preserving Express properties
       const intentReq = {
         ...req,
@@ -651,7 +988,10 @@ async function processIntentAsync(intent, req, baseContext) {
           ...intent.params,
           agent: intent.agent,
           documentKnowledge: documentKnowledge,
-          ...baseContext
+          ...baseContext,
+          // Enable automatic document research for chat (conditionally)
+          useAutomaticSearch: enableAutoSearch,
+          searchQuery: autoSearchQuery
         },
         startTime: Date.now() // For timing metrics
       };
@@ -759,11 +1099,11 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
   if (sharepicType === 'info' || sharepicType === 'zitat_pure' || sharepicType === 'zitat' || sharepicType === 'dreizeilen' || sharepicType === 'headline') {
     try {
       // Use parameters from the initial extraction (already in req.body)
-      // No need for redundant parameter extraction
+      // Preserve all extracted params including name from Mistral/regex extraction
       const extractedParams = {
+        ...req.body,
         thema: req.body.thema || 'Grüne Politik',
         details: req.body.details || req.body.originalMessage || '',
-        name: req.body.name || '',
         type: sharepicType,
         originalMessage: req.body.originalMessage || '',
         chatContext: req.body.chatContext || {}
