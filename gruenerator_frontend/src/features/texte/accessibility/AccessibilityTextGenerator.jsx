@@ -337,7 +337,7 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
           firstExtrasChildren={renderTypeSelector()}
           submitButtonText={selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? "Alt-Text generieren" : "In Leichte Sprache übersetzen"}
           isSubmitDisabled={!formRef.current?.isValid?.()}
-          useFeatureIcons={true}
+          useFeatureIcons={false}
           loading={combinedLoading}
           success={combinedSuccess}
           error={combinedError}
