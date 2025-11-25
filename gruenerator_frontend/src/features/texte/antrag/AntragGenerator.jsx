@@ -310,6 +310,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             fieldType="gliederung"
             name="gliederung"
             control={control}
+            setValue={setValue}
+            getValues={getValues}
             label={FORM_LABELS.GLIEDERUNG}
             placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
             tabIndex={form.generator.tabIndex.gliederung}
