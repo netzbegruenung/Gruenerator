@@ -170,11 +170,13 @@ const QuestionAnswerSection = ({
                   const optionCount = predefinedOptions.length;
 
                   // Determine grid layout class
-                  let gridClass = 'quiz-grid-2x2'; // Default for 3-4 options
+                  let gridClass = 'quiz-grid-2x2'; // Fallback
                   if (optionCount <= 2) {
                     gridClass = 'quiz-grid-horizontal';
                   } else if (optionCount === 3) {
                     gridClass = 'quiz-grid-3';
+                  } else if (optionCount === 4) {
+                    gridClass = 'quiz-grid-4';
                   }
 
                   return (

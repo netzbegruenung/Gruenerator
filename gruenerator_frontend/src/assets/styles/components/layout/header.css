@@ -51,6 +51,19 @@
     }
 }
 
+@media (max-width: 380px) {
+    .header-logo {
+        width: auto;
+        max-width: 150px;
+        flex-shrink: 1;
+    }
+
+    .header-logo img {
+        height: 38px;
+        margin-right: 10px;
+    }
+}
+
 
 .header-menu-checkbox {
     display: none;
@@ -540,13 +553,17 @@ input:not(:checked) + .slider .icon.moon {
   }
   
   @media (max-width: 900px) {
-    
+
     .header-nav {
       display: none;
     }
-    
+
     .header-menu-label {
       display: block;
+    }
+
+    .header-container {
+      padding-right: 60px;
     }
   }
 
@@ -554,6 +571,7 @@ input:not(:checked) + .slider .icon.moon {
 
     .header-container {
         padding: 0;
+        padding-right: 60px;
     }
     .burger {
         display: block;
@@ -884,10 +902,6 @@ input:not(:checked) + .slider .icon.moon {
 
   .header.scrolled {
     padding: 10px 25px;
-  }
-
-  .header-actions {
-    margin-right: 50px;
   }
 
   .header.scrolled .profile-label-button {

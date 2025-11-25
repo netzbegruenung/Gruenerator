@@ -65,7 +65,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
               </>
             )}
           </div>
-          <div className={isMarkdownContent ? "antrag-text-content markdown-content" : "document-preview-text"}>
+          <div className={isMarkdownContent ? "markdown-content" : "document-preview-text"}>
             {isMarkdownContent ? (
               <Suspense fallback={<div>Loading markdown...</div>}>
                 <ReactMarkdown>{previewContent}</ReactMarkdown>

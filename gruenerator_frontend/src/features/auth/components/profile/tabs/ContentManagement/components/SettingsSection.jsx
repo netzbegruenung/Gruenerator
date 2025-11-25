@@ -16,7 +16,8 @@ import {
     HiChip,
     HiOutlineDocumentText,
     HiSave,
-    HiSparkles
+    HiSparkles,
+    HiOutlineChat
 } from 'react-icons/hi';
 
 const BETA_VIEWS = {
@@ -31,6 +32,7 @@ const BETA_VIEWS = {
     INTERACTIVE_ANTRAG: 'interactiveAntrag',
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
     AI_SHAREPIC: 'aiSharepic',
+    CHAT: 'chat',
 };
 
 const SettingsSection = ({
@@ -171,6 +173,18 @@ const SettingsSection = ({
                     linkTo: '/sharepic',
                     linkText: 'Zum Sharepic-Grünerator',
                     icon: HiSparkles
+                };
+            case BETA_VIEWS.CHAT:
+                return {
+                    title: 'Grünerator Chat',
+                    description: 'Interaktiver Chat-Assistent für direkte Gespräche mit dem Grünerator. Stelle Fragen und erhalte KI-gestützte Antworten.',
+                    checked: getBetaFeatureState('chat'),
+                    setter: (value) => updateUserBetaFeatures('chat', value),
+                    featureName: 'Grünerator Chat',
+                    checkboxLabel: 'Grünerator Chat aktivieren',
+                    linkTo: '/chat',
+                    linkText: 'Zum Chat',
+                    icon: HiOutlineChat
                 };
             default:
                 return null;

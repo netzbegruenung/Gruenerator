@@ -552,7 +552,7 @@ const SharedContentSelector = ({
                   <p>Grundlegende Informationen werden trotzdem angezeigt.</p>
                 </div>
               ) : selectedItem.markdown_content ? (
-                <div className="antrag-text-content">
+                <div className="markdown-content">
                   <ReactMarkdown>
                     {selectedItem.markdown_content}
                   </ReactMarkdown>
