@@ -8,7 +8,7 @@ class FluxImageService {
   constructor(options = {}) {
     this.apiKey = options.apiKey || process.env.BFL_API_KEY;
     this.baseUrl = options.baseUrl || 'https://api.eu.bfl.ai';
-    this.modelPath = options.modelPath || '/v1/flux-pro-1.1';
+    this.modelPath = options.modelPath || '/v1/flux-2-pro';
     
     // Retry configuration
     this.retryConfig = {
@@ -279,7 +279,7 @@ class FluxImageService {
   }
 
   async generateFromImage(prompt, imageBuffer, mimeType = 'image/jpeg', options = {}) {
-    const modelPath = options.modelPathOverride || '/v1/flux-kontext-pro';
+    const modelPath = options.modelPathOverride || '/v1/flux-2-pro';
     const url = `${this.baseUrl}${modelPath}`;
     const headers = {
       accept: 'application/json',
@@ -294,8 +294,9 @@ class FluxImageService {
       input_image: imageDataUrl,
       output_format: options.output_format || 'jpeg',
       safety_tolerance: options.safety_tolerance ?? 2,
-      ...(options.aspect_ratio && { aspect_ratio: options.aspect_ratio }),
-      prompt_upsampling: options.prompt_upsampling ?? false
+      ...(options.width && { width: options.width }),
+      ...(options.height && { height: options.height }),
+      ...(options.seed && { seed: options.seed })
     };
 
     console.log(`[FluxImageService] Submitting image-to-image request to ${url}, image size: ${Math.round(imageBuffer.length / 1024)}KB`);

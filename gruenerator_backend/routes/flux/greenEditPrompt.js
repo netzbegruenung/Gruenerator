@@ -44,82 +44,91 @@ function buildGreenEditPromptOriginal(userText) {
 function buildGreenEditPrompt(userText, isPrecision = false) {
   const trimmed = (userText || '').toString().trim();
   const hasUserInput = trimmed.length > 0;
+  const lowerInput = trimmed.toLowerCase();
+
+  const editDescription = hasUserInput
+    ? `Apply green urban transformation: ${trimmed}`
+    : "Transform into an ecological, green, pleasant urban space";
 
   if (isPrecision && hasUserInput) {
-    return [
-      'Edit this street photo according to the specific user instructions while maintaining photorealistic quality.',
-      '',
-      'Follow these user instructions exactly:',
-      `"${trimmed}"`,
-      '',
-      'Implementation guidelines:',
-      '- Execute the user\'s specific requests with precise spatial placement',
-      '- Maintain original architecture, facades, lighting, and overall composition',
-      '- Ensure all additions look natural and realistic for the environment',
-      '- Preserve existing people, vehicles, and signage unless specifically requested to modify',
-      '- Match textures, materials, shadows, and lighting conditions of the original photo',
-      '- Scale and proportion all new elements appropriately to the scene'
-    ].join('\n');
+    return JSON.stringify({
+      scene: "Street-level urban photograph",
+      edit: editDescription,
+      style: "Photorealistic, matching original lighting and perspective",
+      constraints: {
+        preserve: ["architecture", "facades", "street layout", "camera angle", "people", "vehicles", "signage"],
+        match: ["textures", "materials", "shadows", "light direction"]
+      },
+      quality: "Ultra-realistic edit, true-to-scale integration, no artifacts"
+    }, null, 2);
   }
 
-  let prompt = `Edit this street photo to make it more ecological and pleasant while preserving the original architecture and composition.
-
-Add green infrastructure where relevant: trees, plants, bike lanes, pedestrian improvements, sustainable materials.
-Keep unchanged: buildings, perspective, lighting, people, vehicles, signage.`;
-
-  if (hasUserInput) {
-    prompt += `
-
-Optional user guidance: "${trimmed}"`;
+  const greenElements = [];
+  if (!hasUserInput || lowerInput.includes('baum') || lowerInput.includes('bäume') || lowerInput.includes('tree')) {
+    greenElements.push("Native street trees in permeable strips, 6-10m spacing");
+  }
+  if (!hasUserInput || lowerInput.includes('pflanz') || lowerInput.includes('blume') || lowerInput.includes('grün') || lowerInput.includes('plant') || lowerInput.includes('flower')) {
+    greenElements.push("Native perennials, pollinator-friendly flowers");
+  }
+  if (!hasUserInput || lowerInput.includes('fahrrad') || lowerInput.includes('bike') || lowerInput.includes('rad') || lowerInput.includes('cycle')) {
+    greenElements.push("Protected bike lanes with green paint, 1.6-2.0m width");
+  }
+  if (!hasUserInput || lowerInput.includes('gehweg') || lowerInput.includes('fußgänger') || lowerInput.includes('pedestrian') || lowerInput.includes('sidewalk')) {
+    greenElements.push("Wider sidewalks, raised crosswalks");
+  }
+  if (!hasUserInput || lowerInput.includes('bank') || lowerInput.includes('sitz') || lowerInput.includes('bench') || lowerInput.includes('seat')) {
+    greenElements.push("Comfortable benches with backrests near shade");
+  }
+  if (!hasUserInput || lowerInput.includes('straßenbahn') || lowerInput.includes('tram') || lowerInput.includes('bahn')) {
+    greenElements.push("Modern tram line with grass tracks");
+  }
+  if (!hasUserInput || lowerInput.includes('bus') || lowerInput.includes('haltestelle') || lowerInput.includes('stop')) {
+    greenElements.push("Modern bus stop with green roof shelter");
   }
 
-  return prompt;
+  return JSON.stringify({
+    scene: "Street-level urban photograph",
+    edit: editDescription,
+    add: greenElements,
+    style: "Photorealistic urban planning visualization",
+    constraints: {
+      preserve: ["original architecture", "facades", "skyline", "street layout", "camera angle", "lighting"],
+      maintain: ["existing people", "vehicles", "storefronts", "signage text"]
+    },
+    quality: "Photorealistic, true-to-scale, no artifacts or fantasy elements"
+  }, null, 2);
 }
 
 function buildAllyMakerPrompt(placementText, isPrecision = false) {
   const trimmed = (placementText || '').toString().trim();
+  const hasPlacement = trimmed.length > 0;
 
-  if (isPrecision && trimmed.length > 0) {
-    return [
-      'Add a rainbow flag tattoo to the person in the image following these precise instructions:',
-      `"${trimmed}"`,
-      '',
-      'Requirements:',
-      '- Keep the person exactly the same: face, hair, expression, pose, clothing, background',
-      '- Only add the tattoo as specified in the instructions',
-      '- Make the tattoo look natural, realistic, and professionally done',
-      '- Ensure proper size, placement, and integration with the skin tone',
-      '- The tattoo should not cover or obscure facial features unless specifically requested',
-      '- Match lighting and shadows to make the tattoo appear naturally part of the photo'
-    ].join('\n');
-  }
+  const editDescription = hasPlacement
+    ? `Add a small rainbow flag tattoo on ${trimmed}`
+    : "Add a small rainbow flag tattoo on visible skin area, not covering face";
 
-  let prompt = `Add one small and decent rainbow flag face tattoo to the person on the image. Keep the person exactly the same - same face, same hair, same expression, same pose, same clothing, same background. Only add the tattoo. It shouldn't cover the face. Make it look natural and realistic. The user should be able to tell where it's added.`;
-
-  if (trimmed.length > 0) {
-    prompt += ` Place the tattoo on: ${trimmed}.`;
-  }
-
-  return prompt;
+  return JSON.stringify({
+    edit: editDescription,
+    style: "Natural, realistic, professionally done tattoo",
+    constraints: {
+      preserve: ["face", "hair", "expression", "pose", "clothing", "background"],
+      requirements: ["natural integration with skin tone", "match lighting and shadows"]
+    },
+    quality: "Realistic tattoo appearance, natural integration"
+  }, null, 2);
 }
 
 function buildUniversalPrompt(userText) {
   const trimmed = (userText || '').toString().trim();
 
-  return [
-    'Edit this image according to the user\'s instructions while maintaining photorealistic quality.',
-    '',
-    'User instructions:',
-    `"${trimmed}"`,
-    '',
-    'Implementation guidelines:',
-    '- Execute the user\'s requests precisely as described',
-    '- Maintain photorealistic quality and natural integration',
-    '- Preserve aspects not mentioned in the instructions',
-    '- Match lighting, shadows, and textures to the original image',
-    '- Ensure all changes look natural and believable',
-    '- Scale and proportion all elements appropriately'
-  ].join('\n');
+  return JSON.stringify({
+    edit: trimmed,
+    style: "Photorealistic, maintaining original image quality",
+    constraints: {
+      preserve: "Aspects not mentioned in edit instruction",
+      match: "Original lighting, shadows, and textures"
+    }
+  }, null, 2);
 }
 
 router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => {
@@ -185,7 +194,7 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
 
     // Edit image with FLUX (image-to-image)
     const flux = new FluxImageService();
-    console.log(`[Flux Green Edit] Starting image generation with Flux Kontext Pro`);
+    console.log(`[Flux Green Edit] Starting image generation with FLUX.2 Pro`);
     const { request, result, stored } = await flux.generateFromImage(prompt, req.file.buffer, req.file.mimetype, { output_format: 'jpeg', safety_tolerance: 2 });
 
     console.log(`[Flux Green Edit] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`);
