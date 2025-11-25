@@ -27,6 +27,10 @@ const SmartInput = ({
   rules,
   tabIndex,
 
+  // Form methods for auto-population
+  setValue,
+  getValues,
+
   // Success handling
   onSubmitSuccess = null,
   shouldSave = false,
@@ -75,6 +79,19 @@ const SmartInput = ({
   useEffect(() => {
     handleSaveValue();
   }, [handleSaveValue]);
+
+  // Auto-populate with most recent value on mount when recent values are loaded
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && recentValues.length > 0 && setValue && getValues) {
+      const currentValue = getValues(name);
+      if (!currentValue) {
+        setValue(name, recentValues[0], {
+          shouldValidate: false,
+          shouldDirty: false
+        });
+      }
+    }
+  }, [isAuthenticated, isLoading, recentValues, name, setValue, getValues]);
 
   // Convert recent values to options format with visual indicator
   const recentOptions = useMemo(() => {
@@ -179,6 +196,10 @@ SmartInput.propTypes = {
   placeholder: PropTypes.string,
   rules: PropTypes.object,
   tabIndex: PropTypes.number,
+
+  // Form methods for auto-population
+  setValue: PropTypes.func,
+  getValues: PropTypes.func,
 
   // Success handling
   onSubmitSuccess: PropTypes.string, // The value to save

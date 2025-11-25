@@ -549,6 +549,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
                     formName="presseSocial"
                     name="zitatAuthor"
                     control={control}
+                    setValue={setValue}
+                    getValues={getValues}
                     label="Autor/Urheber des Zitats"
                     placeholder="z.B. Anton Hofreiter"
                     rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
@@ -593,6 +595,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               formName="presseSocial"
               name="zitatgeber"
               control={control}
+              setValue={setValue}
+              getValues={getValues}
               label={FORM_LABELS.WHO_QUOTE}
               subtext="Mehrere Personen können genannt werden."
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
@@ -606,6 +610,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               formName="presseSocial"
               name="presseabbinder"
               control={control}
+              setValue={setValue}
+              getValues={getValues}
               label="Presseabbinder (optional)"
               subtext="Standard-Abbinder, der an die Pressemitteilung angehängt wird (z.B. Kontaktdaten, Vereinsinformationen)."
               placeholder="z.B. Kontakt: Max Mustermann, presse@gruene-example.de"
