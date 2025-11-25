@@ -115,7 +115,8 @@ const GrueneratorChat = () => {
       !generatedContent &&
       multiResults.length === 0 &&
       latestContent &&
-      latestContent !== INITIAL_GREETING.trim()
+      latestContent !== INITIAL_GREETING.trim() &&
+      lastAssistantMessage?.agent !== 'simple_response'
     ) {
       setGeneratedText('grueneratorChat', latestContent, currentAgent ? { agent: currentAgent } : undefined);
     }
@@ -127,26 +128,28 @@ const GrueneratorChat = () => {
     currentAgent
   ]);
 
-  const introHelpContent = useMemo(() => {
-    if (isEditModeActive) {
-      return null;
-    }
-
-    if (!currentAgent && messages.length <= 1) {
-      return {
-        content: 'Willkommen beim Grünerator Chat! Ich kann Ihnen bei verschiedenen Textarten helfen:',
-        tips: [
-          'Social Media Posts – Facebook, Instagram, Twitter',
-          'Pressemitteilungen – Professionelle Medientexte',
-          'Anträge – Kommunalpolitische Vorlagen',
-          'Zitate – Kurze, prägnante Aussagen',
-          'Leichte Sprache – Barrierefreie Texte',
-          'Jugendsprache – Aktivistische Inhalte'
-        ]
-      };
-    }
-    return null;
-  }, [currentAgent, messages.length, isEditModeActive]);
+  // Disabled: Duplicate content - StartPage already shows welcome information
+  // const introHelpContent = useMemo(() => {
+  //   if (isEditModeActive) {
+  //     return null;
+  //   }
+  //
+  //   if (!currentAgent && messages.length <= 1) {
+  //     return {
+  //       content: 'Willkommen beim Grünerator Chat! Ich kann Ihnen bei verschiedenen Textarten helfen:',
+  //       tips: [
+  //         'Social Media Posts – Facebook, Instagram, Twitter',
+  //         'Pressemitteilungen – Professionelle Medientexte',
+  //         'Anträge – Kommunalpolitische Vorlagen',
+  //         'Zitate – Kurze, prägnante Aussagen',
+  //         'Leichte Sprache – Barrierefreie Texte',
+  //         'Jugendsprache – Aktivistische Inhalte'
+  //       ]
+  //     };
+  //   }
+  //   return null;
+  // }, [currentAgent, messages.length, isEditModeActive]);
+  const introHelpContent = null;
 
   const getChatExportableContent = useCallback(() => {
     if (typeof generatedContent === 'string' && generatedContent) {

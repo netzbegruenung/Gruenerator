@@ -1,0 +1,124 @@
+.mobile-swipe-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-swipe-panels {
+  display: flex;
+  width: 200%;
+  flex: 1;
+  min-height: 0;
+}
+
+.mobile-swipe-panel {
+  width: 50%;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 140px;
+}
+
+.mobile-swipe-chat {
+  background: var(--background-color-alt);
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-swipe-chat .editor-chat {
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  z-index: auto !important;
+  height: 100%;
+  max-height: none !important;
+  border-radius: 0;
+}
+
+.mobile-swipe-results {
+  background: var(--background-color);
+  padding: var(--spacing-small);
+}
+
+.mobile-swipe-indicator {
+  position: fixed;
+  bottom: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--spacing-xsmall);
+  z-index: 1001;
+  padding: var(--spacing-xsmall);
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .mobile-swipe-indicator {
+  background: rgba(38, 38, 38, 0.8);
+}
+
+.mobile-swipe-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--font-color);
+  opacity: 0.3;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.mobile-swipe-dot:hover,
+.mobile-swipe-dot:focus {
+  opacity: 0.5;
+}
+
+.mobile-swipe-dot.active {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.mobile-swipe-input {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--background-color);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .mobile-swipe-input {
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+}
+
+@supports (bottom: env(safe-area-inset-bottom)) {
+  .mobile-swipe-panel {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-swipe-indicator {
+    bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-swipe-panels {
+    transition: none !important;
+  }
+
+  .mobile-swipe-dot {
+    transition: none !important;
+  }
+}

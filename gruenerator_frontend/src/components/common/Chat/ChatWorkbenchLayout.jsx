@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
@@ -6,7 +6,10 @@ import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
 import ChatUI from './ChatUI';
 import ModeSelector from './ModeSelector';
 import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
+import useIsMobile from '../../../hooks/useIsMobile';
 import AttachedFilesList from '../AttachedFilesList';
+import FloatingAssistantBubble from './FloatingAssistantBubble';
+import MobileSwipeContainer from './MobileSwipeContainer';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
 const ChatWorkbenchLayout = ({
@@ -38,6 +41,23 @@ const ChatWorkbenchLayout = ({
   attachedFiles = [],
   onRemoveFile
 }) => {
+  const isMobile = useIsMobile();
+  const [dismissedMessageTimestamp, setDismissedMessageTimestamp] = useState(null);
+  const [mobileActivePanel, setMobileActivePanel] = useState('results');
+
+  const latestAssistantMessage = useMemo(() => {
+    if (!messages || messages.length === 0) return null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].type === 'assistant') {
+        if (messages[i].content?.startsWith('Hallo! Ich bin der Grünerator Chat.')) {
+          continue;
+        }
+        return messages[i];
+      }
+    }
+    return null;
+  }, [messages]);
+
   const voiceRecorderHook = useVoiceRecorder((text) => {
     // Update the input field with transcribed text
     if (onInputChange) {
@@ -193,7 +213,64 @@ const ChatWorkbenchLayout = ({
     );
   };
 
-  const renderDossierMode = () => (
+  const renderMobileDossierMode = () => {
+    const shouldShowBubble = mobileActivePanel === 'results' &&
+      latestAssistantMessage &&
+      latestAssistantMessage.timestamp !== dismissedMessageTimestamp;
+
+    const chatPanel = (
+      <div className="mobile-chat-panel-content">
+        {renderHeader()}
+        <ChatUI
+          messages={messages}
+          onSubmit={onSubmit}
+          isProcessing={isProcessing}
+          placeholder={placeholder}
+          inputValue={inputValue}
+          onInputChange={onInputChange}
+          disabled={disabled}
+          className="qa-chat-ui mobile-swipe-panel-chat"
+          showHeader={false}
+          renderInput={() => null}
+          onVoiceRecorderTranscription={onVoiceRecorderTranscription}
+          autoSubmitVoice={autoSubmitVoice}
+          enableFileUpload={enableFileUpload}
+          onFileSelect={onFileSelect}
+          attachedFiles={attachedFiles}
+          onRemoveFile={onRemoveFile}
+        />
+      </div>
+    );
+
+    const resultsPanel = (
+      <div className="mobile-results-panel-content">
+        {shouldShowBubble && (
+          <FloatingAssistantBubble
+            message={latestAssistantMessage}
+            onDismiss={() => setDismissedMessageTimestamp(latestAssistantMessage.timestamp)}
+            onActionClick={onSubmit}
+            isProcessing={isProcessing}
+          />
+        )}
+        {rightPanelContent}
+        {rightPanelFooter}
+      </div>
+    );
+
+    return (
+      <div className="qa-chat-main qa-chat-dossier qa-chat-dossier-mobile">
+        <MobileSwipeContainer
+          chatPanel={chatPanel}
+          resultsPanel={resultsPanel}
+          activePanel={mobileActivePanel}
+          onPanelChange={setMobileActivePanel}
+          inputElement={renderInputWrapper()}
+        />
+      </div>
+    );
+  };
+
+  const renderDesktopDossierMode = () => (
     <div className="qa-chat-main qa-chat-dossier">
       <div className="qa-chat-left-panel">
         {renderHeader()}
@@ -222,6 +299,8 @@ const ChatWorkbenchLayout = ({
       </div>
     </div>
   );
+
+  const renderDossierMode = () => isMobile ? renderMobileDossierMode() : renderDesktopDossierMode();
 
   const renderChatMode = () => (
     <div className="qa-chat-main qa-chat-fullscreen">
