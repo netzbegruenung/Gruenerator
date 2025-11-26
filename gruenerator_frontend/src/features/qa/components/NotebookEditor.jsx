@@ -2,20 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import EnhancedSelect from '../../../components/common/EnhancedSelect';
 import { WolkeSelector } from '../../../components/common';
-import { HiPlus, HiX, HiDocumentText, HiOutlineCloud, HiRefresh, HiOutlineTrash } from 'react-icons/hi';
+import { HiDocumentText, HiOutlineCloud } from 'react-icons/hi';
 import { motion } from "motion/react";
 import { useFormFields } from '../../../components/common/Form/hooks';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
-// QA Feature CSS - Loaded only when this feature is accessed
 import '../styles/qa-creator.css';
 import '../../../assets/styles/features/qa/qa-chat.css';
 import '../../../assets/styles/features/qa/qa-collections.css';
-import '../../../assets/styles/components/ui/FeatureToggle.css';
-import FeatureToggle from '../../../components/common/FeatureToggle';
 import '../../../assets/styles/components/ui/button.css';
 
-// Helper functions for document metadata formatting
 const formatFileSize = (bytes) => {
   if (!bytes) return '';
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -57,7 +53,6 @@ const getDocumentIcon = (filename) => {
   const ext = filename.split('.').pop()?.toLowerCase();
   switch (ext) {
     case 'pdf':
-      return 'document';
     case 'doc':
     case 'docx':
       return 'document';
@@ -68,9 +63,9 @@ const getDocumentIcon = (filename) => {
   }
 };
 
-const QACreator = ({ 
-    onSave, 
-    availableDocuments = [], 
+const NotebookEditor = ({
+    onSave,
+    availableDocuments = [],
     editingCollection = null,
     loading = false,
     onCancel,
@@ -80,16 +75,15 @@ const QACreator = ({
     const { user } = useOptimizedAuth();
     const [selectedDocuments, setSelectedDocuments] = useState([]);
     const [selectedWolkeLinks, setSelectedWolkeLinks] = useState([]);
-    const [selectionMode, setSelectionMode] = useState('documents'); // 'documents' or 'wolke'
+    const [selectionMode, setSelectionMode] = useState('documents');
     const [autoSync, setAutoSync] = useState(false);
     const [removeMissing, setRemoveMissing] = useState(false);
     const { Input, Textarea } = useFormFields();
-    
+
     const {
         control,
         handleSubmit,
-        reset,
-        formState: { errors }
+        reset
     } = useForm({
         defaultValues: {
             name: '',
@@ -98,7 +92,6 @@ const QACreator = ({
         }
     });
 
-    // Initialize form when editing
     useEffect(() => {
         if (editingCollection) {
             reset({
@@ -108,7 +101,6 @@ const QACreator = ({
             });
             setSelectedDocuments(editingCollection.documents || []);
             setSelectedWolkeLinks(editingCollection.wolke_share_links || []);
-            // Set selection mode based on what's available
             if (lockSelectionMode) {
                 setSelectionMode(lockSelectionMode);
             } else if ((editingCollection.wolke_share_links || []).length > 0) {
@@ -134,7 +126,6 @@ const QACreator = ({
         }
     }, [editingCollection, reset]);
 
-    // Keep selectionMode within allowed modes
     useEffect(() => {
         if (!allowedModes.includes(selectionMode)) {
             if (lockSelectionMode && allowedModes.includes(lockSelectionMode)) {
@@ -145,13 +136,12 @@ const QACreator = ({
         }
     }, [allowedModes.join(','), lockSelectionMode, selectionMode]);
 
-    // Transform documents to EnhancedSelect options with metadata
     const documentOptions = availableDocuments.map(doc => {
         const subtitle = [];
         if (doc.filename) subtitle.push(doc.filename);
         if (doc.file_size) subtitle.push(formatFileSize(doc.file_size));
         if (doc.created_at) subtitle.push(`Hochgeladen: ${formatDate(doc.created_at)}`);
-        
+
         return {
             value: doc.id,
             label: doc.title,
@@ -166,20 +156,17 @@ const QACreator = ({
         };
     });
 
-
-    // Handle React Select change
     const handleDocumentSelectChange = (selectedOptions) => {
         const documents = selectedOptions ? selectedOptions.map(option => option.document) : [];
         setSelectedDocuments(documents);
     };
 
     const onSubmit = async (data) => {
-        // Validate selection based on mode
         if (selectionMode === 'documents' && selectedDocuments.length === 0) {
             alert('Bitte wählen Sie mindestens ein Dokument aus.');
             return;
         }
-        
+
         if (selectionMode === 'wolke' && selectedWolkeLinks.length === 0) {
             alert('Bitte wählen Sie mindestens einen Wolke-Ordner aus.');
             return;
@@ -206,12 +193,10 @@ const QACreator = ({
         if (onCancel) onCancel();
     };
 
-    // Handle mode switching
     const handleModeSwitch = (mode) => {
         if (!allowedModes.includes(mode)) return;
         if (lockSelectionMode && mode !== lockSelectionMode) return;
         setSelectionMode(mode);
-        // Clear selections when switching modes
         if (mode === 'documents') {
             setSelectedWolkeLinks([]);
         } else {
@@ -219,7 +204,6 @@ const QACreator = ({
         }
     };
 
-    // Calculate total content for validation
     const hasValidSelection = (
         (selectionMode === 'documents' && selectedDocuments.length > 0) ||
         (selectionMode === 'wolke' && selectedWolkeLinks.length > 0)
@@ -241,7 +225,7 @@ const QACreator = ({
                                 control={control}
                                 label="Name des Notebooks"
                                 placeholder="z.B. Klimapolitik-Dokumente"
-                                rules={{ 
+                                rules={{
                                     required: 'Name ist erforderlich',
                                     maxLength: { value: 100, message: 'Name darf maximal 100 Zeichen haben' }
                                 }}
@@ -366,25 +350,6 @@ const QACreator = ({
                                         scope={user?.groups?.length > 0 ? 'personal' : 'personal'}
                                         isMulti={true}
                                     />
-                                    {/* Auto-sync features commented out for now */}
-                                    {/* <div className="feature-section" style={{ marginTop: '8px' }}>
-                                        <FeatureToggle
-                                            isActive={autoSync}
-                                            onToggle={setAutoSync}
-                                            label="Neue Wolke-Dokumente automatisch hinzufügen"
-                                            icon={HiRefresh}
-                                            description="Fügt neue Dateien aus den ausgewählten Wolke-Ordnern automatisch hinzu."
-                                            disabled={loading}
-                                        />
-                                        <FeatureToggle
-                                            isActive={removeMissing}
-                                            onToggle={setRemoveMissing}
-                                            label="Beim Synchronisieren fehlende Dokumente entfernen"
-                                            icon={HiOutlineTrash}
-                                            description="Entfernt beim Syncen Dokumente, die nicht mehr im Wolke-Ordner sind."
-                                            disabled={loading}
-                                        />
-                                    </div> */}
                                     {selectedWolkeLinks.length > 0 && (
                                         <div className="selected-content-summary">
                                             {selectedWolkeLinks.length} Wolke-Ordner ausgewählt
@@ -412,7 +377,7 @@ const QACreator = ({
                                 className={`button submit-button ${loading ? 'submit-button--loading' : ''}`}
                                 disabled={loading || !hasValidSelection}
                             >
-                                {loading ? 'Wird gespeichert...' : (editingCollection ? 'Aktualisieren' : 'Erstellen')}
+                                {loading ? 'Wird gespeichert...' : 'Aktualisieren'}
                             </button>
                         </div>
                     </div>
@@ -422,4 +387,4 @@ const QACreator = ({
     );
 };
 
-export default QACreator;
+export default NotebookEditor;
