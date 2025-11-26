@@ -5,7 +5,7 @@ import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
-  { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false },
+  { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
   // { key: 'you', label: 'You Generator', isAdminOnly: false },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },

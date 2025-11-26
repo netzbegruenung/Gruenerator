@@ -22,7 +22,7 @@
   --assistant-icon-background: var(--background-color-alt);
   --assistant-icon-color: var(--font-color);
   --chat-message-user-name-color: var(--grey-400);
-  --chat-input-background: var(--background-color);
+  --chat-input-background: var(--grey-900);
   --chat-input-text-color: var(--font-color);
   --chat-input-border-color: var(--background-color-alt);
 }
@@ -36,7 +36,7 @@
     --assistant-icon-background: var(--background-color-alt);
     --assistant-icon-color: var(--font-color);
     --chat-message-user-name-color: var(--grey-400);
-    --chat-input-background: var(--background-color);
+    --chat-input-background: var(--grey-900);
     --chat-input-text-color: var(--font-color);
     --chat-input-border-color: var(--background-color-alt);
   }

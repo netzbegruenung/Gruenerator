@@ -6,7 +6,7 @@ import { HiInformationCircle } from 'react-icons/hi';
 import { ProfileIconButton, ProfileActionButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 import EditableDetailForm from '../../shared/EditableDetailForm';
 import useEditableDetail from '../../shared/useEditableDetail';
-import QACreator from '../../../../../../qa/components/QACreator';
+import NotebookEditor from '../../../../../../qa/components/NotebookEditor';
 import { handleError } from '../../../../../../../components/utils/errorHandling';
 import NextcloudShareManager from '../../../../../../../utils/nextcloudShareManager';
 
@@ -259,7 +259,7 @@ const NotebookDetail = ({
             
             <div className="generator-details-content">
                 {editableDetail.isEditing ? (
-                    <QACreator
+                    <NotebookEditor
                         onSave={handleSaveQAEdit}
                         availableDocuments={availableDocuments}
                         editingCollection={qa}
