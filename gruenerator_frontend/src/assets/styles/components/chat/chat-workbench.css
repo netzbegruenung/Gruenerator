@@ -97,12 +97,12 @@
 }
 
 [data-theme="dark"] .qa-chat-dossier-input-wrapper {
-  background: var(--background-color);
+  background: var(--grey-900);
   box-shadow: none;
 }
 
 [data-theme="dark"] .qa-chat-dossier-input-wrapper:hover {
-  background: var(--background-color);
+  background: var(--grey-900);
 }
 
 .qa-chat-dossier-input-wrapper .qa-chat-mode-selector {
