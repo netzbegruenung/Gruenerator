@@ -209,10 +209,14 @@ const CustomGeneratorsView = ({
         }
     }, [queryClient, authUser?.id, onSuccessMessage]);
     
-    const handleNotebookCreated = useCallback(() => {
-        setView('notebooks');
-        onSuccessMessage('Notebook erfolgreich erstellt.');
-    }, [onSuccessMessage]);
+    const handleNotebookCreated = useCallback(({ id, name }) => {
+        if (id) {
+            setSelectedQAId(id);
+            setView('notebook-detail');
+        } else {
+            setView('notebooks');
+        }
+    }, []);
 
     const handleSiteCreated = useCallback(async (siteData) => {
         try {
