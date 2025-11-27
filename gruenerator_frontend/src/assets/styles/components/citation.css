@@ -824,20 +824,104 @@
   .add-template-modal {
     max-width: 100%;
   }
-  
+
   .add-template-actions {
     flex-direction: column;
     gap: var(--spacing-small);
   }
-  
+
   .add-template-actions .btn-secondary,
   .add-template-actions .btn-primary {
     width: 100%;
     justify-content: center;
   }
-  
+
   .add-template-help-note {
     font-size: 0.8rem;
     word-break: break-all;
   }
+}
+
+/* Additional Sources Section ("Weitere Quellen") */
+.ask-additional-sources {
+  margin-top: var(--spacing-large);
+  border-top: 1px solid var(--card-border-color);
+  padding-top: var(--spacing-medium);
+}
+
+.ask-additional-sources-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  cursor: pointer;
+  padding: var(--spacing-small) 0;
+  color: var(--font-color);
+  font-size: 0.9rem;
+  transition: var(--input-transition);
+}
+
+.ask-additional-sources-header:hover {
+  color: var(--interactive-accent-color);
+}
+
+.ask-additional-sources[open] .ask-additional-sources-header {
+  margin-bottom: var(--spacing-small);
+}
+
+.ask-additional-sources-title {
+  font-weight: 500;
+}
+
+.ask-additional-sources-count {
+  color: var(--font-color-disabled);
+  font-size: 0.85rem;
+}
+
+.ask-additional-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.ask-additional-source-item {
+  padding: var(--spacing-small) var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border-radius: var(--card-border-radius-small);
+  border: 1px solid var(--card-border-color);
+}
+
+.ask-additional-source-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.ask-additional-source-title {
+  font-weight: 500;
+  color: var(--font-color-h);
+  font-size: 0.9rem;
+}
+
+.ask-additional-source-title.clickable-link {
+  cursor: pointer;
+  color: var(--interactive-accent-color);
+  text-decoration: underline;
+}
+
+.ask-additional-source-title.clickable-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.ask-additional-source-score {
+  font-size: 0.8rem;
+  color: var(--font-color-disabled);
+}
+
+.ask-additional-source-snippet {
+  color: var(--font-color);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0;
+  opacity: 0.85;
 }

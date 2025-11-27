@@ -30,7 +30,8 @@ class QdrantService {
             qa_collections: 'qa_collections',
             qa_collection_documents: 'qa_collection_documents',
             qa_usage_logs: 'qa_usage_logs',
-            qa_public_access: 'qa_public_access'
+            qa_public_access: 'qa_public_access',
+            bundestag_content: 'bundestag_content'
         };
         this.lastHealthCheck = 0;
         this.healthCheckInterval = 30000; // 30 seconds
@@ -539,6 +540,62 @@ class QdrantService {
                     field_name: 'collection_id',
                     field_schema: {
                         type: 'keyword'
+                    }
+                });
+            }
+
+            // Bundestag content collection (crawled web content)
+            if (!existingCollections.includes(this.collections.bundestag_content)) {
+                await this.client.createCollection(this.collections.bundestag_content, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 2,
+                        max_segment_size: 20000,
+                        memmap_threshold: 10000,
+                        indexing_threshold: 20000
+                    },
+                    hnsw_config: {
+                        m: 16,
+                        ef_construct: 100,
+                        full_scan_threshold: 10000,
+                        max_indexing_threads: 0
+                    }
+                });
+                console.log(`[QdrantService] Created bundestag_content collection with ${this.vectorSize} dimensions`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.bundestag_content, {
+                    field_name: 'url',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.bundestag_content, {
+                    field_name: 'section',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.bundestag_content, {
+                    field_name: 'content_hash',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.bundestag_content, {
+                    field_name: 'chunk_text',
+                    field_schema: {
+                        type: 'text',
+                        tokenizer: 'word',
+                        min_token_len: 2,
+                        max_token_len: 50,
+                        lowercase: true
                     }
                 });
             }
@@ -1508,6 +1565,203 @@ class QdrantService {
                 indexed: 0,
                 errors: [{ message: error.message, count: examples.length }]
             };
+        }
+    }
+
+    /**
+     * Index Bundestag content chunks
+     * @param {string} url - Source URL of the page
+     * @param {Array} chunks - Array of chunks with embeddings
+     * @param {Object} metadata - Page metadata (title, section, published_at, etc.)
+     */
+    async indexBundestagContent(url, chunks, metadata = {}) {
+        await this.ensureConnected();
+        try {
+            const points = chunks.map((chunk, index) => {
+                const combinedString = `${url}_${index}`;
+                let hash = 0;
+                for (let i = 0; i < combinedString.length; i++) {
+                    const char = combinedString.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                const numericId = Math.abs(hash);
+
+                return {
+                    id: numericId,
+                    vector: chunk.embedding,
+                    payload: {
+                        url: url,
+                        chunk_index: index,
+                        chunk_text: chunk.text || chunk.chunk_text,
+                        token_count: chunk.token_count || chunk.tokens,
+                        title: metadata.title || '',
+                        section: metadata.section || '',
+                        published_at: metadata.published_at || null,
+                        content_hash: metadata.content_hash || '',
+                        last_synced: new Date().toISOString(),
+                        created_at: new Date().toISOString()
+                    }
+                };
+            });
+
+            const BATCH_SIZE = 50;
+            for (let i = 0; i < points.length; i += BATCH_SIZE) {
+                const batch = points.slice(i, i + BATCH_SIZE);
+                await this.client.upsert(this.collections.bundestag_content, {
+                    points: batch
+                });
+            }
+
+            log.info(`Indexed ${chunks.length} chunks for ${url}`);
+            return { success: true, chunks: chunks.length };
+
+        } catch (error) {
+            log.error(`Failed to index Bundestag content: ${error.message}`);
+            throw new Error(`Bundestag content indexing failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Search Bundestag content
+     * @param {Array} queryVector - Query embedding vector
+     * @param {Object} options - Search options (section, limit, threshold)
+     */
+    async searchBundestagContent(queryVector, options = {}) {
+        await this.ensureConnected();
+        try {
+            const {
+                section = null,
+                limit = 10,
+                threshold = 0.3
+            } = options;
+
+            const filter = { must: [] };
+            if (section) {
+                filter.must.push({ key: 'section', match: { value: section } });
+            }
+
+            const searchResult = await this.client.search(this.collections.bundestag_content, {
+                vector: queryVector,
+                filter: filter.must.length > 0 ? filter : undefined,
+                limit: limit,
+                score_threshold: threshold,
+                with_payload: true,
+                params: {
+                    ef: Math.max(100, limit * 2)
+                }
+            });
+
+            const results = searchResult.map(hit => ({
+                id: hit.id,
+                score: hit.score,
+                url: hit.payload.url,
+                chunk_text: hit.payload.chunk_text,
+                chunk_index: hit.payload.chunk_index,
+                title: hit.payload.title,
+                section: hit.payload.section,
+                published_at: hit.payload.published_at
+            }));
+
+            return {
+                success: true,
+                results: results,
+                total: results.length
+            };
+
+        } catch (error) {
+            log.error(`Bundestag content search failed: ${error.message}`);
+            throw new Error(`Bundestag content search failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get Bundestag content by URL (for deduplication)
+     * @param {string} url - URL to check
+     */
+    async getBundestagContentByUrl(url) {
+        await this.ensureConnected();
+        try {
+            const scrollResult = await this.client.scroll(this.collections.bundestag_content, {
+                filter: {
+                    must: [{ key: 'url', match: { value: url } }]
+                },
+                limit: 1,
+                with_payload: true,
+                with_vector: false
+            });
+
+            if (scrollResult.points && scrollResult.points.length > 0) {
+                return {
+                    exists: true,
+                    content_hash: scrollResult.points[0].payload.content_hash,
+                    last_synced: scrollResult.points[0].payload.last_synced
+                };
+            }
+
+            return { exists: false };
+
+        } catch (error) {
+            log.error(`Failed to check Bundestag content by URL: ${error.message}`);
+            return { exists: false };
+        }
+    }
+
+    /**
+     * Delete Bundestag content by URL
+     * @param {string} url - URL to delete
+     */
+    async deleteBundestagContentByUrl(url) {
+        await this.ensureConnected();
+        try {
+            await this.client.delete(this.collections.bundestag_content, {
+                filter: {
+                    must: [{ key: 'url', match: { value: url } }]
+                }
+            });
+
+            log.info(`Deleted Bundestag content for ${url}`);
+            return { success: true };
+
+        } catch (error) {
+            log.error(`Failed to delete Bundestag content: ${error.message}`);
+            throw new Error(`Bundestag content deletion failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get all indexed Bundestag URLs
+     */
+    async getAllBundestagUrls() {
+        await this.ensureConnected();
+        try {
+            const urls = new Set();
+            let offset = null;
+
+            do {
+                const scrollResult = await this.client.scroll(this.collections.bundestag_content, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: ['url', 'content_hash', 'last_synced'],
+                    with_vector: false
+                });
+
+                for (const point of scrollResult.points) {
+                    urls.add(JSON.stringify({
+                        url: point.payload.url,
+                        content_hash: point.payload.content_hash,
+                        last_synced: point.payload.last_synced
+                    }));
+                }
+
+                offset = scrollResult.next_page_offset;
+            } while (offset);
+
+            return Array.from(urls).map(u => JSON.parse(u));
+
+        } catch (error) {
+            log.error(`Failed to get Bundestag URLs: ${error.message}`);
+            return [];
         }
     }
 

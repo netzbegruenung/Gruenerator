@@ -887,8 +887,14 @@ class BaseSearchService {
     
     // Calculate enhanced scores and format results
     const results = Array.from(documentMap.values()).map(doc => {
+      // For short queries without exact term match, apply graduated response based on similarity
+      let noTermMatchPenalty = 0;
       if (normQuery && isShortQuery && !doc.chunks.some(c => c.has_term)) {
-        return null;
+        if (doc.maxSimilarity < 0.55) {
+          return null;  // Low similarity + no term = likely noise
+        }
+        // High similarity semantic matches get small penalty, medium gets larger
+        noTermMatchPenalty = doc.maxSimilarity >= 0.70 ? 0.05 : 0.12;
       }
     // Sort by adjusted score
     doc.chunks.sort((a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity));
@@ -928,7 +934,7 @@ class BaseSearchService {
         filename: doc.filename,
         created_at: doc.created_at,
         relevant_content: relevantContent,
-        similarity_score: enhancedScore.finalScore,
+        similarity_score: Math.max(0, enhancedScore.finalScore - noTermMatchPenalty),
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
         position_score: enhancedScore.positionScore,

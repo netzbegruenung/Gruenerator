@@ -23,7 +23,10 @@
     "download-whisper": "npx nodejs-whisper download",
     "offboarding": "node scripts/offboarding-cron.js",
     "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\"",
-    "backfill:previews": "node scripts/backfillContentPreviews.mjs"
+    "backfill:previews": "node scripts/backfillContentPreviews.mjs",
+    "load:bundestag": "node scripts/loadBundestagContent.js",
+    "load:bundestag:force": "FORCE_REINDEX=true node scripts/loadBundestagContent.js",
+    "sync:bundestag": "node -e \"import('./services/bundestagSyncService.js').then(m => m.getBundestagSyncService().incrementalSync().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.success ? 0 : 1); }))\""
   },
   "keywords": [],
   "author": "",
