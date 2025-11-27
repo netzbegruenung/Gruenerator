@@ -193,10 +193,21 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
         throw new Error('Keine Sharepics empfangen');
       }
 
+      // Enrich sharepics with Canva template URLs from campaign variant config
+      const enrichedSharepics = result.sharepics.map((sp) => {
+        const variant = selectedCampaignData?.variants?.find(v => v.id === sp.type);
+        return {
+          ...sp,
+          canvaTemplateUrl: variant?.canvaTemplateUrl || null,
+          canvaPreviewImage: variant?.previewImage || null
+        };
+      });
+
       const finalResult = {
-        sharepic: result.sharepics,
+        sharepic: enrichedSharepics,
         inlineSharepicEditEnabled: true,
-        content: 'sharepic-content'
+        content: 'sharepic-content',
+        enableCanvaEdit: selectedCampaignData?.enableCanvaEdit ?? false
       };
 
       // Add campaign text if generated

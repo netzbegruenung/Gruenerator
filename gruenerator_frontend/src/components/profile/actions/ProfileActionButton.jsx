@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { ICONS } from '../../../config/icons';
+import { SiCanva } from 'react-icons/si';
 
 const DEFAULTS = {
   edit: { label: 'Bearbeiten', variant: 'secondary' },
@@ -12,7 +13,8 @@ const DEFAULTS = {
   info: { label: 'Info', variant: 'ghost' },
   altText: { label: 'Alt-Text', variant: 'secondary' },
   kiLabel: { label: 'KI-Label', variant: 'primary' },
-  download: { label: 'Herunterladen', variant: 'primary' }
+  download: { label: 'Herunterladen', variant: 'primary' },
+  canva: { label: 'In Canva bearbeiten', variant: 'secondary' }
 };
 
 const variantToClass = (variant) => {
@@ -29,6 +31,7 @@ const sizeToClass = (size) => (size === 'm' ? 'pabtn--m' : 'pabtn--s');
 
 const getIconForAction = (action) => {
   if (action === 'open') return ICONS.actions.arrowRight;
+  if (action === 'canva') return SiCanva;
   return ICONS.actions[action] || null;
 };
 
@@ -53,6 +56,20 @@ export const ProfileActionButton = ({
   const finalVariant = variant || defaults.variant;
   const Icon = getIconForAction(action);
 
+  const renderIcon = () => {
+    if (Icon) {
+      return loading && spinOnLoading ? (
+        <Icon className="pabtn__icon spinning" />
+      ) : (
+        <Icon className="pabtn__icon" />
+      );
+    }
+    if (loading) {
+      return <span className="pabtn__spinner" aria-hidden="true" />;
+    }
+    return null;
+  };
+
   return (
     <button
       type="button"
@@ -62,22 +79,14 @@ export const ProfileActionButton = ({
       aria-label={finalAria}
       title={finalTitle}
     >
-      {Icon ? (
-        loading && spinOnLoading ? (
-          <Icon className="pabtn__icon spinning" />
-        ) : (
-          <Icon className="pabtn__icon" />
-        )
-      ) : (
-        loading ? <span className="pabtn__spinner" aria-hidden="true" /> : null
-      )}
+      {renderIcon()}
       {showLabel && finalLabel && <span className="pabtn__label">{finalLabel}</span>}
     </button>
   );
 };
 
 ProfileActionButton.propTypes = {
-  action: PropTypes.oneOf(['edit','delete','back','refresh','open','add','info','altText','kiLabel','download']).isRequired,
+  action: PropTypes.oneOf(['edit','delete','back','refresh','open','add','info','altText','kiLabel','download','canva']).isRequired,
   label: PropTypes.string,
   ariaLabel: PropTypes.string,
   title: PropTypes.string,
