@@ -28,6 +28,8 @@ const Search = lazy(() => import('../features/search/components/SearchPage'));
 const BundestagSearch = lazy(() => import('../features/bundestag/components/BundestagSearchPage'));
 const AskPage = lazy(() => import('../features/ask/AskPage'));
 const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
+const AskBundestagsfraktionPage = lazy(() => import('../features/ask/AskBundestagsfraktionPage'));
+const AskGrueneratorPage = lazy(() => import('../features/ask/AskGrueneratorPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
@@ -98,6 +100,8 @@ export const GrueneratorenBundle = {
   BundestagSearch: BundestagSearch,
   Ask: AskPage,
   AskGrundsatz: AskGrundsatzPage,
+  AskBundestagsfraktion: AskBundestagsfraktionPage,
+  AskGruenerator: AskGrueneratorPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
   AntragDetail: AntragDetailPage,
@@ -139,6 +143,8 @@ const standardRoutes = [
   { path: '/bundestag', component: GrueneratorenBundle.BundestagSearch, withForm: true },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
   { path: '/gruene-notebook', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
+  { path: '/gruene-bundestag', component: GrueneratorenBundle.AskBundestagsfraktion, withForm: true },
+  { path: '/gruenerator-notebook', component: GrueneratorenBundle.AskGruenerator, withForm: true },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },

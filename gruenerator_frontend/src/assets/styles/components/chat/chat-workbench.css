@@ -556,6 +556,153 @@
   background: var(--scrollbar-thumb-hover-color);
 }
 
+/* Multi-collection styles for Grünerator Notebook */
+.qa-multi-collection-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: var(--spacing-medium);
+  margin-bottom: var(--spacing-small);
+}
+
+.qa-multi-collection-item:last-child {
+  margin-bottom: 0;
+}
+
+.qa-multi-collection-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.qa-multi-collection-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--font-color);
+  flex: 1;
+}
+
+.qa-multi-collection-count {
+  font-size: 0.8rem;
+  color: var(--font-color-disabled);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.qa-multi-collection-description {
+  font-size: 0.85rem;
+  color: var(--font-color);
+  opacity: 0.8;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.qa-multi-collection-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  font-size: 0.8rem;
+  color: var(--klee);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.qa-multi-collection-link:hover {
+  color: var(--klee-light);
+  text-decoration: underline;
+}
+
+.qa-multi-collection-link .source-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.qa-collection-info-loading {
+  margin-top: var(--spacing-medium);
+  padding-top: var(--spacing-medium);
+  border-top: var(--border-subtle);
+}
+
+.qa-loading-indicator {
+  font-size: 0.9rem;
+  color: var(--klee);
+  font-weight: 500;
+  margin-bottom: var(--spacing-small);
+}
+
+.qa-loading-collections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsmall);
+}
+
+.qa-loading-collection-badge {
+  font-size: 0.75rem;
+  background: rgba(var(--klee-rgb), 0.2);
+  color: var(--klee);
+  padding: 2px 8px;
+  border-radius: 10px;
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.qa-collection-info-source {
+  margin-top: var(--spacing-medium);
+  padding-top: var(--spacing-small);
+}
+
+.qa-collection-info-source .source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  color: var(--klee);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.qa-collection-info-source .source-link:hover {
+  color: var(--klee-light);
+  text-decoration: underline;
+}
+
+.qa-collection-info-source .source-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Multi-collection sources display */
+.multi-collection-sources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+}
+
+.multi-collection-section {
+  border-bottom: var(--border-subtle);
+  padding-bottom: var(--spacing-medium);
+}
+
+.multi-collection-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.multi-collection-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--klee);
+  margin: 0 0 var(--spacing-medium) 0;
+  padding-bottom: var(--spacing-xsmall);
+  border-bottom: 2px solid var(--klee);
+  display: inline-block;
+}
+
 @media (max-width: 768px) {
   .qa-collection-info {
     display: none;
