@@ -319,7 +319,7 @@ const ChatUI = ({
           )}
           
           {isProcessing && (
-            <motion.div 
+            <motion.div
               key="typing-indicator"
               className="chat-message assistant"
               initial={{ opacity: 0, y: 3, scale: 0.99 }}
@@ -327,7 +327,17 @@ const ChatUI = ({
               exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: "easeOut" } }}
               transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
             >
-              <AssistantIcon className="assistant-icon" />
+              {userAvatarProps.type === 'robot' ? (
+                <div className="assistant-icon-wrapper">
+                  <img
+                    src={userAvatarProps.src}
+                    alt={userAvatarProps.alt}
+                    className="assistant-icon assistant-robot-image"
+                  />
+                </div>
+              ) : (
+                <AssistantIcon className="assistant-icon" />
+              )}
               <TypingIndicator />
             </motion.div>
           )}
