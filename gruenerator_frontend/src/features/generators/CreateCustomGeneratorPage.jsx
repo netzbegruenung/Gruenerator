@@ -394,7 +394,7 @@ const CreateCustomGeneratorPage = ({ onCompleted, onCancel }) => {
         );
 
       case STEPS.FIELDS:
-        const currentFields = getValues('fields');
+        const currentFields = watch('fields');
         return (
           <>
             {/* Heading removed to avoid duplication with FormSection title */}

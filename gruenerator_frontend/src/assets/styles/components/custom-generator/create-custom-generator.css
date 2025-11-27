@@ -16,6 +16,7 @@ h3 {
 
 /* Modern list group styles (token-based, dark-mode aware) */
 .list-group {
+  list-style: none;
   padding: 0;
   margin: var(--spacing-large) 0;
   border-radius: var(--card-border-radius-small);
