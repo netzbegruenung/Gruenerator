@@ -21,27 +21,6 @@
     "nameField": "name",
     "userField": "user_id"
   },
-  "tools": [
-    {
-      "name": "search_generator_documents",
-      "description": "Search through documents associated with this custom generator to find relevant information for generating the requested content. Use this tool to find specific facts, quotes, or context from the generator's knowledge base.",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string",
-            "description": "Search terms to find relevant content in the generator's documents. Be specific and focused on what information you need."
-          },
-          "search_mode": {
-            "type": "string",
-            "enum": ["vector", "hybrid", "keyword"],
-            "description": "Search mode: vector (semantic), hybrid (semantic + keyword), or keyword (text matching). Default is hybrid for best results."
-          }
-        },
-        "required": ["query"]
-      }
-    }
-  ],
   "requestTemplate": "{{processedPrompt}}\n\n{{#if formDataFields}}\nFormulardaten:\n{{#each formDataFields}}\n{{key}}: {{value}}\n{{/each}}\n{{/if}}",
   "webSearchQuery": "{{extractedTerms}} {{generatorName}}",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
