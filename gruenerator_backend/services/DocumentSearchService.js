@@ -132,8 +132,9 @@ class DocumentSearchService extends BaseSearchService {
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
             const isGrundsatz = params.filters?.searchCollection === 'grundsatz_documents';
-            // Allow null userId for system grundsatz searches
-            const userId = isGrundsatz && (params.userId === null || params.userId === undefined)
+            const isBundestagContent = params.filters?.searchCollection === 'bundestag_content';
+            // Allow null userId for system searches (grundsatz or bundestag_content)
+            const userId = (isGrundsatz || isBundestagContent) && (params.userId === null || params.userId === undefined)
                 ? null
                 : InputValidator.validateUserId(params.userId);
 
@@ -177,8 +178,9 @@ class DocumentSearchService extends BaseSearchService {
         }
 
         // Flat shape (direct external calls)
-        // Special-case: allow null user_id when searching grundsatz_documents
-        if (params && params.searchCollection === 'grundsatz_documents' && (params.user_id === null || params.user_id === undefined)) {
+        // Special-case: allow null user_id when searching system collections (grundsatz or bundestag)
+        const isSystemCollection = params && (params.searchCollection === 'grundsatz_documents' || params.searchCollection === 'bundestag_content');
+        if (isSystemCollection && (params.user_id === null || params.user_id === undefined)) {
             const query = InputValidator.validateSearchQuery(params.query);
             // Optional fields
             const limit = InputValidator.validateNumber(
@@ -213,7 +215,7 @@ class DocumentSearchService extends BaseSearchService {
                     documentIds,
                     sourceType: params.sourceType,
                     group_id: params.group_id,
-                    searchCollection: 'grundsatz_documents'
+                    searchCollection: params.searchCollection
                 },
                 options: {
                     limit,
@@ -626,9 +628,10 @@ class DocumentSearchService extends BaseSearchService {
         console.log(`[DocumentSearchService] Qdrant vectorSearch returned ${results.length} hits`);
         
         // Transform to expected format for BaseSearchService
+        // Use url as fallback for document_id (for bundestag_content collection)
         return results.map(result => ({
             id: result.id,
-            document_id: result.payload.document_id,
+            document_id: result.payload.document_id || result.payload.url,
             chunk_index: result.payload.chunk_index,
             chunk_text: result.payload.chunk_text,
             similarity: result.score,
@@ -637,8 +640,9 @@ class DocumentSearchService extends BaseSearchService {
             content_type: result.payload.content_type ?? null,
             page_number: result.payload.page_number ?? null,
             created_at: result.payload.created_at,
+            url: result.payload.url,
             documents: {
-                id: result.payload.document_id,
+                id: result.payload.document_id || result.payload.url,
                 title: result.payload.title || 'Untitled',
                 filename: result.payload.filename || '',
                 created_at: result.payload.created_at
@@ -696,11 +700,12 @@ class DocumentSearchService extends BaseSearchService {
             }
         );
         console.log(`[DocumentSearchService] Qdrant hybridSearch returned ${hybridResult.results.length} hits`);
-        
+
         // Transform to expected format with hybrid metadata
+        // Use url as fallback for document_id (for bundestag_content collection)
         return hybridResult.results.map(result => ({
             id: result.id,
-            document_id: result.payload.document_id,
+            document_id: result.payload.document_id || result.payload.url,
             chunk_index: result.payload.chunk_index,
             chunk_text: result.payload.chunk_text,
             similarity: result.score,
@@ -709,11 +714,12 @@ class DocumentSearchService extends BaseSearchService {
             content_type: result.payload.content_type ?? null,
             page_number: result.payload.page_number ?? null,
             created_at: result.payload.created_at,
+            url: result.payload.url,
             searchMethod: result.searchMethod || 'hybrid',
             originalVectorScore: result.originalVectorScore,
             originalTextScore: result.originalTextScore,
             documents: {
-                id: result.payload.document_id,
+                id: result.payload.document_id || result.payload.url,
                 title: result.payload.title || 'Untitled',
                 filename: result.payload.filename || '',
                 created_at: result.payload.created_at
@@ -1045,6 +1051,89 @@ class DocumentSearchService extends BaseSearchService {
         } catch (error) {
             console.error('[DocumentSearchService] Service not ready:', error);
             return false;
+        }
+    }
+
+    /**
+     * Search Bundestag content (gruene-bundestag.de crawled content)
+     * @param {string} query - Search query
+     * @param {Object} options - Search options
+     */
+    async searchBundestagContent(query, options = {}) {
+        try {
+            await this.ensureInitialized();
+
+            const {
+                section = null,
+                limit = 10,
+                threshold = 0.3,
+                hybridMode = true
+            } = options;
+
+            // Generate query embedding
+            const queryVector = await fastEmbedService.generateEmbedding(query);
+
+            // Search using Qdrant
+            const searchResult = await this.qdrant.searchBundestagContent(queryVector, {
+                section,
+                limit,
+                threshold
+            });
+
+            if (!searchResult.success) {
+                return {
+                    success: false,
+                    results: [],
+                    error: 'Search failed'
+                };
+            }
+
+            // Group results by URL for better presentation
+            const urlGroups = new Map();
+            for (const result of searchResult.results) {
+                const url = result.url;
+                if (!urlGroups.has(url)) {
+                    urlGroups.set(url, {
+                        url,
+                        title: result.title,
+                        section: result.section,
+                        published_at: result.published_at,
+                        maxScore: result.score,
+                        chunks: []
+                    });
+                }
+                const group = urlGroups.get(url);
+                group.chunks.push({
+                    text: result.chunk_text,
+                    chunk_index: result.chunk_index,
+                    score: result.score
+                });
+                if (result.score > group.maxScore) {
+                    group.maxScore = result.score;
+                }
+            }
+
+            // Convert to array and sort by score
+            const groupedResults = Array.from(urlGroups.values())
+                .sort((a, b) => b.maxScore - a.maxScore)
+                .slice(0, limit);
+
+            return {
+                success: true,
+                results: groupedResults,
+                query: query.trim(),
+                searchType: 'bundestag_content',
+                totalHits: searchResult.total,
+                message: `Found ${groupedResults.length} relevant page(s) from gruene-bundestag.de`
+            };
+
+        } catch (error) {
+            console.error('[DocumentSearchService] Bundestag search failed:', error);
+            return {
+                success: false,
+                results: [],
+                error: error.message
+            };
         }
     }
 }

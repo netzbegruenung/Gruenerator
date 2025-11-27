@@ -153,15 +153,30 @@ export function generateQueryVariants(query) {
 
 /**
  * Check if text contains any normalized variant of the query
+ * For multi-word queries, checks if ALL words are present (not necessarily as exact phrase)
  * @param {string} text - Text to search in
  * @param {string} query - Query to search for
- * @returns {boolean} True if any variant is found
+ * @returns {boolean} True if query/all words are found
  */
 export function containsNormalized(text, query) {
   if (!query) return false;
   const normText = normalizeText(text);
 
-  // Generate variants and check if any match
+  // Generate variants and check if any match as exact phrase
   const variants = generateQueryVariants(query);
-  return variants.some(v => normText.includes(v));
+  if (variants.some(v => normText.includes(v))) {
+    return true;
+  }
+
+  // For multi-word queries: check if ALL individual words are present
+  const words = query.toLowerCase().trim().split(/\s+/).filter(w => w.length >= 3);
+  if (words.length > 1) {
+    const allWordsPresent = words.every(word => {
+      const wordVariants = generateQueryVariants(word);
+      return wordVariants.some(v => normText.includes(v));
+    });
+    if (allWordsPresent) return true;
+  }
+
+  return false;
 }

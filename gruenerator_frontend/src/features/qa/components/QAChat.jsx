@@ -9,6 +9,7 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useQAChatLogic from '../hooks/useQAChatLogic.jsx';
 import QAChatMessage from './QAChatMessage';
 import { QA_CHAT_MODES } from '../config/qaChatModes';
+import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import '../../../assets/styles/features/qa/qa-chat.css';
 
 const QAChat = () => {
@@ -104,4 +105,6 @@ const QAChat = () => {
   );
 };
 
-export default QAChat;
+export default withAuthRequired(QAChat, {
+  title: 'Q&A Notebook'
+});

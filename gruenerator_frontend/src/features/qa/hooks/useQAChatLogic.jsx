@@ -61,19 +61,21 @@ const useQAChatLogic = ({
         const resultId = `qa-${collectionId}-${Date.now()}`;
         const sources = result.sources || [];
         const citations = result.citations || [];
+        const additionalSources = result.allSources || [];
 
         setGeneratedText(resultId, result.answer);
-        setGeneratedTextMetadata(resultId, { sources, citations });
+        setGeneratedTextMetadata(resultId, { sources, citations, additionalSources });
 
         setQaResults(prev => [...prev, {
           id: resultId,
           componentId: resultId,
           title: question,
           content: { text: result.answer },
-          displayActions: sources.length > 0 ? (
+          displayActions: (sources.length > 0 || additionalSources.length > 0) ? (
             <CitationSourcesDisplay
               sources={sources}
               citations={citations}
+              additionalSources={additionalSources}
               linkConfig={linkConfig}
               title="Quellen"
               className="qa-citation-sources"

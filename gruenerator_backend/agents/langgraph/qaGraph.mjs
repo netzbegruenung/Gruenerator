@@ -19,12 +19,15 @@ function expandSearchResultsToChunks(results) {
   for (const r of results) {
     const title = r.title || r.document_title || r.filename || 'Unbenanntes Dokument';
     const topChunks = r.top_chunks || [];
+    // For bundestag_content: use URL as document_id if no document_id exists
+    const docId = r.document_id || r.url;
 
     if (topChunks.length > 0) {
       // Create one result per chunk for individual citations
       for (const chunk of topChunks) {
         expanded.push({
-          document_id: r.document_id,
+          document_id: docId,
+          url: r.url || null,
           title,
           snippet: chunk.preview || '',
           filename: r.filename || null,
@@ -36,7 +39,8 @@ function expandSearchResultsToChunks(results) {
     } else {
       // Fallback: use relevant_content if no top_chunks
       expanded.push({
-        document_id: r.document_id,
+        document_id: docId,
+        url: r.url || null,
         title,
         snippet: (r.relevant_content || r.chunk_text || ''),
         filename: r.filename || null,
@@ -133,8 +137,8 @@ function dedupeAndDiversify(results, opts = {}) {
   // Calculate dynamic parameters if not explicitly overridden
   const dynamicParams = calculateDynamicParams(results);
 
-  const limitPerDoc = opts.limitPerDoc ?? 4;
-  const maxTotal = opts.maxTotal ?? dynamicParams.maxTotal;
+  // No per-document limit - let the AI decide what's useful
+  const maxTotal = opts.maxTotal ?? Math.max(dynamicParams.maxTotal, 40);
   const qualityMin = opts.qualityMin ?? dynamicParams.qualityMin;
 
   // Sort by similarity desc, then title asc
@@ -142,16 +146,8 @@ function dedupeAndDiversify(results, opts = {}) {
     .filter(r => r.similarity >= qualityMin) // Apply dynamic quality filter
     .sort((a, b) => (b.similarity - a.similarity) || String(a.title).localeCompare(String(b.title)));
 
-  const seenPerDoc = new Map();
-  const out = [];
-  for (const r of sorted) {
-    const count = seenPerDoc.get(r.document_id) || 0;
-    if (count >= limitPerDoc) continue;
-    seenPerDoc.set(r.document_id, count + 1);
-    out.push(r);
-    if (out.length >= maxTotal) break;
-  }
-  return out;
+  // Return all quality results up to maxTotal - no per-document limit
+  return sorted.slice(0, maxTotal);
 }
 
 function buildReferencesMap(results) {
@@ -169,6 +165,7 @@ function buildReferencesMap(results) {
       date: new Date().toISOString(),
       source: 'qa_documents',
       document_id: r.document_id,
+      url: r.url || null,
       filename: r.filename,
       similarity_score: r.similarity,
       chunk_index: r.chunk_index
@@ -264,6 +261,7 @@ function validateAndInjectCitations(draft, refMap) {
       cited_text: cited,
       document_title: ref.title,
       document_id: ref.document_id,
+      url: ref.url || null,
       similarity_score: ref.similarity_score,
       chunk_index: ref.chunk_index,
       filename: ref.filename
@@ -278,6 +276,7 @@ function validateAndInjectCitations(draft, refMap) {
       byDoc.set(key, {
         document_id: c.document_id,
         document_title: c.document_title,
+        url: c.url || null,
         chunk_texts: [c.cited_text],
         similarity_scores: [c.similarity_score],
         citations: []
@@ -295,6 +294,7 @@ function validateAndInjectCitations(draft, refMap) {
   const sources = [...byDoc.values()].map(source => ({
     document_id: source.document_id,
     document_title: source.document_title,
+    url: source.url || null,
     chunk_text: source.chunk_texts.join(' [...] '), // Combine all chunks with separator
     similarity_score: Math.max(...source.similarity_scores), // Use highest similarity score
     citations: source.citations
@@ -503,16 +503,35 @@ export async function runQaGraph({ question, collection, aiWorkerPool, searchCol
     errors = v2.errors;
   }
 
+  // Build allSources: all searched results that were NOT cited
+  // This provides background context for the user
+  const citedDocChunks = new Set(
+    citations.map(c => `${c.document_id}:${c.chunk_index}`)
+  );
+
+  const allSources = searchResults
+    .filter(r => !citedDocChunks.has(`${r.document_id}:${r.chunk_index}`))
+    .map(r => ({
+      document_id: r.document_id,
+      document_title: r.title,
+      url: r.url || null,
+      chunk_text: r.snippet,
+      similarity_score: r.similarity,
+      chunk_index: r.chunk_index
+    }));
+
   return {
     success: true,
     answer: cleanDraft,
     citations,
     sources,
+    allSources, // Uncited sources for "Weitere Quellen" section
     metadata: {
       provider: 'qa_graph',
       timestamp: new Date().toISOString(),
       uniqueDocuments: new Set(searchResults.map(r => r.document_id)).size,
-      citations_count: citations.length
+      citations_count: citations.length,
+      allSources_count: allSources.length
     }
   };
 }
