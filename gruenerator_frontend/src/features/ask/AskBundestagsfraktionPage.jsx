@@ -1,5 +1,5 @@
 import React from 'react';
-import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
+import { HiDocumentText, HiInformationCircle, HiExternalLink } from 'react-icons/hi';
 import { CitationModal } from '../../components/common/Citation';
 import ChatWorkbenchLayout from '../../components/common/Chat/ChatWorkbenchLayout';
 import ResultsDeck from '../chat/components/ResultsDeck';
@@ -11,15 +11,15 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import '../../assets/styles/features/qa/qa-chat.css';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
-const COLLECTION_NAME = 'Grünes Notebook';
-const WELCOME_MESSAGE = 'Willkommen im Grünen Notebook! Ich beantworte deine Fragen zu den Grundsatzprogrammen von Bündnis 90/Die Grünen. Du kannst mich zu allen Inhalten des Grundsatzprogramms 2020, EU-Wahlprogramms 2024 und Regierungsprogramms 2025 fragen.';
+const COLLECTION_NAME = 'Grüne Bundestagsfraktion';
+const WELCOME_MESSAGE = 'Willkommen! Ich beantworte deine Fragen zu den Inhalten der Grünen Bundestagsfraktion. Du kannst mich zu Fachtexten, politischen Zielen und Positionen fragen – alle Informationen stammen direkt von gruene-bundestag.de.';
 
-const AskGrundsatzPage = () => {
+const AskBundestagsfraktionPage = () => {
   const {
     chatMessages, inputValue, viewMode, qaResults, submitLoading,
     setInputValue, setViewMode, handleSubmitQuestion, clearResults
   } = useQAChatLogic({
-    collectionId: 'grundsatz-system',
+    collectionId: 'bundestagsfraktion-system',
     collectionName: COLLECTION_NAME,
     welcomeMessage: WELCOME_MESSAGE,
     extraApiParams: { search_user_id: SYSTEM_USER_ID }
@@ -32,24 +32,30 @@ const AskGrundsatzPage = () => {
         <h3>{COLLECTION_NAME}</h3>
       </div>
       <div className="qa-collection-info-description">
-        Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.
+        Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.
       </div>
       <div className="qa-collection-info-documents">
-        <h4>Verfügbare Dokumente:</h4>
+        <h4>Verfügbare Inhalte:</h4>
         <ul>
           <li>
             <HiDocumentText className="document-icon" />
-            <span>Grundsatzprogramm 2020 (136 Seiten)</span>
+            <span>Fachtexte (468 Artikel)</span>
           </li>
           <li>
             <HiDocumentText className="document-icon" />
-            <span>EU-Wahlprogramm 2024 (114 Seiten)</span>
+            <span>Unsere Ziele (50 Themengebiete)</span>
           </li>
           <li>
             <HiDocumentText className="document-icon" />
-            <span>Regierungsprogramm 2025 (160 Seiten)</span>
+            <span>Einfach erklärt (24 Artikel)</span>
           </li>
         </ul>
+      </div>
+      <div className="qa-collection-info-source">
+        <a href="https://www.gruene-bundestag.de" target="_blank" rel="noopener noreferrer" className="source-link">
+          <HiExternalLink className="source-icon" />
+          <span>gruene-bundestag.de</span>
+        </a>
       </div>
     </div>
   );
@@ -65,7 +71,7 @@ const AskGrundsatzPage = () => {
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
         isProcessing={submitLoading}
-        placeholder="Stell deine Frage zu den Grundsatzprogrammen..."
+        placeholder="Stell deine Frage zur Grünen Bundestagsfraktion..."
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
@@ -79,6 +85,6 @@ const AskGrundsatzPage = () => {
   );
 };
 
-export default withAuthRequired(AskGrundsatzPage, {
-  title: 'Grünes Notebook'
+export default withAuthRequired(AskBundestagsfraktionPage, {
+  title: 'Grüne Bundestagsfraktion'
 });
