@@ -7,6 +7,7 @@
   "color": "#005538",
   "order": 1,
   "active": true,
+  "enableCanvaEdit": true,
   "form": {
     "fields": [
       {
@@ -41,6 +42,7 @@
       "displayName": "Festlich Grün",
       "description": "Grüner Hintergrund mit festlichen Elementen",
       "previewImage": "/campaigns/christmas2025/bg_green_festive.png",
+      "canvaTemplateUrl": "https://www.canva.com/design/DAG44d0tkRU/te2STZqcMcLkvQifLoQIuw/view?utm_content=DAG44d0tkRU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "order": 1
     },
     {
@@ -48,6 +50,7 @@
       "displayName": "Tannenzweig",
       "description": "Grüner Hintergrund mit Tannenzweigen",
       "previewImage": "/campaigns/christmas2025/bg_green_pine.png",
+      "canvaTemplateUrl": "https://www.canva.com/design/DAG44d0tkRU/te2STZqcMcLkvQifLoQIuw/view?utm_content=DAG44d0tkRU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "order": 2
     },
     {
@@ -55,6 +58,7 @@
       "displayName": "Schneeflocken Grün",
       "description": "Grüner Hintergrund mit Schneeflocken",
       "previewImage": "/campaigns/christmas2025/bg_green_snowflakes.png",
+      "canvaTemplateUrl": "https://www.canva.com/design/DAG44d0tkRU/te2STZqcMcLkvQifLoQIuw/view?utm_content=DAG44d0tkRU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "order": 3
     },
     {
@@ -62,6 +66,7 @@
       "displayName": "Winter Sand",
       "description": "Beiger Hintergrund mit winterlichen Elementen",
       "previewImage": "/campaigns/christmas2025/bg_sand_winter.png",
+      "canvaTemplateUrl": "https://www.canva.com/design/DAG44d0tkRU/te2STZqcMcLkvQifLoQIuw/view?utm_content=DAG44d0tkRU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "order": 4
     },
     {
@@ -69,6 +74,7 @@
       "displayName": "Schneeflocken Sand",
       "description": "Beiger Hintergrund mit Schneeflocken",
       "previewImage": "/campaigns/christmas2025/bg_sand_snowflakes.png",
+      "canvaTemplateUrl": "https://www.canva.com/design/DAG44d0tkRU/te2STZqcMcLkvQifLoQIuw/view?utm_content=DAG44d0tkRU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "order": 5
     },
     {
@@ -76,6 +82,7 @@
       "displayName": "Punkte Sand",
       "description": "Beiger Hintergrund mit dekorativen Punkten",
       "previewImage": "/campaigns/christmas2025/bg_sand_dots.png",
+      "canvaTemplateUrl": "https://www.canva.com/design/DAG44d0tkRU/te2STZqcMcLkvQifLoQIuw/view?utm_content=DAG44d0tkRU&utm_campaign=designshare&utm_medium=link&utm_source=publishsharelink&mode=preview",
       "order": 6
     }
   ]

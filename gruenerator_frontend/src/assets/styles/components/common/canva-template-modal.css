@@ -1,0 +1,228 @@
+/* Canva Template Modal */
+.canva-template-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: var(--spacing-medium);
+}
+
+.canva-template-modal {
+  position: relative;
+  background-color: var(--card-background);
+  border-radius: var(--card-border-radius-medium);
+  box-shadow: var(--card-shadow-elevated);
+  border: var(--card-border);
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: canvaModalSlideIn 0.2s ease-out;
+}
+
+@keyframes canvaModalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.canva-template-modal-close {
+  position: absolute;
+  top: var(--spacing-small);
+  right: var(--spacing-small);
+  background: var(--card-background);
+  border: none;
+  font-size: 1.5rem;
+  color: var(--font-color);
+  cursor: pointer;
+  padding: var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  transition: var(--input-transition);
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.canva-template-modal-close:hover {
+  background-color: var(--background-color-alt);
+  color: var(--interactive-accent-color);
+}
+
+/* Desktop: Horizontal layout */
+.canva-template-modal-content {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-large);
+  padding: var(--spacing-large);
+}
+
+.canva-template-preview {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--background-color-alt);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--spacing-small);
+}
+
+.canva-template-preview-image {
+  width: 180px;
+  height: auto;
+  border-radius: var(--card-border-radius-small);
+  object-fit: contain;
+}
+
+.canva-template-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  flex: 1;
+}
+
+.canva-template-modal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.canva-template-modal-title h4 {
+  margin: 0;
+  color: var(--font-color-h);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.canva-template-modal-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--interactive-accent-color);
+}
+
+.canva-template-description {
+  color: var(--font-color);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.canva-template-description p {
+  margin: 0;
+}
+
+.canva-template-actions {
+  display: flex;
+}
+
+.canva-template-open-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  background: linear-gradient(135deg, #7d2ae8 0%, #00c4cc 100%);
+  color: var(--weiss);
+  border: none;
+  padding: var(--spacing-small) var(--spacing-large);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--input-transition);
+}
+
+.canva-template-open-button:hover {
+  transform: scale(1.01);
+  box-shadow: 0 4px 12px rgba(125, 42, 232, 0.3);
+}
+
+.canva-template-button-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Sharepic Text Section */
+.canva-template-text {
+  margin-top: var(--spacing-medium);
+  padding: var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border-radius: var(--card-border-radius-small);
+  width: 100%;
+}
+
+.canva-template-text-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-small);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--font-color-h);
+}
+
+.canva-template-copy-button {
+  padding: var(--spacing-xsmall);
+}
+
+.canva-template-text-content {
+  white-space: pre-line;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--font-color);
+}
+
+/* Mobile: Vertical layout */
+@media (max-width: 560px) {
+  .canva-template-modal-overlay {
+    padding: var(--spacing-small);
+  }
+
+  .canva-template-modal {
+    max-height: 90vh;
+    max-width: 100%;
+  }
+
+  .canva-template-modal-content {
+    flex-direction: column;
+    padding: var(--spacing-medium);
+    padding-top: var(--spacing-xlarge);
+  }
+
+  .canva-template-preview {
+    padding: var(--spacing-medium);
+  }
+
+  .canva-template-preview-image {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .canva-template-info {
+    text-align: center;
+    align-items: center;
+  }
+
+  .canva-template-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .canva-template-open-button {
+    width: 100%;
+  }
+}

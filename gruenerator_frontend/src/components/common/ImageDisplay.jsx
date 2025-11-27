@@ -8,6 +8,7 @@ import { ProfileIconButton, ProfileActionButton } from '../profile/actions/Profi
 import useAltTextGeneration from '../hooks/useAltTextGeneration';
 import useSharepicStore from '../../stores/sharepicStore';
 import apiClient from '../utils/apiClient';
+import CanvaTemplateModal from './CanvaTemplateModal';
 
 /**
  * Component for displaying generated images with preview, lightbox, and download functionality
@@ -27,6 +28,8 @@ const ImageDisplay = ({
   downloadButtonText = "Bild herunterladen",
   downloadFilename,
   enableKiLabel = false,
+  enableCanvaEdit = false,
+  canvaTemplateUrl,
   onSharepicUpdate,
   minimal = false,
   onEditModeToggle,
@@ -43,6 +46,12 @@ const ImageDisplay = ({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isKiLabelLoading, setIsKiLabelLoading] = useState(false);
   const [kiLabelError, setKiLabelError] = useState(null);
+  const [isCanvaModalOpen, setIsCanvaModalOpen] = useState(false);
+
+  // Resolve Canva template URL (prop > sharepicData > null)
+  const resolvedCanvaUrl = canvaTemplateUrl || currentSharepic?.canvaTemplateUrl || null;
+  const resolvedCanvaPreview = currentSharepic?.canvaPreviewImage || currentSharepic?.previewImage || null;
+  const showCanvaButton = enableCanvaEdit && !!resolvedCanvaUrl;
   
   // Alt text functionality
   const { generateAltTextForImage } = useAltTextGeneration();
@@ -337,6 +346,15 @@ const ImageDisplay = ({
                     title="KI-Label hinzufügen"
                   />
                 )}
+                {showCanvaButton && (
+                  <ProfileIconButton
+                    action="canva"
+                    onClick={() => setIsCanvaModalOpen(true)}
+                    size="s"
+                    className="image-overlay-btn"
+                    title="In Canva bearbeiten"
+                  />
+                )}
                 {showEditButton && (
                   <ProfileIconButton
                     action="edit"
@@ -414,6 +432,22 @@ const ImageDisplay = ({
       )}
       </div>
 
+      {/* Canva Template Modal */}
+      {isCanvaModalOpen && resolvedCanvaUrl && (
+        <CanvaTemplateModal
+          url={resolvedCanvaUrl}
+          previewImage={resolvedCanvaPreview}
+          sharepicLines={{
+            line1: currentSharepic?.line1,
+            line2: currentSharepic?.line2,
+            line3: currentSharepic?.line3,
+            line4: currentSharepic?.line4,
+            line5: currentSharepic?.line5
+          }}
+          onClose={() => setIsCanvaModalOpen(false)}
+        />
+      )}
+
       {/* Lightbox */}
       {isLightboxOpen && (
         <div className="image-lightbox-overlay" onClick={handleLightboxOverlayClick}>
@@ -473,13 +507,17 @@ ImageDisplay.propTypes = {
       text: PropTypes.string,
       image: PropTypes.string.isRequired,
       type: PropTypes.string,
-      slogans: PropTypes.array
+      slogans: PropTypes.array,
+      canvaTemplateUrl: PropTypes.string,
+      canvaPreviewImage: PropTypes.string
     }),
     PropTypes.arrayOf(PropTypes.shape({
       text: PropTypes.string,
       image: PropTypes.string.isRequired,
       type: PropTypes.string,
-      slogans: PropTypes.array
+      slogans: PropTypes.array,
+      canvaTemplateUrl: PropTypes.string,
+      canvaPreviewImage: PropTypes.string
     }))
   ]).isRequired,
   onEdit: PropTypes.func,
@@ -488,6 +526,8 @@ ImageDisplay.propTypes = {
   downloadButtonText: PropTypes.string,
   downloadFilename: PropTypes.string,
   enableKiLabel: PropTypes.bool,
+  enableCanvaEdit: PropTypes.bool,
+  canvaTemplateUrl: PropTypes.string,
   onSharepicUpdate: PropTypes.func,
   minimal: PropTypes.bool,
   onEditModeToggle: PropTypes.func,

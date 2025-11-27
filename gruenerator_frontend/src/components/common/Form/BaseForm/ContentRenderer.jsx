@@ -145,6 +145,8 @@ const ContentRenderer = ({
                 downloadButtonText={processedGeneratedContent.sharepicDownloadText}
                 downloadFilename={processedGeneratedContent.sharepicDownloadFilename || "sharepic.png"}
                 enableKiLabel={processedGeneratedContent.enableKiLabel}
+                enableCanvaEdit={processedGeneratedContent.enableCanvaEdit}
+                canvaTemplateUrl={processedGeneratedContent.canvaTemplateUrl}
                 onSharepicUpdate={processedGeneratedContent.onSharepicUpdate}
               />
             ) : (
@@ -166,6 +168,13 @@ const ContentRenderer = ({
                   ? processedGeneratedContent.onSharepicUpdate[index]
                   : processedGeneratedContent.onSharepicUpdate;
 
+                const enableCanvaEdit = Array.isArray(processedGeneratedContent.enableCanvaEdit)
+                  ? processedGeneratedContent.enableCanvaEdit[index]
+                  : processedGeneratedContent.enableCanvaEdit;
+                const canvaTemplateUrl = Array.isArray(processedGeneratedContent.canvaTemplateUrl)
+                  ? processedGeneratedContent.canvaTemplateUrl[index]
+                  : processedGeneratedContent.canvaTemplateUrl;
+
                 return (
                   <ImageDisplay
                     key={sharepicData.id || `${sharepicData.type || 'sharepic'}-${index}`}
@@ -178,6 +187,8 @@ const ContentRenderer = ({
                     downloadButtonText={downloadButtonText}
                     downloadFilename={downloadFilename}
                     enableKiLabel={enableKiLabel}
+                    enableCanvaEdit={enableCanvaEdit}
+                    canvaTemplateUrl={canvaTemplateUrl}
                     onSharepicUpdate={onSharepicUpdate}
                   />
                 );
