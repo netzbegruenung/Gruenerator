@@ -34,7 +34,7 @@ const QAChat = () => {
   }, [id, getQACollection, fetchQACollections, user, qaCollections]);
 
   const {
-    chatMessages, inputValue, viewMode, qaResults, submitLoading,
+    chatMessages, inputValue, viewMode, qaResults, submitLoading, isMobileView,
     setInputValue, setViewMode, handleSubmitQuestion, clearResults
   } = useQAChatLogic({
     collectionId: id,
@@ -80,11 +80,14 @@ const QAChat = () => {
     </div>
   );
 
+  const effectiveMode = isMobileView ? 'chat' : viewMode;
+  const rightPanelContent = isMobileView ? null : (qaResults.length > 0 ? <ResultsDeck results={qaResults} onClear={clearResults} /> : renderInfoPanel());
+
   return (
     <>
       <CitationModal />
       <ChatWorkbenchLayout
-        mode={viewMode}
+        mode={effectiveMode}
         modes={QA_CHAT_MODES}
         onModeChange={setViewMode}
         title={collection.name}
@@ -95,11 +98,12 @@ const QAChat = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={viewMode} assistantName={collection.name} />}
-        rightPanelContent={qaResults.length > 0 ? <ResultsDeck results={qaResults} onClear={clearResults} /> : renderInfoPanel()}
-        infoPanelContent={renderInfoPanel()}
+        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={effectiveMode} assistantName={collection.name} />}
+        rightPanelContent={rightPanelContent}
+        infoPanelContent={isMobileView ? null : renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}
+        hideModeSelector={isMobileView}
       />
     </>
   );
