@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     sites BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
     ai_sharepic BOOLEAN DEFAULT FALSE,
-    interactive_antrag_enabled BOOLEAN DEFAULT FALSE,
+    interactive_antrag_enabled BOOLEAN DEFAULT TRUE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference
     document_mode TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
