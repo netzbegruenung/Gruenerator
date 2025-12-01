@@ -187,8 +187,8 @@
 
 .chat-message.assistant p,
 .chat-message.assistant * {
-  color: var(--ai-message-text-color) !important;
-  margin-top: 0 !important;
+  color: var(--ai-message-text-color);
+  margin-top: 0;
 }
 
 /* Ensure assistant text is appropriately sized for chat */

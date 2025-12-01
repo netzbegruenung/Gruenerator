@@ -136,6 +136,11 @@
   transform: scale(1.05);
 }
 
+[data-theme="dark"] .citation-badge {
+  background-color: var(--primary-400);
+  color: var(--grey-950);
+}
+
 /* Citation Popup */
 .citation-popup {
   position: absolute;
@@ -416,6 +421,11 @@
 
   .citation-text {
     display: inline;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    background: none;
+    padding: 0;
+    border-radius: 0;
   }
 }
 
