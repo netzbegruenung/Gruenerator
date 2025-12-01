@@ -397,6 +397,27 @@
   flex-shrink: 0;
 }
 
+[data-theme="dark"] .citation-number {
+  color: var(--primary-400);
+}
+
+@media (max-width: 768px) {
+  .ask-citation-inline {
+    display: block;
+    padding: var(--spacing-xsmall);
+    margin-left: 0;
+  }
+
+  .citation-number {
+    min-width: auto;
+    display: inline;
+    margin-right: var(--spacing-xxsmall);
+  }
+
+  .citation-text {
+    display: inline;
+  }
+}
 
 .ask-document-context summary {
   cursor: pointer;
