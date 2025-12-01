@@ -93,7 +93,8 @@ class ProfileService {
                 memory: profileData.memory || false,
                 memory_enabled: profileData.memory_enabled || false,
                 canva: profileData.canva || false,
-                avatar_robot_id: profileData.avatar_robot_id || 1
+                avatar_robot_id: profileData.avatar_robot_id || 1,
+                interactive_antrag_enabled: profileData.interactive_antrag_enabled ?? true
             };
 
             await this.db.ensureInitialized();
@@ -369,7 +370,9 @@ class ProfileService {
             canva: profile.canva || false,
             labor: profile.labor_enabled || false,
             sites: profile.sites || false,
-            chat: profile.chat || false
+            chat: profile.chat || false,
+            interactiveAntrag: profile.interactive_antrag_enabled ?? true,
+            autoSaveOnExport: profile.auto_save_on_export || false
         };
 
         return {
@@ -400,7 +403,9 @@ class ProfileService {
             'memory': 'memory',
             'canva': 'canva',
             'sites': 'sites',
-            'chat': 'chat'
+            'chat': 'chat',
+            'interactiveAntrag': 'interactive_antrag_enabled',
+            'autoSaveOnExport': 'auto_save_on_export'
         };
 
         // Update all individual properties from profile
