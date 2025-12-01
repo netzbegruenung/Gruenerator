@@ -229,6 +229,27 @@
     padding: 5px 6px;
     min-width: 55px;
   }
+
+  .download-export .format-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 80px;
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+    min-width: auto;
+    max-width: calc(100vw - var(--spacing-small) * 2);
+  }
+
+  .wolke-subdropdown {
+    position: fixed;
+    top: auto;
+    bottom: 80px;
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+    min-width: auto;
+    max-width: calc(100vw - var(--spacing-small) * 2);
+    margin-left: 0;
+  }
 }
 
 /* Export Dropdown (ExportDropdown component) */
