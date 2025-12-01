@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
-import { CitationSourcesDisplay } from '../../../components/common/Citation';
 
 const useQAChatLogic = ({
   collectionId,
@@ -52,12 +51,6 @@ const useQAChatLogic = ({
       const result = await submitForm({ question, mode: viewMode, ...extraApiParams });
 
       if (result?.answer) {
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
-          content: 'Hier ist meine Antwort:',
-          timestamp: Date.now()
-        }]);
-
         const resultId = `qa-${collectionId}-${Date.now()}`;
         const sources = result.sources || [];
         const citations = result.citations || [];
@@ -66,22 +59,38 @@ const useQAChatLogic = ({
         setGeneratedText(resultId, result.answer);
         setGeneratedTextMetadata(resultId, { sources, citations, additionalSources });
 
-        setQaResults(prev => [...prev, {
-          id: resultId,
-          componentId: resultId,
-          title: question,
-          content: { text: result.answer },
-          displayActions: (sources.length > 0 || additionalSources.length > 0) ? (
-            <CitationSourcesDisplay
-              sources={sources}
-              citations={citations}
-              additionalSources={additionalSources}
-              linkConfig={linkConfig}
-              title="Quellen"
-              className="qa-citation-sources"
-            />
-          ) : null
-        }]);
+        if (isMobileView) {
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: result.answer,
+            timestamp: Date.now(),
+            resultData: {
+              resultId,
+              question,
+              sources,
+              citations,
+              additionalSources,
+              linkConfig
+            }
+          }]);
+        } else {
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: result.answer,
+            timestamp: Date.now()
+          }]);
+
+          setQaResults(prev => [...prev, {
+            id: resultId,
+            componentId: resultId,
+            title: question,
+            content: { text: result.answer },
+            sources,
+            citations,
+            additionalSources,
+            linkConfig
+          }]);
+        }
       }
     } catch (error) {
       console.error('[useQAChatLogic] Error:', error);
@@ -91,7 +100,7 @@ const useQAChatLogic = ({
         timestamp: Date.now()
       }]);
     }
-  }, [submitForm, user, viewMode, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig]);
+  }, [submitForm, user, viewMode, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig, isMobileView]);
 
   const clearResults = useCallback(() => setQaResults([]), []);
 
@@ -102,6 +111,7 @@ const useQAChatLogic = ({
     qaResults,
     submitLoading,
     user,
+    isMobileView,
     setInputValue,
     setViewMode,
     setChatMessages,
