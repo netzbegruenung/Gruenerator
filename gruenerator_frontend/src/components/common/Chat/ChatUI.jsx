@@ -34,7 +34,8 @@ const ChatUI = ({
   enableFileUpload = false,
   onFileSelect,
   attachedFiles = [],
-  onRemoveFile
+  onRemoveFile,
+  singleLine = false
 }) => {
   const chatContainerRef = useRef(null);
   const lastMessageIndexRef = useRef(0);
@@ -237,71 +238,93 @@ const ChatUI = ({
 
 
   const defaultRenderInput = () => (
-    <div className="floating-input">
-      {enableFileUpload && attachedFiles.length > 0 && (
-        <AttachedFilesList
-          files={attachedFiles}
-          onRemoveFile={onRemoveFile}
-          className="chat-attached-files"
-        />
-      )}
-      <div className="input-elements">
-        <textarea
-          className="form-input"
-          value={inputValue}
-          onChange={(e) => onInputChange && onInputChange(e.target.value)}
-          placeholder={placeholder}
-          disabled={disabled}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
-        />
-        <div className="chat-input-buttons">
-          {enableFileUpload && (
-            <>
-              <button
-                type="button"
-                className="chat-file-upload-button"
-                onClick={handleFileUploadClick}
-                disabled={disabled}
-                aria-label="Datei hinzufügen"
-              >
-                <FaPlus />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
-            </>
+    <>
+      <div className="floating-input">
+        {enableFileUpload && attachedFiles.length > 0 && (
+          <AttachedFilesList
+            files={attachedFiles}
+            onRemoveFile={onRemoveFile}
+            className="chat-attached-files"
+          />
+        )}
+        <div className="input-elements">
+          {singleLine ? (
+            <input
+              type="text"
+              className="form-input"
+              value={inputValue}
+              onChange={(e) => onInputChange && onInputChange(e.target.value)}
+              placeholder={placeholder}
+              disabled={disabled}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
+          ) : (
+            <textarea
+              className="form-input"
+              value={inputValue}
+              onChange={(e) => onInputChange && onInputChange(e.target.value)}
+              placeholder={placeholder}
+              disabled={disabled}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
           )}
-          <button
-            type="button"
-            className={`chat-send-button ${isVoiceRecording ? 'voice-recording' : ''}`}
-            onClick={inputValue.trim() ? handleSubmit : (isVoiceRecording ? stopRecording : startRecording)}
-            disabled={disabled || isVoiceProcessing}
-          >
-            {isVoiceRecording ? (
-              <FaStop />
-            ) : inputValue.trim() ? (
-              '➤'
-            ) : (
-              <FaMicrophone />
+          <div className="chat-input-buttons">
+            {enableFileUpload && (
+              <>
+                <button
+                  type="button"
+                  className="chat-file-upload-button"
+                  onClick={handleFileUploadClick}
+                  disabled={disabled}
+                  aria-label="Datei hinzufügen"
+                >
+                  <FaPlus />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+              </>
             )}
-          </button>
+            <button
+              type="button"
+              className={`chat-send-button ${isVoiceRecording ? 'voice-recording' : ''}`}
+              onClick={inputValue.trim() ? handleSubmit : (isVoiceRecording ? stopRecording : startRecording)}
+              disabled={disabled || isVoiceProcessing}
+            >
+              {isVoiceRecording ? (
+                <FaStop />
+              ) : inputValue.trim() ? (
+                '➤'
+              ) : (
+                <FaMicrophone />
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <span className="floating-input-warning">
+        kann Fehler machen. Überprüfe wichtige Informationen
+      </span>
+    </>
   );
 
   return (
-    <div className={`editor-chat ${fullScreen ? 'editor-chat-fullscreen' : ''} ${className}`}>
+    <div className={className}>
       {showHeader && (
         <div className="chat-header">
           <h3>{headerTitle}</h3>
@@ -312,7 +335,7 @@ const ChatUI = ({
           )}
         </div>
       )}
-      <div className={`editor-chat-messages markdown-styles ${fullScreen ? 'editor-chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
+      <div className={`chat-messages markdown-styles ${fullScreen ? 'chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
         <AnimatePresence initial={false}>
           {messages.map((msg, index) => 
             renderMessage ? renderMessage(msg, index) : defaultRenderMessage(msg, index)
@@ -346,7 +369,7 @@ const ChatUI = ({
       
       {children}
       
-      <div className="editor-chat-input">
+      <div className={`chat-input-area ${fullScreen ? 'chat-input-area-fullscreen' : ''}`}>
         {renderInput ? renderInput() : defaultRenderInput()}
       </div>
     </div>
@@ -379,7 +402,8 @@ ChatUI.propTypes = {
   enableFileUpload: PropTypes.bool,
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
-  onRemoveFile: PropTypes.func
+  onRemoveFile: PropTypes.func,
+  singleLine: PropTypes.bool
 };
 
 export default ChatUI;

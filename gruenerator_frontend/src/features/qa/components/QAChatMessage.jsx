@@ -1,19 +1,15 @@
-import React, { lazy, Suspense, useCallback } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { motion } from 'motion/react';
 import { HiChip } from 'react-icons/hi';
-import FormStateProvider from '../../../components/common/Form/FormStateProvider';
-import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import { CitationSourcesDisplay } from '../../../components/common/Citation';
+import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
+import ActionButtons from '../../../components/common/ActionButtons';
 import '../../../assets/styles/features/qa/qa-mobile-message.css';
+import '../../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-const QAChatMessage = ({ msg, index, viewMode, assistantName }) => {
+const QAChatMessage = ({ msg, index }) => {
   const hasResultData = msg.type === 'assistant' && msg.resultData;
-
-  const getExportableContent = useCallback(() => {
-    return msg.content || '';
-  }, [msg.content]);
 
   const hasSources = hasResultData && (
     (msg.resultData.sources?.length > 0) ||
@@ -32,25 +28,15 @@ const QAChatMessage = ({ msg, index, viewMode, assistantName }) => {
       {msg.type === 'user' && msg.userName && (
         <div className="chat-message-user-name">{msg.userName}</div>
       )}
-      {msg.type === 'assistant' && viewMode === 'chat' && assistantName && (
-        <div className="chat-message-user-name">{assistantName}</div>
-      )}
       {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
 
       {hasResultData ? (
         <div className="qa-mobile-result-content">
-          <FormStateProvider formId={`qa-mobile-${msg.resultData.resultId}`}>
-            <DisplaySection
-              value={msg.content}
-              generatedContent={msg.content}
-              useMarkdown={true}
-              componentName={msg.resultData.resultId}
-              getExportableContent={getExportableContent}
-              showEditModeToggle={false}
-              showUndoControls={false}
-              showRedoControls={false}
-            />
-          </FormStateProvider>
+          <CitationTextRenderer
+            text={msg.content}
+            citations={msg.resultData.citations}
+            className="qa-mobile-message-text"
+          />
           {hasSources && (
             <CitationSourcesDisplay
               sources={msg.resultData.sources}
@@ -61,6 +47,14 @@ const QAChatMessage = ({ msg, index, viewMode, assistantName }) => {
               className="qa-mobile-citation-sources"
             />
           )}
+          <ActionButtons
+            generatedContent={msg.content}
+            title={msg.resultData.question}
+            showExportDropdown={true}
+            showUndo={false}
+            showRedo={false}
+            className="qa-message-actions"
+          />
         </div>
       ) : (
         <div className="chat-message-content">

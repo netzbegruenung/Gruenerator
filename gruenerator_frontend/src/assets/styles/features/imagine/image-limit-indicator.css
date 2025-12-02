@@ -31,7 +31,7 @@
 
 .limit-indicator__note {
   font-size: var(--font-size-xsmall);
-  color: var(--font-color-muted);
+  color: var(--font-color);
   font-style: italic;
   text-align: center;
   margin-top: var(--spacing-xsmall);

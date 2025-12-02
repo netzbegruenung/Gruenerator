@@ -106,10 +106,19 @@
   font-weight: 600;
 }
 
+/* Citation Text Renderer - ensures inline flow with badges */
+.citation-text-renderer {
+  display: inline;
+}
+
+.citation-text-segment {
+  display: inline;
+}
+
 /* Citation Badge Components */
 .citation-badge-container {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 
 .citation-badge {
@@ -141,12 +150,8 @@
   color: var(--grey-950);
 }
 
-/* Citation Popup */
+/* Citation Popup - rendered via portal to document.body */
 .citation-popup {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
   background-color: var(--card-background);
   border: var(--card-border);
   border-radius: var(--card-border-radius-small);
@@ -154,30 +159,21 @@
   padding: var(--spacing-small);
   min-width: 200px;
   max-width: 300px;
-  z-index: 100;
-  margin-bottom: 8px;
+  z-index: 1000;
   animation: popupFadeIn 0.2s ease-out;
   font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
 }
 
-.citation-popup::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: var(--card-background);
-}
 
 @keyframes popupFadeIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(5px);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
   }
 }
 
@@ -283,7 +279,6 @@
   font-style: italic;
   line-height: 1.6;
   padding: var(--spacing-medium);
-  background-color: var(--background-color-alt);
   border-radius: var(--card-border-radius-small);
   font-size: 1rem;
 }

@@ -15,8 +15,6 @@ const useQAChatLogic = ({
   const { isMobileView } = useResponsive(768);
   const [chatMessages, setChatMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
-  const [viewMode, setViewMode] = useState(isMobileView ? 'chat' : 'dossier');
-  const [qaResults, setQaResults] = useState([]);
 
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
   const { submitForm, loading: submitLoading } = useApiSubmit(`/auth/qa/${collectionId}/ask`);
@@ -31,12 +29,6 @@ const useQAChatLogic = ({
     }
   }, [welcomeMessage]);
 
-  useEffect(() => {
-    if (isMobileView && viewMode !== 'chat') {
-      setViewMode('chat');
-    }
-  }, [isMobileView, viewMode]);
-
   const handleSubmitQuestion = useCallback(async (question) => {
     const userMessage = {
       type: 'user',
@@ -48,7 +40,7 @@ const useQAChatLogic = ({
     setInputValue("");
 
     try {
-      const result = await submitForm({ question, mode: viewMode, ...extraApiParams });
+      const result = await submitForm({ question, mode: 'dossier', ...extraApiParams });
 
       if (result?.answer) {
         const resultId = `qa-${collectionId}-${Date.now()}`;
@@ -59,38 +51,19 @@ const useQAChatLogic = ({
         setGeneratedText(resultId, result.answer);
         setGeneratedTextMetadata(resultId, { sources, citations, additionalSources });
 
-        if (isMobileView) {
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: result.answer,
-            timestamp: Date.now(),
-            resultData: {
-              resultId,
-              question,
-              sources,
-              citations,
-              additionalSources,
-              linkConfig
-            }
-          }]);
-        } else {
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: result.answer,
-            timestamp: Date.now()
-          }]);
-
-          setQaResults(prev => [...prev, {
-            id: resultId,
-            componentId: resultId,
-            title: question,
-            content: { text: result.answer },
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: result.answer,
+          timestamp: Date.now(),
+          resultData: {
+            resultId,
+            question,
             sources,
             citations,
             additionalSources,
             linkConfig
-          }]);
-        }
+          }
+        }]);
       }
     } catch (error) {
       console.error('[useQAChatLogic] Error:', error);
@@ -100,23 +73,17 @@ const useQAChatLogic = ({
         timestamp: Date.now()
       }]);
     }
-  }, [submitForm, user, viewMode, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig, isMobileView]);
-
-  const clearResults = useCallback(() => setQaResults([]), []);
+  }, [submitForm, user, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig]);
 
   return {
     chatMessages,
     inputValue,
-    viewMode,
-    qaResults,
     submitLoading,
     user,
     isMobileView,
     setInputValue,
-    setViewMode,
     setChatMessages,
-    handleSubmitQuestion,
-    clearResults
+    handleSubmitQuestion
   };
 };
 
