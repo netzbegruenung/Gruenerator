@@ -5,9 +5,7 @@ import {
   buildPlannerPromptGrundsatz,
   buildPlannerPromptGeneral,
   buildDraftPromptGrundsatz,
-  buildDraftPromptGeneral,
-  buildDraftPromptGrundsatzChat,
-  buildDraftPromptGeneralChat
+  buildDraftPromptGeneral
 } from './prompts.mjs';
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
 
@@ -197,6 +195,13 @@ function normalizeBracketListsToSingles(text) {
   });
 }
 
+function moveCitationsAfterPunctuation(text) {
+  // Move citation markers to AFTER punctuation for better readability
+  // Before: "...gefährdet[1]." or "...gefährdet[1][2]."
+  // After:  "...gefährdet.[1]" or "...gefährdet.[1][2]"
+  return text.replace(/((?:\[\d+\])+)([.,:;!?])/g, '$2$1');
+}
+
 function stripCodeFences(text) {
   if (!text || typeof text !== 'string') return text;
   // Remove leading/trailing fenced code blocks ```...```
@@ -220,6 +225,58 @@ function stripQuellenSection(text) {
   return out.trim();
 }
 
+function renumberCitationsInOrder(draft, referencesMap) {
+  // Renumber citations so they appear sequentially (1, 2, 3...) in order of first appearance
+  // This ensures the user sees [1] before [2], [2] before [3], etc.
+
+  const citationPattern = /\[(\d+)\]/g;
+  const orderOfAppearance = [];
+  let match;
+
+  // Find all unique citation IDs in order of appearance
+  while ((match = citationPattern.exec(draft)) !== null) {
+    const id = match[1];
+    if (!orderOfAppearance.includes(id) && referencesMap[id]) {
+      orderOfAppearance.push(id);
+    }
+  }
+
+  // If no citations found or all already in order, return unchanged
+  if (orderOfAppearance.length === 0) {
+    return { renumberedDraft: draft, newReferencesMap: referencesMap, idMapping: {} };
+  }
+
+  // Build old-to-new ID mapping based on appearance order
+  const idMapping = {};
+  orderOfAppearance.forEach((oldId, index) => {
+    idMapping[oldId] = String(index + 1);
+  });
+
+  // Replace IDs in draft - process largest IDs first to avoid [1] → [10] collision
+  let renumberedDraft = draft;
+  const sortedOldIds = Object.keys(idMapping).sort((a, b) => Number(b) - Number(a));
+
+  for (const oldId of sortedOldIds) {
+    const newId = idMapping[oldId];
+    // Use temporary placeholder to avoid collision during replacement
+    renumberedDraft = renumberedDraft.replace(
+      new RegExp(`\\[${oldId}\\]`, 'g'),
+      `⟦${newId}⟧`
+    );
+  }
+
+  // Convert placeholders back to brackets
+  renumberedDraft = renumberedDraft.replace(/⟦(\d+)⟧/g, '[$1]');
+
+  // Rebuild referencesMap with new sequential IDs
+  const newReferencesMap = {};
+  for (const [oldId, newId] of Object.entries(idMapping)) {
+    newReferencesMap[newId] = referencesMap[oldId];
+  }
+
+  return { renumberedDraft, newReferencesMap, idMapping };
+}
+
 function validateAndInjectCitations(draft, refMap) {
   const errors = [];
   const validIds = new Set(Object.keys(refMap));
@@ -228,6 +285,8 @@ function validateAndInjectCitations(draft, refMap) {
   content = stripQuellenSection(content);
   // Normalize list brackets first
   content = normalizeBracketListsToSingles(content);
+  // Move citations after punctuation for better readability
+  content = moveCitationsAfterPunctuation(content);
 
   // Find all [n]
   const citationPattern = /\[(\d+)\]/g;
@@ -364,35 +423,22 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
   return dedupeAndDiversify(deduped, { limitPerDoc: 4 }); // Let dynamic params handle maxTotal and qualityMin
 }
 
-async function draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz, mode = 'dossier') {
+async function draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz) {
   const collectionName = collection?.name || (isGrundsatz ? 'Grüne Grundsatzprogramme' : 'Ihre Sammlung');
 
   // Get adaptive draft parameters based on available references
-  const { maxTokens: adaptiveTokens } = determineDraftParams(referencesMap, question);
+  const { maxTokens } = determineDraftParams(referencesMap, question);
 
-  // Select prompt based on mode and collection type
-  let system;
-  let maxTokens;
-  let temperature;
-
-  if (mode === 'chat') {
-    system = isGrundsatz
-      ? buildDraftPromptGrundsatzChat(collectionName).system
-      : buildDraftPromptGeneralChat(collectionName).system;
-    maxTokens = Math.min(adaptiveTokens, 800); // Cap chat responses but adapt to content
-    temperature = 0.3; // Slightly more conversational
-  } else {
-    system = isGrundsatz
-      ? buildDraftPromptGrundsatz(collectionName).system
-      : buildDraftPromptGeneral(collectionName).system;
-    maxTokens = adaptiveTokens; // Use adaptive token count for dossier mode
-    temperature = 0.2; // More formal
-  }
+  // Always use dossier-style prompts (German)
+  const system = isGrundsatz
+    ? buildDraftPromptGrundsatz(collectionName).system
+    : buildDraftPromptGeneral(collectionName).system;
+  const temperature = 0.2;
 
   const refsSummary = summarizeReferencesForPrompt(referencesMap);
   const user = [
-    `Question: ${question}`,
-    'You must cite only using the following references map (IDs are 1-based):',
+    `Frage: ${question}`,
+    'Verwende nur Zitate aus der folgenden Referenz-Map (IDs sind 1-basiert):',
     refsSummary
   ].join('\n\n');
 
@@ -410,13 +456,13 @@ async function draftNode(question, referencesMap, collection, aiWorkerPool, isGr
 async function repairNode(badDraft, referencesMap, aiWorkerPool) {
   const allowed = Object.keys(referencesMap).join(', ');
   const system = [
-    'You are a citation fixer.',
-    'Task: Adjust the bracket citations in the provided markdown so that they only use the allowed 1-based IDs.',
-    'Do not change the content except replacing/adjusting [n] citations. No added text. No explanations.'
+    'Du bist ein Zitat-Korrektur-Assistent.',
+    'Aufgabe: Passe die Klammer-Zitate im bereitgestellten Markdown an, sodass nur die erlaubten 1-basierten IDs verwendet werden.',
+    'Ändere den Inhalt nicht, außer dem Ersetzen/Anpassen von [n]-Zitaten. Kein zusätzlicher Text. Keine Erklärungen.'
   ].join('\n');
   const user = [
-    `Allowed IDs: ${allowed}`,
-    'Return only the corrected markdown.',
+    `Erlaubte IDs: ${allowed}`,
+    'Gib nur das korrigierte Markdown zurück.',
     '---',
     badDraft
   ].join('\n\n');
@@ -430,7 +476,7 @@ async function repairNode(badDraft, referencesMap, aiWorkerPool) {
   return text || badDraft;
 }
 
-export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60, mode = 'dossier' }) {
+export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60 }) {
   // 1) plan subqueries
   const isGrundsatz = (collection?.id === 'grundsatz-system') || ((collection?.user_id === 'SYSTEM') && (collection?.settings?.system_collection === true));
   const subqueries = await plannerNode(question, aiWorkerPool, isGrundsatz);
@@ -484,24 +530,30 @@ export async function runQaGraph({ question, collection, aiWorkerPool, searchCol
     };
   }
 
-  // 3) references map (deterministic 1-based)
-  const referencesMap = buildReferencesMap(searchResults);
+  // 3) references map (deterministic 1-based by similarity)
+  const originalReferencesMap = buildReferencesMap(searchResults);
 
   // 4) draft
-  let draft = await draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz, mode);
+  let draft = await draftNode(question, originalReferencesMap, collection, aiWorkerPool, isGrundsatz);
+
+  // 4.5) Renumber citations by order of appearance for logical user experience
+  // This ensures the first citation the user sees is [1], second is [2], etc.
+  const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, originalReferencesMap);
+  draft = renumberedDraft;
+  let referencesMap = newReferencesMap;
 
   // 5) validate & inject markers
   let { cleanDraft, citations, sources, errors } = validateAndInjectCitations(draft, referencesMap);
 
-  // 6) repair loop (single pass)
-  if (errors && errors.length > 0) {
-    const repaired = await repairNode(draft, referencesMap, aiWorkerPool);
-    const v2 = validateAndInjectCitations(repaired, referencesMap);
-    cleanDraft = v2.cleanDraft;
-    citations = v2.citations;
-    sources = v2.sources;
-    errors = v2.errors;
-  }
+  // 6) repair loop (single pass) - DISABLED: adds extra AI call latency (~1-3s)
+  // if (errors && errors.length > 0) {
+  //   const repaired = await repairNode(draft, referencesMap, aiWorkerPool);
+  //   const v2 = validateAndInjectCitations(repaired, referencesMap);
+  //   cleanDraft = v2.cleanDraft;
+  //   citations = v2.citations;
+  //   sources = v2.sources;
+  //   errors = v2.errors;
+  // }
 
   // Build allSources: all searched results that were NOT cited
   // This provides background context for the user

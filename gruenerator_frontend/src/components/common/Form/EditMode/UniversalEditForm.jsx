@@ -212,7 +212,7 @@ const UniversalEditForm = ({ componentName }) => {
         placeholder="Was möchtest du verbessern?"
         inputValue={inputValue}
         onInputChange={setInputValue}
-        className="editor-chat-embedded"
+        className="chat-embedded"
         showHeader={false}
         renderInput={() => (
           <div className="floating-input">

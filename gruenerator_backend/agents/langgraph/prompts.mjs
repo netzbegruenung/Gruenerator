@@ -101,8 +101,8 @@ export function buildDraftPromptGrundsatz(collectionName = 'Grüne Grundsatzprog
     '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
     '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
     '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
-    '- Setze [n] direkt nach der relevanten Aussage.',
-    '- Bei mehreren Quellen für eine Aussage: "statement [1][3][5]"',
+    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
+    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
     '',
     '## VERBOTEN:',
     '- Antworten ohne Zitate',
@@ -148,8 +148,8 @@ export function buildDraftPromptGeneral(collectionName = 'Ihre Sammlung') {
     '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
     '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
     '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
-    '- Setze [n] direkt nach der relevanten Aussage.',
-    '- Bei mehreren Quellen für eine Aussage: "statement [1][3][5]"',
+    '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
+    '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
     '',
     '## VERBOTEN:',
     '- Antworten ohne Zitate',
@@ -160,50 +160,3 @@ export function buildDraftPromptGeneral(collectionName = 'Ihre Sammlung') {
   return { system: rules };
 }
 
-// Grundsatz-specific chat prompt (short conversational responses)
-export function buildDraftPromptGrundsatzChat(collectionName = 'Grüne Grundsatzprogramme') {
-  const rules = [
-    'You are a conversational assistant for political documents. Give SHORT, direct answers.',
-    `Collection: ${collectionName}.`,
-    'CHAT MODE - Keep responses brief and conversational:',
-    '- Answer in 2-3 sentences maximum',
-    '- Be direct and to the point',
-    '- Use natural, conversational language',
-    '- Cite sources with [1], [2] etc. but integrate them naturally',
-    'Citations protocol:',
-    '- Use bracketed, 1-based citations: [1], [2], [3]. No [0].',
-    '- Only use IDs provided in the references map. Do not invent references.',
-    '- Integrate citations naturally in flowing text (not in separate sections)',
-    'Important:',
-    '- Do not answer without citations.',
-    '- Do not change or invent reference IDs beyond those provided.',
-    '- Do NOT use headings, lists, or formal structure.',
-    '- Do NOT wrap the answer in code fences or backticks.',
-    '- Do NOT add a "Quellen" section; sources are shown by the UI.'
-  ].join('\n');
-  return { system: rules };
-}
-
-// General chat prompt (short conversational responses)
-export function buildDraftPromptGeneralChat(collectionName = 'Ihre Sammlung') {
-  const rules = [
-    'You are a conversational assistant for document collections. Give SHORT, direct answers.',
-    `Collection: ${collectionName}.`,
-    'CHAT MODE - Keep responses brief and conversational:',
-    '- Answer in 2-3 sentences maximum',
-    '- Be direct and to the point',
-    '- Use natural, conversational language',
-    '- Cite sources with [1], [2] etc. but integrate them naturally',
-    'Citations protocol:',
-    '- Use bracketed, 1-based citations: [1], [2], [3]. No [0].',
-    '- Only use IDs provided in the references map. Do not invent references.',
-    '- Integrate citations naturally in flowing text (not in separate sections)',
-    'Important:',
-    '- Do not answer without citations.',
-    '- Do not change or invent reference IDs beyond those provided.',
-    '- Do NOT use headings, lists, or formal structure.',
-    '- Do NOT wrap the answer in code fences or backticks.',
-    '- Do NOT add a "Quellen" section; sources are shown by the UI.'
-  ].join('\n');
-  return { system: rules };
-}

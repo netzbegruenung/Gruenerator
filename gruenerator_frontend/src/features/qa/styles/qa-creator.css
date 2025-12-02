@@ -100,7 +100,7 @@
   background: transparent;
   border: none;
   border-radius: calc(var(--border-radius) - 2px);
-  color: var(--font-color-muted);
+  color: var(--font-color);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   cursor: pointer;

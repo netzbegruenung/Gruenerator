@@ -1,5 +1,7 @@
 .chat-message-with-result {
   max-width: 100%;
+  padding: var(--spacing-medium);
+  margin-bottom: var(--spacing-medium);
 }
 
 .qa-mobile-result-content {
@@ -33,6 +35,14 @@
   margin-top: var(--spacing-small);
   padding-top: var(--spacing-small);
   border-top: 1px solid var(--border-color);
+}
+
+.qa-message-actions {
+  margin-top: var(--spacing-small);
+  padding-top: var(--spacing-small);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: var(--spacing-xsmall);
 }
 
 @media (max-width: 768px) {

@@ -1,15 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
 import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
 import ChatUI from './ChatUI';
+import ChatStartPage from './ChatStartPage';
 import ModeSelector from './ModeSelector';
 import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
-import useIsMobile from '../../../hooks/useIsMobile';
 import AttachedFilesList from '../AttachedFilesList';
-import FloatingAssistantBubble from './FloatingAssistantBubble';
-import MobileSwipeContainer from './MobileSwipeContainer';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
 const ChatWorkbenchLayout = ({
@@ -39,25 +37,11 @@ const ChatWorkbenchLayout = ({
   enableFileUpload = false,
   onFileSelect,
   attachedFiles = [],
-  onRemoveFile
+  onRemoveFile,
+  singleLine = false,
+  showStartPage = false,
+  startPageTitle = "Was möchtest du wissen?"
 }) => {
-  const isMobile = useIsMobile();
-  const [dismissedMessageTimestamp, setDismissedMessageTimestamp] = useState(null);
-  const [mobileActivePanel, setMobileActivePanel] = useState('results');
-
-  const latestAssistantMessage = useMemo(() => {
-    if (!messages || messages.length === 0) return null;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].type === 'assistant') {
-        if (messages[i].content?.startsWith('Hallo! Ich bin der Grünerator Chat.')) {
-          continue;
-        }
-        return messages[i];
-      }
-    }
-    return null;
-  }, [messages]);
-
   const voiceRecorderHook = useVoiceRecorder((text) => {
     // Update the input field with transcribed text
     if (onInputChange) {
@@ -213,64 +197,7 @@ const ChatWorkbenchLayout = ({
     );
   };
 
-  const renderMobileDossierMode = () => {
-    const shouldShowBubble = mobileActivePanel === 'results' &&
-      latestAssistantMessage &&
-      latestAssistantMessage.timestamp !== dismissedMessageTimestamp;
-
-    const chatPanel = (
-      <div className="mobile-chat-panel-content">
-        {renderHeader()}
-        <ChatUI
-          messages={messages}
-          onSubmit={onSubmit}
-          isProcessing={isProcessing}
-          placeholder={placeholder}
-          inputValue={inputValue}
-          onInputChange={onInputChange}
-          disabled={disabled}
-          className="qa-chat-ui mobile-swipe-panel-chat"
-          showHeader={false}
-          renderInput={() => null}
-          onVoiceRecorderTranscription={onVoiceRecorderTranscription}
-          autoSubmitVoice={autoSubmitVoice}
-          enableFileUpload={enableFileUpload}
-          onFileSelect={onFileSelect}
-          attachedFiles={attachedFiles}
-          onRemoveFile={onRemoveFile}
-        />
-      </div>
-    );
-
-    const resultsPanel = (
-      <div className="mobile-results-panel-content">
-        {shouldShowBubble && (
-          <FloatingAssistantBubble
-            message={latestAssistantMessage}
-            onDismiss={() => setDismissedMessageTimestamp(latestAssistantMessage.timestamp)}
-            onActionClick={onSubmit}
-            isProcessing={isProcessing}
-          />
-        )}
-        {rightPanelContent}
-        {rightPanelFooter}
-      </div>
-    );
-
-    return (
-      <div className="qa-chat-main qa-chat-dossier qa-chat-dossier-mobile">
-        <MobileSwipeContainer
-          chatPanel={chatPanel}
-          resultsPanel={resultsPanel}
-          activePanel={mobileActivePanel}
-          onPanelChange={setMobileActivePanel}
-          inputElement={renderInputWrapper()}
-        />
-      </div>
-    );
-  };
-
-  const renderDesktopDossierMode = () => (
+  const renderDossierMode = () => (
     <div className="qa-chat-main qa-chat-dossier">
       <div className="qa-chat-left-panel">
         {renderHeader()}
@@ -291,6 +218,7 @@ const ChatWorkbenchLayout = ({
           onFileSelect={onFileSelect}
           attachedFiles={attachedFiles}
           onRemoveFile={onRemoveFile}
+          singleLine={singleLine}
         />
       </div>
       <div className="qa-chat-right-panel">
@@ -300,34 +228,56 @@ const ChatWorkbenchLayout = ({
     </div>
   );
 
-  const renderDossierMode = () => isMobile ? renderMobileDossierMode() : renderDesktopDossierMode();
+  const renderChatMode = () => {
+    const hasUserMessage = messages?.some(msg => msg.type === 'user');
 
-  const renderChatMode = () => (
-    <div className="qa-chat-main qa-chat-fullscreen">
-      <div className="qa-chat-fullscreen-content">
-        <ChatUI
-          messages={messages}
-          onSubmit={onSubmit}
-          isProcessing={isProcessing}
-          placeholder={placeholder}
-          inputValue={inputValue}
-          onInputChange={onInputChange}
-          disabled={disabled}
-          className="qa-chat-ui qa-chat-ui-fullscreen"
-          fullScreen={true}
-          renderMessage={renderMessage}
-          showHeader={false}
-          onVoiceRecorderTranscription={onVoiceRecorderTranscription}
-          autoSubmitVoice={autoSubmitVoice}
-          enableFileUpload={enableFileUpload}
-          onFileSelect={onFileSelect}
-          attachedFiles={attachedFiles}
-          onRemoveFile={onRemoveFile}
-        />
+    if (showStartPage && !hasUserMessage) {
+      return (
+        <div className="qa-chat-main qa-chat-fullscreen">
+          <ChatStartPage
+            title={startPageTitle}
+            placeholder={placeholder}
+            inputValue={inputValue}
+            onInputChange={onInputChange}
+            onSubmit={onSubmit}
+            disabled={disabled || isProcessing}
+            enableFileUpload={enableFileUpload}
+            onFileSelect={onFileSelect}
+            attachedFiles={attachedFiles}
+            onRemoveFile={onRemoveFile}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="qa-chat-main qa-chat-fullscreen">
+        <div className="qa-chat-fullscreen-content">
+          <ChatUI
+            messages={messages}
+            onSubmit={onSubmit}
+            isProcessing={isProcessing}
+            placeholder={placeholder}
+            inputValue={inputValue}
+            onInputChange={onInputChange}
+            disabled={disabled}
+            className="qa-chat-ui qa-chat-ui-fullscreen"
+            fullScreen={true}
+            renderMessage={renderMessage}
+            showHeader={false}
+            onVoiceRecorderTranscription={onVoiceRecorderTranscription}
+            autoSubmitVoice={autoSubmitVoice}
+            enableFileUpload={enableFileUpload}
+            onFileSelect={onFileSelect}
+            attachedFiles={attachedFiles}
+            onRemoveFile={onRemoveFile}
+            singleLine={singleLine}
+          />
+        </div>
+        {!hasUserMessage && infoPanelContent}
       </div>
-      {infoPanelContent}
-    </div>
-  );
+    );
+  };
 
   return (
     <motion.div
@@ -372,7 +322,10 @@ ChatWorkbenchLayout.propTypes = {
   enableFileUpload: PropTypes.bool,
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
-  onRemoveFile: PropTypes.func
+  onRemoveFile: PropTypes.func,
+  singleLine: PropTypes.bool,
+  showStartPage: PropTypes.bool,
+  startPageTitle: PropTypes.string
 };
 
 export default ChatWorkbenchLayout;

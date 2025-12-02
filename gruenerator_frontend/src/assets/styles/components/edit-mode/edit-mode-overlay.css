@@ -118,7 +118,7 @@
     border-radius: var(--border-radius-small);
   }
 
-  .base-container.edit-mode-active .editor-chat-embedded {
+  .base-container.edit-mode-active .chat-embedded {
     font-size: 0.9rem;
     height: 100%;
 }
@@ -247,8 +247,8 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   overflow: hidden;
 }
 
-/* Ensure editor-chat fills its container */
-.universal-edit-form.enhanced .editor-chat {
+/* Ensure chat fills its container */
+.universal-edit-form.enhanced .chat-embedded {
   height: 100%;
   display: flex;
   flex-direction: column;

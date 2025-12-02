@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import CitationBadge from './CitationBadge';
+
+const ReactMarkdown = lazy(() => import('react-markdown'));
 
 /**
  * CitationTextRenderer component - renders text with citation markers as interactive badges
@@ -62,13 +64,25 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }) => {
     }
   }
   
-  // If no citations were found, return the original text
+  // If no citations were found, return the original text with markdown
   if (parts.length === 0) {
-    return <span className={className}>{text}</span>;
+    return (
+      <span className={className}>
+        <Suspense fallback={<span>{text}</span>}>
+          <ReactMarkdown
+            components={{
+              a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
+            }}
+          >
+            {text}
+          </ReactMarkdown>
+        </Suspense>
+      </span>
+    );
   }
   
   return (
-    <span className={className}>
+    <span className={`${className} citation-text-renderer`}>
       {parts.map((part, index) => {
         if (part.type === 'citation') {
           return (
@@ -79,8 +93,20 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }) => {
             />
           );
         }
-        // If it's text, render it as text
-        return <span key={index}>{part.content}</span>;
+        // If it's text, render it with markdown support
+        // Use custom components to ensure inline rendering with citations
+        return (
+          <Suspense key={index} fallback={<span>{part.content}</span>}>
+            <ReactMarkdown
+              components={{
+                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                p: ({node, children}) => <span className="citation-text-segment">{children}</span>
+              }}
+            >
+              {part.content}
+            </ReactMarkdown>
+          </Suspense>
+        );
       })}
     </span>
   );

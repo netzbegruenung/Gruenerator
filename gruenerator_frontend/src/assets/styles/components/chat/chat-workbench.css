@@ -5,11 +5,6 @@
   box-sizing: border-box;
 }
 
-.qa-chat-chat {
-  padding: 0;
-  position: relative;
-}
-
 .qa-chat-main {
   display: flex;
   flex: 1;
@@ -22,62 +17,20 @@
   max-width: 500px;
   display: flex;
   flex-direction: column;
-  background: var(--background-color-alt);
+  background: var(--chat-background);
   box-shadow: var(--shadow-md);
   margin-right: var(--spacing-small);
   overflow: hidden;
   min-height: 0;
 }
 
-.qa-chat-mode-selector .mode-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  padding: var(--spacing-small);
-  cursor: pointer;
+/* ChatUI wrapper - provides positioning context for floating input */
+.qa-chat-ui {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  color: var(--secondary-600);
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-}
-
-.qa-chat-mode-selector .mode-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-.qa-chat-mode-selector .mode-button svg {
-  width: 20px;
-  height: 20px;
-}
-
-.qa-chat-floating-input .qa-chat-mode-selector .mode-button,
-.qa-chat-dossier-input-wrapper .qa-chat-mode-selector .mode-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  padding: var(--spacing-small);
-  color: var(--secondary-600);
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  transition: all 0.2s ease;
-}
-
-.qa-chat-floating-input .qa-chat-mode-selector .mode-button:hover,
-.qa-chat-dossier-input-wrapper .qa-chat-mode-selector .mode-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  overflow: visible;
 }
 
 .qa-chat-dossier-input-wrapper {
@@ -103,10 +56,6 @@
 
 [data-theme="dark"] .qa-chat-dossier-input-wrapper:hover {
   background: var(--grey-900);
-}
-
-.qa-chat-dossier-input-wrapper .qa-chat-mode-selector {
-  flex-shrink: 0;
 }
 
 .textarea-wrapper {
@@ -231,24 +180,54 @@
   gap: var(--spacing-medium);
 }
 
-
-
-
-
-
+/* Chat/fullscreen mode layout */
 .qa-chat-fullscreen {
   display: flex;
   gap: var(--spacing-medium);
   height: 100%;
-  padding: var(--spacing-medium);
 }
 
 .qa-chat-fullscreen-content {
-  flex: 1;
+  flex: 3;
+  min-width: 0;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background-color: transparent;
+}
+
+.qa-chat-fullscreen > .qa-collection-info {
+  flex: 1;
+  max-width: 320px;
+  min-width: 200px;
+  overflow-y: auto;
+  height: fit-content;
+  max-height: 100%;
+}
+
+@media (max-width: 1024px) {
+  .qa-chat-fullscreen > .qa-collection-info {
+    max-width: 260px;
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .qa-chat-fullscreen {
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+  }
+
+  .qa-chat-fullscreen-content {
+    flex: 1;
+  }
+
+  .qa-chat-ui-fullscreen {
+    border-radius: 0;
+    border: none;
+  }
 }
 
 /* Mobile-specific dossier layout - uses MobileSwipeContainer */
@@ -317,35 +296,11 @@
     height: 60vh;
   }
 
-  .qa-chat-fullscreen {
-    flex-direction: column;
-    padding: 0;
-    gap: 0;
-  }
-
-  .qa-chat-fullscreen-content {
-    flex: 1;
-  }
-
-  .qa-chat-ui-fullscreen {
-    border-radius: 0;
-    border: none;
-  }
-
-
-
-  .qa-chat-floating-input {
-    bottom: var(--spacing-medium);
-    left: var(--spacing-medium);
-    right: var(--spacing-medium);
-    max-width: none;
-  }
-
 }
 
 @media (max-width: 480px) {
   .qa-chat-container {
-    padding: var(--spacing-xsmall);
+    padding: 0;
   }
 
   .qa-chat-dossier .qa-chat-left-panel {
@@ -358,42 +313,10 @@
     height: 50vh;
   }
 
-  .qa-chat-mode-selector .mode-button {
-    width: 40px;
-    height: 40px;
-  }
-
-  .qa-chat-mode-selector .mode-button svg {
-    width: 18px;
-    height: 18px;
-  }
-
   .qa-chat-dossier-input-wrapper {
     padding: var(--spacing-small);
     gap: var(--spacing-xsmall);
   }
-
-  .qa-chat-floating-input {
-    bottom: var(--spacing-small);
-    max-width: 400px;
-    width: calc(100% - var(--spacing-small) * 2);
-    padding: var(--spacing-xsmall);
-    gap: var(--spacing-xsmall);
-  }
-
-
-  .qa-floating-input {
-    font-size: 16px;
-    min-height: 36px;
-    padding: var(--spacing-xsmall) var(--spacing-small);
-  }
-
-  .qa-floating-submit {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-  }
-
 }
 
 .qa-collection-info {
@@ -488,50 +411,6 @@
 .qa-collection-info-dossier .qa-collection-info-documents ul {
   flex: 1;
   max-height: none;
-}
-
-.qa-collection-info-chat {
-  width: 300px;
-  min-width: 250px;
-  max-width: 350px;
-  padding: var(--spacing-medium);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  transition: all 0.2s ease;
-}
-
-.qa-collection-info-chat:hover {
-  box-shadow: var(--shadow-lg);
-}
-
-.qa-collection-info-chat .qa-collection-info-header h3 {
-  font-size: 1.1rem;
-}
-
-.qa-collection-info-chat .qa-collection-info-description {
-  font-size: 0.85rem;
-  margin-bottom: var(--spacing-medium);
-  max-height: 80px;
-  overflow-y: auto;
-}
-
-.qa-collection-info-chat .qa-collection-info-documents h4 {
-  font-size: 0.9rem;
-  margin-bottom: var(--spacing-small);
-}
-
-.qa-collection-info-chat .qa-collection-info-documents {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.qa-collection-info-chat .qa-collection-info-documents ul {
-  flex: 1;
-  overflow-y: auto;
-  font-size: 0.85rem;
 }
 
 .qa-collection-info-documents ul::-webkit-scrollbar,
@@ -706,38 +585,6 @@
 @media (max-width: 768px) {
   .qa-collection-info {
     display: none;
-  }
-}
-
-@media (max-width: 1200px) {
-  .qa-chat-fullscreen {
-    padding: var(--spacing-small);
-    gap: var(--spacing-small);
-  }
-  
-  .qa-collection-info-chat {
-    width: 250px;
-    min-width: 200px;
-  }
-}
-
-@media (max-width: 900px) {
-  .qa-collection-info-chat {
-    width: 200px;
-    min-width: 180px;
-    padding: var(--spacing-small);
-  }
-  
-  .qa-collection-info-chat .qa-collection-info-header h3 {
-    font-size: 1rem;
-  }
-  
-  .qa-collection-info-chat .qa-collection-info-description {
-    font-size: 0.8rem;
-  }
-  
-  .qa-collection-info-chat .qa-collection-info-documents ul {
-    font-size: 0.8rem;
   }
 }
 

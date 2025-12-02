@@ -42,25 +42,6 @@
   }
 }
 
-/* Main chat container */
-.editor-chat {
-  width: 100%;
-  min-width: 280px;
-  background: var(--chat-background);
-  border-radius: 12px;
-  box-shadow: var(--shadow-md);
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  position: sticky;
-  top: 0;
-  flex-shrink: 0;
-  position: relative;
-  transition: all 0.3s ease;
-  padding: 0;
-  height: 100%;
-}
-
 /* Chat header */
 .chat-header {
   padding: 12px 16px;
@@ -106,7 +87,7 @@
 }
 
 /* Messages area */
-.editor-chat-messages {
+.chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 24px 16px 100px 16px;
@@ -120,22 +101,70 @@
   height: 100%;
 }
 
-.editor-chat-messages::-webkit-scrollbar {
+/* Fullscreen chat mode - centered for better readability */
+.chat-messages-fullscreen {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  background: transparent;
+}
+
+.chat-messages-fullscreen .chat-message {
+  max-width: 100%;
+}
+
+/* Light mode fullscreen: white background with font-color text for assistant messages */
+.chat-messages-fullscreen .chat-message.assistant {
+  background: var(--white);
+  color: var(--font-color);
+}
+
+.chat-messages-fullscreen .chat-message.assistant p,
+.chat-messages-fullscreen .chat-message.assistant *:not(.chat-message-quote):not(.citation-badge) {
+  color: var(--font-color);
+}
+
+/* Keep citation badge white text in fullscreen light mode */
+.chat-messages-fullscreen .chat-message.assistant .citation-badge {
+  color: #ffffff !important;
+}
+
+/* Light mode fullscreen: typing indicator dots should be dark */
+.chat-messages-fullscreen .chat-message.assistant .typing-dot {
+  background-color: var(--font-color);
+}
+
+/* Dark mode fullscreen keeps default dark styling */
+[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant {
+  background: var(--ai-message-background);
+  color: var(--ai-message-text-color);
+}
+
+[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant p,
+[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant *:not(.chat-message-quote):not(.citation-badge) {
+  color: var(--ai-message-text-color);
+}
+
+[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant .typing-dot {
+  background-color: var(--ai-message-text-color);
+}
+
+.chat-messages::-webkit-scrollbar {
   width: 8px;
 }
 
-.editor-chat-messages::-webkit-scrollbar-track {
+.chat-messages::-webkit-scrollbar-track {
   background: var(--scrollbar-track-color);
   border-radius: 10px;
 }
 
-.editor-chat-messages::-webkit-scrollbar-thumb {
+.chat-messages::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb-color);
   border-radius: 10px;
   border: 2px solid var(--scrollbar-track-color);
 }
 
-.editor-chat-messages::-webkit-scrollbar-thumb:hover {
+.chat-messages::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover-color);
 }
 
@@ -369,46 +398,58 @@
   text-align: center;
 }
 
-/* Floating input with glass design */
+/* Floating input */
 .floating-input {
   position: absolute;
-  bottom: calc(var(--spacing-large) + 12px);
+  bottom: calc(var(--spacing-large) + 24px);
   left: var(--spacing-medium);
   right: var(--spacing-medium);
-  background-color: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 24px;
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: var(--chat-input-background);
+  border: var(--border-subtle);
+  border-radius: 16px;
   z-index: 1000;
-  transition: all 0.3s ease;
 }
 
-.floating-input:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: var(--shadow-xl);
-  transform: translateY(-1px);
+/* Warning text below floating input */
+.floating-input-warning {
+  display: block;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--grey-500);
+  position: absolute;
+  bottom: var(--spacing-small);
+  left: 0;
+  right: 0;
 }
 
 [data-theme="dark"] .floating-input {
-  background-color: rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] .floating-input:hover {
-  background-color: rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.15);
+  background-color: var(--chat-input-background);
 }
 
 /* Input form */
-.editor-chat-input {
+.chat-input-area {
   background: transparent;
   border: none;
   padding: 0;
-  margin: 20px;
   position: relative;
+}
+
+/* Fullscreen input area - centered */
+.chat-input-area-fullscreen {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+}
+
+.chat-input-area-fullscreen .floating-input {
+  left: 0;
+  right: 0;
+  position: absolute;
+}
+
+.chat-input-area-fullscreen .floating-input-warning {
+  display: none;
 }
 
 /* Input controls layout */
@@ -516,14 +557,14 @@
 .floating-input input.form-input,
 .floating-input textarea.form-input {
   flex: 1;
-  margin: 12px;
-  min-height: 60px;
+  margin: 6px;
+  min-height: 44px;
   border-radius: 12px;
   font-size: 14px;
   background-color: var(--chat-input-background);
   color: var(--chat-input-text-color);
-  border: 1px solid var(--chat-input-border-color);
-  padding: 12px 16px;
+  border: none;
+  padding: 8px 12px;
   resize: none;
   font-family: inherit;
   line-height: 1.4;
@@ -531,8 +572,25 @@
 
 .floating-input input.form-input:focus,
 .floating-input textarea.form-input:focus {
-  box-shadow: 0 0 0 1px var(--user-accent-color, var(--klee));
+  box-shadow: none;
   outline: none;
+  border: none;
+}
+
+/* Single-line input specific styles */
+.floating-input input[type="text"].form-input {
+  flex: 1;
+  margin: 6px;
+  height: 48px;
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 16px;
+  background-color: var(--chat-input-background);
+  color: var(--chat-input-text-color);
+  border: none;
+  padding: 10px 14px;
+  font-family: inherit;
+  line-height: 1.4;
 }
 
 
@@ -634,22 +692,22 @@
 }
 
 /* Voice Recorder Positioning - moved to floating input */
-.editor-chat-voice-recorder {
+.chat-voice-recorder {
   position: relative;
   z-index: 1;
 }
 
-.editor-chat-voice-recorder .voice-recorder {
+.chat-voice-recorder .voice-recorder {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.editor-chat-voice-recorder .voice-recorder-controls {
+.chat-voice-recorder .voice-recorder-controls {
   margin: 0;
 }
 
-.editor-chat-voice-recorder .voice-recorder-button {
+.chat-voice-recorder .voice-recorder-button {
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -660,40 +718,40 @@
   transition: all 0.25s ease-out;
 }
 
-.editor-chat-voice-recorder .voice-recorder-button.start {
+.chat-voice-recorder .voice-recorder-button.start {
   background: var(--secondary-600);
   color: var(--white);
   border: none;
 }
 
-.editor-chat-voice-recorder .voice-recorder-button.start:hover:not(:disabled) {
+.chat-voice-recorder .voice-recorder-button.start:hover:not(:disabled) {
   background: var(--secondary-700);
 }
 
-.editor-chat-voice-recorder .voice-recorder-button.stop {
+.chat-voice-recorder .voice-recorder-button.stop {
   background: var(--error-red);
   color: var(--white);
   border: none;
 }
 
-.editor-chat-voice-recorder .voice-recorder-button.stop:hover:not(:disabled) {
+.chat-voice-recorder .voice-recorder-button.stop:hover:not(:disabled) {
   background: #b71c1c;
 }
 
-.editor-chat-voice-recorder .voice-recorder-button:hover:not(:disabled) {
+.chat-voice-recorder .voice-recorder-button:hover:not(:disabled) {
   transform: scale(1.05);
 }
 
-.editor-chat-voice-recorder .voice-recorder-button:disabled {
+.chat-voice-recorder .voice-recorder-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
 /* Hide other voice recorder elements when positioned as icon */
-.editor-chat-voice-recorder .voice-recorder-error,
-.editor-chat-voice-recorder .voice-recorder-animation,
-.editor-chat-voice-recorder .voice-recorder-processing {
+.chat-voice-recorder .voice-recorder-error,
+.chat-voice-recorder .voice-recorder-animation,
+.chat-voice-recorder .voice-recorder-processing {
   display: none;
 }
 
@@ -724,22 +782,7 @@
 }
 
 @media (max-width: 768px) {
-  /* Only apply fullscreen positioning when NOT in edit mode and NOT in swipe panel */
-  .editor-chat:not(.base-container.edit-mode-active .editor-chat):not(.mobile-swipe-panel-chat) {
-    position: fixed;
-    bottom: 0;
-    top: 60px;
-    left: 0;
-    right: 0;
-    max-width: 100%;
-    width: 100%;
-    max-height: calc(100vh - 60px);
-    border-radius: 12px 12px 0 0;
-    z-index: 999;
-  }
-
-
-  .editor-chat-messages {
+  .chat-messages {
     padding: 16px 16px 120px 16px;
   }
 
@@ -747,10 +790,15 @@
   /* Floating input positioning - fixed at bottom on mobile */
   .floating-input {
     position: fixed;
-    bottom: var(--spacing-small);
+    bottom: calc(var(--spacing-small) + 16px);
     left: var(--spacing-small);
     right: var(--spacing-small);
     margin: 0;
+  }
+
+  .floating-input-warning {
+    position: fixed;
+    bottom: 2px;
   }
 
 }
@@ -767,10 +815,16 @@
   /* Floating input adjustments for small screens - fixed at bottom */
   .floating-input {
     position: fixed;
-    bottom: 0;
+    bottom: calc(var(--spacing-small) + 16px);
     left: var(--spacing-xsmall);
     right: var(--spacing-xsmall);
     margin: 0;
+  }
+
+  .floating-input-warning {
+    position: fixed;
+    bottom: 2px;
+    font-size: 0.65rem;
   }
 
   .floating-input .input-elements {
@@ -778,8 +832,11 @@
     gap: 6px;
   }
 
-  .floating-input input,
-  .floating-input textarea {
+  .floating-input input.form-input,
+  .floating-input textarea.form-input {
+    margin: 0;
+    min-height: 40px;
+    padding: 8px 12px;
     font-size: 16px; /* Prevent zoom on iOS */
   }
 
@@ -789,7 +846,7 @@
     font-size: 14px;
   }
 
-  .editor-chat-voice-recorder .voice-recorder-button {
+  .chat-voice-recorder .voice-recorder-button {
     width: 36px;
     height: 36px;
     font-size: 14px;

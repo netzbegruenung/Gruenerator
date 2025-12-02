@@ -79,7 +79,7 @@
 
 .submenu-arrow {
   font-size: 12px;
-  color: var(--font-color-muted);
+  color: var(--font-color);
   margin-left: auto;
   transition: transform 0.15s ease;
 }
