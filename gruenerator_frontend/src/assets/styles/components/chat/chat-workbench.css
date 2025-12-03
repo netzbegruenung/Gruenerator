@@ -38,11 +38,11 @@
   overflow: visible;
 }
 
-/* Fullscreen chat UI - allow page scroll */
+/* Fullscreen chat UI - fill scroll container */
 .qa-chat-ui-fullscreen {
   height: auto;
   min-height: 100%;
-  overflow: visible;
+  display: block;
 }
 
 .qa-chat-dossier-input-wrapper {
@@ -203,10 +203,11 @@
   flex: 3;
   min-width: 0;
   position: relative;
-  overflow: visible;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: block;
   background-color: transparent;
+  height: calc(100vh - 60px);
 }
 
 .qa-chat-fullscreen > .qa-collection-info {
