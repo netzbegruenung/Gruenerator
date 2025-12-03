@@ -10,15 +10,7 @@ export const getDirectMenuItems = (betaFeatures = {}) => {
 
 // Mobile-only Menüpunkte (nur im NavMenu angezeigt)
 export const getMobileOnlyMenuItems = () => {
-  return {
-    profile: {
-      id: 'profile',
-      path: '/profile',
-      title: 'Mein Konto',
-      description: 'Profil und Einstellungen verwalten',
-      icon: getIcon('navigation', 'you')
-    }
-  };
+  return {};
 };
 
 // Funktion zur Generierung der Hauptmenüstruktur inkl. dynamischem "Labor"-Menü
