@@ -37,7 +37,7 @@ export default defineConfig(({ command }) => ({
     outDir: 'build',
     // Memory-optimized build settings for server compatibility
     reportCompressedSize: false, // Skip gzip reporting to save memory
-    modulePreload: false, // skip modulepreload generation to reduce work
+    modulePreload: { polyfill: true }, // enable modulepreload for motion and other chunks
     minify: 'esbuild', // enable minification for production
     cssMinify: true, // Enable CSS minification
     emptyOutDir: true,
