@@ -654,6 +654,7 @@
 @media (max-width: 768px) {
   .qa-chat-fullscreen-start {
     padding: var(--spacing-medium);
+    padding-bottom: 0;
     align-items: flex-start;
     padding-top: 10vh;
   }
@@ -663,5 +664,6 @@
   .qa-chat-fullscreen-start {
     padding: var(--spacing-small);
     padding-top: 5vh;
+    padding-bottom: 0;
   }
 }

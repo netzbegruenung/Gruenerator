@@ -247,6 +247,9 @@ const ChatWorkbenchLayout = ({
       return (
         <div className="qa-chat-main qa-chat-fullscreen">
           <ChatStartPage
+            variant="gruenerator"
+            showFeatures={false}
+            showTip={false}
             title={startPageTitle}
             placeholder={placeholder}
             inputValue={inputValue}
