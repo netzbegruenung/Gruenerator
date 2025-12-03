@@ -3,8 +3,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import NavMenu from './NavMenu';
 import ProfileButton from './ProfileButton';
-import ThemeToggleButton from './ThemeToggleButton';
-import useDarkMode from '../../hooks/useDarkMode';
 import useAccessibility from '../../hooks/useAccessibility';
 import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles } from './menuData';
 import Icon from '../../common/Icon';
@@ -26,7 +24,22 @@ const Header = () => {
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [scrolled, setScrolled] = useState(false);
-    const [darkMode, toggleDarkMode] = useDarkMode();
+    const [darkMode, setDarkMode] = useState(() =>
+        document.documentElement.getAttribute('data-theme') === 'dark'
+    );
+
+    // Listen for theme changes from Footer's toggle
+    useEffect(() => {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'data-theme') {
+                    setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
+                }
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true });
+        return () => observer.disconnect();
+    }, []);
     const { announce } = useAccessibility();
     const headerRef = useRef(null);
     const closeTimeoutRef = useRef(null);
@@ -339,7 +352,6 @@ const Header = () => {
                 />
                 <div className="header-actions">
                   <ProfileButton />
-                  <ThemeToggleButton darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
                 </div>
             </div>
         </header>
