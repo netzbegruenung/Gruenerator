@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
-import { extractPlainText } from './contentExtractor';
+import { extractPlainText, extractHTMLContent } from './contentExtractor';
 
 // Function to handle form changes
 export const handleChange = (e, setFormData) => {
@@ -137,7 +137,6 @@ export const copyFormattedContent = async (contentOrOnSuccess, onSuccessOrOnErro
     if (navigator.clipboard && navigator.clipboard.write) {
       try {
         // Get HTML version using existing export structure
-        const { extractHTMLContent } = await import('./contentExtractor');
         const htmlContent = await extractHTMLContent(content);
         
         // Create clipboard items with both formats
