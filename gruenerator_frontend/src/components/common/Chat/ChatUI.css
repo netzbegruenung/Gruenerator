@@ -133,12 +133,13 @@
 }
 
 .chat-messages-fullscreen .chat-message.assistant p,
-.chat-messages-fullscreen .chat-message.assistant *:not(.chat-message-quote):not(.citation-badge) {
+.chat-messages-fullscreen .chat-message.assistant *:not(.chat-message-quote):not(.citation-badge):not(.citation-number) {
   color: var(--font-color);
 }
 
-/* Keep citation badge white text in fullscreen light mode */
-.chat-messages-fullscreen .chat-message.assistant .citation-badge {
+/* Keep citation badge and number white text in fullscreen light mode */
+.chat-messages-fullscreen .chat-message.assistant .citation-badge,
+.chat-messages-fullscreen .chat-message.assistant .citation-number {
   color: #ffffff !important;
 }
 
@@ -154,8 +155,12 @@
 }
 
 [data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant p,
-[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant *:not(.chat-message-quote):not(.citation-badge) {
+[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant *:not(.chat-message-quote):not(.citation-badge):not(.citation-number) {
   color: var(--ai-message-text-color);
+}
+
+[data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant .citation-number {
+  color: #ffffff !important;
 }
 
 [data-theme="dark"] .chat-messages-fullscreen .chat-message.assistant .typing-dot {
