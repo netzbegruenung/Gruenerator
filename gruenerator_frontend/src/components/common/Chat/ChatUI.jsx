@@ -336,7 +336,7 @@ const ChatUI = ({
         </div>
       )}
       <div className={`chat-messages markdown-styles ${fullScreen ? 'chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
-        <AnimatePresence initial={false}>
+        <AnimatePresence initial={true}>
           {messages.map((msg, index) => 
             renderMessage ? renderMessage(msg, index) : defaultRenderMessage(msg, index)
           )}
