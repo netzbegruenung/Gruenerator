@@ -44,7 +44,7 @@ const ContentManagementView = ({
     // Available tabs - content plus integrations
     const availableTabs = [
         { key: 'inhalte', label: 'Inhalte' },
-        { key: 'wolke', label: 'Wolke' },
+        // { key: 'wolke', label: 'Wolke' }, // Temporarily hidden
         ...(canAccessBetaFeature('canva') ? [{ key: 'canva', label: 'Canva' }] : []),
         { key: 'anweisungen', label: 'Anweisungen' },
         { key: 'einstellungen', label: 'Weitere Einstellungen' }
