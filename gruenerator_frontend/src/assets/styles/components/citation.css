@@ -397,7 +397,7 @@
   height: 18px;
   padding: 0 4px;
   background-color: var(--interactive-accent-color);
-  color: var(--background-color);
+  color: var(--white);
   font-size: 0.7rem;
   font-weight: 600;
   border-radius: 10px;
@@ -406,7 +406,7 @@
 
 [data-theme="dark"] .citation-number {
   background-color: var(--primary-400);
-  color: var(--grey-950);
+  color: var(--white);
 }
 
 @media (max-width: 768px) {
