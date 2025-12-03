@@ -187,6 +187,30 @@ const Datenschutz = () => {
         <li>Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle</li>
       </ul>
 
+      <h3>Webanalyse mit Matomo</h3>
+      <p>
+        Diese Website nutzt den Open-Source-Webanalysedienst Matomo zur statistischen Auswertung der Besucherzugriffe. Matomo wird von <strong>Grünes CMS</strong> (piwik.gruenes-cms.de) in Deutschland gehostet und betrieben.
+      </p>
+      <p><strong>Erfasste Daten:</strong></p>
+      <ul>
+        <li>Besuchte Seiten und Verweildauer</li>
+        <li>Referrer (von welcher Seite Du kamst)</li>
+        <li>Browsertyp und Betriebssystem</li>
+        <li>Anonymisierte IP-Adresse (die letzten zwei Bytes werden entfernt)</li>
+        <li>Ungefährer Standort (Land/Region)</li>
+      </ul>
+      <p><strong>Datenschutz-Eigenschaften:</strong></p>
+      <ul>
+        <li>Server ausschließlich in Deutschland</li>
+        <li>Keine Weitergabe an Dritte</li>
+        <li>Keine Verknüpfung mit anderen Datenquellen</li>
+        <li>Cookies zur Wiedererkennung (können deaktiviert werden)</li>
+        <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Analyse des Nutzerverhaltens)</li>
+      </ul>
+      <p>
+        <strong>Opt-out:</strong> Du kannst die Erfassung Deiner Daten durch Matomo jederzeit deaktivieren. Besuche dazu die <a href="https://piwik.gruenes-cms.de/index.php?module=CoreAdminHome&action=optOut&language=de" target="_blank" rel="noopener noreferrer">Matomo Opt-out Seite</a>.
+      </p>
+
       <p>
         <strong>Wichtiger Hinweis zur Datenverarbeitung:</strong>
         Wir verarbeiten ausschließlich die von Dir bewusst eingegebenen Texte.
