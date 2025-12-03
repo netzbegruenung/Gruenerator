@@ -5,7 +5,6 @@ import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLa
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 import FormStateProvider from '../../../components/common/Form/FormStateProvider';
 import ResultsDeck from './ResultsDeck';
-import GrueneratorChatStartPage from './GrueneratorChatStartPage';
 import { useChatStore } from '../../../stores/chatStore';
 import { shallow } from 'zustand/shallow';
 import { useChatApi } from '../hooks/useChatApi';
@@ -433,7 +432,6 @@ const GrueneratorChat = () => {
         onRemoveFile={handleRemoveFile}
         showStartPage={true}
         startPageTitle="Was kann ich für dich tun?"
-        startPageComponent={GrueneratorChatStartPage}
         exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </motion.div>

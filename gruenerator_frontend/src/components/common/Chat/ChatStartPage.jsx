@@ -7,6 +7,23 @@ import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import './ChatStartPage.css';
 
+const DEFAULT_FEATURES = [
+  {
+    title: "Vielfältige Textformate",
+    description: "Von Social-Media-Posts über Pressemitteilungen bis zu Anträgen – ich finde den passenden Stil automatisch."
+  },
+  {
+    title: "Sharepics inklusive",
+    description: "Direkt nutzbare Sharepics mit passenden Headlines, Farben und Varianten – inklusive Download."
+  },
+  {
+    title: "Mehrere Ergebnisse",
+    description: "Ich kann mehrere Antworten gleichzeitig liefern, z.\u00a0B. Textvorschlag und Sharepic auf einen Streich."
+  }
+];
+
+const DEFAULT_TIP = "Starte z.\u00a0B. mit: „Schreib einen Instagram-Post über Solarenergie\"";
+
 const ChatStartPage = ({
   title = "Was möchtest du wissen?",
   placeholder = "Stell deine Frage...",
@@ -19,16 +36,20 @@ const ChatStartPage = ({
   attachedFiles = [],
   onRemoveFile,
   exampleQuestions = [],
-  // Voice recording props from parent (optional - will create own if not provided)
+  variant = "default",
+  showFeatures = false,
+  showTip = false,
+  features = DEFAULT_FEATURES,
+  tipText = DEFAULT_TIP,
   isVoiceRecording: externalIsVoiceRecording,
   isVoiceProcessing: externalIsVoiceProcessing,
   startRecording: externalStartRecording,
   stopRecording: externalStopRecording,
-  // File input props from parent (optional)
   fileInputRef: externalFileInputRef,
   handleFileUploadClick: externalHandleFileUploadClick,
   handleFileChange: externalHandleFileChange
 }) => {
+  const isGruenerator = variant === "gruenerator";
   // Use internal hook only if voice props not provided from parent
   const hasExternalVoice = externalStartRecording !== undefined;
 
@@ -104,22 +125,33 @@ const ChatStartPage = ({
     onInputChange && onInputChange(text);
   };
 
+  const containerClass = isGruenerator
+    ? "chat-start-page chat-start-page--gruenerator"
+    : "chat-start-page";
+
+  const titleAnimation = {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.4, delay: 0.1 }
+  };
+
   return (
     <motion.div
-      className="chat-start-page"
+      className={containerClass}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
       <div className="chat-start-page-content">
-        <motion.h1
-          className="chat-start-page-title"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
-          {title}
-        </motion.h1>
+        {isGruenerator ? (
+          <motion.h2 className="chat-start-page-title" {...titleAnimation}>
+            {title}
+          </motion.h2>
+        ) : (
+          <motion.h1 className="chat-start-page-title" {...titleAnimation}>
+            {title}
+          </motion.h1>
+        )}
 
         <motion.form
           className="chat-start-page-input-wrapper"
@@ -184,7 +216,7 @@ const ChatStartPage = ({
             className="chat-start-page-examples"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
+            transition={{ duration: 0.4, delay: isGruenerator ? 0.25 : 0.3 }}
           >
             {exampleQuestions.map((question, index) => (
               <button
@@ -200,6 +232,34 @@ const ChatStartPage = ({
           </motion.div>
         )}
       </div>
+
+      {(isGruenerator || showFeatures) && features.length > 0 && (
+        <motion.div
+          className="chat-start-page-features"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          {features.map((feature, index) => (
+            <div key={index} className="chat-start-page-feature">
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {(isGruenerator || showTip) && tipText && (
+        <motion.div
+          className="chat-start-page-tip"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          <span className="chat-start-page-tip-label">Tipp</span>
+          <p>{tipText}</p>
+        </motion.div>
+      )}
     </motion.div>
   );
 };
@@ -219,12 +279,18 @@ ChatStartPage.propTypes = {
     icon: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired
   })),
-  // Voice recording props from parent (optional)
+  variant: PropTypes.oneOf(['default', 'gruenerator']),
+  showFeatures: PropTypes.bool,
+  showTip: PropTypes.bool,
+  features: PropTypes.arrayOf(PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired
+  })),
+  tipText: PropTypes.string,
   isVoiceRecording: PropTypes.bool,
   isVoiceProcessing: PropTypes.bool,
   startRecording: PropTypes.func,
   stopRecording: PropTypes.func,
-  // File input props from parent (optional)
   fileInputRef: PropTypes.object,
   handleFileUploadClick: PropTypes.func,
   handleFileChange: PropTypes.func
