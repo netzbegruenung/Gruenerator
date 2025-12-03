@@ -5,7 +5,7 @@ import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLa
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 import FormStateProvider from '../../../components/common/Form/FormStateProvider';
 import ResultsDeck from './ResultsDeck';
-import StartPage from './StartPage';
+import GrueneratorChatStartPage from './GrueneratorChatStartPage';
 import { useChatStore } from '../../../stores/chatStore';
 import { shallow } from 'zustand/shallow';
 import { useChatApi } from '../hooks/useChatApi';
@@ -374,9 +374,6 @@ const GrueneratorChat = () => {
           isEditModeActive={isEditModeActive}
           showResetButton={true}
           onReset={handleReset}
-          renderEmptyState={() => (
-            <StartPage introHelpContent={introHelpContent} />
-          )}
         />
       </FormStateProvider>
     );
@@ -427,7 +424,7 @@ const GrueneratorChat = () => {
         disabled={isLoading}
         rightPanelContent={renderRightPanelContent()}
         className="gruenerator-chat-layout"
-        enableVoiceInput={false} // Disable voice input for now
+        enableVoiceInput={false}
         isEditModeActive={isEditModeActive}
         onReset={handleReset}
         hideModeSelector={true}
@@ -436,6 +433,9 @@ const GrueneratorChat = () => {
         onFileSelect={handleFileSelect}
         attachedFiles={attachedFiles}
         onRemoveFile={handleRemoveFile}
+        showStartPage={true}
+        startPageTitle="Was kann ich für dich tun?"
+        startPageComponent={GrueneratorChatStartPage}
       />
     </motion.div>
   );

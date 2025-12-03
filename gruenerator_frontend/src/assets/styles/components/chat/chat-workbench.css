@@ -632,3 +632,35 @@
   left: auto;
   right: 56px;
 }
+
+/* Fullscreen start page - centered across full width */
+.qa-chat-fullscreen-start {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: calc(100vh - 60px);
+  padding: var(--spacing-large);
+  box-sizing: border-box;
+}
+
+.qa-chat-fullscreen-start .gruenerator-chat-start {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .qa-chat-fullscreen-start {
+    padding: var(--spacing-medium);
+    align-items: flex-start;
+    padding-top: 10vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .qa-chat-fullscreen-start {
+    padding: var(--spacing-small);
+    padding-top: 5vh;
+  }
+}
