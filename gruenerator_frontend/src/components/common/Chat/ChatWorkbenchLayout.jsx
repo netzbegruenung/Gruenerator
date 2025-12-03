@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, lazy, Suspense } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
@@ -9,8 +9,6 @@ import ModeSelector from './ModeSelector';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import '../../../assets/styles/components/chat/chat-workbench.css';
-
-const GrueneratorChatStartPage = lazy(() => import('../../../features/chat/components/GrueneratorChatStartPage'));
 
 const ChatWorkbenchLayout = ({
   mode,
@@ -43,7 +41,6 @@ const ChatWorkbenchLayout = ({
   singleLine = false,
   showStartPage = false,
   startPageTitle = "Was möchtest du wissen?",
-  startPageComponent = null,
   exampleQuestions = []
 }) => {
   // Consolidated voice recording and file upload via useChatInput hook
@@ -180,33 +177,31 @@ const ChatWorkbenchLayout = ({
 
   const renderDossierMode = () => {
     const hasUserMessage = messages?.some(msg => msg.type === 'user');
-    const StartPageComponent = startPageComponent;
 
-    if (showStartPage && !hasUserMessage && StartPageComponent) {
+    if (showStartPage && !hasUserMessage) {
       return (
         <div className="qa-chat-main qa-chat-fullscreen-start">
-          <Suspense fallback={<div className="qa-chat-loading" />}>
-            <StartPageComponent
-              title={startPageTitle}
-              placeholder={placeholder}
-              inputValue={inputValue}
-              onInputChange={onInputChange}
-              onSubmit={onSubmit}
-              disabled={disabled || isProcessing}
-              enableFileUpload={enableFileUpload}
-              onFileSelect={onFileSelect}
-              attachedFiles={attachedFiles}
-              onRemoveFile={onRemoveFile}
-              exampleQuestions={exampleQuestions}
-              isVoiceRecording={isVoiceRecording}
-              isVoiceProcessing={isVoiceProcessing}
-              startRecording={startRecording}
-              stopRecording={stopRecording}
-              fileInputRef={fileInputRef}
-              handleFileUploadClick={handleFileUploadClick}
-              handleFileChange={handleFileChange}
-            />
-          </Suspense>
+          <ChatStartPage
+            variant="gruenerator"
+            title={startPageTitle}
+            placeholder={placeholder}
+            inputValue={inputValue}
+            onInputChange={onInputChange}
+            onSubmit={onSubmit}
+            disabled={disabled || isProcessing}
+            enableFileUpload={enableFileUpload}
+            onFileSelect={onFileSelect}
+            attachedFiles={attachedFiles}
+            onRemoveFile={onRemoveFile}
+            exampleQuestions={exampleQuestions}
+            isVoiceRecording={isVoiceRecording}
+            isVoiceProcessing={isVoiceProcessing}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+            fileInputRef={fileInputRef}
+            handleFileUploadClick={handleFileUploadClick}
+            handleFileChange={handleFileChange}
+          />
         </div>
       );
     }
@@ -354,7 +349,6 @@ ChatWorkbenchLayout.propTypes = {
   singleLine: PropTypes.bool,
   showStartPage: PropTypes.bool,
   startPageTitle: PropTypes.string,
-  startPageComponent: PropTypes.elementType,
   exampleQuestions: PropTypes.arrayOf(PropTypes.shape({
     icon: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired

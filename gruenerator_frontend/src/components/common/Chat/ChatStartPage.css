@@ -8,6 +8,13 @@
   padding: var(--spacing-large);
 }
 
+.chat-start-page--gruenerator {
+  gap: var(--spacing-xlarge);
+  padding: var(--spacing-xlarge);
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
 .chat-start-page-content {
   max-width: 680px;
   width: 100%;
@@ -41,9 +48,19 @@
   transition: var(--input-transition);
 }
 
+.chat-start-page--gruenerator .chat-start-page-input-container {
+  border: var(--border-subtle);
+  padding: var(--spacing-medium);
+}
+
 .chat-start-page-input-container:focus-within {
   border-color: var(--interactive-accent-color);
   box-shadow: var(--shadow-lg);
+}
+
+.chat-start-page--gruenerator .chat-start-page-input-container:focus-within {
+  border-color: var(--klee);
+  box-shadow: var(--input-shadow-focus);
 }
 
 .chat-start-page-attached-files {
@@ -62,6 +79,14 @@
   min-height: 24px;
   max-height: 200px;
   line-height: 1.5;
+}
+
+.chat-start-page--gruenerator .chat-start-page-input {
+  font-size: 1.1rem;
+  padding: var(--spacing-medium);
+  min-height: 100px;
+  line-height: 1.6;
+  overflow-y: hidden;
 }
 
 .chat-start-page-input:focus {
@@ -93,6 +118,13 @@
   transition: var(--input-transition);
 }
 
+.chat-start-page--gruenerator .chat-start-page-file-button,
+.chat-start-page--gruenerator .chat-start-page-submit-button {
+  width: 44px;
+  height: 44px;
+  font-size: 1.1rem;
+}
+
 .chat-start-page-file-button {
   background-color: var(--background-color-alt);
   color: var(--font-color);
@@ -108,9 +140,17 @@
   color: var(--weiß);
 }
 
+.chat-start-page--gruenerator .chat-start-page-submit-button {
+  box-shadow: var(--shadow-md);
+}
+
 .chat-start-page-submit-button:hover:not(:disabled) {
   background-color: var(--primary);
   transform: scale(1.05);
+}
+
+.chat-start-page--gruenerator .chat-start-page-submit-button:hover:not(:disabled) {
+  box-shadow: var(--shadow-lg);
 }
 
 .chat-start-page-submit-button:disabled,
@@ -205,5 +245,98 @@
     width: 100%;
     max-width: 280px;
     justify-content: center;
+  }
+}
+
+.chat-start-page-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--spacing-medium);
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.chat-start-page-feature {
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-medium);
+  border: var(--card-border);
+  box-shadow: var(--card-shadow-subtle);
+  background-color: var(--card-background);
+}
+
+.chat-start-page-feature h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--font-color-h);
+  margin: 0 0 var(--spacing-xsmall) 0;
+}
+
+.chat-start-page-feature p {
+  font-size: 0.85rem;
+  color: var(--font-color);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.chat-start-page-tip {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-small) var(--spacing-medium);
+  max-width: 600px;
+  margin: 0 auto;
+  background-color: var(--background-color-alt);
+}
+
+.chat-start-page-tip-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xxsmall) var(--spacing-small);
+  border-radius: 999px;
+  font-size: var(--font-size-xxs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: var(--klee);
+  color: var(--weiß);
+  flex-shrink: 0;
+}
+
+.chat-start-page-tip p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--font-color);
+}
+
+@media (max-width: 768px) {
+  .chat-start-page--gruenerator {
+    padding: var(--spacing-medium);
+    gap: var(--spacing-medium);
+  }
+
+  .chat-start-page--gruenerator .chat-start-page-title {
+    font-size: 1.25rem;
+  }
+
+  .chat-start-page-features {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-start-page-tip {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-start-page--gruenerator .chat-start-page-input {
+    min-height: 40px;
+  }
+
+  .chat-start-page--gruenerator .chat-start-page-input-container {
+    border-radius: 16px;
   }
 }
