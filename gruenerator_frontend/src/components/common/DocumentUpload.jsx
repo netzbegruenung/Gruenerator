@@ -541,6 +541,7 @@ const DocumentUpload = forwardRef(({
                         <HiOutlineLink className="icon" />
                         URL
                       </button>
+                      {/* Wolke tab temporarily hidden
                       <button
                         type="button"
                         className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
@@ -551,6 +552,7 @@ const DocumentUpload = forwardRef(({
                         <HiOutlineCloudDownload className="icon" />
                         Wolke
                       </button>
+                      */}
                     </div>
                   </div>
 
@@ -734,6 +736,7 @@ const DocumentUpload = forwardRef(({
                     <HiOutlineLink className="icon" />
                     URL
                   </button>
+                  {/* Wolke tab temporarily hidden
                   <button
                     type="button"
                     className={`mode-tab ${uploadMode === 'wolke' ? 'active' : ''}`}
@@ -744,6 +747,7 @@ const DocumentUpload = forwardRef(({
                     <HiOutlineCloudDownload className="icon" />
                     Wolke
                   </button>
+                  */}
                 </div>
               </div>
 
