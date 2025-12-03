@@ -36,7 +36,6 @@ const QAChat = () => {
     setInputValue, handleSubmitQuestion
   } = useQAChatLogic({
     collectionId: id,
-    collectionName: collection?.name,
     welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : null
   });
 
