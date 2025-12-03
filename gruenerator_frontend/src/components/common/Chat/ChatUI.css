@@ -101,12 +101,16 @@
   height: 100%;
 }
 
-/* Fullscreen chat mode - centered for better readability */
+/* Fullscreen chat mode - centered for better readability, uses page scroll */
 .chat-messages-fullscreen {
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
   background: transparent;
+  overflow-y: visible;
+  height: auto;
+  min-height: 100%;
+  padding-bottom: 160px;
 }
 
 .chat-messages-fullscreen .chat-message {
@@ -434,22 +438,34 @@
   position: relative;
 }
 
-/* Fullscreen input area - centered */
+/* Fullscreen input area - sticky at bottom of chat container */
 .chat-input-area-fullscreen {
+  position: sticky;
+  bottom: 0;
+  left: 0;
   max-width: 800px;
-  margin: 0 auto;
   width: 100%;
-  position: relative;
+  margin: 0 auto;
+  padding: 0 var(--spacing-medium);
+  box-sizing: border-box;
+  z-index: 100;
+  background: linear-gradient(to top, var(--background-color) 60%, transparent);
+  padding-top: var(--spacing-large);
+  padding-bottom: var(--spacing-small);
 }
 
 .chat-input-area-fullscreen .floating-input {
-  left: 0;
-  right: 0;
-  position: absolute;
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
 }
 
 .chat-input-area-fullscreen .floating-input-warning {
-  display: none;
+  display: block;
+  position: relative;
+  bottom: auto;
+  margin-top: var(--spacing-xsmall);
 }
 
 /* Input controls layout */
@@ -786,6 +802,19 @@
     padding: 16px 16px 120px 16px;
   }
 
+  /* Fullscreen mode mobile adjustments - remove excessive left space */
+  .chat-messages-fullscreen {
+    max-width: 100%;
+    margin: 0;
+    padding-left: var(--spacing-small);
+    padding-right: var(--spacing-small);
+  }
+
+  .chat-input-area-fullscreen {
+    max-width: 100%;
+    padding-left: var(--spacing-small);
+    padding-right: var(--spacing-small);
+  }
 
   /* Floating input positioning - fixed at bottom on mobile */
   .floating-input {

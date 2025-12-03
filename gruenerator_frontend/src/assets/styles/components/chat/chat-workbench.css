@@ -1,14 +1,19 @@
 .qa-chat-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
+  min-height: calc(100vh - 60px);
   box-sizing: border-box;
 }
 
 .qa-chat-main {
   display: flex;
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
+}
+
+/* Fullscreen mode: allow page scroll */
+.qa-chat-container.qa-chat-chat .qa-chat-main {
+  overflow: visible;
 }
 
 .qa-chat-left-panel {
@@ -30,6 +35,13 @@
   flex-direction: column;
   height: 100%;
   position: relative;
+  overflow: visible;
+}
+
+/* Fullscreen chat UI - allow page scroll */
+.qa-chat-ui-fullscreen {
+  height: auto;
+  min-height: 100%;
   overflow: visible;
 }
 
@@ -184,14 +196,14 @@
 .qa-chat-fullscreen {
   display: flex;
   gap: var(--spacing-medium);
-  height: 100%;
+  min-height: 100%;
 }
 
 .qa-chat-fullscreen-content {
   flex: 3;
   min-width: 0;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   background-color: transparent;
