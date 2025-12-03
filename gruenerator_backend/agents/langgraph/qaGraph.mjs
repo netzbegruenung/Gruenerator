@@ -477,20 +477,21 @@ async function repairNode(badDraft, referencesMap, aiWorkerPool) {
 }
 
 export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60 }) {
-  // 1) plan subqueries
+  // 1) plan subqueries (skip for simple queries ≤3 words)
   const isGrundsatz = (collection?.id === 'grundsatz-system') || ((collection?.user_id === 'SYSTEM') && (collection?.settings?.system_collection === true));
-  const subqueries = await plannerNode(question, aiWorkerPool, isGrundsatz);
+  const wordCount = question.trim().split(/\s+/).length;
+  const subqueries = wordCount <= 3
+    ? [question]
+    : await plannerNode(question, aiWorkerPool, isGrundsatz);
 
   // 2) search (recall -> diversify)
   const searchResults = await (async () => {
     // Allow route to override scoping explicitly; fallback to collection-based inference
     if (searchCollection) {
-      const all = [];
-      for (const q of subqueries) {
-        // Use adaptive weights based on query complexity
+      // Parallel search for all subqueries
+      const searchPromises = subqueries.map(q => {
         const weights = adaptiveWeights(q);
-
-        const resp = await documentSearchService.search({
+        return documentSearchService.search({
           query: q,
           user_id: userId,
           documentIds,
@@ -503,9 +504,9 @@ export async function runQaGraph({ question, collection, aiWorkerPool, searchCol
           recallLimit: recallLimit || 80,
           qualityMin: collection.settings?.min_quality || 0.35
         });
-        const list = expandSearchResultsToChunks(resp.results || []);
-        all.push(...list);
-      }
+      });
+      const responses = await Promise.all(searchPromises);
+      const all = responses.flatMap(resp => expandSearchResultsToChunks(resp.results || []));
       // Deduplicate per doc:chunk
       const keySet = new Set();
       const deduped = [];

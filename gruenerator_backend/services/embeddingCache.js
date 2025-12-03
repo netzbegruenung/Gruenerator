@@ -6,7 +6,7 @@ import crypto from 'crypto';
  */
 class EmbeddingCache {
   constructor() {
-    this.ttl = 3600; // 1 hour cache
+    this.ttl = 86400; // 24 hour cache
     this.keyPrefix = 'embedding:';
     this.redis = null;
     this.initialized = false;
