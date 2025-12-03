@@ -6,6 +6,7 @@ const { requireAuth } = authMiddleware;
 // Legacy tool-use imports removed; graph-based agent is used for all QA flows
 import { runQaGraph } from '../agents/langgraph/qaGraph.mjs';
 import { queryIntentService } from '../services/QueryIntentService.js';
+import { buildDraftPromptGrundsatz } from '../agents/langgraph/prompts.mjs';
 
 const router = express.Router();
 
@@ -198,16 +199,8 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
             return `${id}. [${ref.collection_name}] ${ref.title} — "${short}"`;
         }).join('\n');
 
-        // Generate unified answer
-        const systemPrompt = `Du bist ein Experte für die Politik der Grünen. Beantworte Fragen basierend auf den bereitgestellten Quellen aus verschiedenen Sammlungen (Grundsatzprogramme und Bundestagsfraktion).
-
-WICHTIG:
-- Synthetisiere Informationen aus ALLEN relevanten Quellen zu EINER kohärenten Antwort
-- Zitiere mit [n] Nummern, die den Quellen-IDs entsprechen
-- Gruppiere thematisch, nicht nach Quelle
-- Beginne direkt mit der Antwort, keine Einleitung wie "Basierend auf den Quellen..."
-- Nutze Markdown-Formatierung mit Überschriften und Aufzählungen
-- Die Quellen sind aus verschiedenen Sammlungen - berücksichtige beide gleichermaßen`;
+        // Generate unified answer using shared prompt from prompts.mjs
+        const { system: systemPrompt } = buildDraftPromptGrundsatz('Grüne Grundsatzprogramme und Bundestagsfraktion');
 
         const userPrompt = `Frage: ${trimmedQuestion}
 

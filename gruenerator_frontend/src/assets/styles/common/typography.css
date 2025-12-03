@@ -271,7 +271,7 @@ h3:first-child {
 }
 
 h4 {
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-lg);
     font-weight: 500;
     line-height: var(--line-height-snug);
     color: var(--font-color-h3);

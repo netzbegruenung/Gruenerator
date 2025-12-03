@@ -23,7 +23,7 @@ const searxngWebSearchService = (() => {
  */
 class RequestEnricher {
   constructor() {
-    this.maxConcurrentUrls = 3;
+    this.maxConcurrentUrls = 5;
     this.urlCrawlTimeout = 15000;
   }
 

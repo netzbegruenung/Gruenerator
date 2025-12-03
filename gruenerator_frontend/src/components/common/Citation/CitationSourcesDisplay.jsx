@@ -154,7 +154,7 @@ const CitationSourcesDisplay = ({
               <div className="ask-document-citations">
                 {group.citations.map((citation, idx) => (
                   <div key={idx} className="ask-citation-inline">
-                    <span className="citation-number">[{citation.index}]</span>
+                    <span className="citation-number">{citation.index}</span>
                     <span className="citation-text">"{citation.cited_text?.replace(/\*\*/g, '') || ''}"</span>
                   </div>
                 ))}

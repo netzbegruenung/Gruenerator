@@ -1,8 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaTwitter, FaLinkedin, FaInstagram } from 'react-icons/fa';
+import ThemeToggleButton from '../Header/ThemeToggleButton';
+import useDarkMode from '../../hooks/useDarkMode';
 
 const Footer = () => {
+    const [darkMode, toggleDarkMode] = useDarkMode();
+
     return (
         <footer className="footer" role="contentinfo">
             <div className="footer-container">
@@ -68,6 +72,8 @@ const Footer = () => {
                             <a href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210" target="_blank" rel="noopener noreferrer" className="footer-social-icon" aria-label="LinkedIn von Moritz Wächter">
                                 <FaLinkedin aria-hidden="true" />
                             </a>
+                            <span className="footer-divider" aria-hidden="true">·</span>
+                            <ThemeToggleButton darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
                         </div>
                         <p>© 2025. Eine Website von Moritz Wächter. Alle Rechte vorbehalten. Der Grünerator wird unterstützt von der <a href="https://netzbegruenung.de/" target="_blank" rel="noopener noreferrer">netzbegrünung</a>. 
                             Du kannst <a href="https://netzbegruenung.de/verein/mitgliedsantrag/" target="_blank" rel="noopener noreferrer">hier Mitglied werden</a>.

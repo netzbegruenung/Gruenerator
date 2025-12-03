@@ -24,7 +24,6 @@ const AskBundestagsfraktionPage = () => {
     setInputValue, handleSubmitQuestion
   } = useQAChatLogic({
     collectionId: 'bundestagsfraktion-system',
-    collectionName: COLLECTION_NAME,
     extraApiParams: { search_user_id: SYSTEM_USER_ID }
   });
 

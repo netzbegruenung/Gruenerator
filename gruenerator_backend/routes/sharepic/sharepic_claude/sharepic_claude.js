@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prompts = require('../../../prompts/sharepic');
-const aiShortenerService = require('../../../services/aiShortenerService');
+// const aiShortenerService = require('../../../services/aiShortenerService');
 
 // Helper function to detect if an error is related to throttling/temporary issues
 const isThrottlingError = (error) => {
@@ -386,38 +386,38 @@ const handleDreizeilenRequest = async (req, res) => {
         });
       }
 
-      // Try AI shortener as fallback
-      try {
-        const shortenedSlogan = await aiShortenerService.shortenSharepicText('dreizeilen', mainSlogan, req);
+      // AI shortener disabled - using fallback truncation only
+      // try {
+      //   const shortenedSlogan = await aiShortenerService.shortenSharepicText('dreizeilen', mainSlogan, req);
 
-        if (isSloganValid(shortenedSlogan)) {
-          return res.json({
-            success: true,
-            mainSlogan: shortenedSlogan,
-            alternatives: [],
-            searchTerms: searchTerms
-          });
-        }
-      } catch (shortenerError) {
-        console.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
-      }
+      //   if (isSloganValid(shortenedSlogan)) {
+      //     return res.json({
+      //       success: true,
+      //       mainSlogan: shortenedSlogan,
+      //       alternatives: [],
+      //       searchTerms: searchTerms
+      //     });
+      //   }
+      // } catch (shortenerError) {
+      //   console.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
+      // }
 
       // Create a preview of the last generated content for debugging
       const finalContent = result?.content || 'No content available';
       const finalPreview = finalContent.substring(0, 200) + (finalContent.length > 200 ? '...' : '');
 
-      console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts and AI shortener`);
+      console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts`);
       console.error(`[sharepic_dreizeilen] Last generated content preview:`, finalPreview);
       console.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
 
       return res.status(500).json({
         success: false,
-        error: `Failed to generate valid dreizeilen after ${maxAttempts} attempts and AI shortener`,
+        error: `Failed to generate valid dreizeilen after ${maxAttempts} attempts`,
         debug: {
           contentPreview: finalPreview,
           finalSlogan: mainSlogan,
           attempts: maxAttempts,
-          shortenerTried: true,
+          // shortenerTried: true,
           allGeneratedContent
         }
       });
@@ -504,32 +504,14 @@ const handleZitatRequest = async (req, res) => {
         }
         alternatives = []; // No alternatives for single item
 
-        // Check if quote exceeds 140 characters and use shortener if needed
-        if (firstQuote.length > 140 && !skipShortener) {
-          try {
-            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: firstQuote, name }, req);
-            firstQuote = shortenedResult.quote;
-          } catch (shortenerError) {
-            console.error(`[sharepic_zitat] Shortener error:`, shortenerError);
-            firstQuote = firstQuote.substring(0, 137) + '...';
-          }
-        }
+        // AI shortener disabled - no truncation
 
       } catch (parseError) {
         console.warn('[sharepic_zitat] Single item JSON parsing failed, using fallback:', parseError.message);
         firstQuote = (result.content || '').trim();
         alternatives = [];
 
-        // Apply shortener to fallback as well if needed
-        if (firstQuote.length > 140 && !skipShortener) {
-          try {
-            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: firstQuote, name }, req);
-            firstQuote = shortenedResult.quote;
-          } catch (shortenerError) {
-            console.error(`[sharepic_zitat] Shortener error in fallback:`, shortenerError);
-            firstQuote = firstQuote.substring(0, 137) + '...';
-          }
-        }
+        // AI shortener disabled - no truncation
       }
     } else {
       // Multiple items (original behavior)
@@ -542,20 +524,7 @@ const handleZitatRequest = async (req, res) => {
         );
       }
 
-      // Apply shortener to all quotes if any exceed 140 chars
-      if (!skipShortener) {
-        for (let i = 0; i < quotes.length; i++) {
-          if (quotes[i].quote && quotes[i].quote.length > 140) {
-            try {
-              const shortenedResult = await aiShortenerService.shortenSharepicText('zitat', { quote: quotes[i].quote, name }, req);
-              quotes[i].quote = shortenedResult.quote;
-            } catch (shortenerError) {
-              console.error(`[sharepic_zitat] Shortener error for quote ${i}:`, shortenerError);
-              quotes[i].quote = quotes[i].quote.substring(0, 137) + '...';
-            }
-          }
-        }
-      }
+      // AI shortener disabled - no truncation
 
       firstQuote = quotes[0]?.quote || (result.content || '').trim();
       alternatives = quotes.slice(1);
@@ -658,36 +627,7 @@ const handleZitatPureRequest = async (req, res) => {
     let firstQuote = quotes[0]?.quote || (result.content || '').trim();
     let alternatives = quotes.slice(1);
 
-    // Check if quotes need shortening (100-160 characters for zitat_pure)
-    if (!skipShortener && (firstQuote.length < 100 || firstQuote.length > 160)) {
-      try {
-        const shortenedResult = await aiShortenerService.shortenSharepicText('zitat_pure', { quote: firstQuote, name: quoteName }, req);
-        firstQuote = shortenedResult.quote;
-      } catch (shortenerError) {
-        console.error(`[sharepic_zitat_pure] Shortener error:`, shortenerError);
-        // Fallback: adjust length manually
-        if (firstQuote.length > 160) {
-          firstQuote = firstQuote.substring(0, 157) + '...';
-        }
-      }
-    }
-
-    // Check alternatives too (skip for sharepicgenerator)
-    if (!skipShortener) {
-      for (let i = 0; i < alternatives.length; i++) {
-        if (alternatives[i].quote && (alternatives[i].quote.length < 100 || alternatives[i].quote.length > 160)) {
-          try {
-            const shortenedResult = await aiShortenerService.shortenSharepicText('zitat_pure', { quote: alternatives[i].quote, name: quoteName }, req);
-            alternatives[i].quote = shortenedResult.quote;
-          } catch (shortenerError) {
-            console.error(`[sharepic_zitat_pure] Shortener error for alternative ${i}:`, shortenerError);
-            if (alternatives[i].quote.length > 160) {
-              alternatives[i].quote = alternatives[i].quote.substring(0, 157) + '...';
-            }
-          }
-        }
-      }
-    }
+    // AI shortener disabled - no truncation
 
     res.json({
       success: true,
@@ -782,21 +722,7 @@ const handleHeadlineRequest = async (req, res) => {
         }
       }
 
-      // Check if headline needs shortening (6-12 chars per line)
-      const needsShortening = mainSlogan.line1.length > 12 || mainSlogan.line2.length > 12 || mainSlogan.line3.length > 12;
-
-      if (needsShortening && !skipShortener) {
-        try {
-          const shortenedResult = await aiShortenerService.shortenSharepicText('headline', mainSlogan, req);
-          mainSlogan = shortenedResult;
-        } catch (shortenerError) {
-          console.error('[sharepic_headline] Shortener error:', shortenerError);
-          // Fallback truncation
-          mainSlogan.line1 = mainSlogan.line1.substring(0, 9) + '...';
-          mainSlogan.line2 = mainSlogan.line2.substring(0, 9) + '...';
-          mainSlogan.line3 = mainSlogan.line3.substring(0, 9) + '...';
-        }
-      }
+      // AI shortener disabled - no truncation
 
       res.json({
         success: true,
@@ -815,26 +741,7 @@ const handleHeadlineRequest = async (req, res) => {
         });
       }
 
-      // Apply shortener to all headlines if needed (6-12 chars per line)
-      if (!skipShortener) {
-        for (let i = 0; i < headlines.length; i++) {
-          const headline = headlines[i];
-          const needsShortening = headline.line1.length > 12 || headline.line2.length > 12 || headline.line3.length > 12;
-
-          if (needsShortening) {
-            try {
-              const shortenedResult = await aiShortenerService.shortenSharepicText('headline', headline, req);
-              headlines[i] = shortenedResult;
-            } catch (shortenerError) {
-              console.error(`[sharepic_headline] Shortener error for headline ${i}:`, shortenerError);
-              // Fallback truncation
-              headlines[i].line1 = headline.line1.substring(0, 9) + '...';
-              headlines[i].line2 = headline.line2.substring(0, 9) + '...';
-              headlines[i].line3 = headline.line3.substring(0, 9) + '...';
-            }
-          }
-        }
-      }
+      // AI shortener disabled - no truncation
 
       // Format for frontend
       const mainSlogan = headlines[0] || { line1: '', line2: '', line3: '' };
@@ -960,39 +867,7 @@ const handleInfoRequest = async (req, res) => {
           }
 
           // Validate character lengths (skip for sharepicgenerator)
-          const infoForValidation = { header: cleanHeader, subheader: cleanSubheader, body: cleanBody };
-          if (!skipShortener && !isInfoValid(infoForValidation)) {
-            if (attempts === maxAttempts) {
-              // Try AI shortener as fallback
-              try {
-                const shortenedInfo = await aiShortenerService.shortenSharepicText('info', infoForValidation, req);
-
-                if (isInfoValid(shortenedInfo)) {
-                  responseData = {
-                    success: true,
-                    mainInfo: {
-                      header: shortenedInfo.header,
-                      subheader: shortenedInfo.subheader,
-                      body: shortenedInfo.body
-                    },
-                    alternatives: [],
-                    searchTerms: shortenedInfo.searchTerm ? [shortenedInfo.searchTerm] : []
-                  };
-                  break; // Exit the retry loop
-                }
-              } catch (shortenerError) {
-                console.error(`[sharepic_info] AI shortener error:`, shortenerError);
-              }
-
-              console.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts and AI shortener`);
-              return res.status(500).json({
-                success: false,
-                error: `Failed to generate info with correct character limits after ${maxAttempts} attempts and AI shortener`
-              });
-            }
-            // Continue to next attempt
-            continue;
-          }
+          // AI shortener disabled - validation check removed
 
 
           responseData = {
