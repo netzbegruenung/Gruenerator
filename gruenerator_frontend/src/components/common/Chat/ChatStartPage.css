@@ -11,7 +11,6 @@
 .chat-start-page--gruenerator {
   gap: var(--spacing-xlarge);
   padding: var(--spacing-xlarge);
-  min-height: 100%;
   box-sizing: border-box;
 }
 
@@ -314,7 +313,10 @@
 @media (max-width: 768px) {
   .chat-start-page--gruenerator {
     padding: var(--spacing-medium);
+    padding-top: 5vh;
+    padding-bottom: 0;
     gap: var(--spacing-medium);
+    flex: none;
   }
 
   .chat-start-page--gruenerator .chat-start-page-title {

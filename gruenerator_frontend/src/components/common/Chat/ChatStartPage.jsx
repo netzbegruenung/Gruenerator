@@ -233,7 +233,7 @@ const ChatStartPage = ({
         )}
       </div>
 
-      {(isGruenerator || showFeatures) && features.length > 0 && (
+      {((isGruenerator && showFeatures !== false) || showFeatures) && features.length > 0 && (
         <motion.div
           className="chat-start-page-features"
           initial={{ opacity: 0, y: 10 }}
@@ -249,7 +249,7 @@ const ChatStartPage = ({
         </motion.div>
       )}
 
-      {(isGruenerator || showTip) && tipText && (
+      {((isGruenerator && showTip !== false) || showTip) && tipText && (
         <motion.div
           className="chat-start-page-tip"
           initial={{ opacity: 0, y: 10 }}
