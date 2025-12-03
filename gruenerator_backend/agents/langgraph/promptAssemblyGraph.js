@@ -343,13 +343,13 @@ async function assemblePromptGraphAsync(enrichedState, flags = {}) {
     );
 
     console.log(`📋 [PromptAssemblyAsync] Document split: ${fileAttachmentDocs.length} file attachments, ${crawledUrlDocs.length} crawled URLs`);
-    console.log(`📋 [PromptAssemblyAsync] Processing ${fileAttachmentDocs.length} file attachment uploads for DocQnA...`);
+    console.log(`📋 [PromptAssemblyAsync] Processing ${fileAttachmentDocs.length} file attachment uploads for DocQnA (parallel)...`);
 
-    const urlList = [];
-    for (const d of fileAttachmentDocs) {
-      const url = await uploadDocAndGetUrl(d);
-      if (url) urlList.push(url);
-    }
+    // Upload documents in parallel for better performance
+    const uploadResults = await Promise.all(
+      fileAttachmentDocs.map(d => uploadDocAndGetUrl(d))
+    );
+    const urlList = uploadResults.filter(Boolean);
     
     if (urlList.length > 0) {
       const kinds = urlList.map(u => (typeof u === 'string' && u.startsWith('data:')) ? 'data' : (typeof u === 'string' && u.startsWith('http') ? 'http' : 'other'));

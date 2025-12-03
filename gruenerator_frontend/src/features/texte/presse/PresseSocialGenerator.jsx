@@ -214,23 +214,48 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       formDataToSubmit.searchQuery = searchQuery || '';
 
       let combinedResults = {};
+      const otherPlatforms = selectedPlatforms.filter(p => p !== 'sharepic');
 
-      // Generate sharepic if requested
+      // Run sharepic and social generation in PARALLEL for better performance
+      const generationPromises = [];
+
+      // Prepare sharepic generation promise
       if (hasSharepic) {
-        try {
-          const sharepicResult = await generateSharepic(
+        generationPromises.push(
+          generateSharepic(
             rhfData.thema,
             rhfData.details,
             uploadedImage,
             rhfData.sharepicType || 'default',
             rhfData.zitatAuthor,
-            customPrompt, // Pass custom instructions to sharepic generation
-            allAttachments, // Include attachments
-            features.usePrivacyMode, // Include privacy mode from store
-            null, // provider - will be handled by privacy mode settings
-            features.useBedrock // Pass Pro mode flag for sharepic generation from store
-          );
-          // Handle both single sharepic and array of sharepics (default mode)
+            customPrompt,
+            allAttachments,
+            features.usePrivacyMode,
+            null,
+            features.useBedrock
+          ).then(result => ({ type: 'sharepic', result }))
+           .catch(error => ({ type: 'sharepic', error }))
+        );
+      }
+
+      // Prepare social generation promise
+      if (otherPlatforms.length > 0) {
+        generationPromises.push(
+          submitForm({
+            ...formDataToSubmit,
+            platforms: otherPlatforms
+          }).then(result => ({ type: 'social', result }))
+            .catch(error => ({ type: 'social', error }))
+        );
+      }
+
+      // Execute all generations in parallel
+      const results = await Promise.all(generationPromises);
+
+      // Process results
+      for (const outcome of results) {
+        if (outcome.type === 'sharepic' && !outcome.error && outcome.result) {
+          const sharepicResult = outcome.result;
           const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
           const existingSharepics = Array.isArray(previousContent?.sharepic)
             ? previousContent.sharepic
@@ -240,14 +265,12 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
           let newSharepicEntries;
           if (Array.isArray(sharepicResult)) {
-            // Default mode returns array - add IDs if not already present
             newSharepicEntries = sharepicResult.map(sharepic => ({
               ...sharepic,
               id: sharepic.id || `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
               createdAt: sharepic.createdAt || new Date().toISOString()
             }));
           } else {
-            // Individual modes return single object
             newSharepicEntries = [{
               ...sharepicResult,
               id: `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -256,31 +279,22 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           }
 
           combinedResults.sharepic = [...newSharepicEntries, ...existingSharepics];
-        } catch (sharepicError) {
-          console.error('[PresseSocialGenerator] Sharepic generation failed:', sharepicError);
-          // Continue with social generation even if sharepic fails
+        } else if (outcome.type === 'sharepic' && outcome.error) {
+          console.error('[PresseSocialGenerator] Sharepic generation failed:', outcome.error);
         }
-      }
 
-      // Generate regular social content for other platforms
-      const otherPlatforms = selectedPlatforms.filter(p => p !== 'sharepic');
-      if (otherPlatforms.length > 0) {
-        const response = await submitForm({
-          ...formDataToSubmit,
-          platforms: otherPlatforms
-        });
-
-        if (response) {
-          // Handle both old string format and new {content, metadata} format
+        if (outcome.type === 'social' && !outcome.error && outcome.result) {
+          const response = outcome.result;
           let content = typeof response === 'string' ? response : response.content;
           const metadata = typeof response === 'object' ? response.metadata : {};
 
-          // Append presseabbinder to pressemitteilung content if provided
           if (otherPlatforms.includes('pressemitteilung') && rhfData.presseabbinder?.trim()) {
             content = `${content}\n\n---\n\n${rhfData.presseabbinder.trim()}`;
           }
 
           combinedResults.social = { content, metadata };
+        } else if (outcome.type === 'social' && outcome.error) {
+          console.error('[PresseSocialGenerator] Social generation failed:', outcome.error);
         }
       }
 
