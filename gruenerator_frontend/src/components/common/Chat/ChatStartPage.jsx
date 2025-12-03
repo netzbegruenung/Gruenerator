@@ -18,6 +18,7 @@ const ChatStartPage = ({
   onFileSelect,
   attachedFiles = [],
   onRemoveFile,
+  exampleQuestions = [],
   // Voice recording props from parent (optional - will create own if not provided)
   isVoiceRecording: externalIsVoiceRecording,
   isVoiceProcessing: externalIsVoiceProcessing,
@@ -99,6 +100,10 @@ const ChatStartPage = ({
     }
   };
 
+  const handleExampleClick = (text) => {
+    onInputChange && onInputChange(text);
+  };
+
   return (
     <motion.div
       className="chat-start-page"
@@ -173,6 +178,27 @@ const ChatStartPage = ({
             </div>
           </div>
         </motion.form>
+
+        {exampleQuestions.length > 0 && (
+          <motion.div
+            className="chat-start-page-examples"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            {exampleQuestions.map((question, index) => (
+              <button
+                key={index}
+                type="button"
+                className="chat-start-page-example"
+                onClick={() => handleExampleClick(question.text)}
+              >
+                <span>{question.icon}</span>
+                <span>{question.text}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );
@@ -189,6 +215,10 @@ ChatStartPage.propTypes = {
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
   onRemoveFile: PropTypes.func,
+  exampleQuestions: PropTypes.arrayOf(PropTypes.shape({
+    icon: PropTypes.string.isRequired,
+    text: PropTypes.string.isRequired
+  })),
   // Voice recording props from parent (optional)
   isVoiceRecording: PropTypes.bool,
   isVoiceProcessing: PropTypes.bool,

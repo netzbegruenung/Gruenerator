@@ -12,6 +12,12 @@ const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const COLLECTION_NAME = 'Grünes Notebook';
 const START_PAGE_TITLE = 'Was möchtest du über die Grundsatzprogramme wissen?';
 
+const EXAMPLE_QUESTIONS = [
+  { icon: '🌍', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
+  { icon: '🇪🇺', text: 'Wie positionieren sich die Grünen zur EU?' },
+  { icon: '🏛️', text: 'Was sagt das Regierungsprogramm zu Bildung?' }
+];
+
 const AskGrundsatzPage = () => {
   const {
     chatMessages, inputValue, submitLoading, isMobileView,
@@ -75,6 +81,7 @@ const AskGrundsatzPage = () => {
         singleLine={true}
         showStartPage={true}
         startPageTitle={START_PAGE_TITLE}
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </ErrorBoundary>
   );

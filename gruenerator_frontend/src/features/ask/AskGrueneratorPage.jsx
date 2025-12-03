@@ -11,6 +11,12 @@ import '../../assets/styles/features/qa/qa-chat.css';
 const COLLECTION_NAME = 'Grünerator Notebook';
 const START_PAGE_TITLE = 'Was möchtest du wissen?';
 
+const EXAMPLE_QUESTIONS = [
+  { icon: '🌍', text: 'Was sagen die Grünen zum Klimaschutz?' },
+  { icon: '🇪🇺', text: 'Wie ist die grüne Position zur EU?' },
+  { icon: '⚡', text: 'Was steht zur Energiewende in den Programmen?' }
+];
+
 const COLLECTIONS = [
   {
     id: 'grundsatz-system',
@@ -115,6 +121,7 @@ const AskGrueneratorPage = () => {
         singleLine={true}
         showStartPage={true}
         startPageTitle={START_PAGE_TITLE}
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </ErrorBoundary>
   );

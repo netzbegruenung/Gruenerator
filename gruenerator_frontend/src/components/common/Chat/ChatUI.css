@@ -101,6 +101,14 @@
   height: 100%;
 }
 
+/* Dossier mode: messages don't scroll individually - parent panel scrolls */
+.qa-chat-dossier .chat-messages {
+  overflow: visible;
+  flex: none;
+  height: auto;
+  padding-bottom: var(--spacing-medium);
+}
+
 /* Fullscreen chat mode - centered for better readability */
 .chat-messages-fullscreen {
   max-width: 800px;

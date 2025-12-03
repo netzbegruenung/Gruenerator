@@ -12,6 +12,12 @@ const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const COLLECTION_NAME = 'Grüne Bundestagsfraktion';
 const START_PAGE_TITLE = 'Was möchtest du über die Grüne Bundestagsfraktion wissen?';
 
+const EXAMPLE_QUESTIONS = [
+  { icon: '🌍', text: 'Was sind die Klimaziele der Fraktion?' },
+  { icon: '📋', text: 'Welche Positionen gibt es zur Migrationspolitik?' },
+  { icon: '💶', text: 'Wie positioniert sich die Fraktion zum Haushalt?' }
+];
+
 const AskBundestagsfraktionPage = () => {
   const {
     chatMessages, inputValue, submitLoading, isMobileView,
@@ -81,6 +87,7 @@ const AskBundestagsfraktionPage = () => {
         singleLine={true}
         showStartPage={true}
         startPageTitle={START_PAGE_TITLE}
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </ErrorBoundary>
   );
