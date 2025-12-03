@@ -158,4 +158,8 @@
   .chat-start-page-input-container {
     border-radius: 20px;
   }
+
+  .chat-start-page-input {
+    min-height: 48px;
+  }
 }
