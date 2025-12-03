@@ -22,7 +22,7 @@
 .animated-heading h2 {
     font-size: var(--font-size-5xl);
     font-weight: 700;
-    color: var(--font-color-green);
+    color: var(--font-color-h);
     font-family: 'Raleway', Arial, sans-serif;
     margin: 0;
 }
