@@ -277,10 +277,10 @@
 .citation-text {
   color: var(--font-color);
   font-style: italic;
-  line-height: 1.6;
-  padding: var(--spacing-medium);
+  line-height: 1.4;
+  padding: var(--spacing-small);
   border-radius: var(--card-border-radius-small);
-  font-size: 1rem;
+  font-size: 0.85rem;
 }
 
 .citation-source,
@@ -379,26 +379,34 @@
 .ask-document-citations {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xsmall);
+  gap: 0;
 }
 
 .ask-citation-inline {
   display: flex;
   gap: var(--spacing-small);
-  padding: var(--spacing-small);
+  padding: var(--spacing-xxsmall);
   margin-left: var(--spacing-xsmall);
 }
 
 .citation-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background-color: var(--interactive-accent-color);
+  color: var(--background-color);
+  font-size: 0.7rem;
   font-weight: 600;
-  color: var(--interactive-accent-color);
-  font-size: 0.9rem;
-  min-width: 24px;
+  border-radius: 10px;
   flex-shrink: 0;
 }
 
 [data-theme="dark"] .citation-number {
-  color: var(--primary-400);
+  background-color: var(--primary-400);
+  color: var(--grey-950);
 }
 
 @media (max-width: 768px) {
