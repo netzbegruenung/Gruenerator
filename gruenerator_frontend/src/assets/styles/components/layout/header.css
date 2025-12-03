@@ -238,6 +238,7 @@
     width: 100%;
     display: flex;
     align-items: center;
+    color: var(--font-color);
 }
 
 .header-dropdown-content li a svg {
@@ -741,7 +742,7 @@ input:not(:checked) + .slider .icon.moon {
 .header-dropdown-content .menu-item-content .menu-item-header .menu-item-title {
     font-weight: bold;
     font-size: 0.95em;
-    color: var(--font-color-h);
+    color: var(--font-color);
     margin: 0;
     line-height: 1.2;
 }
