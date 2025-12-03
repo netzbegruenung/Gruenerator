@@ -24,7 +24,6 @@ const AskGrundsatzPage = () => {
     setInputValue, handleSubmitQuestion
   } = useQAChatLogic({
     collectionId: 'grundsatz-system',
-    collectionName: COLLECTION_NAME,
     extraApiParams: { search_user_id: SYSTEM_USER_ID }
   });
 

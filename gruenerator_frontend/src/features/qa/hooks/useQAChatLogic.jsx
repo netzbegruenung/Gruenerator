@@ -1,33 +1,42 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
+import { useQAChatStore } from '../stores/qaChatStore';
+import { shallow } from 'zustand/shallow';
 
 const useQAChatLogic = ({
   collectionId,
-  collectionName,
   welcomeMessage,
   extraApiParams = {},
   linkConfig = { type: 'vectorDocument', linkKey: 'document_id', titleKey: 'document_title' }
 }) => {
   const { user } = useOptimizedAuth();
   const { isMobileView } = useResponsive(768);
-  const [chatMessages, setChatMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
 
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
   const { submitForm, loading: submitLoading } = useApiSubmit(`/auth/qa/${collectionId}/ask`);
 
+  const chats = useQAChatStore(state => state.chats, shallow);
+  const addMessage = useQAChatStore(state => state.addMessage);
+  const setMessages = useQAChatStore(state => state.setMessages);
+
+  const chatMessages = useMemo(() => {
+    return chats[collectionId]?.messages || [];
+  }, [chats, collectionId]);
+
   useEffect(() => {
-    if (welcomeMessage) {
-      setChatMessages([{
+    if (welcomeMessage && chatMessages.length === 0) {
+      setMessages(collectionId, [{
         type: 'assistant',
         content: welcomeMessage,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        id: `welcome_${collectionId}`
       }]);
     }
-  }, [welcomeMessage]);
+  }, [welcomeMessage, collectionId, chatMessages.length, setMessages]);
 
   const handleSubmitQuestion = useCallback(async (question) => {
     const userMessage = {
@@ -36,7 +45,7 @@ const useQAChatLogic = ({
       timestamp: Date.now(),
       userName: user?.user_metadata?.firstName || user?.email || 'Sie'
     };
-    setChatMessages(prev => [...prev, userMessage]);
+    addMessage(collectionId, userMessage);
     setInputValue("");
 
     try {
@@ -51,7 +60,7 @@ const useQAChatLogic = ({
         setGeneratedText(resultId, result.answer);
         setGeneratedTextMetadata(resultId, { sources, citations, additionalSources });
 
-        setChatMessages(prev => [...prev, {
+        addMessage(collectionId, {
           type: 'assistant',
           content: result.answer,
           timestamp: Date.now(),
@@ -63,17 +72,33 @@ const useQAChatLogic = ({
             additionalSources,
             linkConfig
           }
-        }]);
+        });
       }
     } catch (error) {
       console.error('[useQAChatLogic] Error:', error);
-      setChatMessages(prev => [...prev, {
+      addMessage(collectionId, {
         type: 'error',
         content: 'Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.',
         timestamp: Date.now()
-      }]);
+      });
     }
-  }, [submitForm, user, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig]);
+  }, [submitForm, user, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig, addMessage]);
+
+  const clearMessages = useQAChatStore(state => state.clearMessages);
+
+  const handleClearMessages = useCallback(() => {
+    clearMessages(collectionId);
+  }, [clearMessages, collectionId]);
+
+  const setChatMessages = useCallback((messagesOrUpdater) => {
+    if (typeof messagesOrUpdater === 'function') {
+      const currentMessages = chats[collectionId]?.messages || [];
+      const newMessages = messagesOrUpdater(currentMessages);
+      setMessages(collectionId, newMessages);
+    } else {
+      setMessages(collectionId, messagesOrUpdater);
+    }
+  }, [chats, collectionId, setMessages]);
 
   return {
     chatMessages,
@@ -83,7 +108,8 @@ const useQAChatLogic = ({
     isMobileView,
     setInputValue,
     setChatMessages,
-    handleSubmitQuestion
+    handleSubmitQuestion,
+    clearMessages: handleClearMessages
   };
 };
 
