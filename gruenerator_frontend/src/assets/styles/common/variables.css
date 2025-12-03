@@ -158,7 +158,7 @@
 [data-theme="dark"] {
     --background-color: var(--grey-950);
     --background-color-pure: var(--grey-900);
-    --background-color-alt: var(--grey-950);
+    --background-color-alt: var(--grey-800);
     --background-color-sand: var(--grey-950);
     --hover-color-alt: var(--grey-700);
     --font-color: var(--neutral-600);
