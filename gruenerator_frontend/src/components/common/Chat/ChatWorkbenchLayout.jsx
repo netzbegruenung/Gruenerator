@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState, useEffect, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
@@ -6,9 +6,11 @@ import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
 import ChatUI from './ChatUI';
 import ChatStartPage from './ChatStartPage';
 import ModeSelector from './ModeSelector';
-import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
+import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import '../../../assets/styles/components/chat/chat-workbench.css';
+
+const GrueneratorChatStartPage = lazy(() => import('../../../features/chat/components/GrueneratorChatStartPage'));
 
 const ChatWorkbenchLayout = ({
   mode,
@@ -40,49 +42,27 @@ const ChatWorkbenchLayout = ({
   onRemoveFile,
   singleLine = false,
   showStartPage = false,
-  startPageTitle = "Was möchtest du wissen?"
+  startPageTitle = "Was möchtest du wissen?",
+  startPageComponent = null
 }) => {
-  const voiceRecorderHook = useVoiceRecorder((text) => {
-    // Update the input field with transcribed text
-    if (onInputChange) {
-      const newValue = inputValue ? `${inputValue} ${text}`.trim() : text;
-      onInputChange(newValue);
-    }
-    // Also call the callback if provided
-    onVoiceRecorderTranscription && onVoiceRecorderTranscription(text);
-  }, { removeTimestamps: true });
-
+  // Consolidated voice recording and file upload via useChatInput hook
   const {
-    isRecording: isVoiceRecording,
-    isProcessing: isVoiceProcessing,
+    isVoiceRecording,
+    isVoiceProcessing,
     startRecording,
     stopRecording,
-    processRecording
-  } = voiceRecorderHook;
-
-  const fileInputRef = useRef(null);
-
-  const handleFileUploadClick = useCallback(() => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  }, []);
-
-  const handleFileChange = useCallback((event) => {
-    const files = Array.from(event.target.files);
-    if (files.length > 0 && onFileSelect) {
-      onFileSelect(files);
-    }
-    // Reset file input to allow selecting the same file again
-    event.target.value = '';
-  }, [onFileSelect]);
-
-  // Process recording for transcription when recording stops
-  useEffect(() => {
-    if (!isVoiceRecording) {
-      processRecording();
-    }
-  }, [isVoiceRecording, processRecording]);
+    fileInputRef,
+    handleFileUploadClick,
+    handleFileChange
+  } = useChatInput({
+    inputValue,
+    onInputChange,
+    onSubmit,
+    autoSubmitVoice,
+    enableVoiceRecording: true,
+    onVoiceTranscription: onVoiceRecorderTranscription,
+    onFileSelect
+  });
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -197,36 +177,71 @@ const ChatWorkbenchLayout = ({
     );
   };
 
-  const renderDossierMode = () => (
-    <div className="qa-chat-main qa-chat-dossier">
-      <div className="qa-chat-left-panel">
-        {renderHeader()}
-        <ChatUI
-          messages={messages}
-          onSubmit={onSubmit}
-          isProcessing={isProcessing}
-          placeholder={placeholder}
-          inputValue={inputValue}
-          onInputChange={onInputChange}
-          disabled={disabled}
-          className="qa-chat-ui"
-          renderInput={renderInputWrapper}
-          showHeader={false}
-          onVoiceRecorderTranscription={onVoiceRecorderTranscription}
-          autoSubmitVoice={autoSubmitVoice}
-          enableFileUpload={enableFileUpload}
-          onFileSelect={onFileSelect}
-          attachedFiles={attachedFiles}
-          onRemoveFile={onRemoveFile}
-          singleLine={singleLine}
-        />
+  const renderDossierMode = () => {
+    const hasUserMessage = messages?.some(msg => msg.type === 'user');
+    const StartPageComponent = startPageComponent;
+
+    if (showStartPage && !hasUserMessage && StartPageComponent) {
+      return (
+        <div className="qa-chat-main qa-chat-fullscreen-start">
+          <Suspense fallback={<div className="qa-chat-loading" />}>
+            <StartPageComponent
+              title={startPageTitle}
+              placeholder={placeholder}
+              inputValue={inputValue}
+              onInputChange={onInputChange}
+              onSubmit={onSubmit}
+              disabled={disabled || isProcessing}
+              enableFileUpload={enableFileUpload}
+              onFileSelect={onFileSelect}
+              attachedFiles={attachedFiles}
+              onRemoveFile={onRemoveFile}
+              isVoiceRecording={isVoiceRecording}
+              isVoiceProcessing={isVoiceProcessing}
+              startRecording={startRecording}
+              stopRecording={stopRecording}
+              fileInputRef={fileInputRef}
+              handleFileUploadClick={handleFileUploadClick}
+              handleFileChange={handleFileChange}
+            />
+          </Suspense>
+        </div>
+      );
+    }
+
+    return (
+      <div className="qa-chat-main qa-chat-dossier">
+        <div className="qa-chat-left-panel">
+          {renderHeader()}
+          <ChatUI
+            messages={messages}
+            onSubmit={onSubmit}
+            isProcessing={isProcessing}
+            placeholder={placeholder}
+            inputValue={inputValue}
+            onInputChange={onInputChange}
+            disabled={disabled}
+            className="qa-chat-ui"
+            renderInput={renderInputWrapper}
+            showHeader={false}
+            autoSubmitVoice={autoSubmitVoice}
+            enableFileUpload={enableFileUpload}
+            attachedFiles={attachedFiles}
+            onRemoveFile={onRemoveFile}
+            singleLine={singleLine}
+            isVoiceRecording={isVoiceRecording}
+            isVoiceProcessing={isVoiceProcessing}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+          />
+        </div>
+        <div className="qa-chat-right-panel">
+          {rightPanelContent}
+          {rightPanelFooter}
+        </div>
       </div>
-      <div className="qa-chat-right-panel">
-        {rightPanelContent}
-        {rightPanelFooter}
-      </div>
-    </div>
-  );
+    );
+  };
 
   const renderChatMode = () => {
     const hasUserMessage = messages?.some(msg => msg.type === 'user');
@@ -245,6 +260,15 @@ const ChatWorkbenchLayout = ({
             onFileSelect={onFileSelect}
             attachedFiles={attachedFiles}
             onRemoveFile={onRemoveFile}
+            // Pass voice recording state from parent
+            isVoiceRecording={isVoiceRecording}
+            isVoiceProcessing={isVoiceProcessing}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+            // Pass file input ref from parent
+            fileInputRef={fileInputRef}
+            handleFileUploadClick={handleFileUploadClick}
+            handleFileChange={handleFileChange}
           />
         </div>
       );
@@ -265,13 +289,16 @@ const ChatWorkbenchLayout = ({
             fullScreen={true}
             renderMessage={renderMessage}
             showHeader={false}
-            onVoiceRecorderTranscription={onVoiceRecorderTranscription}
             autoSubmitVoice={autoSubmitVoice}
             enableFileUpload={enableFileUpload}
-            onFileSelect={onFileSelect}
             attachedFiles={attachedFiles}
             onRemoveFile={onRemoveFile}
             singleLine={singleLine}
+            // Pass voice recording state from parent
+            isVoiceRecording={isVoiceRecording}
+            isVoiceProcessing={isVoiceProcessing}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
           />
         </div>
         {!hasUserMessage && infoPanelContent}
@@ -325,7 +352,8 @@ ChatWorkbenchLayout.propTypes = {
   onRemoveFile: PropTypes.func,
   singleLine: PropTypes.bool,
   showStartPage: PropTypes.bool,
-  startPageTitle: PropTypes.string
+  startPageTitle: PropTypes.string,
+  startPageComponent: PropTypes.elementType
 };
 
 export default ChatWorkbenchLayout;

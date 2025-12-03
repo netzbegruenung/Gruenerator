@@ -6,7 +6,7 @@ import { AssistantIcon } from '../../../config/icons';
 import './ChatUI.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
-import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
+import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import ChatActionButtons from './ChatActionButtons';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
@@ -35,7 +35,12 @@ const ChatUI = ({
   onFileSelect,
   attachedFiles = [],
   onRemoveFile,
-  singleLine = false
+  singleLine = false,
+  // Voice recording props from parent (optional - will create own if not provided)
+  isVoiceRecording: externalIsVoiceRecording,
+  isVoiceProcessing: externalIsVoiceProcessing,
+  startRecording: externalStartRecording,
+  stopRecording: externalStopRecording
 }) => {
   const chatContainerRef = useRef(null);
   const lastMessageIndexRef = useRef(0);
@@ -54,21 +59,27 @@ const ChatUI = ({
       display_name: displayName,
       email: user?.email
     });
-    console.log('[ChatUI] userAvatarProps:', props, 'profile:', profile, 'avatarRobotId:', avatarRobotId);
     return props;
   }, [avatarRobotId, displayName, user?.email, profile]);
 
-  const voiceRecorderHook = useVoiceRecorder((text) => {
-    handleVoiceRecorderTranscription(text);
-  }, { removeTimestamps: true });
+  // Use internal hook only if voice props not provided from parent
+  const hasExternalVoice = externalStartRecording !== undefined;
 
-  const {
-    isRecording: isVoiceRecording,
-    isProcessing: isVoiceProcessing,
-    startRecording,
-    stopRecording,
-    processRecording
-  } = voiceRecorderHook;
+  const internalChatInput = useChatInput({
+    inputValue,
+    onInputChange,
+    onSubmit,
+    autoSubmitVoice,
+    enableVoiceRecording: !hasExternalVoice,
+    onVoiceTranscription: onVoiceRecorderTranscription,
+    onFileSelect
+  });
+
+  // Use external props if provided, otherwise use internal hook values
+  const isVoiceRecording = hasExternalVoice ? externalIsVoiceRecording : internalChatInput.isVoiceRecording;
+  const isVoiceProcessing = hasExternalVoice ? externalIsVoiceProcessing : internalChatInput.isVoiceProcessing;
+  const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
+  const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
   // Auto-scroll behavior
   useEffect(() => {
@@ -109,13 +120,6 @@ const ChatUI = ({
       return () => clearTimeout(timeoutId);
     }
   }, [messages, isProcessing]);
-
-  // Process recording for transcription when recording stops
-  useEffect(() => {
-    if (!isVoiceRecording) {
-      processRecording();
-    }
-  }, [isVoiceRecording, processRecording]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -187,52 +191,17 @@ const ChatUI = ({
   };
 
 
-  const handleVoiceRecorderTranscription = useCallback((text) => {
-    if (!text) return;
-
-    // Update the input field
-    const newValue = inputValue ? `${inputValue} ${text}`.trim() : text;
-    if (onInputChange) {
-      onInputChange(newValue);
-    }
-
-    // Auto-submit if enabled
-    if (autoSubmitVoice && onSubmit) {
-      console.log('[ChatUI] Auto-submitting voice transcription:', newValue);
-      // Small delay to show the text in input first
-      setTimeout(() => {
-        onSubmit(newValue);
-        // Clear input after submit
-        if (onInputChange) {
-          onInputChange('');
-        }
-      }, 100);
-    }
-
-    onVoiceRecorderTranscription && onVoiceRecorderTranscription(text);
-  }, [inputValue, onInputChange, onSubmit, onVoiceRecorderTranscription, autoSubmitVoice]);
-
   const handleFileUploadClick = useCallback(() => {
-    console.log('[ChatUI] File upload button clicked');
     if (fileInputRef.current) {
-      console.log('[ChatUI] Triggering file input click');
       fileInputRef.current.click();
-    } else {
-      console.warn('[ChatUI] File input ref not found');
     }
   }, []);
 
   const handleFileChange = useCallback((event) => {
     const files = Array.from(event.target.files);
-    console.log('[ChatUI] File input changed:', files.length, 'files selected');
-
     if (files.length > 0 && onFileSelect) {
-      console.log('[ChatUI] Calling onFileSelect with files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
       onFileSelect(files);
-    } else {
-      console.warn('[ChatUI] No files selected or onFileSelect not available');
     }
-    // Reset file input to allow selecting the same file again
     event.target.value = '';
   }, [onFileSelect]);
 
@@ -399,11 +368,17 @@ ChatUI.propTypes = {
   headerTitle: PropTypes.string,
   onClose: PropTypes.func,
   onVoiceRecorderTranscription: PropTypes.func,
+  autoSubmitVoice: PropTypes.bool,
   enableFileUpload: PropTypes.bool,
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
   onRemoveFile: PropTypes.func,
-  singleLine: PropTypes.bool
+  singleLine: PropTypes.bool,
+  // Voice recording props from parent (optional)
+  isVoiceRecording: PropTypes.bool,
+  isVoiceProcessing: PropTypes.bool,
+  startRecording: PropTypes.func,
+  stopRecording: PropTypes.func
 };
 
 export default ChatUI;

@@ -3,13 +3,13 @@ import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
 import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
-import useChatInput from './hooks/useChatInput';
-import AttachedFilesList from '../AttachedFilesList';
-import './ChatStartPage.css';
+import useChatInput from '../../../components/common/Chat/hooks/useChatInput';
+import AttachedFilesList from '../../../components/common/AttachedFilesList';
+import './GrueneratorChatStartPage.css';
 
-const ChatStartPage = ({
-  title = "Was möchtest du wissen?",
-  placeholder = "Stell deine Frage...",
+const GrueneratorChatStartPage = ({
+  title = "Was kann ich für dich tun?",
+  placeholder = "Beschreibe, was du brauchst...",
   inputValue = "",
   onInputChange,
   onSubmit,
@@ -18,35 +18,30 @@ const ChatStartPage = ({
   onFileSelect,
   attachedFiles = [],
   onRemoveFile,
-  // Voice recording props from parent (optional - will create own if not provided)
   isVoiceRecording: externalIsVoiceRecording,
   isVoiceProcessing: externalIsVoiceProcessing,
   startRecording: externalStartRecording,
   stopRecording: externalStopRecording,
-  // File input props from parent (optional)
   fileInputRef: externalFileInputRef,
   handleFileUploadClick: externalHandleFileUploadClick,
   handleFileChange: externalHandleFileChange
 }) => {
-  // Use internal hook only if voice props not provided from parent
   const hasExternalVoice = externalStartRecording !== undefined;
 
   const internalChatInput = useChatInput({
     inputValue,
     onInputChange,
     onSubmit,
-    autoSubmitVoice: false, // Don't auto-submit on start page
+    autoSubmitVoice: false,
     enableVoiceRecording: !hasExternalVoice,
     onFileSelect
   });
 
-  // Use external props if provided, otherwise use internal hook values
   const isVoiceRecording = hasExternalVoice ? externalIsVoiceRecording : internalChatInput.isVoiceRecording;
   const isVoiceProcessing = hasExternalVoice ? externalIsVoiceProcessing : internalChatInput.isVoiceProcessing;
   const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
   const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
-  // File input - use external if provided
   const internalFileInputRef = useRef(null);
   const fileInputRef = externalFileInputRef || internalFileInputRef;
 
@@ -101,34 +96,34 @@ const ChatStartPage = ({
 
   return (
     <motion.div
-      className="chat-start-page"
+      className="gruenerator-chat-start"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="chat-start-page-content">
-        <motion.h1
-          className="chat-start-page-title"
+      <div className="gruenerator-chat-start__input-section">
+        <motion.h2
+          className="gruenerator-chat-start__title"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
           {title}
-        </motion.h1>
+        </motion.h2>
 
         <motion.form
-          className="chat-start-page-input-wrapper"
+          className="gruenerator-chat-start__form"
           onSubmit={handleSubmit}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
         >
-          <div className="chat-start-page-input-container">
+          <div className="gruenerator-chat-start__input-container">
             {enableFileUpload && attachedFiles.length > 0 && (
               <AttachedFilesList
                 files={attachedFiles}
                 onRemoveFile={onRemoveFile}
-                className="chat-start-page-attached-files"
+                className="gruenerator-chat-start__attached-files"
               />
             )}
             <textarea
@@ -138,14 +133,14 @@ const ChatStartPage = ({
               placeholder={placeholder}
               disabled={disabled}
               rows={1}
-              className="chat-start-page-input"
+              className="gruenerator-chat-start__input"
             />
-            <div className="chat-start-page-buttons">
+            <div className="gruenerator-chat-start__buttons">
               {enableFileUpload && (
                 <>
                   <button
                     type="button"
-                    className="chat-start-page-file-button"
+                    className="gruenerator-chat-start__file-button"
                     onClick={handleFileUploadClick}
                     disabled={disabled}
                     aria-label="Datei hinzufügen"
@@ -166,7 +161,7 @@ const ChatStartPage = ({
                 type={hasText ? "submit" : "button"}
                 onClick={!hasText ? handleButtonClick : undefined}
                 disabled={disabled || isVoiceProcessing}
-                className={`chat-start-page-submit-button ${isVoiceRecording ? 'voice-recording' : ''}`}
+                className={`gruenerator-chat-start__submit-button ${isVoiceRecording ? 'voice-recording' : ''}`}
               >
                 {effectiveSubmitLabel}
               </button>
@@ -174,11 +169,41 @@ const ChatStartPage = ({
           </div>
         </motion.form>
       </div>
+
+      <motion.div
+        className="gruenerator-chat-start__features"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+      >
+        <div className="gruenerator-chat-start__feature">
+          <h3>Vielfältige Textformate</h3>
+          <p>Von Social-Media-Posts über Pressemitteilungen bis zu Anträgen – ich finde den passenden Stil automatisch.</p>
+        </div>
+        <div className="gruenerator-chat-start__feature">
+          <h3>Sharepics inklusive</h3>
+          <p>Direkt nutzbare Sharepics mit passenden Headlines, Farben und Varianten – inklusive Download.</p>
+        </div>
+        <div className="gruenerator-chat-start__feature">
+          <h3>Mehrere Ergebnisse</h3>
+          <p>Ich kann mehrere Antworten gleichzeitig liefern, z.&nbsp;B. Textvorschlag und Sharepic auf einen Streich.</p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="gruenerator-chat-start__tip"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
+      >
+        <span className="gruenerator-chat-start__tip-label">Tipp</span>
+        <p>Starte z.&nbsp;B. mit: „Schreibe einen Instagram-Post über Solarenergie"</p>
+      </motion.div>
     </motion.div>
   );
 };
 
-ChatStartPage.propTypes = {
+GrueneratorChatStartPage.propTypes = {
   title: PropTypes.string,
   placeholder: PropTypes.string,
   inputValue: PropTypes.string,
@@ -189,15 +214,13 @@ ChatStartPage.propTypes = {
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
   onRemoveFile: PropTypes.func,
-  // Voice recording props from parent (optional)
   isVoiceRecording: PropTypes.bool,
   isVoiceProcessing: PropTypes.bool,
   startRecording: PropTypes.func,
   stopRecording: PropTypes.func,
-  // File input props from parent (optional)
   fileInputRef: PropTypes.object,
   handleFileUploadClick: PropTypes.func,
   handleFileChange: PropTypes.func
 };
 
-export default ChatStartPage;
+export default GrueneratorChatStartPage;
