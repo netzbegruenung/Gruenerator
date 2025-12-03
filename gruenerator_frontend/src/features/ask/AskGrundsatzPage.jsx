@@ -2,31 +2,36 @@ import React from 'react';
 import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
 import { CitationModal } from '../../components/common/Citation';
 import ChatWorkbenchLayout from '../../components/common/Chat/ChatWorkbenchLayout';
-import ResultsDeck from '../chat/components/ResultsDeck';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import useQAChatLogic from '../qa/hooks/useQAChatLogic.jsx';
 import QAChatMessage from '../qa/components/QAChatMessage';
-import { QA_CHAT_MODES } from '../qa/config/qaChatModes';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import '../../assets/styles/features/qa/qa-chat.css';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const COLLECTION_NAME = 'Grünes Notebook';
-const WELCOME_MESSAGE = 'Willkommen im Grünen Notebook! Ich beantworte deine Fragen zu den Grundsatzprogrammen von Bündnis 90/Die Grünen. Du kannst mich zu allen Inhalten des Grundsatzprogramms 2020, EU-Wahlprogramms 2024 und Regierungsprogramms 2025 fragen.';
+const START_PAGE_TITLE = 'Was möchtest du über die Grundsatzprogramme wissen?';
+
+const EXAMPLE_QUESTIONS = [
+  { icon: '🌍', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
+  { icon: '🇪🇺', text: 'Wie positionieren sich die Grünen zur EU?' },
+  { icon: '🏛️', text: 'Was sagt das Regierungsprogramm zu Bildung?' }
+];
 
 const AskGrundsatzPage = () => {
   const {
-    chatMessages, inputValue, viewMode, qaResults, submitLoading,
-    setInputValue, setViewMode, handleSubmitQuestion, clearResults
+    chatMessages, inputValue, submitLoading, isMobileView,
+    setInputValue, handleSubmitQuestion
   } = useQAChatLogic({
     collectionId: 'grundsatz-system',
     collectionName: COLLECTION_NAME,
-    welcomeMessage: WELCOME_MESSAGE,
     extraApiParams: { search_user_id: SYSTEM_USER_ID }
   });
 
+  const effectiveMode = 'chat';
+
   const renderInfoPanel = () => (
-    <div className={`qa-collection-info qa-collection-info-${viewMode}`}>
+    <div className="qa-collection-info">
       <div className="qa-collection-info-header">
         <HiInformationCircle className="qa-collection-info-icon" />
         <h3>{COLLECTION_NAME}</h3>
@@ -58,9 +63,8 @@ const AskGrundsatzPage = () => {
     <ErrorBoundary>
       <CitationModal />
       <ChatWorkbenchLayout
-        mode={viewMode}
-        modes={QA_CHAT_MODES}
-        onModeChange={setViewMode}
+        mode={effectiveMode}
+        onModeChange={() => {}}
         title={COLLECTION_NAME}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
@@ -69,11 +73,15 @@ const AskGrundsatzPage = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={viewMode} assistantName={COLLECTION_NAME} />}
-        rightPanelContent={qaResults.length > 0 ? <ResultsDeck results={qaResults} onClear={clearResults} /> : renderInfoPanel()}
-        infoPanelContent={renderInfoPanel()}
+        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} />}
+        infoPanelContent={isMobileView ? null : renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}
+        hideModeSelector={true}
+        singleLine={true}
+        showStartPage={true}
+        startPageTitle={START_PAGE_TITLE}
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </ErrorBoundary>
   );

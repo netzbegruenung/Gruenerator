@@ -2,31 +2,36 @@ import React from 'react';
 import { HiDocumentText, HiInformationCircle, HiExternalLink } from 'react-icons/hi';
 import { CitationModal } from '../../components/common/Citation';
 import ChatWorkbenchLayout from '../../components/common/Chat/ChatWorkbenchLayout';
-import ResultsDeck from '../chat/components/ResultsDeck';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import useQAChatLogic from '../qa/hooks/useQAChatLogic.jsx';
 import QAChatMessage from '../qa/components/QAChatMessage';
-import { QA_CHAT_MODES } from '../qa/config/qaChatModes';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import '../../assets/styles/features/qa/qa-chat.css';
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 const COLLECTION_NAME = 'Grüne Bundestagsfraktion';
-const WELCOME_MESSAGE = 'Willkommen! Ich beantworte deine Fragen zu den Inhalten der Grünen Bundestagsfraktion. Du kannst mich zu Fachtexten, politischen Zielen und Positionen fragen – alle Informationen stammen direkt von gruene-bundestag.de.';
+const START_PAGE_TITLE = 'Was möchtest du über die Grüne Bundestagsfraktion wissen?';
+
+const EXAMPLE_QUESTIONS = [
+  { icon: '🌍', text: 'Was sind die Klimaziele der Fraktion?' },
+  { icon: '📋', text: 'Welche Positionen gibt es zur Migrationspolitik?' },
+  { icon: '💶', text: 'Wie positioniert sich die Fraktion zum Haushalt?' }
+];
 
 const AskBundestagsfraktionPage = () => {
   const {
-    chatMessages, inputValue, viewMode, qaResults, submitLoading,
-    setInputValue, setViewMode, handleSubmitQuestion, clearResults
+    chatMessages, inputValue, submitLoading, isMobileView,
+    setInputValue, handleSubmitQuestion
   } = useQAChatLogic({
     collectionId: 'bundestagsfraktion-system',
     collectionName: COLLECTION_NAME,
-    welcomeMessage: WELCOME_MESSAGE,
     extraApiParams: { search_user_id: SYSTEM_USER_ID }
   });
 
+  const effectiveMode = 'chat';
+
   const renderInfoPanel = () => (
-    <div className={`qa-collection-info qa-collection-info-${viewMode}`}>
+    <div className="qa-collection-info">
       <div className="qa-collection-info-header">
         <HiInformationCircle className="qa-collection-info-icon" />
         <h3>{COLLECTION_NAME}</h3>
@@ -64,9 +69,8 @@ const AskBundestagsfraktionPage = () => {
     <ErrorBoundary>
       <CitationModal />
       <ChatWorkbenchLayout
-        mode={viewMode}
-        modes={QA_CHAT_MODES}
-        onModeChange={setViewMode}
+        mode={effectiveMode}
+        onModeChange={() => {}}
         title={COLLECTION_NAME}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
@@ -75,11 +79,15 @@ const AskBundestagsfraktionPage = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={viewMode} assistantName={COLLECTION_NAME} />}
-        rightPanelContent={qaResults.length > 0 ? <ResultsDeck results={qaResults} onClear={clearResults} /> : renderInfoPanel()}
-        infoPanelContent={renderInfoPanel()}
+        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} />}
+        infoPanelContent={isMobileView ? null : renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}
+        hideModeSelector={true}
+        singleLine={true}
+        showStartPage={true}
+        startPageTitle={START_PAGE_TITLE}
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </ErrorBoundary>
   );

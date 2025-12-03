@@ -3,12 +3,10 @@ import { useParams } from 'react-router-dom';
 import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
 import { CitationModal } from '../../../components/common/Citation';
 import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
-import ResultsDeck from '../../chat/components/ResultsDeck';
 import useQAStore from '../stores/qaStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useQAChatLogic from '../hooks/useQAChatLogic.jsx';
 import QAChatMessage from './QAChatMessage';
-import { QA_CHAT_MODES } from '../config/qaChatModes';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import '../../../assets/styles/features/qa/qa-chat.css';
 
@@ -34,8 +32,8 @@ const QAChat = () => {
   }, [id, getQACollection, fetchQACollections, user, qaCollections]);
 
   const {
-    chatMessages, inputValue, viewMode, qaResults, submitLoading,
-    setInputValue, setViewMode, handleSubmitQuestion, clearResults
+    chatMessages, inputValue, submitLoading, isMobileView,
+    setInputValue, handleSubmitQuestion
   } = useQAChatLogic({
     collectionId: id,
     collectionName: collection?.name,
@@ -60,7 +58,7 @@ const QAChat = () => {
   const documents = collection.documents || collection.qa_collection_documents?.map(qcd => qcd.documents) || [];
 
   const renderInfoPanel = () => (
-    <div className={`qa-collection-info qa-collection-info-${viewMode}`}>
+    <div className="qa-collection-info">
       <div className="qa-collection-info-header">
         <HiInformationCircle className="qa-collection-info-icon" />
         <h3>{collection.name}</h3>
@@ -80,13 +78,14 @@ const QAChat = () => {
     </div>
   );
 
+  const effectiveMode = 'chat';
+
   return (
     <>
       <CitationModal />
       <ChatWorkbenchLayout
-        mode={viewMode}
-        modes={QA_CHAT_MODES}
-        onModeChange={setViewMode}
+        mode={effectiveMode}
+        onModeChange={() => {}}
         title={collection.name}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
@@ -95,11 +94,12 @@ const QAChat = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={viewMode} assistantName={collection.name} />}
-        rightPanelContent={qaResults.length > 0 ? <ResultsDeck results={qaResults} onClear={clearResults} /> : renderInfoPanel()}
-        infoPanelContent={renderInfoPanel()}
+        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} />}
+        infoPanelContent={isMobileView ? null : renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}
+        hideModeSelector={true}
+        singleLine={true}
       />
     </>
   );

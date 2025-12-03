@@ -32,7 +32,7 @@
   flex-direction: column;
 }
 
-.mobile-swipe-chat .editor-chat {
+.mobile-swipe-chat .qa-chat-ui {
   position: relative !important;
   top: auto !important;
   bottom: auto !important;

@@ -260,7 +260,6 @@ DisplaySection.propTypes = {
   onReset: PropTypes.func,
   renderEmptyState: PropTypes.func,
   customEditContent: PropTypes.node,
-  onEditModeToggle: PropTypes.func,
 };
 
 DisplaySection.defaultProps = {

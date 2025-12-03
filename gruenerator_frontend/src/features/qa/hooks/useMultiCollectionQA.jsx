@@ -12,8 +12,6 @@ const useMultiCollectionQA = ({
   const { isMobileView } = useResponsive(768);
   const [chatMessages, setChatMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
-  const [viewMode, setViewMode] = useState(isMobileView ? 'chat' : 'dossier');
-  const [qaResults, setQaResults] = useState([]);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [activeCollections, setActiveCollections] = useState([]);
 
@@ -29,12 +27,6 @@ const useMultiCollectionQA = ({
     }
   }, [welcomeMessage]);
 
-  useEffect(() => {
-    if (isMobileView && viewMode !== 'chat') {
-      setViewMode('chat');
-    }
-  }, [isMobileView, viewMode]);
-
   const handleSubmitQuestion = useCallback(async (question) => {
     const userMessage = {
       type: 'user',
@@ -48,20 +40,13 @@ const useMultiCollectionQA = ({
     setActiveCollections(collections.map(c => c.name));
 
     try {
-      // Call the unified multi-collection endpoint
       const result = await processText('/auth/qa/multi/ask', {
         question,
-        mode: viewMode,
+        mode: 'dossier',
         collectionIds: collections.map(c => c.id)
       });
 
       if (result?.answer) {
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
-          content: 'Hier ist meine Antwort:',
-          timestamp: Date.now()
-        }]);
-
         const resultId = `qa-multi-unified-${Date.now()}`;
         const sourcesByCollection = result.sourcesByCollection || {};
         const citations = result.citations || [];
@@ -73,13 +58,16 @@ const useMultiCollectionQA = ({
           collections: collections.map(c => c.id)
         });
 
-        setQaResults(prev => [...prev, {
-          id: resultId,
-          componentId: resultId,
-          title: question,
-          content: { text: result.answer },
-          sourcesByCollection,
-          citations
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: result.answer,
+          timestamp: Date.now(),
+          resultData: {
+            resultId,
+            question,
+            sourcesByCollection,
+            citations
+          }
         }]);
       } else {
         setChatMessages(prev => [...prev, {
@@ -100,23 +88,18 @@ const useMultiCollectionQA = ({
       setSubmitLoading(false);
       setActiveCollections([]);
     }
-  }, [collections, user, viewMode, setGeneratedText, setGeneratedTextMetadata]);
-
-  const clearResults = useCallback(() => setQaResults([]), []);
+  }, [collections, user, setGeneratedText, setGeneratedTextMetadata]);
 
   return {
     chatMessages,
     inputValue,
-    viewMode,
-    qaResults,
     submitLoading,
     activeCollections,
     user,
+    isMobileView,
     setInputValue,
-    setViewMode,
     setChatMessages,
-    handleSubmitQuestion,
-    clearResults
+    handleSubmitQuestion
   };
 };
 

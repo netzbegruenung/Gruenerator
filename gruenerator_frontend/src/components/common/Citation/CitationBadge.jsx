@@ -49,7 +49,7 @@ const CitationBadge = ({ citationIndex, citation }) => {
         {citationIndex}
       </span>
       {showPopup && citation && (
-        <CitationPopup citation={citation} />
+        <CitationPopup citation={citation} badgeRef={badgeRef} />
       )}
     </span>
   );

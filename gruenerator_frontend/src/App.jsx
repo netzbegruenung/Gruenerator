@@ -38,11 +38,15 @@ if (typeof window !== 'undefined') {
   window.queryClient = queryClient;
 }
 
-// Debug-Komponente für Route-Logging
+// Matomo SPA Page View Tracking
 const RouteLogger = () => {
   const location = useLocation();
   useEffect(() => {
-    // Keine Logger-Aufrufe
+    if (window._paq) {
+      window._paq.push(['setCustomUrl', window.location.href]);
+      window._paq.push(['setDocumentTitle', document.title]);
+      window._paq.push(['trackPageView']);
+    }
   }, [location]);
   return null;
 };

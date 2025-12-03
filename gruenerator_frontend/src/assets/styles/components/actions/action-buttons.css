@@ -179,6 +179,7 @@
   flex-shrink: 0;
   width: 16px;
   height: 16px;
+  color: var(--font-color);
 }
 
 /* Option content wrapper */
@@ -197,7 +198,7 @@
 
 .download-export .format-option-subtitle {
   font-size: 12px;
-  color: var(--font-color-muted);
+  color: var(--font-color);
   opacity: 0.7;
 }
 
@@ -229,6 +230,27 @@
     padding: 5px 6px;
     min-width: 55px;
   }
+
+  .download-export .format-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 80px;
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+    min-width: auto;
+    max-width: calc(100vw - var(--spacing-small) * 2);
+  }
+
+  .wolke-subdropdown {
+    position: fixed;
+    top: auto;
+    bottom: 80px;
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+    min-width: auto;
+    max-width: calc(100vw - var(--spacing-small) * 2);
+    margin-left: 0;
+  }
 }
 
 /* Export Dropdown (ExportDropdown component) */
@@ -259,7 +281,7 @@
   padding: 12px 16px 8px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--font-color-muted);
+  color: var(--font-color);
   border-bottom: 1px solid var(--border-color);
   background: var(--button-hover-color);
 }
@@ -310,6 +332,6 @@
 
 .wolke-subdropdown-subtitle {
   font-size: 11px;
-  color: var(--font-color-muted);
+  color: var(--font-color);
   opacity: 0.8;
 } 

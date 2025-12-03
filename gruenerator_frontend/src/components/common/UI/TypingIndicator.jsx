@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import '../../../assets/styles/components/ui/TypingIndicator.css';
 
 const TypingIndicator = () => {
-  const dotVariants = {
+  const createDotVariants = (delay) => ({
     initial: {
       y: "0%",
       opacity: 0.5,
@@ -11,38 +11,33 @@ const TypingIndicator = () => {
     animate: {
       y: ["0%", "-30%", "0%"],
       opacity: [0.5, 1, 0.5],
+      transition: {
+        duration: 0.7,
+        repeat: Infinity,
+        ease: "easeInOut",
+        delay,
+      },
     },
-  };
-
-  const transition = (delay) => ({
-    duration: 0.7,
-    repeat: Infinity,
-    ease: "easeInOut",
-    delay,
   });
 
   return (
-    // Render only the dots; container bubble and icon are provided by parent
     <div className="typing-indicator">
       <motion.span
-        variants={dotVariants}
+        variants={createDotVariants(0)}
         initial="initial"
         animate="animate"
-        transition={transition(0)}
         className="typing-dot"
       />
       <motion.span
-        variants={dotVariants}
+        variants={createDotVariants(0.2)}
         initial="initial"
         animate="animate"
-        transition={transition(0.2)}
         className="typing-dot"
       />
       <motion.span
-        variants={dotVariants}
+        variants={createDotVariants(0.4)}
         initial="initial"
         animate="animate"
-        transition={transition(0.4)}
         className="typing-dot"
       />
     </div>

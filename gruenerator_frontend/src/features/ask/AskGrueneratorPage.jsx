@@ -1,18 +1,21 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { HiDocumentText, HiExternalLink, HiCollection } from 'react-icons/hi';
 import { CitationModal } from '../../components/common/Citation';
 import ChatWorkbenchLayout from '../../components/common/Chat/ChatWorkbenchLayout';
-import ResultsDeck from '../chat/components/ResultsDeck';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import useMultiCollectionQA from '../qa/hooks/useMultiCollectionQA';
 import QAChatMessage from '../qa/components/QAChatMessage';
-import { QA_CHAT_MODES } from '../qa/config/qaChatModes';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import '../../assets/styles/features/qa/qa-chat.css';
 
 const COLLECTION_NAME = 'Grünerator Notebook';
-const WELCOME_MESSAGE = 'Willkommen im Grünerator Notebook! Ich durchsuche für dich verschiedene Quellen parallel – Grundsatzprogramme, Inhalte der Bundestagsfraktion und mehr. Stelle mir eine Frage und ich finde die relevantesten Informationen aus allen verfügbaren Quellen.';
+const START_PAGE_TITLE = 'Was möchtest du wissen?';
+
+const EXAMPLE_QUESTIONS = [
+  { icon: '🌍', text: 'Was sagen die Grünen zum Klimaschutz?' },
+  { icon: '🇪🇺', text: 'Wie ist die grüne Position zur EU?' },
+  { icon: '⚡', text: 'Was steht zur Energiewende in den Programmen?' }
+];
 
 const COLLECTIONS = [
   {
@@ -34,127 +37,18 @@ const COLLECTIONS = [
   }
 ];
 
-const MultiCollectionSourcesDisplay = ({ sourcesByCollection, citations }) => {
-  const navigate = useNavigate();
-
-  const handleDocumentClick = (documentId, url, linkType) => {
-    if (linkType === 'vectorDocument' && documentId) {
-      navigate(`/documents/${documentId}`);
-    } else if ((linkType === 'url' || linkType === 'external') && url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  if (!sourcesByCollection || Object.keys(sourcesByCollection).length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="ask-sources-section multi-collection-sources">
-      {Object.entries(sourcesByCollection).map(([collectionId, collectionData]) => {
-        const collectionConfig = COLLECTIONS.find(c => c.id === collectionId);
-        const linkType = collectionConfig?.linkType || 'none';
-        const sources = collectionData.sources || [];
-        const allSources = collectionData.allSources || [];
-
-        if (sources.length === 0 && allSources.length === 0) return null;
-
-        return (
-          <div key={collectionId} className="multi-collection-section">
-            <h4 className="multi-collection-section-title">
-              Quellen ({collectionData.name})
-            </h4>
-
-            <div className="ask-document-groups">
-              {sources.map((source, index) => (
-                <div key={source.document_id || index} className="ask-document-group">
-                  <div className="ask-document-header">
-                    <h5
-                      className={`ask-document-title ${linkType !== 'none' ? 'clickable-link' : ''}`}
-                      onClick={() => linkType !== 'none' && handleDocumentClick(source.document_id, source.url, linkType)}
-                    >
-                      {source.document_title}
-                    </h5>
-                    {source.similarity_score && (
-                      <span className="ask-document-relevance">
-                        {Math.round(source.similarity_score * 100)}%
-                      </span>
-                    )}
-                  </div>
-
-                  {source.citations && source.citations.length > 0 && (
-                    <div className="ask-document-citations">
-                      {source.citations.map((citation, idx) => (
-                        <div key={idx} className="ask-citation-inline">
-                          <span className="citation-number">[{citation.index}]</span>
-                          <span className="citation-text">"{citation.cited_text?.replace(/\*\*/g, '').slice(0, 200) || ''}..."</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {linkType !== 'none' && (source.document_id || source.url) && (
-                    <button
-                      className="ask-document-link"
-                      onClick={() => handleDocumentClick(source.document_id, source.url, linkType)}
-                    >
-                      {linkType === 'url' ? 'Artikel öffnen →' : 'Dokument öffnen →'}
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {allSources.length > 0 && (
-              <details className="ask-additional-sources">
-                <summary className="ask-additional-sources-header">
-                  <span className="ask-additional-sources-title">Weitere Quellen</span>
-                  <span className="ask-additional-sources-count">({allSources.length})</span>
-                </summary>
-                <div className="ask-additional-sources-list">
-                  {allSources.slice(0, 5).map((source, idx) => (
-                    <div key={source.document_id || idx} className="ask-additional-source-item">
-                      <div className="ask-additional-source-header">
-                        <span
-                          className={`ask-additional-source-title ${linkType !== 'none' ? 'clickable-link' : ''}`}
-                          onClick={() => linkType !== 'none' && handleDocumentClick(source.document_id, source.url, linkType)}
-                        >
-                          {source.document_title}
-                        </span>
-                        {source.similarity_score > 0 && (
-                          <span className="ask-additional-source-score">
-                            {Math.round(source.similarity_score * 100)}%
-                          </span>
-                        )}
-                      </div>
-                      {source.chunk_text && (
-                        <p className="ask-additional-source-snippet">
-                          {source.chunk_text.slice(0, 150)}...
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
 const AskGrueneratorPage = () => {
   const {
-    chatMessages, inputValue, viewMode, qaResults, submitLoading, activeCollections,
-    setInputValue, setViewMode, handleSubmitQuestion, clearResults
+    chatMessages, inputValue, submitLoading, activeCollections, isMobileView,
+    setInputValue, handleSubmitQuestion
   } = useMultiCollectionQA({
-    collections: COLLECTIONS,
-    welcomeMessage: WELCOME_MESSAGE
+    collections: COLLECTIONS
   });
 
+  const effectiveMode = 'chat';
+
   const renderInfoPanel = () => (
-    <div className={`qa-collection-info qa-collection-info-${viewMode}`}>
+    <div className="qa-collection-info">
       <div className="qa-collection-info-header">
         <HiCollection className="qa-collection-info-icon" />
         <h3>{COLLECTION_NAME}</h3>
@@ -205,23 +99,12 @@ const AskGrueneratorPage = () => {
     </div>
   );
 
-  const resultsWithSources = qaResults.map(result => ({
-    ...result,
-    displayActions: result.sourcesByCollection ? (
-      <MultiCollectionSourcesDisplay
-        sourcesByCollection={result.sourcesByCollection}
-        citations={result.citations}
-      />
-    ) : null
-  }));
-
   return (
     <ErrorBoundary>
       <CitationModal />
       <ChatWorkbenchLayout
-        mode={viewMode}
-        modes={QA_CHAT_MODES}
-        onModeChange={setViewMode}
+        mode={effectiveMode}
+        onModeChange={() => {}}
         title={COLLECTION_NAME}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
@@ -230,11 +113,15 @@ const AskGrueneratorPage = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} viewMode={viewMode} assistantName={COLLECTION_NAME} />}
-        rightPanelContent={resultsWithSources.length > 0 ? <ResultsDeck results={resultsWithSources} onClear={clearResults} /> : renderInfoPanel()}
-        infoPanelContent={renderInfoPanel()}
+        renderMessage={(msg, i) => <QAChatMessage msg={msg} index={i} />}
+        infoPanelContent={isMobileView ? null : renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}
+        hideModeSelector={true}
+        singleLine={true}
+        showStartPage={true}
+        startPageTitle={START_PAGE_TITLE}
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </ErrorBoundary>
   );

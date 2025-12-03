@@ -6,7 +6,7 @@ import { AssistantIcon } from '../../../config/icons';
 import './ChatUI.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
-import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
+import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import ChatActionButtons from './ChatActionButtons';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
@@ -34,7 +34,13 @@ const ChatUI = ({
   enableFileUpload = false,
   onFileSelect,
   attachedFiles = [],
-  onRemoveFile
+  onRemoveFile,
+  singleLine = false,
+  // Voice recording props from parent (optional - will create own if not provided)
+  isVoiceRecording: externalIsVoiceRecording,
+  isVoiceProcessing: externalIsVoiceProcessing,
+  startRecording: externalStartRecording,
+  stopRecording: externalStopRecording
 }) => {
   const chatContainerRef = useRef(null);
   const lastMessageIndexRef = useRef(0);
@@ -53,21 +59,27 @@ const ChatUI = ({
       display_name: displayName,
       email: user?.email
     });
-    console.log('[ChatUI] userAvatarProps:', props, 'profile:', profile, 'avatarRobotId:', avatarRobotId);
     return props;
   }, [avatarRobotId, displayName, user?.email, profile]);
 
-  const voiceRecorderHook = useVoiceRecorder((text) => {
-    handleVoiceRecorderTranscription(text);
-  }, { removeTimestamps: true });
+  // Use internal hook only if voice props not provided from parent
+  const hasExternalVoice = externalStartRecording !== undefined;
 
-  const {
-    isRecording: isVoiceRecording,
-    isProcessing: isVoiceProcessing,
-    startRecording,
-    stopRecording,
-    processRecording
-  } = voiceRecorderHook;
+  const internalChatInput = useChatInput({
+    inputValue,
+    onInputChange,
+    onSubmit,
+    autoSubmitVoice,
+    enableVoiceRecording: !hasExternalVoice,
+    onVoiceTranscription: onVoiceRecorderTranscription,
+    onFileSelect
+  });
+
+  // Use external props if provided, otherwise use internal hook values
+  const isVoiceRecording = hasExternalVoice ? externalIsVoiceRecording : internalChatInput.isVoiceRecording;
+  const isVoiceProcessing = hasExternalVoice ? externalIsVoiceProcessing : internalChatInput.isVoiceProcessing;
+  const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
+  const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
   // Auto-scroll behavior
   useEffect(() => {
@@ -108,13 +120,6 @@ const ChatUI = ({
       return () => clearTimeout(timeoutId);
     }
   }, [messages, isProcessing]);
-
-  // Process recording for transcription when recording stops
-  useEffect(() => {
-    if (!isVoiceRecording) {
-      processRecording();
-    }
-  }, [isVoiceRecording, processRecording]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -186,122 +191,109 @@ const ChatUI = ({
   };
 
 
-  const handleVoiceRecorderTranscription = useCallback((text) => {
-    if (!text) return;
-
-    // Update the input field
-    const newValue = inputValue ? `${inputValue} ${text}`.trim() : text;
-    if (onInputChange) {
-      onInputChange(newValue);
-    }
-
-    // Auto-submit if enabled
-    if (autoSubmitVoice && onSubmit) {
-      console.log('[ChatUI] Auto-submitting voice transcription:', newValue);
-      // Small delay to show the text in input first
-      setTimeout(() => {
-        onSubmit(newValue);
-        // Clear input after submit
-        if (onInputChange) {
-          onInputChange('');
-        }
-      }, 100);
-    }
-
-    onVoiceRecorderTranscription && onVoiceRecorderTranscription(text);
-  }, [inputValue, onInputChange, onSubmit, onVoiceRecorderTranscription, autoSubmitVoice]);
-
   const handleFileUploadClick = useCallback(() => {
-    console.log('[ChatUI] File upload button clicked');
     if (fileInputRef.current) {
-      console.log('[ChatUI] Triggering file input click');
       fileInputRef.current.click();
-    } else {
-      console.warn('[ChatUI] File input ref not found');
     }
   }, []);
 
   const handleFileChange = useCallback((event) => {
     const files = Array.from(event.target.files);
-    console.log('[ChatUI] File input changed:', files.length, 'files selected');
-
     if (files.length > 0 && onFileSelect) {
-      console.log('[ChatUI] Calling onFileSelect with files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
       onFileSelect(files);
-    } else {
-      console.warn('[ChatUI] No files selected or onFileSelect not available');
     }
-    // Reset file input to allow selecting the same file again
     event.target.value = '';
   }, [onFileSelect]);
 
 
   const defaultRenderInput = () => (
-    <div className="floating-input">
-      {enableFileUpload && attachedFiles.length > 0 && (
-        <AttachedFilesList
-          files={attachedFiles}
-          onRemoveFile={onRemoveFile}
-          className="chat-attached-files"
-        />
-      )}
-      <div className="input-elements">
-        <textarea
-          className="form-input"
-          value={inputValue}
-          onChange={(e) => onInputChange && onInputChange(e.target.value)}
-          placeholder={placeholder}
-          disabled={disabled}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit(e);
-            }
-          }}
-        />
-        <div className="chat-input-buttons">
-          {enableFileUpload && (
-            <>
-              <button
-                type="button"
-                className="chat-file-upload-button"
-                onClick={handleFileUploadClick}
-                disabled={disabled}
-                aria-label="Datei hinzufügen"
-              >
-                <FaPlus />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
-            </>
+    <>
+      <div className="floating-input">
+        {enableFileUpload && attachedFiles.length > 0 && (
+          <AttachedFilesList
+            files={attachedFiles}
+            onRemoveFile={onRemoveFile}
+            className="chat-attached-files"
+          />
+        )}
+        <div className="input-elements">
+          {singleLine ? (
+            <input
+              type="text"
+              className="form-input"
+              value={inputValue}
+              onChange={(e) => onInputChange && onInputChange(e.target.value)}
+              placeholder={placeholder}
+              disabled={disabled}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
+          ) : (
+            <textarea
+              className="form-input"
+              value={inputValue}
+              onChange={(e) => onInputChange && onInputChange(e.target.value)}
+              placeholder={placeholder}
+              disabled={disabled}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+            />
           )}
-          <button
-            type="button"
-            className={`chat-send-button ${isVoiceRecording ? 'voice-recording' : ''}`}
-            onClick={inputValue.trim() ? handleSubmit : (isVoiceRecording ? stopRecording : startRecording)}
-            disabled={disabled || isVoiceProcessing}
-          >
-            {isVoiceRecording ? (
-              <FaStop />
-            ) : inputValue.trim() ? (
-              '➤'
-            ) : (
-              <FaMicrophone />
+          <div className="chat-input-buttons">
+            {enableFileUpload && (
+              <>
+                <button
+                  type="button"
+                  className="chat-file-upload-button"
+                  onClick={handleFileUploadClick}
+                  disabled={disabled}
+                  aria-label="Datei hinzufügen"
+                >
+                  <FaPlus />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+              </>
             )}
-          </button>
+            <button
+              type="button"
+              className={`chat-send-button ${isVoiceRecording ? 'voice-recording' : ''}`}
+              onClick={inputValue.trim() ? handleSubmit : (isVoiceRecording ? stopRecording : startRecording)}
+              disabled={disabled || isVoiceProcessing}
+            >
+              {isVoiceRecording ? (
+                <FaStop />
+              ) : inputValue.trim() ? (
+                '➤'
+              ) : (
+                <FaMicrophone />
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <span className="floating-input-warning">
+        kann Fehler machen. Überprüfe wichtige Informationen
+      </span>
+    </>
   );
 
   return (
-    <div className={`editor-chat ${fullScreen ? 'editor-chat-fullscreen' : ''} ${className}`}>
+    <div className={className}>
       {showHeader && (
         <div className="chat-header">
           <h3>{headerTitle}</h3>
@@ -312,8 +304,8 @@ const ChatUI = ({
           )}
         </div>
       )}
-      <div className={`editor-chat-messages markdown-styles ${fullScreen ? 'editor-chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
-        <AnimatePresence initial={false}>
+      <div className={`chat-messages markdown-styles ${fullScreen ? 'chat-messages-fullscreen' : ''}`} ref={chatContainerRef}>
+        <AnimatePresence initial={true}>
           {messages.map((msg, index) => 
             renderMessage ? renderMessage(msg, index) : defaultRenderMessage(msg, index)
           )}
@@ -346,7 +338,7 @@ const ChatUI = ({
       
       {children}
       
-      <div className="editor-chat-input">
+      <div className={`chat-input-area ${fullScreen ? 'chat-input-area-fullscreen' : ''}`}>
         {renderInput ? renderInput() : defaultRenderInput()}
       </div>
     </div>
@@ -376,10 +368,17 @@ ChatUI.propTypes = {
   headerTitle: PropTypes.string,
   onClose: PropTypes.func,
   onVoiceRecorderTranscription: PropTypes.func,
+  autoSubmitVoice: PropTypes.bool,
   enableFileUpload: PropTypes.bool,
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
-  onRemoveFile: PropTypes.func
+  onRemoveFile: PropTypes.func,
+  singleLine: PropTypes.bool,
+  // Voice recording props from parent (optional)
+  isVoiceRecording: PropTypes.bool,
+  isVoiceProcessing: PropTypes.bool,
+  startRecording: PropTypes.func,
+  stopRecording: PropTypes.func
 };
 
 export default ChatUI;

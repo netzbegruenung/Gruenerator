@@ -5,7 +5,6 @@ import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLa
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 import FormStateProvider from '../../../components/common/Form/FormStateProvider';
 import ResultsDeck from './ResultsDeck';
-import StartPage from './StartPage';
 import { useChatStore } from '../../../stores/chatStore';
 import { shallow } from 'zustand/shallow';
 import { useChatApi } from '../hooks/useChatApi';
@@ -14,8 +13,13 @@ import { validateFiles, prepareFilesForSubmission } from '../../../utils/fileAtt
 import { resolveTextContent } from '../utils/textResolvers';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
+const EXAMPLE_QUESTIONS = [
+  { icon: '📝', text: 'Schreib einen Instagram-Post über Klimaschutz' },
+  { icon: '📸', text: 'Erstelle ein Sharepic zum Thema Solarenergie' },
+  { icon: '📰', text: 'Verfasse eine Pressemitteilung' }
+];
+
 const GrueneratorChat = () => {
-  const INITIAL_GREETING = 'Hallo! Ich bin der Grünerator Chat. Ich kann Ihnen bei der Texterstellung helfen. Sagen Sie mir einfach, was Sie benötigen - einen Social Media Post, eine Pressemitteilung, einen Antrag oder etwas anderes. Ich wähle automatisch den passenden Assistenten für Sie aus.';
   const [inputValue, setInputValue] = useState('');
   const [viewMode, setViewMode] = useState('dossier');
   const [isEditModeActive, setIsEditModeActive] = useState(false);
@@ -115,7 +119,6 @@ const GrueneratorChat = () => {
       !generatedContent &&
       multiResults.length === 0 &&
       latestContent &&
-      latestContent !== INITIAL_GREETING.trim() &&
       lastAssistantMessage?.agent !== 'simple_response'
     ) {
       setGeneratedText('grueneratorChat', latestContent, currentAgent ? { agent: currentAgent } : undefined);
@@ -334,14 +337,8 @@ const GrueneratorChat = () => {
     return lastAssistantMessage?.content || '';
   }, [generatedContent, lastAssistantMessage]);
 
-  const shouldHideInitialGreeting = useMemo(() => {
-    if (multiResults.length > 0) return false;
-    if (!displayValue) return false;
-    return displayValue.trim() === INITIAL_GREETING.trim();
-  }, [displayValue, multiResults.length]);
-
-  const effectiveDisplayValue = shouldHideInitialGreeting ? '' : displayValue;
-  const effectiveGeneratedContent = shouldHideInitialGreeting ? generatedContent : (generatedContent || effectiveDisplayValue);
+  const effectiveDisplayValue = displayValue;
+  const effectiveGeneratedContent = generatedContent || effectiveDisplayValue;
 
   const renderRightPanelContent = () => {
     if (multiResults.length > 0) {
@@ -374,9 +371,6 @@ const GrueneratorChat = () => {
           isEditModeActive={isEditModeActive}
           showResetButton={true}
           onReset={handleReset}
-          renderEmptyState={() => (
-            <StartPage introHelpContent={introHelpContent} />
-          )}
         />
       </FormStateProvider>
     );
@@ -384,22 +378,22 @@ const GrueneratorChat = () => {
 
   const placeholder = useMemo(() => {
     if (isEditModeActive) {
-      return 'Beschreibe kurz, welche Änderungen ich am Text vornehmen soll.';
+      return 'Beschreib kurz, welche Änderungen ich am Text vornehmen soll.';
     }
 
     if (currentAgent) {
       const placeholders = {
-        'social_media': 'Welchen Social Media Post möchten Sie erstellen?',
+        'social_media': 'Welchen Social Media Post möchtest du erstellen?',
         'pressemitteilung': 'Über welches Thema soll die Pressemitteilung sein?',
-        'antrag': 'Welchen Antrag möchten Sie verfassen?',
+        'antrag': 'Welchen Antrag möchtest du verfassen?',
         'zitat': 'Zu welchem Thema soll das Zitat sein?',
         'leichte_sprache': 'Welchen Text soll ich in leichte Sprache übersetzen?',
-        'gruene_jugend': 'Welchen aktivistischen Text benötigen Sie?',
-        'universal': 'Was möchten Sie schreiben?'
+        'gruene_jugend': 'Welchen aktivistischen Text brauchst du?',
+        'universal': 'Was möchtest du schreiben?'
       };
-      return placeholders[currentAgent] || 'Ihre Nachricht...';
+      return placeholders[currentAgent] || 'Deine Nachricht...';
     }
-    return 'Sagen Sie mir, was Sie benötigen - z.B. "Schreibe einen Facebook-Post über Klimaschutz"';
+    return 'Sag mir, was du brauchst - z.B. "Schreib einen Facebook-Post über Klimaschutz"';
   }, [isEditModeActive, currentAgent]);
 
   const modes = useMemo(() => ({
@@ -427,7 +421,7 @@ const GrueneratorChat = () => {
         disabled={isLoading}
         rightPanelContent={renderRightPanelContent()}
         className="gruenerator-chat-layout"
-        enableVoiceInput={false} // Disable voice input for now
+        enableVoiceInput={false}
         isEditModeActive={isEditModeActive}
         onReset={handleReset}
         hideModeSelector={true}
@@ -436,6 +430,9 @@ const GrueneratorChat = () => {
         onFileSelect={handleFileSelect}
         attachedFiles={attachedFiles}
         onRemoveFile={handleRemoveFile}
+        showStartPage={true}
+        startPageTitle="Was kann ich für dich tun?"
+        exampleQuestions={EXAMPLE_QUESTIONS}
       />
     </motion.div>
   );
