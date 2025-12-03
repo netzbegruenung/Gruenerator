@@ -88,6 +88,39 @@
     color: var(--secondary);
 }
 
+.footer-divider {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.5em;
+    margin: 0 var(--spacing-xsmall);
+    user-select: none;
+}
+
+.footer-social .theme-toggle-button {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    transition: color 0.3s ease;
+}
+
+.footer-social .theme-toggle-button:hover,
+.footer-social .theme-toggle-button:focus {
+    color: var(--secondary);
+}
+
+.footer-social .theme-toggle-button .theme-icon {
+    color: #fff;
+}
+
+.footer-social .theme-toggle-button:hover .theme-icon,
+.footer-social .theme-toggle-button:focus .theme-icon {
+    color: var(--secondary);
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
