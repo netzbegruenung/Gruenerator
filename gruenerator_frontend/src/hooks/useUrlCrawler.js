@@ -113,8 +113,8 @@ export const useUrlCrawler = (initialUrls = []) => {
 
     console.log(`[useUrlCrawler] Detected ${newUrls.length} new URLs:`, newUrls);
 
-    // Crawl URLs in parallel with a maximum of 3 concurrent requests
-    const crawlPromises = newUrls.slice(0, 3).map(url => crawlUrl(url, usePrivacyMode));
+    // Crawl URLs in parallel with a maximum of 5 concurrent requests
+    const crawlPromises = newUrls.slice(0, 5).map(url => crawlUrl(url, usePrivacyMode));
     const results = await Promise.allSettled(crawlPromises);
     
     const successfulCrawls = results
