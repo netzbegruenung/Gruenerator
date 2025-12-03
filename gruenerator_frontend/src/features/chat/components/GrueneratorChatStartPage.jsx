@@ -9,7 +9,7 @@ import './GrueneratorChatStartPage.css';
 
 const GrueneratorChatStartPage = ({
   title = "Was kann ich für dich tun?",
-  placeholder = "Beschreibe, was du brauchst...",
+  placeholder = "Beschreib mir kurz, was du brauchst...",
   inputValue = "",
   onInputChange,
   onSubmit,
@@ -18,6 +18,7 @@ const GrueneratorChatStartPage = ({
   onFileSelect,
   attachedFiles = [],
   onRemoveFile,
+  exampleQuestions = [],
   isVoiceRecording: externalIsVoiceRecording,
   isVoiceProcessing: externalIsVoiceProcessing,
   startRecording: externalStartRecording,
@@ -94,6 +95,10 @@ const GrueneratorChatStartPage = ({
     }
   };
 
+  const handleExampleClick = (text) => {
+    onInputChange && onInputChange(text);
+  };
+
   return (
     <motion.div
       className="gruenerator-chat-start"
@@ -168,6 +173,27 @@ const GrueneratorChatStartPage = ({
             </div>
           </div>
         </motion.form>
+
+        {exampleQuestions.length > 0 && (
+          <motion.div
+            className="gruenerator-chat-start__examples"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+          >
+            {exampleQuestions.map((question, index) => (
+              <button
+                key={index}
+                type="button"
+                className="gruenerator-chat-start__example"
+                onClick={() => handleExampleClick(question.text)}
+              >
+                <span>{question.icon}</span>
+                <span>{question.text}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
       </div>
 
       <motion.div
@@ -197,7 +223,7 @@ const GrueneratorChatStartPage = ({
         transition={{ duration: 0.4, delay: 0.4 }}
       >
         <span className="gruenerator-chat-start__tip-label">Tipp</span>
-        <p>Starte z.&nbsp;B. mit: „Schreibe einen Instagram-Post über Solarenergie"</p>
+        <p>Starte z.&nbsp;B. mit: „Schreib einen Instagram-Post über Solarenergie"</p>
       </motion.div>
     </motion.div>
   );
@@ -214,6 +240,10 @@ GrueneratorChatStartPage.propTypes = {
   onFileSelect: PropTypes.func,
   attachedFiles: PropTypes.array,
   onRemoveFile: PropTypes.func,
+  exampleQuestions: PropTypes.arrayOf(PropTypes.shape({
+    icon: PropTypes.string.isRequired,
+    text: PropTypes.string.isRequired
+  })),
   isVoiceRecording: PropTypes.bool,
   isVoiceProcessing: PropTypes.bool,
   startRecording: PropTypes.func,

@@ -540,16 +540,7 @@ export const useChatStore = create((set, get) => ({
    * Initialize chat with welcome message
    */
   initializeChat: () => {
-    const state = get();
-
-    // Only add welcome message if no messages exist
-    if (state.messages.length === 0) {
-      state.addMessage({
-        type: 'assistant',
-        content: 'Hallo! Ich bin der Grünerator Chat. Ich kann Ihnen bei der Texterstellung helfen. Sagen Sie mir einfach, was Sie benötigen - einen Social Media Post, eine Pressemitteilung, einen Antrag oder etwas anderes. Ich wähle automatisch den passenden Assistenten für Sie aus.',
-        timestamp: Date.now()
-      });
-    }
+    // No welcome message needed - start page provides context
   }
 }));
 
