@@ -89,7 +89,7 @@ const SubmitButton = ({
         {loading && (
           <>
             <span className="submit-button__loading-spinner">
-              <Spinner size="small" />
+              <Spinner size="small" white />
             </span>
             <span>{getDisplayText()}</span>
           </>
