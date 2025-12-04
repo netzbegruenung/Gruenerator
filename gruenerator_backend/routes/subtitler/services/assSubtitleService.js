@@ -557,8 +557,8 @@ ${dialogueLines}`;
   }
 
   /**
-   * Finds optimal line break point ensuring second line is longer
-   * Uses German linguistic patterns for natural breaks
+   * Finds optimal line break point aiming for balanced 50/50 split
+   * Uses German linguistic patterns for natural breaks without splitting words
    */
   findOptimalLineBreak(words, text) {
     // German function words that make good break points
@@ -568,70 +568,59 @@ ${dialogueLines}`;
       'von', 'zu', 'mit', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'für', 'ohne', 'gegen',
       'und', 'oder', 'aber', 'doch', 'jedoch', 'sowie'
     ];
-    
-    // Strategy 1: Find last function word in first 40% of text
-    const targetPosition = Math.floor(words.length * 0.4); // First 40% for short first line
+
+    // Target: 50/50 split for balanced readability
+    const totalLength = text.length;
+    const targetSplitPoint = totalLength / 2;
+
+    // Find the word boundary closest to the 50% character position
     let bestBreakIndex = -1;
-    
-    // Look for function words in first 40% of words, working backwards
-    for (let i = Math.min(targetPosition, words.length - 2); i >= 1; i--) {
-      const word = words[i].toLowerCase().replace(/[.,!?]$/, '');
-      if (functionWords.includes(word)) {
-        bestBreakIndex = i + 1; // Break after the function word
-        break;
+    let bestDistance = Infinity;
+
+    let charCount = 0;
+    for (let i = 0; i < words.length - 1; i++) {
+      charCount += words[i].length + 1; // +1 for space
+      const distance = Math.abs(charCount - targetSplitPoint);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestBreakIndex = i + 1;
       }
     }
-    
-    // Strategy 2: If no function word found, look for punctuation breaks
-    if (bestBreakIndex === -1) {
-      for (let i = 1; i <= Math.min(targetPosition + 1, words.length - 2); i++) {
-        if (words[i].match(/[,;:]$/)) {
-          bestBreakIndex = i + 1; // Break after punctuation
-          break;
+
+    // Try to find a nearby function word or punctuation for more natural break
+    const searchRadius = 1; // Look 1 word before/after optimal position
+    for (let offset = 0; offset <= searchRadius; offset++) {
+      for (const delta of [0, -offset, offset]) {
+        const checkIndex = bestBreakIndex + delta - 1;
+        if (checkIndex >= 0 && checkIndex < words.length - 1) {
+          const word = words[checkIndex].toLowerCase().replace(/[.,!?]$/, '');
+          // Prefer breaking after function words or punctuation
+          if (functionWords.includes(word) || words[checkIndex].match(/[,;:]$/)) {
+            bestBreakIndex = checkIndex + 1;
+            break;
+          }
         }
       }
     }
-    
-    // Strategy 3: Fallback to position closest to 40/60 split
-    if (bestBreakIndex === -1) {
-      bestBreakIndex = Math.max(1, Math.min(targetPosition, words.length - 1));
-    }
-    
-    // Ensure second line is longer - adjust if needed
-    const firstLineLength = words.slice(0, bestBreakIndex).join(' ').length;
-    const secondLineLength = words.slice(bestBreakIndex).join(' ').length;
-    
-    // If first line is longer or equal, try to move one word to first line
-    if (firstLineLength >= secondLineLength && bestBreakIndex > 1) {
-      bestBreakIndex = Math.max(1, bestBreakIndex - 1);
-    }
-    
+
     // Final validation: both lines must have content
     if (bestBreakIndex <= 0 || bestBreakIndex >= words.length) {
       return { shouldBreak: false, reason: 'invalid break index' };
     }
-    
+
     const finalFirstLine = words.slice(0, bestBreakIndex).join(' ');
     const finalSecondLine = words.slice(bestBreakIndex).join(' ');
-    
+
     // Ensure both lines have reasonable content
     if (finalFirstLine.length < 3 || finalSecondLine.length < 3) {
       return { shouldBreak: false, reason: 'lines too short' };
     }
-    
-    // Determine break reason for logging
-    let reason = 'fallback position';
-    const breakWord = words[bestBreakIndex - 1]?.toLowerCase().replace(/[.,!?]$/, '');
-    if (functionWords.includes(breakWord)) {
-      reason = `after function word "${breakWord}"`;
-    } else if (words[bestBreakIndex - 1]?.match(/[,;:]$/)) {
-      reason = 'after punctuation';
-    }
-    
+
     return {
       shouldBreak: true,
       breakIndex: bestBreakIndex,
-      reason: reason,
+      reason: 'balanced split',
       ratio: `${finalFirstLine.length}:${finalSecondLine.length} chars`
     };
   }
