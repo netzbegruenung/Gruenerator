@@ -3,6 +3,9 @@ const router = express.Router();
 const { webSearchService } = require('../../utils/searchUtils');
 const { MARKDOWN_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
 const { DocumentSearchService } = require('../../services/DocumentSearchService.js');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('deepResearch');
+
 
 const GENERATE_RESEARCH_QUESTIONS_TOOL = "generate_research_questions";
 const WEB_SEARCH_TOOL = "web_search";
@@ -77,7 +80,7 @@ function getIntelligentSearchOptions(question, category) {
       'houstonchronicle.com'
     ];
     
-    console.log(`[deep-research] Using German regional targeting for: "${question}"`);
+    log.debug(`[deep-research] Using German regional targeting for: "${question}"`);
   }
 
   // News search for current developments, recent events, or status questions
@@ -103,7 +106,7 @@ function getIntelligentSearchOptions(question, category) {
     questionLower.includes('maßnahmen') ||
     questionLower.includes('projekte')
   ) {
-    console.log(`[deep-research] Using NEWS search for current developments: "${question}"`);
+    log.debug(`[deep-research] Using NEWS search for current developments: "${question}"`);
     return {
       ...baseOptions,
       topic: 'news',
@@ -121,7 +124,7 @@ function getIntelligentSearchOptions(question, category) {
     questionLower.includes('vorhaben') ||
     questionLower.includes('plan')
   ) {
-    console.log(`[deep-research] Using RECENT search for future/planning: "${question}"`);
+    log.debug(`[deep-research] Using RECENT search for future/planning: "${question}"`);
     return {
       ...baseOptions,
       time_range: 'month' // Last month for recent planning
@@ -129,7 +132,7 @@ function getIntelligentSearchOptions(question, category) {
   }
 
   // General search for background, analysis, alternatives
-  console.log(`[deep-research] Using GENERAL search for: "${question}"`);
+  log.debug(`[deep-research] Using GENERAL search for: "${question}"`);
   return baseOptions;
 }
 
@@ -210,7 +213,7 @@ router.post('/', async (req, res) => {
 
   try {
     const startTime = Date.now();
-    console.log('[deep-research] Starting deep research for query:', query);
+    log.debug('[deep-research] Starting deep research for query:', query);
     
     // Track token usage and performance
     const performanceMetrics = {
@@ -250,7 +253,7 @@ Verwende das search_grundsatz_documents Tool, um in den Grundsatzprogrammen zu s
       throw new Error(result.error);
     }
 
-    console.log('[deep-research] Grundsatz search response:', JSON.stringify(result, null, 2));
+    log.debug('[deep-research] Grundsatz search response:', JSON.stringify(result, null, 2));
 
     // Step 1: Handle Grundsatz search tool call
     let grundsatzResults = null;
@@ -260,7 +263,7 @@ Verwende das search_grundsatz_documents Tool, um in den Grundsatzprogrammen zu s
       );
       
       if (grundsatzToolUse && grundsatzToolUse.input) {
-        console.log('[deep-research] Executing Grundsatz search:', grundsatzToolUse.input.query);
+        log.debug('[deep-research] Executing Grundsatz search:', grundsatzToolUse.input.query);
         grundsatzResults = await executeGrundsatzSearch(grundsatzToolUse.input.query);
       }
     }
@@ -306,7 +309,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
       
       if (toolUse && toolUse.input && toolUse.input.research_questions) {
         researchQuestions = toolUse.input.research_questions;
-        console.log('[deep-research] Generated research questions:', researchQuestions);
+        log.debug('[deep-research] Generated research questions:', researchQuestions);
       }
     }
 
@@ -318,14 +321,14 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
         { question: `${query} - gesellschaftliche Auswirkungen`, category: 'Auswirkungen' },
         { question: `${query} - alternative Perspektiven`, category: 'Alternative Perspektiven' }
       ];
-      console.log('[deep-research] Using fallback questions:', researchQuestions);
+      log.debug('[deep-research] Using fallback questions:', researchQuestions);
     }
 
     // Step 2: Execute intelligent searches for each question
-    console.log('[deep-research] Executing intelligent searches for', researchQuestions.length, 'questions');
+    log.debug('[deep-research] Executing intelligent searches for', researchQuestions.length, 'questions');
     const searchPromises = researchQuestions.map(async (rq, index) => {
       try {
-        console.log(`[deep-research] Searching for question ${index + 1}:`, rq.question);
+        log.debug(`[deep-research] Searching for question ${index + 1}:`, rq.question);
         
         // Determine search parameters based on question category and content
         const searchOptions = getIntelligentSearchOptions(rq.question, rq.category);
@@ -339,7 +342,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
         // Execute all queries (sub-queries) for this research question
         const subSearchPromises = queriesToExecute.map(async (query, subIndex) => {
           try {
-            console.log(`[deep-research] Executing sub-query ${subIndex + 1}/${queriesToExecute.length}: "${query}"`);
+            log.debug(`[deep-research] Executing sub-query ${subIndex + 1}/${queriesToExecute.length}: "${query}"`);
             const searchResults = await webSearchService.search(query, searchOptions);
             return {
               query,
@@ -347,7 +350,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
               answer: searchResults.answer || null
             };
           } catch (error) {
-            console.error(`[deep-research] Error in sub-query ${subIndex + 1}:`, error);
+            log.error(`[deep-research] Error in sub-query ${subIndex + 1}:`, error);
             return {
               query,
               results: [],
@@ -377,7 +380,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
           subSearchCount: queriesToExecute.length
         };
       } catch (error) {
-        console.error(`[deep-research] Error searching for question ${index + 1}:`, error);
+        log.error(`[deep-research] Error searching for question ${index + 1}:`, error);
         return {
           question: rq.question,
           category: rq.category,
@@ -389,7 +392,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
     });
 
     const searchResults = await Promise.all(searchPromises);
-    console.log('[deep-research] All searches completed');
+    log.debug('[deep-research] All searches completed');
 
     // Step 3: Deduplicate sources across all searches
     const allSources = [];
@@ -426,7 +429,7 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
       });
     });
 
-    console.log('[deep-research] Deduplicated to', allSources.length, 'unique sources');
+    log.debug('[deep-research] Deduplicated to', allSources.length, 'unique sources');
 
     // Step 4: Filter data and generate comprehensive dossier using Claude
     const filteredData = filterDataForAI(searchResults, allSources, grundsatzResults);
@@ -559,8 +562,8 @@ Diese Deep Research wurde mit folgender Methodik durchgeführt:
     performanceMetrics.totalDuration = performanceMetrics.endTime - performanceMetrics.startTime;
     performanceMetrics.estimatedTokenSavings = Math.round(performanceMetrics.estimatedTokens * (performanceMetrics.dataReductionPercent / 100));
     
-    console.log('[deep-research] Generated dossier, responding with results');
-    console.log('[deep-research] Performance metrics:', {
+    log.debug('[deep-research] Generated dossier, responding with results');
+    log.debug('[deep-research] Performance metrics:', {
       duration: `${performanceMetrics.totalDuration}ms`,
       aiCalls: performanceMetrics.aiCalls,
       estimatedTokens: performanceMetrics.estimatedTokens,
@@ -595,7 +598,7 @@ Diese Deep Research wurde mit folgender Methodik durchgeführt:
     });
 
   } catch (error) {
-    console.error('[deep-research] Error:', error);
+    log.error('[deep-research] Error:', error);
     res.status(500).json({
       status: 'error',
       message: 'Fehler bei der Deep Research',
@@ -611,7 +614,7 @@ Diese Deep Research wurde mit folgender Methodik durchgeführt:
  * - Remove unnecessary words
  */
 function optimizeSearchQuery(query) {
-  console.log(`[deep-research] Optimizing query: "${query}"`);
+  log.debug(`[deep-research] Optimizing query: "${query}"`);
   
   // If query is already short enough, apply basic optimization
   if (query.length <= 400) {
@@ -620,7 +623,7 @@ function optimizeSearchQuery(query) {
   
   // Break down complex queries into focused sub-queries
   const subQueries = breakDownComplexQuery(query);
-  console.log(`[deep-research] Broke down query into ${subQueries.length} sub-queries`);
+  log.debug(`[deep-research] Broke down query into ${subQueries.length} sub-queries`);
   
   return subQueries.map(subQuery => applyGermanOptimization(subQuery));
 }
@@ -674,7 +677,7 @@ function applyGermanOptimization(query) {
     optimizedQuery = optimizedQuery.substring(0, 397) + '...';
   }
   
-  console.log(`[deep-research] Optimized query: "${optimizedQuery}" (${optimizedQuery.length} chars)`);
+  log.debug(`[deep-research] Optimized query: "${optimizedQuery}" (${optimizedQuery.length} chars)`);
   return optimizedQuery;
 }
 
@@ -729,7 +732,7 @@ function breakDownComplexQuery(query) {
  * Filter and optimize data for AI processing to reduce token usage
  */
 function filterDataForAI(searchResults, allSources, grundsatzResults) {
-  console.log('[deep-research] Filtering data for AI processing...');
+  log.debug('[deep-research] Filtering data for AI processing...');
   
   // Filter search results - keep only essential data
   const filteredSearchResults = searchResults.map(result => ({
@@ -781,7 +784,7 @@ function filterDataForAI(searchResults, allSources, grundsatzResults) {
   const originalSize = JSON.stringify({ searchResults, allSources, grundsatzResults }).length;
   const filteredSize = JSON.stringify({ filteredSearchResults, filteredSources, filteredGrundsatz }).length;
   
-  console.log(`[deep-research] Data filtering: ${originalSize} -> ${filteredSize} chars (${Math.round((1 - filteredSize/originalSize) * 100)}% reduction)`);
+  log.debug(`[deep-research] Data filtering: ${originalSize} -> ${filteredSize} chars (${Math.round((1 - filteredSize/originalSize) * 100)}% reduction)`);
 
   return {
     searchResults: filteredSearchResults,
@@ -795,7 +798,7 @@ function filterDataForAI(searchResults, allSources, grundsatzResults) {
  */
 async function executeGrundsatzSearch(searchQuery) {
   try {
-    console.log(`[deep-research] Searching Grundsatz documents for: "${searchQuery}"`);
+    log.debug(`[deep-research] Searching Grundsatz documents for: "${searchQuery}"`);
     
     const documentSearchService = new DocumentSearchService();
     
@@ -831,7 +834,7 @@ async function executeGrundsatzSearch(searchQuery) {
     };
     
   } catch (error) {
-    console.error('[deep-research] Grundsatz search error:', error);
+    log.error('[deep-research] Grundsatz search error:', error);
     return {
       success: false,
       results: [],

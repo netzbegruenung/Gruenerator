@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const searxngWebSearchService = require('../services/searxngWebSearchService');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('webSearch');
+
 
 /**
  * POST /api/web-search
@@ -44,7 +47,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log(`[web-search] User ${userId} searching: "${query}" (type: ${searchType}, summary: ${includeSummary})`);
+    log.debug(`[web-search] User ${userId} searching: "${query}" (type: ${searchType}, summary: ${includeSummary})`);
 
     // Prepare search options
     const searchOptions = {
@@ -60,13 +63,13 @@ router.post('/', async (req, res) => {
       searchOptions.time_range = timeRange;
     }
 
-    console.log(`[web-search] Search options:`, searchOptions);
+    log.debug(`[web-search] Search options:`, searchOptions);
 
     // Perform the web search
     const searchResults = await searxngWebSearchService.performWebSearch(query, searchOptions);
 
     if (!searchResults.success) {
-      console.log(`[web-search] Search failed: ${searchResults.error}`);
+      log.debug(`[web-search] Search failed: ${searchResults.error}`);
       return res.status(500).json({
         success: false,
         error: 'Websuche fehlgeschlagen',
@@ -78,7 +81,7 @@ router.post('/', async (req, res) => {
 
     // Generate AI summary if requested
     if (includeSummary && searchResults.results && searchResults.results.length > 0) {
-      console.log(`[web-search] Generating AI summary for ${searchResults.results.length} results`);
+      log.debug(`[web-search] Generating AI summary for ${searchResults.results.length} results`);
       
       try {
         finalResults = await searxngWebSearchService.generateAISummary(
@@ -92,7 +95,7 @@ router.post('/', async (req, res) => {
           req
         );
       } catch (summaryError) {
-        console.warn(`[web-search] AI summary generation failed:`, summaryError.message);
+        log.warn(`[web-search] AI summary generation failed:`, summaryError.message);
         // Continue without summary rather than failing the whole request
         finalResults = {
           ...searchResults,
@@ -106,7 +109,7 @@ router.post('/', async (req, res) => {
     }
 
     const processingTime = Date.now() - startTime;
-    console.log(`[web-search] Search completed: ${finalResults.resultCount} results, ${processingTime}ms`);
+    log.debug(`[web-search] Search completed: ${finalResults.resultCount} results, ${processingTime}ms`);
 
     // Prepare response
     const response = {
@@ -148,7 +151,7 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    console.error(`[web-search] Error processing request (${processingTime}ms):`, error);
+    log.error(`[web-search] Error processing request (${processingTime}ms):`, error);
     
     // Map common errors to user-friendly messages
     let userError = 'Websuche fehlgeschlagen';
@@ -190,7 +193,7 @@ router.get('/status', async (req, res) => {
       data: status
     });
   } catch (error) {
-    console.error('[web-search] Status check failed:', error);
+    log.error('[web-search] Status check failed:', error);
     
     res.status(503).json({
       success: false,
@@ -226,7 +229,7 @@ router.post('/clear-cache', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[web-search] Cache clear failed:', error);
+    log.error('[web-search] Cache clear failed:', error);
     
     res.status(500).json({
       success: false,

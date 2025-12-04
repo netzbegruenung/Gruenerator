@@ -1,6 +1,9 @@
 const fs = require('fs').promises;
 const { registerFont } = require('canvas');
 const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH, TESTBILD_PATH, TEMP_UPLOAD_DIR  } = require('./config');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('fileManagement');
+
 
 async function checkFiles() {
   const files = [
@@ -14,7 +17,7 @@ async function checkFiles() {
     try {
       await fs.access(file.path);
     } catch (err) {
-      console.error(`Fehler beim Zugriff auf ${file.name}:`, err);
+      log.error(`Fehler beim Zugriff auf ${file.name}:`, err);
       throw new Error(`${file.name} nicht gefunden: ${file.path}`);
     }
   }
@@ -33,7 +36,7 @@ function registerFonts() {
     try {
       registerFont(font.path, { family: font.family });
     } catch (err) {
-      console.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
+      log.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
       throw err;
     }
   }

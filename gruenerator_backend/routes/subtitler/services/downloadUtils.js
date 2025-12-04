@@ -7,6 +7,9 @@ const { getVideoMetadata, cleanupFiles } = require('./videoUploadService');
 const { getFilePathFromUploadId, checkFileExists } = require('./tusService');
 const redisClient = require('../../../utils/redisClient');
 const AssSubtitleService = require('./assSubtitleService');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('downloadUtils');
+
 
 // Font configuration
 const FONT_PATH = path.resolve(__dirname, '../../../public/fonts/GrueneTypeNeue-Regular.ttf');
@@ -38,7 +41,7 @@ async function generateDownloadToken(exportParams) {
   // Store with 5-minute expiration
   await redisClient.set(`download:${downloadToken}`, JSON.stringify(tokenData), { EX: 300 });
   
-  console.log(`[Download Token] Generated token ${downloadToken} for uploadId: ${uploadId}`);
+  log.debug(`[Download Token] Generated token ${downloadToken} for uploadId: ${uploadId}`);
   
   return {
     downloadToken,
@@ -57,7 +60,7 @@ async function processDirectDownload(token, res) {
   }
   
   const exportParams = JSON.parse(exportParamsString);
-  console.log(`[Direct Download] Processing token ${token} for uploadId: ${exportParams.uploadId}`);
+  log.debug(`[Direct Download] Processing token ${token} for uploadId: ${exportParams.uploadId}`);
   
   // Delete token after use (one-time use)
   await redisClient.del(`download:${token}`);
@@ -96,7 +99,7 @@ async function processChunkedDownload(uploadId, chunkIndex, res) {
   const stream = fs.createReadStream(videoPath, { start, end });
   stream.pipe(res);
   
-  console.log(`[Chunked Download] Served chunk ${chunkIndex} (${start}-${end}) for ${uploadId}`);
+  log.debug(`[Chunked Download] Served chunk ${chunkIndex} (${start}-${end}) for ${uploadId}`);
 }
 
 /**
@@ -116,7 +119,7 @@ async function processVideoExport(exportParams, res) {
   let originalFilename = 'video.mp4';
   const exportToken = uuidv4();
 
-  console.log(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}`);
+  log.debug(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}`);
 
   try {
     inputPath = getFilePathFromUploadId(uploadId);
@@ -131,22 +134,22 @@ async function processVideoExport(exportParams, res) {
     const metadata = await getVideoMetadata(inputPath);
     
     const fileStats = await fsPromises.stat(inputPath);
-    console.log('Export-Info:', {
+    log.debug('Export-Info:', {
       uploadId: uploadId,
       inputGröße: `${(fileStats.size / 1024 / 1024).toFixed(2)}MB`,
       dimensionen: `${metadata.width}x${metadata.height}`,
       rotation: metadata.rotation || 'keine'
     });
 
-    console.log('Starte Video-Export');
-    console.log('Video-Datei:', inputPath);
+    log.debug('Starte Video-Export');
+    log.debug('Video-Datei:', inputPath);
     
     const outputDir = path.join(__dirname, '../../../uploads/exports');
     await fsPromises.mkdir(outputDir, { recursive: true });
     
     const outputBaseName = path.basename(originalFilename, path.extname(originalFilename));
     outputPath = path.join(outputDir, `subtitled_${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
-    console.log('Ausgabepfad:', outputPath);
+    log.debug('Ausgabepfad:', outputPath);
 
     // Process video with subtitles using existing logic
     await processVideoWithSubtitles(inputPath, outputPath, subtitles, metadata, subtitlePreference, stylePreference, heightPreference, exportToken);
@@ -155,7 +158,7 @@ async function processVideoExport(exportParams, res) {
     await streamVideoFile(outputPath, originalFilename, uploadId, res);
 
   } catch (error) {
-    console.error('Export-Fehler in downloadUtils:', error);
+    log.error('Export-Fehler in downloadUtils:', error);
     if (outputPath) {
       await cleanupFiles(null, outputPath);
     }
@@ -207,16 +210,16 @@ async function processVideoWithSubtitles(inputPath, outputPath, subtitles, metad
     if (assFilePath) {
       const fontDir = path.dirname(tempFontPath);
       command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
-      console.log(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
+      log.debug(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
     }
 
     command
       .on('start', cmd => {
-        console.log('[FFmpeg] Processing started');
+        log.debug('[FFmpeg] Processing started');
       })
       .on('progress', async (progress) => {
         const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
-        console.log('Fortschritt:', `${progressPercent}%`);
+        log.debug('Fortschritt:', `${progressPercent}%`);
         
         // Store progress in Redis
         const progressData = {
@@ -227,36 +230,36 @@ async function processVideoWithSubtitles(inputPath, outputPath, subtitles, metad
         try {
           await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 });
         } catch (redisError) {
-          console.warn('Redis Progress Update Fehler:', redisError.message);
+          log.warn('Redis Progress Update Fehler:', redisError.message);
         }
       })
       .on('error', (err) => {
-        console.error('FFmpeg Fehler:', err);
-        redisClient.del(`export:${exportToken}`).catch(delErr => console.warn(`[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`, delErr));
+        log.error('FFmpeg Fehler:', err);
+        redisClient.del(`export:${exportToken}`).catch(delErr => log.warn(`[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`, delErr));
         
         // Cleanup ASS files
         if (assFilePath) {
-          assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
+          assService.cleanupTempFile(assFilePath).catch(cleanupErr => log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
           if (tempFontPath) {
-            fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
+            fsPromises.unlink(tempFontPath).catch(fontErr => log.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
           }
         }
         reject(err);
       })
       .on('end', async () => {
-        console.log('FFmpeg Verarbeitung abgeschlossen');
+        log.debug('FFmpeg Verarbeitung abgeschlossen');
         
         // Cleanup progress and temp files
         try {
           await redisClient.del(`export:${exportToken}`);
         } catch (redisError) {
-          console.warn('Redis Progress Cleanup Fehler:', redisError.message);
+          log.warn('Redis Progress Cleanup Fehler:', redisError.message);
         }
         
         if (assFilePath) {
-          await assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
+          await assService.cleanupTempFile(assFilePath).catch(cleanupErr => log.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
           if (tempFontPath) {
-            await fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
+            await fsPromises.unlink(tempFontPath).catch(fontErr => log.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
           }
         }
         resolve();
@@ -290,7 +293,7 @@ async function streamVideoFile(outputPath, originalFilename, uploadId, res) {
     userAgent: res.req.get('User-Agent'),
     fileSize: `${(fileSize / 1024 / 1024).toFixed(2)}MB`
   };
-  console.log(`[Export] Starting stream for ${uploadId}: ${clientInfo.fileSize} to ${clientInfo.ip}`);
+  log.debug(`[Export] Starting stream for ${uploadId}: ${clientInfo.fileSize} to ${clientInfo.ip}`);
   
   // Track stream progress
   let streamedBytes = 0;
@@ -302,11 +305,11 @@ async function streamVideoFile(outputPath, originalFilename, uploadId, res) {
   // Monitor client connection
   res.on('close', () => {
     isClientConnected = false;
-    console.log(`[Export] Client disconnected for ${uploadId} after ${(streamedBytes / 1024 / 1024).toFixed(2)}MB`);
+    log.debug(`[Export] Client disconnected for ${uploadId} after ${(streamedBytes / 1024 / 1024).toFixed(2)}MB`);
   });
   
   res.on('finish', () => {
-    console.log(`[Export] Response finished for ${uploadId}: ${(streamedBytes / 1024 / 1024).toFixed(2)}MB sent`);
+    log.debug(`[Export] Response finished for ${uploadId}: ${(streamedBytes / 1024 / 1024).toFixed(2)}MB sent`);
   });
   
   // Track bytes transferred
@@ -324,7 +327,7 @@ async function streamVideoFile(outputPath, originalFilename, uploadId, res) {
     setTimeout(async () => {
       await cleanupFiles(null, outputPath);
       const success = streamedBytes === fileSize;
-      console.log(`[Export] Cleanup completed for ${uploadId} (${reason}): ${success ? 'SUCCESS' : 'PARTIAL'} - ${(streamedBytes / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`);
+      log.debug(`[Export] Cleanup completed for ${uploadId} (${reason}): ${success ? 'SUCCESS' : 'PARTIAL'} - ${(streamedBytes / 1024 / 1024).toFixed(2)}MB/${(fileSize / 1024 / 1024).toFixed(2)}MB`);
     }, 2000);
   };
 
@@ -337,7 +340,7 @@ async function streamVideoFile(outputPath, originalFilename, uploadId, res) {
   });
 
   fileStream.on('error', (error) => {
-    console.error(`[Export] Stream error for ${uploadId}:`, error.message);
+    log.error(`[Export] Stream error for ${uploadId}:`, error.message);
     scheduleCleanup('stream_error');
   });
 }
@@ -347,9 +350,9 @@ async function streamVideoFile(outputPath, originalFilename, uploadId, res) {
 async function checkFont() {
   try {
     await fsPromises.access(FONT_PATH);
-    console.log('GrueneTypeNeue Font found for ASS subtitles:', FONT_PATH);
+    log.debug('GrueneTypeNeue Font found for ASS subtitles:', FONT_PATH);
   } catch (err) {
-    console.warn('GrueneTypeNeue Font not found, ASS will use system fallback:', err.message);
+    log.warn('GrueneTypeNeue Font not found, ASS will use system fallback:', err.message);
   }
 }
 
@@ -406,7 +409,7 @@ function calculateFontSizes(subtitles, metadata) {
   const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
   const finalSpacing = Math.max(minSpacing, Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor)));
 
-  console.log('Font calculation:', {
+  log.debug('Font calculation:', {
     videoDimensionen: `${metadata.width}x${metadata.height}`,
     avgTextLength: avgLength.toFixed(1),
     scaleFactor: scaleFactor.toFixed(2),
@@ -449,7 +452,7 @@ function calculateScaleFactor(avgChars, avgWords) {
 }
 
 function processSubtitleSegments(subtitles) {
-  console.log('[downloadUtils] Raw subtitles input (last 500 chars):', subtitles.slice(-500));
+  log.debug('[downloadUtils] Raw subtitles input (last 500 chars):', subtitles.slice(-500));
   
   const preliminarySegments = subtitles
     .split('\n\n')
@@ -505,7 +508,7 @@ function processSubtitleSegments(subtitles) {
     throw new Error('Keine gültigen Untertitel-Segmente gefunden');
   }
 
-  console.log(`[downloadUtils] Parsed ${preliminarySegments.length} segments`);
+  log.debug(`[downloadUtils] Parsed ${preliminarySegments.length} segments`);
   return preliminarySegments;
 }
 
@@ -542,16 +545,16 @@ async function generateAssSubtitles(segments, metadata, subtitlePreference, styl
     tempFontPath = path.join(path.dirname(assFilePath), 'GrueneTypeNeue-Regular.ttf');
     try {
       await fsPromises.copyFile(FONT_PATH, tempFontPath);
-      console.log(`[ASS] Copied font to temp: ${tempFontPath}`);
+      log.debug(`[ASS] Copied font to temp: ${tempFontPath}`);
     } catch (fontCopyError) {
-      console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
+      log.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
       tempFontPath = null;
     }
     
-    console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
+    log.debug(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference}, height: ${heightPreference}`);
     
   } catch (assError) {
-    console.error('[ASS] Error generating ASS subtitles:', assError);
+    log.error('[ASS] Error generating ASS subtitles:', assError);
     assFilePath = null;
   }
 
@@ -586,7 +589,7 @@ function calculateQualitySettings(metadata) {
     tune = 'film';
   }
   
-  console.log(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
+  log.debug(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
 
   // Audio settings
   const originalAudioCodec = metadata.originalFormat?.audioCodec;

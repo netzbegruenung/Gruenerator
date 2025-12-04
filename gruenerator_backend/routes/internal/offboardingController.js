@@ -1,5 +1,8 @@
 const express = require('express');
 const { OffboardingService } = require('../../services/offboardingService');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('offboarding');
+
 
 const router = express.Router();
 
@@ -49,10 +52,10 @@ router.post('/run', requireAdmin, async (req, res) => {
     const endTime = new Date();
     const duration = endTime - startTime;
     
-    console.log(`Offboarding process completed in ${duration}ms with status: ${success ? 'success' : 'failed'}`);
+    log.debug(`Offboarding process completed in ${duration}ms with status: ${success ? 'success' : 'failed'}`);
     
   } catch (error) {
-    console.error('Offboarding process failed:', error.message);
+    log.error('Offboarding process failed:', error.message);
     
     if (!res.headersSent) {
       res.status(500).json({

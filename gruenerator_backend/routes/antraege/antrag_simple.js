@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { processGraphRequest } = require('../../agents/langgraph/promptProcessor');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('antrag_simple');
+
 
 // Minimal request/response logger for /api/antraege/generate-simple
 router.use((req, res, next) => {
@@ -13,7 +16,7 @@ router.use((req, res, next) => {
   const originalRedirect = res.redirect ? res.redirect.bind(res) : null;
 
   // Single-line incoming log
-  console.log(`[antrag_simple][${reqId}] ${req.method} ${req.originalUrl}`);
+  log.debug(`[antrag_simple][${reqId}] ${req.method} ${req.originalUrl}`);
 
   // Track minimal response meta without logging bodies
   let redirectedTo = null;
@@ -58,7 +61,7 @@ router.use((req, res, next) => {
       `dur=${elapsed}ms`,
     ];
     if (redirectedTo) parts.push(`redir=${redirectedTo}`);
-    console.log(`[antrag_simple][${reqId}] done ${parts.join(' ')}`);
+    log.debug(`[antrag_simple][${reqId}] done ${parts.join(' ')}`);
   });
 
   next();

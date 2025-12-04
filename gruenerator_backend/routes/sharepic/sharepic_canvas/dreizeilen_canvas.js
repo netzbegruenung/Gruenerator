@@ -7,6 +7,9 @@ const { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
 const { validateParams } = require('./paramValidation');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('dreizeilen_canv');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -39,7 +42,7 @@ async function testLoadImage(filePath) {
     const image = await loadImage(filePath);
     return image;
   } catch (err) {
-    console.error(`Failed to load image from ${filePath}:`, err);
+    log.error(`Failed to load image from ${filePath}:`, err);
     throw err;
   }
 }
@@ -221,9 +224,9 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
 
     return canvas.toBuffer('image/png');
   } catch (error) {
-    console.error('Error in addTextToImage:', error);
+    log.error('Error in addTextToImage:', error);
     if (error.message.includes('Unsupported image type')) {
-      console.error('Image buffer details:', uploadedImageBuffer.slice(0, 20));  // Log the first 20 bytes of the buffer
+      log.error('Image buffer details:', uploadedImageBuffer.slice(0, 20));  // Log the first 20 bytes of the buffer
     }
     throw error;
   }
@@ -246,7 +249,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     const uploadedImageBuffer = req.file ? req.file.buffer : null;
 
-    console.log('Incoming color values:', {
+    log.debug('Incoming color values:', {
       colors_0_background, colors_0_text,
       colors_1_background, colors_1_text,
       colors_2_background, colors_2_text
@@ -316,7 +319,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
       res.json({ image: base64Image });
     } catch (error) {
-      console.error('Fehler bei der Bildverarbeitung:', error);
+      log.error('Fehler bei der Bildverarbeitung:', error);
       res.status(400).json({ 
         error: 'Bildverarbeitungsfehler',
         details: error.message 
@@ -324,7 +327,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
   } catch (err) {
-    console.error('Fehler bei der Anfrage:', err);
+    log.error('Fehler bei der Anfrage:', err);
     res.status(500).json({ error: 'Fehler beim Erstellen des Bildes: ' + err.message });
   }
 });

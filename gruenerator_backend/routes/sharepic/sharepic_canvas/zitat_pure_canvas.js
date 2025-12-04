@@ -7,6 +7,9 @@ const path = require('path');
 const { COLORS } = require('./config');
 const { isValidHexColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('zitat_pure_canv');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -17,7 +20,7 @@ const QUOTE_SVG_PATH = path.resolve(__dirname, '../../../public/quote.svg');
 const SUNFLOWER_SVG_PATH = path.resolve(__dirname, '../../../public/sonnenblume_dunkelgruen.svg');
 
 async function processZitatPureText(textData) {
-  console.log('processZitatPureText aufgerufen mit:', textData);
+  log.debug('processZitatPureText aufgerufen mit:', textData);
 
   const { quote, name } = textData;
 
@@ -32,7 +35,7 @@ async function processZitatPureText(textData) {
 }
 
 async function createZitatPureImage(processedText, validatedParams) {
-  console.log('Starting createZitatPureImage function');
+  log.debug('Starting createZitatPureImage function');
   try {
     await checkFiles();
     registerFonts();
@@ -52,14 +55,14 @@ async function createZitatPureImage(processedText, validatedParams) {
     }
 
     // Load the quotation mark SVG
-    console.log('Loading quotation mark SVG from:', QUOTE_SVG_PATH);
+    log.debug('Loading quotation mark SVG from:', QUOTE_SVG_PATH);
     const quotationMark = await loadImage(QUOTE_SVG_PATH);
-    console.log('Quotation mark loaded successfully');
+    log.debug('Quotation mark loaded successfully');
 
     // Load the sunflower SVG
-    console.log('Loading sunflower SVG from:', SUNFLOWER_SVG_PATH);
+    log.debug('Loading sunflower SVG from:', SUNFLOWER_SVG_PATH);
     const sunflower = await loadImage(SUNFLOWER_SVG_PATH);
-    console.log('Sunflower loaded successfully');
+    log.debug('Sunflower loaded successfully');
 
     // Create canvas with standard sharepic dimensions
     const canvas = createCanvas(1080, 1350);
@@ -70,7 +73,7 @@ async function createZitatPureImage(processedText, validatedParams) {
     // Fill background with solid color
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, 1080, 1350);
-    console.log('Background filled with color:', backgroundColor);
+    log.debug('Background filled with color:', backgroundColor);
 
     // Draw sunflower watermark in upper-right corner with 6% opacity
     // The sunflower bleeds off top and right edges, creating a cropped effect
@@ -82,7 +85,7 @@ async function createZitatPureImage(processedText, validatedParams) {
     ctx.globalAlpha = 0.06; // 6% opacity for subtle watermark effect
     ctx.drawImage(sunflower, sunflowerX, sunflowerY, sunflowerSize, sunflowerSize);
     ctx.restore();
-    console.log(`Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`);
+    log.debug(`Sunflower watermark drawn at (${sunflowerX}, ${sunflowerY}) with size ${sunflowerSize}px and 6% opacity`);
 
     // Test font loading
     ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`;
@@ -93,7 +96,7 @@ async function createZitatPureImage(processedText, validatedParams) {
     ctx.font = `italic ${quoteFontSize}px GrueneTypeNeue`; // Set back
     const afterWidth = ctx.measureText(testText).width;
     
-    console.log('Font loading test:', {
+    log.debug('Font loading test:', {
       grueneTypeWidth: beforeWidth,
       serifWidth: serifWidth,
       grueneTypeWidthAfter: afterWidth,
@@ -146,17 +149,17 @@ async function createZitatPureImage(processedText, validatedParams) {
     // Draw quotation marks
     ctx.fillStyle = quoteMarkColor;
     ctx.drawImage(quotationMark, quoteMarkX, quoteMarkY, quoteMarkSize, quoteMarkSize);
-    console.log(`Quotation marks drawn at position (${quoteMarkX}, ${quoteMarkY})`);
+    log.debug(`Quotation marks drawn at position (${quoteMarkX}, ${quoteMarkY})`);
 
     // Render Quote Text (italic)
-    console.log('Rendering quote text:', processedText.quote);
+    log.debug('Rendering quote text:', processedText.quote);
     ctx.fillStyle = textColor;
 
     let finalQuoteY = quoteTextY;
     quoteLines.forEach((line, index) => {
       const textY = quoteTextY + (index * lineHeight);
       ctx.fillText(line, margin, textY);
-      console.log(`Quote line ${index}: "${line}" at position (${margin}, ${textY})`);
+      log.debug(`Quote line ${index}: "${line}" at position (${margin}, ${textY})`);
       finalQuoteY = textY;
     });
 
@@ -164,18 +167,18 @@ async function createZitatPureImage(processedText, validatedParams) {
     const nameY = finalQuoteY + adjustedQuoteFontSize + gapBetweenQuoteAndName;
 
     // Render Author Name (italic, smaller, bottom-left positioned)
-    console.log('Rendering author name:', processedText.name);
+    log.debug('Rendering author name:', processedText.name);
     ctx.font = `italic ${adjustedNameFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'left'; // LEFT-aligned for bottom left positioning
     ctx.textBaseline = 'top';
     
     ctx.fillText(processedText.name, margin, nameY); // Position at left margin, not right
-    console.log(`Author name "${processedText.name}" at position (${margin}, ${nameY})`);    
+    log.debug(`Author name "${processedText.name}" at position (${margin}, ${nameY})`);    
 
     return canvas.toBuffer('image/png');
   } catch (error) {
-    console.error('Error in createZitatPureImage:', error);
+    log.error('Error in createZitatPureImage:', error);
     throw error;
   }
 }
@@ -203,9 +206,9 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  console.log('Received request for zitat_pure_canvas');
+  log.debug('Received request for zitat_pure_canvas');
   try {
-    console.log('Received request body:', req.body);
+    log.debug('Received request body:', req.body);
 
     const {
       quote,
@@ -226,7 +229,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       nameFontSize: parseInt(nameFontSize, 10) || 35 // Smaller author text
     };
 
-    console.log('Parsed zitat pure params:', modParams);
+    log.debug('Parsed zitat pure params:', modParams);
 
     await checkFiles();
     registerFonts();
@@ -238,10 +241,10 @@ router.post('/', upload.single('image'), async (req, res) => {
       nameFontSize: Math.max(25, Math.min(50, modParams.nameFontSize))
     };
 
-    console.log('Validated zitat pure params:', zitatPureValidatedParams);
+    log.debug('Validated zitat pure params:', zitatPureValidatedParams);
     
     const processedText = await processZitatPureText({ quote, name });
-    console.log('Processed text:', processedText);
+    log.debug('Processed text:', processedText);
 
     // Generate the image
     const generatedImageBuffer = await createZitatPureImage(
@@ -251,11 +254,11 @@ router.post('/', upload.single('image'), async (req, res) => {
     
     const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
 
-    console.log('Zitat Pure image generated successfully');
+    log.debug('Zitat Pure image generated successfully');
     res.json({ image: base64Image });
 
   } catch (err) {
-    console.error('Error in zitat_pure_canvas request:', err);
+    log.error('Error in zitat_pure_canvas request:', err);
     res.status(500).json({ 
       error: 'Fehler beim Erstellen des Zitat-Pure-Bildes: ' + err.message 
     });

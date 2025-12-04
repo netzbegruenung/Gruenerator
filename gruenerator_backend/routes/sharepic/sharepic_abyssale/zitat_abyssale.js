@@ -13,10 +13,13 @@ const router = express.Router();
 const sharepicClaudeRoute = require('../sharepic_claude/sharepic_claude');
 const AbyssaleApiClient = require('../../../services/abyssaleApiClient');
 const abyssaleConfig = require('../../../config/abyssaleConfig');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('zitat_abyssale');
+
 
 router.post('/', async (req, res) => {
   try {
-    console.log('[Zitat-Abyssale] Processing request with body:', req.body);
+    log.debug('[Zitat-Abyssale] Processing request with body:', req.body);
 
     // Step 1: Generate text using existing zitat handler
     const textResponse = await new Promise((resolve, reject) => {
@@ -31,7 +34,7 @@ router.post('/', async (req, res) => {
       sharepicClaudeRoute.handleClaudeRequest(req, mockRes, 'zitat').catch(reject);
     });
 
-    console.log('[Zitat-Abyssale] Text generation response:', textResponse);
+    log.debug('[Zitat-Abyssale] Text generation response:', textResponse);
 
     if (!textResponse || !textResponse.quote) {
       throw new Error('Failed to generate quote text');
@@ -54,7 +57,7 @@ router.post('/', async (req, res) => {
       }
     };
 
-    console.log('[Zitat-Abyssale] Generating image via Abyssale:', { designId, elements });
+    log.debug('[Zitat-Abyssale] Generating image via Abyssale:', { designId, elements });
 
     // Step 4: Generate image using Abyssale directly
     const abyssaleClient = new AbyssaleApiClient();
@@ -65,7 +68,7 @@ router.post('/', async (req, res) => {
 
     const abyssaleResult = await abyssaleClient.generateImageWithDownload(designId, { elements });
 
-    console.log('[Zitat-Abyssale] Abyssale generation result:', abyssaleResult);
+    log.debug('[Zitat-Abyssale] Abyssale generation result:', abyssaleResult);
 
     // Step 5: Convert local image to base64 (same format as regular generation)
     const localImagePath = abyssaleResult.local?.path;
@@ -87,11 +90,11 @@ router.post('/', async (req, res) => {
       imageData: abyssaleResult
     };
 
-    console.log('[Zitat-Abyssale] Final response prepared');
+    log.debug('[Zitat-Abyssale] Final response prepared');
     res.json(result);
 
   } catch (error) {
-    console.error('[Zitat-Abyssale] Error:', error.message);
+    log.error('[Zitat-Abyssale] Error:', error.message);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate Abyssale sharepic'

@@ -1,4 +1,7 @@
 import express from 'express';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('generator_confi');
+
 
 const router = express.Router();
 
@@ -85,7 +88,7 @@ Beachte:
       }
       // Log a short parse attempt preview
       try {
-        console.log('[generator_configurator] Parsing JSON preview:', {
+        log.debug('[generator_configurator] Parsing JSON preview:', {
           startsWithCurly: text.trim().startsWith('{'),
           endsWithCurly: text.trim().endsWith('}'),
           length: text.length
@@ -143,9 +146,9 @@ Beachte:
           if (pos >= 0) {
             const start = Math.max(0, pos - 60);
             const end = Math.min(repaired.length, pos + 60);
-            console.error('[generator_configurator] JSON parse error around position', pos, 'context:', repaired.slice(start, end));
+            log.error('[generator_configurator] JSON parse error around position', pos, 'context:', repaired.slice(start, end));
           } else {
-            console.error('[generator_configurator] JSON parse error:', msg);
+            log.error('[generator_configurator] JSON parse error:', msg);
           }
           return null;
         }
@@ -170,7 +173,7 @@ Beachte:
         throw new Error(result.error || 'AI worker failed to generate configuration.');
       }
       try {
-        console.log('[generator_configurator] AI provider/meta:', {
+        log.debug('[generator_configurator] AI provider/meta:', {
           provider: result?.metadata?.provider,
           model: result?.metadata?.model,
           contentLength: result?.content?.length,
@@ -188,27 +191,27 @@ Beachte:
 
     while (attempts < maxAttempts && !parsed) {
       attempts++;
-      console.log(`[generator_configurator] Attempt ${attempts}/${maxAttempts} with default provider`);
+      log.debug(`[generator_configurator] Attempt ${attempts}/${maxAttempts} with default provider`);
       rawContent = await requestConfigFromAI(null);
       parsed = extractJsonObject(rawContent);
       if (!parsed) {
-        console.warn(`[generator_configurator] Parse failed on attempt ${attempts}. Retrying...`);
+        log.warn(`[generator_configurator] Parse failed on attempt ${attempts}. Retrying...`);
       }
     }
 
     // Final fallback to AWS Bedrock if still not parsed
     if (!parsed) {
-      console.log('[generator_configurator] Switching provider to AWS Bedrock as fallback');
+      log.debug('[generator_configurator] Switching provider to AWS Bedrock as fallback');
       rawContent = await requestConfigFromAI('bedrock');
       parsed = extractJsonObject(rawContent);
     }
 
     let config = parsed;
     if (!config) {
-      console.error('[generator_configurator] Failed to parse AI response as JSON after retries. Last raw content:', rawContent);
+      log.error('[generator_configurator] Failed to parse AI response as JSON after retries. Last raw content:', rawContent);
       throw new Error(`Die KI hat keine gültige JSON-Konfiguration zurückgegeben (versucht: ${attempts}x, dann AWS Fallback).`);
     }
-    console.log('[generator_configurator] Parsed AI Response:', config);
+    log.debug('[generator_configurator] Parsed AI Response:', config);
 
     // Validate and sanitize the received configuration
     if (!config || typeof config !== 'object') {
@@ -218,11 +221,11 @@ Beachte:
         throw new Error('Name fehlt oder ist ungültig.');
     }
     if (!config.title || typeof config.title !== 'string' || config.title.trim() === '') {
-        console.warn('[generator_configurator] Title missing or invalid from AI, using Name as fallback.');
+        log.warn('[generator_configurator] Title missing or invalid from AI, using Name as fallback.');
         config.title = config.name; // Use name as fallback title
     }
     if (!config.description || typeof config.description !== 'string' || config.description.trim() === '') {
-        console.warn('[generator_configurator] Description missing or invalid from AI, providing a default.');
+        log.warn('[generator_configurator] Description missing or invalid from AI, providing a default.');
         config.description = `Ein Grünerator für: ${config.name}`; // Provide a generic description
     }
     if (!config.slug || typeof config.slug !== 'string' || config.slug.trim() === '') {
@@ -235,7 +238,7 @@ Beachte:
         throw new Error('Felder fehlen oder sind kein Array.');
     }
      if (config.fields.length > 5) {
-        console.warn('[generator_configurator] AI generated more than 5 fields, trimming.');
+        log.warn('[generator_configurator] AI generated more than 5 fields, trimming.');
         config.fields = config.fields.slice(0, 5);
     }
 
@@ -243,7 +246,7 @@ Beachte:
     config.slug = sanitizeSlug(config.slug);
     config.fields = config.fields.map(field => {
         if (!field || typeof field !== 'object' || !field.label || typeof field.label !== 'string') {
-             console.warn('[generator_configurator] Invalid field object received from AI, skipping:', field);
+             log.warn('[generator_configurator] Invalid field object received from AI, skipping:', field);
              return null; // Mark invalid fields
         }
         const sanitizedName = generateSanitizedName(field.label);
@@ -310,11 +313,11 @@ Beachte:
      }
      
 
-    console.log('[generator_configurator] Sending sanitized config to frontend:', config);
+    log.debug('[generator_configurator] Sending sanitized config to frontend:', config);
     res.json(config);
 
   } catch (error) {
-    console.error('[generator_configurator] Fehler bei der Konfigurationserstellung:', error);
+    log.error('[generator_configurator] Fehler bei der Konfigurationserstellung:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Erstellung der Generator-Konfiguration.',
       details: error.message 

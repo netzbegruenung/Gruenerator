@@ -4,6 +4,9 @@ import authMiddlewareModule from '../middleware/authMiddleware.js';
 import passport from '../config/passportSetup.mjs';
 import { fastEmbedService } from '../services/FastEmbedService.js';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('bundestag');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -65,7 +68,7 @@ router.post('/search', validateBundestagConfig, async (req, res) => {
     // Note: This will be implemented when user profile checking is available
     // For now, we'll allow all authenticated users to use this feature
 
-    console.log(`[Bundestag API] Search request for: "${query}" by user: ${req.user?.id}`);
+    log.debug(`[Bundestag API] Search request for: "${query}" by user: ${req.user?.id}`);
 
     // Perform search using the Bundestag API client
     const searchResults = await bundestagApiClient.searchAll(query.trim(), {
@@ -89,7 +92,7 @@ router.post('/search', validateBundestagConfig, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Bundestag API] Search error:', error);
+    log.error('[Bundestag API] Search error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to search parliamentary documents',
@@ -122,7 +125,7 @@ router.get('/document/:type/:id', ensureAuthenticated, validateBundestagConfig, 
       });
     }
 
-    console.log(`[Bundestag API] Document request for: ${type}/${id} by user: ${req.user?.id}`);
+    log.debug(`[Bundestag API] Document request for: ${type}/${id} by user: ${req.user?.id}`);
 
     // Fetch document using the Bundestag API client
     const document = await bundestagApiClient.getDocumentById(id, type);
@@ -137,7 +140,7 @@ router.get('/document/:type/:id', ensureAuthenticated, validateBundestagConfig, 
     });
 
   } catch (error) {
-    console.error('[Bundestag API] Document fetch error:', error);
+    log.error('[Bundestag API] Document fetch error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch document',
@@ -152,7 +155,7 @@ router.get('/document/:type/:id', ensureAuthenticated, validateBundestagConfig, 
  */
 router.get('/test', ensureAuthenticated, async (req, res) => {
   try {
-    console.log(`[Bundestag API] Connection test by user: ${req.user?.id}`);
+    log.debug(`[Bundestag API] Connection test by user: ${req.user?.id}`);
 
     const isConnected = await bundestagApiClient.testConnection();
 
@@ -164,7 +167,7 @@ router.get('/test', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Bundestag API] Connection test error:', error);
+    log.error('[Bundestag API] Connection test error:', error);
     res.status(500).json({
       success: false,
       connected: false,
@@ -198,8 +201,8 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
       });
     }
 
-    console.log(`[Bundestag API] Save to documents request for: ${type}/${id} by user: ${req.user?.id}`);
-    console.log(`[Bundestag API] Document metadata:`, {
+    log.debug(`[Bundestag API] Save to documents request for: ${type}/${id} by user: ${req.user?.id}`);
+    log.debug(`[Bundestag API] Document metadata:`, {
       hasAbstract: !!abstract,
       abstractType: typeof abstract,
       abstractValue: abstract === undefined ? 'UNDEFINED' : (abstract === null ? 'NULL' : abstract),
@@ -229,14 +232,14 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
       documentContent = text;
       hasFullContent = true;
       textSource = 'search_results';
-      console.log(`[Bundestag API] Using text from search results (${documentContent.length} characters)`);
+      log.debug(`[Bundestag API] Using text from search results (${documentContent.length} characters)`);
     } else {
       // Second priority: Try to fetch document content from Bundestag API
       try {
-        console.log(`[Bundestag API] No text from search results, attempting to fetch from API for ${type}/${id}`);
+        log.debug(`[Bundestag API] No text from search results, attempting to fetch from API for ${type}/${id}`);
         const fullDocument = await bundestagApiClient.getDocumentById(id, type);
         
-        console.log(`[Bundestag API] API response received:`, {
+        log.debug(`[Bundestag API] API response received:`, {
           hasDocument: !!fullDocument,
           hasText: !!fullDocument?.text,
           textLength: fullDocument?.text ? fullDocument.text.length : 0,
@@ -247,19 +250,19 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
           documentContent = fullDocument.text;
           hasFullContent = true;
           textSource = 'api_fetch';
-          console.log(`[Bundestag API] Successfully fetched document content from API (${documentContent.length} characters)`);
+          log.debug(`[Bundestag API] Successfully fetched document content from API (${documentContent.length} characters)`);
         } else {
-          console.log(`[Bundestag API] No text content available from API - will use metadata fallback`);
+          log.debug(`[Bundestag API] No text content available from API - will use metadata fallback`);
         }
       } catch (contentError) {
-        console.warn(`[Bundestag API] Could not fetch full content for ${type}/${id}:`, contentError.message);
+        log.warn(`[Bundestag API] Could not fetch full content for ${type}/${id}:`, contentError.message);
         // Continue without full content - we'll use metadata fallback
       }
     }
 
     // If we don't have full content, create a document from available metadata
     if (!hasFullContent) {
-      console.log(`[Bundestag API] Creating metadata fallback content`);
+      log.debug(`[Bundestag API] Creating metadata fallback content`);
       textSource = 'metadata_fallback';
       const metadataContent = [];
       
@@ -271,7 +274,7 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
         metadataContent.push(abstract);
         metadataContent.push('');
       } else {
-        console.log(`[Bundestag API] Skipping abstract section - value is:`, {
+        log.debug(`[Bundestag API] Skipping abstract section - value is:`, {
           abstract,
           type: typeof abstract,
           isUndefined: abstract === undefined,
@@ -343,33 +346,33 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
 
     const result = await db.insert('documents', documentData);
     if (!result.success) {
-      console.error('[Bundestag API] Database error:', result.error);
+      log.error('[Bundestag API] Database error:', result.error);
       throw new Error('Failed to save document to database');
     }
 
     const document = result.data[0];
 
-    console.log(`[Bundestag API] Successfully created document ${document.id} for Bundestag ${type}/${id}`);
+    log.debug(`[Bundestag API] Successfully created document ${document.id} for Bundestag ${type}/${id}`);
 
     // Generate embeddings for the document content in background
     generateBundestagDocumentEmbeddings(document.id, documentContent)
       .then(async () => {
-        console.log(`[Bundestag API] Successfully generated embeddings for document ${document.id}`);
+        log.debug(`[Bundestag API] Successfully generated embeddings for document ${document.id}`);
         // Update document status to completed
         const db = getPostgresInstance();
         await db.ensureInitialized();
         await db.update('documents', { status: 'completed' }, { id: document.id });
       })
       .catch(async error => {
-        console.error(`[Bundestag API] Failed to generate embeddings for document ${document.id}:`, error);
+        log.error(`[Bundestag API] Failed to generate embeddings for document ${document.id}:`, error);
         // Update document status to failed
         try {
           const db = getPostgresInstance();
           await db.ensureInitialized();
           await db.update('documents', { status: 'failed' }, { id: document.id });
-          console.log(`[Bundestag API] Document ${document.id} marked as failed`);
+          log.debug(`[Bundestag API] Document ${document.id} marked as failed`);
         } catch (updateError) {
-          console.error(`[Bundestag API] Failed to mark document ${document.id} as failed:`, updateError);
+          log.error(`[Bundestag API] Failed to mark document ${document.id} as failed:`, updateError);
         }
       });
 
@@ -380,7 +383,7 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
     });
 
   } catch (error) {
-    console.error('[Bundestag API] Save to documents error:', error);
+    log.error('[Bundestag API] Save to documents error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to save Bundestag document',
@@ -396,7 +399,7 @@ router.post('/save-to-documents', ensureAuthenticated, validateBundestagConfig, 
  */
 async function generateBundestagDocumentEmbeddings(documentId, content) {
   try {
-    console.log(`[generateBundestagDocumentEmbeddings] Generating embeddings for document ${documentId}`);
+    log.debug(`[generateBundestagDocumentEmbeddings] Generating embeddings for document ${documentId}`);
 
     // Split document into chunks
     const { smartChunkDocument } = await import('../utils/textChunker.js');
@@ -407,11 +410,11 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
     });
 
     if (chunks.length === 0) {
-      console.warn(`[generateBundestagDocumentEmbeddings] No chunks generated for document ${documentId}`);
+      log.warn(`[generateBundestagDocumentEmbeddings] No chunks generated for document ${documentId}`);
       return;
     }
 
-    console.log(`[generateBundestagDocumentEmbeddings] Generated ${chunks.length} chunks for document ${documentId}`);
+    log.debug(`[generateBundestagDocumentEmbeddings] Generated ${chunks.length} chunks for document ${documentId}`);
 
     // Generate embeddings for chunks in batches
     const batchSize = 10;
@@ -419,7 +422,7 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
 
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize);
-      console.log(`[generateBundestagDocumentEmbeddings] Processing embedding batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
+      log.debug(`[generateBundestagDocumentEmbeddings] Processing embedding batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
 
       try {
         // Generate embeddings for this batch
@@ -438,7 +441,7 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
         allChunkData.push(...batchChunkData);
 
       } catch (batchError) {
-        console.error(`[generateBundestagDocumentEmbeddings] Error processing embedding batch:`, batchError);
+        log.error(`[generateBundestagDocumentEmbeddings] Error processing embedding batch:`, batchError);
         // Continue with other batches
       }
     }
@@ -456,10 +459,10 @@ async function generateBundestagDocumentEmbeddings(documentId, content) {
       throw new Error(`Failed to insert document chunks: ${insertResult.error.message}`);
     }
 
-    console.log(`[generateBundestagDocumentEmbeddings] Successfully generated embeddings for ${allChunkData.length} chunks in document ${documentId}`);
+    log.debug(`[generateBundestagDocumentEmbeddings] Successfully generated embeddings for ${allChunkData.length} chunks in document ${documentId}`);
 
   } catch (error) {
-    console.error(`[generateBundestagDocumentEmbeddings] Error generating embeddings for document ${documentId}:`, error);
+    log.error(`[generateBundestagDocumentEmbeddings] Error generating embeddings for document ${documentId}:`, error);
     throw error;
   }
 }

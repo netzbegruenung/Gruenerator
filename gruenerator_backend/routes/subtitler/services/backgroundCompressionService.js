@@ -6,6 +6,9 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const redisClient = require('../../../utils/redisClient');
 const { getVideoMetadata } = require('./videoUploadService');
 const { ffmpegPool } = require('./ffmpegPool');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('backgroundCompr');
+
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -82,7 +85,7 @@ async function shouldCompressVideo(videoPath) {
     
     // Check file size threshold
     if (fileSizeMB < COMPRESSION_CONFIG.MIN_FILE_SIZE_MB) {
-      console.log(`[BackgroundCompression] File too small for compression: ${fileSizeMB.toFixed(2)}MB < ${COMPRESSION_CONFIG.MIN_FILE_SIZE_MB}MB`);
+      log.debug(`[BackgroundCompression] File too small for compression: ${fileSizeMB.toFixed(2)}MB < ${COMPRESSION_CONFIG.MIN_FILE_SIZE_MB}MB`);
       return false;
     }
     
@@ -92,7 +95,7 @@ async function shouldCompressVideo(videoPath) {
     
     // Skip if already efficiently encoded with modern codec
     if (codec === 'hevc' || codec === 'av1') {
-      console.log(`[BackgroundCompression] Already efficiently encoded with ${codec}, skipping compression`);
+      log.debug(`[BackgroundCompression] Already efficiently encoded with ${codec}, skipping compression`);
       return false;
     }
     
@@ -115,7 +118,7 @@ async function shouldCompressVideo(videoPath) {
     
     // If current bitrate is already reasonable, skip compression
     if (bitrateMbps <= expectedBitrateMbps * 1.5) {
-      console.log(`[BackgroundCompression] File already efficiently compressed: ${bitrateMbps.toFixed(2)}Mbps <= ${(expectedBitrateMbps * 1.5).toFixed(2)}Mbps`);
+      log.debug(`[BackgroundCompression] File already efficiently compressed: ${bitrateMbps.toFixed(2)}Mbps <= ${(expectedBitrateMbps * 1.5).toFixed(2)}Mbps`);
       return false;
     }
     
@@ -123,7 +126,7 @@ async function shouldCompressVideo(videoPath) {
     const needsResolutionScaling = fileSizeMB >= COMPRESSION_CONFIG.MAX_RESOLUTION.APPLY_TO_FILES_ABOVE_MB && 
       (metadata.width > COMPRESSION_CONFIG.MAX_RESOLUTION.WIDTH || metadata.height > COMPRESSION_CONFIG.MAX_RESOLUTION.HEIGHT);
     
-    console.log(`[BackgroundCompression] File candidate for compression:`, {
+    log.debug(`[BackgroundCompression] File candidate for compression:`, {
       size: `${fileSizeMB.toFixed(2)}MB`,
       codec,
       bitrate: `${bitrateMbps.toFixed(2)}Mbps`,
@@ -134,7 +137,7 @@ async function shouldCompressVideo(videoPath) {
     
     return true;
   } catch (error) {
-    console.error('[BackgroundCompression] Error analyzing video for compression:', error);
+    log.error('[BackgroundCompression] Error analyzing video for compression:', error);
     return false;
   }
 }
@@ -153,7 +156,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
       startTime: Date.now()
     }), { EX: COMPRESSION_CONFIG.REDIS_TTL });
     
-    console.log(`[BackgroundCompression] Starting analysis for ${uploadId}`);
+    log.debug(`[BackgroundCompression] Starting analysis for ${uploadId}`);
     
     // Check if compression is needed
     const shouldCompress = await shouldCompressVideo(originalVideoPath);
@@ -199,7 +202,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
     const extension = path.extname(originalVideoPath);
     const compressedPath = path.join(originalDir, `${originalName}_compressed_temp${extension}`);
     
-    console.log(`[BackgroundCompression] Starting compression:`, {
+    log.debug(`[BackgroundCompression] Starting compression:`, {
       uploadId,
       originalSize: `${originalSizeMB.toFixed(2)}MB`,
       originalResolution: `${metadata.width}x${metadata.height}`,
@@ -241,7 +244,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
       if (targetResolution) {
         // Scale video to target resolution, preserving aspect ratio and ensuring even dimensions
         videoFilters.push(`scale=${targetResolution.width}:${targetResolution.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`);
-        console.log(`[BackgroundCompression] Applying resolution scaling: ${metadata.width}x${metadata.height} → ${targetResolution.width}x${targetResolution.height}`);
+        log.debug(`[BackgroundCompression] Applying resolution scaling: ${metadata.width}x${metadata.height} → ${targetResolution.width}x${targetResolution.height}`);
       }
       
       command
@@ -254,12 +257,12 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
       
       command
         .on('start', (cmd) => {
-          console.log(`[BackgroundCompression] FFmpeg started: ${cmd.substring(0, 100)}...`);
-          console.log(`[BackgroundCompression] Full FFmpeg command:`, cmd);
+          log.debug(`[BackgroundCompression] FFmpeg started: ${cmd.substring(0, 100)}...`);
+          log.debug(`[BackgroundCompression] Full FFmpeg command:`, cmd);
           
           // Validate command structure
           if (cmd.includes('" -')) {
-            console.warn('[BackgroundCompression] Warning: Potential malformed arguments detected in FFmpeg command');
+            log.warn('[BackgroundCompression] Warning: Potential malformed arguments detected in FFmpeg command');
           }
         })
         .on('progress', async (progress) => {
@@ -274,15 +277,15 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
               startTime: Date.now()
             }), { EX: COMPRESSION_CONFIG.REDIS_TTL });
           } catch (redisError) {
-            console.warn('[BackgroundCompression] Redis update failed:', redisError.message);
+            log.warn('[BackgroundCompression] Redis update failed:', redisError.message);
           }
         })
         .on('end', () => {
-          console.log(`[BackgroundCompression] Compression completed for ${uploadId}`);
+          log.debug(`[BackgroundCompression] Compression completed for ${uploadId}`);
           resolve();
         })
         .on('error', (err) => {
-          console.error(`[BackgroundCompression] FFmpeg error for ${uploadId}:`, err);
+          log.error(`[BackgroundCompression] FFmpeg error for ${uploadId}:`, err);
           reject(err);
         })
         .save(compressedPath);
@@ -294,7 +297,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
     const compressedSizeMB = compressedStats.size / (1024 * 1024);
     const compressionRatio = compressedStats.size / originalStats.size;
     
-    console.log(`[BackgroundCompression] Compression results:`, {
+    log.debug(`[BackgroundCompression] Compression results:`, {
       uploadId,
       originalSize: `${originalSizeMB.toFixed(2)}MB`,
       compressedSize: `${compressedSizeMB.toFixed(2)}MB`,
@@ -307,7 +310,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
     
     // Check if compression was worthwhile
     if (compressionRatio > COMPRESSION_CONFIG.MIN_COMPRESSION_RATIO) {
-      console.log(`[BackgroundCompression] Compression ratio too low (${(compressionRatio * 100).toFixed(1)}%), keeping original`);
+      log.debug(`[BackgroundCompression] Compression ratio too low (${(compressionRatio * 100).toFixed(1)}%), keeping original`);
       await fsPromises.unlink(compressedPath);
       
       await redisClient.set(compressionKey, JSON.stringify({
@@ -334,9 +337,9 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
     setTimeout(async () => {
       try {
         await fsPromises.unlink(backupPath);
-        console.log(`[BackgroundCompression] Backup cleaned up for ${uploadId}`);
+        log.debug(`[BackgroundCompression] Backup cleaned up for ${uploadId}`);
       } catch (err) {
-        console.warn(`[BackgroundCompression] Backup cleanup failed for ${uploadId}:`, err.message);
+        log.warn(`[BackgroundCompression] Backup cleanup failed for ${uploadId}:`, err.message);
       }
     }, 60000); // Delete backup after 1 minute
     
@@ -354,7 +357,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
       completedAt: Date.now()
     }), { EX: COMPRESSION_CONFIG.REDIS_TTL });
     
-    console.log(`[BackgroundCompression] Successfully compressed ${uploadId}: ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB`);
+    log.debug(`[BackgroundCompression] Successfully compressed ${uploadId}: ${originalSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB`);
     return {
       originalSize: originalSizeMB,
       compressedSize: compressedSizeMB,
@@ -362,7 +365,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
     };
     
   } catch (error) {
-    console.error(`[BackgroundCompression] Error compressing ${uploadId}:`, error);
+    log.error(`[BackgroundCompression] Error compressing ${uploadId}:`, error);
     
     // Set error status
     try {
@@ -372,7 +375,7 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
         progress: 0
       }), { EX: COMPRESSION_CONFIG.REDIS_TTL });
     } catch (redisError) {
-      console.error('[BackgroundCompression] Failed to set error status in Redis:', redisError);
+      log.error('[BackgroundCompression] Failed to set error status in Redis:', redisError);
     }
     
     // Clean up any temporary files
@@ -397,7 +400,7 @@ async function getCompressionStatus(uploadId) {
     
     return JSON.parse(statusData);
   } catch (error) {
-    console.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, error);
+    log.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, error);
     return { status: 'error', error: error.message };
   }
 }
@@ -421,26 +424,26 @@ function startBackgroundCompression(videoPath, uploadId) {
   // Check Redis availability first
   isRedisAvailable().then((redisOk) => {
     if (!redisOk) {
-      console.log(`[BackgroundCompression] Redis not available, skipping compression for ${uploadId}`);
+      log.debug(`[BackgroundCompression] Redis not available, skipping compression for ${uploadId}`);
       return;
     }
     
-    console.log(`[BackgroundCompression] Redis available, starting compression for ${uploadId}`);
+    log.debug(`[BackgroundCompression] Redis available, starting compression for ${uploadId}`);
     
     // Start compression in background without blocking
     setImmediate(() => {
       compressVideoInBackground(videoPath, uploadId)
         .then((result) => {
           if (result) {
-            console.log(`[BackgroundCompression] Compression completed for ${uploadId}: saved ${result.spaceSaved.toFixed(2)}MB`);
+            log.debug(`[BackgroundCompression] Compression completed for ${uploadId}: saved ${result.spaceSaved.toFixed(2)}MB`);
           }
         })
         .catch((error) => {
-          console.warn(`[BackgroundCompression] Compression failed for ${uploadId}:`, error.message);
+          log.warn(`[BackgroundCompression] Compression failed for ${uploadId}:`, error.message);
         });
     });
   }).catch((error) => {
-    console.warn(`[BackgroundCompression] Redis check failed for ${uploadId}, skipping compression:`, error.message);
+    log.warn(`[BackgroundCompression] Redis check failed for ${uploadId}, skipping compression:`, error.message);
   });
 }
 

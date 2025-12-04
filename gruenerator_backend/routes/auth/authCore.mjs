@@ -2,6 +2,9 @@ import express from 'express';
 import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createRequire } from 'module';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('authCore');
+
 
 const require = createRequire(import.meta.url);
 const chatMemory = require('../../services/chatMemoryService');
@@ -18,14 +21,14 @@ router.use((req, res, next) => {
 
   res.send = function (body) {
     if (res.statusCode >= 400) {
-      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+      log.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
     }
     return originalSend(body);
   };
 
   res.json = function (body) {
     if (res.statusCode >= 400) {
-      console.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
+      log.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
     }
     return originalJson(body);
   };
@@ -99,7 +102,7 @@ async function checkSessionHealth(req, res, next) {
 
     next();
   } catch (error) {
-    console.error('[Auth] Session health check failed:', error);
+    log.error('[Auth] Session health check failed:', error);
     return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
   }
 }
@@ -134,7 +137,7 @@ router.get('/login', checkSessionHealth, async (req, res, next) => {
       req.session.save((err) => {
         clearTimeout(timeout);
         if (err) {
-          console.error('[Auth Login] Failed to save session before auth:', err);
+          log.error('[Auth Login] Failed to save session before auth:', err);
           reject(err);
         } else {
           resolve();
@@ -142,7 +145,7 @@ router.get('/login', checkSessionHealth, async (req, res, next) => {
       });
     });
   } catch (error) {
-    console.error('[Auth Login] Session save error:', error);
+    log.error('[Auth Login] Session save error:', error);
     return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
   }
 
@@ -219,14 +222,14 @@ router.get('/callback',
           // Save then redirect to mobile deep link with code
           req.session.save((err) => {
             if (err) {
-              console.error('[AuthCallback] Error saving session (mobile deep link):', err);
+              log.error('[AuthCallback] Error saving session (mobile deep link):', err);
             }
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
             return res.redirect(redirectWithCode);
           });
           return; // Stop further processing
         } catch (e) {
-          console.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
+          log.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
           // fall through to normal redirect
         }
       }
@@ -255,13 +258,13 @@ router.get('/callback',
 
       req.session.save((err) => {
         if (err) {
-          console.error('[AuthCallback] Error saving session:', err);
+          log.error('[AuthCallback] Error saving session:', err);
         }
         return res.redirect(redirectTo);
       });
       
     } catch (error) {
-      console.error('[AuthCallback] General error in OIDC callback:', error);
+      log.error('[AuthCallback] General error in OIDC callback:', error);
       next(error);
     }
   }
@@ -302,7 +305,7 @@ router.get('/error', (req, res) => {
   const keycloakError = req.session?.messages?.slice(-1)[0];
   if (req.session?.messages) delete req.session.messages;
 
-  console.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`);
+  log.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`);
 
   const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   res.status(401).send(`Authentication Error: ${errorCode}. Please try again or contact support with correlation ID: ${correlationId}`);
@@ -314,20 +317,20 @@ router.get('/logout', async (req, res, next) => {
   if (req.user?.id) {
     try {
       await chatMemory.clearConversation(req.user.id);
-      console.log('[Auth Core GET /logout] Chat memory cleared for user:', req.user.id);
+      log.debug('[Auth Core GET /logout] Chat memory cleared for user:', req.user.id);
     } catch (error) {
-      console.error('[Auth Core GET /logout] Error clearing chat memory:', error);
+      log.error('[Auth Core GET /logout] Error clearing chat memory:', error);
     }
   }
 
   req.logout(function(err) {
     if (err) {
-      console.error("Failed to logout user:", err);
+      log.error("Failed to logout user:", err);
     }
 
     req.session.destroy((destroyErr) => {
       if (destroyErr) {
-        console.error("[Auth Core GET /logout] Session destruction error:", destroyErr);
+        log.error("[Auth Core GET /logout] Session destruction error:", destroyErr);
       }
 
       res.clearCookie('gruenerator.sid', {
@@ -354,9 +357,9 @@ router.post('/logout', async (req, res, next) => {
   if (wasAuthenticated && req.user?.id) {
     try {
       await chatMemory.clearConversation(req.user.id);
-      console.log('[Auth Core POST /logout] Chat memory cleared for user:', req.user.id);
+      log.debug('[Auth Core POST /logout] Chat memory cleared for user:', req.user.id);
     } catch (error) {
-      console.error('[Auth Core POST /logout] Error clearing chat memory:', error);
+      log.error('[Auth Core POST /logout] Error clearing chat memory:', error);
     }
   }
 
@@ -374,12 +377,12 @@ router.post('/logout', async (req, res, next) => {
 
   req.logout(function(err) {
     if (err) { 
-      console.error("[Auth Core POST /logout] Passport logout error:", err);
+      log.error("[Auth Core POST /logout] Passport logout error:", err);
     }
 
     req.session.destroy((destroyErr) => {
       if (destroyErr) {
-        console.error("[Auth Core POST /logout] Session destruction error:", destroyErr);
+        log.error("[Auth Core POST /logout] Session destruction error:", destroyErr);
         
         return res.status(500).json({
           success: false,
@@ -435,7 +438,7 @@ router.get('/locale', ensureAuthenticated, (req, res) => {
       locale: userLocale
     });
   } catch (error) {
-    console.error('[Auth /locale GET] Error:', error);
+    log.error('[Auth /locale GET] Error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get locale'
@@ -472,7 +475,7 @@ router.put('/locale', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Auth /locale PUT] Error:', error);
+    log.error('[Auth /locale PUT] Error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to update locale'

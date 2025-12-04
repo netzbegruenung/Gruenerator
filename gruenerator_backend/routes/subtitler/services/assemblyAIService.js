@@ -1,6 +1,9 @@
 const fs = require('fs');
 const https = require('https');
 const FormData = require('form-data');
+const { createLogger } = require('../../../utils/logger.js');
+
+const log = createLogger('assemblyAI');
 
 // AssemblyAI EU endpoint configuration
 const ASSEMBLYAI_EU_BASE_URL = 'https://api.eu.assemblyai.com/v2';
@@ -10,7 +13,7 @@ const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 const ENABLE_ZERO_DATA_RETENTION = true;
 
 if (!ASSEMBLYAI_API_KEY) {
-  console.warn('[assemblyAIService] AssemblyAI API key not found in environment variables');
+  log.warn('AssemblyAI API key not found in environment variables');
 }
 
 /**
@@ -45,7 +48,7 @@ async function uploadAudioFile(filePath) {
         if (res.statusCode === 200) {
           try {
             const response = JSON.parse(data);
-            console.log(`[assemblyAIService] Audio uploaded successfully: ${response.upload_url}`);
+            log.debug(`Audio uploaded successfully`);
             resolve(response.upload_url);
           } catch (error) {
             reject(new Error(`Failed to parse upload response: ${error.message}`));
@@ -110,7 +113,7 @@ async function submitTranscriptionRequest(audioUrl, requestWordTimestamps = fals
         if (res.statusCode === 200) {
           try {
             const response = JSON.parse(data);
-            console.log(`[assemblyAIService] Transcription submitted with ID: ${response.id}`);
+            log.debug(`Transcription submitted with ID: ${response.id}`);
             resolve(response.id);
           } catch (error) {
             reject(new Error(`Failed to parse transcription response: ${error.message}`));
@@ -145,14 +148,14 @@ async function pollForCompletion(transcriptId) {
       const transcriptData = await getTranscript(transcriptId);
 
       if (transcriptData.status === 'completed') {
-        console.log(`[assemblyAIService] Transcription completed after ${attempt + 1} attempts`);
+        log.debug(`Transcription completed after ${attempt + 1} attempts`);
         return transcriptData;
       } else if (transcriptData.status === 'error') {
         throw new Error(`Transcription failed: ${transcriptData.error || 'Unknown error'}`);
       } else if (transcriptData.status === 'processing' || transcriptData.status === 'queued') {
         // Calculate exponential backoff delay
         const delay = Math.min(baseDelay * Math.pow(1.5, attempt), 30000); // Max 30 seconds
-        console.log(`[assemblyAIService] Transcription ${transcriptData.status}, waiting ${delay}ms (attempt ${attempt + 1}/${maxAttempts})`);
+        log.debug(`Transcription ${transcriptData.status}, waiting ${delay}ms (attempt ${attempt + 1}/${maxAttempts})`);
 
         await new Promise(resolve => setTimeout(resolve, delay));
         attempt++;
@@ -163,7 +166,7 @@ async function pollForCompletion(transcriptId) {
       if (attempt >= maxAttempts - 1) {
         throw error;
       }
-      console.warn(`[assemblyAIService] Polling attempt ${attempt + 1} failed, retrying:`, error.message);
+      log.warn(`Polling attempt ${attempt + 1} failed, retrying: ${error.message}`);
       await new Promise(resolve => setTimeout(resolve, baseDelay));
       attempt++;
     }
@@ -225,7 +228,7 @@ async function getTranscript(transcriptId) {
  */
 async function deleteTranscript(transcriptId) {
   if (!ENABLE_ZERO_DATA_RETENTION) {
-    console.log(`[assemblyAIService] ZDR disabled, skipping deletion of transcript: ${transcriptId}`);
+    log.debug(`ZDR disabled, skipping deletion of transcript: ${transcriptId}`);
     return true;
   }
 
@@ -249,22 +252,22 @@ async function deleteTranscript(transcriptId) {
 
       res.on('end', () => {
         if (res.statusCode === 200 || res.statusCode === 204) {
-          console.log(`[assemblyAIService] ZDR: Successfully deleted transcript ${transcriptId}`);
+          log.debug(`ZDR: Successfully deleted transcript ${transcriptId}`);
           resolve(true);
         } else {
-          console.warn(`[assemblyAIService] ZDR: Failed to delete transcript ${transcriptId}, status: ${res.statusCode}, response: ${data}`);
+          log.warn(`ZDR: Failed to delete transcript ${transcriptId}, status: ${res.statusCode}`);
           resolve(false); // Don't fail the entire process if deletion fails
         }
       });
     });
 
     req.on('error', (error) => {
-      console.warn(`[assemblyAIService] ZDR: Delete request failed for transcript ${transcriptId}:`, error.message);
+      log.warn(`ZDR: Delete request failed for transcript ${transcriptId}: ${error.message}`);
       resolve(false); // Don't fail the entire process if deletion fails
     });
 
     req.setTimeout(10000, () => {
-      console.warn(`[assemblyAIService] ZDR: Delete request timeout for transcript ${transcriptId}`);
+      log.warn(`ZDR: Delete request timeout for transcript ${transcriptId}`);
       req.destroy();
       resolve(false);
     });
@@ -302,13 +305,7 @@ function transformToOpenAIFormat(assemblyAIResponse, requestWordTimestamps) {
       end: word.end / 1000       // Convert milliseconds to seconds
     }));
 
-    console.log(`[assemblyAIService] Transformed ${result.words.length} word timestamps from AssemblyAI format`);
-
-    // Log all words for debugging transcription issues
-    console.log('[assemblyAIService] All words from AssemblyAI:');
-    result.words.forEach((word, index) => {
-      console.log(`  ${index.toString().padStart(3, ' ')}: "${word.word}" (${word.start.toFixed(2)}s-${word.end.toFixed(2)}s)`);
-    });
+    log.debug(`Transformed ${result.words.length} word timestamps from AssemblyAI format`);
   }
 
   return result;
@@ -327,60 +324,37 @@ async function transcribeWithAssemblyAI(filePath, requestWordTimestamps = false)
     // Log the file size for monitoring
     const stats = fs.statSync(filePath);
     const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-    console.log(`[assemblyAIService] Starting transcription (${fileSizeMB} MB): ${filePath}`);
-    console.log(`[assemblyAIService] Using EU endpoint with word timestamps: ${requestWordTimestamps}`);
+    log.debug(`Starting transcription (${fileSizeMB} MB)`);
 
     // Step 1: Upload audio file
-    console.log('[assemblyAIService] Step 1: Uploading audio file...');
     const audioUrl = await uploadAudioFile(filePath);
 
     // Step 2: Submit transcription request
-    console.log('[assemblyAIService] Step 2: Submitting transcription request...');
     transcriptId = await submitTranscriptionRequest(audioUrl, requestWordTimestamps);
 
     // Step 3: Poll for completion
-    console.log('[assemblyAIService] Step 3: Polling for completion...');
     const transcriptData = await pollForCompletion(transcriptId);
 
     // Step 4: Transform to OpenAI-compatible format
-    console.log('[assemblyAIService] Step 4: Transforming response format...');
     const result = transformToOpenAIFormat(transcriptData, requestWordTimestamps);
 
     // Step 5: Delete transcript for Zero Data Retention (ZDR)
-    console.log('[assemblyAIService] Step 5: Implementing Zero Data Retention...');
     const deletionSuccess = await deleteTranscript(transcriptId);
-    if (deletionSuccess) {
-      console.log(`[assemblyAIService] ZDR: Transcript ${transcriptId} successfully deleted`);
-    } else {
-      console.warn(`[assemblyAIService] ZDR: Failed to delete transcript ${transcriptId}, but continuing with result`);
+    if (!deletionSuccess) {
+      log.warn(`ZDR: Failed to delete transcript ${transcriptId}, but continuing with result`);
     }
 
-    console.log(`[assemblyAIService] Transcription completed successfully`);
-    console.log(`[assemblyAIService] Text length: ${result.text.length} characters`);
-
-    if (requestWordTimestamps && result.words) {
-      console.log(`[assemblyAIService] Word timestamps: ${result.words.length} words`);
-      // Log first few words for verification
-      const sampleWords = result.words.slice(0, 3).map(w =>
-        `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`
-      ).join(', ');
-      console.log(`[assemblyAIService] Sample words: ${sampleWords}`);
-    }
+    log.info(`Transcription completed: ${result.text.length} chars, ${result.words?.length || 0} words`);
 
     return result;
 
   } catch (error) {
-    console.error('[assemblyAIService] AssemblyAI transcription error:', error.message);
+    log.error(`AssemblyAI transcription error: ${error.message}`);
 
     // Try to clean up transcript if it was created but failed during processing
     if (transcriptId) {
-      console.log('[assemblyAIService] Attempting ZDR cleanup after error...');
-      const deletionSuccess = await deleteTranscript(transcriptId);
-      if (deletionSuccess) {
-        console.log(`[assemblyAIService] ZDR: Successfully cleaned up failed transcript ${transcriptId}`);
-      } else {
-        console.warn(`[assemblyAIService] ZDR: Failed to clean up transcript ${transcriptId} after error`);
-      }
+      log.debug('Attempting ZDR cleanup after error...');
+      await deleteTranscript(transcriptId);
     }
 
     throw error;
@@ -393,7 +367,7 @@ async function transcribeWithAssemblyAI(filePath, requestWordTimestamps = false)
  */
 async function checkServiceHealth() {
   if (!ASSEMBLYAI_API_KEY) {
-    console.warn('[assemblyAIService] API key not configured');
+    log.warn('API key not configured');
     return false;
   }
 

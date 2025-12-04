@@ -1,4 +1,7 @@
 import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('claude_alttext');
+
 
 // Create authenticated router (same pattern as authCore.mjs and claude_social.js)
 const router = createAuthenticatedRouter();
@@ -6,7 +9,7 @@ const router = createAuthenticatedRouter();
 router.post('/', async (req, res) => {
   const { imageBase64, imageDescription, usePrivacyMode } = req.body;
   
-  console.log('[claude_alttext] Request received:', { 
+  log.debug('[claude_alttext] Request received:', { 
     hasImageBase64: !!imageBase64,
     imageBase64Length: imageBase64?.length || 0,
     hasImageDescription: !!imageDescription,
@@ -20,7 +23,7 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    console.log('[claude_alttext] Starting AI Worker request');
+    log.debug('[claude_alttext] Starting AI Worker request');
 
     // Build system prompt based on DBSV accessibility guidelines
     const systemPrompt = `Du erstellst Alternativtexte (Alt-Text) für Bilder basierend auf den Richtlinien des Deutschen Blinden- und Sehbehindertenverbands (DBSV). Alt-Text ist entscheidend, um Bilder für blinde und sehbehinderte Menschen zugänglich zu machen.
@@ -75,7 +78,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
       }
     };
 
-    console.log('[claude_alttext] Payload overview:', {
+    log.debug('[claude_alttext] Payload overview:', {
       systemPromptLength: systemPrompt.length,
       userContentLength: userContent.length,
       messageCount: payload.messages.length,
@@ -89,7 +92,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
       ...payload
     }, req);
 
-    console.log('[claude_alttext] AI Worker response received:', {
+    log.debug('[claude_alttext] AI Worker response received:', {
       success: result.success,
       contentLength: result.content?.length,
       error: result.error,
@@ -97,7 +100,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
     });
 
     if (!result.success) {
-      console.error('[claude_alttext] AI Worker error:', result.error);
+      log.error('[claude_alttext] AI Worker error:', result.error);
       throw new Error(result.error);
     }
 
@@ -115,7 +118,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
       metadata: result.metadata
     };
     
-    console.log('[claude_alttext] Sending successful response:', {
+    log.debug('[claude_alttext] Sending successful response:', {
       altTextLength: response.altText?.length,
       hasMetadata: !!response.metadata,
       userId: req.user?.id
@@ -124,7 +127,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
     res.json(response);
 
   } catch (error) {
-    console.error('[claude_alttext] Error creating alt text:', error);
+    log.error('[claude_alttext] Error creating alt text:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Erstellung des Alt-Texts',
       details: error.message 
