@@ -403,14 +403,15 @@ router.get('/export-download/:exportToken', async (req, res) => {
 
 // Route zum Herunterladen des fertigen Videos (Legacy - kept for backward compatibility)
 router.post('/export', async (req, res) => {
-  // Expect uploadId, subtitles, subtitlePreference, stylePreference, and locale in body
+  // Expect uploadId, subtitles, subtitlePreference, stylePreference, locale, and maxResolution in body
   const {
     uploadId,
     subtitles,
     subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
     stylePreference = 'standard', // Style preference parameter
     heightPreference = 'standard', // Height positioning: 'standard' or 'tief'
-    locale = 'de-DE' // User locale for Austria-specific styling
+    locale = 'de-DE', // User locale for Austria-specific styling
+    maxResolution = null // Max output resolution (e.g., 1080 for Instagram compatibility, null for full quality)
   } = req.body; 
   let inputPath = null;
   let outputPath = null;
@@ -731,6 +732,7 @@ router.post('/export', async (req, res) => {
       stylePreference,
       heightPreference,
       locale,
+      maxResolution,
       finalFontSize,
       uploadId,
       originalFilename,
@@ -771,6 +773,7 @@ async function processVideoExportInBackground(params) {
     stylePreference,
     heightPreference,
     locale = 'de-DE',
+    maxResolution = null,
     finalFontSize,
     uploadId,
     originalFilename,
@@ -983,10 +986,30 @@ async function processVideoExportInBackground(params) {
 
       command.outputOptions(outputOptions);
 
+      // Build video filters array
+      const videoFilters = [];
+
+      // Add scale filter if maxResolution is set and video exceeds it
+      if (maxResolution && metadata.height > maxResolution) {
+        const aspectRatio = metadata.width / metadata.height;
+        const targetHeight = maxResolution;
+        const targetWidth = Math.round(targetHeight * aspectRatio);
+        // Ensure dimensions are divisible by 2 (required by most codecs)
+        const finalWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
+        const finalHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
+        videoFilters.push(`scale=${finalWidth}:${finalHeight}`);
+        log.info(`Scaling video from ${metadata.width}x${metadata.height} to ${finalWidth}x${finalHeight} (maxResolution: ${maxResolution})`);
+      }
+
       // Apply ASS subtitles filter if available
       if (assFilePath) {
         const fontDir = path.dirname(tempFontPath);
-        command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
+        videoFilters.push(`subtitles=${assFilePath}:fontsdir=${fontDir}`);
+      }
+
+      // Apply all video filters
+      if (videoFilters.length > 0) {
+        command.videoFilters(videoFilters);
       }
 
       command

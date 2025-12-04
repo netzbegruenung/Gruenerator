@@ -225,7 +225,7 @@ const SubtitleEditor = ({
     return `${mins}:${wholeSeconds.toString().padStart(2, '0')}.${fractionalSecond}`;
   };
 
-  const handleExport = async () => {
+  const handleExport = async (maxResolution = null) => {
     if (!uploadId || !editableSubtitles.length) {
        setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
        return;
@@ -233,7 +233,7 @@ const SubtitleEditor = ({
 
     try {
       setError(null);
-      
+
       // Format subtitles text
       const subtitlesText = editableSubtitles
         .map(segment => {
@@ -254,7 +254,8 @@ const SubtitleEditor = ({
         subtitlesLength: subtitlesText.length,
         stylePreference,
         heightPreference,
-        locale
+        locale,
+        maxResolution
       });
 
       // Use the centralized store for export
@@ -263,7 +264,8 @@ const SubtitleEditor = ({
         subtitlePreference,
         stylePreference,
         heightPreference,
-        locale // Pass locale for Austria-specific styling
+        locale,
+        maxResolution
       });
 
     } catch (error) {
@@ -364,9 +366,9 @@ const SubtitleEditor = ({
             Nur eine Vorschau. Das finale Styling sieht besser aus!
           </div>
           <div className="video-controls desktop-only">
-            <button 
+            <button
               className="btn-primary"
-              onClick={handleExport}
+              onClick={() => handleExport(1080)}
               disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
             >
               {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
@@ -376,8 +378,15 @@ const SubtitleEditor = ({
                   {exportProgress > 0 && <span> ({exportProgress}%)</span>}
                 </div>
               ) : (
-                'Video herunterladen'
+                'Für Instagram'
               )}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => handleExport(null)}
+              disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
+            >
+              Volle Auflösung
             </button>
           </div>
         </div>
@@ -413,9 +422,9 @@ const SubtitleEditor = ({
       </div>
 
       <div className="editor-controls mobile-only">
-        <button 
+        <button
           className="btn-primary"
-          onClick={handleExport}
+          onClick={() => handleExport(1080)}
           disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
         >
           {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
@@ -425,8 +434,15 @@ const SubtitleEditor = ({
               {exportProgress > 0 && <span> ({exportProgress}%)</span>}
             </div>
           ) : (
-            'Video mit Untertiteln herunterladen'
+            'Für Instagram'
           )}
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={() => handleExport(null)}
+          disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
+        >
+          Volle Auflösung
         </button>
       </div>
     </div>
