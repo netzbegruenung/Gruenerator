@@ -309,7 +309,7 @@ class AssSubtitleService {
 
     const header = this.generateAssHeader(videoMetadata);
     const stylesSection = this.generateStylesSection(style);
-    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle);
+    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle, videoMetadata);
 
     return {
       content: `${header}\n${stylesSection}\n${eventsSection}`,
@@ -474,7 +474,12 @@ Style: ${styleLine}`;
   /**
    * Generate events section with dialogue lines
    */
-  generateEventsSection(segments, subtitlePreference = 'manual', stylePreference = 'standard') {
+  generateEventsSection(segments, subtitlePreference = 'manual', stylePreference = 'standard', videoMetadata = {}) {
+    const { width: videoWidth = 1920, height: videoHeight = 1080 } = videoMetadata;
+
+    // Calculate fixed position for subtitle center point (bottom 12% of screen)
+    const centerX = Math.round(videoWidth / 2);
+    const subtitleY = Math.round(videoHeight * 0.88);
     const formatLine = 'Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text';
     
     const dialogueLines = segments.map((segment, index) => {
@@ -508,13 +513,12 @@ Style: ${styleLine}`;
 
       const escapedText = this.escapeAssText(text);
 
-      // Count lines to adjust vertical margin for center alignment
-      const lineCount = (text.match(/\n/g) || []).length + 1;
-      // For 2 lines, reduce marginV so the center stays at same position as 1-line
-      // 0 = use style default (30px), 15 = reduced to shift 2-line block down
-      const marginV = lineCount === 2 ? 15 : 0;
+      // Use \an5 (center anchor) + \pos for precise positioning
+      // \an5 anchors at visual center of text block - works for any line count
+      // \pos places that center at fixed screen position (bottom 12%)
+      const positionedText = `{\\an5\\pos(${centerX},${subtitleY})}${escapedText}`;
 
-      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,${marginV},,${escapedText}`;
+      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${positionedText}`;
     }).join('\n');
 
     return `[Events]
