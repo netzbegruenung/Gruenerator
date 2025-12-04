@@ -291,8 +291,9 @@ class AssSubtitleService {
    * @param {string} subtitlePreference - Subtitle mode (manual, word, etc.)
    * @param {string} stylePreference - Style preset name
    * @param {string} locale - User locale (de-DE, de-AT) for automatic style mapping
+   * @param {string} heightPreference - Vertical position ('standard' or 'tief')
    */
-  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE') {
+  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE', heightPreference = 'standard') {
     // Map style to locale-specific variant if needed (e.g., Austrian users get Austria styles)
     const effectiveStyle = this.mapStyleForLocale(stylePreference, locale);
 
@@ -309,7 +310,7 @@ class AssSubtitleService {
 
     const header = this.generateAssHeader(videoMetadata);
     const stylesSection = this.generateStylesSection(style);
-    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle, videoMetadata);
+    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle, videoMetadata, heightPreference);
 
     return {
       content: `${header}\n${stylesSection}\n${eventsSection}`,
@@ -474,12 +475,16 @@ Style: ${styleLine}`;
   /**
    * Generate events section with dialogue lines
    */
-  generateEventsSection(segments, subtitlePreference = 'manual', stylePreference = 'standard', videoMetadata = {}) {
+  generateEventsSection(segments, subtitlePreference = 'manual', stylePreference = 'standard', videoMetadata = {}, heightPreference = 'standard') {
     const { width: videoWidth = 1920, height: videoHeight = 1080 } = videoMetadata;
 
-    // Calculate fixed position for subtitle center point (bottom 12% of screen)
+    // Calculate fixed position for subtitle center point based on heightPreference
+    // standard = 33% from bottom = 67% down the screen
+    // tief = 20% from bottom = 80% down the screen
     const centerX = Math.round(videoWidth / 2);
-    const subtitleY = Math.round(videoHeight * 0.88);
+    const subtitleY = heightPreference === 'tief'
+      ? Math.round(videoHeight * 0.80)
+      : Math.round(videoHeight * 0.67);
     const formatLine = 'Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text';
     
     const dialogueLines = segments.map((segment, index) => {
