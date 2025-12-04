@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { FaSave, FaCheck, FaDownload, FaMagic } from 'react-icons/fa';
+import { FaSave, FaCheck, FaDownload, FaMagic, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 import Timeline from './Timeline';
+import FloatingActionButton from '../../../components/common/UI/FloatingActionButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
 import { useAuthStore } from '../../../stores/authStore';
@@ -148,6 +149,8 @@ const SubtitleEditor = ({
   const [showStyling, setShowStyling] = useState(false);
   const [correctedSegmentIds, setCorrectedSegmentIds] = useState(new Set());
   const [correctionMessage, setCorrectionMessage] = useState(null);
+  const [isVideoVisible, setIsVideoVisible] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Use subtitle correction hook
   const {
@@ -275,6 +278,48 @@ const SubtitleEditor = ({
       setError('Fehler beim Verarbeiten der Untertitel');
     }
   }, [subtitles]);
+
+  // Track video visibility for floating play button (mobile only)
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVideoVisible(entry.isIntersecting);
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(videoRef.current);
+    return () => observer.disconnect();
+  }, [videoUrl]);
+
+  // Track video play/pause state
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+    };
+  }, [videoUrl]);
+
+  // Toggle video play/pause
+  const togglePlayPause = useCallback(() => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+    } else {
+      videoRef.current.pause();
+    }
+  }, []);
 
   // Handle video metadata loading
   const handleVideoLoadedMetadata = () => {
@@ -519,8 +564,21 @@ const SubtitleEditor = ({
     }
   };
 
+  // Check if mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
   return (
     <div className="subtitle-editor-container">
+      {/* Floating play/pause button for mobile when video is out of view */}
+      {isMobile && (
+        <FloatingActionButton
+          icon={isPlaying ? <FaPause /> : <FaPlay />}
+          onClick={togglePlayPause}
+          visible={!isVideoVisible}
+          position="bottom-left"
+        />
+      )}
+
       {error && (
         <div className="error-message">
           {error}
