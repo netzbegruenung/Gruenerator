@@ -116,6 +116,63 @@ class URLCrawlerService {
   }
 
   /**
+   * Sanitizes a URL by removing common extraction artifacts like unbalanced trailing punctuation
+   * This handles cases where URLs are extracted from text with surrounding parentheses,
+   * e.g., "Check this link (https://example.com/page.html)" -> captures trailing ")"
+   * @param {string} url - The URL to sanitize
+   * @returns {string} Sanitized URL
+   */
+  sanitizeUrl(url) {
+    if (!url) return url;
+
+    let sanitized = url.trim();
+    const originalUrl = sanitized;
+
+    // Loop until no more changes - handles mixed cases like "url),"
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const beforeLoop = sanitized;
+
+      // Handle unbalanced parentheses - Wikipedia URLs legitimately use balanced parens
+      // e.g., https://en.wikipedia.org/wiki/Example_(disambiguation) should remain intact
+      const openParens = (sanitized.match(/\(/g) || []).length;
+      const closeParens = (sanitized.match(/\)/g) || []).length;
+
+      if (closeParens > openParens && sanitized.endsWith(')')) {
+        sanitized = sanitized.slice(0, -1);
+        changed = true;
+        continue;
+      }
+
+      // Handle unbalanced square brackets
+      const openBrackets = (sanitized.match(/\[/g) || []).length;
+      const closeBrackets = (sanitized.match(/\]/g) || []).length;
+
+      if (closeBrackets > openBrackets && sanitized.endsWith(']')) {
+        sanitized = sanitized.slice(0, -1);
+        changed = true;
+        continue;
+      }
+
+      // Strip other trailing punctuation that shouldn't be part of URLs
+      // These are common when URLs are extracted from natural text
+      const stripped = sanitized.replace(/[},;:'"]+$/, '');
+      if (stripped !== sanitized) {
+        sanitized = stripped;
+        changed = true;
+      }
+    }
+
+    // Log if sanitization changed the URL
+    if (sanitized !== originalUrl) {
+      console.log(`[URLCrawlerService] Sanitized URL: "${originalUrl}" -> "${sanitized}"`);
+    }
+
+    return sanitized;
+  }
+
+  /**
    * Main crawling method with automatic fallback
    * @param {string} url - The URL to crawl
    * @param {Object} options - Crawling options
@@ -126,11 +183,17 @@ class URLCrawlerService {
     const startTime = Date.now();
 
     try {
-      // Validate URL first
-      const validation = await this.validateUrl(url);
+      // Sanitize URL first to remove common extraction artifacts
+      const sanitizedUrl = this.sanitizeUrl(url);
+
+      // Validate URL
+      const validation = await this.validateUrl(sanitizedUrl);
       if (!validation.isValid) {
         throw new Error(validation.error);
       }
+
+      // Use the sanitized URL for the rest of the crawl
+      url = sanitizedUrl;
 
       console.log(`[URLCrawlerService] URL validation passed, starting crawl...`);
 
