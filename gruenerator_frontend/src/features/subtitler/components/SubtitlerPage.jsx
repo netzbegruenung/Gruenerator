@@ -194,7 +194,7 @@ const SubtitlerPage = () => {
   // Effect for Polling the result endpoint
   useEffect(() => {
     // Only poll if we are processing and have an uploadId
-    if (isProcessing && uploadInfo?.uploadId) {
+    if (isProcessing && uploadInfo?.uploadId && !uploadInfo?.isFromProject) {
       const currentUploadId = uploadInfo.uploadId;
 
       pollingIntervalRef.current = setInterval(async () => {
