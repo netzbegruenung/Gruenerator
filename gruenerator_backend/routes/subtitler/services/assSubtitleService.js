@@ -573,7 +573,6 @@ ${dialogueLines}`;
 
   /**
    * Finds optimal line break point aiming for balanced 50/50 split
-   * Only adjusts for punctuation (commas, semicolons) - not for articles/prepositions
    */
   findOptimalLineBreak(words, text) {
     // Target: 50/50 split for balanced readability
@@ -592,21 +591,6 @@ ${dialogueLines}`;
       if (distance < bestDistance) {
         bestDistance = distance;
         bestBreakIndex = i + 1;
-      }
-    }
-
-    // Only adjust for punctuation - break after commas/semicolons if nearby
-    const searchRadius = 1;
-    for (let offset = 0; offset <= searchRadius; offset++) {
-      for (const delta of [0, -offset, offset]) {
-        const checkIndex = bestBreakIndex + delta;
-        if (checkIndex > 0 && checkIndex < words.length) {
-          const prevWord = words[checkIndex - 1];
-          if (prevWord && prevWord.match(/[,;:]$/)) {
-            bestBreakIndex = checkIndex;
-            break;
-          }
-        }
       }
     }
 
