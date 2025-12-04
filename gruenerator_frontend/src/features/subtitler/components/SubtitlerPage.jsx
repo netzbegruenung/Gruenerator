@@ -121,13 +121,37 @@ const SubtitlerPage = () => {
     
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Cleanup function
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [uploadInfo?.uploadId, baseURL, isProcessing]);
+
+  // Background video loading for saved projects
+  useEffect(() => {
+    const loadVideoInBackground = async () => {
+      if (step === 'edit' && uploadInfo?.isFromProject && !originalVideoFile && loadedProject?.id) {
+        try {
+          const videoResponse = await apiClient.get(
+            `/subtitler/projects/${loadedProject.id}/video`,
+            { responseType: 'blob' }
+          );
+          const videoFile = new File(
+            [videoResponse.data],
+            loadedProject.video_filename || 'video.mp4',
+            { type: 'video/mp4' }
+          );
+          setOriginalVideoFile(videoFile);
+        } catch (err) {
+          console.error('[SubtitlerPage] Background video load failed:', err);
+          setError('Video konnte nicht geladen werden');
+        }
+      }
+    };
+    loadVideoInBackground();
+  }, [step, uploadInfo?.isFromProject, originalVideoFile, loadedProject?.id, loadedProject?.video_filename]);
 
   const handleUploadComplete = (uploadData) => { 
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
@@ -350,21 +374,8 @@ const SubtitlerPage = () => {
           isFromProject: true // Flag to indicate this is loaded from a project
         });
 
-        // Load the video file using apiClient for authentication
-        try {
-          const videoResponse = await apiClient.get(
-            `/subtitler/projects/${projectId}/video`,
-            { responseType: 'blob' }
-          );
-          const videoFile = new File([videoResponse.data], project.video_filename || 'video.mp4', {
-            type: 'video/mp4'
-          });
-          setOriginalVideoFile(videoFile);
-        } catch (videoError) {
-          console.warn('[SubtitlerPage] Could not load video file:', videoError);
-        }
-
-        setStep('edit'); // Go directly to editor with inline styling
+        // Navigate immediately - video will load in background via useEffect
+        setStep('edit');
       }
     } catch (err) {
       console.error('[SubtitlerPage] Failed to load project:', err);
