@@ -327,11 +327,11 @@ class AssSubtitleService {
     
     let fontSize;
     if (referenceDimension >= 2160) {
-      fontSize = Math.floor(baseFontSize * 3.6); // 4K (reduced 10%)
+      fontSize = Math.floor(baseFontSize * 2.88); // 4K (reduced 30%)
     } else if (referenceDimension >= 1440) {
-      fontSize = Math.floor(baseFontSize * 2.9); // 2K (reduced 10%)
+      fontSize = Math.floor(baseFontSize * 2.32); // 2K (reduced 30%)
     } else if (referenceDimension >= 1080) {
-      fontSize = Math.floor(baseFontSize * 2.5); // FullHD (reduced 10%)
+      fontSize = Math.floor(baseFontSize * 2.25); // FullHD (reduced 20%)
     } else if (referenceDimension >= 720) {
       fontSize = Math.floor(baseFontSize * 1.8); // HD (reduced 10%)
     } else {
