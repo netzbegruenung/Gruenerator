@@ -5,6 +5,9 @@ const fs = require('fs');
 const { parseResponse } = require('../../../utils/campaignResponseParser');
 const { generateCampaignCanvas } = require('../sharepic_canvas/campaign_canvas');
 const { validateCampaignInputsOrThrow, ValidationError } = require('../../../utils/campaignValidator');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('campaign_genera');
+
 
 /**
  * Load campaign configuration from JSON file
@@ -18,7 +21,7 @@ const loadCampaignConfig = (campaignId, typeId) => {
   const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
 
   if (!fs.existsSync(campaignPath)) {
-    console.warn(`[Campaign] Config not found: ${campaignPath}`);
+    log.warn(`[Campaign] Config not found: ${campaignPath}`);
     return null;
   }
 
@@ -27,7 +30,7 @@ const loadCampaignConfig = (campaignId, typeId) => {
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {
-      console.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);
+      log.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);
       return null;
     }
 
@@ -39,7 +42,7 @@ const loadCampaignConfig = (campaignId, typeId) => {
       const theme = campaign.colorThemes[typeConfig.theme];
 
       if (!theme) {
-        console.warn(`[Campaign] Theme ${typeConfig.theme} not found in campaign ${campaignId}`);
+        log.warn(`[Campaign] Theme ${typeConfig.theme} not found in campaign ${campaignId}`);
         return null;
       }
 
@@ -62,7 +65,7 @@ const loadCampaignConfig = (campaignId, typeId) => {
       // Set unique background image
       canvasConfig.backgroundImage = typeConfig.backgroundImage;
 
-      console.log(`[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
+      log.debug(`[Campaign] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
     } else {
       // Use explicit canvas config (backward compatible)
       canvasConfig = typeConfig.canvas;
@@ -77,14 +80,14 @@ const loadCampaignConfig = (campaignId, typeId) => {
       basedOn: typeConfig.basedOn
     };
 
-    console.log(`[Campaign] Loaded config for ${campaignId}/${typeId} (using ${mergedConfig.prompt === campaign.defaultPrompt ? 'default' : 'custom'} prompt)`);
+    log.debug(`[Campaign] Loaded config for ${campaignId}/${typeId} (using ${mergedConfig.prompt === campaign.defaultPrompt ? 'default' : 'custom'} prompt)`);
 
     return {
       config: mergedConfig,
       campaign: campaign
     };
   } catch (error) {
-    console.error(`[Campaign] Failed to load config:`, error);
+    log.error(`[Campaign] Failed to load config:`, error);
     return null;
   }
 };
@@ -97,7 +100,7 @@ router.post('/', async (req, res) => {
   try {
     const { campaignId, campaignTypeId, thema, details, count = 5, lineOverrides, generateCampaignText = false } = req.body;
 
-    console.log(`[Campaign Generate] Request: ${campaignId}/${campaignTypeId}`, {
+    log.debug(`[Campaign Generate] Request: ${campaignId}/${campaignTypeId}`, {
       thema,
       details,
       count,
@@ -134,7 +137,7 @@ router.post('/', async (req, res) => {
         validateCampaignInputsOrThrow(inputs, fullCampaign);
       } catch (validationError) {
         if (validationError instanceof ValidationError) {
-          console.warn(`[Campaign Generate] Validation failed for ${validationError.field}:`, validationError.message);
+          log.warn(`[Campaign Generate] Validation failed for ${validationError.field}:`, validationError.message);
           return res.status(400).json({
             success: false,
             error: validationError.message,
@@ -147,7 +150,7 @@ router.post('/', async (req, res) => {
 
     // Check if lineOverrides is provided (for regeneration with edited text)
     if (lineOverrides) {
-      console.log('[Campaign Generate] Using line overrides, skipping AI generation');
+      log.debug('[Campaign Generate] Using line overrides, skipping AI generation');
 
       // Use provided lines directly
       const textData = {
@@ -184,7 +187,7 @@ router.post('/', async (req, res) => {
         creditText: creditText
       };
 
-      console.log('[Campaign Generate] Sharepic with creditText:', {
+      log.debug('[Campaign Generate] Sharepic with creditText:', {
         hasCreditText: !!sharepic.creditText,
         creditText: sharepic.creditText
       });
@@ -225,7 +228,7 @@ router.post('/', async (req, res) => {
 
     // For count > 1, use multiItemTemplate and multiResponseParser for single AI call
     if (count > 1 && promptConfig.multiItemTemplate && campaignConfig.multiResponseParser) {
-      console.log(`[Campaign Generate] Using multiItemTemplate to generate ${count} poems in single AI call`);
+      log.debug(`[Campaign Generate] Using multiItemTemplate to generate ${count} poems in single AI call`);
 
       // Use multi-item template
       let requestText = promptConfig.multiItemTemplate;
@@ -233,7 +236,7 @@ router.post('/', async (req, res) => {
       // Add text suffix if requested
       if (generateCampaignText && fullCampaign.textSuffix) {
         requestText += fullCampaign.textSuffix;
-        console.log('[Campaign Generate] Added campaign text suffix to prompt');
+        log.debug('[Campaign Generate] Added campaign text suffix to prompt');
       }
 
       // Replace template variables
@@ -247,7 +250,7 @@ router.post('/', async (req, res) => {
         }
       });
 
-      console.log(`[Campaign Generate] Calling AI with multi-item prompt:`, {
+      log.debug(`[Campaign Generate] Calling AI with multi-item prompt:`, {
         systemRole: promptConfig.systemRole.substring(0, 100) + '...',
         requestLength: requestText.length,
         expectedPoems: count
@@ -265,7 +268,7 @@ router.post('/', async (req, res) => {
         throw new Error('AI response empty or invalid');
       }
 
-      console.log(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
+      log.debug(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
 
       // Extract campaign text if requested
       let contentForParsing = aiResult.content;
@@ -274,21 +277,21 @@ router.post('/', async (req, res) => {
         const textMatch = aiResult.content.match(/---TEXT---\s*([\s\S]+?)(?:\n---|\n*$)/);
         if (textMatch) {
           campaignText = textMatch[1].trim();
-          console.log(`[Campaign Generate] Extracted campaign text (${campaignText.length} chars)`);
+          log.debug(`[Campaign Generate] Extracted campaign text (${campaignText.length} chars)`);
           // Remove text section from content before parsing poems
           contentForParsing = aiResult.content.replace(/---TEXT---[\s\S]+$/, '').trim();
         } else {
-          console.warn('[Campaign Generate] Campaign text requested but not found in AI response');
+          log.warn('[Campaign Generate] Campaign text requested but not found in AI response');
         }
       }
 
       // Parse multi-poem response
       allPoems = parseResponse(contentForParsing, campaignConfig.multiResponseParser);
-      console.log(`[Campaign Generate] Parsed ${allPoems.length} poems from single AI response`);
+      log.debug(`[Campaign Generate] Parsed ${allPoems.length} poems from single AI response`);
 
     } else {
       // Fallback: single poem generation (for count=1 or if multiItemTemplate not available)
-      console.log(`[Campaign Generate] Using singleItemTemplate for single poem generation`);
+      log.debug(`[Campaign Generate] Using singleItemTemplate for single poem generation`);
 
       let requestText = promptConfig.singleItemTemplate || promptConfig.requestTemplate;
 
@@ -303,7 +306,7 @@ router.post('/', async (req, res) => {
         }
       });
 
-      console.log(`[Campaign Generate] Calling AI with single-item prompt:`, {
+      log.debug(`[Campaign Generate] Calling AI with single-item prompt:`, {
         systemRole: promptConfig.systemRole.substring(0, 100) + '...',
         requestLength: requestText.length
       });
@@ -319,16 +322,16 @@ router.post('/', async (req, res) => {
         throw new Error('AI response empty or invalid');
       }
 
-      console.log(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
+      log.debug(`[Campaign Generate] Raw AI response (${aiResult.content.length} chars)`);
 
       const mainContent = parseResponse(aiResult.content, campaignConfig.responseParser);
-      console.log(`[Campaign Generate] Parsed single poem:`, mainContent);
+      log.debug(`[Campaign Generate] Parsed single poem:`, mainContent);
       allPoems = [mainContent];
     }
 
     // Generate canvas images for all poems and return as sharepics array
     if (allPoems.length > 0) {
-      console.log(`[Campaign Generate] Generating ${allPoems.length} canvas images in parallel`);
+      log.debug(`[Campaign Generate] Generating ${allPoems.length} canvas images in parallel`);
 
       // Generate canvas images for all poems in parallel
       const canvasPromises = allPoems.map(async (poem, index) => {
@@ -359,14 +362,14 @@ router.post('/', async (req, res) => {
             creditText: creditText
           };
         } catch (canvasError) {
-          console.error(`[Campaign Generate] Failed to generate canvas for poem ${index}:`, canvasError.message);
+          log.error(`[Campaign Generate] Failed to generate canvas for poem ${index}:`, canvasError.message);
           return null;
         }
       });
 
       const sharepics = (await Promise.all(canvasPromises)).filter(sp => sp !== null);
-      console.log(`[Campaign Generate] Successfully generated ${sharepics.length} sharepics`);
-      console.log('[Campaign Generate] First sharepic creditText:', sharepics[0]?.creditText);
+      log.debug(`[Campaign Generate] Successfully generated ${sharepics.length} sharepics`);
+      log.debug('[Campaign Generate] First sharepic creditText:', sharepics[0]?.creditText);
 
       // Build response
       const response = {
@@ -384,7 +387,7 @@ router.post('/', async (req, res) => {
       // Add campaign text if generated
       if (campaignText) {
         response.campaignText = campaignText;
-        console.log('[Campaign Generate] Including campaign text in response');
+        log.debug('[Campaign Generate] Including campaign text in response');
       }
 
       // Return sharepics array format
@@ -400,7 +403,7 @@ router.post('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Campaign Generate] Error:', error);
+    log.error('[Campaign Generate] Error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate campaign text'

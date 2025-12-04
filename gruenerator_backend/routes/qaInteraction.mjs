@@ -7,6 +7,9 @@ const { requireAuth } = authMiddleware;
 import { runQaGraph } from '../agents/langgraph/qaGraph.mjs';
 import { queryIntentService } from '../services/QueryIntentService.js';
 import { buildDraftPromptGrundsatz } from '../agents/langgraph/prompts.mjs';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('qaInteraction');
+
 
 const router = express.Router();
 
@@ -17,9 +20,9 @@ const qaHelper = new QAQdrantHelper();
 (async () => {
     try {
         await qaHelper.ensureSystemGrundsatzCollection();
-        console.log('[QA Interaction] System collections initialized');
+        log.debug('[QA Interaction] System collections initialized');
     } catch (error) {
-        console.error('[QA Interaction] Failed to initialize system collections:', error);
+        log.error('[QA Interaction] Failed to initialize system collections:', error);
     }
 })();
 
@@ -61,7 +64,7 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
         }
 
         const trimmedQuestion = question.trim();
-        console.log(`[QA Multi] Processing question across ${collectionIds.length} collections: "${trimmedQuestion.slice(0, 50)}..."`);
+        log.debug(`[QA Multi] Processing question across ${collectionIds.length} collections: "${trimmedQuestion.slice(0, 50)}..."`);
 
         // Import DocumentSearchService for direct searching
         const { DocumentSearchService } = await import('../services/DocumentSearchService.js');
@@ -112,7 +115,7 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
         const searchPromises = collectionIds.map(async (collectionId) => {
             const config = SYSTEM_COLLECTIONS[collectionId];
             if (!config) {
-                console.warn(`[QA Multi] Unknown collection: ${collectionId}`);
+                log.warn(`[QA Multi] Unknown collection: ${collectionId}`);
                 return [];
             }
 
@@ -132,7 +135,7 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
 
                 return expandResultsWithCollection(resp.results || [], collectionId, config.name);
             } catch (error) {
-                console.error(`[QA Multi] Search error for ${collectionId}:`, error);
+                log.error(`[QA Multi] Search error for ${collectionId}:`, error);
                 return [];
             }
         });
@@ -318,7 +321,7 @@ ${refsSummary}`;
         }
 
         const responseTime = Date.now() - startTime;
-        console.log(`[QA Multi] Completed in ${responseTime}ms - ${citations.length} citations across ${Object.keys(sourcesByCollection).length} collections`);
+        log.debug(`[QA Multi] Completed in ${responseTime}ms - ${citations.length} citations across ${Object.keys(sourcesByCollection).length} collections`);
 
         res.json({
             success: true,
@@ -336,7 +339,7 @@ ${refsSummary}`;
         });
 
     } catch (error) {
-        console.error('[QA Multi] Error:', error);
+        log.error('[QA Multi] Error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -373,7 +376,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 settings: { system_collection: true, min_quality: 0.3 }
             };
 
-            console.log('[QA Interaction] Using hardcoded grundsatz system collection');
+            log.debug('[QA Interaction] Using hardcoded grundsatz system collection');
         } else if (isBundestagsfraktionSystem) {
             // Hardcoded Bundestagsfraktion collection info
             collection = {
@@ -384,7 +387,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 settings: { system_collection: true, min_quality: 0.3 }
             };
 
-            console.log('[QA Interaction] Using hardcoded Bundestagsfraktion system collection');
+            log.debug('[QA Interaction] Using hardcoded Bundestagsfraktion system collection');
         } else {
             // Verify user has access to the collection (Qdrant)
             collection = await qaHelper.getQACollection(collectionId);
@@ -423,7 +426,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         // Detect query intent (German/English patterns) for logging and potential routing
         const intent = queryIntentService.detectIntent(trimmedQuestion);
         if (intent?.type) {
-            console.log(`[QA Interaction] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
+            log.debug(`[QA Interaction] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
         }
 
         let result;
@@ -481,7 +484,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 responseTime
             );
         } catch (logError) {
-            console.error('[QA Interaction] Error logging usage:', logError);
+            log.error('[QA Interaction] Error logging usage:', logError);
         }
 
         res.json({
@@ -501,7 +504,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[QA Interaction] Error in POST /:id/ask:', error);
+        log.error('[QA Interaction] Error in POST /:id/ask:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -544,7 +547,7 @@ router.get('/public/:token', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[QA Public] Error in GET /public/:token:', error);
+        log.error('[QA Public] Error in GET /public/:token:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -624,7 +627,7 @@ router.post('/public/:token/ask', async (req, res) => {
                 responseTime
             );
         } catch (logError) {
-            console.error('[QA Public] Error logging usage:', logError);
+            log.error('[QA Public] Error logging usage:', logError);
         }
 
         res.json({
@@ -645,7 +648,7 @@ router.post('/public/:token/ask', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[QA Public] Error in POST /public/:token/ask:', error);
+        log.error('[QA Public] Error in POST /public/:token/ask:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

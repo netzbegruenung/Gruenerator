@@ -1,5 +1,8 @@
 import express from 'express';
 import { createRequire } from 'module';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('abyssale');
+
 const require = createRequire(import.meta.url);
 
 const AbyssaleApiClient = require('../services/abyssaleApiClient.js');
@@ -37,7 +40,7 @@ const checkAbyssaleConfig = (req, res, next) => {
  */
 router.get('/test', checkAbyssaleConfig, async (req, res) => {
   try {
-    console.log('[AbyssaleAPI] Testing connection...');
+    log.debug('[AbyssaleAPI] Testing connection...');
     const isConnected = await abyssaleClient.testConnection();
     
     if (isConnected) {
@@ -54,7 +57,7 @@ router.get('/test', checkAbyssaleConfig, async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('[AbyssaleAPI] Connection test error:', error);
+    log.error('[AbyssaleAPI] Connection test error:', error);
     res.status(500).json({
       error: 'Connection test failed',
       message: error.message
@@ -70,7 +73,7 @@ router.get('/designs', requireAuth, checkAbyssaleConfig, async (req, res) => {
   try {
     const { category_id, type } = req.query;
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} fetching designs`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} fetching designs`);
     
     const options = {};
     if (category_id) options.category_id = category_id;
@@ -84,7 +87,7 @@ router.get('/designs', requireAuth, checkAbyssaleConfig, async (req, res) => {
       count: designs.length
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error fetching designs:', error);
+    log.error('[AbyssaleAPI] Error fetching designs:', error);
     res.status(500).json({
       error: 'Failed to fetch designs',
       message: error.message
@@ -106,7 +109,7 @@ router.get('/designs/:designId', requireAuth, checkAbyssaleConfig, async (req, r
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} fetching design details: ${designId}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} fetching design details: ${designId}`);
     
     const designDetails = await abyssaleClient.getDesignDetails(designId);
     
@@ -115,7 +118,7 @@ router.get('/designs/:designId', requireAuth, checkAbyssaleConfig, async (req, r
       data: designDetails
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error fetching design details:', error);
+    log.error('[AbyssaleAPI] Error fetching design details:', error);
     res.status(500).json({
       error: 'Failed to fetch design details',
       message: error.message
@@ -143,7 +146,7 @@ router.post('/generate', checkAbyssaleConfig, async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} generating image for design: ${designId}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} generating image for design: ${designId}`);
     
     const generateData = {
       elements,
@@ -160,7 +163,7 @@ router.post('/generate', checkAbyssaleConfig, async (req, res) => {
       message: 'Image generated and saved successfully'
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error generating image:', error);
+    log.error('[AbyssaleAPI] Error generating image:', error);
     res.status(500).json({
       error: 'Failed to generate image',
       message: error.message
@@ -188,7 +191,7 @@ router.post('/generate-batch', checkAbyssaleConfig, async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} generating batch images for design: ${designId}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} generating batch images for design: ${designId}`);
     
     const generateData = {
       elements,
@@ -204,7 +207,7 @@ router.post('/generate-batch', checkAbyssaleConfig, async (req, res) => {
       message: 'Batch generation initiated successfully'
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error generating batch images:', error);
+    log.error('[AbyssaleAPI] Error generating batch images:', error);
     res.status(500).json({
       error: 'Failed to generate batch images',
       message: error.message
@@ -232,7 +235,7 @@ router.post('/generate-pdf', checkAbyssaleConfig, async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} generating PDF for design: ${designId}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} generating PDF for design: ${designId}`);
     
     const generateData = {
       pages,
@@ -247,7 +250,7 @@ router.post('/generate-pdf', checkAbyssaleConfig, async (req, res) => {
       message: 'PDF generation initiated successfully'
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error generating PDF:', error);
+    log.error('[AbyssaleAPI] Error generating PDF:', error);
     res.status(500).json({
       error: 'Failed to generate PDF',
       message: error.message
@@ -269,7 +272,7 @@ router.get('/files/:bannerId', checkAbyssaleConfig, async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} fetching file: ${bannerId}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} fetching file: ${bannerId}`);
     
     const fileData = await abyssaleClient.getFile(bannerId);
     
@@ -278,7 +281,7 @@ router.get('/files/:bannerId', checkAbyssaleConfig, async (req, res) => {
       data: fileData
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error fetching file:', error);
+    log.error('[AbyssaleAPI] Error fetching file:', error);
     res.status(500).json({
       error: 'Failed to fetch file',
       message: error.message
@@ -292,7 +295,7 @@ router.get('/files/:bannerId', checkAbyssaleConfig, async (req, res) => {
  */
 router.get('/fonts', requireAuth, checkAbyssaleConfig, async (req, res) => {
   try {
-    console.log(`[AbyssaleAPI] User ${req.user?.id} fetching fonts`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} fetching fonts`);
     
     const fonts = await abyssaleClient.getFonts();
     
@@ -302,7 +305,7 @@ router.get('/fonts', requireAuth, checkAbyssaleConfig, async (req, res) => {
       count: fonts.length
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error fetching fonts:', error);
+    log.error('[AbyssaleAPI] Error fetching fonts:', error);
     res.status(500).json({
       error: 'Failed to fetch fonts',
       message: error.message
@@ -324,7 +327,7 @@ router.post('/export', requireAuth, checkAbyssaleConfig, async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} creating export for ${ids.length} banners`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} creating export for ${ids.length} banners`);
     
     const exportData = {
       ids,
@@ -339,7 +342,7 @@ router.post('/export', requireAuth, checkAbyssaleConfig, async (req, res) => {
       message: 'Export initiated successfully'
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error creating export:', error);
+    log.error('[AbyssaleAPI] Error creating export:', error);
     res.status(500).json({
       error: 'Failed to create export',
       message: error.message
@@ -353,7 +356,7 @@ router.post('/export', requireAuth, checkAbyssaleConfig, async (req, res) => {
  */
 router.get('/projects', requireAuth, checkAbyssaleConfig, async (req, res) => {
   try {
-    console.log(`[AbyssaleAPI] User ${req.user?.id} fetching projects`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} fetching projects`);
     
     const projects = await abyssaleClient.getProjects();
     
@@ -363,7 +366,7 @@ router.get('/projects', requireAuth, checkAbyssaleConfig, async (req, res) => {
       count: projects.length
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error fetching projects:', error);
+    log.error('[AbyssaleAPI] Error fetching projects:', error);
     res.status(500).json({
       error: 'Failed to fetch projects',
       message: error.message
@@ -385,7 +388,7 @@ router.post('/projects', requireAuth, checkAbyssaleConfig, async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} creating project: "${name}"`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} creating project: "${name}"`);
     
     const projectData = { name };
     const result = await abyssaleClient.createProject(projectData);
@@ -396,7 +399,7 @@ router.post('/projects', requireAuth, checkAbyssaleConfig, async (req, res) => {
       message: 'Project created successfully'
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error creating project:', error);
+    log.error('[AbyssaleAPI] Error creating project:', error);
     res.status(500).json({
       error: 'Failed to create project',
       message: error.message
@@ -425,7 +428,7 @@ router.post('/workspace-templates/:templateId/duplicate', requireAuth, checkAbys
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} duplicating template: ${templateId} to project: ${project_id}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} duplicating template: ${templateId} to project: ${project_id}`);
     
     const duplicateData = {
       project_id,
@@ -440,7 +443,7 @@ router.post('/workspace-templates/:templateId/duplicate', requireAuth, checkAbys
       message: 'Template duplication initiated successfully'
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error duplicating template:', error);
+    log.error('[AbyssaleAPI] Error duplicating template:', error);
     res.status(500).json({
       error: 'Failed to duplicate template',
       message: error.message
@@ -462,7 +465,7 @@ router.get('/duplication-requests/:requestId', requireAuth, checkAbyssaleConfig,
       });
     }
     
-    console.log(`[AbyssaleAPI] User ${req.user?.id} checking duplication request: ${requestId}`);
+    log.debug(`[AbyssaleAPI] User ${req.user?.id} checking duplication request: ${requestId}`);
     
     const status = await abyssaleClient.getDuplicationRequestStatus(requestId);
     
@@ -471,7 +474,7 @@ router.get('/duplication-requests/:requestId', requireAuth, checkAbyssaleConfig,
       data: status
     });
   } catch (error) {
-    console.error('[AbyssaleAPI] Error fetching duplication status:', error);
+    log.error('[AbyssaleAPI] Error fetching duplication status:', error);
     res.status(500).json({
       error: 'Failed to fetch duplication status',
       message: error.message
@@ -493,7 +496,7 @@ router.get('/images/:bannerId', async (req, res) => {
       });
     }
     
-    console.log(`[AbyssaleAPI] Serving local image: ${bannerId}`);
+    log.debug(`[AbyssaleAPI] Serving local image: ${bannerId}`);
     
     // Look for the image in the uploads directory structure
     const fs = require('fs');
@@ -545,10 +548,10 @@ router.get('/images/:bannerId', async (req, res) => {
     const readStream = fs.createReadStream(filePath);
     readStream.pipe(res);
     
-    console.log(`[AbyssaleAPI] Served image: ${path.basename(filePath)} (${stats.size} bytes)`);
+    log.debug(`[AbyssaleAPI] Served image: ${path.basename(filePath)} (${stats.size} bytes)`);
     
   } catch (error) {
-    console.error('[AbyssaleAPI] Error serving image:', error);
+    log.error('[AbyssaleAPI] Error serving image:', error);
     res.status(500).json({
       error: 'Failed to serve image',
       message: error.message
@@ -562,7 +565,7 @@ router.get('/images/:bannerId', async (req, res) => {
  */
 router.get('/images', async (req, res) => {
   try {
-    console.log('[AbyssaleAPI] Listing local images');
+    log.debug('[AbyssaleAPI] Listing local images');
     
     const fs = require('fs');
     const path = require('path');
@@ -598,7 +601,7 @@ router.get('/images', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[AbyssaleAPI] Error listing images:', error);
+    log.error('[AbyssaleAPI] Error listing images:', error);
     res.status(500).json({
       error: 'Failed to list images',
       message: error.message

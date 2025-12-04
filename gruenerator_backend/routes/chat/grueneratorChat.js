@@ -4,6 +4,9 @@ import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('grueneratorChat');
+
 
 // Get __dirname equivalent for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -82,7 +85,7 @@ function buildConversationMessages(history, currentMessage) {
 async function processConversationRequest(intentResult, req, res, baseContext) {
   const { originalMessage, chatContext, userId, subIntent } = baseContext;
 
-  console.log('[GrueneratorChat] Processing conversation request:', {
+  log.debug('[GrueneratorChat] Processing conversation request:', {
     subIntent,
     messageLength: originalMessage?.length,
     hasHistory: chatContext?.messageHistory?.length > 0
@@ -111,7 +114,7 @@ async function processConversationRequest(intentResult, req, res, baseContext) {
     // Determine options based on mode
     const options = useProMode ? conversationConfig.proModeOptions : conversationConfig.options;
 
-    console.log('[GrueneratorChat] Calling AI for conversation:', {
+    log.debug('[GrueneratorChat] Calling AI for conversation:', {
       subIntent,
       useProMode,
       messageCount: messages.length,
@@ -136,7 +139,7 @@ async function processConversationRequest(intentResult, req, res, baseContext) {
     // Store in chat memory
     await chatMemory.addMessage(userId, 'assistant', result.content, 'conversation');
 
-    console.log('[GrueneratorChat] Conversation response generated:', {
+    log.debug('[GrueneratorChat] Conversation response generated:', {
       subIntent,
       responseLength: result.content?.length,
       useProMode
@@ -156,7 +159,7 @@ async function processConversationRequest(intentResult, req, res, baseContext) {
       }
     });
   } catch (error) {
-    console.error('[GrueneratorChat] Conversation processing error:', error);
+    log.error('[GrueneratorChat] Conversation processing error:', error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Conversation processing failed',
@@ -178,7 +181,7 @@ router.post('/', withErrorHandler(async (req, res) => {
     provider = null
   } = req.body || {};
 
-  console.log('[GrueneratorChat] Processing request:', {
+  log.debug('[GrueneratorChat] Processing request:', {
     messageLength: message?.length || 0,
     hasContext: Object.keys(context).length > 0,
     hasAttachments: attachments?.length || 0,
@@ -187,14 +190,14 @@ router.post('/', withErrorHandler(async (req, res) => {
   });
 
   if (attachments && attachments.length > 0) {
-    console.log('[GrueneratorChat] Request contains attachments:', attachments.map(att => ({
+    log.debug('[GrueneratorChat] Request contains attachments:', attachments.map(att => ({
       name: att.name,
       type: att.type,
       size: att.size,
       hasData: !!att.data
     })));
   } else {
-    console.log('[GrueneratorChat] Request contains no attachments');
+    log.debug('[GrueneratorChat] Request contains no attachments');
   }
 
   // Validate required fields
@@ -209,7 +212,7 @@ router.post('/', withErrorHandler(async (req, res) => {
   try {
     // Step 1: Get user ID and manage conversation memory
     const userId = req.user?.id || `anon_${req.ip}`;
-    console.log('[GrueneratorChat] Processing for user:', userId);
+    log.debug('[GrueneratorChat] Processing for user:', userId);
 
     // Store user message in memory
     await chatMemory.addMessage(userId, 'user', message);
@@ -237,7 +240,7 @@ router.post('/', withErrorHandler(async (req, res) => {
     let sharepicImages = [];
 
     if (attachments && attachments.length > 0) {
-      console.log(`[GrueneratorChat] Processing ${attachments.length} attachments`);
+      log.debug(`[GrueneratorChat] Processing ${attachments.length} attachments`);
 
       // Separate attachments by type
       const textAttachments = [];
@@ -252,15 +255,15 @@ router.post('/', withErrorHandler(async (req, res) => {
         }
       }
 
-      console.log(`[GrueneratorChat] Separated: ${textAttachments.length} text documents, ${imageAttachments.length} images`);
+      log.debug(`[GrueneratorChat] Separated: ${textAttachments.length} text documents, ${imageAttachments.length} images`);
 
       // Store text documents for knowledge extraction via DocumentQnAService
       if (textAttachments.length > 0) {
         try {
           documentIds = await documentQnAService.storeAttachments(userId, textAttachments);
-          console.log(`[GrueneratorChat] Successfully stored ${textAttachments.length} text documents with IDs:`, documentIds);
+          log.debug(`[GrueneratorChat] Successfully stored ${textAttachments.length} text documents with IDs:`, documentIds);
         } catch (error) {
-          console.error('[GrueneratorChat] Error storing text attachments:', error);
+          log.error('[GrueneratorChat] Error storing text attachments:', error);
           // Continue without documents rather than failing the request
         }
       }
@@ -270,36 +273,36 @@ router.post('/', withErrorHandler(async (req, res) => {
         try {
           const sharepicImageManager = req.app.locals.sharepicImageManager;
           if (!sharepicImageManager) {
-            console.error('[GrueneratorChat] SharepicImageManager not initialized');
+            log.error('[GrueneratorChat] SharepicImageManager not initialized');
           } else {
             for (const img of imageAttachments) {
               await sharepicImageManager.storeForRequest(requestId, userId, img);
             }
             sharepicImages = imageAttachments;
-            console.log(`[GrueneratorChat] Stored ${imageAttachments.length} images temporarily for sharepic generation`);
+            log.debug(`[GrueneratorChat] Stored ${imageAttachments.length} images temporarily for sharepic generation`);
           }
         } catch (error) {
-          console.error('[GrueneratorChat] Error storing sharepic images:', error);
+          log.error('[GrueneratorChat] Error storing sharepic images:', error);
           // Continue without images rather than failing the request
         }
       }
     } else {
-      console.log('[GrueneratorChat] No attachments to process');
+      log.debug('[GrueneratorChat] No attachments to process');
     }
 
     // Step 1.6: Retrieve recent documents from Redis (EXCLUDE IMAGES for context)
     let recentDocuments = [];
     try {
       const recentDocIds = await documentQnAService.getRecentDocuments(userId, 10);
-      console.log(`[GrueneratorChat] Found ${recentDocIds.length} recent documents for user ${userId}`);
+      log.debug(`[GrueneratorChat] Found ${recentDocIds.length} recent documents for user ${userId}`);
 
       if (recentDocIds.length > 0) {
-        console.log('[GrueneratorChat] Recent document IDs:', recentDocIds);
+        log.debug('[GrueneratorChat] Recent document IDs:', recentDocIds);
 
         for (const docId of recentDocIds) {
           try {
             if (!docId.includes(userId)) {
-              console.warn(`[GrueneratorChat] Access denied to document ${docId} for user ${userId}`);
+              log.warn(`[GrueneratorChat] Access denied to document ${docId} for user ${userId}`);
               continue;
             }
 
@@ -310,29 +313,29 @@ router.post('/', withErrorHandler(async (req, res) => {
               // IMPORTANT: Skip images from context retrieval
               // Images should only be used explicitly for current sharepic generation
               if (document.type && document.type.startsWith('image/')) {
-                console.log(`[GrueneratorChat] Skipping image document: ${document.name} (${document.type})`);
+                log.debug(`[GrueneratorChat] Skipping image document: ${document.name} (${document.type})`);
                 continue;
               }
 
               recentDocuments.push(document);
-              console.log(`[GrueneratorChat] Retrieved recent document: ${document.name} (${document.type})`);
+              log.debug(`[GrueneratorChat] Retrieved recent document: ${document.name} (${document.type})`);
             } else {
-              console.warn(`[GrueneratorChat] Document ${docId} not found in Redis`);
+              log.warn(`[GrueneratorChat] Document ${docId} not found in Redis`);
             }
           } catch (error) {
-            console.error(`[GrueneratorChat] Error retrieving document ${docId}:`, error);
+            log.error(`[GrueneratorChat] Error retrieving document ${docId}:`, error);
           }
         }
       }
     } catch (error) {
-      console.error('[GrueneratorChat] Error retrieving recent documents:', error);
+      log.error('[GrueneratorChat] Error retrieving recent documents:', error);
       // Continue without recent documents rather than failing the request
     }
 
     // Combine attachments from request body and recent documents
     // Note: recentDocuments now excludes images, so allAttachments won't have stale images
     const allAttachments = [...(attachments || []), ...recentDocuments];
-    console.log('[GrueneratorChat] Combined attachments:', {
+    log.debug('[GrueneratorChat] Combined attachments:', {
       fromRequest: attachments?.length || 0,
       fromRecent: recentDocuments.length,
       total: allAttachments.length,
@@ -343,7 +346,7 @@ router.post('/', withErrorHandler(async (req, res) => {
     // Check for images in current request only (not from old attachments)
     const hasImageAttachment = sharepicImages.length > 0;
 
-    console.log('[GrueneratorChat] Image detection result:', {
+    log.debug('[GrueneratorChat] Image detection result:', {
       hasImageAttachment,
       imageAttachments: allAttachments.filter(att => att.type?.startsWith('image/')).map(att => ({
         name: att.name,
@@ -361,7 +364,7 @@ router.post('/', withErrorHandler(async (req, res) => {
       sharepicRequestId: requestId  // Pass request ID for image retrieval
     };
 
-    console.log('[GrueneratorChat] Using conversation context:', {
+    log.debug('[GrueneratorChat] Using conversation context:', {
       historyMessages: trimmedHistory.length,
       lastAgent: conversation.metadata?.lastAgent,
       documentsStored: documentIds.length,
@@ -375,12 +378,12 @@ router.post('/', withErrorHandler(async (req, res) => {
 
     // Handle web search confirmation
     if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
-      console.log('[GrueneratorChat] Found pending websearch confirmation');
+      log.debug('[GrueneratorChat] Found pending websearch confirmation');
       const confirmed = isWebSearchConfirmation(message);
       await chatMemory.clearPendingRequest(userId);
 
       if (confirmed) {
-        console.log('[GrueneratorChat] Web search confirmed, executing search');
+        log.debug('[GrueneratorChat] Web search confirmed, executing search');
         try {
           const searchResults = await searxngWebSearchService.performWebSearch(
             pendingRequest.originalQuery,
@@ -417,7 +420,7 @@ router.post('/', withErrorHandler(async (req, res) => {
             }
           });
         } catch (error) {
-          console.error('[GrueneratorChat] Web search failed:', error);
+          log.error('[GrueneratorChat] Web search failed:', error);
           const errorText = 'Entschuldigung, bei der Websuche ist ein Fehler aufgetreten. Kann ich dir anders helfen?';
           await chatMemory.addMessage(userId, 'assistant', errorText, 'websearch_error');
           return res.json({
@@ -427,7 +430,7 @@ router.post('/', withErrorHandler(async (req, res) => {
           });
         }
       } else {
-        console.log('[GrueneratorChat] Web search declined');
+        log.debug('[GrueneratorChat] Web search declined');
         const declineText = 'Alles klar! Kann ich dir bei etwas anderem helfen?';
         await chatMemory.addMessage(userId, 'assistant', declineText, 'websearch_declined');
         return res.json({
@@ -439,7 +442,7 @@ router.post('/', withErrorHandler(async (req, res) => {
     }
 
     if (pendingRequest && pendingRequest.type === 'missing_information') {
-      console.log('[GrueneratorChat] Found pending information request, checking if this is a new command or answer');
+      log.debug('[GrueneratorChat] Found pending information request, checking if this is a new command or answer');
 
       // Check if this looks like a new command rather than an answer
       const commandKeywords = ['erstelle', 'mache', 'schreibe', 'generiere', 'sharepic', 'zitat'];
@@ -448,18 +451,18 @@ router.post('/', withErrorHandler(async (req, res) => {
       );
 
       if (isNewCommand) {
-        console.log('[GrueneratorChat] Detected new command, clearing old pending request');
+        log.debug('[GrueneratorChat] Detected new command, clearing old pending request');
         await chatMemory.clearPendingRequest(userId);
         // Continue with normal intent classification below
       } else {
-        console.log('[GrueneratorChat] Treating as answer to pending request');
+        log.debug('[GrueneratorChat] Treating as answer to pending request');
 
         // Try to extract the requested information from the current message
         const { extractRequestedInformation, completePendingRequest } = require('../../agents/chat/informationRequestHandler');
         const extractedInfo = extractRequestedInformation(message, pendingRequest);
 
         if (extractedInfo) {
-        console.log('[GrueneratorChat] Information extracted, completing pending request');
+        log.debug('[GrueneratorChat] Information extracted, completing pending request');
 
         // Clear the pending request
         await chatMemory.clearPendingRequest(userId);
@@ -487,14 +490,14 @@ router.post('/', withErrorHandler(async (req, res) => {
 
         let finalAgent = completedRequest.agent;
         if (completedRequest.agent === 'zitat' && hasImageAttachment) {
-          console.log('[GrueneratorChat] Upgrading completed request agent from zitat to zitat_with_image due to image attachment');
+          log.debug('[GrueneratorChat] Upgrading completed request agent from zitat to zitat_with_image due to image attachment');
           finalAgent = 'zitat_with_image';
         } else if (completedRequest.agent === 'dreizeilen' && hasImageAttachment) {
-          console.log('[GrueneratorChat] Keeping completed request agent as dreizeilen with image attachment');
+          log.debug('[GrueneratorChat] Keeping completed request agent as dreizeilen with image attachment');
           // dreizeilen already handles images correctly
         }
 
-        console.log('[GrueneratorChat] Processing completed request:', {
+        log.debug('[GrueneratorChat] Processing completed request:', {
           originalAgent: completedRequest.agent,
           finalAgent: finalAgent,
           hasImageAttachment: hasImageAttachment,
@@ -506,7 +509,7 @@ router.post('/', withErrorHandler(async (req, res) => {
           try {
             // Determine correct sharepic type based on final agent
             const sharepicType = finalAgent === 'zitat_with_image' ? 'zitat' : 'zitat_pure';
-            console.log('[GrueneratorChat] Using sharepic type for completed request:', sharepicType);
+            log.debug('[GrueneratorChat] Using sharepic type for completed request:', sharepicType);
 
             req.body = {
               ...req.body,
@@ -521,7 +524,7 @@ router.post('/', withErrorHandler(async (req, res) => {
             res.json(sharepicResponse);
             return;
           } catch (error) {
-            console.error('[GrueneratorChat] Error processing completed request:', error);
+            log.error('[GrueneratorChat] Error processing completed request:', error);
             res.status(500).json({
               success: false,
               error: 'Fehler beim Erstellen des Sharepics mit den bereitgestellten Informationen',
@@ -534,7 +537,7 @@ router.post('/', withErrorHandler(async (req, res) => {
         // Handle dreizeilen completion
         if (finalAgent === 'dreizeilen') {
           try {
-            console.log('[GrueneratorChat] Processing completed dreizeilen request');
+            log.debug('[GrueneratorChat] Processing completed dreizeilen request');
             req.body = {
               ...req.body,
               ...completedRequestContext,
@@ -546,7 +549,7 @@ router.post('/', withErrorHandler(async (req, res) => {
             res.json(sharepicResponse);
             return;
           } catch (error) {
-            console.error('[GrueneratorChat] Error processing completed dreizeilen request:', error);
+            log.error('[GrueneratorChat] Error processing completed dreizeilen request:', error);
             res.status(500).json({
               success: false,
               error: 'Fehler beim Erstellen des Dreizeilen-Sharepics mit den bereitgestellten Informationen',
@@ -558,12 +561,12 @@ router.post('/', withErrorHandler(async (req, res) => {
 
         // Handle cases where agent is still undefined or unrecognized
         if (!finalAgent || finalAgent === 'undefined') {
-          console.log('[GrueneratorChat] No valid agent in completed request, clearing and treating as new request');
+          log.debug('[GrueneratorChat] No valid agent in completed request, clearing and treating as new request');
           await chatMemory.clearPendingRequest(userId);
           // Continue with normal intent classification instead of returning error
         } else {
           // For any other completed request, log and return to prevent further processing
-          console.log('[GrueneratorChat] Completed pending request for agent:', finalAgent);
+          log.debug('[GrueneratorChat] Completed pending request for agent:', finalAgent);
           res.status(500).json({
             success: false,
             error: 'Handler for completed request not implemented for agent: ' + finalAgent,
@@ -572,7 +575,7 @@ router.post('/', withErrorHandler(async (req, res) => {
           return;
         }
         } else {
-          console.log('[GrueneratorChat] Could not extract requested information, will treat as new request');
+          log.debug('[GrueneratorChat] Could not extract requested information, will treat as new request');
           // Clear the pending request if it's too old or irrelevant
           await chatMemory.clearPendingRequest(userId);
         }
@@ -580,14 +583,14 @@ router.post('/', withErrorHandler(async (req, res) => {
     }
 
     // Step 2: Classify intent to determine which agent(s) to use
-    console.log('[GrueneratorChat] Classifying intent for message:', message.substring(0, 100) + '...');
+    log.debug('[GrueneratorChat] Classifying intent for message:', message.substring(0, 100) + '...');
     const intentResult = await classifyIntent(message, enhancedContext, req.app.locals.aiWorkerPool);
 
     if (!intentResult.intents || intentResult.intents.length === 0) {
       throw new Error('Unable to classify intent from message');
     }
 
-    console.log('[GrueneratorChat] Intent classified:', {
+    log.debug('[GrueneratorChat] Intent classified:', {
       isMultiIntent: intentResult.isMultiIntent,
       totalIntents: intentResult.intents.length,
       agents: intentResult.intents.map(i => i.agent),
@@ -610,7 +613,7 @@ router.post('/', withErrorHandler(async (req, res) => {
 
     // Step 3: Handle conversation requests separately (lightweight processing)
     if (intentResult.requestType === 'conversation') {
-      console.log('[GrueneratorChat] Routing to conversation handler, subIntent:', intentResult.subIntent);
+      log.debug('[GrueneratorChat] Routing to conversation handler, subIntent:', intentResult.subIntent);
       return await processConversationRequest(intentResult, req, res, {
         originalMessage: message,
         chatContext: enhancedContext,
@@ -621,7 +624,7 @@ router.post('/', withErrorHandler(async (req, res) => {
 
     // Step 4: Handle multi-intent vs single-intent processing
     if (intentResult.isMultiIntent) {
-      console.log('[GrueneratorChat] Processing multi-intent request with', intentResult.intents.length, 'intents');
+      log.debug('[GrueneratorChat] Processing multi-intent request with', intentResult.intents.length, 'intents');
       await processMultiIntentRequest(intentResult.intents, req, res, {
         originalMessage: message,
         chatContext: { ...enhancedContext, requestType: intentResult.requestType },
@@ -644,7 +647,7 @@ router.post('/', withErrorHandler(async (req, res) => {
         ...intentResult.intents[0],
         requestType: intentResult.requestType  // Propagate requestType to intent
       };
-      console.log('[GrueneratorChat] Processing single intent:', intent.agent, 'requestType:', intent.requestType);
+      log.debug('[GrueneratorChat] Processing single intent:', intent.agent, 'requestType:', intent.requestType);
 
       await processSingleIntentRequest(intent, req, res, {
         originalMessage: message,
@@ -667,7 +670,7 @@ router.post('/', withErrorHandler(async (req, res) => {
     }
 
   } catch (error) {
-    console.error('[GrueneratorChat] Error processing chat request:', error);
+    log.error('[GrueneratorChat] Error processing chat request:', error);
 
     return res.status(500).json({
       success: false,
@@ -686,12 +689,12 @@ router.post('/', withErrorHandler(async (req, res) => {
  * @param {Object} baseContext - Shared context for all intents
  */
 async function processMultiIntentRequest(intents, req, res, baseContext) {
-  console.log('[GrueneratorChat] Starting parallel processing of', intents.length, 'intents');
+  log.debug('[GrueneratorChat] Starting parallel processing of', intents.length, 'intents');
 
   // Create parallel processing tasks
   const processingTasks = intents.map(async (intent, index) => {
     try {
-      console.log(`[GrueneratorChat] Processing intent ${index + 1}/${intents.length}: ${intent.agent}`);
+      log.debug(`[GrueneratorChat] Processing intent ${index + 1}/${intents.length}: ${intent.agent}`);
 
       // Process each intent and return result
       const result = await processIntentAsync(intent, req, baseContext);
@@ -704,7 +707,7 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
         processingIndex: index
       };
     } catch (error) {
-      console.error(`[GrueneratorChat] Error processing ${intent.agent}:`, error.message);
+      log.error(`[GrueneratorChat] Error processing ${intent.agent}:`, error.message);
       return {
         success: false,
         agent: intent.agent,
@@ -717,14 +720,14 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
 
   try {
     // Execute all intents in parallel
-    console.log('[GrueneratorChat] Executing', processingTasks.length, 'tasks in parallel');
+    log.debug('[GrueneratorChat] Executing', processingTasks.length, 'tasks in parallel');
     const results = await Promise.all(processingTasks);
 
     // Calculate success metrics
     const successful = results.filter(r => r.success);
     const failed = results.filter(r => !r.success);
 
-    console.log(`[GrueneratorChat] Multi-intent processing completed: ${successful.length} successful, ${failed.length} failed`);
+    log.debug(`[GrueneratorChat] Multi-intent processing completed: ${successful.length} successful, ${failed.length} failed`);
 
     // Return multi-response format
     res.json({
@@ -741,7 +744,7 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
     });
 
   } catch (error) {
-    console.error('[GrueneratorChat] Multi-intent processing failed:', error);
+    log.error('[GrueneratorChat] Multi-intent processing failed:', error);
     return res.status(500).json({
       success: false,
       error: 'Multi-intent processing failed: ' + error.message,
@@ -801,14 +804,14 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
   // Get requestType from intent (set by AI classification)
   const requestType = intent.requestType || baseContext.chatContext?.requestType || 'content_creation';
 
-  console.log('[GrueneratorChat] Processing single intent with requestType:', requestType);
+  log.debug('[GrueneratorChat] Processing single intent with requestType:', requestType);
 
   // Check for low-confidence universal fallback with a question - offer web search
   if (intent.agent === 'universal' &&
       intent.confidence <= 0.3 &&
       isQuestionMessage(baseContext.originalMessage)) {
 
-    console.log('[GrueneratorChat] Low-confidence question detected, offering web search');
+    log.debug('[GrueneratorChat] Low-confidence question detected, offering web search');
     const userId = req.user?.id || `anon_${req.ip}`;
 
     // Store pending web search request
@@ -840,7 +843,7 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
 
   // If required fields are missing, check if we should ask for information
   if (!parameterAnalysis.allRequiredPresent && parameterAnalysis.missingFields.length > 0) {
-    console.log('[GrueneratorChat] Missing required fields, checking for information request');
+    log.debug('[GrueneratorChat] Missing required fields, checking for information request');
 
     const userId = req.user?.id || `anon_${req.ip}`;
     const informationResult = await handleInformationRequest(
@@ -853,7 +856,7 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
     );
 
     if (informationResult?.type === 'request') {
-      console.log('[GrueneratorChat] Returning information request for missing fields');
+      log.debug('[GrueneratorChat] Returning information request for missing fields');
       res.json(informationResult.data);
 
       // Store the information request in chat memory
@@ -874,20 +877,20 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
          ['zitat', 'dreizeilen'].includes(intent.agent));
     if (!isImageBasedSharepic) {
       try {
-        console.log(`[GrueneratorChat] Extracting document knowledge for intent: ${intent.agent}`);
+        log.debug(`[GrueneratorChat] Extracting document knowledge for intent: ${intent.agent}`);
         documentKnowledge = await documentQnAService.extractKnowledgeForIntent(
           baseContext.documentIds,
           intent,
           baseContext.originalMessage,
           req.user?.id || `anon_${req.ip}`
         );
-        console.log(`[GrueneratorChat] Document knowledge extracted:`, documentKnowledge ? `${documentKnowledge.length} chars` : 'none');
+        log.debug(`[GrueneratorChat] Document knowledge extracted:`, documentKnowledge ? `${documentKnowledge.length} chars` : 'none');
       } catch (error) {
-        console.error('[GrueneratorChat] Error extracting document knowledge:', error);
+        log.error('[GrueneratorChat] Error extracting document knowledge:', error);
         // Continue without document knowledge rather than failing
       }
     } else {
-      console.log(`[GrueneratorChat] Skipping document knowledge extraction for image-based sharepic: ${intent.agent}`);
+      log.debug(`[GrueneratorChat] Skipping document knowledge extraction for image-based sharepic: ${intent.agent}`);
     }
   }
 
@@ -898,7 +901,7 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
   const enableAutoSearch = requestType !== 'conversation';
 
   if (!enableAutoSearch) {
-    console.log('[GrueneratorChat] Conversation request - skipping document search');
+    log.debug('[GrueneratorChat] Conversation request - skipping document search');
   }
 
   const autoSearchQuery = enableAutoSearch
@@ -920,7 +923,7 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
   // Route to appropriate processor (existing logic)
   const routeType = intent.route || intent.agent;
 
-  console.log('[GrueneratorChat] Routing single intent to:', {
+  log.debug('[GrueneratorChat] Routing single intent to:', {
     routeType,
     agent: intent.agent,
     platforms: req.body.platforms || 'none',
@@ -956,16 +959,16 @@ async function processIntentAsync(intent, req, baseContext) {
       let documentKnowledge = null;
       if (baseContext.documentIds && baseContext.documentIds.length > 0) {
         try {
-          console.log(`[GrueneratorChat] Extracting document knowledge for async intent: ${intent.agent}`);
+          log.debug(`[GrueneratorChat] Extracting document knowledge for async intent: ${intent.agent}`);
           documentKnowledge = await documentQnAService.extractKnowledgeForIntent(
             baseContext.documentIds,
             intent,
             baseContext.originalMessage,
             req.user?.id || `anon_${req.ip}`
           );
-          console.log(`[GrueneratorChat] Async document knowledge extracted:`, documentKnowledge ? `${documentKnowledge.length} chars` : 'none');
+          log.debug(`[GrueneratorChat] Async document knowledge extracted:`, documentKnowledge ? `${documentKnowledge.length} chars` : 'none');
         } catch (error) {
-          console.error('[GrueneratorChat] Error extracting async document knowledge:', error);
+          log.error('[GrueneratorChat] Error extracting async document knowledge:', error);
           // Continue without document knowledge rather than failing
         }
       }
@@ -1024,7 +1027,7 @@ async function processIntentAsync(intent, req, baseContext) {
       // Route to appropriate processor
       const routeType = intent.route || intent.agent;
 
-      console.log(`[GrueneratorChat] Async processing ${intent.agent} via ${routeType}`);
+      log.debug(`[GrueneratorChat] Async processing ${intent.agent} via ${routeType}`);
 
       // Handle different route types
       if (routeType === 'sharepic' || routeType.startsWith('sharepic_')) {
@@ -1034,7 +1037,7 @@ async function processIntentAsync(intent, req, baseContext) {
       }
 
     } catch (error) {
-      console.error(`[GrueneratorChat] Async processing error for ${intent.agent}:`, error);
+      log.error(`[GrueneratorChat] Async processing error for ${intent.agent}:`, error);
       reject(error);
     }
   });
@@ -1045,7 +1048,7 @@ async function processIntentAsync(intent, req, baseContext) {
  * Routes to sharepic_claude.json with appropriate type parameter
  */
 async function processSharepicRequest(intentResult, req, res, userId = null) {
-  console.log('[GrueneratorChat] Processing sharepic request:', {
+  log.debug('[GrueneratorChat] Processing sharepic request:', {
     agent: intentResult.agent,
     sharepicType: intentResult.params?.type
   });
@@ -1067,7 +1070,7 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
       Array.isArray(req.body.attachments) &&
       req.body.attachments.some(att => att.type && att.type.startsWith('image/'));
 
-    console.log('[GrueneratorChat] Zitat type determination:', {
+    log.debug('[GrueneratorChat] Zitat type determination:', {
       agent: intentResult.agent,
       hasImageAttachment,
       attachmentCount: req.body.attachments?.length || 0
@@ -1088,7 +1091,7 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
     sharepicType: sharepicType
   };
 
-  console.log('[GrueneratorChat] Routing sharepic with type:', {
+  log.debug('[GrueneratorChat] Routing sharepic with type:', {
     originalAgent: intentResult.agent,
     finalSharepicType: sharepicType,
     hasImageAttachment: req.body.attachments?.some(att => att.type?.startsWith('image/')) || false,
@@ -1162,7 +1165,7 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
       res.json(sharepicResponse);
       return;
     } catch (error) {
-      console.error('[GrueneratorChat] Sharepic generation error:', error);
+      log.error('[GrueneratorChat] Sharepic generation error:', error);
       res.status(500).json({
         success: false,
         error: error.message || 'Fehler bei der Sharepic-Erstellung',
@@ -1182,7 +1185,7 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
 router.delete('/clear', withErrorHandler(async (req, res) => {
   const userId = req.user?.id || `anon_${req.ip}`;
 
-  console.log(`[GrueneratorChat] Clearing all data for user: ${userId}`);
+  log.debug(`[GrueneratorChat] Clearing all data for user: ${userId}`);
 
   try {
     let results = {
@@ -1201,7 +1204,7 @@ router.delete('/clear', withErrorHandler(async (req, res) => {
     // Clear stored documents and knowledge
     results.documentsCleared = await documentQnAService.clearUserDocuments(userId);
 
-    console.log(`[GrueneratorChat] Clear operation completed for ${userId}:`, results);
+    log.debug(`[GrueneratorChat] Clear operation completed for ${userId}:`, results);
 
     res.json({
       success: true,
@@ -1210,7 +1213,7 @@ router.delete('/clear', withErrorHandler(async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[GrueneratorChat] Error clearing user data:', error);
+    log.error('[GrueneratorChat] Error clearing user data:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to clear user data',

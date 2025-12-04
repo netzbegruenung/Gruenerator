@@ -1,15 +1,17 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { DocumentSearchService } from '../services/DocumentSearchService.js';
-const documentSearchService = new DocumentSearchService();
 import passport from '../config/passportSetup.mjs';
-import { 
-  MARKDOWN_FORMATTING_INSTRUCTIONS, 
-  SEARCH_DOCUMENTS_TOOL, 
-  extractCitationsFromText, 
-  processAIResponseWithCitations 
+import { createLogger } from '../utils/logger.js';
+import {
+  MARKDOWN_FORMATTING_INSTRUCTIONS,
+  SEARCH_DOCUMENTS_TOOL,
+  extractCitationsFromText,
+  processAIResponseWithCitations
 } from '../utils/promptUtils.js';
 
+const log = createLogger('claude_gruenerator_ask');
+const documentSearchService = new DocumentSearchService();
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router = express.Router();
 
@@ -29,7 +31,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[claude_gruenerator_ask] Processing question for user ${req.user.id}:`, question.substring(0, 100));
+    log.debug(`[claude_gruenerator_ask] Processing question for user ${req.user.id}:`, question.substring(0, 100));
 
     // Tool-use approach: Let Claude search documents dynamically
     const result = await handleQuestionWithTools(question, req.user.id, group_id, req.app.locals.aiWorkerPool);
@@ -37,7 +39,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
     res.json(result);
 
   } catch (error) {
-    console.error('[claude_gruenerator_ask] Error:', error);
+    log.error('[claude_gruenerator_ask] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to process question'
@@ -49,7 +51,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
  * Handle question using tool-use approach where Claude can search documents multiple times
  */
 async function handleQuestionWithTools(question, userId, groupId, aiWorkerPool) {
-  console.log('[claude_gruenerator_ask] Starting tool-use conversation');
+  log.debug('[claude_gruenerator_ask] Starting tool-use conversation');
   
   // System prompt for tool-guided document analysis
   const systemPrompt = `Du bist ein Experte für Dokumentenanalyse mit Zugang zu einer Dokumentensuchfunktion. 
@@ -83,11 +85,11 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
   let searchCount = 0;
   const maxSearches = 5; // Prevent infinite loops
   
-  console.log('[claude_gruenerator_ask] Starting conversation with tools');
+  log.debug('[claude_gruenerator_ask] Starting conversation with tools');
   
   // Conversation loop to handle tool calls
   while (searchCount < maxSearches) {
-    console.log(`[claude_gruenerator_ask] Conversation round ${searchCount + 1}`);
+    log.debug(`[claude_gruenerator_ask] Conversation round ${searchCount + 1}`);
     
     // Make AI request with tools
     const aiResult = await aiWorkerPool.processRequest({
@@ -102,7 +104,7 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
       }
     });
     
-    console.log('[claude_gruenerator_ask] AI Result:', {
+    log.debug('[claude_gruenerator_ask] AI Result:', {
       success: aiResult.success,
       hasContent: !!aiResult.content,
       stopReason: aiResult.stop_reason,
@@ -123,13 +125,13 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
     
     // Handle tool calls if present
     if (aiResult.stop_reason === 'tool_use' && aiResult.tool_calls && aiResult.tool_calls.length > 0) {
-      console.log(`[claude_gruenerator_ask] Processing ${aiResult.tool_calls.length} tool calls`);
+      log.debug(`[claude_gruenerator_ask] Processing ${aiResult.tool_calls.length} tool calls`);
       
       const toolResults = [];
       
       for (const toolCall of aiResult.tool_calls) {
         if (toolCall.name === 'search_documents') {
-          console.log(`[claude_gruenerator_ask] Executing search: "${toolCall.input.query}"`);
+          log.debug(`[claude_gruenerator_ask] Executing search: "${toolCall.input.query}"`);
           
           const searchResult = await executeSearchTool(toolCall.input, userId, groupId);
           allSearchResults.push(...searchResult.results);
@@ -164,7 +166,7 @@ ${MARKDOWN_FORMATTING_INSTRUCTIONS}`;
     
     // No more tool calls - we have the final answer
     if (aiResult.content) {
-      console.log('[claude_gruenerator_ask] Got final answer, processing response');
+      log.debug('[claude_gruenerator_ask] Got final answer, processing response');
       return await processFinalResponse(aiResult.content, allSearchResults, question);
     }
     
@@ -216,14 +218,14 @@ async function executeSearchTool(toolInput, userId, groupId) {
   try {
     const { query, search_mode = 'hybrid' } = toolInput;
     
-    console.log(`[claude_gruenerator_ask] Executing search: "${query}" (mode: ${search_mode})`);
+    log.debug(`[claude_gruenerator_ask] Executing search: "${query}" (mode: ${search_mode})`);
     
     // Intelligent search routing: Use MultiStageRetrieval for complex queries
     let searchResults;
     const queryComplexity = assessQueryComplexity(query);
     
     if (queryComplexity.isComplex && search_mode === 'vector') {
-      console.log(`[claude_gruenerator_ask] Using enhanced vector search for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
+      log.debug(`[claude_gruenerator_ask] Using enhanced vector search for complex query (${queryComplexity.wordCount} words, ${queryComplexity.concepts.length} concepts)`);
       
       try {
         searchResults = await documentSearchService.search({
@@ -236,7 +238,7 @@ async function executeSearchTool(toolInput, userId, groupId) {
         
         // Vector search results are already in the expected format
       } catch (multiStageError) {
-        console.warn(`[claude_gruenerator_ask] Enhanced vector search failed, falling back to standard search:`, multiStageError.message);
+        log.warn(`[claude_gruenerator_ask] Enhanced vector search failed, falling back to standard search:`, multiStageError.message);
         searchResults = await documentSearchService.search({
           query: query,
           user_id: userId,
@@ -280,7 +282,7 @@ async function executeSearchTool(toolInput, userId, groupId) {
     };
     
   } catch (error) {
-    console.error('[claude_gruenerator_ask] Search tool error:', error);
+    log.error('[claude_gruenerator_ask] Search tool error:', error);
     return {
       success: false,
       results: [],
@@ -294,7 +296,7 @@ async function executeSearchTool(toolInput, userId, groupId) {
  * Process the final response from Claude and extract citations
  */
 async function processFinalResponse(responseContent, allSearchResults, originalQuestion) {
-  console.log('[claude_gruenerator_ask] Processing final response, length:', responseContent.length);
+  log.debug('[claude_gruenerator_ask] Processing final response, length:', responseContent.length);
   
   // Create document context from all search results for citation extraction
   const documentContext = [];

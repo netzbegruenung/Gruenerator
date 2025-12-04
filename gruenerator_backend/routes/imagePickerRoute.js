@@ -1,5 +1,8 @@
 const express = require('express');
 const imagePickerService = require('../services/imagePickerService');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('imagePicker');
+
 
 const router = express.Router();
 
@@ -32,7 +35,7 @@ router.post('/select', async (req, res) => {
       options.maxCandidates = maxCandidates;
     }
 
-    console.log(`[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`);
+    log.debug(`[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`);
 
     // Call the image picker service
     const result = await imagePickerService.selectBestImage(text, req.app.locals.aiWorkerPool, options, req);
@@ -65,12 +68,12 @@ router.post('/select', async (req, res) => {
       }
     };
 
-    console.log(`[ImagePicker API] Selected: ${result.selectedImage.filename} (confidence: ${result.confidence})`);
+    log.debug(`[ImagePicker API] Selected: ${result.selectedImage.filename} (confidence: ${result.confidence})`);
 
     res.json(response);
 
   } catch (error) {
-    console.error('[ImagePicker API] Error:', error);
+    log.error('[ImagePicker API] Error:', error);
 
     res.status(500).json({
       error: 'Internal server error during image selection',
@@ -99,7 +102,7 @@ router.get('/stats', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[ImagePicker API] Stats error:', error);
+    log.error('[ImagePicker API] Stats error:', error);
 
     res.status(500).json({
       error: 'Failed to get service statistics',
@@ -126,7 +129,7 @@ router.get('/catalog', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[ImagePicker API] Catalog error:', error);
+    log.error('[ImagePicker API] Catalog error:', error);
 
     res.status(500).json({
       error: 'Failed to get image catalog',
@@ -151,7 +154,7 @@ router.post('/clear-cache', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[ImagePicker API] Clear cache error:', error);
+    log.error('[ImagePicker API] Clear cache error:', error);
 
     res.status(500).json({
       error: 'Failed to clear cache',
@@ -190,7 +193,7 @@ router.post('/validate', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[ImagePicker API] Validate error:', error);
+    log.error('[ImagePicker API] Validate error:', error);
 
     res.status(500).json({
       error: 'Failed to validate image',

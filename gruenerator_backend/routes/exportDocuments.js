@@ -4,6 +4,9 @@ const { markdownForExport, isMarkdownContent } = require('../utils/markdownServi
 const { sanitizeFilename: sanitizeFilenameCentral } = require('../utils/securityUtils');
 const path = require('path');
 const fs = require('fs').promises;
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('exportDocuments');
+
 
 // Parse content with formatting information preserved
 function parseFormattedContent(input) {
@@ -358,7 +361,7 @@ router.post('/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(Buffer.from(bytes));
   } catch (err) {
-    console.error('[exportDocuments] PDF export error:', err);
+    log.error('[exportDocuments] PDF export error:', err);
     return res.status(500).json({ success: false, message: 'PDF export failed', error: err.message });
   }
 });
@@ -457,7 +460,7 @@ router.post('/docx', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(buffer);
   } catch (err) {
-    console.error('[exportDocuments] DOCX export error:', err);
+    log.error('[exportDocuments] DOCX export error:', err);
     return res.status(500).json({ success: false, message: 'DOCX export failed', error: err.message });
   }
 });

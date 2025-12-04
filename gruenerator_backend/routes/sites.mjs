@@ -1,6 +1,9 @@
 import express from 'express';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('sites');
+
 
 const router = express.Router();
 const db = getPostgresInstance();
@@ -29,7 +32,7 @@ router.get('/my-site', async (req, res) => {
 
         res.json({ site: result[0] });
     } catch (error) {
-        console.error('Error fetching user site:', error);
+        log.error('Error fetching user site:', error);
         res.status(500).json({ error: 'Fehler beim Laden der Site' });
     }
 });
@@ -77,7 +80,7 @@ router.post('/create', async (req, res) => {
         if (error.code === '23505') {
             return res.status(400).json({ error: 'Diese Subdomain ist bereits vergeben' });
         }
-        console.error('Error creating site:', error);
+        log.error('Error creating site:', error);
         res.status(500).json({ error: 'Fehler beim Erstellen der Site' });
     }
 });
@@ -131,7 +134,7 @@ router.put('/:id', async (req, res) => {
 
         res.json({ site: result[0] });
     } catch (error) {
-        console.error('Error updating site:', error);
+        log.error('Error updating site:', error);
         res.status(500).json({ error: 'Fehler beim Aktualisieren der Site' });
     }
 });
@@ -160,7 +163,7 @@ router.post('/:id/publish', async (req, res) => {
 
         res.json({ site: result[0] });
     } catch (error) {
-        console.error('Error publishing site:', error);
+        log.error('Error publishing site:', error);
         res.status(500).json({ error: 'Fehler beim Veröffentlichen der Site' });
     }
 });
@@ -190,7 +193,7 @@ router.get('/check-subdomain', async (req, res) => {
 
         res.json({ available: !result || result.length === 0 });
     } catch (error) {
-        console.error('Error checking subdomain:', error);
+        log.error('Error checking subdomain:', error);
         res.status(500).json({ error: 'Fehler beim Prüfen der Subdomain' });
     }
 });
@@ -215,7 +218,7 @@ router.delete('/:id', async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Error deleting site:', error);
+        log.error('Error deleting site:', error);
         res.status(500).json({ error: 'Fehler beim Löschen der Site' });
     }
 });

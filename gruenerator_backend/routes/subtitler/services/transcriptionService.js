@@ -8,6 +8,9 @@ const { extractAudio } = require('./videoUploadService');
 const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
 const { generateWordHighlightSubtitles } = require('./wordHighlightSubtitleService');
 const { startBackgroundCompression } = require('./backgroundCompressionService');
+const { createLogger } = require('../../../utils/logger.js');
+
+const log = createLogger('transcription');
 
 /**
  * Transcribe audio using AssemblyAI (ONLY provider - provides word timestamps)
@@ -16,12 +19,12 @@ const { startBackgroundCompression } = require('./backgroundCompressionService')
  * @returns {Promise<Object>} - Transcription result in consistent format
  */
 async function transcribeWithProvider(audioPath, requestWordTimestamps = false) {
-    console.log('[transcriptionService] Using AssemblyAI EU provider');
+    log.debug('Using AssemblyAI EU provider');
 
     try {
         return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps);
     } catch (error) {
-        console.error('[transcriptionService] AssemblyAI transcription failed:', error.message);
+        log.error(`AssemblyAI transcription failed: ${error.message}`);
         throw new Error(`Transcription failed - AssemblyAI is required for word timestamps: ${error.message}`);
     }
 }
@@ -212,123 +215,102 @@ async function transcribeVideoLocal(videoPath, language = 'de') {
 // Updated main function to handle mode preference and accept aiWorkerPool
 async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorkerPool, language = 'de') {
   try {
-    console.log(`[transcriptionService] Transkription Start - Modus: ${subtitlePreference}`);
-    
+    log.debug(`Transkription Start - Modus: ${subtitlePreference}`);
+
     const outputDir = path.join(__dirname, '../../../uploads/transcriptions');
     await fs.mkdir(outputDir, { recursive: true });
     const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
-    
+
     // Extrahiere Audio
     await extractAudio(videoPath, audioPath);
-    
+
     // Try to start background video compression right after audio extraction
     // Extract uploadId from video path (assuming format: .../uploads/{uploadId})
     const uploadId = path.basename(path.dirname(videoPath));
     try {
-      console.log(`[transcriptionService] Attempting background compression for uploadId: ${uploadId}`);
       startBackgroundCompression(videoPath, uploadId);
-      console.log(`[transcriptionService] Background compression started successfully for: ${uploadId}`);
+      log.debug(`Background compression started for: ${uploadId}`);
     } catch (compressionError) {
-      console.warn(`[transcriptionService] Background compression failed for ${uploadId}, continuing with transcription:`, compressionError.message);
+      log.warn(`Background compression failed for ${uploadId}: ${compressionError.message}`);
       // Continue with transcription even if compression fails
     }
-    
+
     let finalTranscription = null;
-    
+
     // UNUSED: Short subtitle mode commented out - only manual mode is used
     /*
     if (subtitlePreference === 'short') {
-        console.log("[transcriptionService] Requesting word timestamps from OpenAI");
+        log.debug("Requesting word timestamps from OpenAI");
         const transcriptionResult = await transcribeWithOpenAI(audioPath, true);
-        
+
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from OpenAI');
         }
-        
-        console.log(`[transcriptionService] OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
-        
+
+        log.debug(`OpenAI Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+
         // Use Claude service to generate short segments from raw text
         finalTranscription = await generateShortSubtitlesViaAI(transcriptionResult.text, transcriptionResult.words, aiWorkerPool);
 
     } else
     */
     if (subtitlePreference === 'manual') {
-        console.log("[transcriptionService] Requesting word timestamps for manual processing");
         const transcriptionResult = await transcribeWithProvider(audioPath, true);
 
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from provider');
         }
 
-        console.log(`[transcriptionService] Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        log.debug(`Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
 
         // Use manual service to generate 2-second intelligent segments
         finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
 
     } else if (subtitlePreference === 'word') {
-        console.log("[transcriptionService] Requesting word timestamps for word highlight processing");
         const transcriptionResult = await transcribeWithProvider(audioPath, true);
 
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from provider');
         }
 
-        console.log(`[transcriptionService] Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        log.debug(`Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
 
         // Use word highlight service to generate individual word segments
         finalTranscription = await generateWordHighlightSubtitles(transcriptionResult.text, transcriptionResult.words);
 
     } else {
-        // UNUSED: Standard subtitle mode commented out - only manual mode is used
-        /*
-        console.log("[transcriptionService] Requesting standard segments from OpenAI");
-        const transcriptionResult = await transcribeWithOpenAI(audioPath, false);
-        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-            throw new Error('Invalid segment data received from OpenAI');
-        }
-        finalTranscription = transcriptionResult.text;
-        */
-        
         // Fallback to manual mode if unknown mode provided
-        console.log(`[transcriptionService] Unknown mode '${subtitlePreference}', using manual mode as fallback. Supported modes: 'manual', 'word'`);
+        log.warn(`Unknown mode '${subtitlePreference}', using manual mode as fallback`);
         const transcriptionResult = await transcribeWithProvider(audioPath, true);
 
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from provider');
         }
 
-        console.log(`[transcriptionService] Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
+        log.debug(`Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
 
         // Use manual service to generate 2-second intelligent segments
         finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
     }
-    
+
     // Cleanup
     try {
       await fs.unlink(audioPath);
     } catch (err) {
-      console.warn('Audio cleanup failed:', err.message);
+      log.warn(`Audio cleanup failed: ${err.message}`);
     }
 
     if (!finalTranscription) {
       throw new Error('Keine Transkription vom Provider erhalten oder verarbeitet');
     }
 
-    // Log segment timing details for debugging
+    // Log segment count
     const segments = finalTranscription.split('\n\n');
-    console.log(`[transcriptionService] Finale Segmente: ${segments.length}`);
-    
-    // Log first 3 segments for timing analysis
-    segments.slice(0, 3).forEach((segment, index) => {
-      const lines = segment.split('\n');
-      if (lines.length >= 2) {
-        console.log(`[transcriptionService] Segment ${index}: ${lines[0]} | Text: "${lines[1].substring(0, 30)}..."`);
-      }
-    });
+    log.info(`Finale Segmente: ${segments.length}`);
 
     return finalTranscription;
   } catch (error) {
-    console.error(`[transcriptionService] Fehler (Modus: ${subtitlePreference}):`, error.message);
+    log.error(`Fehler (Modus: ${subtitlePreference}): ${error.message}`);
     throw error;
   }
 }

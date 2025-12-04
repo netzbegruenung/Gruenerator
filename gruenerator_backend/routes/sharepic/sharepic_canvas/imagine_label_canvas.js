@@ -3,6 +3,9 @@ const multer = require('multer');
 const { createCanvas, loadImage } = require('canvas');
 const { COLORS } = require('./config');
 const { checkFiles, registerFonts } = require('./fileManagement');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('imagine_label_c');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -76,7 +79,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     res.json({ image: base64Image });
   } catch (error) {
-    console.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', error);
+    log.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', error);
     res.status(500).json({ error: 'Fehler beim Beschriften des Bildes.' });
   }
 });

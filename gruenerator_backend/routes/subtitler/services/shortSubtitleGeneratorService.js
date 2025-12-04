@@ -1,4 +1,7 @@
 const express = require('express');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('shortSubtitleGe');
+
 
 /**
  * Generates short subtitles using an AI model via the AI Worker Pool.
@@ -77,10 +80,10 @@ ${JSON.stringify(words, null, 2)}
 
 Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
 
-    console.log(`[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`);
+    log.debug(`[ShortSubtitleGenerator] Anfrage an Claude: ${text.length} chars, ${words.length} Wörter`);
     
     // Log first few word timestamps for debugging
-    console.log(`[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`, words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
+    log.debug(`[ShortSubtitleGenerator] Erste 3 Wort-Timestamps:`, words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
 
     try {
         const result = await aiWorkerPool.processRequest({
@@ -99,25 +102,25 @@ Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
         });
 
         if (!result.success) {
-            console.error(`[ShortSubtitleGenerator] AI Worker Fehler: ${result.error}`);
+            log.error(`[ShortSubtitleGenerator] AI Worker Fehler: ${result.error}`);
             throw new Error(result.error || 'Unbekannter Fehler vom AI Worker Pool');
         }
 
-        console.log(`[ShortSubtitleGenerator] Claude Antwort erhalten: ${result.content?.length} chars`);
+        log.debug(`[ShortSubtitleGenerator] Claude Antwort erhalten: ${result.content?.length} chars`);
         
         // Log first segment of Claude's response for timing verification
         const firstSegment = result.content?.split('\n\n')[0];
         if (firstSegment) {
             const lines = firstSegment.split('\n');
             if (lines.length >= 2) {
-                console.log(`[ShortSubtitleGenerator] Erstes Claude Segment: ${lines[0]} | "${lines[1]}"`);
+                log.debug(`[ShortSubtitleGenerator] Erstes Claude Segment: ${lines[0]} | "${lines[1]}"`);
             }
         }
         
         return result.content.trim();
 
     } catch (error) {
-        console.error('[ShortSubtitleGenerator] AI Worker Kommunikationsfehler:', error.message);
+        log.error('[ShortSubtitleGenerator] AI Worker Kommunikationsfehler:', error.message);
         throw new Error(`Fehler bei der Erstellung der kurzen Untertitel durch AI: ${error.message}`);
     }
 }

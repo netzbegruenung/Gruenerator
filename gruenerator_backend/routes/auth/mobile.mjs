@@ -2,6 +2,9 @@ import express from 'express';
 import jwtAuthMiddleware from '../../middleware/jwtAuthMiddleware.js';
 import { SignJWT } from 'jose';
 import { getProfileService } from '../../services/ProfileService.mjs';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('mobile');
+
 
 const router = express.Router();
 
@@ -32,7 +35,7 @@ const router = express.Router();
 //   }
 
 //   try {
-//     console.log('[Mobile Exchange] Validating Keycloak token');
+//     log.debug('[Mobile Exchange] Validating Keycloak token');
 //
 //     // Validate Keycloak token directly without audience validation
 //     const { jwtVerify, createRemoteJWKSet } = await import('jose');
@@ -45,18 +48,18 @@ const router = express.Router();
 //       // Skip audience validation - accept any client from this realm
 //     });
 //
-//     console.log('[Mobile Exchange] Keycloak token validated for user:', keycloakPayload.sub);
+//     log.debug('[Mobile Exchange] Keycloak token validated for user:', keycloakPayload.sub);
 //
 //     // Get user from database using keycloak_id
 //     const profileService = getProfileService();
 //     const user = await profileService.getProfileByKeycloakId(keycloakPayload.sub);
 //
 //     if (!user) {
-//       console.error('[Mobile Exchange] User not found for keycloak_id:', keycloakPayload.sub);
+//       log.error('[Mobile Exchange] User not found for keycloak_id:', keycloakPayload.sub);
 //       return res.status(401).json({ error: 'User not found' });
 //     }
 //
-//     console.log('[Mobile Exchange] User found:', user.id);
+//     log.debug('[Mobile Exchange] User found:', user.id);
 //
 //     // Create simple JWT with configurable expiry (default 30 days)
 //     const secret = new TextEncoder().encode(
@@ -78,7 +81,7 @@ const router = express.Router();
 //       .setAudience('gruenerator-app')
 //       .sign(secret);
 //
-//     console.log('[Mobile Exchange] JWT created for user:', user.id);
+//     log.debug('[Mobile Exchange] JWT created for user:', user.id);
 //
 //     // Return JWT and user data
 //     res.json({
@@ -92,7 +95,7 @@ const router = express.Router();
 //     });
 //
 //   } catch (error) {
-//     console.error('[Mobile Exchange] Error:', error);
+//     log.error('[Mobile Exchange] Error:', error);
 //
 //     // More specific error messages
 //     if (error.message.includes('Token validation failed')) {
@@ -125,7 +128,7 @@ const router = express.Router();
 //       }
 //     });
 //   } catch (error) {
-//     console.error('[Mobile Auth Status] Error:', error);
+//     log.error('[Mobile Auth Status] Error:', error);
 //     res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
@@ -165,7 +168,7 @@ const router = express.Router();
 //       token_type: tokens.token_type
 //     });
 //   } catch (error) {
-//     console.error('[Mobile Auth Refresh] Error:', error);
+//     log.error('[Mobile Auth Refresh] Error:', error);
 //     res.status(401).json({ error: 'Token refresh failed' });
 //   }
 // });
@@ -199,7 +202,7 @@ const router = express.Router();
 //       timestamp: Date.now()
 //     });
 //   } catch (error) {
-//     console.error('[Mobile Auth Logout] Error:', error);
+//     log.error('[Mobile Auth Logout] Error:', error);
 //     res.json({
 //       success: true,
 //       message: 'Logout completed (with errors)',
@@ -279,7 +282,7 @@ const router = express.Router();
 //       tokenType: 'Bearer'
 //     });
 //   } catch (error) {
-//     console.error('[Mobile Consume Login Code] Error:', error);
+//     log.error('[Mobile Consume Login Code] Error:', error);
 //     if (String(error?.message || '').includes('exp') || String(error?.code || '').includes('ERR_JWT_EXPIRED')) {
 //       return res.status(400).json({ error: 'Code expired' });
 //     }

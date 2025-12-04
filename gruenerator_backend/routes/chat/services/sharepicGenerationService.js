@@ -12,6 +12,9 @@ const { parseResponse } = require('../../../utils/campaignResponseParser');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('sharepicGenerat');
+
 
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen', 'headline']);
 const IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
@@ -28,7 +31,7 @@ const loadCampaignConfig = (campaignId, typeId) => {
   const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
 
   if (!fsSync.existsSync(campaignPath)) {
-    console.warn(`[Campaign] Config not found: ${campaignPath}`);
+    log.warn(`[Campaign] Config not found: ${campaignPath}`);
     return null;
   }
 
@@ -37,14 +40,14 @@ const loadCampaignConfig = (campaignId, typeId) => {
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {
-      console.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);
+      log.warn(`[Campaign] Type ${typeId} not found in campaign ${campaignId}`);
       return null;
     }
 
-    console.log(`[Campaign] Loaded config for ${campaignId}/${typeId}`);
+    log.debug(`[Campaign] Loaded config for ${campaignId}/${typeId}`);
     return typeConfig;
   } catch (error) {
-    console.error(`[Campaign] Failed to load config:`, error);
+    log.error(`[Campaign] Failed to load config:`, error);
     return null;
   }
 };
@@ -74,7 +77,7 @@ const createImageAttachmentFromFile = async (filename) => {
       source: 'ai-selected' // Mark as AI-selected for logging
     };
   } catch (error) {
-    console.error(`[SharepicGeneration] Failed to load image ${filename}:`, error);
+    log.error(`[SharepicGeneration] Failed to load image ${filename}:`, error);
     throw new Error(`Failed to load selected image: ${filename}`);
   }
 };
@@ -88,14 +91,14 @@ const createImageAttachmentFromFile = async (filename) => {
  * @returns {Object} Image attachment object
  */
 const selectAndPrepareImage = async (textContent, sharepicType, aiWorkerPool, req = null) => {
-  console.log(`[SharepicGeneration] Selecting image for ${sharepicType} sharepic`);
+  log.debug(`[SharepicGeneration] Selecting image for ${sharepicType} sharepic`);
 
   try {
     // Use image picker service to select best image
     const selection = await imagePickerService.selectBestImage(textContent, aiWorkerPool, { sharepicType }, req);
 
-    console.log(`[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`);
-    console.log(`[SharepicGeneration] Selection reasoning: ${selection.reasoning}`);
+    log.debug(`[SharepicGeneration] Selected image: ${selection.selectedImage.filename} (confidence: ${selection.confidence})`);
+    log.debug(`[SharepicGeneration] Selection reasoning: ${selection.reasoning}`);
 
     // Create attachment from selected image
     const imageAttachment = await createImageAttachmentFromFile(selection.selectedImage.filename);
@@ -106,11 +109,11 @@ const selectAndPrepareImage = async (textContent, sharepicType, aiWorkerPool, re
     };
 
   } catch (error) {
-    console.error('[SharepicGeneration] Failed to select image:', error);
+    log.error('[SharepicGeneration] Failed to select image:', error);
 
     // Fallback to a default safe image
     try {
-      console.log('[SharepicGeneration] Using fallback image');
+      log.debug('[SharepicGeneration] Using fallback image');
       const fallbackImage = await createImageAttachmentFromFile('mike-marrah-XNCv-DcTLx4-unsplash.jpg'); // Sunflower image as fallback
       return {
         attachment: fallbackImage,
@@ -121,7 +124,7 @@ const selectAndPrepareImage = async (textContent, sharepicType, aiWorkerPool, re
         }
       };
     } catch (fallbackError) {
-      console.error('[SharepicGeneration] Even fallback image failed:', fallbackError);
+      log.error('[SharepicGeneration] Even fallback image failed:', fallbackError);
       throw new Error('Failed to select any image for sharepic generation');
     }
   }
@@ -326,7 +329,7 @@ const generateDreizeilenSharepic = async (expressReq, requestBody) => {
   }
 
   const { mainSlogan, alternatives = [] } = textResponse;
-  console.log('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
+  log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
 
   const { payload: canvasPayload } = await callCanvasRoute(dreizeilenCanvasRouter, mainSlogan);
 
@@ -392,7 +395,7 @@ const generateHeadlineSharepic = async (expressReq, requestBody) => {
 };
 
 const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
-  console.log('[SharepicGeneration] Generating zitat with image');
+  log.debug('[SharepicGeneration] Generating zitat with image');
 
   // First try to get image from SharepicImageManager (preferred)
   let imageAttachment = null;
@@ -400,13 +403,13 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
   const sharepicRequestId = requestBody.sharepicRequestId;
 
   if (sharepicImageManager && sharepicRequestId) {
-    console.log('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
+    log.debug('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
     imageAttachment = await sharepicImageManager.retrieveAndConsume(sharepicRequestId);
   }
 
   // Fallback to legacy attachment method
   if (!imageAttachment) {
-    console.log('[SharepicGeneration] Falling back to legacy attachment method');
+    log.debug('[SharepicGeneration] Falling back to legacy attachment method');
     imageAttachment = getFirstImageAttachment(requestBody.attachments);
   }
 
@@ -477,7 +480,7 @@ const generateZitatWithImageSharepic = async (expressReq, requestBody) => {
 };
 
 const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
-  console.log('[SharepicGeneration] Generating dreizeilen with image');
+  log.debug('[SharepicGeneration] Generating dreizeilen with image');
 
   // First try to get image from SharepicImageManager (preferred)
   let imageAttachment = null;
@@ -485,13 +488,13 @@ const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
   const sharepicRequestId = requestBody.sharepicRequestId;
 
   if (sharepicImageManager && sharepicRequestId) {
-    console.log('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
+    log.debug('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
     imageAttachment = await sharepicImageManager.retrieveAndConsume(sharepicRequestId);
   }
 
   // Fallback to legacy attachment method
   if (!imageAttachment) {
-    console.log('[SharepicGeneration] Falling back to legacy attachment method');
+    log.debug('[SharepicGeneration] Falling back to legacy attachment method');
     imageAttachment = getFirstImageAttachment(requestBody.attachments);
   }
 
@@ -546,14 +549,14 @@ const generateDreizeilenWithImageSharepic = async (expressReq, requestBody) => {
     };
 
   } catch (error) {
-    console.error('[SharepicGeneration] Error in dreizeilen with image:', error);
+    log.error('[SharepicGeneration] Error in dreizeilen with image:', error);
     throw error;
   }
 };
 
 
 const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) => {
-  console.log('[SharepicGeneration] Generating dreizeilen with AI-selected image');
+  log.debug('[SharepicGeneration] Generating dreizeilen with AI-selected image');
 
   // Clean up any uploaded images first (since we're using AI-selected images)
   const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
@@ -562,7 +565,7 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) =>
     const hadUploadedImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
     if (hadUploadedImage) {
       await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
-      console.log('[SharepicGeneration] Cleaned up uploaded image since AI selection is used');
+      log.debug('[SharepicGeneration] Cleaned up uploaded image since AI selection is used');
     }
   }
 
@@ -623,7 +626,7 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) =>
     };
 
   } catch (error) {
-    console.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
+    log.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
     throw error;
   } finally {
     // Cleanup any remaining uploaded images for this request
@@ -632,10 +635,10 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) =>
         const hasRemainingImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
         if (hasRemainingImage) {
           await sharepicImageManager.deleteImageForRequest(sharepicRequestId);
-          console.log('[SharepicGeneration] Cleaned up remaining uploaded image after dreizeilen AI generation');
+          log.debug('[SharepicGeneration] Cleaned up remaining uploaded image after dreizeilen AI generation');
         }
       } catch (cleanupError) {
-        console.warn('[SharepicGeneration] Error during image cleanup:', cleanupError);
+        log.warn('[SharepicGeneration] Error during image cleanup:', cleanupError);
       }
     }
     // Cleanup temp file if it exists
@@ -652,7 +655,7 @@ const generateDreizeilenWithAIImageSharepic = async (expressReq, requestBody) =>
 const generateCampaignSharepic = async (expressReq, requestBody) => {
   const { campaignId, campaignTypeId } = requestBody;
 
-  console.log(`[Campaign] Generating ${campaignId}/${campaignTypeId} sharepic`);
+  log.debug(`[Campaign] Generating ${campaignId}/${campaignTypeId} sharepic`);
 
   // Load campaign configuration
   const campaignConfig = loadCampaignConfig(campaignId, campaignTypeId);
@@ -663,13 +666,13 @@ const generateCampaignSharepic = async (expressReq, requestBody) => {
   // Determine base type for text generation
   const baseType = campaignConfig.basedOn || 'dreizeilen';
 
-  console.log(`[Campaign] Using base type: ${baseType}`);
+  log.debug(`[Campaign] Using base type: ${baseType}`);
 
   let textData = {};
 
   // Check if campaign has custom response parser
   if (campaignConfig.responseParser) {
-    console.log(`[Campaign] Using declarative parser: ${campaignConfig.responseParser.type}`);
+    log.debug(`[Campaign] Using declarative parser: ${campaignConfig.responseParser.type}`);
 
     // Generate raw AI response directly
     const promptConfig = campaignConfig.prompt;
@@ -694,19 +697,19 @@ const generateCampaignSharepic = async (expressReq, requestBody) => {
       throw new Error('AI response empty or invalid');
     }
 
-    console.log(`[Campaign] Raw AI response (${aiResult.content.length} chars)`);
+    log.debug(`[Campaign] Raw AI response (${aiResult.content.length} chars)`);
 
     // Parse response using declarative parser
     try {
       textData = parseResponse(aiResult.content, campaignConfig.responseParser);
-      console.log(`[Campaign] Parsed text data:`, textData);
+      log.debug(`[Campaign] Parsed text data:`, textData);
     } catch (parseError) {
-      console.error(`[Campaign] Parser error:`, parseError);
+      log.error(`[Campaign] Parser error:`, parseError);
       throw new Error(`Failed to parse AI response: ${parseError.message}`);
     }
   } else {
     // Use existing handler-based flow for backwards compatibility
-    console.log(`[Campaign] Using handler-based parsing for baseType: ${baseType}`);
+    log.debug(`[Campaign] Using handler-based parsing for baseType: ${baseType}`);
 
     const textResponse = await callSharepicClaude(expressReq, baseType, {
       ...requestBody,
@@ -752,7 +755,7 @@ const generateCampaignSharepic = async (expressReq, requestBody) => {
     }
   }
 
-  console.log(`[Campaign] Text data extracted:`, textData);
+  log.debug(`[Campaign] Text data extracted:`, textData);
 
   // Generate image using campaign canvas
   const { payload: canvasPayload } = await callCanvasRoute(campaignCanvasRouter, {
@@ -792,7 +795,7 @@ const generateCampaignSharepic = async (expressReq, requestBody) => {
 const generateSharepicForChat = async (expressReq, type, requestBody) => {
   // Check for campaign request first
   if (requestBody.campaignId && requestBody.campaignTypeId) {
-    console.log(`[SharepicGeneration] Campaign sharepic requested: ${requestBody.campaignId}/${requestBody.campaignTypeId}`);
+    log.debug(`[SharepicGeneration] Campaign sharepic requested: ${requestBody.campaignId}/${requestBody.campaignTypeId}`);
     return await generateCampaignSharepic(expressReq, requestBody);
   }
 
@@ -807,7 +810,7 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
 
   if (sharepicImageManager && sharepicRequestId) {
     hasImageAttachment = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
-    console.log(`[SharepicGeneration] SharepicImageManager check: hasImage=${hasImageAttachment}`);
+    log.debug(`[SharepicGeneration] SharepicImageManager check: hasImage=${hasImageAttachment}`);
   }
 
   // Fallback to legacy attachment check
@@ -834,7 +837,7 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
         return generateDreizeilenWithImageSharepic(expressReq, requestBody);
       } else {
         // Use AI image selection for better visual impact
-        console.log('[SharepicGeneration] No image provided for dreizeilen, using AI selection');
+        log.debug('[SharepicGeneration] No image provided for dreizeilen, using AI selection');
         return generateDreizeilenWithAIImageSharepic(expressReq, requestBody);
       }
     case 'headline':

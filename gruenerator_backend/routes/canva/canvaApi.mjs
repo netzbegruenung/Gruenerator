@@ -3,6 +3,9 @@ import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import CanvaApiClient from '../../services/canvaApiClient.js';
 import CanvaTokenManager from '../../utils/canvaTokenManager.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('canva');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -58,7 +61,7 @@ async function requireCanvaConnection(req, res, next) {
     next();
     
   } catch (error) {
-    console.error('[Canva API] Error checking Canva connection:', error);
+    log.error('[Canva API] Error checking Canva connection:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to verify Canva connection',
@@ -83,7 +86,7 @@ router.get('/test', ensureAuthenticated, requireCanvaConnection, async (req, res
     });
     
   } catch (error) {
-    console.error('[Canva API] Connection test error:', error);
+    log.error('[Canva API] Connection test error:', error);
     res.status(500).json({
       success: false,
       connected: false,
@@ -107,7 +110,7 @@ router.get('/user', ensureAuthenticated, requireCanvaConnection, async (req, res
     });
     
   } catch (error) {
-    console.error('[Canva API] Error fetching user info:', error);
+    log.error('[Canva API] Error fetching user info:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch Canva user information',
@@ -147,7 +150,7 @@ router.get('/designs', ensureAuthenticated, requireCanvaConnection, async (req, 
     });
     
   } catch (error) {
-    console.error('[Canva API] Error listing designs:', error);
+    log.error('[Canva API] Error listing designs:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to list designs',
@@ -172,7 +175,7 @@ router.get('/designs/:designId', ensureAuthenticated, requireCanvaConnection, as
     });
     
   } catch (error) {
-    console.error('[Canva API] Error fetching design:', error);
+    log.error('[Canva API] Error fetching design:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch design',
@@ -213,7 +216,7 @@ router.post('/designs', ensureAuthenticated, requireCanvaConnection, async (req,
     });
     
   } catch (error) {
-    console.error('[Canva API] Error creating design:', error);
+    log.error('[Canva API] Error creating design:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create design',
@@ -253,7 +256,7 @@ router.get('/assets', ensureAuthenticated, requireCanvaConnection, async (req, r
     });
     
   } catch (error) {
-    console.error('[Canva API] Error listing assets:', error);
+    log.error('[Canva API] Error listing assets:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to list assets',
@@ -278,7 +281,7 @@ router.get('/assets/:assetId', ensureAuthenticated, requireCanvaConnection, asyn
     });
     
   } catch (error) {
-    console.error('[Canva API] Error fetching asset:', error);
+    log.error('[Canva API] Error fetching asset:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch asset',
@@ -319,7 +322,7 @@ router.post('/assets/upload', ensureAuthenticated, requireCanvaConnection, async
     });
     
   } catch (error) {
-    console.error('[Canva API] Error uploading asset:', error);
+    log.error('[Canva API] Error uploading asset:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to upload asset',
@@ -344,7 +347,7 @@ router.get('/assets/upload/:jobId', ensureAuthenticated, requireCanvaConnection,
     });
     
   } catch (error) {
-    console.error('[Canva API] Error checking upload job:', error);
+    log.error('[Canva API] Error checking upload job:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to check upload job status',
@@ -397,7 +400,7 @@ router.post('/create-from-content', ensureAuthenticated, requireCanvaConnection,
     });
     
   } catch (error) {
-    console.error('[Canva API] Error creating design from content:', error);
+    log.error('[Canva API] Error creating design from content:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create design from content',
@@ -465,7 +468,7 @@ router.get('/design-types', ensureAuthenticated, requireCanvaConnection, async (
     });
     
   } catch (error) {
-    console.error('[Canva API] Error fetching design types:', error);
+    log.error('[Canva API] Error fetching design types:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch design types',

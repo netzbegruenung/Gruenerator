@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { webSearchService } = require('../utils/searchUtils');
 const { HTML_FORMATTING_INSTRUCTIONS, MARKDOWN_CHAT_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('claude_chat');
+
 
 const WEB_SEARCH_TOOL_NAME = "web_search";
 const PROPOSE_TEXT_EDIT_TOOL_NAME = "propose_text_edit";
@@ -20,13 +23,13 @@ const parseClaudeJsonWithFallback = (content) => {
     return content; // Already parsed
   }
 
-  console.log('[claude_chat] Attempting to parse Claude JSON response');
+  log.debug('[claude_chat] Attempting to parse Claude JSON response');
 
   // Step 1: Try parsing original content first (fast path)
   try {
     return JSON.parse(content);
   } catch (error) {
-    console.log('[claude_chat] Initial JSON parse failed, trying fallbacks...');
+    log.debug('[claude_chat] Initial JSON parse failed, trying fallbacks...');
   }
 
   // Step 2: Remove code block markers and try again
@@ -34,7 +37,7 @@ const parseClaudeJsonWithFallback = (content) => {
   try {
     return JSON.parse(cleanedContent);
   } catch (error) {
-    console.log('[claude_chat] JSON parse after removing code blocks failed, trying character fixes...');
+    log.debug('[claude_chat] JSON parse after removing code blocks failed, trying character fixes...');
   }
 
   // Step 3: Smart escaping - only escape control characters within JSON string values
@@ -42,12 +45,12 @@ const parseClaudeJsonWithFallback = (content) => {
     const smartEscaped = escapeJsonStringValues(cleanedContent);
     return JSON.parse(smartEscaped);
   } catch (error) {
-    console.log('[claude_chat] Smart escaping failed, trying aggressive fixes...');
+    log.debug('[claude_chat] Smart escaping failed, trying aggressive fixes...');
   }
 
   // Step 4: Aggressive global replacement as last resort
   try {
-    console.warn('[claude_chat] Using aggressive JSON fixing as last resort');
+    log.warn('[claude_chat] Using aggressive JSON fixing as last resort');
     const aggressivelyFixed = cleanedContent
       .replace(/\n/g, '\\n')
       .replace(/\r/g, '\\r')
@@ -56,7 +59,7 @@ const parseClaudeJsonWithFallback = (content) => {
       .replace(/\b/g, '\\b');
     return JSON.parse(aggressivelyFixed);
   } catch (error) {
-    console.error('[claude_chat] All JSON parsing attempts failed:', error);
+    log.error('[claude_chat] All JSON parsing attempts failed:', error);
     throw new Error(`Failed to parse Claude JSON response: ${error.message}`);
   }
 };
@@ -121,10 +124,10 @@ const escapeJsonStringValues = (jsonString) => {
 router.post('/', async (req, res) => {
   // mode can be: 'editSelected', 'thinkGlobal', 'searchExplicit'
   const { message, currentText, selectedText, chatHistory, mode = 'thinkGlobal' } = req.body;
-  console.log('[claude_chat] Received request. Mode:', mode);
-  console.log('[claude_chat] Received currentText from request body:', JSON.stringify(currentText));
-  console.log('[claude_chat] Received selectedText from request body:', JSON.stringify(selectedText));
-  console.log('[claude_chat] Received message from request body:', JSON.stringify(message));
+  log.debug('[claude_chat] Received request. Mode:', mode);
+  log.debug('[claude_chat] Received currentText from request body:', JSON.stringify(currentText));
+  log.debug('[claude_chat] Received selectedText from request body:', JSON.stringify(selectedText));
+  log.debug('[claude_chat] Received message from request body:', JSON.stringify(message));
 
   const validationErrors = {};
   
@@ -234,7 +237,7 @@ router.post('/', async (req, res) => {
       // This mode directly uses Mistral Web Search without going through Claude's tool use initially
       try {
         const searchQuery = `${message} antworte auf deutsch`;
-        console.log(`[claude_chat] Explicit search query: ${searchQuery}`);
+        log.debug(`[claude_chat] Explicit search query: ${searchQuery}`);
 
         const searchResults = await webSearchService.search(searchQuery, {
           includeAnswer: "advanced", // Requesting comprehensive search results
@@ -257,7 +260,7 @@ router.post('/', async (req, res) => {
           textAdjustment: null
         });
       } catch (searchError) {
-        console.error('[claude_chat] Error during explicit search:', searchError);
+        log.error('[claude_chat] Error during explicit search:', searchError);
         return res.status(500).json({ error: `Fehler bei der expliziten Suche: ${searchError.message}` });
       }
     } else if (mode === 'thinkGlobal') {
@@ -301,7 +304,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
     let toolCallDetails = null;
 
     // First call to Claude
-    console.log(`[claude_chat] Initial call to Claude. Mode: ${mode}. Message: ${message}`);
+    log.debug(`[claude_chat] Initial call to Claude. Mode: ${mode}. Message: ${message}`);
     let result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'text_adjustment',
       systemPrompt,
@@ -312,7 +315,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
     if (!result.success) {
       return res.status(500).json({ error: result.error });
     }
-    console.log(`[claude_chat] Full result object from aiWorkerPool:`, JSON.stringify(result, null, 2)); // Log the full result object
+    log.debug(`[claude_chat] Full result object from aiWorkerPool:`, JSON.stringify(result, null, 2)); // Log the full result object
     
     // Extract tool_calls from raw_content_blocks if stop_reason is tool_use
     let actual_tool_calls = null;
@@ -321,7 +324,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
       if (actual_tool_calls.length === 0) actual_tool_calls = null; // Ensure it's null if no tool_use blocks found
     }
 
-    console.log(`[claude_chat] Claude's initial response details: stop_reason='${result.stop_reason}', extracted_tool_calls='${JSON.stringify(actual_tool_calls || null)}'`);
+    log.debug(`[claude_chat] Claude's initial response details: stop_reason='${result.stop_reason}', extracted_tool_calls='${JSON.stringify(actual_tool_calls || null)}'`);
 
     // Check if Claude wants to use a tool
     if (mode === 'thinkGlobal' && result.stop_reason === 'tool_use' && actual_tool_calls) {
@@ -331,10 +334,10 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
 
       if (proposeEditCall) {
         toolCallDetails = proposeEditCall;
-        console.log(`[claude_chat] Claude wants to use tool: ${toolCallDetails.name} with input:`, toolCallDetails.input);
+        log.debug(`[claude_chat] Claude wants to use tool: ${toolCallDetails.name} with input:`, toolCallDetails.input);
       } else if (webSearchCall) {
         toolCallDetails = webSearchCall;
-        console.log(`[claude_chat] Claude wants to use tool: ${toolCallDetails.name} with input:`, toolCallDetails.input);
+        log.debug(`[claude_chat] Claude wants to use tool: ${toolCallDetails.name} with input:`, toolCallDetails.input);
       }
 
       if (toolCallDetails) {
@@ -351,7 +354,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
 
       // Execute PROPOSE_TEXT_EDIT_TOOL
       if (toolCallDetails.name === PROPOSE_TEXT_EDIT_TOOL_NAME) {
-        console.log(`[claude_chat] Executing tool '${PROPOSE_TEXT_EDIT_TOOL_NAME}' with input:`, toolInput);
+        log.debug(`[claude_chat] Executing tool '${PROPOSE_TEXT_EDIT_TOOL_NAME}' with input:`, toolInput);
         const {
           text_to_find,
           replacement_text,
@@ -361,7 +364,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
         } = toolInput;
 
         if (!text_to_find || typeof replacement_text === 'undefined') {
-          console.error('[claude_chat] Invalid input for propose_text_edit: text_to_find or replacement_text missing.');
+          log.error('[claude_chat] Invalid input for propose_text_edit: text_to_find or replacement_text missing.');
           toolResultContent = { status: "error", error_type: "invalid_input", message: "Fehlende erforderliche Parameter 'text_to_find' oder 'replacement_text' für das propose_text_edit Tool." };
           toolErrorOccurred = true;
         } else {
@@ -392,11 +395,11 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
                 const normalizedExtractedDocContextBefore = normalizeStringForCompare(extractedDocContextBefore);
         
                 if (normalizedExtractedDocContextBefore !== claudeNormContextBefore) {
-                    console.log(`[claude_chat] ### Context_before mismatch DETECTED ###`);
-                    console.log(`[claude_chat] Claude's original context_before: "${claudeOriginalContextBefore}" (Length: ${claudeOriginalContextBefore.length})`);
-                    console.log(`[claude_chat] Claude's normalized context_before (claudeNormContextBefore): "${claudeNormContextBefore}"`);
-                    console.log(`[claude_chat] Document's extracted context_before (raw): "${extractedDocContextBefore}" (Extracted Length: ${docExtractLengthBefore})`);
-                    console.log(`[claude_chat] Document's normalized context_before (normalizedExtractedDocContextBefore): "${normalizedExtractedDocContextBefore}"`);
+                    log.debug(`[claude_chat] ### Context_before mismatch DETECTED ###`);
+                    log.debug(`[claude_chat] Claude's original context_before: "${claudeOriginalContextBefore}" (Length: ${claudeOriginalContextBefore.length})`);
+                    log.debug(`[claude_chat] Claude's normalized context_before (claudeNormContextBefore): "${claudeNormContextBefore}"`);
+                    log.debug(`[claude_chat] Document's extracted context_before (raw): "${extractedDocContextBefore}" (Extracted Length: ${docExtractLengthBefore})`);
+                    log.debug(`[claude_chat] Document's normalized context_before (normalizedExtractedDocContextBefore): "${normalizedExtractedDocContextBefore}"`);
                     contextMatch = false;
                 }
             }
@@ -408,11 +411,11 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
                 const normalizedExtractedDocContextAfter = normalizeStringForCompare(extractedDocContextAfter);
                 
                 if (normalizedExtractedDocContextAfter !== claudeNormContextAfter) {
-                    console.log(`[claude_chat] ### Context_after mismatch DETECTED ###`);
-                    console.log(`[claude_chat] Claude's original context_after: "${claudeOriginalContextAfter}" (Length: ${claudeOriginalContextAfter.length})`);
-                    console.log(`[claude_chat] Claude's normalized context_after (claudeNormContextAfter): "${claudeNormContextAfter}"`);
-                    console.log(`[claude_chat] Document's extracted context_after (raw): "${extractedDocContextAfter}" (Extracted Length: ${docExtractLengthAfter})`);
-                    console.log(`[claude_chat] Document's normalized context_after (normalizedExtractedDocContextAfter): "${normalizedExtractedDocContextAfter}"`);
+                    log.debug(`[claude_chat] ### Context_after mismatch DETECTED ###`);
+                    log.debug(`[claude_chat] Claude's original context_after: "${claudeOriginalContextAfter}" (Length: ${claudeOriginalContextAfter.length})`);
+                    log.debug(`[claude_chat] Claude's normalized context_after (claudeNormContextAfter): "${claudeNormContextAfter}"`);
+                    log.debug(`[claude_chat] Document's extracted context_after (raw): "${extractedDocContextAfter}" (Extracted Length: ${docExtractLengthAfter})`);
+                    log.debug(`[claude_chat] Document's normalized context_after (normalizedExtractedDocContextAfter): "${normalizedExtractedDocContextAfter}"`);
                     contextMatch = false;
                 }
             }
@@ -435,12 +438,12 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
             searchStartIndex = foundIdx + text_to_find.length;
           }
           
-          console.log(`[claude_chat] Searching for "${text_to_find}" (occurrence ${occurrence_index}). Found at index: ${matchIndex}. Context before: "${context_before}", after: "${context_after}". Total potential matches: ${potentialMatches.length}, Context-validated matches for occurrence: ${currentMatch}`);
+          log.debug(`[claude_chat] Searching for "${text_to_find}" (occurrence ${occurrence_index}). Found at index: ${matchIndex}. Context before: "${context_before}", after: "${context_after}". Total potential matches: ${potentialMatches.length}, Context-validated matches for occurrence: ${currentMatch}`);
 
 
           if (matchIndex !== -1) {
             // Text found, proceed to prepare response for frontend
-            console.log(`[claude_chat] Text found for edit: "${text_to_find}" at index ${matchIndex}. Replacement: "${replacement_text}"`);
+            log.debug(`[claude_chat] Text found for edit: "${text_to_find}" at index ${matchIndex}. Replacement: "${replacement_text}"`);
             const textAdjustment = {
               type: 'selected', // Treat as selected as we have a precise range
               newText: replacement_text,
@@ -464,30 +467,30 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
                 textAdjustment: textAdjustment,
                 fullText: currentText // Optional, as per plan
             };
-            console.log('[claude_chat] Constructed editSelected mode response payload directly after successful propose_text_edit tool:', finalResponseForFrontend);
+            log.debug('[claude_chat] Constructed editSelected mode response payload directly after successful propose_text_edit tool:', finalResponseForFrontend);
             return res.json(finalResponseForFrontend); // Return directly
 
           } else {
             // Text not found or not the correct occurrence
             toolErrorOccurred = true;
             if (potentialMatches.length > 0 && currentMatch < occurrence_index) {
-                 console.warn(`[claude_chat] Text "${text_to_find}" found ${potentialMatches.length} times, but occurrence ${occurrence_index} with matching context not found (validated matches: ${currentMatch}).`);
+                 log.warn(`[claude_chat] Text "${text_to_find}" found ${potentialMatches.length} times, but occurrence ${occurrence_index} with matching context not found (validated matches: ${currentMatch}).`);
                  toolResultContent = { status: "error", error_type: "occurrence_not_found_with_context", message: `Der Textabschnitt '${text_to_find}' wurde zwar gefunden, aber nicht die ${occurrence_index}-te Instanz mit dem angegebenen Kontext. Es gab ${currentMatch} passende Instanzen. Bitte präzisiere den Kontext oder die Instanz.` };
             } else if (potentialMatches.length > 0 && occurrence_index > potentialMatches.length) {
-              console.warn(`[claude_chat] Text "${text_to_find}" found ${potentialMatches.length} times, but requested occurrence ${occurrence_index} is out of bounds.`);
+              log.warn(`[claude_chat] Text "${text_to_find}" found ${potentialMatches.length} times, but requested occurrence ${occurrence_index} is out of bounds.`);
               toolResultContent = { status: "error", error_type: "occurrence_out_of_bounds", message: `Der Textabschnitt '${text_to_find}' wurde ${potentialMatches.length} Mal gefunden, aber die ${occurrence_index}. Instanz existiert nicht. Bitte wähle eine Instanz zwischen 1 und ${potentialMatches.length}.` };
             } else if (potentialMatches.length > 0) {
-                console.warn(`[claude_chat] Text "${text_to_find}" found ${potentialMatches.length} times, but not matching context for occurrence ${occurrence_index}.`);
+                log.warn(`[claude_chat] Text "${text_to_find}" found ${potentialMatches.length} times, but not matching context for occurrence ${occurrence_index}.`);
                 toolResultContent = { status: "error", error_type: "context_mismatch", message: `Der Textabschnitt '${text_to_find}' (Instanz ${occurrence_index}) wurde gefunden, aber der angegebene Kontext davor oder danach stimmt nicht überein. Bitte überprüfe den Kontext.` };
             } else {
-              console.warn(`[claude_chat] Text to find "${text_to_find}" not found in currentText.`);
+              log.warn(`[claude_chat] Text to find "${text_to_find}" not found in currentText.`);
               toolResultContent = { status: "error", error_type: "not_found", message: `Der angegebene Abschnitt '${text_to_find}' konnte nicht im Text gefunden werden. Bitte präzisiere den Text oder den Kontext.` };
             }
           }
         }
       // Execute WEB_SEARCH_TOOL
       } else if (toolCallDetails.name === WEB_SEARCH_TOOL_NAME) {
-        console.log(`[claude_chat] Executing tool '${WEB_SEARCH_TOOL_NAME}' with input:`, toolInput);
+        log.debug(`[claude_chat] Executing tool '${WEB_SEARCH_TOOL_NAME}' with input:`, toolInput);
         try {
           const searchResults = await webSearchService.search(toolInput.query, {
             includeAnswer: "advanced",
@@ -506,11 +509,11 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
           }
           toolResultContent = combinedResults || "Keine Ergebnisse für die Suche gefunden.";
         } catch (searchError) {
-          console.error('[claude_chat] Error during web search:', searchError);
+          log.error('[claude_chat] Error during web search:', searchError);
           toolResultContent = `Fehler bei der Websuche: ${searchError.message}`;
           toolErrorOccurred = true;
         }
-        console.log("[claude_chat] Tool execution result:", toolResultContent);
+        log.debug("[claude_chat] Tool execution result:", toolResultContent);
       }
 
       // Add tool result to messages and call Claude again if there was an error with propose_text_edit OR it was a web_search
@@ -527,7 +530,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
           ]
         });
 
-        console.log("[claude_chat] Calling Claude again with tool results (or error for propose_text_edit). API Messages:", JSON.stringify(apiMessages, null, 2));
+        log.debug("[claude_chat] Calling Claude again with tool results (or error for propose_text_edit). API Messages:", JSON.stringify(apiMessages, null, 2));
         result = await req.app.locals.aiWorkerPool.processRequest({
           type: 'text_adjustment',
           systemPrompt, // Re-send system prompt
@@ -548,7 +551,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
     // Process final response from Claude
     try {
       if (mode === 'thinkGlobal') { // This will now also handle responses after a tool_result for propose_text_edit errors
-        console.log('[claude_chat] Handling thinkGlobal final response. Claude Raw Content:', claudeResponseContent);
+        log.debug('[claude_chat] Handling thinkGlobal final response. Claude Raw Content:', claudeResponseContent);
         const responseMessages = splitMessages(claudeResponseContent);
         return res.json({
           response: responseMessages, 
@@ -569,12 +572,12 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
         const cleanedNewText = originalNewText.replace(/<[^>]*>/g, ''); // Remove HTML tags
         
         if (cleanedNewText !== originalNewText) {
-          console.warn('[claude_chat] Stripped HTML tags from newText:', originalNewText, '->', cleanedNewText);
+          log.warn('[claude_chat] Stripped HTML tags from newText:', originalNewText, '->', cleanedNewText);
           parsedResponse.textAdjustment.newText = cleanedNewText;
         }
       }
       
-      console.log('[claude_chat] Handling editSelected mode response. Claude Raw Parsed Response:', parsedResponse.response); 
+      log.debug('[claude_chat] Handling editSelected mode response. Claude Raw Parsed Response:', parsedResponse.response); 
       const responseMessages = splitMessages(parsedResponse.response);
 
       const responsePayload = {
@@ -598,10 +601,10 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
         fullText: currentText
       };
 
-      console.log('[claude_chat] Constructed editSelected mode response payload:', responsePayload);
+      log.debug('[claude_chat] Constructed editSelected mode response payload:', responsePayload);
       res.json(responsePayload);
     } catch (parseError) {
-      console.error('[claude_chat] Error processing AI final response:', parseError, 'Raw content:', claudeResponseContent);
+      log.error('[claude_chat] Error processing AI final response:', parseError, 'Raw content:', claudeResponseContent);
       res.status(400).json({
         error: 'Error processing AI final response',
         details: parseError.message,
@@ -611,7 +614,7 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
     }
 
   } catch (error) {
-    console.error('Fehler bei der Chat-Anfrage:', error);
+    log.error('Fehler bei der Chat-Anfrage:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Verarbeitung der Chat-Anfrage',
       details: error.message,

@@ -8,16 +8,17 @@
  */
 
 import express from 'express';
-const router = express.Router();
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
 import {
   initiateInteractiveAntrag,
   continueInteractiveAntrag
 } from '../../agents/langgraph/interactiveAntragGraph.mjs';
-import {
-  getExperimentalSession
-} from '../../services/chatMemoryService.js';
+import { getExperimentalSession } from '../../services/chatMemoryService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
+const router = express.Router();
+const log = createLogger('experimentalRoutes');
 
 // Request logger middleware
 router.use((req, res, next) => {
@@ -25,11 +26,11 @@ router.use((req, res, next) => {
   req._reqId = reqId;
 
   const start = Date.now();
-  console.log(`[experimental][${reqId}] ${req.method} ${req.originalUrl}`);
+  log.debug(`[experimental][${reqId}] ${req.method} ${req.originalUrl}`);
 
   res.on('finish', () => {
     const elapsed = Date.now() - start;
-    console.log(`[experimental][${reqId}] completed status=${res.statusCode} dur=${elapsed}ms`);
+    log.debug(`[experimental][${reqId}] completed status=${res.statusCode} dur=${elapsed}ms`);
   });
 
   next();
@@ -43,7 +44,7 @@ async function requireInteractiveAntragBeta(req, res, next) {
 
   try {
     if (!req.user || !req.user.id) {
-      console.warn(`[experimental][${reqId}] Beta check failed: No user in request`);
+      log.warn(`[experimental][${reqId}] Beta check failed: No user in request`);
       return res.status(401).json({
         error: 'Authentication required',
         message: 'You must be logged in to access this feature'
@@ -53,7 +54,7 @@ async function requireInteractiveAntragBeta(req, res, next) {
     const db = getPostgresInstance();
 
     if (!db || !db.pool) {
-      console.error(`[experimental][${reqId}] Database not available for beta feature check`);
+      log.error(`[experimental][${reqId}] Database not available for beta feature check`);
       return res.status(503).json({
         error: 'Service temporarily unavailable',
         message: 'Database connection not available'
@@ -66,7 +67,7 @@ async function requireInteractiveAntragBeta(req, res, next) {
     );
 
     if (!result.rows || result.rows.length === 0) {
-      console.warn(`[experimental][${reqId}] User profile not found: ${req.user.id}`);
+      log.warn(`[experimental][${reqId}] User profile not found: ${req.user.id}`);
       return res.status(404).json({
         error: 'Profile not found',
         message: 'User profile does not exist'
@@ -76,17 +77,17 @@ async function requireInteractiveAntragBeta(req, res, next) {
     const isEnabled = result.rows[0].interactive_antrag_enabled;
 
     if (!isEnabled) {
-      console.log(`[experimental][${reqId}] Interactive antrag beta feature not enabled for user ${req.user.id}`);
+      log.debug(`[experimental][${reqId}] Interactive antrag beta feature not enabled for user ${req.user.id}`);
       return res.status(403).json({
         error: 'Feature not enabled',
         message: 'Der interaktive Antrag-Modus ist für deinen Account nicht aktiviert. Bitte aktiviere das Feature im Labor-Tab deines Profils.'
       });
     }
 
-    console.log(`[experimental][${reqId}] Interactive antrag beta feature check passed for user ${req.user.id}`);
+    log.debug(`[experimental][${reqId}] Interactive antrag beta feature check passed for user ${req.user.id}`);
     next();
   } catch (error) {
-    console.error(`[experimental][${reqId}] Error checking beta feature:`, error);
+    log.error(`[experimental][${reqId}] Error checking beta feature:`, error);
     return res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to verify beta feature access'
@@ -169,14 +170,14 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
     // Get AI worker pool
     const aiWorkerPool = req.app.locals.aiWorkerPool;
     if (!aiWorkerPool) {
-      console.error(`[experimental][${reqId}] AI worker pool not available`);
+      log.error(`[experimental][${reqId}] AI worker pool not available`);
       return res.status(503).json({
         status: 'error',
         message: 'AI-Dienst nicht verfügbar'
       });
     }
 
-    console.log(`[experimental][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType} - "${thema}"`);
+    log.debug(`[experimental][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType} - "${thema}"`);
 
     // Start interactive flow
     const result = await initiateInteractiveAntrag({
@@ -190,7 +191,7 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
     });
 
     if (result.status === 'error') {
-      console.error(`[experimental][${reqId}] Initiate error:`, result.error);
+      log.error(`[experimental][${reqId}] Initiate error:`, result.error);
       return res.status(500).json({
         status: 'error',
         message: result.message || 'Fehler beim Starten der interaktiven Antragserstellung',
@@ -198,7 +199,7 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
       });
     }
 
-    console.log(`[experimental][${reqId}] Session created: ${result.sessionId}, ${result.questions?.length} questions`);
+    log.debug(`[experimental][${reqId}] Session created: ${result.sessionId}, ${result.questions?.length} questions`);
 
     res.json({
       status: 'success',
@@ -210,7 +211,7 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
     });
 
   } catch (error) {
-    console.error(`[experimental][${reqId}] Unexpected error in initiate:`, error);
+    log.error(`[experimental][${reqId}] Unexpected error in initiate:`, error);
     res.status(500).json({
       status: 'error',
       message: 'Interner Serverfehler beim Starten der interaktiven Antragserstellung',
@@ -295,15 +296,15 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
     // Get AI worker pool
     const aiWorkerPool = req.app.locals.aiWorkerPool;
     if (!aiWorkerPool) {
-      console.error(`[experimental][${reqId}] AI worker pool not available`);
+      log.error(`[experimental][${reqId}] AI worker pool not available`);
       return res.status(503).json({
         status: 'error',
         message: 'AI-Dienst nicht verfügbar'
       });
     }
 
-    console.log(`[experimental][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`);
-    console.log(`[experimental][${reqId}] Submitted answers:`, Object.keys(answers));
+    log.debug(`[experimental][${reqId}][PID:${process.pid}] Continuing session ${sessionId} for user ${userId}`);
+    log.debug(`[experimental][${reqId}] Submitted answers:`, Object.keys(answers));
 
     // Continue interactive flow
     const result = await continueInteractiveAntrag({
@@ -315,7 +316,7 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
     });
 
     if (result.status === 'error') {
-      console.error(`[experimental][${reqId}] Continue error:`, result.error);
+      log.error(`[experimental][${reqId}] Continue error:`, result.error);
 
       // Check if it's a session not found error
       if (result.error?.includes('not found') || result.error?.includes('expired')) {
@@ -334,15 +335,15 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
     }
 
     if (result.status === 'follow_up') {
-      console.log(`[experimental][${reqId}] Follow-up questions generated: ${result.questions?.length}`);
+      log.debug(`[experimental][${reqId}] Follow-up questions generated: ${result.questions?.length}`);
     } else if (result.status === 'completed') {
-      console.log(`[experimental][${reqId}] Generation completed: ${result.finalResult?.length} chars`);
+      log.debug(`[experimental][${reqId}] Generation completed: ${result.finalResult?.length} chars`);
     }
 
     res.json(result);
 
   } catch (error) {
-    console.error(`[experimental][${reqId}] Unexpected error in continue:`, error);
+    log.error(`[experimental][${reqId}] Unexpected error in continue:`, error);
     res.status(500).json({
       status: 'error',
       message: 'Interner Serverfehler beim Fortsetzen der interaktiven Antragserstellung',
@@ -394,13 +395,13 @@ router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, asyn
       });
     }
 
-    console.log(`[experimental][${reqId}] Checking status for session ${sessionId}, user ${userId}`);
+    log.debug(`[experimental][${reqId}] Checking status for session ${sessionId}, user ${userId}`);
 
     // Retrieve session from Redis
     const session = await getExperimentalSession(userId, sessionId);
 
     if (!session) {
-      console.warn(`[experimental][${reqId}] Session not found: ${sessionId}`);
+      log.warn(`[experimental][${reqId}] Session not found: ${sessionId}`);
       return res.status(404).json({
         status: 'error',
         message: 'Sitzung nicht gefunden oder abgelaufen',
@@ -427,7 +428,7 @@ router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, asyn
       sessionData.finalResult = session.finalResult;
     }
 
-    console.log(`[experimental][${reqId}] Session found: ${session.conversationState}`);
+    log.debug(`[experimental][${reqId}] Session found: ${session.conversationState}`);
 
     res.json({
       status: 'success',
@@ -435,7 +436,7 @@ router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, asyn
     });
 
   } catch (error) {
-    console.error(`[experimental][${reqId}] Unexpected error in status:`, error);
+    log.error(`[experimental][${reqId}] Unexpected error in status:`, error);
     res.status(500).json({
       status: 'error',
       message: 'Interner Serverfehler beim Abrufen des Sitzungsstatus',

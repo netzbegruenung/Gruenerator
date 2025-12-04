@@ -11,6 +11,9 @@
 
 const express = require('express');
 const { rateLimiter } = require('../middleware/rateLimitMiddleware');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('rateLimit');
+
 
 const router = express.Router();
 
@@ -71,7 +74,7 @@ router.get('/:resourceType', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[RateLimitAPI] Error getting status:', error);
+    log.error('[RateLimitAPI] Error getting status:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to get rate limit status'
@@ -128,7 +131,7 @@ router.post('/bulk', async (req, res) => {
 
     for (const resourceType of resourceTypes) {
       if (typeof resourceType !== 'string') {
-        console.warn(`[RateLimitAPI] Skipping invalid resource type: ${resourceType}`);
+        log.warn(`[RateLimitAPI] Skipping invalid resource type: ${resourceType}`);
         continue;
       }
 
@@ -148,7 +151,7 @@ router.post('/bulk', async (req, res) => {
       data: results
     });
   } catch (error) {
-    console.error('[RateLimitAPI] Error in bulk status:', error);
+    log.error('[RateLimitAPI] Error in bulk status:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to get bulk rate limit status'
@@ -203,7 +206,7 @@ router.post('/reset/:resourceType', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('[RateLimitAPI] Error resetting counter:', error);
+    log.error('[RateLimitAPI] Error resetting counter:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to reset counter'

@@ -7,6 +7,9 @@ const express = require('express');
 const ImageGenerationCounter = require('../utils/imageGenerationCounter');
 const redisClient = require('../utils/redisClient');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('imageGeneration');
+
 
 const router = express.Router();
 const imageCounter = new ImageGenerationCounter(redisClient);
@@ -41,7 +44,7 @@ router.get('/status', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[ImageGeneration API] Error getting status:', error);
+    log.error('[ImageGeneration API] Error getting status:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to get image generation status'
@@ -79,7 +82,7 @@ router.post('/increment', async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('[ImageGeneration API] Error incrementing counter:', error);
+    log.error('[ImageGeneration API] Error incrementing counter:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to increment counter'
@@ -109,7 +112,7 @@ router.post('/reset', async (req, res) => {
       message: success ? 'Counter reset successfully' : 'Failed to reset counter'
     });
   } catch (error) {
-    console.error('[ImageGeneration API] Error resetting counter:', error);
+    log.error('[ImageGeneration API] Error resetting counter:', error);
     return res.status(500).json({
       success: false,
       error: 'Failed to reset counter'

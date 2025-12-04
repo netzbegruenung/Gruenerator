@@ -2,6 +2,9 @@ import express from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { NextcloudShareManager } from '../../utils/nextcloudShareManager.js';
 import NextcloudApiClient from '../../services/nextcloudApiClient.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('nextcloud');
+
 
 const router = express.Router();
 
@@ -15,7 +18,7 @@ router.use(requireAuth);
 router.get('/status', async (req, res) => {
     try {
         const userId = req.user.id;
-        console.log('[NextcloudApi] Getting Nextcloud status', { userId });
+        log.debug('[NextcloudApi] Getting Nextcloud status', { userId });
         
         const shareLinks = await NextcloudShareManager.getShareLinks(userId);
         const stats = await NextcloudShareManager.getUsageStats(userId);
@@ -27,7 +30,7 @@ router.get('/status', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[NextcloudApi] Error getting Nextcloud status', { error: error.message });
+        log.error('[NextcloudApi] Error getting Nextcloud status', { error: error.message });
         res.status(500).json({
             error: 'Failed to get Nextcloud status',
             message: error.message
@@ -42,7 +45,7 @@ router.get('/status', async (req, res) => {
 router.get('/share-links', async (req, res) => {
     try {
         const userId = req.user.id;
-        console.log('[NextcloudApi] Getting share links', { userId });
+        log.debug('[NextcloudApi] Getting share links', { userId });
         
         const shareLinks = await NextcloudShareManager.getShareLinks(userId);
         
@@ -52,7 +55,7 @@ router.get('/share-links', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[NextcloudApi] Error getting share links', { error: error.message });
+        log.error('[NextcloudApi] Error getting share links', { error: error.message });
         res.status(500).json({
             error: 'Failed to get share links',
             message: error.message
@@ -69,7 +72,7 @@ router.post('/share-links', async (req, res) => {
         const userId = req.user.id;
         const { shareLink, label, baseUrl, shareToken } = req.body;
         
-        console.log('[NextcloudApi] Saving new share link', { userId, label });
+        log.debug('[NextcloudApi] Saving new share link', { userId, label });
         
         // Validate required fields
         if (!shareLink) {
@@ -106,7 +109,7 @@ router.post('/share-links', async (req, res) => {
             const client = new NextcloudApiClient(shareLink);
             connectionTest = await client.testConnection();
         } catch (error) {
-            console.warn('[NextcloudApi] Connection test failed for new share link', { 
+            log.warn('[NextcloudApi] Connection test failed for new share link', { 
                 error: error.message,
                 shareLinkId: savedLink.id 
             });
@@ -123,7 +126,7 @@ router.post('/share-links', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[NextcloudApi] Error saving share link', { error: error.message });
+        log.error('[NextcloudApi] Error saving share link', { error: error.message });
         
         if (error.message.includes('already saved')) {
             return res.status(409).json({
@@ -148,7 +151,7 @@ router.delete('/share-links/:id', async (req, res) => {
         const userId = req.user.id;
         const shareLinkId = req.params.id;
         
-        console.log('[NextcloudApi] Deleting share link', { userId, shareLinkId });
+        log.debug('[NextcloudApi] Deleting share link', { userId, shareLinkId });
         
         if (!shareLinkId) {
             return res.status(400).json({
@@ -161,7 +164,7 @@ router.delete('/share-links/:id', async (req, res) => {
         res.json(result);
         
     } catch (error) {
-        console.error('[NextcloudApi] Error deleting share link', { error: error.message });
+        log.error('[NextcloudApi] Error deleting share link', { error: error.message });
         
         if (error.message.includes('not found') || error.message.includes('no permission')) {
             return res.status(404).json({
@@ -186,7 +189,7 @@ router.post('/test-connection', async (req, res) => {
         const userId = req.user.id;
         const { shareLink } = req.body;
         
-        console.log('[NextcloudApi] Testing Nextcloud connection', { userId });
+        log.debug('[NextcloudApi] Testing Nextcloud connection', { userId });
         
         if (!shareLink) {
             return res.status(400).json({
@@ -210,7 +213,7 @@ router.post('/test-connection', async (req, res) => {
         res.json(testResult);
         
     } catch (error) {
-        console.error('[NextcloudApi] Error testing connection', { error: error.message });
+        log.error('[NextcloudApi] Error testing connection', { error: error.message });
         res.status(500).json({
             success: false,
             message: error.message
@@ -227,7 +230,7 @@ router.post('/upload', async (req, res) => {
         const userId = req.user.id;
         const { shareLinkId, content, filename } = req.body;
         
-        console.log('[NextcloudApi] Uploading file to Nextcloud', { userId, filename, shareLinkId });
+        log.debug('[NextcloudApi] Uploading file to Nextcloud', { userId, filename, shareLinkId });
         
         // Validate required fields
         if (!shareLinkId) {
@@ -264,7 +267,7 @@ router.post('/upload', async (req, res) => {
         res.json(uploadResult);
         
     } catch (error) {
-        console.error('[NextcloudApi] Error uploading file', { error: error.message });
+        log.error('[NextcloudApi] Error uploading file', { error: error.message });
         
         if (error.message.includes('not found')) {
             return res.status(404).json({
@@ -296,7 +299,7 @@ router.post('/upload-test', async (req, res) => {
         const userId = req.user.id;
         const { shareLinkId, content, filename } = req.body;
 
-        console.log('[NextcloudApi] Uploading test file to Nextcloud', { userId, filename, shareLinkId });
+        log.debug('[NextcloudApi] Uploading test file to Nextcloud', { userId, filename, shareLinkId });
 
         // Validate required fields
         if (!shareLinkId) {
@@ -337,7 +340,7 @@ router.post('/upload-test', async (req, res) => {
         res.json(uploadResult);
 
     } catch (error) {
-        console.error('[NextcloudApi] Error uploading test file', { error: error.message });
+        log.error('[NextcloudApi] Error uploading test file', { error: error.message });
 
         if (error.message.includes('not found')) {
             return res.status(404).json({
@@ -369,7 +372,7 @@ router.get('/share-links/:id/info', async (req, res) => {
         const userId = req.user.id;
         const shareLinkId = req.params.id;
         
-        console.log('[NextcloudApi] Getting share info', { userId, shareLinkId });
+        log.debug('[NextcloudApi] Getting share info', { userId, shareLinkId });
         
         if (!shareLinkId) {
             return res.status(400).json({
@@ -393,7 +396,7 @@ router.get('/share-links/:id/info', async (req, res) => {
         res.json(shareInfo);
         
     } catch (error) {
-        console.error('[NextcloudApi] Error getting share info', { error: error.message });
+        log.error('[NextcloudApi] Error getting share info', { error: error.message });
         res.status(500).json({
             error: 'Failed to get share information',
             message: error.message
@@ -411,7 +414,7 @@ router.put('/share-links/:id', async (req, res) => {
         const shareLinkId = req.params.id;
         const { label, is_active } = req.body;
         
-        console.log('[NextcloudApi] Updating share link', { userId, shareLinkId });
+        log.debug('[NextcloudApi] Updating share link', { userId, shareLinkId });
         
         if (!shareLinkId) {
             return res.status(400).json({
@@ -439,7 +442,7 @@ router.put('/share-links/:id', async (req, res) => {
         res.json(updatedLink);
         
     } catch (error) {
-        console.error('[NextcloudApi] Error updating share link', { error: error.message });
+        log.error('[NextcloudApi] Error updating share link', { error: error.message });
         
         if (error.message.includes('not found') || error.message.includes('no permission')) {
             return res.status(404).json({
@@ -462,7 +465,7 @@ router.put('/share-links/:id', async (req, res) => {
 router.get('/debug/database-state', async (req, res) => {
     try {
         const userId = req.user.id;
-        console.log('[NextcloudApi] Debug: Checking database state', { userId });
+        log.debug('[NextcloudApi] Debug: Checking database state', { userId });
         
         const dbState = await NextcloudShareManager.checkDatabaseState(userId);
         
@@ -473,7 +476,7 @@ router.get('/debug/database-state', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('[NextcloudApi] Error checking database state', { error: error.message });
+        log.error('[NextcloudApi] Error checking database state', { error: error.message });
         res.status(500).json({
             error: 'Failed to check database state',
             message: error.message

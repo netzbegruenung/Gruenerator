@@ -2,6 +2,9 @@ import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { urlCrawlerService } from '../../services/urlCrawlerService.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('userTemplates');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const postgres = getPostgresInstance();
@@ -10,7 +13,7 @@ const router = express.Router();
 
 // Add debugging middleware to all user templates routes
 router.use((req, res, next) => {
-  console.log(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
+  log.debug(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -113,16 +116,16 @@ async function processCanvaUrl(url, enhancedMetadata = false) {
         dimensions = extractedData.dimensions || null;
         categories = extractedData.categories || [];
         
-        console.log('[processCanvaUrl] Enhanced metadata extracted:', {
+        log.debug('[processCanvaUrl] Enhanced metadata extracted:', {
           hasPreviewImage: !!previewImage,
           hasDimensions: !!dimensions,
           categoriesCount: categories.length
         });
       }
       
-      console.log('[processCanvaUrl] Successfully extracted data from Canva page:', { title, enhancedMetadata });
+      log.debug('[processCanvaUrl] Successfully extracted data from Canva page:', { title, enhancedMetadata });
     } catch (error) {
-      console.warn('[processCanvaUrl] Could not extract data from HTML, using fallback:', error.message);
+      log.warn('[processCanvaUrl] Could not extract data from HTML, using fallback:', error.message);
       title = `Canva Design ${validation.designId}`;
     }
     
@@ -153,7 +156,7 @@ async function processCanvaUrl(url, enhancedMetadata = false) {
       templateData
     };
   } catch (error) {
-    console.error('[processCanvaUrl] Error processing Canva URL:', error);
+    log.error('[processCanvaUrl] Error processing Canva URL:', error);
     return {
       success: false,
       error: 'Fehler beim Verarbeiten der Canva URL: ' + error.message
@@ -203,7 +206,7 @@ router.get('/user-templates', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Templates /user-templates GET] Error:', error);
+    log.error('[User Templates /user-templates GET] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Laden der Vorlagen.'
@@ -268,16 +271,16 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
         
         // Success! Break out of the loop
         error = null;
-        console.log(`[User Templates] Successfully created template with status: ${statusValue}`);
+        log.debug(`[User Templates] Successfully created template with status: ${statusValue}`);
         break;
         
       } catch (insertError) {
         error = insertError;
-        console.log(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
+        log.debug(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
         
         // If this is a status constraint error, try next status value
         if (insertError.message.includes('valid_template_status') || insertError.message.includes('status')) {
-          console.log(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
+          log.debug(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
           continue;
         }
         // For other errors, throw immediately
@@ -286,7 +289,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
     }
     
     if (error) {
-      console.error('[User Templates /user-templates POST] All status values failed:', error);
+      log.error('[User Templates /user-templates POST] All status values failed:', error);
       throw new Error('Template konnte nicht erstellt werden. Datenbankkonflikt bei Status-Feld.');
     }
     
@@ -317,7 +320,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Templates /user-templates POST] Error:', error);
+    log.error('[User Templates /user-templates POST] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Erstellen der Vorlage.'
@@ -424,7 +427,7 @@ router.put('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Templates /user-templates PUT] Error:', error);
+    log.error('[User Templates /user-templates PUT] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren der Vorlage.'
@@ -458,7 +461,7 @@ router.delete('/user-templates/:id', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Templates /user-templates DELETE] Error:', error);
+    log.error('[User Templates /user-templates DELETE] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Löschen der Vorlage.'
@@ -480,7 +483,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       });
     }
     
-    console.log('[User Templates /user-templates/from-url POST] Processing URL with enhanced metadata:', enhancedMetadata);
+    log.debug('[User Templates /user-templates/from-url POST] Processing URL with enhanced metadata:', enhancedMetadata);
     
     // Process the Canva URL with optional enhanced metadata
     const processResult = await processCanvaUrl(url.trim(), enhancedMetadata);
@@ -552,16 +555,16 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
         
         // Success! Break out of the loop
         error = null;
-        console.log(`[User Templates] Successfully created template with status: ${statusValue}`);
+        log.debug(`[User Templates] Successfully created template with status: ${statusValue}`);
         break;
         
       } catch (insertError) {
         error = insertError;
-        console.log(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
+        log.debug(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
         
         // If this is a status constraint error, try next status value
         if (insertError.message.includes('valid_template_status') || insertError.message.includes('status')) {
-          console.log(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
+          log.debug(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
           continue;
         }
         // For other errors, throw immediately
@@ -570,7 +573,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
     }
     
     if (error) {
-      console.error('[User Templates /user-templates/from-url POST] All status values failed:', error);
+      log.error('[User Templates /user-templates/from-url POST] All status values failed:', error);
       throw new Error('Template konnte nicht erstellt werden. Datenbankkonflikt bei Status-Feld.');
     }
     
@@ -601,7 +604,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
     });
     
   } catch (error) {
-    console.error('[User Templates /user-templates/from-url POST] Error:', error);
+    log.error('[User Templates /user-templates/from-url POST] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Hinzufügen der Canva Vorlage.'
@@ -665,7 +668,7 @@ router.post('/user-templates/:id/metadata', ensureAuthenticated, async (req, res
     });
     
   } catch (error) {
-    console.error('[User Templates /user-templates/:id/metadata POST] Error:', error);
+    log.error('[User Templates /user-templates/:id/metadata POST] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren der Vorlagen-Metadaten.'
@@ -694,7 +697,7 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[User Templates /user-templates/bulk DELETE] Bulk delete request for ${ids.length} templates from user ${userId}`);
+    log.debug(`[User Templates /user-templates/bulk DELETE] Bulk delete request for ${ids.length} templates from user ${userId}`);
 
     // First, verify all templates belong to the user
     const verifyTemplates = await postgres.query(
@@ -727,7 +730,7 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
     const deletedIds = deletedData ? deletedData.map(template => template.id) : [];
     const failedIds = ids.filter(id => !deletedIds.includes(id));
 
-    console.log(`[User Templates /user-templates/bulk DELETE] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+    log.debug(`[User Templates /user-templates/bulk DELETE] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
 
     res.json({
       success: true,
@@ -739,7 +742,7 @@ router.delete('/user-templates/bulk', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[User Templates /user-templates/bulk DELETE] Error:', error);
+    log.error('[User Templates /user-templates/bulk DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to perform bulk delete of templates'
@@ -794,7 +797,7 @@ router.get('/examples', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Templates /examples GET] Error:', error);
+    log.error('[User Templates /examples GET] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Laden der Beispiele.'
@@ -830,7 +833,7 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
         vectorResults = search.results;
       }
     } catch (vecErr) {
-      console.warn('[User Templates /examples/similar POST] Vector examples search failed, falling back:', vecErr?.message);
+      log.warn('[User Templates /examples/similar POST] Vector examples search failed, falling back:', vecErr?.message);
     }
 
     if (!vectorResults || vectorResults.length === 0) {
@@ -904,7 +907,7 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Templates /examples/similar POST] Error:', error);
+    log.error('[User Templates /examples/similar POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler bei der Ähnlichkeitssuche.'

@@ -1,5 +1,8 @@
 import express from 'express';
 import { urlCrawlerService } from '../services/urlCrawlerService.js';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('crawlUrl');
+
 
 const router = express.Router();
 
@@ -22,19 +25,19 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log(`[crawl-url] User ${userId} requesting crawl for: ${url} (privacy: ${usePrivacyMode})`);
+    log.debug(`[crawl-url] User ${userId} requesting crawl for: ${url} (privacy: ${usePrivacyMode})`);
 
     // Validate URL using the service
     const validation = await urlCrawlerService.validateUrl(url);
     if (!validation.isValid) {
-      console.log(`[crawl-url] URL validation failed: ${validation.error}`);
+      log.debug(`[crawl-url] URL validation failed: ${validation.error}`);
       return res.status(400).json({
         success: false,
         error: validation.error
       });
     }
 
-    console.log(`[crawl-url] URL validation passed, starting crawl...`);
+    log.debug(`[crawl-url] URL validation passed, starting crawl...`);
 
     // Crawl URL with enhanced metadata for better context
     const crawlOptions = {
@@ -45,14 +48,14 @@ router.post('/', async (req, res) => {
     const result = await urlCrawlerService.crawlUrl(url, crawlOptions);
     
     if (!result.success) {
-      console.log(`[crawl-url] Crawling failed: ${result.error}`);
+      log.debug(`[crawl-url] Crawling failed: ${result.error}`);
       return res.status(400).json({
         success: false,
         error: result.error
       });
     }
 
-    console.log(`[crawl-url] Crawl successful, ${result.data.wordCount} words extracted from ${result.data.title}`);
+    log.debug(`[crawl-url] Crawl successful, ${result.data.wordCount} words extracted from ${result.data.title}`);
 
     // Format as attachment-like object compatible with existing attachment system
     const crawledAttachment = {
@@ -79,7 +82,7 @@ router.post('/', async (req, res) => {
       }
     };
 
-    console.log(`[crawl-url] Successfully crawled ${url}: ${result.data.wordCount} words, ${Date.now() - startTime}ms`);
+    log.debug(`[crawl-url] Successfully crawled ${url}: ${result.data.wordCount} words, ${Date.now() - startTime}ms`);
 
     res.json({
       success: true,
@@ -88,7 +91,7 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    console.error(`[crawl-url] Error processing request (${processingTime}ms):`, error);
+    log.error(`[crawl-url] Error processing request (${processingTime}ms):`, error);
     
     // Map common errors to user-friendly messages
     let userError = 'Failed to process URL';

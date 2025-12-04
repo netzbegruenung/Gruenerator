@@ -5,6 +5,9 @@
  */
 
 const express = require('express');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('unifiedSearch');
+
 const router = express.Router();
 
 /**
@@ -49,7 +52,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log(`[UnifiedSearch] Normal search: "${query}" (userId: ${userId}, summary: ${includeSummary})`);
+    log.debug(`[UnifiedSearch] Normal search: "${query}" (userId: ${userId}, summary: ${includeSummary})`);
 
     // Dynamic import of the LangGraph search function
     const { runWebSearch } = await import('../../agents/langgraph/webSearchGraph.mjs');
@@ -75,7 +78,7 @@ router.post('/', async (req, res) => {
     });
 
     if (searchResults.status !== 'success') {
-      console.error(`[UnifiedSearch] Search failed: ${searchResults.error}`);
+      log.error(`[UnifiedSearch] Search failed: ${searchResults.error}`);
       return res.status(500).json({
         status: 'error',
         message: 'Websuche fehlgeschlagen',
@@ -84,7 +87,7 @@ router.post('/', async (req, res) => {
     }
 
     const processingTime = Date.now() - startTime;
-    console.log(`[UnifiedSearch] Normal search completed: ${searchResults.results?.length || 0} results, ${processingTime}ms`);
+    log.debug(`[UnifiedSearch] Normal search completed: ${searchResults.results?.length || 0} results, ${processingTime}ms`);
 
     // Prepare response
     const response = {
@@ -121,7 +124,7 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    console.error(`[UnifiedSearch] Normal search error (${processingTime}ms):`, error);
+    log.error(`[UnifiedSearch] Normal search error (${processingTime}ms):`, error);
 
     // Map common errors to user-friendly messages
     let userError = 'Websuche fehlgeschlagen';
@@ -165,7 +168,7 @@ router.post('/deep-research', async (req, res) => {
     }
 
     const userId = req.user?.sub || req.user?.id || 'anonymous';
-    console.log(`[UnifiedSearch] Deep research: "${query}" (userId: ${userId})`);
+    log.debug(`[UnifiedSearch] Deep research: "${query}" (userId: ${userId})`);
 
     // Dynamic import of the LangGraph search function
     const { runWebSearch } = await import('../../agents/langgraph/webSearchGraph.mjs');
@@ -191,7 +194,7 @@ router.post('/deep-research', async (req, res) => {
     });
 
     if (searchResults.status !== 'success') {
-      console.error(`[UnifiedSearch] Deep research failed: ${searchResults.error}`);
+      log.error(`[UnifiedSearch] Deep research failed: ${searchResults.error}`);
       return res.status(500).json({
         status: 'error',
         message: 'Fehler bei der Deep Research',
@@ -203,7 +206,7 @@ router.post('/deep-research', async (req, res) => {
     performanceMetrics.endTime = Date.now();
     performanceMetrics.totalDuration = performanceMetrics.endTime - performanceMetrics.startTime;
 
-    console.log(`[UnifiedSearch] Deep research completed: ${performanceMetrics.totalDuration}ms`);
+    log.debug(`[UnifiedSearch] Deep research completed: ${performanceMetrics.totalDuration}ms`);
 
     // Prepare response matching the expected format from deepResearchController
     const response = {
@@ -238,7 +241,7 @@ router.post('/deep-research', async (req, res) => {
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
-    console.error(`[UnifiedSearch] Deep research error (${processingTime}ms):`, error);
+    log.error(`[UnifiedSearch] Deep research error (${processingTime}ms):`, error);
 
     res.status(500).json({
       status: 'error',
@@ -269,7 +272,7 @@ router.post('/analyze', async (req, res) => {
       });
     }
 
-    console.log(`[UnifiedSearch] Analysis request: ${contents.length} items`);
+    log.debug(`[UnifiedSearch] Analysis request: ${contents.length} items`);
 
     // Use AI worker to analyze the content
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -359,7 +362,7 @@ Format deiner Antwort:
     });
 
   } catch (error) {
-    console.error('[UnifiedSearch] Analysis error:', error);
+    log.error('[UnifiedSearch] Analysis error:', error);
     res.status(500).json({
       status: 'error',
       error: 'Fehler bei der Analyse der Suchergebnisse',
@@ -386,7 +389,7 @@ router.get('/status', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[UnifiedSearch] Status check failed:', error);
+    log.error('[UnifiedSearch] Status check failed:', error);
 
     res.status(503).json({
       success: false,
@@ -424,7 +427,7 @@ router.post('/clear-cache', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('[UnifiedSearch] Cache clear failed:', error);
+    log.error('[UnifiedSearch] Cache clear failed:', error);
 
     res.status(500).json({
       success: false,

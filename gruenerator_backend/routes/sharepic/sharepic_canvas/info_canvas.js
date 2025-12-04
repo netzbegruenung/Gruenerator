@@ -7,6 +7,9 @@ const path = require('path');
 const { COLORS } = require('./config');
 const { isValidHexColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('info_canvas');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -110,7 +113,7 @@ async function createInfoImage(processedText, validatedParams) {
       const arrowImage = await loadImage(ARROW_PATH);
       ctx.drawImage(arrowImage, arrowX, arrowY, arrowSize, arrowSize);
     } catch (error) {
-      console.warn('Could not load arrow icon:', error.message);
+      log.warn('Could not load arrow icon:', error.message);
     }
 
     // Body text starts after the arrow
@@ -169,7 +172,7 @@ async function createInfoImage(processedText, validatedParams) {
 
     return canvas.toBuffer('image/png');
   } catch (error) {
-    console.error('Error in createInfoImage:', error);
+    log.error('Error in createInfoImage:', error);
     throw error;
   }
 }
@@ -278,7 +281,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     res.json({ image: base64Image });
 
   } catch (err) {
-    console.error('Error in info_canvas request:', err);
+    log.error('Error in info_canvas request:', err);
     res.status(500).json({ 
       error: 'Fehler beim Erstellen des Info-Bildes: ' + err.message 
     });

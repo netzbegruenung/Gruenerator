@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('databaseTest');
+
 
 /**
  * Database Test Route
@@ -9,7 +12,7 @@ const path = require('path');
  */
 router.get('/test', async (req, res) => {
   try {
-    console.log('[DatabaseTest] Starting database schema test');
+    log.debug('[DatabaseTest] Starting database schema test');
 
     // Get create parameter - allows creating missing tables
     const createMissing = req.query.create === 'true';
@@ -29,7 +32,7 @@ router.get('/test', async (req, res) => {
       });
     }
 
-    console.log('[DatabaseTest] Database connection is healthy');
+    log.debug('[DatabaseTest] Database connection is healthy');
 
     // Read schema.sql file
     const schemaPath = path.join(__dirname, '../database/postgres/schema.sql');
@@ -42,11 +45,11 @@ router.get('/test', async (req, res) => {
     }
 
     const schemaContent = fs.readFileSync(schemaPath, 'utf8');
-    console.log('[DatabaseTest] Schema file loaded successfully');
+    log.debug('[DatabaseTest] Schema file loaded successfully');
 
     // Parse expected tables from schema.sql
     const expectedTables = extractTablesFromSchema(schemaContent);
-    console.log('[DatabaseTest] Expected tables:', expectedTables);
+    log.debug('[DatabaseTest] Expected tables:', expectedTables);
 
     // Get existing tables from database
     const existingTablesQuery = `
@@ -58,26 +61,26 @@ router.get('/test', async (req, res) => {
 
     const existingTablesResult = await postgresService.query(existingTablesQuery);
     const existingTables = existingTablesResult.map(row => row.table_name);
-    console.log('[DatabaseTest] Existing tables:', existingTables);
+    log.debug('[DatabaseTest] Existing tables:', existingTables);
 
     // Find missing tables
     const missingTables = expectedTables.filter(table => !existingTables.includes(table));
-    console.log('[DatabaseTest] Missing tables:', missingTables);
+    log.debug('[DatabaseTest] Missing tables:', missingTables);
 
     let createdTables = [];
     let creationErrors = [];
 
     // Create missing tables if requested
     if (createMissing && missingTables.length > 0) {
-      console.log(`[DatabaseTest] Creating ${missingTables.length} missing tables`);
+      log.debug(`[DatabaseTest] Creating ${missingTables.length} missing tables`);
 
       try {
         // Execute full schema to create missing tables
         await postgresService.query(schemaContent);
         createdTables = [...missingTables]; // Assume all were created successfully
-        console.log('[DatabaseTest] Schema execution completed');
+        log.debug('[DatabaseTest] Schema execution completed');
       } catch (error) {
-        console.error('[DatabaseTest] Error creating tables:', error.message);
+        log.error('[DatabaseTest] Error creating tables:', error.message);
         creationErrors.push({
           error: error.message,
           tables: missingTables
@@ -116,11 +119,11 @@ router.get('/test', async (req, res) => {
       }
     };
 
-    console.log('[DatabaseTest] Test completed successfully');
+    log.debug('[DatabaseTest] Test completed successfully');
     res.json(response);
 
   } catch (error) {
-    console.error('[DatabaseTest] Error during database test:', error);
+    log.error('[DatabaseTest] Error during database test:', error);
     res.status(500).json({
       success: false,
       error: error.message,

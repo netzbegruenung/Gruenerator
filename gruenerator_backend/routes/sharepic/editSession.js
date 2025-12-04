@@ -1,5 +1,8 @@
 const express = require('express');
 const redisClient = require('../../utils/redisClient');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('editSession');
+
 const router = express.Router();
 
 /**
@@ -30,7 +33,7 @@ router.post('/', async (req, res) => {
     // Set TTL to 1 hour (3600 seconds)
     await redisClient.setEx(sessionId, 3600, JSON.stringify(sessionData));
 
-    console.log(`[EditSession] Stored image data for session: ${sessionId}, hasOriginal: ${!!originalImageData}`);
+    log.debug(`[EditSession] Stored image data for session: ${sessionId}, hasOriginal: ${!!originalImageData}`);
 
     res.json({
       sessionId,
@@ -38,7 +41,7 @@ router.post('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[EditSession] Error storing session data:', error);
+    log.error('[EditSession] Error storing session data:', error);
     res.status(500).json({
       error: 'Failed to store edit session data'
     });
@@ -70,7 +73,7 @@ router.get('/:sessionId', async (req, res) => {
     
     const sessionData = JSON.parse(sessionDataString);
     
-    console.log(`[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`);
+    log.debug(`[EditSession] Retrieved image data for session: ${sessionId}, hasOriginal: ${!!sessionData.originalImageData}`);
 
     res.json({
       imageData: sessionData.imageData,
@@ -80,7 +83,7 @@ router.get('/:sessionId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[EditSession] Error retrieving session data:', error);
+    log.error('[EditSession] Error retrieving session data:', error);
     res.status(500).json({ 
       error: 'Failed to retrieve edit session data' 
     });
@@ -103,7 +106,7 @@ router.delete('/:sessionId', async (req, res) => {
 
     const deleted = await redisClient.del(sessionId);
     
-    console.log(`[EditSession] Deleted session: ${sessionId}, success: ${deleted > 0}`);
+    log.debug(`[EditSession] Deleted session: ${sessionId}, success: ${deleted > 0}`);
     
     res.json({ 
       deleted: deleted > 0,
@@ -111,7 +114,7 @@ router.delete('/:sessionId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[EditSession] Error deleting session data:', error);
+    log.error('[EditSession] Error deleting session data:', error);
     res.status(500).json({ 
       error: 'Failed to delete edit session data' 
     });

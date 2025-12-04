@@ -1,4 +1,7 @@
 const express = require('express');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('markdown');
+
 const router = express.Router();
 const { 
   markdownToHtml, 
@@ -31,7 +34,7 @@ router.post('/to-html', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[markdown] to-html error:', error);
+    log.error('[markdown] to-html error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to convert markdown to HTML',
@@ -64,7 +67,7 @@ router.post('/to-plain-text', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[markdown] to-plain-text error:', error);
+    log.error('[markdown] to-plain-text error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to convert markdown to plain text',
@@ -97,7 +100,7 @@ router.post('/for-export', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[markdown] for-export error:', error);
+    log.error('[markdown] for-export error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to format markdown for export',
@@ -129,7 +132,7 @@ router.post('/check', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[markdown] check error:', error);
+    log.error('[markdown] check error:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to check markdown content',

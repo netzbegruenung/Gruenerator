@@ -2,6 +2,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const redisClient = require('../../../utils/redisClient');
 const { sanitizeFilename } = require('../../../utils/securityUtils');
+const { createLogger } = require('../../../utils/logger.js');
+
+const log = createLogger('assSubtitle');
 
 class AssSubtitleService {
   constructor() {
@@ -41,7 +44,7 @@ class AssSubtitleService {
   mapStyleForLocale(stylePreference, locale) {
     if (locale === 'de-AT' && this.localeStyleMapping['de-AT'][stylePreference]) {
       const mappedStyle = this.localeStyleMapping['de-AT'][stylePreference];
-      console.log(`[ASS] Locale mapping: ${stylePreference} → ${mappedStyle} for locale ${locale}`);
+      log.debug(`Locale mapping: ${stylePreference} → ${mappedStyle} for locale ${locale}`);
       return mappedStyle;
     }
     return stylePreference;
@@ -50,7 +53,7 @@ class AssSubtitleService {
   // Default style configuration
   get defaultStyle() {
     return {
-      fontName: 'GrueneTypeNeue-Regular', // Full font name from TTF file
+      fontName: 'GrueneType Neue', // Must match TTF font family name exactly
       fontSize: 20,
       primaryColor: '&Hffffff', // White text
       secondaryColor: '&Hffffff', // White secondary
@@ -139,7 +142,6 @@ class AssSubtitleService {
         // Grüner Stil - Markenfarbe für besondere Betonung
         const tanneColor = this.convertRgbToAssBgr('#005538', 0x00); // Fully opaque tanne
         const tanneOutline = this.convertRgbToAssBgr('#003825', 0x00); // Darker tanne for outline
-        console.log(`[ASS] Tanne color conversion: #005538 → ${tanneColor}`);
         return {
           ...baseStyle,
           backColor: tanneColor, // Converted tanne color
@@ -157,7 +159,7 @@ class AssSubtitleService {
         // GJ Minimalistisch - transparent style with GJ font
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline for minimalistic style
@@ -171,7 +173,7 @@ class AssSubtitleService {
         // GJ Schatten - shadow effect with GJ font
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline - shadow provides contrast
@@ -185,10 +187,9 @@ class AssSubtitleService {
         // GJ Lavendel - Grüne Jugend lavendel color (#9f88ff)
         const lavendelColor = this.convertRgbToAssBgr('#9f88ff', 0x00); // Lavendel color
         const lavendelOutline = this.convertRgbToAssBgr('#7d66cc', 0x00); // Darker lavendel for outline
-        console.log(`[ASS] Lavendel color conversion: #9f88ff → ${lavendelColor}`);
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: lavendelColor, // Lavendel background
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -203,10 +204,9 @@ class AssSubtitleService {
         // GJ Hellgrün - Grüne Jugend light green color (#c7ff7a)
         const hellgruenColor = this.convertRgbToAssBgr('#c7ff7a', 0x00); // Light green color
         const hellgruenOutline = this.convertRgbToAssBgr('#9fcc5f', 0x00); // Darker green for outline
-        console.log(`[ASS] Hellgrün color conversion: #c7ff7a → ${hellgruenColor}`);
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: hellgruenColor, // Light green background
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -222,7 +222,7 @@ class AssSubtitleService {
         // AT Klassisch - schwarzer Hintergrund mit Montserrat Bold
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: '&HCC000000', // rgba(0, 0, 0, 0.8) - Semi-transparent black
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -237,7 +237,7 @@ class AssSubtitleService {
         // AT Minimalistisch - transparent style with Montserrat Bold
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline for minimalistic style
@@ -251,7 +251,7 @@ class AssSubtitleService {
         // AT Schatten - shadow effect with Montserrat Bold
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline - shadow provides contrast
@@ -265,10 +265,9 @@ class AssSubtitleService {
         // AT Grün - Grüne Österreich brand green (#6baa25)
         const atGruenColor = this.convertRgbToAssBgr('#6baa25', 0x00); // Austrian Green
         const atGruenOutline = this.convertRgbToAssBgr('#4d7f1b', 0x00); // Darker green for outline
-        console.log(`[ASS] Austria Grün color conversion: #6baa25 → ${atGruenColor}`);
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: atGruenColor, // Austrian Green background
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -292,8 +291,9 @@ class AssSubtitleService {
    * @param {string} subtitlePreference - Subtitle mode (manual, word, etc.)
    * @param {string} stylePreference - Style preset name
    * @param {string} locale - User locale (de-DE, de-AT) for automatic style mapping
+   * @param {string} heightPreference - Vertical position ('standard' or 'tief')
    */
-  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE') {
+  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE', heightPreference = 'standard') {
     // Map style to locale-specific variant if needed (e.g., Austrian users get Austria styles)
     const effectiveStyle = this.mapStyleForLocale(stylePreference, locale);
 
@@ -305,17 +305,12 @@ class AssSubtitleService {
     const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference, effectiveStyle);
     style.fontSize = fontSize;
 
-    console.log(`[AssSubtitleService] Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`, {
-      backColor: style.backColor,
-      borderStyle: style.borderStyle,
-      outline: style.outline,
-      shadow: style.shadow,
-      fontName: style.fontName
-    });
+    log.debug(`Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`);
+
 
     const header = this.generateAssHeader(videoMetadata);
     const stylesSection = this.generateStylesSection(style);
-    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle);
+    const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle, videoMetadata, heightPreference);
 
     return {
       content: `${header}\n${stylesSection}\n${eventsSection}`,
@@ -332,35 +327,32 @@ class AssSubtitleService {
     
     let fontSize;
     if (referenceDimension >= 2160) {
-      fontSize = Math.floor(baseFontSize * 5.0); // 4K - Erhöht für bessere Sichtbarkeit
+      fontSize = Math.floor(baseFontSize * 3.6); // 4K (reduced 10%)
     } else if (referenceDimension >= 1440) {
-      fontSize = Math.floor(baseFontSize * 4.0); // 2K
+      fontSize = Math.floor(baseFontSize * 2.9); // 2K (reduced 10%)
     } else if (referenceDimension >= 1080) {
-      fontSize = Math.floor(baseFontSize * 3.5); // FullHD
+      fontSize = Math.floor(baseFontSize * 2.5); // FullHD (reduced 10%)
     } else if (referenceDimension >= 720) {
-      fontSize = Math.floor(baseFontSize * 2.5); // HD
+      fontSize = Math.floor(baseFontSize * 1.8); // HD (reduced 10%)
     } else {
-      fontSize = Math.floor(baseFontSize * 2.0); // SD
+      fontSize = Math.floor(baseFontSize * 2.0); // SD (unchanged)
     }
 
     // For manual mode, increase font size by 20% since lines are shorter (fewer words per segment)
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2);
-      console.log(`[ASS] Manual mode: increased font size by 20% to ${fontSize}px for shorter segments`);
     }
 
     // For GJ styles, reduce font size by 30% since GJFontRegular appears much larger than GrueneType
     const isGjStyle = stylePreference?.startsWith('gj_');
     if (isGjStyle) {
       fontSize = Math.floor(fontSize * 0.70);
-      console.log(`[ASS] GJ style detected: reduced font size by 30% to ${fontSize}px for GJFontRegular`);
     }
 
     // For AT (Austria) styles, adjust font size since Montserrat Bold has different metrics
     const isAtStyle = stylePreference?.startsWith('at_');
     if (isAtStyle) {
       fontSize = Math.floor(fontSize * 0.85);
-      console.log(`[ASS] AT style detected: adjusted font size by 15% to ${fontSize}px for Montserrat Bold`);
     }
     
     // COMMENTED OUT - Word mode functionality (TikTok style):
@@ -427,16 +419,6 @@ Video Position: 0`;
     // Use the style preset exactly as provided - no overrides
     const finalStyle = { ...style };
 
-    console.log(`[ASS] Applied style configuration:`, {
-      stylePreset: 'user-selected',
-      backColor: finalStyle.backColor,
-      borderStyle: finalStyle.borderStyle,
-      outline: finalStyle.outline,
-      shadow: finalStyle.shadow,
-      outlineColor: finalStyle.outlineColor,
-      primaryColor: finalStyle.primaryColor
-    });
-
     const styleLine = [
       'Default', finalStyle.fontName, finalStyle.fontSize, finalStyle.primaryColor,
       finalStyle.secondaryColor, finalStyle.outlineColor, finalStyle.backColor, finalStyle.bold,
@@ -493,7 +475,16 @@ Style: ${styleLine}`;
   /**
    * Generate events section with dialogue lines
    */
-  generateEventsSection(segments, subtitlePreference = 'manual', stylePreference = 'standard') {
+  generateEventsSection(segments, subtitlePreference = 'manual', stylePreference = 'standard', videoMetadata = {}, heightPreference = 'standard') {
+    const { width: videoWidth = 1920, height: videoHeight = 1080 } = videoMetadata;
+
+    // Calculate fixed position for subtitle center point based on heightPreference
+    // standard = 33% from bottom = 67% down the screen
+    // tief = 20% from bottom = 80% down the screen
+    const centerX = Math.round(videoWidth / 2);
+    const subtitleY = heightPreference === 'tief'
+      ? Math.round(videoHeight * 0.80)
+      : Math.round(videoHeight * 0.67);
     const formatLine = 'Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text';
     
     const dialogueLines = segments.map((segment, index) => {
@@ -524,22 +515,16 @@ Style: ${styleLine}`;
       
       // Add horizontal padding for background box styles
       text = this.addHorizontalPadding(text, stylePreference);
-      
-      const escapedText = this.escapeAssText(text);
-      
-      // DEBUG: Log ASS time formatting for last segments
-      const isLastSegments = index >= segments.length - 5;
-      if (isLastSegments) {
-        console.log(`[DEBUG ASS] Segment ${index}: ${segment.startTime}s → ${startTime}, ${segment.endTime}s → ${endTime}, text="${escapedText.substring(0, 30)}..."`);
-      }
-      
-      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${escapedText}`;
-    }).join('\n');
 
-    // DEBUG: Log the actual last dialogue lines that will be in the ASS file
-    const lastDialogues = dialogueLines.split('\n').slice(-3);
-    console.log('[DEBUG ASS] Last 3 dialogue lines in ASS file:');
-    lastDialogues.forEach((line, i) => console.log(`  ${i}: ${line}`));
+      const escapedText = this.escapeAssText(text);
+
+      // Use \an5 (center anchor) + \pos for precise positioning
+      // \an5 anchors at visual center of text block - works for any line count
+      // \pos places that center at fixed screen position (bottom 12%)
+      const positionedText = `{\\an5\\pos(${centerX},${subtitleY})}${escapedText}`;
+
+      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${positionedText}`;
+    }).join('\n');
 
     return `[Events]
 Format: ${formatLine}
@@ -562,8 +547,8 @@ ${dialogueLines}`;
    * Add intelligent line breaks for manual mode subtitles using adaptive linguistic breaking
    */
   addLineBreaksForManualMode(text) {
-    // Trigger: Only break if text is long enough to warrant it
-    const shouldBreak = text.length > 35 || text.split(' ').length > 4;
+    // Trigger: Break into 2 lines for 4+ words or long text to fit screen
+    const shouldBreak = text.length > 30 || text.split(' ').length >= 4;
     
     if (!shouldBreak) {
       return text; // Keep as single line for short segments
@@ -580,8 +565,6 @@ ${dialogueLines}`;
     if (breakResult.shouldBreak) {
       const firstLine = words.slice(0, breakResult.breakIndex).join(' ');
       const secondLine = words.slice(breakResult.breakIndex).join(' ');
-      
-      console.log(`[ASS] Adaptive line break: "${firstLine}" | "${secondLine}" (${breakResult.reason})`);
       return `${firstLine}\n${secondLine}`;
     }
     
@@ -589,81 +572,61 @@ ${dialogueLines}`;
   }
 
   /**
-   * Finds optimal line break point ensuring second line is longer
-   * Uses German linguistic patterns for natural breaks
+   * Finds optimal line break point aiming for balanced 50/50 split
+   * Only adjusts for punctuation (commas, semicolons) - not for articles/prepositions
    */
   findOptimalLineBreak(words, text) {
-    // German function words that make good break points
-    const functionWords = [
-      'der', 'die', 'das', 'den', 'dem', 'des',
-      'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
-      'von', 'zu', 'mit', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'für', 'ohne', 'gegen',
-      'und', 'oder', 'aber', 'doch', 'jedoch', 'sowie'
-    ];
-    
-    // Strategy 1: Find last function word in first 40% of text
-    const targetPosition = Math.floor(words.length * 0.4); // First 40% for short first line
+    // Target: 50/50 split for balanced readability
+    const totalLength = text.length;
+    const targetSplitPoint = totalLength / 2;
+
+    // Find the word boundary closest to the 50% character position
     let bestBreakIndex = -1;
-    
-    // Look for function words in first 40% of words, working backwards
-    for (let i = Math.min(targetPosition, words.length - 2); i >= 1; i--) {
-      const word = words[i].toLowerCase().replace(/[.,!?]$/, '');
-      if (functionWords.includes(word)) {
-        bestBreakIndex = i + 1; // Break after the function word
-        break;
+    let bestDistance = Infinity;
+
+    let charCount = 0;
+    for (let i = 0; i < words.length - 1; i++) {
+      charCount += words[i].length + 1; // +1 for space
+      const distance = Math.abs(charCount - targetSplitPoint);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestBreakIndex = i + 1;
       }
     }
-    
-    // Strategy 2: If no function word found, look for punctuation breaks
-    if (bestBreakIndex === -1) {
-      for (let i = 1; i <= Math.min(targetPosition + 1, words.length - 2); i++) {
-        if (words[i].match(/[,;:]$/)) {
-          bestBreakIndex = i + 1; // Break after punctuation
-          break;
+
+    // Only adjust for punctuation - break after commas/semicolons if nearby
+    const searchRadius = 1;
+    for (let offset = 0; offset <= searchRadius; offset++) {
+      for (const delta of [0, -offset, offset]) {
+        const checkIndex = bestBreakIndex + delta;
+        if (checkIndex > 0 && checkIndex < words.length) {
+          const prevWord = words[checkIndex - 1];
+          if (prevWord && prevWord.match(/[,;:]$/)) {
+            bestBreakIndex = checkIndex;
+            break;
+          }
         }
       }
     }
-    
-    // Strategy 3: Fallback to position closest to 40/60 split
-    if (bestBreakIndex === -1) {
-      bestBreakIndex = Math.max(1, Math.min(targetPosition, words.length - 1));
-    }
-    
-    // Ensure second line is longer - adjust if needed
-    const firstLineLength = words.slice(0, bestBreakIndex).join(' ').length;
-    const secondLineLength = words.slice(bestBreakIndex).join(' ').length;
-    
-    // If first line is longer or equal, try to move one word to first line
-    if (firstLineLength >= secondLineLength && bestBreakIndex > 1) {
-      bestBreakIndex = Math.max(1, bestBreakIndex - 1);
-    }
-    
+
     // Final validation: both lines must have content
     if (bestBreakIndex <= 0 || bestBreakIndex >= words.length) {
       return { shouldBreak: false, reason: 'invalid break index' };
     }
-    
+
     const finalFirstLine = words.slice(0, bestBreakIndex).join(' ');
     const finalSecondLine = words.slice(bestBreakIndex).join(' ');
-    
+
     // Ensure both lines have reasonable content
     if (finalFirstLine.length < 3 || finalSecondLine.length < 3) {
       return { shouldBreak: false, reason: 'lines too short' };
     }
-    
-    // Determine break reason for logging
-    let reason = 'fallback position';
-    const breakWord = words[bestBreakIndex - 1]?.toLowerCase().replace(/[.,!?]$/, '');
-    if (functionWords.includes(breakWord)) {
-      reason = `after function word "${breakWord}"`;
-    } else if (words[bestBreakIndex - 1]?.match(/[,;:]$/)) {
-      reason = 'after punctuation';
-    }
-    
+
     return {
       shouldBreak: true,
       breakIndex: bestBreakIndex,
-      reason: reason,
+      reason: 'balanced split',
       ratio: `${finalFirstLine.length}:${finalSecondLine.length} chars`
     };
   }
@@ -706,13 +669,9 @@ ${dialogueLines}`;
     const contentWithBOM = utf8BOM + assContent;
     
     await fs.writeFile(assFilePath, contentWithBOM, { encoding: 'utf8' });
-    
-    console.log(`[AssSubtitleService] Created UTF-8 ASS file with BOM: ${assFilePath}`);
-    
-    // Log first few lines to verify encoding
-    const firstLines = assContent.split('\n').slice(0, 5).join('\n');
-    console.log(`[AssSubtitleService] ASS file preview:\n${firstLines}...`);
-    
+
+    log.debug(`Created ASS file: ${assFilePath}`);
+
     return assFilePath;
   }
 
@@ -740,7 +699,7 @@ ${dialogueLines}`;
    */
   async cacheAssContent(cacheKey, assContent) {
     // TEMPORARILY DISABLED FOR DEBUGGING
-    console.log(`[AssSubtitleService] Cache disabled - skipping cache for: ass:${cacheKey}`);
+    log.debug(`Cache disabled - skipping cache for: ass:${cacheKey}`);
     return;
     
     /* try {
@@ -757,9 +716,9 @@ ${dialogueLines}`;
   async cleanupTempFile(filePath) {
     try {
       await fs.unlink(filePath);
-      console.log(`[AssSubtitleService] Cleaned up temp file: ${filePath}`);
+      log.debug(`Cleaned up temp file: ${filePath}`);
     } catch (error) {
-      console.warn(`[AssSubtitleService] Cleanup warning: ${error.message}`);
+      log.warn(`Cleanup warning: ${error.message}`);
     }
   }
 }

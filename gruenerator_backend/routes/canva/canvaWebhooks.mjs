@@ -1,12 +1,15 @@
 import express from 'express';
 import crypto from 'crypto';
 import { supabaseService } from '../../utils/supabaseClient.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('canvaWebhooks');
+
 
 const router = express.Router();
 
 // Add debugging middleware to all webhook routes
 router.use((req, res, next) => {
-  console.log(`[Canva Webhooks] ${req.method} ${req.originalUrl}`);
+  log.debug(`[Canva Webhooks] ${req.method} ${req.originalUrl}`);
   next();
 });
 
@@ -19,7 +22,7 @@ function verifyWebhookSignature(req, res, next) {
     
     // If no webhook secret is configured, skip verification (for basic functionality)
     if (!webhookSecret) {
-      console.warn('[Canva Webhooks] CANVA_WEBHOOK_SECRET not configured - skipping signature verification (not recommended for production)');
+      log.warn('[Canva Webhooks] CANVA_WEBHOOK_SECRET not configured - skipping signature verification (not recommended for production)');
       return next();
     }
     
@@ -27,7 +30,7 @@ function verifyWebhookSignature(req, res, next) {
     const timestamp = req.headers['canva-timestamp'];
     
     if (!signature || !timestamp) {
-      console.error('[Canva Webhooks] Missing signature or timestamp headers');
+      log.error('[Canva Webhooks] Missing signature or timestamp headers');
       return res.status(401).json({
         success: false,
         error: 'Missing required webhook headers'
@@ -51,7 +54,7 @@ function verifyWebhookSignature(req, res, next) {
       Buffer.from(expectedSignature, 'hex'),
       Buffer.from(receivedSignature, 'hex')
     )) {
-      console.error('[Canva Webhooks] Invalid webhook signature');
+      log.error('[Canva Webhooks] Invalid webhook signature');
       return res.status(401).json({
         success: false,
         error: 'Invalid webhook signature'
@@ -64,18 +67,18 @@ function verifyWebhookSignature(req, res, next) {
     const timeDiff = Math.abs(currentTime - requestTime);
     
     if (timeDiff > 300) { // 5 minutes
-      console.error('[Canva Webhooks] Webhook timestamp too old:', timeDiff);
+      log.error('[Canva Webhooks] Webhook timestamp too old:', timeDiff);
       return res.status(401).json({
         success: false,
         error: 'Webhook timestamp too old'
       });
     }
     
-    console.log('[Canva Webhooks] Signature verification passed');
+    log.debug('[Canva Webhooks] Signature verification passed');
     next();
     
   } catch (error) {
-    console.error('[Canva Webhooks] Signature verification error:', error);
+    log.error('[Canva Webhooks] Signature verification error:', error);
     res.status(500).json({
       success: false,
       error: 'Webhook verification failed',
@@ -92,7 +95,7 @@ router.post('/collaboration', verifyWebhookSignature, async (req, res) => {
   try {
     const { event_type, collaboration, design, user } = req.body;
     
-    console.log(`[Canva Webhooks] Collaboration event: ${event_type}`, {
+    log.debug(`[Canva Webhooks] Collaboration event: ${event_type}`, {
       designId: design?.id,
       userId: user?.id,
       collaborationId: collaboration?.id
@@ -113,7 +116,7 @@ router.post('/collaboration', verifyWebhookSignature, async (req, res) => {
         break;
         
       default:
-        console.warn(`[Canva Webhooks] Unknown collaboration event type: ${event_type}`);
+        log.warn(`[Canva Webhooks] Unknown collaboration event type: ${event_type}`);
     }
     
     res.json({
@@ -122,7 +125,7 @@ router.post('/collaboration', verifyWebhookSignature, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error processing collaboration event:', error);
+    log.error('[Canva Webhooks] Error processing collaboration event:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to process collaboration event',
@@ -139,7 +142,7 @@ router.post('/design', verifyWebhookSignature, async (req, res) => {
   try {
     const { event_type, design, user } = req.body;
     
-    console.log(`[Canva Webhooks] Design event: ${event_type}`, {
+    log.debug(`[Canva Webhooks] Design event: ${event_type}`, {
       designId: design?.id,
       userId: user?.id,
       designTitle: design?.title
@@ -160,7 +163,7 @@ router.post('/design', verifyWebhookSignature, async (req, res) => {
         break;
         
       default:
-        console.warn(`[Canva Webhooks] Unknown design event type: ${event_type}`);
+        log.warn(`[Canva Webhooks] Unknown design event type: ${event_type}`);
     }
     
     res.json({
@@ -169,7 +172,7 @@ router.post('/design', verifyWebhookSignature, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error processing design event:', error);
+    log.error('[Canva Webhooks] Error processing design event:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to process design event',
@@ -186,7 +189,7 @@ router.post('/asset', verifyWebhookSignature, async (req, res) => {
   try {
     const { event_type, asset, user } = req.body;
     
-    console.log(`[Canva Webhooks] Asset event: ${event_type}`, {
+    log.debug(`[Canva Webhooks] Asset event: ${event_type}`, {
       assetId: asset?.id,
       userId: user?.id,
       assetName: asset?.name
@@ -207,7 +210,7 @@ router.post('/asset', verifyWebhookSignature, async (req, res) => {
         break;
         
       default:
-        console.warn(`[Canva Webhooks] Unknown asset event type: ${event_type}`);
+        log.warn(`[Canva Webhooks] Unknown asset event type: ${event_type}`);
     }
     
     res.json({
@@ -216,7 +219,7 @@ router.post('/asset', verifyWebhookSignature, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error processing asset event:', error);
+    log.error('[Canva Webhooks] Error processing asset event:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to process asset event',
@@ -244,7 +247,7 @@ router.get('/health', (req, res) => {
  */
 async function handleCollaborationCreated(collaboration, design, user) {
   try {
-    console.log('[Canva Webhooks] Processing collaboration created');
+    log.debug('[Canva Webhooks] Processing collaboration created');
     
     // Find user in our database by Canva user ID
     const grueneratorUser = await findUserByCanvaId(user.id);
@@ -260,7 +263,7 @@ async function handleCollaborationCreated(collaboration, design, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling collaboration created:', error);
+    log.error('[Canva Webhooks] Error handling collaboration created:', error);
   }
 }
 
@@ -269,7 +272,7 @@ async function handleCollaborationCreated(collaboration, design, user) {
  */
 async function handleCollaborationUpdated(collaboration, design, user) {
   try {
-    console.log('[Canva Webhooks] Processing collaboration updated');
+    log.debug('[Canva Webhooks] Processing collaboration updated');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -283,7 +286,7 @@ async function handleCollaborationUpdated(collaboration, design, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling collaboration updated:', error);
+    log.error('[Canva Webhooks] Error handling collaboration updated:', error);
   }
 }
 
@@ -292,7 +295,7 @@ async function handleCollaborationUpdated(collaboration, design, user) {
  */
 async function handleCollaborationDeleted(collaboration, design, user) {
   try {
-    console.log('[Canva Webhooks] Processing collaboration deleted');
+    log.debug('[Canva Webhooks] Processing collaboration deleted');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -306,7 +309,7 @@ async function handleCollaborationDeleted(collaboration, design, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling collaboration deleted:', error);
+    log.error('[Canva Webhooks] Error handling collaboration deleted:', error);
   }
 }
 
@@ -315,7 +318,7 @@ async function handleCollaborationDeleted(collaboration, design, user) {
  */
 async function handleDesignCreated(design, user) {
   try {
-    console.log('[Canva Webhooks] Processing design created');
+    log.debug('[Canva Webhooks] Processing design created');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -329,7 +332,7 @@ async function handleDesignCreated(design, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling design created:', error);
+    log.error('[Canva Webhooks] Error handling design created:', error);
   }
 }
 
@@ -338,7 +341,7 @@ async function handleDesignCreated(design, user) {
  */
 async function handleDesignUpdated(design, user) {
   try {
-    console.log('[Canva Webhooks] Processing design updated');
+    log.debug('[Canva Webhooks] Processing design updated');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -352,7 +355,7 @@ async function handleDesignUpdated(design, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling design updated:', error);
+    log.error('[Canva Webhooks] Error handling design updated:', error);
   }
 }
 
@@ -361,7 +364,7 @@ async function handleDesignUpdated(design, user) {
  */
 async function handleDesignDeleted(design, user) {
   try {
-    console.log('[Canva Webhooks] Processing design deleted');
+    log.debug('[Canva Webhooks] Processing design deleted');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -374,7 +377,7 @@ async function handleDesignDeleted(design, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling design deleted:', error);
+    log.error('[Canva Webhooks] Error handling design deleted:', error);
   }
 }
 
@@ -383,7 +386,7 @@ async function handleDesignDeleted(design, user) {
  */
 async function handleAssetCreated(asset, user) {
   try {
-    console.log('[Canva Webhooks] Processing asset created');
+    log.debug('[Canva Webhooks] Processing asset created');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -397,7 +400,7 @@ async function handleAssetCreated(asset, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling asset created:', error);
+    log.error('[Canva Webhooks] Error handling asset created:', error);
   }
 }
 
@@ -406,7 +409,7 @@ async function handleAssetCreated(asset, user) {
  */
 async function handleAssetUpdated(asset, user) {
   try {
-    console.log('[Canva Webhooks] Processing asset updated');
+    log.debug('[Canva Webhooks] Processing asset updated');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -420,7 +423,7 @@ async function handleAssetUpdated(asset, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling asset updated:', error);
+    log.error('[Canva Webhooks] Error handling asset updated:', error);
   }
 }
 
@@ -429,7 +432,7 @@ async function handleAssetUpdated(asset, user) {
  */
 async function handleAssetDeleted(asset, user) {
   try {
-    console.log('[Canva Webhooks] Processing asset deleted');
+    log.debug('[Canva Webhooks] Processing asset deleted');
     
     const grueneratorUser = await findUserByCanvaId(user.id);
     
@@ -442,7 +445,7 @@ async function handleAssetDeleted(asset, user) {
     }
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error handling asset deleted:', error);
+    log.error('[Canva Webhooks] Error handling asset deleted:', error);
   }
 }
 
@@ -466,7 +469,7 @@ async function findUserByCanvaId(canvaUserId) {
     return user;
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error finding user by Canva ID:', error);
+    log.error('[Canva Webhooks] Error finding user by Canva ID:', error);
     return null;
   }
 }
@@ -478,7 +481,7 @@ async function logCanvaActivity(userId, activityType, data) {
   try {
     // For now, just log to console
     // In future, this could be stored in a database table for analytics
-    console.log(`[Canva Activity] User ${userId}: ${activityType}`, data);
+    log.debug(`[Canva Activity] User ${userId}: ${activityType}`, data);
     
     // TODO: Implement database logging if needed
     // await supabaseService
@@ -491,7 +494,7 @@ async function logCanvaActivity(userId, activityType, data) {
     //   });
     
   } catch (error) {
-    console.error('[Canva Webhooks] Error logging activity:', error);
+    log.error('[Canva Webhooks] Error logging activity:', error);
   }
 }
 

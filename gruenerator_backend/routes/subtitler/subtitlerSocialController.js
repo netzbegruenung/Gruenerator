@@ -1,12 +1,15 @@
 const express = require('express');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('subtitlerSocial');
+
 const router = express.Router();
 
 router.post('/generate-social', async (req, res) => {
   const { subtitles } = req.body;
-  console.log('[subtitlerSocial] Anfrage erhalten:', { subtitlesLength: subtitles?.length });
+  log.debug('[subtitlerSocial] Anfrage erhalten:', { subtitlesLength: subtitles?.length });
 
   try {
-    console.log('[subtitlerSocial] Starte AI Worker Request');
+    log.debug('[subtitlerSocial] Starte AI Worker Request');
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'subtitler_social',
       systemPrompt: 'Du bist Social Media Manager für Bündnis 90/Die Grünen. Erstelle einen Instagram Reel Beitragstext basierend auf den Untertiteln des Videos. Der Text soll die Kernbotschaft des Videos aufgreifen und in einen ansprechenden Social Media Post umwandeln.',
@@ -30,14 +33,14 @@ router.post('/generate-social', async (req, res) => {
       }
     });
 
-    console.log('[subtitlerSocial] AI Worker Antwort erhalten:', {
+    log.debug('[subtitlerSocial] AI Worker Antwort erhalten:', {
       success: result.success,
       contentLength: result.content?.length,
       error: result.error
     });
 
     if (!result.success) {
-      console.error('[subtitlerSocial] AI Worker Fehler:', result.error);
+      log.error('[subtitlerSocial] AI Worker Fehler:', result.error);
       throw new Error(result.error);
     }
 
@@ -46,7 +49,7 @@ router.post('/generate-social', async (req, res) => {
       metadata: result.metadata
     });
   } catch (error) {
-    console.error('[subtitlerSocial] Fehler bei der Social Media Text Erstellung:', error);
+    log.error('[subtitlerSocial] Fehler bei der Social Media Text Erstellung:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Erstellung des Social Media Texts',
       details: error.message 

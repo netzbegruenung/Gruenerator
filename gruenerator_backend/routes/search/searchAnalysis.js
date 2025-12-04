@@ -1,4 +1,7 @@
 const express = require('express');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('searchAnalysis');
+
 const router = express.Router();
 
 router.post('/', async (req, res) => {
@@ -6,17 +9,17 @@ router.post('/', async (req, res) => {
 
   try {
     // Logging der Anfrage
-    console.log('=== CLAUDE ANALYSE REQUEST START ===');
-    console.log('Anzahl der Suchergebnisse:', contents.length);
+    log.debug('=== CLAUDE ANALYSE REQUEST START ===');
+    log.debug('Anzahl der Suchergebnisse:', contents.length);
     contents.forEach((result, index) => {
-      console.log(`\nErgebnis ${index + 1}:`);
-      console.log('URL:', result.url);
-      console.log('Titel:', result.title);
-      console.log('Zusammenfassung Länge:', result.content?.length || 0);
-      console.log('Volltext Länge:', result.raw_content?.length || 0);
+      log.debug(`\nErgebnis ${index + 1}:`);
+      log.debug('URL:', result.url);
+      log.debug('Titel:', result.title);
+      log.debug('Zusammenfassung Länge:', result.content?.length || 0);
+      log.debug('Volltext Länge:', result.raw_content?.length || 0);
     });
-    console.log('\nGesamte Token-Schätzung:', JSON.stringify(contents).length / 4);
-    console.log('=== CLAUDE ANALYSE REQUEST END ===\n');
+    log.debug('\nGesamte Token-Schätzung:', JSON.stringify(contents).length / 4);
+    log.debug('=== CLAUDE ANALYSE REQUEST END ===\n');
 
     const result = await req.app.locals.aiWorkerPool.processRequest({
       type: 'search_analysis',
@@ -104,7 +107,7 @@ Format deiner Antwort:
       metadata: result.metadata 
     });
   } catch (error) {
-    console.error('Fehler bei der Suchanalyse:', error);
+    log.error('Fehler bei der Suchanalyse:', error);
     res.status(500).json({ 
       status: 'error',
       error: 'Fehler bei der Analyse der Suchergebnisse',

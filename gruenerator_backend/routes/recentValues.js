@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/authMiddleware');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('recentValues');
+
 const {
   saveRecentValue,
   getRecentValues,
@@ -31,7 +34,7 @@ router.post('/', requireAuth, async (req, res) => {
       message: 'Recent value saved successfully'
     });
   } catch (error) {
-    console.error('[RecentValues API] Error saving recent value:', error);
+    log.error('[RecentValues API] Error saving recent value:', error);
     res.status(500).json({
       error: error.message || 'Failed to save recent value'
     });
@@ -63,7 +66,7 @@ router.get('/:fieldType', requireAuth, async (req, res) => {
       count: values.length
     });
   } catch (error) {
-    console.error('[RecentValues API] Error retrieving recent values:', error);
+    log.error('[RecentValues API] Error retrieving recent values:', error);
     res.status(500).json({
       error: error.message || 'Failed to retrieve recent values'
     });
@@ -93,7 +96,7 @@ router.delete('/:fieldType', requireAuth, async (req, res) => {
       deletedCount
     });
   } catch (error) {
-    console.error('[RecentValues API] Error clearing recent values:', error);
+    log.error('[RecentValues API] Error clearing recent values:', error);
     res.status(500).json({
       error: error.message || 'Failed to clear recent values'
     });
@@ -116,7 +119,7 @@ router.get('/', requireAuth, async (req, res) => {
       count: fieldTypes.length
     });
   } catch (error) {
-    console.error('[RecentValues API] Error retrieving field types:', error);
+    log.error('[RecentValues API] Error retrieving field types:', error);
     res.status(500).json({
       error: error.message || 'Failed to retrieve field types'
     });

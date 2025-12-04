@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { jsonrepair } = require('jsonrepair');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('claude_suggest_');
+
 
 // Helper: robust JSON parse with multiple fallback strategies
 function parseJsonSafe(raw) {
@@ -10,7 +13,7 @@ function parseJsonSafe(raw) {
   try {
     return JSON.parse(raw);
   } catch (e1) {
-    console.log('[parseJsonSafe] Initial parse failed, trying fallback strategies');
+    log.debug('[parseJsonSafe] Initial parse failed, trying fallback strategies');
 
     // Strategy 1: Remove markdown code blocks and ALL markdown markers
     let cleaned = raw
@@ -19,22 +22,22 @@ function parseJsonSafe(raw) {
       .replace(/__/g, '')    // Remove all __
       .replace(/~~/g, '')    // Remove all ~~
       .trim();
-    console.log('[parseJsonSafe] Step 1 (removed all markdown):', cleaned.substring(0, 80));
+    log.debug('[parseJsonSafe] Step 1 (removed all markdown):', cleaned.substring(0, 80));
 
     // Try parsing after aggressive markdown removal
     try {
       return JSON.parse(cleaned);
     } catch (e2) {
-      console.log('[parseJsonSafe] Direct parse failed, trying jsonrepair');
+      log.debug('[parseJsonSafe] Direct parse failed, trying jsonrepair');
     }
 
     // Strategy 2: Use jsonrepair library on cleaned string
     try {
       const repaired = jsonrepair(cleaned);
-      console.log('[parseJsonSafe] jsonrepair succeeded');
+      log.debug('[parseJsonSafe] jsonrepair succeeded');
       return JSON.parse(repaired);
     } catch (e0) {
-      console.log('[parseJsonSafe] jsonrepair failed:', {
+      log.debug('[parseJsonSafe] jsonrepair failed:', {
         error: e0.message,
         inputPreview: cleaned.substring(0, 100),
         inputLength: cleaned.length
@@ -53,7 +56,7 @@ function parseJsonSafe(raw) {
         .replace(/`(.*?)`/g, '$1');       // Remove inline code
       return `"${cleanContent}"`;
     });
-    console.log('[parseJsonSafe] Step 1.5 (within quotes):', cleaned.substring(0, 80));
+    log.debug('[parseJsonSafe] Step 1.5 (within quotes):', cleaned.substring(0, 80));
 
     try {
       return JSON.parse(cleaned);
@@ -100,7 +103,7 @@ function parseJsonSafe(raw) {
         }
         
         // All strategies failed - log for debugging
-        console.error('[parseJsonSafe] All parsing strategies failed:', {
+        log.error('[parseJsonSafe] All parsing strategies failed:', {
           originalLength: raw.length,
           originalPreview: raw.substring(0, 200),
           cleanedLength: cleaned.length,
@@ -134,10 +137,10 @@ router.post('/', async (req, res) => {
       const cached = await redisClient.get(contextKey);
       if (cached) {
         generationContext = JSON.parse(cached);
-        console.log('[claude_suggest_edits] Retrieved generation context from cache');
+        log.debug('[claude_suggest_edits] Retrieved generation context from cache');
       }
     } catch (err) {
-      console.error('[claude_suggest_edits] Failed to retrieve context:', err.message);
+      log.error('[claude_suggest_edits] Failed to retrieve context:', err.message);
     }
   }
 
@@ -257,7 +260,7 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
       parsed = parseJsonSafe(result.content);
     }
     if (!parsed || !Array.isArray(parsed.changes)) {
-      console.error('[claude_suggest_edits] JSON parsing failed:', {
+      log.error('[claude_suggest_edits] JSON parsing failed:', {
         hasContent: !!result.content,
         contentLength: result.content?.length || 0,
         contentPreview: result.content?.substring(0, 300) || '',
@@ -292,7 +295,7 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
     const summary = parsed.summary || `${validChanges.length} ${validChanges.length === 1 ? 'Änderung' : 'Änderungen'} durchgeführt! ✅`;
     return res.json({ changes: validChanges, summary });
   } catch (error) {
-    console.error('[claude_suggest_edits] Fehler:', error);
+    log.error('[claude_suggest_edits] Fehler:', error);
     return res.status(500).json({ error: 'Interner Fehler bei der Bearbeitung', details: error.message });
   }
 });
