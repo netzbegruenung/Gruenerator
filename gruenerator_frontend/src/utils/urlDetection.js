@@ -7,15 +7,76 @@
 const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
 /**
+ * Sanitizes a URL by removing unbalanced trailing punctuation
+ * Handles cases where URLs are extracted from text with surrounding parentheses,
+ * e.g., "Check this (https://example.com/page.html)" captures trailing ")"
+ * @param {string} url - URL to sanitize
+ * @returns {string} Sanitized URL
+ */
+const sanitizeExtractedUrl = (url) => {
+  if (!url) return url;
+
+  let sanitized = url;
+
+  // Loop until no more changes - handles mixed cases like "url),"
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    // Handle unbalanced parentheses - keep balanced ones (e.g., Wikipedia URLs)
+    const openParens = (sanitized.match(/\(/g) || []).length;
+    const closeParens = (sanitized.match(/\)/g) || []).length;
+
+    if (closeParens > openParens && sanitized.endsWith(')')) {
+      sanitized = sanitized.slice(0, -1);
+      changed = true;
+      continue;
+    }
+
+    // Handle unbalanced square brackets
+    const openBrackets = (sanitized.match(/\[/g) || []).length;
+    const closeBrackets = (sanitized.match(/\]/g) || []).length;
+
+    if (closeBrackets > openBrackets && sanitized.endsWith(']')) {
+      sanitized = sanitized.slice(0, -1);
+      changed = true;
+      continue;
+    }
+
+    // Strip other common trailing punctuation from text extraction
+    // Include period only if preceded by closing paren/bracket (sentence ending after link)
+    const stripped = sanitized.replace(/[},;:'"]+$/, '');
+    if (stripped !== sanitized) {
+      sanitized = stripped;
+      changed = true;
+      continue;
+    }
+
+    // Handle trailing period after closing paren like "url)."
+    if (sanitized.match(/[)\]]\.$/) && !sanitized.match(/\.(html?|php|aspx?|jsp|pdf|doc|txt)\.$/i)) {
+      sanitized = sanitized.slice(0, -1);
+      changed = true;
+    }
+  }
+
+  return sanitized;
+};
+
+/**
  * Detects URLs in text content
  * @param {string} text - Text to scan for URLs
  * @returns {Array<string>} Array of detected URLs
  */
 export const detectUrls = (text) => {
   if (!text || typeof text !== 'string') return [];
-  
+
   const matches = text.match(URL_REGEX);
-  return matches ? [...new Set(matches)] : []; // Remove duplicates
+  if (!matches) return [];
+
+  // Sanitize each URL to remove unbalanced trailing punctuation
+  const sanitizedUrls = matches.map(sanitizeExtractedUrl);
+
+  return [...new Set(sanitizedUrls)]; // Remove duplicates
 };
 
 /**
