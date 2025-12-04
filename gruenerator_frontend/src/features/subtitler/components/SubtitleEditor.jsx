@@ -132,8 +132,9 @@ const SubtitleEditor = ({
   // Use project store for saving
   const { saveProject, updateProject, isSaving, saveSuccess } = useSubtitlerProjectStore();
 
-  // Get user locale for Austria-specific styling
+  // Get user locale and user ID for Austria-specific styling and project exports
   const locale = useAuthStore((state) => state.locale);
+  const user = useAuthStore((state) => state.user);
   const videoRef = useRef(null);
   const segmentRefs = useRef({});
   const [videoUrl, setVideoUrl] = useState(null);
@@ -400,7 +401,9 @@ const SubtitleEditor = ({
         stylePreference: localStyle,
         heightPreference: localHeight,
         locale,
-        maxResolution
+        maxResolution,
+        projectId: loadedProject?.id,
+        userId: user?.id
       });
 
       // Use the centralized store for export
@@ -410,7 +413,9 @@ const SubtitleEditor = ({
         stylePreference: localStyle,
         heightPreference: localHeight,
         locale,
-        maxResolution
+        maxResolution,
+        projectId: loadedProject?.id || null,
+        userId: user?.id || null
       });
 
     } catch (error) {

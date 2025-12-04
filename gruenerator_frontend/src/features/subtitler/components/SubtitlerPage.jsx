@@ -254,18 +254,10 @@ const SubtitlerPage = () => {
   const handleExport = useCallback(async (receivedExportToken) => {
     // The export token is now managed by the store
     console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
-    
+
     // Move to success screen immediately when export starts
     setStep('success');
-    
-    try {
-      // Generate social text in parallel while export is processing
-      await generateSocialText(subtitles);
-    } catch (err) {
-      console.error('[SubtitlerPage] Social text generation error:', err);
-      setError('Fehler beim Generieren des Beitragstextes');
-    }
-  }, [generateSocialText, subtitles]);
+  }, []);
 
   const handleExportComplete = useCallback(() => {
     // Export completion is now handled by the store
@@ -536,14 +528,16 @@ const SubtitlerPage = () => {
               )}
 
               {step === 'success' && (
-                <SuccessScreen 
+                <SuccessScreen
                   onReset={handleReset}
                   onEditAgain={handleEditAgain}
                   isLoading={exportStatus === 'starting' || exportStatus === 'exporting'}
                   socialText={socialText}
-                  uploadId={exportToken || uploadInfo?.uploadId} // Use exportToken for progress polling, fallback to uploadId
-                  isGeneratingSocial={isGenerating}
-                  socialError={socialError}
+                  uploadId={exportToken || uploadInfo?.uploadId}
+                  isGeneratingSocialText={isGenerating}
+                  onGenerateSocialText={() => generateSocialText(subtitles)}
+                  projectId={loadedProject?.id}
+                  projectTitle={loadedProject?.title}
                 />
               )}
             </div>

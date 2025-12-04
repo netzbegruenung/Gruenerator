@@ -1,8 +1,11 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
+import { FaPlus, FaEdit, FaShareAlt, FaInstagram } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+import ShareVideoModal from './ShareVideoModal';
+import '../../../assets/styles/components/ui/button.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -54,9 +57,10 @@ const AnimatedCheckmark = () => {
   );
 };
 
-const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }) => {
+const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
-  
+  const [showShareModal, setShowShareModal] = useState(false);
+
   // Use centralized export store for progress tracking
   const exportStore = useSubtitlerExportStore();
   const {
@@ -108,7 +112,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
           <h2>{showSpinner ? 'Dein Video wird verarbeitet' : 'Dein Video wurde heruntergeladen'}</h2>
           <p>
             {showSpinner
-              ? 'Während dein Video mit Untertiteln versehen wird, kannst du dir schon den generierten Beitragstext ansehen.' 
+              ? 'Dein Video wird mit Untertiteln versehen...'
               : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
           </p>
           
@@ -122,32 +126,66 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId }
 
           {!showSpinner && (
             <div className="success-buttons">
-              <button 
-                className="btn-primary"
+              <button
+                className="btn-icon btn-primary"
                 onClick={onReset}
+                title="Neues Video verarbeiten"
               >
-                Neues Video verarbeiten
+                <FaPlus />
               </button>
-              <button 
-                className="btn-secondary"
+              <button
+                className="btn-icon btn-secondary"
                 onClick={onEditAgain}
+                title="Zurück zur Bearbeitung"
               >
-                Zurück zur Bearbeitung
+                <FaEdit />
+              </button>
+              {(exportStore.exportToken || projectId) && (
+                <button
+                  className="btn-icon btn-secondary"
+                  onClick={() => setShowShareModal(true)}
+                  title="Video teilen"
+                >
+                  <FaShareAlt />
+                </button>
+              )}
+              <button
+                className="btn-icon btn-secondary"
+                onClick={onGenerateSocialText}
+                disabled={isGeneratingSocialText || !!socialText}
+                title="Beitragstext erstellen"
+              >
+                {isGeneratingSocialText ? (
+                  <div className="button-spinner" />
+                ) : (
+                  <FaInstagram />
+                )}
               </button>
             </div>
           )}
         </div>
 
-        <div className="social-text-result">
-          <h3>Dein Instagram Reel Text:</h3>
-          <div className="markdown-content">
-            <Suspense fallback={<div>Loading...</div>}>
-              <ReactMarkdown>{socialText}</ReactMarkdown>
-            </Suspense>
+        {socialText && (
+          <div className="social-text-result">
+            <h3>Dein Instagram Reel Text:</h3>
+            <div className="markdown-content">
+              <Suspense fallback={<div>Loading...</div>}>
+                <ReactMarkdown>{socialText}</ReactMarkdown>
+              </Suspense>
+            </div>
+            <CopyButton content={socialText} />
           </div>
-          <CopyButton content={socialText} />
-        </div>
+        )}
       </div>
+
+      {showShareModal && (exportStore.exportToken || projectId) && (
+        <ShareVideoModal
+          exportToken={exportStore.exportToken}
+          projectId={projectId}
+          title={projectTitle}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 };
@@ -156,8 +194,12 @@ SuccessScreen.propTypes = {
   onReset: PropTypes.func.isRequired,
   onEditAgain: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,
-  socialText: PropTypes.string.isRequired,
-  uploadId: PropTypes.string
+  socialText: PropTypes.string,
+  uploadId: PropTypes.string,
+  projectTitle: PropTypes.string,
+  projectId: PropTypes.string,
+  onGenerateSocialText: PropTypes.func,
+  isGeneratingSocialText: PropTypes.bool
 };
 
 export default SuccessScreen; 
