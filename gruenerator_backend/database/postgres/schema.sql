@@ -770,3 +770,34 @@ CREATE INDEX IF NOT EXISTS idx_generation_logs_type ON generation_logs(generatio
 CREATE INDEX IF NOT EXISTS idx_generation_logs_created ON generation_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_generation_logs_user ON generation_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_generation_logs_type_created ON generation_logs(generation_type, created_at);
+
+-- Subtitler Projects table for persistent video subtitle projects
+CREATE TABLE IF NOT EXISTS subtitler_projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    status TEXT DEFAULT 'saved' CHECK (status IN ('draft', 'saved', 'exported')),
+    video_path TEXT NOT NULL,
+    video_filename TEXT NOT NULL,
+    video_size BIGINT NOT NULL,
+    video_metadata JSONB DEFAULT '{}',
+    thumbnail_path TEXT,
+    subtitles TEXT,
+    style_preference TEXT DEFAULT 'standard',
+    height_preference TEXT DEFAULT 'standard',
+    mode_preference TEXT DEFAULT 'manual',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_edited_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    export_count INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_subtitler_projects_user_id ON subtitler_projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_subtitler_projects_user_edited ON subtitler_projects(user_id, last_edited_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subtitler_projects_status ON subtitler_projects(status);
+
+-- Add trigger for subtitler_projects updated_at
+CREATE TRIGGER update_subtitler_projects_updated_at
+    BEFORE UPDATE ON subtitler_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

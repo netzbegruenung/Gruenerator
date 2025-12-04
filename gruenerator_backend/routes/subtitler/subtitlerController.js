@@ -14,6 +14,7 @@ const { generateDownloadToken, processDirectDownload, processChunkedDownload } =
 const { getCompressionStatus } = require('./services/backgroundCompressionService');
 const { ffmpegPool } = require('./services/ffmpegPool');
 const { createLogger } = require('../../utils/logger.js');
+const { correctSubtitlesViaAI } = require('./services/subtitleCorrectionService');
 
 const log = createLogger('subtitler');
 
@@ -1092,5 +1093,42 @@ async function processVideoExportInBackground(params) {
     }
   }
 }
+
+// Route for AI subtitle correction
+router.post('/correct-subtitles', async (req, res) => {
+  const { segments } = req.body;
+
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
+    log.error('No segments provided for correction');
+    return res.status(400).json({ error: 'Keine Untertitel-Segmente zum Korrigieren.' });
+  }
+
+  log.debug(`[correct-subtitles] Processing ${segments.length} segments`);
+
+  try {
+    const aiWorkerPool = req.app.locals.aiWorkerPool;
+
+    if (!aiWorkerPool) {
+      log.error('[correct-subtitles] AI Worker Pool not available');
+      return res.status(500).json({ error: 'AI-Service nicht verfügbar.' });
+    }
+
+    const result = await correctSubtitlesViaAI(segments, aiWorkerPool);
+
+    log.info(`[correct-subtitles] Corrections found: ${result.hasCorrections}, count: ${result.corrections?.length || 0}`);
+
+    return res.json({
+      corrections: result.corrections,
+      hasCorrections: result.hasCorrections
+    });
+
+  } catch (error) {
+    log.error(`[correct-subtitles] Error: ${error.message}`);
+    return res.status(500).json({
+      error: 'Fehler bei der KI-Korrektur',
+      details: error.message
+    });
+  }
+});
 
 module.exports = router; 

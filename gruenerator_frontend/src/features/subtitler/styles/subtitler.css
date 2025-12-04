@@ -3,7 +3,7 @@
 .subtitler-container {
   display: flex;
   flex-direction: column;
-  padding-top: 2rem;
+  padding-top: 1rem;
   background-color: var(--background-color);
 }
 
@@ -21,6 +21,16 @@
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+}
+
+.subtitler-content.full-width {
+  max-width: 1600px;
+}
+
+@media (min-width: 1400px) {
+  .subtitler-content.full-width {
+    max-width: 90vw;
+  }
 }
 
 
@@ -121,26 +131,6 @@
   gap: 0.5rem;
 }
 
-.segment-time {
-  background-color: var(--primary);
-  color: white;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-family: monospace;
-  text-align: center;
-}
-
-.segment-text {
-  width: 100%;
-  min-height: 60px;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--background-color);
-  color: var(--font-color);
-  font-family: inherit;
-  resize: vertical;
-}
 
 .segment-text:focus {
   outline: none;
