@@ -770,3 +770,66 @@ CREATE INDEX IF NOT EXISTS idx_generation_logs_type ON generation_logs(generatio
 CREATE INDEX IF NOT EXISTS idx_generation_logs_created ON generation_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_generation_logs_user ON generation_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_generation_logs_type_created ON generation_logs(generation_type, created_at);
+
+-- Subtitler Projects table for persistent video subtitle projects
+CREATE TABLE IF NOT EXISTS subtitler_projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    status TEXT DEFAULT 'saved' CHECK (status IN ('draft', 'saved', 'exported')),
+    video_path TEXT NOT NULL,
+    video_filename TEXT NOT NULL,
+    video_size BIGINT NOT NULL,
+    video_metadata JSONB DEFAULT '{}',
+    thumbnail_path TEXT,
+    subtitled_video_path TEXT,
+    subtitles TEXT,
+    style_preference TEXT DEFAULT 'standard',
+    height_preference TEXT DEFAULT 'standard',
+    mode_preference TEXT DEFAULT 'manual',
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_edited_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    export_count INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_subtitler_projects_user_id ON subtitler_projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_subtitler_projects_user_edited ON subtitler_projects(user_id, last_edited_at DESC);
+CREATE INDEX IF NOT EXISTS idx_subtitler_projects_status ON subtitler_projects(status);
+
+-- Add trigger for subtitler_projects updated_at
+CREATE TRIGGER update_subtitler_projects_updated_at
+    BEFORE UPDATE ON subtitler_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Subtitler Shared Videos table for sharing exported videos with others
+CREATE TABLE IF NOT EXISTS subtitler_shared_videos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID REFERENCES subtitler_projects(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    share_token VARCHAR(32) UNIQUE NOT NULL,
+    video_path TEXT NOT NULL,
+    video_filename TEXT NOT NULL,
+    title TEXT,
+    thumbnail_path TEXT,
+    duration DECIMAL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    download_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_subtitler_shared_videos_token ON subtitler_shared_videos(share_token);
+CREATE INDEX IF NOT EXISTS idx_subtitler_shared_videos_user ON subtitler_shared_videos(user_id);
+CREATE INDEX IF NOT EXISTS idx_subtitler_shared_videos_expires ON subtitler_shared_videos(expires_at);
+
+-- Subtitler Share Downloads table for tracking who downloaded shared videos
+CREATE TABLE IF NOT EXISTS subtitler_share_downloads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shared_video_id UUID REFERENCES subtitler_shared_videos(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    downloaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    ip_address TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_subtitler_share_downloads_video ON subtitler_share_downloads(shared_video_id);

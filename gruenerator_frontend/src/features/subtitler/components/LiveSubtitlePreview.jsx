@@ -8,27 +8,20 @@ const LiveSubtitlePreview = ({
   currentTimeInSeconds,
   videoMetadata,
   stylePreference = 'standard',
-  heightPreference = 'standard'
+  heightPreference = 'standard',
+  subtitlePreference = 'manual'
 }) => {
   // Get user locale for Austria-specific styling
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
   const activeSegment = useMemo(() => {
-    const segment = SubtitleStylingService.findActiveSegment(editableSubtitles, currentTimeInSeconds);
-    console.log('[LivePreview] Active segment search:', {
-      currentTime: currentTimeInSeconds.toFixed(2),
-      totalSegments: editableSubtitles.length,
-      foundSegment: segment ? `"${segment.text.substring(0, 30)}..." (${segment.startTime}-${segment.endTime}s)` : 'none'
-    });
-    return segment;
+    return SubtitleStylingService.findActiveSegment(editableSubtitles, currentTimeInSeconds);
   }, [editableSubtitles, currentTimeInSeconds]);
 
   const calculatedStyles = useMemo(() => {
-    const styles = SubtitleStylingService.calculateStyles(videoMetadata, editableSubtitles);
-    console.log('[LivePreview] Calculated styles:', styles);
-    return styles;
-  }, [videoMetadata, editableSubtitles]);
+    return SubtitleStylingService.calculateStyles(videoMetadata, editableSubtitles, subtitlePreference, stylePreference);
+  }, [videoMetadata, editableSubtitles, subtitlePreference, stylePreference]);
 
   const getStyleForPreference = useMemo(() => {
     // Base styles - use Montserrat for Austrian users
@@ -48,12 +41,7 @@ const LiveSubtitlePreview = ({
         return {
           ...baseStyles,
           backgroundColor: 'transparent',
-          textShadow: `
-            -2px -2px 0 #000000,
-            2px -2px 0 #000000,
-            -2px 2px 0 #000000,
-            2px 2px 0 #000000
-          `,
+          textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
           padding: '0',
           borderRadius: '0'
         };
@@ -84,12 +72,7 @@ const LiveSubtitlePreview = ({
           fontFamily: "'GJFontRegular', Arial, sans-serif",
           fontWeight: 'normal',
           backgroundColor: 'transparent',
-          textShadow: `
-            -2px -2px 0 #000000,
-            2px -2px 0 #000000,
-            -2px 2px 0 #000000,
-            2px 2px 0 #000000
-          `,
+          textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
           padding: '0',
           borderRadius: '0'
         };
@@ -133,51 +116,26 @@ const LiveSubtitlePreview = ({
       default:
         return {
           ...baseStyles,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          textShadow: `
-            -2px -2px 0 #000000,
-            2px -2px 0 #000000,
-            -2px 2px 0 #000000,
-            2px 2px 0 #000000
-          `,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
           padding: '0.2em 0.4em',
           borderRadius: '0.1em'
         };
     }
   }, [stylePreference, isAustrian]);
 
-  console.log('[LivePreview] Render conditions:', {
-    hasActiveSegment: !!activeSegment,
-    hasVideoMetadata: !!videoMetadata,
-    stylePreference,
-    videoMetadata
-  });
-
   if (!activeSegment || !videoMetadata) {
     return null;
   }
 
-  const {
-    fontSize,
-    marginV,
-    marginL,
-    marginR
-  } = calculatedStyles;
+  const { fontSize, marginL, marginR } = calculatedStyles;
 
   // Detect mobile devices
   const isMobile = window.innerWidth <= 768;
 
-  // Calculate relative positioning based on display size vs original video size and height preference
-  let baseMarginVPercentage = videoMetadata.height > 0 ? (marginV / videoMetadata.height) * 100 : 33;
-  
-  // Adjust positioning based on height preference
-  if (heightPreference === 'tief') {
-    // Move subtitles deeper (closer to bottom) for 'tief' option
-    baseMarginVPercentage = baseMarginVPercentage * 0.6; // Reduce bottom margin by 40%
-  }
-  
-  const relativeMarginV = baseMarginVPercentage;
-  
+  // Fixed positioning matching backend: standard = 33% from bottom, tief = 20% from bottom
+  const relativeMarginV = heightPreference === 'tief' ? 20 : 33;
+
   // Mobile-optimized font size calculation
   let relativeFontSize;
   if (isMobile) {
@@ -185,18 +143,6 @@ const LiveSubtitlePreview = ({
   } else {
     relativeFontSize = videoMetadata.height > 0 ? (fontSize / videoMetadata.height) * 20 : 1.5;
   }
-  
-  console.log('[LivePreview] Position calculation:', {
-    isMobile,
-    originalMarginV: marginV,
-    baseMarginVPercentage: baseMarginVPercentage,
-    relativeMarginV: relativeMarginV,
-    originalFontSize: fontSize,
-    relativeFontSize: relativeFontSize,
-    videoHeight: videoMetadata.height,
-    stylePreference,
-    heightPreference
-  });
 
   const containerStyles = {
     position: 'absolute',
@@ -227,13 +173,6 @@ const LiveSubtitlePreview = ({
     }
   }
 
-  console.log('[LivePreview] Rendering subtitle:', {
-    text: activeSegment.text,
-    containerStyles,
-    textStyles,
-    stylePreference
-  });
-
   return (
     <div className="live-subtitle-preview" style={containerStyles}>
       <div className="live-subtitle-text" style={textStyles}>
@@ -261,7 +200,8 @@ LiveSubtitlePreview.propTypes = {
     'gj_clean', 'gj_shadow', 'gj_lavendel', 'gj_hellgruen',
     'at_standard', 'at_clean', 'at_shadow', 'at_gruen'
   ]),
-  heightPreference: PropTypes.oneOf(['standard', 'tief'])
+  heightPreference: PropTypes.oneOf(['standard', 'tief']),
+  subtitlePreference: PropTypes.oneOf(['manual', 'word'])
 };
 
 export default LiveSubtitlePreview; 

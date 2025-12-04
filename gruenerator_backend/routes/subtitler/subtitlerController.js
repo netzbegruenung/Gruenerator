@@ -14,6 +14,7 @@ const { generateDownloadToken, processDirectDownload, processChunkedDownload } =
 const { getCompressionStatus } = require('./services/backgroundCompressionService');
 const { ffmpegPool } = require('./services/ffmpegPool');
 const { createLogger } = require('../../utils/logger.js');
+const { correctSubtitlesViaAI } = require('./services/subtitleCorrectionService');
 
 const log = createLogger('subtitler');
 
@@ -411,36 +412,55 @@ router.post('/export', async (req, res) => {
     stylePreference = 'standard', // Style preference parameter
     heightPreference = 'standard', // Height positioning: 'standard' or 'tief'
     locale = 'de-DE', // User locale for Austria-specific styling
-    maxResolution = null // Max output resolution (e.g., 1080 for Instagram compatibility, null for full quality)
+    maxResolution = null, // Max output resolution (e.g., 1080 for Instagram compatibility, null for full quality)
+    projectId = null, // Optional: project ID for saving subtitled video
+    userId = null // Optional: user ID for saving subtitled video
   } = req.body; 
   let inputPath = null;
   let outputPath = null;
   let originalFilename = 'video.mp4'; // Default filename
   const exportToken = uuidv4(); // Generate a unique token for this export operation
 
-  if (!uploadId || !subtitles) {
-    return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
+  if (!subtitles) {
+    return res.status(400).json({ error: 'Untertitel werden benötigt' });
   }
 
-  log.debug(`Export starting: style=${stylePreference}, height=${heightPreference}, locale=${locale}`);
+  log.debug(`Export starting: style=${stylePreference}, height=${heightPreference}, locale=${locale}, projectId=${projectId}`);
 
   try {
-    inputPath = getFilePathFromUploadId(uploadId);
-    const fileExists = await checkFileExists(inputPath);
-     if (!fileExists) {
-        log.error(`Video file for export not found: ${uploadId}`);
-        return res.status(404).json({ error: 'Zugehörige Video-Datei für Export nicht gefunden.' });
+    // Try to get video from project first if projectId and userId are provided
+    if (projectId && userId) {
+      try {
+        const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
+        const projectService = getSubtitlerProjectService();
+        await projectService.ensureInitialized();
+
+        const project = await projectService.getProject(userId, projectId);
+        if (project && project.video_path) {
+          inputPath = projectService.getVideoPath(project.video_path);
+          originalFilename = project.video_filename || 'video.mp4';
+          log.debug(`Using project video path: ${inputPath}`);
+        }
+      } catch (projectError) {
+        log.warn(`Could not load project video, falling back to uploadId: ${projectError.message}`);
+      }
     }
-    
-    // Try to get original filename from Tus metadata store (if implemented in tusService)
-    // This is a placeholder - tusService needs to expose a way to get metadata
-    // const tusMetadata = await getTusMetadata(uploadId); // Fictional function
-    // if (tusMetadata?.originalName) {
-    //     originalFilename = tusMetadata.originalName;
-    // } else {
-         // Fallback: Use uploadId or a generic name if metadata isn't available
-         originalFilename = `video_${uploadId}.mp4`; // Example fallback
-    // }
+
+    // Fall back to uploadId if no project video found
+    if (!inputPath && uploadId) {
+      inputPath = getFilePathFromUploadId(uploadId);
+      originalFilename = `video_${uploadId}.mp4`;
+    }
+
+    if (!inputPath) {
+      return res.status(400).json({ error: 'Upload-ID oder Projekt-ID wird benötigt' });
+    }
+
+    const fileExists = await checkFileExists(inputPath);
+    if (!fileExists) {
+      log.error(`Video file for export not found: ${inputPath}`);
+      return res.status(404).json({ error: 'Zugehörige Video-Datei für Export nicht gefunden.' });
+    }
 
 
     await checkFont(); // Font check remains the same
@@ -737,7 +757,9 @@ router.post('/export', async (req, res) => {
       uploadId,
       originalFilename,
       assFilePath,   // Pass pre-generated ASS file to avoid regeneration
-      tempFontPath   // Pass pre-copied font path
+      tempFontPath,  // Pass pre-copied font path
+      projectId,     // Optional: for saving subtitled video to project
+      userId         // Optional: for saving subtitled video to project
     };
 
     // Start background processing (fire and forget)
@@ -778,7 +800,9 @@ async function processVideoExportInBackground(params) {
     uploadId,
     originalFilename,
     assFilePath: preGeneratedAssPath = null,   // Pre-generated ASS file from export endpoint
-    tempFontPath: preGeneratedFontPath = null  // Pre-copied font path from export endpoint
+    tempFontPath: preGeneratedFontPath = null, // Pre-copied font path from export endpoint
+    projectId = null,  // Optional: project ID for saving subtitled video
+    userId = null      // Optional: user ID for saving subtitled video
   } = params;
 
   try {
@@ -1050,7 +1074,44 @@ async function processVideoExportInBackground(params) {
         })
         .on('end', async () => {
           log.info(`FFmpeg processing complete for ${exportToken}`);
-          
+
+          // If projectId and userId are provided, save subtitled video to project
+          if (projectId && userId) {
+            try {
+              const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
+              const projectService = getSubtitlerProjectService();
+              await projectService.ensureInitialized();
+
+              // Get project to check for existing subtitled video
+              const project = await projectService.getProject(userId, projectId);
+
+              // Define persistent path
+              const projectDir = path.join(__dirname, '../../uploads/subtitler-projects', userId, projectId);
+              const subtitledFilename = `subtitled_${Date.now()}.mp4`;
+              const persistentPath = path.join(projectDir, subtitledFilename);
+              const relativeSubtitledPath = `${userId}/${projectId}/${subtitledFilename}`;
+
+              // Ensure directory exists
+              await fsPromises.mkdir(projectDir, { recursive: true });
+
+              // Clean up old subtitled video if exists
+              if (project.subtitled_video_path) {
+                const oldPath = path.join(__dirname, '../../uploads/subtitler-projects', project.subtitled_video_path);
+                await fsPromises.unlink(oldPath).catch(() => {});
+              }
+
+              // Copy the exported video to persistent storage
+              await fsPromises.copyFile(outputPath, persistentPath);
+
+              // Update database with new subtitled video path
+              await projectService.updateSubtitledVideoPath(userId, projectId, relativeSubtitledPath);
+
+              log.info(`Saved subtitled video for project ${projectId}: ${relativeSubtitledPath}`);
+            } catch (saveError) {
+              log.warn(`Failed to save subtitled video for project: ${saveError.message}`);
+            }
+          }
+
           // Store completion status with file path in Redis
           try {
             const completionData = {
@@ -1092,5 +1153,42 @@ async function processVideoExportInBackground(params) {
     }
   }
 }
+
+// Route for AI subtitle correction
+router.post('/correct-subtitles', async (req, res) => {
+  const { segments } = req.body;
+
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
+    log.error('No segments provided for correction');
+    return res.status(400).json({ error: 'Keine Untertitel-Segmente zum Korrigieren.' });
+  }
+
+  log.debug(`[correct-subtitles] Processing ${segments.length} segments`);
+
+  try {
+    const aiWorkerPool = req.app.locals.aiWorkerPool;
+
+    if (!aiWorkerPool) {
+      log.error('[correct-subtitles] AI Worker Pool not available');
+      return res.status(500).json({ error: 'AI-Service nicht verfügbar.' });
+    }
+
+    const result = await correctSubtitlesViaAI(segments, aiWorkerPool);
+
+    log.info(`[correct-subtitles] Corrections found: ${result.hasCorrections}, count: ${result.corrections?.length || 0}`);
+
+    return res.json({
+      corrections: result.corrections,
+      hasCorrections: result.hasCorrections
+    });
+
+  } catch (error) {
+    log.error(`[correct-subtitles] Error: ${error.message}`);
+    return res.status(500).json({
+      error: 'Fehler bei der KI-Korrektur',
+      details: error.message
+    });
+  }
+});
 
 module.exports = router; 

@@ -1,2 +1,0 @@
-# This file ensures the tus-temp directory structure is preserved in git
-# The actual upload files are ignored via .gitignore

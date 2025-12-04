@@ -4,21 +4,33 @@
  */
 
 export class SubtitleStylingService {
-  static calculateFontSize(videoMetadata, baseFontSize = 20) {
+  static calculateFontSize(videoMetadata, baseFontSize = 20, subtitlePreference = 'manual', stylePreference = 'standard') {
     const { width, height } = videoMetadata;
     const referenceDimension = Math.min(width, height);
-    
+
     let fontSize;
+    // Multipliers matching backend assSubtitleService.js
     if (referenceDimension >= 2160) {
-      fontSize = Math.floor(baseFontSize * 5.0); // 4K
+      fontSize = Math.floor(baseFontSize * 2.88); // 4K
     } else if (referenceDimension >= 1440) {
-      fontSize = Math.floor(baseFontSize * 4.0); // 2K
+      fontSize = Math.floor(baseFontSize * 2.32); // 2K
     } else if (referenceDimension >= 1080) {
-      fontSize = Math.floor(baseFontSize * 3.5); // FullHD
+      fontSize = Math.floor(baseFontSize * 2.25); // FullHD
     } else if (referenceDimension >= 720) {
-      fontSize = Math.floor(baseFontSize * 2.5); // HD
+      fontSize = Math.floor(baseFontSize * 1.8); // HD
     } else {
       fontSize = Math.floor(baseFontSize * 2.0); // SD
+    }
+
+    // Mode-specific adjustments matching backend
+    if (subtitlePreference === 'manual') {
+      fontSize = Math.floor(fontSize * 1.2); // +20% for manual mode
+    }
+    if (stylePreference?.startsWith('gj_')) {
+      fontSize = Math.floor(fontSize * 0.70); // -30% for GJ styles
+    }
+    if (stylePreference?.startsWith('at_')) {
+      fontSize = Math.floor(fontSize * 0.85); // -15% for AT styles
     }
 
     return Math.max(24, Math.min(300, fontSize));
@@ -74,7 +86,7 @@ export class SubtitleStylingService {
     };
   }
 
-  static calculateStyles(videoMetadata, segments) {
+  static calculateStyles(videoMetadata, segments, subtitlePreference = 'manual', stylePreference = 'standard') {
     if (!videoMetadata || !videoMetadata.width || !videoMetadata.height) {
       return this.getDefaultStyles();
     }
@@ -82,10 +94,10 @@ export class SubtitleStylingService {
     const { width, height } = videoMetadata;
     const isVertical = width < height;
     const referenceDimension = isVertical ? width : height;
-    
-    // Calculate base font size
+
+    // Calculate base font size limits
     let minFontSize, maxFontSize, basePercentage;
-    
+
     if (referenceDimension >= 2160) {
       minFontSize = 80;
       maxFontSize = 180;
@@ -107,31 +119,33 @@ export class SubtitleStylingService {
       maxFontSize = 65;
       basePercentage = isVertical ? 0.065 : 0.060;
     }
-    
+
     // Pixel factor adjustment
     const totalPixels = width * height;
     const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
     const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
-    
-    const fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
+
+    const baseFontSize = Math.floor(referenceDimension * adjustedPercentage);
 
     // Calculate text metrics and scale factor
     const { avgLength, avgWords } = this.calculateAverageTextMetrics(segments);
     const scaleFactor = this.calculateScaleFactor(avgLength, avgWords);
-    
-    const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(fontSize * scaleFactor)));
-    
-    // Calculate positioning
-    const marginV = Math.floor(height * 0.33); // 1/3 from bottom for Instagram Reels
+
+    const scaledFontSize = Math.floor(baseFontSize * scaleFactor);
+
+    // Apply mode/style adjustments via calculateFontSize
+    const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize,
+      this.calculateFontSize({ width, height }, scaledFontSize / 20, subtitlePreference, stylePreference)
+    ));
+
     const marginL = 10;
     const marginR = 10;
-    
+
     // Calculate outline width
     const outline = Math.max(2, Math.floor(finalFontSize / 25));
-    
+
     return {
       fontSize: finalFontSize,
-      marginV,
       marginL,
       marginR,
       outline,
@@ -144,7 +158,6 @@ export class SubtitleStylingService {
   static getDefaultStyles() {
     return {
       fontSize: 45,
-      marginV: 200,
       marginL: 10,
       marginR: 10,
       outline: 2,

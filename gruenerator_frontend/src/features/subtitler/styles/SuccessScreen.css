@@ -12,17 +12,19 @@
 .success-content {
   display: flex;
   flex-direction: column;
+  align-items: center;
   text-align: center;
   background-color: var(--background-color-alt);
   padding: 3rem;
   border-radius: 8px;
-  max-width: 1200px;
+  max-width: 600px;
   width: 100%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.success-buttons {
-  gap: 1rem;
+.success-content:has(.social-text-result) {
+  max-width: 1200px;
+  align-items: stretch;
 }
 
 .success-icon {
@@ -57,6 +59,10 @@
 
 .success-icon.loading .spinner {
   animation: spin 1s ease-in-out infinite;
+}
+
+.success-icon .spinner-percentage {
+  color: white;
 }
 
 @keyframes spin {
@@ -98,38 +104,6 @@
   width: 100%;
 }
 
-.success-buttons .btn-primary {
-  width: 100%;
-  max-width: 300px;
-}
-
-.btn-primary, .btn-secondary {
-  padding: 0.8rem 1.5rem;
-  border-radius: 4px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.btn-primary {
-  background-color: var(--klee);
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover {
-  background-color: var(--klee-dark);
-}
-
-.btn-secondary {
-  background-color: transparent;
-  color: var(--klee);
-  border: 2px solid var(--klee);
-}
-
-.btn-secondary:hover {
-  background-color: var(--klee-light);
-}
-
 @keyframes scaleIn {
   from {
     transform: scale(0);
@@ -143,7 +117,7 @@
 
 
 @media (min-width: 1024px) {
-  .success-content {
+  .success-content:has(.social-text-result) {
     flex-direction: row;
     align-items: center;
     gap: 3rem;
@@ -151,7 +125,7 @@
     min-height: 400px;
   }
 
-  .success-main {
+  .success-content:has(.social-text-result) .success-main {
     flex: 1;
     max-width: 600px;
     display: flex;
@@ -177,14 +151,7 @@
   }
   
   .success-buttons {
-    gap: 0.5rem;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .success-buttons .btn-primary {
-    width: 100%;
-    margin-bottom: 20px;
+    gap: 0.75rem;
   }
 }
 

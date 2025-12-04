@@ -1,0 +1,559 @@
+.project-selector {
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: var(--spacing-large);
+    min-height: calc(100vh - 140px);
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 1400px) {
+    .project-selector {
+        max-width: 90vw;
+    }
+}
+
+.project-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-large);
+    gap: var(--spacing-medium);
+}
+
+.project-selector-title {
+    margin: 0;
+    color: var(--font-color-h);
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.new-project-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-small);
+    white-space: nowrap;
+}
+
+.project-selector-error {
+    background-color: rgba(211, 47, 47, 0.1);
+    border: 1px solid var(--error-red);
+    color: var(--error-red);
+    padding: var(--spacing-medium);
+    border-radius: var(--card-border-radius-medium);
+    margin-bottom: var(--spacing-medium);
+}
+
+.project-selector-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xxlarge);
+    color: var(--font-color-disabled);
+    flex-grow: 1;
+}
+
+.project-selector-loading .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color-disabled);
+    border-top-color: var(--link-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: var(--spacing-medium);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-large);
+}
+
+.project-card {
+    background-color: var(--background-color);
+    border-radius: var(--card-border-radius-large);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: var(--shadow-sm);
+    border: var(--border-subtle);
+}
+
+.project-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.project-card:focus-visible {
+    outline: 2px solid var(--interactive-accent-color);
+    outline-offset: 2px;
+}
+
+.project-thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--background-color-alt);
+    overflow: hidden;
+}
+
+.project-thumbnail::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.project-card:hover .project-thumbnail::after {
+    opacity: 1;
+}
+
+.project-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease;
+}
+
+.project-thumbnail img.loading {
+    opacity: 0;
+}
+
+.project-thumbnail img.loaded {
+    opacity: 1;
+}
+
+.project-card:hover .project-thumbnail img {
+    transform: scale(1.02);
+}
+
+.project-thumbnail-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--background-color-alt) 0%, var(--background-color) 100%);
+    color: var(--font-color-disabled);
+}
+
+.project-thumbnail-placeholder svg {
+    font-size: 2.5rem;
+    opacity: 0.5;
+}
+
+.project-duration {
+    position: absolute;
+    bottom: var(--spacing-small);
+    right: var(--spacing-small);
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--white);
+    padding: 4px 8px;
+    border-radius: var(--card-border-radius-small);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    z-index: 2;
+}
+
+.project-info {
+    padding: var(--spacing-medium);
+}
+
+.project-title {
+    margin: 0 0 var(--spacing-small) 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--font-color-h);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: var(--spacing-large);
+    line-height: 1.4;
+}
+
+.project-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--font-color-disabled);
+}
+
+.project-date {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+}
+
+.project-date svg {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.project-actions {
+    position: absolute;
+    top: var(--spacing-small);
+    right: var(--spacing-small);
+    display: flex;
+    gap: var(--spacing-xsmall);
+    z-index: 3;
+}
+
+.project-share-btn,
+.project-delete-btn {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--white);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease,
+                transform 0.2s ease,
+                background-color 0.2s ease;
+}
+
+.project-card:hover .project-share-btn,
+.project-card:hover .project-delete-btn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.project-share-btn:hover {
+    background-color: var(--primary);
+}
+
+.project-delete-btn:hover {
+    background-color: var(--error-red);
+}
+
+.project-share-btn:focus-visible,
+.project-delete-btn:focus-visible {
+    opacity: 1;
+    transform: translateY(0);
+    outline: 2px solid var(--white);
+    outline-offset: 2px;
+}
+
+.project-share-btn svg,
+.project-delete-btn svg {
+    font-size: 0.9rem;
+}
+
+.project-card.deleting {
+    pointer-events: none;
+}
+
+.project-card.deleting .project-thumbnail,
+.project-card.deleting .project-info {
+    filter: blur(2px);
+    opacity: 0.4;
+}
+
+.project-card.loading {
+    pointer-events: none;
+}
+
+.project-card.loading .project-thumbnail,
+.project-card.loading .project-info,
+.project-card.loading .project-actions {
+    filter: blur(2px);
+    opacity: 0.5;
+}
+
+.project-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--card-border-radius-large);
+    z-index: 10;
+    animation: fadeIn 0.2s ease;
+}
+
+.delete-confirm-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(211, 47, 47, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-medium);
+    z-index: 10;
+    animation: fadeIn 0.2s ease;
+    border-radius: var(--card-border-radius-large);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.delete-confirm-overlay p {
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.delete-confirm-actions {
+    display: flex;
+    gap: var(--spacing-small);
+}
+
+.delete-confirm-actions button {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border: none;
+}
+
+.delete-confirm-actions button:hover {
+    transform: scale(1.02);
+}
+
+.delete-confirm-actions button:active {
+    transform: scale(0.98);
+}
+
+.delete-confirm-btn {
+    background-color: var(--white);
+    color: var(--error-red);
+}
+
+.delete-cancel-btn {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.delete-cancel-btn:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-large);
+}
+
+.skeleton-card {
+    background-color: var(--background-color);
+    border-radius: var(--card-border-radius-large);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: var(--border-subtle);
+}
+
+.skeleton-thumbnail {
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(
+        90deg,
+        var(--background-color-alt) 0%,
+        var(--background-color) 50%,
+        var(--background-color-alt) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-info {
+    padding: var(--spacing-medium);
+}
+
+.skeleton-title {
+    height: 20px;
+    width: 70%;
+    background: linear-gradient(
+        90deg,
+        var(--background-color-alt) 0%,
+        var(--background-color) 50%,
+        var(--background-color-alt) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    animation-delay: 0.1s;
+    border-radius: 4px;
+    margin-bottom: var(--spacing-small);
+}
+
+.skeleton-meta {
+    height: 16px;
+    width: 50%;
+    background: linear-gradient(
+        90deg,
+        var(--background-color-alt) 0%,
+        var(--background-color) 50%,
+        var(--background-color-alt) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    animation-delay: 0.2s;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.project-limit-info {
+    text-align: center;
+    color: var(--font-color-disabled);
+    font-size: 0.85rem;
+    margin-top: auto;
+    padding-top: var(--spacing-large);
+    opacity: 0.7;
+}
+
+[data-theme="dark"] .project-card {
+    background-color: var(--background-color-alt);
+    box-shadow: var(--shadow-md);
+}
+
+[data-theme="dark"] .project-card:hover {
+    box-shadow: var(--shadow-xl);
+}
+
+[data-theme="dark"] .skeleton-card {
+    background-color: var(--background-color-alt);
+}
+
+[data-theme="dark"] .project-duration {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] .project-share-btn,
+[data-theme="dark"] .project-delete-btn {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 768px) {
+    .project-selector {
+        padding: var(--spacing-medium);
+        min-height: calc(100vh - 100px);
+    }
+
+    .project-selector-title {
+        font-size: 1.5rem;
+        margin-bottom: var(--spacing-large);
+    }
+
+    .project-selector-header {
+        flex-direction: column;
+        align-items: stretch;
+        position: static;
+        background: transparent;
+        backdrop-filter: none;
+        padding: 0;
+        margin-bottom: var(--spacing-medium);
+    }
+
+    .project-selector-header h2 {
+        text-align: center;
+        margin-bottom: var(--spacing-small);
+    }
+
+    .new-project-btn {
+        justify-content: center;
+    }
+
+    .project-grid,
+    .skeleton-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-medium);
+    }
+
+    .project-card {
+        border-radius: var(--card-border-radius-medium);
+    }
+
+    .project-share-btn,
+    .project-delete-btn {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .empty-state {
+        padding-top: 15vh;
+    }
+
+    .empty-state-title {
+        font-size: 1.5rem;
+        max-width: 300px;
+    }
+
+    .empty-state-cta {
+        padding: 16px 32px;
+        font-size: 1rem;
+    }
+
+    .delete-confirm-overlay {
+        border-radius: var(--card-border-radius-medium);
+    }
+
+    .project-loading-overlay {
+        border-radius: var(--card-border-radius-medium);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .project-card,
+    .project-thumbnail img,
+    .project-delete-btn,
+    .project-share-btn,
+    .skeleton-thumbnail,
+    .skeleton-title,
+    .skeleton-meta {
+        transition: none;
+        animation: none;
+    }
+
+    .project-card:hover {
+        transform: none;
+    }
+
+    .project-card:hover .project-thumbnail img {
+        transform: none;
+    }
+}

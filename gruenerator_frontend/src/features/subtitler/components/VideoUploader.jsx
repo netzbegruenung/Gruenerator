@@ -11,7 +11,7 @@ const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;
 
 console.log(`[VideoUploader] Using Tus Endpoint:`, TUS_UPLOAD_ENDPOINT);
 
-const VideoUploader = ({ onUpload, isProcessing = false }) => {
+const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -186,6 +186,11 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
             )}
           </div>
         </div>
+        {onBack && !isUploading && !isProcessing && (
+          <button className="btn-secondary" onClick={onBack} style={{ marginTop: 'var(--spacing-medium)' }}>
+            Zurück zur Projektauswahl
+          </button>
+        )}
       </div>
     </div>
   );
@@ -193,6 +198,7 @@ const VideoUploader = ({ onUpload, isProcessing = false }) => {
 
 VideoUploader.propTypes = {
   onUpload: PropTypes.func.isRequired,
+  onBack: PropTypes.func,
   isProcessing: PropTypes.bool
 };
 

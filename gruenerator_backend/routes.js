@@ -36,6 +36,8 @@ const searchAnalysisRouter = require('./routes/search/searchAnalysis');
 const imagePickerRoute = require('./routes/imagePickerRoute');
 const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
+const subtitlerProjectRouter = require('./routes/subtitler/subtitlerProjectController');
+const subtitlerShareRouter = require('./routes/subtitler/subtitlerShareController');
 // voiceRouter now imported and enabled below
 // customGeneratorRoute and generatorConfiguratorRoute will be imported as ES6 modules
 // const customGeneratorRoute = require('./routes/custom_generator');
@@ -263,6 +265,8 @@ async function setupRoutes(app) {
 
   app.use('/api/subtitler', subtitlerRouter);
   app.use('/api/subtitler', subtitlerSocialRouter);
+  app.use('/api/subtitler/projects', subtitlerProjectRouter);
+  app.use('/api/subtitler/share', subtitlerShareRouter);
 
   // Import and enable Mistral-based voice routes
   const voiceRouter = require('./routes/voice/voiceController');

@@ -427,6 +427,15 @@ const useApiSubmit = (endpoint) => {
           });
           throw new Error('Keine Bilddaten vom KI-Sharepic-Generator erhalten.');
         }
+      } else if (endpoint === '/subtitler/correct-subtitles' || endpoint === 'subtitler/correct-subtitles') {
+        console.log('[useApiSubmit] Processing subtitle correction response:', response);
+        if (response && typeof response.hasCorrections === 'boolean') {
+          setSuccess(true);
+          return response;
+        } else {
+          console.error('[useApiSubmit] Invalid subtitle correction response:', response);
+          throw new Error('Ungültige Antwort von der Korrektur-KI.');
+        }
       }
 
       // Fallback für alle anderen Endpoints
