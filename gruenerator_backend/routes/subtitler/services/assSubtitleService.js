@@ -2,6 +2,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const redisClient = require('../../../utils/redisClient');
 const { sanitizeFilename } = require('../../../utils/securityUtils');
+const { createLogger } = require('../../../utils/logger.js');
+
+const log = createLogger('assSubtitle');
 
 class AssSubtitleService {
   constructor() {
@@ -41,7 +44,7 @@ class AssSubtitleService {
   mapStyleForLocale(stylePreference, locale) {
     if (locale === 'de-AT' && this.localeStyleMapping['de-AT'][stylePreference]) {
       const mappedStyle = this.localeStyleMapping['de-AT'][stylePreference];
-      console.log(`[ASS] Locale mapping: ${stylePreference} → ${mappedStyle} for locale ${locale}`);
+      log.debug(`Locale mapping: ${stylePreference} → ${mappedStyle} for locale ${locale}`);
       return mappedStyle;
     }
     return stylePreference;
@@ -139,7 +142,6 @@ class AssSubtitleService {
         // Grüner Stil - Markenfarbe für besondere Betonung
         const tanneColor = this.convertRgbToAssBgr('#005538', 0x00); // Fully opaque tanne
         const tanneOutline = this.convertRgbToAssBgr('#003825', 0x00); // Darker tanne for outline
-        console.log(`[ASS] Tanne color conversion: #005538 → ${tanneColor}`);
         return {
           ...baseStyle,
           backColor: tanneColor, // Converted tanne color
@@ -185,7 +187,6 @@ class AssSubtitleService {
         // GJ Lavendel - Grüne Jugend lavendel color (#9f88ff)
         const lavendelColor = this.convertRgbToAssBgr('#9f88ff', 0x00); // Lavendel color
         const lavendelOutline = this.convertRgbToAssBgr('#7d66cc', 0x00); // Darker lavendel for outline
-        console.log(`[ASS] Lavendel color conversion: #9f88ff → ${lavendelColor}`);
         return {
           ...baseStyle,
           fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
@@ -203,7 +204,6 @@ class AssSubtitleService {
         // GJ Hellgrün - Grüne Jugend light green color (#c7ff7a)
         const hellgruenColor = this.convertRgbToAssBgr('#c7ff7a', 0x00); // Light green color
         const hellgruenOutline = this.convertRgbToAssBgr('#9fcc5f', 0x00); // Darker green for outline
-        console.log(`[ASS] Hellgrün color conversion: #c7ff7a → ${hellgruenColor}`);
         return {
           ...baseStyle,
           fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
@@ -265,7 +265,6 @@ class AssSubtitleService {
         // AT Grün - Grüne Österreich brand green (#6baa25)
         const atGruenColor = this.convertRgbToAssBgr('#6baa25', 0x00); // Austrian Green
         const atGruenOutline = this.convertRgbToAssBgr('#4d7f1b', 0x00); // Darker green for outline
-        console.log(`[ASS] Austria Grün color conversion: #6baa25 → ${atGruenColor}`);
         return {
           ...baseStyle,
           fontName: 'Montserrat', // Must match TTF font family name exactly
@@ -305,13 +304,8 @@ class AssSubtitleService {
     const fontSize = this.calculateFontSize(videoMetadata, style.fontSize, subtitlePreference, effectiveStyle);
     style.fontSize = fontSize;
 
-    console.log(`[AssSubtitleService] Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`, {
-      backColor: style.backColor,
-      borderStyle: style.borderStyle,
-      outline: style.outline,
-      shadow: style.shadow,
-      fontName: style.fontName
-    });
+    log.debug(`Using style preset: ${effectiveStyle} (original: ${stylePreference}, locale: ${locale})`);
+
 
     const header = this.generateAssHeader(videoMetadata);
     const stylesSection = this.generateStylesSection(style);
@@ -332,35 +326,32 @@ class AssSubtitleService {
     
     let fontSize;
     if (referenceDimension >= 2160) {
-      fontSize = Math.floor(baseFontSize * 4.0); // 4K
+      fontSize = Math.floor(baseFontSize * 3.6); // 4K (reduced 10%)
     } else if (referenceDimension >= 1440) {
-      fontSize = Math.floor(baseFontSize * 3.2); // 2K
+      fontSize = Math.floor(baseFontSize * 2.9); // 2K (reduced 10%)
     } else if (referenceDimension >= 1080) {
-      fontSize = Math.floor(baseFontSize * 2.8); // FullHD
+      fontSize = Math.floor(baseFontSize * 2.5); // FullHD (reduced 10%)
     } else if (referenceDimension >= 720) {
-      fontSize = Math.floor(baseFontSize * 2.0); // HD
+      fontSize = Math.floor(baseFontSize * 1.8); // HD (reduced 10%)
     } else {
-      fontSize = Math.floor(baseFontSize * 2.0); // SD
+      fontSize = Math.floor(baseFontSize * 2.0); // SD (unchanged)
     }
 
     // For manual mode, increase font size by 20% since lines are shorter (fewer words per segment)
     if (subtitlePreference === 'manual') {
       fontSize = Math.floor(fontSize * 1.2);
-      console.log(`[ASS] Manual mode: increased font size by 20% to ${fontSize}px for shorter segments`);
     }
 
     // For GJ styles, reduce font size by 30% since GJFontRegular appears much larger than GrueneType
     const isGjStyle = stylePreference?.startsWith('gj_');
     if (isGjStyle) {
       fontSize = Math.floor(fontSize * 0.70);
-      console.log(`[ASS] GJ style detected: reduced font size by 30% to ${fontSize}px for GJFontRegular`);
     }
 
     // For AT (Austria) styles, adjust font size since Montserrat Bold has different metrics
     const isAtStyle = stylePreference?.startsWith('at_');
     if (isAtStyle) {
       fontSize = Math.floor(fontSize * 0.85);
-      console.log(`[ASS] AT style detected: adjusted font size by 15% to ${fontSize}px for Montserrat Bold`);
     }
     
     // COMMENTED OUT - Word mode functionality (TikTok style):
@@ -426,16 +417,6 @@ Video Position: 0`;
 
     // Use the style preset exactly as provided - no overrides
     const finalStyle = { ...style };
-
-    console.log(`[ASS] Applied style configuration:`, {
-      stylePreset: 'user-selected',
-      backColor: finalStyle.backColor,
-      borderStyle: finalStyle.borderStyle,
-      outline: finalStyle.outline,
-      shadow: finalStyle.shadow,
-      outlineColor: finalStyle.outlineColor,
-      primaryColor: finalStyle.primaryColor
-    });
 
     const styleLine = [
       'Default', finalStyle.fontName, finalStyle.fontSize, finalStyle.primaryColor,
@@ -527,19 +508,8 @@ Style: ${styleLine}`;
       
       const escapedText = this.escapeAssText(text);
       
-      // DEBUG: Log ASS time formatting for last segments
-      const isLastSegments = index >= segments.length - 5;
-      if (isLastSegments) {
-        console.log(`[DEBUG ASS] Segment ${index}: ${segment.startTime}s → ${startTime}, ${segment.endTime}s → ${endTime}, text="${escapedText.substring(0, 30)}..."`);
-      }
-      
       return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${escapedText}`;
     }).join('\n');
-
-    // DEBUG: Log the actual last dialogue lines that will be in the ASS file
-    const lastDialogues = dialogueLines.split('\n').slice(-3);
-    console.log('[DEBUG ASS] Last 3 dialogue lines in ASS file:');
-    lastDialogues.forEach((line, i) => console.log(`  ${i}: ${line}`));
 
     return `[Events]
 Format: ${formatLine}
@@ -562,8 +532,8 @@ ${dialogueLines}`;
    * Add intelligent line breaks for manual mode subtitles using adaptive linguistic breaking
    */
   addLineBreaksForManualMode(text) {
-    // Trigger: Only break if text is long enough to warrant it
-    const shouldBreak = text.length > 35 || text.split(' ').length > 4;
+    // Trigger: Break into 2 lines for 4+ words or long text to fit screen
+    const shouldBreak = text.length > 30 || text.split(' ').length >= 4;
     
     if (!shouldBreak) {
       return text; // Keep as single line for short segments
@@ -580,8 +550,6 @@ ${dialogueLines}`;
     if (breakResult.shouldBreak) {
       const firstLine = words.slice(0, breakResult.breakIndex).join(' ');
       const secondLine = words.slice(breakResult.breakIndex).join(' ');
-      
-      console.log(`[ASS] Adaptive line break: "${firstLine}" | "${secondLine}" (${breakResult.reason})`);
       return `${firstLine}\n${secondLine}`;
     }
     
@@ -706,13 +674,9 @@ ${dialogueLines}`;
     const contentWithBOM = utf8BOM + assContent;
     
     await fs.writeFile(assFilePath, contentWithBOM, { encoding: 'utf8' });
-    
-    console.log(`[AssSubtitleService] Created UTF-8 ASS file with BOM: ${assFilePath}`);
-    
-    // Log first few lines to verify encoding
-    const firstLines = assContent.split('\n').slice(0, 5).join('\n');
-    console.log(`[AssSubtitleService] ASS file preview:\n${firstLines}...`);
-    
+
+    log.debug(`Created ASS file: ${assFilePath}`);
+
     return assFilePath;
   }
 
@@ -740,7 +704,7 @@ ${dialogueLines}`;
    */
   async cacheAssContent(cacheKey, assContent) {
     // TEMPORARILY DISABLED FOR DEBUGGING
-    console.log(`[AssSubtitleService] Cache disabled - skipping cache for: ass:${cacheKey}`);
+    log.debug(`Cache disabled - skipping cache for: ass:${cacheKey}`);
     return;
     
     /* try {
@@ -757,9 +721,9 @@ ${dialogueLines}`;
   async cleanupTempFile(filePath) {
     try {
       await fs.unlink(filePath);
-      console.log(`[AssSubtitleService] Cleaned up temp file: ${filePath}`);
+      log.debug(`Cleaned up temp file: ${filePath}`);
     } catch (error) {
-      console.warn(`[AssSubtitleService] Cleanup warning: ${error.message}`);
+      log.warn(`Cleanup warning: ${error.message}`);
     }
   }
 }

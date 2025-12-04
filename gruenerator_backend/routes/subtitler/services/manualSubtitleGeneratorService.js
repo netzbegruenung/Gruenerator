@@ -6,17 +6,20 @@
  * optimal readability.
  */
 
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('manualSubtitle');
+
 /**
  * Configuration for manual subtitle generation - Optimal Short Subtitles
  */
 const CONFIG = {
-    targetDuration: 1.0,     // Optimal for reading + rendering
-    maxDuration: 1.2,        // Tight upper limit
-    minDuration: 0.8,        // Absolute minimum (technical safe)
-    minDurationPunctuation: 0.8,  // Minimum duration for punctuation-ended segments
+    targetDuration: 1.8,     // Longer duration for better readability
+    maxDuration: 2.5,        // Allow longer segments
+    minDuration: 1.0,        // Minimum duration for comfortable reading
+    minDurationPunctuation: 1.0,  // Minimum duration for punctuation-ended segments
     strongPunctuation: ['.', '!', '?'],  // Always end segment
     weakPunctuation: [',', ';', ':'],    // End segment if >min duration
-    maxWordsPerSegment: 2,   // Ultra-aggressive word reduction for Instagram Reels
+    maxWordsPerSegment: 5,   // Allow more words per segment for readability
     // Natural break words for smart phrase breaking
     breakWords: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
                  'von', 'zu', 'mit', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'für', 'ohne', 'gegen',
@@ -95,19 +98,14 @@ function groupWordsIntoSegments(words, fullText) {
         end: words[0].start
     };
     
-    console.log(`[ManualSubtitleGenerator] Processing ${words.length} words with full text for punctuation detection`);
-    
+    log.debug(`Processing ${words.length} words`);
+
     // Build a comprehensive word position map for both punctuation detection and text extraction
     let textPosition = 0;
     const wordPositions = words.map((word, index) => {
         // German-aware word cleaning: only remove common punctuation, preserve umlauts
         const cleanWord = word.word.replace(/[.!?,:;""''()[\]{}]/g, ''); // Keep umlauts ä, ö, ü, ß
-        
-        // Debug German umlaut processing
-        if (word.word.match(/[äöüÄÖÜß]/)) {
-            console.log(`[ManualSubtitleGenerator] German word processing: "${word.word}" → cleaned: "${cleanWord}"`);
-        }
-        
+
         const wordStart = fullText.toLowerCase().indexOf(cleanWord.toLowerCase(), textPosition);
         if (wordStart !== -1) {
             // Find the actual end of this word in the original text (including any punctuation)
@@ -244,7 +242,7 @@ function groupWordsIntoSegments(words, fullText) {
                 } else {
                     // Fallback to word joining if position mapping fails
                     segmentText = currentSegment.words.join(' ').trim();
-                    console.warn('[ManualSubtitleGenerator] Position mapping failed, using word join fallback');
+                    log.warn('Position mapping failed, using word join fallback');
                 }
             } else {
                 segmentText = currentSegment.words.join(' ').trim();
@@ -259,9 +257,7 @@ function groupWordsIntoSegments(words, fullText) {
                 duration: duration,
                 reason: reason
             });
-            
-            console.log(`[ManualSubtitleGenerator] Segment ${segments.length}: ${formatTime(currentSegment.start)}-${formatTime(currentSegment.end)} (${duration.toFixed(1)}s, ${reason}) "${segmentText.substring(0, 30)}..."`);
-            
+
             // Start new segment (if not last word)
             if (i < words.length - 1) {
                 const nextWord = words[i + 1];
@@ -382,25 +378,13 @@ function applyElasticTiming(segments) {
         if (gap > 0 && gap < maxGapToFill) {
             // Small gap detected - extend current segment to bridge it
             const originalEnd = currentSegment.end;
-            
+
             // Extend to just before next segment starts (leave 0.1s buffer)
             currentSegment.end = Math.max(nextSegment.start - 0.1, originalEnd);
             currentSegment.duration = currentSegment.end - currentSegment.start;
-            
-            console.log(`[ManualSubtitleGenerator] Elastic timing: Extended segment ${i} from ${originalEnd.toFixed(1)}s to ${currentSegment.end.toFixed(1)}s (filled ${gap.toFixed(1)}s gap)`);
-        } else if (gap >= maxGapToFill) {
-            // Large gap - likely intentional pause/silence, keep as-is
-            console.log(`[ManualSubtitleGenerator] Preserved ${gap.toFixed(1)}s gap (intentional pause)`);
         }
-        // If gap <= 0, segments already touch or overlap - no action needed
+        // If gap <= 0 or >= maxGapToFill, no action needed
     }
-    
-    const totalGapsFilled = elasticSegments.filter((seg, i) => 
-        i < elasticSegments.length - 1 && 
-        (elasticSegments[i + 1].start - seg.end) < 0.2
-    ).length;
-    
-    console.log(`[ManualSubtitleGenerator] Elastic timing applied: filled ${totalGapsFilled} small gaps for smoother subtitle flow`);
     
     return elasticSegments;
 }
@@ -428,33 +412,20 @@ function formatSegmentsToSubtitleText(segments) {
  */
 async function generateManualSubtitles(fullText, words) {
     try {
-        console.log(`[ManualSubtitleGenerator] Starting manual subtitle generation`);
-        console.log(`[ManualSubtitleGenerator] Input: ${fullText.length} chars, ${words.length} words`);
-        
-        // Log first few words for debugging
-        console.log(`[ManualSubtitleGenerator] First 3 words:`, 
-            words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
-        
         // Generate segments using word grouping algorithm with full text for punctuation detection
         const segments = groupWordsIntoSegments(words, fullText);
-        
+
         // Format segments into subtitle text
         const subtitleText = formatSegmentsToSubtitleText(segments);
-        
+
         // Log summary
-        console.log(`[ManualSubtitleGenerator] Generated ${segments.length} segments`);
-        console.log(`[ManualSubtitleGenerator] Average duration: ${(segments.reduce((sum, s) => sum + s.duration, 0) / segments.length).toFixed(1)}s`);
-        
-        // Log first segment for verification
-        if (segments.length > 0) {
-            const firstSegment = segments[0];
-            console.log(`[ManualSubtitleGenerator] First segment: ${formatTime(firstSegment.start)}-${formatTime(firstSegment.end)} "${firstSegment.text}"`);
-        }
-        
+        const avgDuration = segments.length > 0 ? (segments.reduce((sum, s) => sum + s.duration, 0) / segments.length).toFixed(1) : 0;
+        log.info(`Generated ${segments.length} segments, avg duration: ${avgDuration}s`);
+
         return subtitleText;
-        
+
     } catch (error) {
-        console.error('[ManualSubtitleGenerator] Error generating manual subtitles:', error.message);
+        log.error(`Error generating manual subtitles: ${error.message}`);
         throw new Error(`Manual subtitle generation failed: ${error.message}`);
     }
 }
