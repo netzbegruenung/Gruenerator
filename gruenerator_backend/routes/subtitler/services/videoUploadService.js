@@ -25,10 +25,13 @@ async function getVideoMetadata(videoPath) {
         return;
       }
 
+      // Find audio stream for codec and bitrate info
+      const audioStream = metadata.streams.find(s => s.codec_type === 'audio');
+
       // Determine actual orientation
       const rotation = videoStream.tags?.rotate || '0';
       const isVertical = rotation === '90' || rotation === '270';
-      
+
       // Swap width and height if vertical
       const width = isVertical ? videoStream.height : videoStream.width;
       const height = isVertical ? videoStream.width : videoStream.height;
@@ -45,7 +48,10 @@ async function getVideoMetadata(videoPath) {
           codec: videoStream.codec_name,
           pixelFormat: videoStream.pix_fmt,
           profile: videoStream.profile,
-          level: videoStream.level
+          level: videoStream.level,
+          videoBitrate: parseInt(videoStream.bit_rate) || null,
+          audioCodec: audioStream?.codec_name || null,
+          audioBitrate: parseInt(audioStream?.bit_rate) || null
         }
       });
     });

@@ -934,12 +934,29 @@ async function processVideoExportInBackground(params) {
         videoCodec = 'libx264';
       }
 
+      // Use original video bitrate if available, otherwise fall back to CRF
+      const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
+      let bitrateOptions = [];
+
+      if (originalVideoBitrate && originalVideoBitrate > 0) {
+        // Use original bitrate with slight headroom for subtitle complexity
+        const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
+        const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
+        const bufSize = Math.ceil(originalVideoBitrate * 2);
+        bitrateOptions = ['-b:v', targetBitrate.toString(), '-maxrate', maxBitrate.toString(), '-bufsize', bufSize.toString()];
+        log.debug(`Using original bitrate: ${(originalVideoBitrate / 1000000).toFixed(1)} Mbps → target: ${(targetBitrate / 1000000).toFixed(1)} Mbps`);
+      } else {
+        // Fallback to CRF-based encoding
+        bitrateOptions = ['-crf', crf.toString()];
+        log.debug(`No original bitrate, using CRF: ${crf}`);
+      }
+
       // Output options
       const outputOptions = [
         '-y',
         '-c:v', videoCodec,
         '-preset', preset,
-        '-crf', crf.toString(),
+        ...bitrateOptions,
         ...(tune ? ['-tune', tune] : []),
         '-profile:v', fileSizeMB > 200 ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
         '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
