@@ -7,11 +7,15 @@ const ffmpeg = require('fluent-ffmpeg');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
 const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
-const redisClient = require('../../utils/redisClient'); // Import Redis client
-const { v4: uuidv4 } = require('uuid'); // Import uuid
-const AssSubtitleService = require('./services/assSubtitleService'); // Import ASS service
-const { generateDownloadToken, processDirectDownload, processChunkedDownload } = require('./services/downloadUtils'); // Import download utilities
-const { getCompressionStatus } = require('./services/backgroundCompressionService'); // Import compression service
+const redisClient = require('../../utils/redisClient');
+const { v4: uuidv4 } = require('uuid');
+const AssSubtitleService = require('./services/assSubtitleService');
+const { generateDownloadToken, processDirectDownload, processChunkedDownload } = require('./services/downloadUtils');
+const { getCompressionStatus } = require('./services/backgroundCompressionService');
+const { ffmpegPool } = require('./services/ffmpegPool');
+const { createLogger } = require('../../utils/logger.js');
+
+const log = createLogger('subtitler');
 
 // Font configuration
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
@@ -23,16 +27,14 @@ const assService = new AssSubtitleService();
 async function checkFont() {
   try {
     await fsPromises.access(FONT_PATH);
-    console.log('GrueneTypeNeue Font found for ASS subtitles:', FONT_PATH);
+    log.debug('Font found for ASS subtitles');
   } catch (err) {
-    console.warn('GrueneTypeNeue Font not found, ASS will use system fallback:', err.message);
-    // Don't throw error for ASS - it can handle font fallbacks
+    log.warn(`Font not found, using system fallback: ${err.message}`);
   }
 }
 
 // Route for video upload and processing
 router.post('/process', async (req, res) => {
-  console.log('=== SUBTITLER PROCESS START ===');
   const { 
     uploadId, 
     subtitlePreference = 'manual', // ONLY manual mode supported - word mode commented out
@@ -42,20 +44,11 @@ router.post('/process', async (req, res) => {
   let videoPath = null;
 
   if (!uploadId) {
-    console.error('Keine Upload-ID im Request gefunden');
+    log.error('No uploadId in request');
     return res.status(400).json({ error: 'Keine Upload-ID gefunden' });
   }
 
-  console.log(`Verarbeitungsanfrage für Upload-ID erhalten: ${uploadId}`);
-  console.log(`[subtitlerController] Request Body Debug:`, {
-    uploadId,
-    mode: subtitlePreference, // subtitlePreference fixed to manual mode only
-    stylePreference,
-    heightPreference,
-    modeType: typeof subtitlePreference,
-    modeLength: subtitlePreference?.length,
-    rawBody: JSON.stringify(req.body)
-  });
+  log.debug(`Processing request for uploadId: ${uploadId}, mode: ${subtitlePreference}, style: ${stylePreference}`);
 
   // Create unique Redis key with mode, stylePreference, and heightPreference
   const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
@@ -63,10 +56,10 @@ router.post('/process', async (req, res) => {
   // Set initial status in Redis with TTL (e.g., 24 hours)
   const initialStatus = JSON.stringify({ status: 'processing' });
   try {
-      await redisClient.set(jobKey, initialStatus, { EX: 60 * 60 * 24 }); // EX for seconds (24h)
-      console.log(`[Upstash Redis] Status 'processing' für ${jobKey} gesetzt.`);
+      await redisClient.set(jobKey, initialStatus, { EX: 60 * 60 * 24 });
+      log.debug(`Redis status 'processing' set for ${jobKey}`);
   } catch (redisError) {
-      console.error(`[Upstash Redis] Fehler beim Setzen des initialen Status für ${jobKey}:`, redisError);
+      log.error(`Redis error setting initial status for ${jobKey}: ${redisError.message}`);
       // Send error response to client if not already sent
        if (!res.headersSent) {
           return res.status(500).json({ error: 'Interner Serverfehler beim Start der Verarbeitung (Redis).' });
@@ -77,11 +70,11 @@ router.post('/process', async (req, res) => {
 
   try {
     videoPath = getFilePathFromUploadId(uploadId);
-    console.log(`Abgeleiteter Videopfad: ${videoPath}`);
+    log.debug(`Video path: ${videoPath}`);
 
     const fileExists = await checkFileExists(videoPath);
     if (!fileExists) {
-        console.error(`Video-Datei für Upload-ID nicht gefunden: ${uploadId} am Pfad: ${videoPath}`);
+        log.error(`Video file not found for uploadId: ${uploadId}`);
         
         // Plane sofortiges Cleanup für nicht existierende Dateien
         scheduleImmediateCleanup(uploadId, 'file not found');
@@ -89,9 +82,9 @@ router.post('/process', async (req, res) => {
         // Set error status in Redis
         const errorNotFoundStatus = JSON.stringify({ status: 'error', data: 'Zugehörige Video-Datei nicht gefunden.' });
         try {
-            await redisClient.set(jobKey, errorNotFoundStatus, { EX: 60 * 60 * 24 }); 
+            await redisClient.set(jobKey, errorNotFoundStatus, { EX: 60 * 60 * 24 });
         } catch (redisSetError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'file not found' Status für ${jobKey}:`, redisSetError);
+             log.error(`Redis error setting 'file not found' status: ${redisSetError.message}`);
         }
         return res.status(404).json({ error: 'Zugehörige Video-Datei nicht gefunden.' });
     }
@@ -99,25 +92,7 @@ router.post('/process', async (req, res) => {
     // Get file stats for logging
     const fileStats = await fsPromises.stat(videoPath);
 
-    // Log basic file info
-     console.log('Datei gefunden:', {
-      uploadId: uploadId,
-      pfad: videoPath,
-      größe: `${(fileStats.size / 1024 / 1024).toFixed(2)}MB`
-    });
-    
-    // Get metadata for logging (optional)
-    try {
-        const metadata = await getVideoMetadata(videoPath);
-        console.log('Video Metadaten:', metadata);
-    } catch (metaError) {
-        console.warn('Konnte Metadaten nicht lesen:', metaError.message);
-    }
-
-    // Mode preference is logged
-    console.log(`Untertitel Modus: ${subtitlePreference}`);
-
-    console.log('Starte Transkription...');
+    log.info(`Processing ${uploadId}: ${(fileStats.size / 1024 / 1024).toFixed(2)}MB, mode: ${subtitlePreference}`);
     
     // Run transcription asynchronously
     // Corrected call: Pass subtitlePreference as the second parameter and the aiWorkerPool
@@ -125,17 +100,16 @@ router.post('/process', async (req, res) => {
     
     // AI Worker Pool check - only manual mode supported (word mode commented out)
     if (!aiWorkerPool) {
-        console.warn(`[subtitlerController] AI Worker Pool not found in app locals for ${uploadId}. Using fallback transcription.`);
-        // This is not an error - we can still process with fallback transcription
+        log.warn(`AI Worker Pool not found for ${uploadId}, using fallback`);
     }
     
-    transcribeVideo(videoPath, subtitlePreference, aiWorkerPool) // Pass the pool
+    transcribeVideo(videoPath, subtitlePreference, aiWorkerPool)
       .then(async (subtitles) => {
         if (!subtitles) {
-          console.error(`Keine Untertitel generiert für Upload-ID: ${uploadId}`);
+          log.error(`No subtitles generated for ${uploadId}`);
           throw new Error('Keine Untertitel generiert');
         }
-        console.log(`Transkription erfolgreich für Upload-ID: ${uploadId}`);
+        log.info(`Transcription complete for ${uploadId}`);
         
         // Markiere Upload als verarbeitet für intelligentes Cleanup
         markUploadAsProcessed(uploadId);
@@ -143,15 +117,14 @@ router.post('/process', async (req, res) => {
         // Setze 'complete' status in Redis
         const finalStatus = JSON.stringify({ status: 'complete', data: subtitles });
         try {
-            await redisClient.set(jobKey, finalStatus, { EX: 60 * 60 * 24 }); // TTL erneuern/setzen
-            console.log(`[Upstash Redis] Status 'complete' für ${jobKey} gesetzt.`);
+            await redisClient.set(jobKey, finalStatus, { EX: 60 * 60 * 24 });
+            log.debug(`Redis status 'complete' set for ${jobKey}`);
         } catch (redisError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'complete' Status für ${jobKey}:`, redisError);
-             // Fehler loggen, aber fortfahren (Job bleibt evtl. 'processing')
+             log.error(`Redis error setting 'complete' status: ${redisError.message}`);
         }
       })
       .catch(async (error) => {
-        console.error(`Fehler bei der asynchronen Verarbeitung für Upload-ID ${uploadId}:`, error);
+        log.error(`Async processing error for ${uploadId}: ${error.message}`);
         
         // Bei Fehlern sofortiges Cleanup planen
         scheduleImmediateCleanup(uploadId, 'transcription error');
@@ -159,10 +132,10 @@ router.post('/process', async (req, res) => {
         // Setze 'error' status in Redis
         const errorStatus = JSON.stringify({ status: 'error', data: error.message || 'Fehler bei der Verarbeitung.' });
          try {
-            await redisClient.set(jobKey, errorStatus, { EX: 60 * 60 * 24 }); // TTL für Fehler setzen
-            console.log(`[Upstash Redis] Status 'error' für ${jobKey} gesetzt.`);
+            await redisClient.set(jobKey, errorStatus, { EX: 60 * 60 * 24 });
+            log.debug(`Redis status 'error' set for ${jobKey}`);
         } catch (redisError) {
-             console.error(`[Upstash Redis] Fehler beim Setzen des 'error' Status für ${jobKey}:`, redisError);
+             log.error(`Redis error setting 'error' status: ${redisError.message}`);
         }
       });
 
@@ -175,16 +148,16 @@ router.post('/process', async (req, res) => {
     });
 
   } catch (error) {
-    console.error(`Schwerwiegender Fehler beim Start der Verarbeitung für ${uploadId}:`, error);
+    log.error(`Critical error starting processing for ${uploadId}: ${error.message}`);
      // Setze Fehlerstatus in Redis auch bei schwerwiegendem Startfehler
     const criticalErrorStatus = JSON.stringify({ status: 'error', data: error.message || 'Fehler beim Start der Verarbeitung.' });
      try {
         // Prüfe, ob der Key schon existiert, bevor überschrieben wird (optional, aber sicherheitshalber)
         // await redisClient.set(jobKey, criticalErrorStatus, { EX: 60 * 60 * 24, NX: true }); // NX = Nur setzen, wenn Key nicht existiert
-        await redisClient.set(jobKey, criticalErrorStatus, { EX: 60 * 60 * 24 }); // Überschreibt ggf. 'processing'
-        console.log(`[Upstash Redis] Status 'error' (critical) für ${jobKey} gesetzt.`);
+        await redisClient.set(jobKey, criticalErrorStatus, { EX: 60 * 60 * 24 });
+        log.debug(`Redis status 'critical error' set for ${jobKey}`);
     } catch (redisError) {
-         console.error(`[Upstash Redis] Fehler beim Setzen des 'critical error' Status für ${jobKey}:`, redisError);
+         log.error(`Redis error setting 'critical error' status: ${redisError.message}`);
     }
     // Ensure response is sent even if error occurs before async part
      if (!res.headersSent) {
@@ -926,9 +899,10 @@ async function processVideoExportInBackground(params) {
       assFilePath = null;
     }
 
-    // FFmpeg processing
-    await new Promise((resolve, reject) => {
-      const command = ffmpeg(inputPath);
+    // FFmpeg processing - wrapped in pool to limit concurrent processes
+    await ffmpegPool.run(async () => {
+      await new Promise((resolve, reject) => {
+        const command = ffmpeg(inputPath);
       
       // Quality settings
       let crf, preset, tune;
@@ -1114,7 +1088,8 @@ async function processVideoExportInBackground(params) {
         });
 
       command.save(outputPath);
-    });
+      });
+    }, `export-${exportToken}`);
 
     console.log(`[Export Background] Background processing completed for token: ${exportToken}`);
 
