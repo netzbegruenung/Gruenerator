@@ -332,13 +332,13 @@ class AssSubtitleService {
     
     let fontSize;
     if (referenceDimension >= 2160) {
-      fontSize = Math.floor(baseFontSize * 5.0); // 4K - Erhöht für bessere Sichtbarkeit
+      fontSize = Math.floor(baseFontSize * 4.0); // 4K
     } else if (referenceDimension >= 1440) {
-      fontSize = Math.floor(baseFontSize * 4.0); // 2K
+      fontSize = Math.floor(baseFontSize * 3.2); // 2K
     } else if (referenceDimension >= 1080) {
-      fontSize = Math.floor(baseFontSize * 3.5); // FullHD
+      fontSize = Math.floor(baseFontSize * 2.8); // FullHD
     } else if (referenceDimension >= 720) {
-      fontSize = Math.floor(baseFontSize * 2.5); // HD
+      fontSize = Math.floor(baseFontSize * 2.0); // HD
     } else {
       fontSize = Math.floor(baseFontSize * 2.0); // SD
     }
