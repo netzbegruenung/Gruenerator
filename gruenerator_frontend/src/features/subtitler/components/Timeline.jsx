@@ -15,7 +15,6 @@ const Timeline = ({
   const segmentRefs = useRef({});
   const inputRef = useRef(null);
   const [editingSegmentId, setEditingSegmentId] = useState(null);
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -30,8 +29,10 @@ const Timeline = ({
     return active ? active.id : null;
   }, [segments, currentTime]);
 
+  // Auto-scroll to active segment only on desktop (not mobile)
   useEffect(() => {
-    if (activeSegmentId !== null && segmentRefs.current[activeSegmentId]) {
+    const isMobile = window.innerWidth <= 768;
+    if (!isMobile && activeSegmentId !== null && segmentRefs.current[activeSegmentId]) {
       segmentRefs.current[activeSegmentId].scrollIntoView({
         behavior: 'smooth',
         block: 'nearest'
@@ -50,12 +51,8 @@ const Timeline = ({
     e.stopPropagation();
     onSegmentClick(segment.id);
     onSeek(segment.startTime);
-    if (isTouchDevice) {
-      setEditingSegmentId(segment.id);
-    } else if (segmentRefs.current[segment.id]) {
-      segmentRefs.current[segment.id].focus();
-    }
-  }, [onSegmentClick, onSeek, isTouchDevice]);
+    setEditingSegmentId(segment.id);
+  }, [onSegmentClick, onSeek]);
 
   const handleSegmentKeyDown = useCallback((e, currentSegmentId) => {
     if (e.key === 'Tab') {
@@ -80,11 +77,6 @@ const Timeline = ({
       setEditingSegmentId(currentSegmentId);
     }
   }, [segments, onSegmentClick, onSeek]);
-
-  const handleDoubleClick = useCallback((e, segment) => {
-    e.stopPropagation();
-    setEditingSegmentId(segment.id);
-  }, []);
 
   const handleInputBlur = useCallback(() => {
     setEditingSegmentId(null);
@@ -135,7 +127,6 @@ const Timeline = ({
               className={`timeline-segment ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isEditing ? 'editing' : ''} ${isCorrected ? 'corrected' : ''}`}
               tabIndex={0}
               onClick={(e) => handleSegmentClick(e, segment)}
-              onDoubleClick={(e) => handleDoubleClick(e, segment)}
               onKeyDown={(e) => !isEditing && handleSegmentKeyDown(e, segment.id)}
             >
               {isEditing ? (

@@ -351,7 +351,6 @@
 }
 
 .segment-time {
-  display: none;
   position: absolute;
   top: 0.35rem;
   right: 0.5rem;
@@ -359,10 +358,13 @@
   font-size: 0.65rem;
   font-weight: 500;
   color: var(--font-color);
+  opacity: 0.6;
 }
 
+.timeline-segment:hover .segment-time,
+.timeline-segment.active .segment-time,
 .timeline-segment.selected .segment-time {
-  display: block;
+  opacity: 1;
 }
 
 .timeline-segment.corrected {
@@ -578,7 +580,6 @@
   }
 
   .segment-time {
-    display: block;
     font-size: 0.6rem;
   }
 
