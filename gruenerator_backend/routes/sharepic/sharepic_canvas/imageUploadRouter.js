@@ -1,20 +1,23 @@
 const express = require('express');
 const multer = require('multer');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('imageUpload');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/', upload.single('image'), async (req, res) => {
-  console.log('POST-Anfrage an /upload empfangen');
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  log.debug('POST-Anfrage an /upload empfangen');
+  log.debug('Headers:', JSON.stringify(req.headers, null, 2));
 
   try {
     if (!req.file) {
-      console.log('Kein Bild in der Anfrage gefunden');
+      log.debug('Kein Bild in der Anfrage gefunden');
       return res.status(400).json({ error: 'Kein Bild hochgeladen' });
     }
 
-    console.log('Bild empfangen:', {
+    log.debug('Bild empfangen:', {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
       size: req.file.size
@@ -25,7 +28,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     // Hier können Sie das buffer-Objekt für weitere Verarbeitung speichern oder weitergeben
     // Zum Beispiel: await saveBufferToDatabase(buffer);
 
-    console.log('Bild erfolgreich empfangen und gespeichert');
+    log.debug('Bild erfolgreich empfangen und gespeichert');
 
     res.json({ 
       success: true, 
@@ -38,10 +41,10 @@ router.post('/', upload.single('image'), async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Fehler beim Bildupload:');
-    console.error(err);
-    console.error('Stack Trace:');
-    console.error(err.stack);
+    log.error('Fehler beim Bildupload:');
+    log.error(err);
+    log.error('Stack Trace:');
+    log.error(err.stack);
     res.status(500).json({ error: 'Interner Serverfehler', details: err.message });
   }
 });

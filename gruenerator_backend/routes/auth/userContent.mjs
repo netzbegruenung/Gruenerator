@@ -7,6 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import { fastEmbedService } from '../../services/FastEmbedService.js';
 import { smartChunkDocument } from '../../utils/textChunker.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('userContent');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -123,7 +126,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
             })
             ?.map(group => group.group_id) || [];
         } catch (groupInstructionsError) {
-          console.warn(`[Instructions Status] Warning checking group instructions for ${instructionType}:`, groupInstructionsError);
+          log.warn(`[Instructions Status] Warning checking group instructions for ${instructionType}:`, groupInstructionsError);
         }
       }
     }
@@ -144,7 +147,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated, async (
     });
     
   } catch (error) {
-    console.error(`[User Content /instructions-status/${req.params.instructionType} GET] Error:`, error);
+    log.error(`[User Content /instructions-status/${req.params.instructionType} GET] Error:`, error);
     res.status(500).json({
       success: false,
       message: 'Error checking instructions status',
@@ -228,7 +231,7 @@ router.get('/database', ensureAuthenticated, async (req, res) => {
         const rankedData = await postgres.query(sql);
         return res.json({ success: true, data: rankedData || [] });
       } catch (sqlError) {
-        console.warn('[Gallery] Direct SQL query failed, falling back to simpler query:', sqlError?.message || sqlError);
+        log.warn('[Gallery] Direct SQL query failed, falling back to simpler query:', sqlError?.message || sqlError);
       }
     }
 
@@ -304,7 +307,7 @@ router.get('/database', ensureAuthenticated, async (req, res) => {
 
     res.json({ success: true, data: responseData });
   } catch (err) {
-    console.error('[Gallery] /database GET error:', err);
+    log.error('[Gallery] /database GET error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der Datenbank-Inhalte', details: err.message, data: [] });
   }
 });
@@ -341,7 +344,7 @@ router.get('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Content /anweisungen-wissen GET] Error:', error.message);
+    log.error('[User Content /anweisungen-wissen GET] Error:', error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Laden der Daten', 
@@ -363,9 +366,9 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
       custom_buergeranfragen_prompt,  // Added missing field
       knowledge = []
     } = req.body || {};
-    console.log('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
-    console.log('[User Content /anweisungen-wissen PUT] Request body keys:', Object.keys(req.body || {}));
-    console.log('[User Content /anweisungen-wissen PUT] Knowledge entries count:', knowledge?.length || 0);
+    log.debug('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
+    log.debug('[User Content /anweisungen-wissen PUT] Request body keys:', Object.keys(req.body || {}));
+    log.debug('[User Content /anweisungen-wissen PUT] Knowledge entries count:', knowledge?.length || 0);
 
     // 1. Update profile prompts using ProfileService
     const profileService = getProfileService();
@@ -379,7 +382,7 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     };
     
     await profileService.updateProfile(userId, profilePayload);
-    console.log(`[User Content /anweisungen-wissen PUT] Updated profile for user ${userId}`);
+    log.debug(`[User Content /anweisungen-wissen PUT] Updated profile for user ${userId}`);
 
     // 2. Handle knowledge entries using UserKnowledgeService (single source of truth)
     const userKnowledgeService = getUserKnowledgeService();
@@ -414,9 +417,9 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
           knowledgeResults.processed++;
         }
         
-        console.log(`[User Content /anweisungen-wissen PUT] Knowledge processed: ${knowledgeResults.processed} saved, ${knowledgeResults.deleted} deleted`);
+        log.debug(`[User Content /anweisungen-wissen PUT] Knowledge processed: ${knowledgeResults.processed} saved, ${knowledgeResults.deleted} deleted`);
       } catch (error) {
-        console.error(`[User Content /anweisungen-wissen PUT] Knowledge processing failed:`, error.message);
+        log.error(`[User Content /anweisungen-wissen PUT] Knowledge processing failed:`, error.message);
         throw error;
       }
     }
@@ -429,7 +432,7 @@ router.put('/anweisungen-wissen', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Content /anweisungen-wissen PUT] Error:', error.message);
+    log.error('[User Content /anweisungen-wissen PUT] Error:', error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Speichern', 
@@ -463,7 +466,7 @@ router.delete('/anweisungen-wissen/:id', ensureAuthenticated, async (req, res) =
     });
     
   } catch (error) {
-    console.error(`[User Content /anweisungen-wissen/${req.params.id} DELETE] Error:`, error.message);
+    log.error(`[User Content /anweisungen-wissen/${req.params.id} DELETE] Error:`, error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Löschen des Eintrags.', 
@@ -476,10 +479,10 @@ router.delete('/anweisungen-wissen/:id', ensureAuthenticated, async (req, res) =
 
 // Helper function to extract title from HTML/markdown content
 function extractTitleFromContent(content) {
-  console.log('[Title Extraction] Starting extraction for content:', content?.substring(0, 100) + '...');
+  log.debug('[Title Extraction] Starting extraction for content:', content?.substring(0, 100) + '...');
   
   if (!content || typeof content !== 'string') {
-    console.log('[Title Extraction] No content or invalid type');
+    log.debug('[Title Extraction] No content or invalid type');
     return null;
   }
 
@@ -487,35 +490,35 @@ function extractTitleFromContent(content) {
   const h2Match = content.match(/<h2[^>]*>(.*?)<\/h2>/i);
   if (h2Match && h2Match[1]) {
     const h2Title = cleanTitle(h2Match[1]);
-    console.log('[Title Extraction] Found h2 title:', h2Title);
+    log.debug('[Title Extraction] Found h2 title:', h2Title);
     return h2Title;
   }
-  console.log('[Title Extraction] No h2 tag found');
+  log.debug('[Title Extraction] No h2 tag found');
 
   // Fallback to h1 tag
   const h1Match = content.match(/<h1[^>]*>(.*?)<\/h1>/i);
   if (h1Match && h1Match[1]) {
     const h1Title = cleanTitle(h1Match[1]);
-    console.log('[Title Extraction] Found h1 title:', h1Title);
+    log.debug('[Title Extraction] Found h1 title:', h1Title);
     return h1Title;
   }
-  console.log('[Title Extraction] No h1 tag found');
+  log.debug('[Title Extraction] No h1 tag found');
 
   // Fallback to h3 tag
   const h3Match = content.match(/<h3[^>]*>(.*?)<\/h3>/i);
   if (h3Match && h3Match[1]) {
     const h3Title = cleanTitle(h3Match[1]);
-    console.log('[Title Extraction] Found h3 title:', h3Title);
+    log.debug('[Title Extraction] Found h3 title:', h3Title);
     return h3Title;
   }
-  console.log('[Title Extraction] No h3 tag found');
+  log.debug('[Title Extraction] No h3 tag found');
 
   // Special handling for social media content - look for platform names
   const socialPlatforms = ['Twitter', 'Facebook', 'Instagram', 'LinkedIn', 'TikTok'];
   for (const platform of socialPlatforms) {
     if (content.toLowerCase().includes(platform.toLowerCase())) {
       const title = `${platform}-Beitrag`;
-      console.log('[Title Extraction] Found social media platform, using title:', title);
+      log.debug('[Title Extraction] Found social media platform, using title:', title);
       return title;
     }
   }
@@ -534,7 +537,7 @@ function extractTitleFromContent(content) {
 
   for (const type of contentTypes) {
     if (type.pattern.test(content)) {
-      console.log('[Title Extraction] Found content type pattern, using title:', type.title);
+      log.debug('[Title Extraction] Found content type pattern, using title:', type.title);
       return type.title;
     }
   }
@@ -546,7 +549,7 @@ function extractTitleFromContent(content) {
     const firstSentence = sentences[0].trim();
     if (firstSentence && firstSentence.length > 10 && firstSentence.length < 100) {
       const sentenceTitle = cleanTitle(firstSentence);
-      console.log('[Title Extraction] Using first sentence as title:', sentenceTitle);
+      log.debug('[Title Extraction] Using first sentence as title:', sentenceTitle);
       return sentenceTitle;
     }
   }
@@ -555,11 +558,11 @@ function extractTitleFromContent(content) {
   const firstLine = textContent.split('\n')[0];
   if (firstLine && firstLine.length > 0) {
     const firstLineTitle = cleanTitle(firstLine.substring(0, 60));
-    console.log('[Title Extraction] Using first line as title:', firstLineTitle);
+    log.debug('[Title Extraction] Using first line as title:', firstLineTitle);
     return firstLineTitle;
   }
 
-  console.log('[Title Extraction] No title could be extracted');
+  log.debug('[Title Extraction] No title could be extracted');
   return null;
 }
 
@@ -579,9 +582,9 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
     const { content, title: manualTitle, type = 'universal' } = req.body;
-    console.log(`[User Content /save-to-library POST] Request from user ${userId} with type: ${type}`);
-    console.log(`[User Content /save-to-library POST] Content received (first 200 chars):`, content?.substring(0, 200));
-    console.log(`[User Content /save-to-library POST] Manual title provided:`, manualTitle);
+    log.debug(`[User Content /save-to-library POST] Request from user ${userId} with type: ${type}`);
+    log.debug(`[User Content /save-to-library POST] Content received (first 200 chars):`, content?.substring(0, 200));
+    log.debug(`[User Content /save-to-library POST] Manual title provided:`, manualTitle);
 
     // Valid content types (now matching expanded database constraint)
     const validTypes = [
@@ -622,14 +625,14 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
       const extractedTitle = extractTitleFromContent(content);
       if (extractedTitle) {
         finalTitle = extractedTitle;
-        console.log(`[User Content /save-to-library POST] Auto-detected title: "${finalTitle}"`);
+        log.debug(`[User Content /save-to-library POST] Auto-detected title: "${finalTitle}"`);
       }
     }
 
     // Final fallback to date-based title
     if (!finalTitle || finalTitle.trim() === '') {
       finalTitle = `Gespeicherter Text vom ${new Date().toLocaleDateString('de-DE')}`;
-      console.log(`[User Content /save-to-library POST] Using fallback title: "${finalTitle}"`);
+      log.debug(`[User Content /save-to-library POST] Using fallback title: "${finalTitle}"`);
     }
 
     // Generate unique document ID
@@ -653,7 +656,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
       // Don't include created_at and updated_at - PostgresService handles timestamps
     });
 
-    console.log(`[User Content /save-to-library POST] Successfully saved text ${data.id} for user ${userId} with title: "${finalTitle}" (type: ${type})`);
+    log.debug(`[User Content /save-to-library POST] Successfully saved text ${data.id} for user ${userId} with title: "${finalTitle}" (type: ${type})`);
 
     // Vectorize and store in Qdrant (async, don't block response)
     setImmediate(async () => {
@@ -668,7 +671,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
           const textForEmbedding = content.replace(/<[^>]*>/g, '').trim();
           
           if (textForEmbedding.length === 0) {
-            console.log(`[Vectorization] Skipping empty text for document ${documentId}`);
+            log.debug(`[Vectorization] Skipping empty text for document ${documentId}`);
             return;
           }
           
@@ -692,7 +695,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
           }
           
           if (chunks.length === 0) {
-            console.log(`[Vectorization] No chunks generated for document ${documentId}`);
+            log.debug(`[Vectorization] No chunks generated for document ${documentId}`);
             return;
           }
           
@@ -730,13 +733,13 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
             'user_texts'  // Use dedicated collection
           );
           
-          console.log(`[Vectorization] Vectorized ${chunks.length} chunks for document ${documentId} in user_texts collection`);
+          log.debug(`[Vectorization] Vectorized ${chunks.length} chunks for document ${documentId} in user_texts collection`);
         } else {
-          console.log(`[Vectorization] Qdrant unavailable, skipping vectorization for document ${documentId}`);
+          log.debug(`[Vectorization] Qdrant unavailable, skipping vectorization for document ${documentId}`);
         }
       } catch (vectorError) {
         // Log but don't fail the save operation since it's already completed
-        console.error('[Vectorization] Failed (non-critical):', vectorError.message);
+        log.error('[Vectorization] Failed (non-critical):', vectorError.message);
       }
     });
 
@@ -756,7 +759,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Content /save-to-library POST] Error:', error.message);
+    log.error('[User Content /save-to-library POST] Error:', error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Speichern in der Bibliothek.', 
@@ -825,7 +828,7 @@ router.get('/saved-texts', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Content /saved-texts GET] Error:', error.message);
+    log.error('[User Content /saved-texts GET] Error:', error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Laden der gespeicherten Texte.', 
@@ -853,7 +856,7 @@ router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
     const result = await postgres.delete('user_documents', { id: id, user_id: userId });
     
     if (result.changes === 0) {
-      console.warn(`[User Content /saved-texts/${id} DELETE] No document found or access denied`);
+      log.warn(`[User Content /saved-texts/${id} DELETE] No document found or access denied`);
     }
 
     // Cleanup vectors from Qdrant (async, don't block response)
@@ -862,10 +865,10 @@ router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
         const qdrant = getQdrantInstance();
         if (qdrant.isAvailable()) {
           await qdrant.deleteDocument(id, 'user_texts');
-          console.log(`[Vector Cleanup] Removed vectors for document ${id} from user_texts collection`);
+          log.debug(`[Vector Cleanup] Removed vectors for document ${id} from user_texts collection`);
         }
       } catch (vectorError) {
-        console.error('[Vector Cleanup] Failed (non-critical):', vectorError.message);
+        log.error('[Vector Cleanup] Failed (non-critical):', vectorError.message);
       }
     });
 
@@ -875,7 +878,7 @@ router.delete('/saved-texts/:id', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error(`[User Content /saved-texts/${req.params.id} DELETE] Error:`, error.message);
+    log.error(`[User Content /saved-texts/${req.params.id} DELETE] Error:`, error.message);
     res.status(500).json({ 
       success: false, 
       message: 'Fehler beim Löschen des Textes.', 
@@ -930,7 +933,7 @@ router.post('/saved-texts/:id/metadata', ensureAuthenticated, async (req, res) =
     });
 
   } catch (error) {
-    console.error(`[User Content /saved-texts/${req.params.id}/metadata POST] Error:`, error.message);
+    log.error(`[User Content /saved-texts/${req.params.id}/metadata POST] Error:`, error.message);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to update document metadata'
@@ -959,7 +962,7 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[User Content /saved-texts/bulk DELETE] Bulk delete request for ${ids.length} texts from user ${userId}`);
+    log.debug(`[User Content /saved-texts/bulk DELETE] Bulk delete request for ${ids.length} texts from user ${userId}`);
 
     const postgres = getPostgresInstance();
     await postgres.ensureInitialized();
@@ -992,7 +995,7 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
     const deletedIds = result.map(row => row.id);
     const failedIds = ownedIds.filter(id => !deletedIds.includes(id));
 
-    console.log(`[User Content /saved-texts/bulk DELETE] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+    log.debug(`[User Content /saved-texts/bulk DELETE] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
 
     // Cleanup vectors from Qdrant for successfully deleted documents (async, don't block response)
     if (deletedIds.length > 0) {
@@ -1004,17 +1007,17 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
             const cleanupPromises = deletedIds.map(async (docId) => {
               try {
                 await qdrant.deleteDocument(docId, 'user_texts');
-                console.log(`[Vector Cleanup] Removed vectors for document ${docId}`);
+                log.debug(`[Vector Cleanup] Removed vectors for document ${docId}`);
               } catch (err) {
-                console.error(`[Vector Cleanup] Failed for document ${docId}:`, err.message);
+                log.error(`[Vector Cleanup] Failed for document ${docId}:`, err.message);
               }
             });
             
             await Promise.all(cleanupPromises);
-            console.log(`[Vector Cleanup] Bulk cleanup completed for ${deletedIds.length} documents`);
+            log.debug(`[Vector Cleanup] Bulk cleanup completed for ${deletedIds.length} documents`);
           }
         } catch (vectorError) {
-          console.error('[Vector Cleanup] Bulk cleanup failed (non-critical):', vectorError.message);
+          log.error('[Vector Cleanup] Bulk cleanup failed (non-critical):', vectorError.message);
         }
       });
     }
@@ -1029,7 +1032,7 @@ router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[User Content /saved-texts/bulk DELETE] Error:', error.message);
+    log.error('[User Content /saved-texts/bulk DELETE] Error:', error.message);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to perform bulk delete of texts',
@@ -1061,7 +1064,7 @@ router.get('/antraege-categories', ensureAuthenticated, async (req, res) => {
 
     res.json({ success: true, categories });
   } catch (err) {
-    console.error('[Gallery] /antraege-categories error:', err);
+    log.error('[Gallery] /antraege-categories error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der Kategorien', details: err.message });
   }
 });
@@ -1105,7 +1108,7 @@ router.get('/antraege', ensureAuthenticated, async (req, res) => {
 
     res.json({ success: true, antraege: data || [] });
   } catch (err) {
-    console.error('[Gallery] /antraege GET error:', err);
+    log.error('[Gallery] /antraege GET error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der Anträge', details: err.message, antraege: [] });
   }
 });
@@ -1154,7 +1157,7 @@ router.get('/custom-generators', ensureAuthenticated, async (req, res) => {
 
     res.json({ success: true, generators });
   } catch (err) {
-    console.error('[Gallery] /custom-generators GET error:', err);
+    log.error('[Gallery] /custom-generators GET error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der Grüneratoren', details: err.message, generators: [] });
   }
 });
@@ -1224,7 +1227,7 @@ router.get('/pr-texts', ensureAuthenticated, async (req, res) => {
     // Return raw array to match current frontend expectations
     res.json(results);
   } catch (err) {
-    console.error('[Gallery] /pr-texts GET error:', err);
+    log.error('[Gallery] /pr-texts GET error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der PR-Texte', details: err.message });
   }
 });
@@ -1258,7 +1261,7 @@ router.get('/pr-texts/categories', ensureAuthenticated, async (req, res) => {
 
     res.json({ success: true, categories });
   } catch (err) {
-    console.error('[Gallery] /pr-texts/categories GET error:', err);
+    log.error('[Gallery] /pr-texts/categories GET error:', err);
     res.status(500).json({ success: false, message: 'Fehler beim Laden der PR-Kategorien', details: err.message });
   }
 });
@@ -1269,7 +1272,7 @@ router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
     const userId = req.user.id;
     const { query, limit = 10, documentTypes = null } = req.body;
     
-    console.log(`[Search Saved Texts] User ${userId} searching for: "${query}"`);
+    log.debug(`[Search Saved Texts] User ${userId} searching for: "${query}"`);
     
     if (!query || query.trim().length === 0) {
       return res.status(400).json({
@@ -1315,7 +1318,7 @@ router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
       collection: 'user_texts'
     });
     
-    console.log(`[Search Saved Texts] Found ${searchResults.results.length} vector matches`);
+    log.debug(`[Search Saved Texts] Found ${searchResults.results.length} vector matches`);
     
     // Aggregate results by document_id
     const documentScores = new Map();
@@ -1383,7 +1386,7 @@ router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
       .sort((a, b) => b.relevance_score - a.relevance_score)
       .slice(0, limit);
     
-    console.log(`[Search Saved Texts] Returning ${finalResults.length} documents`);
+    log.debug(`[Search Saved Texts] Returning ${finalResults.length} documents`);
     
     res.json({
       success: true,
@@ -1393,7 +1396,7 @@ router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[Search Saved Texts] Error:', error);
+    log.error('[Search Saved Texts] Error:', error);
     res.status(500).json({
       success: false,
       message: 'Search failed',

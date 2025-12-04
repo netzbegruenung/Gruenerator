@@ -8,6 +8,9 @@ import path from 'path';
 import { getDocumentProcessingService } from '../services/documentProcessingService.js';
 import { getDocumentContentService } from '../services/documentContentService.js';
 import passport from '../config/passportSetup.mjs';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('documents');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -58,7 +61,7 @@ router.get('/mode', ensureAuthenticated, async (req, res) => {
     const mode = await postgresDocumentService.getUserDocumentMode(req.user.id);
     res.json({ mode });
   } catch (error) {
-    console.error('[Documents /mode] Error getting document mode:', error);
+    log.error('[Documents /mode] Error getting document mode:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get document mode'
@@ -81,7 +84,7 @@ router.post('/mode', ensureAuthenticated, async (req, res) => {
     const result = await postgresDocumentService.setUserDocumentMode(req.user.id, mode);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('[Documents /mode] Error setting document mode:', error);
+    log.error('[Documents /mode] Error setting document mode:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to set document mode'
@@ -123,7 +126,7 @@ router.post('/upload-manual', ensureAuthenticated, upload.single('document'), as
     });
 
   } catch (error) {
-    console.error('[Documents /upload-manual] Error:', error);
+    log.error('[Documents /upload-manual] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to process manual upload'
@@ -160,7 +163,7 @@ router.post('/add-text', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /add-text] Error:', error);
+    log.error('[Documents /add-text] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to process text'
@@ -178,7 +181,7 @@ router.get('/wolke/sync-status', ensureAuthenticated, async (req, res) => {
     const syncStatuses = await wolkeSyncService.getUserSyncStatus(req.user.id);
     res.json({ success: true, syncStatuses });
   } catch (error) {
-    console.error('[Documents /wolke/sync-status] Error:', error);
+    log.error('[Documents /wolke/sync-status] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get sync status'
@@ -201,10 +204,10 @@ router.post('/wolke/sync', ensureAuthenticated, async (req, res) => {
     // Start sync in background
     wolkeSyncService.syncFolder(req.user.id, shareLinkId, folderPath)
       .then(result => {
-        console.log(`[Documents /wolke/sync] Sync completed:`, result);
+        log.debug(`[Documents /wolke/sync] Sync completed:`, result);
       })
       .catch(error => {
-        console.error(`[Documents /wolke/sync] Sync failed:`, error);
+        log.error(`[Documents /wolke/sync] Sync failed:`, error);
       });
     
     res.json({ 
@@ -214,7 +217,7 @@ router.post('/wolke/sync', ensureAuthenticated, async (req, res) => {
       folderPath
     });
   } catch (error) {
-    console.error('[Documents /wolke/sync] Error:', error);
+    log.error('[Documents /wolke/sync] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to start folder sync'
@@ -237,7 +240,7 @@ router.post('/wolke/auto-sync', ensureAuthenticated, async (req, res) => {
     const result = await wolkeSyncService.setAutoSync(req.user.id, shareLinkId, folderPath, enabled);
     res.json({ success: true, ...result });
   } catch (error) {
-    console.error('[Documents /wolke/auto-sync] Error:', error);
+    log.error('[Documents /wolke/auto-sync] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to set auto-sync'
@@ -256,7 +259,7 @@ router.get('/mode', ensureAuthenticated, async (req, res) => {
       mode: mode
     });
   } catch (error) {
-    console.error('[Documents /mode GET] Error:', error);
+    log.error('[Documents /mode GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -284,7 +287,7 @@ router.post('/mode', ensureAuthenticated, async (req, res) => {
       mode: result.mode
     });
   } catch (error) {
-    console.error('[Documents /mode POST] Error:', error);
+    log.error('[Documents /mode POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -318,7 +321,7 @@ router.get('/by-source/:sourceType?', ensureAuthenticated, async (req, res) => {
       count: enriched.length
     });
   } catch (error) {
-    console.error('[Documents /by-source] Error:', error);
+    log.error('[Documents /by-source] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get documents by source type'
@@ -332,7 +335,7 @@ router.get('/stats', ensureAuthenticated, async (req, res) => {
     const stats = await postgresDocumentService.getDocumentStats(req.user.id);
     res.json({ success: true, stats });
   } catch (error) {
-    console.error('[Documents /stats] Error:', error);
+    log.error('[Documents /stats] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get document statistics'
@@ -390,7 +393,7 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /user] Error:', error);
+    log.error('[Documents /user] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch documents'
@@ -401,7 +404,7 @@ router.get('/user', ensureAuthenticated, async (req, res) => {
 // Get combined user content (documents + texts) for improved performance
 router.get('/combined-content', ensureAuthenticated, async (req, res) => {
   try {
-    console.log(`[Documents /combined-content] Fetching combined content for user: ${req.user.id}`);
+    log.debug(`[Documents /combined-content] Fetching combined content for user: ${req.user.id}`);
 
     // Fetch documents and texts in parallel for better performance
     const [documents, texts] = await Promise.all([
@@ -437,7 +440,7 @@ router.get('/combined-content', ensureAuthenticated, async (req, res) => {
     enrichedDocs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     texts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    console.log(`[Documents /combined-content] Returning ${enrichedDocs.length} documents and ${texts.length} texts`);
+    log.debug(`[Documents /combined-content] Returning ${enrichedDocs.length} documents and ${texts.length} texts`);
 
     res.json({
       success: true,
@@ -455,7 +458,7 @@ router.get('/combined-content', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /combined-content] Error:', error);
+    log.error('[Documents /combined-content] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch combined content'
@@ -466,12 +469,12 @@ router.get('/combined-content', ensureAuthenticated, async (req, res) => {
 
 // Bulk delete documents (PostgreSQL + Qdrant only)
 router.delete('/bulk', ensureAuthenticated, async (req, res) => {
-  console.log('[Documents] BULK DELETE ROUTE HIT - Route is accessible');
-  console.log('[Documents] Request method:', req.method);
-  console.log('[Documents] Request URL:', req.originalUrl);
-  console.log('[Documents] User authenticated:', !!req.user);
-  console.log('[Documents] User ID:', req.user?.id);
-  console.log('[Documents] Request body:', JSON.stringify(req.body, null, 2));
+  log.debug('[Documents] BULK DELETE ROUTE HIT - Route is accessible');
+  log.debug('[Documents] Request method:', req.method);
+  log.debug('[Documents] Request URL:', req.originalUrl);
+  log.debug('[Documents] User authenticated:', !!req.user);
+  log.debug('[Documents] User ID:', req.user?.id);
+  log.debug('[Documents] Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     const { ids } = req.body;
@@ -484,11 +487,11 @@ router.delete('/bulk', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[Documents] Bulk delete request for ${ids.length} documents from user ${req.user.id}`);
-    console.log('[Documents] Document IDs to delete:', ids);
+    log.debug(`[Documents] Bulk delete request for ${ids.length} documents from user ${req.user.id}`);
+    log.debug('[Documents] Document IDs to delete:', ids);
 
     // Delete document metadata from PostgreSQL
-    console.log('[Documents] Starting bulk delete operation...');
+    log.debug('[Documents] Starting bulk delete operation...');
     const deleteResult = await postgresDocumentService.bulkDeleteDocuments(ids, req.user.id);
 
     // Delete document vectors from Qdrant
@@ -497,7 +500,7 @@ router.delete('/bulk', ensureAuthenticated, async (req, res) => {
         await qdrantDocumentService.deleteDocumentVectors(documentId, req.user.id);
         return { documentId, success: true };
       } catch (error) {
-        console.warn(`[Documents] Failed to delete vectors for document ${documentId}:`, error);
+        log.warn(`[Documents] Failed to delete vectors for document ${documentId}:`, error);
         return { documentId, success: false, error: error.message };
       }
     });
@@ -507,7 +510,7 @@ router.delete('/bulk', ensureAuthenticated, async (req, res) => {
       result.status === 'fulfilled' && result.value.success
     ).length;
 
-    console.log(`[Documents] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`);
+    log.debug(`[Documents] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`);
 
     res.json({
       success: true,
@@ -523,7 +526,7 @@ router.delete('/bulk', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents] Error in bulk delete:', error);
+    log.error('[Documents] Error in bulk delete:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to perform bulk delete'
@@ -542,9 +545,9 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
     // Delete document vectors from Qdrant
     try {
       await qdrantDocumentService.deleteDocumentVectors(id, req.user.id);
-      console.log(`[Documents /delete] Successfully deleted vectors for document ${id}`);
+      log.debug(`[Documents /delete] Successfully deleted vectors for document ${id}`);
     } catch (vectorError) {
-      console.warn('[Documents /delete] Vector deletion warning:', vectorError);
+      log.warn('[Documents /delete] Vector deletion warning:', vectorError);
       // Continue even if vector deletion fails - document metadata is already deleted
     }
 
@@ -554,7 +557,7 @@ router.delete('/:id', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /delete] Error:', error);
+    log.error('[Documents /delete] Error:', error);
     
     if (error.message.includes('not found') || error.message.includes('access denied')) {
       return res.status(404).json({
@@ -582,7 +585,7 @@ router.post('/search', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[Documents /search] Search request: "${query}" (user: ${req.user.id}, mode: ${searchMode})`);
+    log.debug(`[Documents /search] Search request: "${query}" (user: ${req.user.id}, mode: ${searchMode})`);
 
     let searchResult;
 
@@ -658,7 +661,7 @@ router.post('/search', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /search] Error:', error);
+    log.error('[Documents /search] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to search documents'
@@ -684,16 +687,16 @@ router.get('/:id/content', ensureAuthenticated, async (req, res) => {
     // Get text content from Qdrant vectors
     let ocrText = '';
     try {
-      console.log(`[Documents /content] Fetching text from Qdrant for document ${id}`);
+      log.debug(`[Documents /content] Fetching text from Qdrant for document ${id}`);
       const qdrantResult = await qdrantDocumentService.getDocumentFullText(req.user.id, id);
       if (qdrantResult.success && qdrantResult.fullText) {
         ocrText = qdrantResult.fullText;
-        console.log(`[Documents /content] Successfully retrieved ${qdrantResult.chunkCount} chunks from Qdrant for document ${id}`);
+        log.debug(`[Documents /content] Successfully retrieved ${qdrantResult.chunkCount} chunks from Qdrant for document ${id}`);
       } else {
-        console.warn(`[Documents /content] No text found in Qdrant for document ${id}`);
+        log.warn(`[Documents /content] No text found in Qdrant for document ${id}`);
       }
     } catch (qdrantError) {
-      console.error(`[Documents /content] Error retrieving text from Qdrant for document ${id}:`, qdrantError);
+      log.error(`[Documents /content] Error retrieving text from Qdrant for document ${id}:`, qdrantError);
       // Continue with empty text - don't fail the request
     }
 
@@ -712,7 +715,7 @@ router.get('/:id/content', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /content] Error:', error);
+    log.error('[Documents /content] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get document content'
@@ -746,7 +749,7 @@ router.get('/search/stats', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /search/stats] Error:', error);
+    log.error('[Documents /search/stats] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get search stats'
@@ -767,7 +770,7 @@ router.post('/search/hybrid-test', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[Documents /search/hybrid-test] Testing hybrid search: "${query}"`);
+    log.debug(`[Documents /search/hybrid-test] Testing hybrid search: "${query}"`);
 
     // Run both search methods for comparison
     const [vectorResult, hybridResult] = await Promise.all([
@@ -794,7 +797,7 @@ router.post('/search/hybrid-test', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /search/hybrid-test] Error:', error);
+    log.error('[Documents /search/hybrid-test] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to test hybrid search'
@@ -832,7 +835,7 @@ router.post('/search-content', ensureAuthenticated, async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('[Documents API] Error in POST /search-content:', error);
+        log.error('[Documents API] Error in POST /search-content:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error',
@@ -861,7 +864,7 @@ router.post('/crawl-url-manual', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[Documents /crawl-url-manual] Starting crawl for URL: ${url} with title: ${title}`);
+    log.debug(`[Documents /crawl-url-manual] Starting crawl for URL: ${url} with title: ${title}`);
 
     // Import URL crawler
     const { urlCrawlerService } = await import('../services/urlCrawlerService.js');
@@ -888,7 +891,7 @@ router.post('/crawl-url-manual', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /crawl-url-manual] Error:', error);
+    log.error('[Documents /crawl-url-manual] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -902,12 +905,12 @@ router.post('/crawl-url-manual', ensureAuthenticated, async (req, res) => {
 
 // Default upload endpoint - redirects to manual mode for new uploads
 router.post('/upload-default', ensureAuthenticated, upload.single('document'), async (req, res) => {
-  console.log('[Documents /upload-default] Redirecting to manual mode for new upload');
+  log.debug('[Documents /upload-default] Redirecting to manual mode for new upload');
   
   // Check user's document mode preference
   try {
     const userMode = await postgresDocumentService.getUserDocumentMode(req.user.id);
-    console.log(`[Documents /upload-default] User mode: ${userMode}`);
+    log.debug(`[Documents /upload-default] User mode: ${userMode}`);
     
     if (userMode === 'manual' || userMode === 'wolke') {
       // Forward to manual upload endpoint
@@ -919,7 +922,7 @@ router.post('/upload-default', ensureAuthenticated, upload.single('document'), a
       return router.handle(req, res);
     }
   } catch (error) {
-    console.error('[Documents /upload-default] Error checking user mode, defaulting to manual:', error);
+    log.error('[Documents /upload-default] Error checking user mode, defaulting to manual:', error);
     // Default to manual mode if there's an error
     req.url = '/upload-manual';
     return router.handle(req, res);
@@ -928,11 +931,11 @@ router.post('/upload-default', ensureAuthenticated, upload.single('document'), a
 
 // Default URL crawling endpoint - redirects to manual mode
 router.post('/crawl-url-default', ensureAuthenticated, async (req, res) => {
-  console.log('[Documents /crawl-url-default] Redirecting to manual mode for URL crawling');
+  log.debug('[Documents /crawl-url-default] Redirecting to manual mode for URL crawling');
   
   try {
     const userMode = await postgresDocumentService.getUserDocumentMode(req.user.id);
-    console.log(`[Documents /crawl-url-default] User mode: ${userMode}`);
+    log.debug(`[Documents /crawl-url-default] User mode: ${userMode}`);
     
     if (userMode === 'manual' || userMode === 'wolke') {
       // Forward to manual crawl endpoint
@@ -944,7 +947,7 @@ router.post('/crawl-url-default', ensureAuthenticated, async (req, res) => {
       return router.handle(req, res);
     }
   } catch (error) {
-    console.error('[Documents /crawl-url-default] Error checking user mode, defaulting to manual:', error);
+    log.error('[Documents /crawl-url-default] Error checking user mode, defaulting to manual:', error);
     // Default to manual mode if there's an error
     req.url = '/crawl-url-manual';
     return router.handle(req, res);
@@ -960,7 +963,7 @@ router.get('/:documentId/full-text', ensureAuthenticated, async (req, res) => {
   try {
     const { documentId } = req.params;
     
-    console.log(`[Documents /:documentId/full-text] Retrieving full text for document: ${documentId}`);
+    log.debug(`[Documents /:documentId/full-text] Retrieving full text for document: ${documentId}`);
     
     // First verify the document belongs to the user (from PostgreSQL metadata)
     const documentMeta = await postgresDocumentService.getDocumentById(documentId, req.user.id);
@@ -982,7 +985,7 @@ router.get('/:documentId/full-text', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    console.log(`[Documents /:documentId/full-text] Retrieved text with ${result.chunkCount} chunks`);
+    log.debug(`[Documents /:documentId/full-text] Retrieved text with ${result.chunkCount} chunks`);
     
     res.json({
       success: true,
@@ -998,7 +1001,7 @@ router.get('/:documentId/full-text', ensureAuthenticated, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(`[Documents /:documentId/full-text] Error:`, error);
+    log.error(`[Documents /:documentId/full-text] Error:`, error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to retrieve document text'
@@ -1018,7 +1021,7 @@ router.post('/bulk/full-text', ensureAuthenticated, async (req, res) => {
       });
     }
     
-    console.log(`[Documents /bulk/full-text] Retrieving full text for ${documentIds.length} documents`);
+    log.debug(`[Documents /bulk/full-text] Retrieving full text for ${documentIds.length} documents`);
     
     // Verify all documents belong to the user
     const documentsMetadata = await Promise.all(
@@ -1040,7 +1043,7 @@ router.post('/bulk/full-text', ensureAuthenticated, async (req, res) => {
     // Get full text for valid documents from Qdrant
     const result = await qdrantDocumentService.getMultipleDocumentsFullText(req.user.id, validDocumentIds);
     
-    console.log(`[Documents /bulk/full-text] Retrieved ${result.documents.length} documents, ${result.errors.length} errors`);
+    log.debug(`[Documents /bulk/full-text] Retrieved ${result.documents.length} documents, ${result.errors.length} errors`);
     
     res.json({
       success: true,
@@ -1056,7 +1059,7 @@ router.post('/bulk/full-text', ensureAuthenticated, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[Documents /bulk/full-text] Error:', error);
+    log.error('[Documents /bulk/full-text] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to retrieve documents text'
@@ -1069,7 +1072,7 @@ router.get('/qdrant/list', ensureAuthenticated, async (req, res) => {
   try {
     const { sourceType, limit } = req.query;
     
-    console.log(`[Documents /qdrant/list] Retrieving documents list from Qdrant for user: ${req.user.id}`);
+    log.debug(`[Documents /qdrant/list] Retrieving documents list from Qdrant for user: ${req.user.id}`);
     
     const result = await qdrantDocumentService.getUserDocumentsList(req.user.id, {
       sourceType: sourceType || null,
@@ -1080,7 +1083,7 @@ router.get('/qdrant/list', ensureAuthenticated, async (req, res) => {
       throw new Error('Failed to retrieve documents from Qdrant');
     }
     
-    console.log(`[Documents /qdrant/list] Retrieved ${result.documents.length} documents from Qdrant`);
+    log.debug(`[Documents /qdrant/list] Retrieved ${result.documents.length} documents from Qdrant`);
     
     res.json({
       success: true,
@@ -1092,7 +1095,7 @@ router.get('/qdrant/list', ensureAuthenticated, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('[Documents /qdrant/list] Error:', error);
+    log.error('[Documents /qdrant/list] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to retrieve documents from Qdrant'
@@ -1103,18 +1106,18 @@ router.get('/qdrant/list', ensureAuthenticated, async (req, res) => {
 // Get Qdrant vector statistics for user
 router.get('/qdrant/stats', ensureAuthenticated, async (req, res) => {
   try {
-    console.log(`[Documents /qdrant/stats] Getting vector stats for user: ${req.user.id}`);
+    log.debug(`[Documents /qdrant/stats] Getting vector stats for user: ${req.user.id}`);
     
     const stats = await qdrantDocumentService.getUserVectorStats(req.user.id);
     
-    console.log(`[Documents /qdrant/stats] User has ${stats.totalVectors} vectors across ${stats.uniqueDocuments} documents`);
+    log.debug(`[Documents /qdrant/stats] User has ${stats.totalVectors} vectors across ${stats.uniqueDocuments} documents`);
     
     res.json({
       success: true,
       data: stats
     });
   } catch (error) {
-    console.error('[Documents /qdrant/stats] Error:', error);
+    log.error('[Documents /qdrant/stats] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get vector statistics'
@@ -1134,7 +1137,7 @@ router.get('/wolke/browse/:shareLinkId', ensureAuthenticated, async (req, res) =
       });
     }
 
-    console.log(`[Documents /wolke/browse] Browsing files for share link ${shareLinkId}`);
+    log.debug(`[Documents /wolke/browse] Browsing files for share link ${shareLinkId}`);
 
     // Get the share link
     const shareLink = await wolkeSyncService.getShareLink(req.user.id, shareLinkId);
@@ -1164,7 +1167,7 @@ router.get('/wolke/browse/:shareLinkId', ensureAuthenticated, async (req, res) =
     });
 
   } catch (error) {
-    console.error('[Documents /wolke/browse] Error:', error);
+    log.error('[Documents /wolke/browse] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to browse Wolke files'
@@ -1184,7 +1187,7 @@ router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[Documents /wolke/import] Importing ${files.length} files from share link ${shareLinkId}`);
+    log.debug(`[Documents /wolke/import] Importing ${files.length} files from share link ${shareLinkId}`);
 
     // Get the share link
     const shareLink = await wolkeSyncService.getShareLink(req.user.id, shareLinkId);
@@ -1196,7 +1199,7 @@ router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
     // Process each selected file
     for (const fileInfo of files) {
       try {
-        console.log(`[Documents /wolke/import] Processing file: ${fileInfo.name}`);
+        log.debug(`[Documents /wolke/import] Processing file: ${fileInfo.name}`);
 
         // Check if file already exists to prevent duplicates
         const existingDoc = await postgresDocumentService.getDocumentByWolkeFile(
@@ -1206,7 +1209,7 @@ router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
         );
 
         if (existingDoc) {
-          console.log(`[Documents /wolke/import] File already imported: ${fileInfo.name}`);
+          log.debug(`[Documents /wolke/import] File already imported: ${fileInfo.name}`);
           results.push({
             filename: fileInfo.name,
             success: false,
@@ -1239,7 +1242,7 @@ router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
 
       } catch (error) {
         failedCount++;
-        console.error(`[Documents /wolke/import] Failed to process file ${fileInfo.name}:`, error);
+        log.error(`[Documents /wolke/import] Failed to process file ${fileInfo.name}:`, error);
         results.push({
           filename: fileInfo.name,
           success: false,
@@ -1248,7 +1251,7 @@ router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
       }
     }
 
-    console.log(`[Documents /wolke/import] Import completed: ${successCount} successful, ${failedCount} failed`);
+    log.debug(`[Documents /wolke/import] Import completed: ${successCount} successful, ${failedCount} failed`);
 
     res.json({
       success: true,
@@ -1263,7 +1266,7 @@ router.post('/wolke/import', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Documents /wolke/import] Error:', error);
+    log.error('[Documents /wolke/import] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to import Wolke files'

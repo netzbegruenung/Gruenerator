@@ -6,6 +6,9 @@ const { default: FluxImageService } = require('../../services/fluxImageService.m
 const ImageGenerationCounter = require('../../utils/imageGenerationCounter.js');
 const redisClient = require('../../utils/redisClient.js');
 const { requireAuth } = require('../../middleware/authMiddleware.js');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('greenEditPrompt');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -136,14 +139,14 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
     const userId = req.user?.id;
     
     if (!userId) {
-      console.log('[Flux Green Edit] Request rejected: User ID not found');
+      log.debug('[Flux Green Edit] Request rejected: User ID not found');
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
 
     // Check image generation limit
     const limitStatus = await imageCounter.checkLimit(userId);
     if (!limitStatus.canGenerate) {
-      console.log(`[Flux Green Edit] Request rejected: User ${userId} has reached daily limit (${limitStatus.count}/${limitStatus.limit})`);
+      log.debug(`[Flux Green Edit] Request rejected: User ${userId} has reached daily limit (${limitStatus.count}/${limitStatus.limit})`);
       return res.status(429).json({ 
         success: false, 
         error: 'Daily image generation limit reached',
@@ -154,19 +157,19 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
 
     const userText = req.body?.text || req.body?.instruction || '';
     const isPrecision = req.body?.precision === 'true' || req.body?.precision === true;
-    console.log(`[Flux Green Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`);
+    log.debug(`[Flux Green Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`);
 
     if (!userText || userText.trim().length === 0) {
-      console.log('[Flux Green Edit] Request rejected: Missing text instruction');
+      log.debug('[Flux Green Edit] Request rejected: Missing text instruction');
       return res.status(400).json({ success: false, error: 'Missing text instruction' });
     }
 
     if (!req.file) {
-      console.log('[Flux Green Edit] Request rejected: Missing image file');
+      log.debug('[Flux Green Edit] Request rejected: Missing image file');
       return res.status(400).json({ success: false, error: 'Missing image file' });
     }
 
-    console.log(`[Flux Green Edit] Processing image: ${req.file.originalname}, size: ${Math.round(req.file.size / 1024)}KB, type: ${req.file.mimetype}`);
+    log.debug(`[Flux Green Edit] Processing image: ${req.file.originalname}, size: ${Math.round(req.file.size / 1024)}KB, type: ${req.file.mimetype}`);
 
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -194,14 +197,14 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
 
     // Edit image with FLUX (image-to-image)
     const flux = new FluxImageService();
-    console.log(`[Flux Green Edit] Starting image generation with FLUX.2 Pro`);
+    log.debug(`[Flux Green Edit] Starting image generation with FLUX.2 Pro`);
     const { request, result, stored } = await flux.generateFromImage(prompt, req.file.buffer, req.file.mimetype, { output_format: 'jpeg', safety_tolerance: 2 });
 
-    console.log(`[Flux Green Edit] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`);
+    log.debug(`[Flux Green Edit] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`);
     
     // Increment usage counter after successful generation
     const incrementResult = await imageCounter.incrementCount(userId);
-    console.log(`[Flux Green Edit] Updated usage counter for user ${userId}:`, incrementResult);
+    log.debug(`[Flux Green Edit] Updated usage counter for user ${userId}:`, incrementResult);
     
     return res.json({
       success: true,
@@ -225,10 +228,10 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
       mode: 'pro'
     });
   } catch (error) {
-    console.error('[Flux Green Edit] Error during image generation:', error.message);
+    log.error('[Flux Green Edit] Error during image generation:', error.message);
     if (error.response?.status) {
-      console.error('[Flux Green Edit] API response status:', error.response.status);
-      console.error('[Flux Green Edit] API response data:', error.response.data);
+      log.error('[Flux Green Edit] API response status:', error.response.status);
+      log.error('[Flux Green Edit] API response data:', error.response.data);
     }
     
     // Use enhanced error information from FluxImageService
@@ -259,14 +262,14 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
     const userId = req.user?.id;
     
     if (!userId) {
-      console.log('[Flux Green Edit Generate] Request rejected: User ID not found');
+      log.debug('[Flux Green Edit Generate] Request rejected: User ID not found');
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
 
     // Check image generation limit
     const limitStatus = await imageCounter.checkLimit(userId);
     if (!limitStatus.canGenerate) {
-      console.log(`[Flux Green Edit Generate] Request rejected: User ${userId} has reached daily limit (${limitStatus.count}/${limitStatus.limit})`);
+      log.debug(`[Flux Green Edit Generate] Request rejected: User ${userId} has reached daily limit (${limitStatus.count}/${limitStatus.limit})`);
       return res.status(429).json({ 
         success: false, 
         error: 'Daily image generation limit reached',
@@ -277,10 +280,10 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
 
     const userText = req.body?.text || req.body?.instruction || '';
     const isPrecision = req.body?.precision === 'true' || req.body?.precision === true;
-    console.log(`[Flux Green Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`);
+    log.debug(`[Flux Green Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`);
 
     if (!userText || userText.trim().length === 0) {
-      console.log('[Flux Green Edit Generate] Request rejected: Missing text instruction');
+      log.debug('[Flux Green Edit Generate] Request rejected: Missing text instruction');
       return res.status(400).json({ success: false, error: 'Missing text instruction' });
     }
 
@@ -319,11 +322,11 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
     
     const { request, result, stored } = generationResult;
 
-    console.log(`[Flux Green Edit Generate] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`);
+    log.debug(`[Flux Green Edit Generate] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`);
     
     // Increment usage counter after successful generation
     const incrementResult = await imageCounter.incrementCount(userId);
-    console.log(`[Flux Green Edit Generate] Updated usage counter for user ${userId}:`, incrementResult);
+    log.debug(`[Flux Green Edit Generate] Updated usage counter for user ${userId}:`, incrementResult);
 
     return res.json({
       success: true,
@@ -340,10 +343,10 @@ router.post('/generate', requireAuth, upload.single('image'), async (req, res) =
       mode: 'pro'
     });
   } catch (error) {
-    console.error('[Flux Green Edit Generate] Error during image generation:', error.message);
+    log.error('[Flux Green Edit Generate] Error during image generation:', error.message);
     if (error.response?.status) {
-      console.error('[Flux Green Edit Generate] API response status:', error.response.status);
-      console.error('[Flux Green Edit Generate] API response data:', error.response.data);
+      log.error('[Flux Green Edit Generate] API response status:', error.response.status);
+      log.error('[Flux Green Edit Generate] API response data:', error.response.data);
     }
     
     // Use enhanced error information from FluxImageService

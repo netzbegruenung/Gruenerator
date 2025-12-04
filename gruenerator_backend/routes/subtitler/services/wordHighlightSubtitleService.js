@@ -1,3 +1,6 @@
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('wordHighlightSu');
+
 /**
  * DISABLED - Word Highlight Subtitle Service
  * 
@@ -121,7 +124,7 @@ function preventWordOverlaps(wordSegments) {
             currentWord.end = Math.max(nextWord.start - 0.05, currentWord.start + CONFIG.minWordDuration);
             currentWord.duration = currentWord.end - currentWord.start;
             
-            console.log(`[WordHighlight] Prevented overlap: word "${currentWord.text}" adjusted to end at ${currentWord.end.toFixed(2)}s`);
+            log.debug(`[WordHighlight] Prevented overlap: word "${currentWord.text}" adjusted to end at ${currentWord.end.toFixed(2)}s`);
         }
     }
     
@@ -137,7 +140,7 @@ function preventWordOverlaps(wordSegments) {
 function generateWordSegments(words, fullText) {
     validateWordTimestamps(words);
     
-    console.log(`[WordHighlightService] Processing ${words.length} words for individual highlighting`);
+    log.debug(`[WordHighlightService] Processing ${words.length} words for individual highlighting`);
     
     const wordSegments = [];
     
@@ -147,7 +150,7 @@ function generateWordSegments(words, fullText) {
         
         // Skip empty words or words that failed cleaning
         if (!cleanedText) {
-            console.log(`[WordHighlight] Skipping empty word at index ${i}: "${word.word}"`);
+            log.debug(`[WordHighlight] Skipping empty word at index ${i}: "${word.word}"`);
             continue;
         }
         
@@ -172,15 +175,15 @@ function generateWordSegments(words, fullText) {
         // Log details for first few and last few words for debugging
         const isDebugWord = i < 3 || i >= words.length - 3;
         if (isDebugWord) {
-            console.log(`[WordHighlight] Word ${i}: "${segment.text}" (${timing.start.toFixed(2)}s-${timing.end.toFixed(2)}s, highlight: ${isHighlight})`);
+            log.debug(`[WordHighlight] Word ${i}: "${segment.text}" (${timing.start.toFixed(2)}s-${timing.end.toFixed(2)}s, highlight: ${isHighlight})`);
         }
     }
     
     // Prevent overlaps between consecutive words
     const finalSegments = preventWordOverlaps(wordSegments);
     
-    console.log(`[WordHighlightService] Generated ${finalSegments.length} word segments`);
-    console.log(`[WordHighlightService] Highlighted words: ${finalSegments.filter(s => s.isHighlight).length}`);
+    log.debug(`[WordHighlightService] Generated ${finalSegments.length} word segments`);
+    log.debug(`[WordHighlightService] Highlighted words: ${finalSegments.filter(s => s.isHighlight).length}`);
     
     return finalSegments;
 }
@@ -222,11 +225,11 @@ function formatWordSegmentsToSubtitleText(segments) {
  */
 async function generateWordHighlightSubtitles(fullText, words) {
     try {
-        console.log(`[WordHighlightService] Starting word highlight subtitle generation`);
-        console.log(`[WordHighlightService] Input: ${fullText.length} chars, ${words.length} words`);
+        log.debug(`[WordHighlightService] Starting word highlight subtitle generation`);
+        log.debug(`[WordHighlightService] Input: ${fullText.length} chars, ${words.length} words`);
         
         // Log first few words for debugging
-        console.log(`[WordHighlightService] First 3 words:`, 
+        log.debug(`[WordHighlightService] First 3 words:`, 
             words.slice(0, 3).map(w => `"${w.word}": ${w.start.toFixed(2)}s-${w.end.toFixed(2)}s`));
         
         // Generate individual word segments
@@ -236,19 +239,19 @@ async function generateWordHighlightSubtitles(fullText, words) {
         const subtitleText = formatWordSegmentsToSubtitleText(segments);
         
         // Log summary
-        console.log(`[WordHighlightService] Generated ${segments.length} word segments`);
-        console.log(`[WordHighlightService] Average duration: ${(segments.reduce((sum, s) => sum + s.duration, 0) / segments.length).toFixed(2)}s`);
+        log.debug(`[WordHighlightService] Generated ${segments.length} word segments`);
+        log.debug(`[WordHighlightService] Average duration: ${(segments.reduce((sum, s) => sum + s.duration, 0) / segments.length).toFixed(2)}s`);
         
         // Log first segment for verification
         if (segments.length > 0) {
             const firstSegment = segments[0];
-            console.log(`[WordHighlightService] First segment: ${formatTime(firstSegment.start)}-${formatTime(firstSegment.end)} "${firstSegment.text}" (highlight: ${firstSegment.isHighlight})`);
+            log.debug(`[WordHighlightService] First segment: ${formatTime(firstSegment.start)}-${formatTime(firstSegment.end)} "${firstSegment.text}" (highlight: ${firstSegment.isHighlight})`);
         }
         
         return subtitleText;
         
     } catch (error) {
-        console.error('[WordHighlightService] Error generating word highlight subtitles:', error.message);
+        log.error('[WordHighlightService] Error generating word highlight subtitles:', error.message);
         throw new Error(`Word highlight subtitle generation failed: ${error.message}`);
     }
 }

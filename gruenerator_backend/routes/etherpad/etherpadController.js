@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { createPadWithText } = require('./etherpadService');
 const { generateSecureId } = require('../../utils/securityUtils');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('etherpad');
+
 
 router.post('/create', async (req, res) => {
   try {
@@ -15,7 +18,7 @@ router.post('/create', async (req, res) => {
     
     res.json({ padURL });
   } catch (error) {
-    console.error('Fehler beim Erstellen des Etherpads:', error);
+    log.error('Fehler beim Erstellen des Etherpads:', error);
     res.status(500).json({ error: 'Interner Serverfehler beim Erstellen des Etherpads' });
   }
 });

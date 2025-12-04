@@ -2,6 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const { Anthropic } = require('@anthropic-ai/sdk');
 const { MARKDOWN_CHAT_INSTRUCTIONS } = require('../utils/promptUtils');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('claude_antragsv');
+
 const router = express.Router();
 
 // Anthropic client for Files API
@@ -31,7 +34,7 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
       type: 'application/pdf'
     });
 
-    console.log('[Antragsversteher] File uploaded to Claude Files API:', fileUpload.id);
+    log.debug('[Antragsversteher] File uploaded to Claude Files API:', fileUpload.id);
 
     // Process with AI Worker Pool using file_id
     const result = await req.app.locals.aiWorkerPool.processRequest({
@@ -83,7 +86,7 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Fehler bei der PDF-Verarbeitung:', error);
+    log.error('Fehler bei der PDF-Verarbeitung:', error);
     res.status(500).json({
       success: false,
       error: 'Fehler bei der PDF-Analyse',

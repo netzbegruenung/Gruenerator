@@ -7,12 +7,15 @@ const { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
 const { validateParams } = require('./paramValidation');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('headline_canvas');
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 async function processText(textData) {
-  console.log('processText aufgerufen mit:', textData);
+  log.debug('processText aufgerufen mit:', textData);
 
   const { line1, line2, line3 } = textData;
 
@@ -30,7 +33,7 @@ async function processText(textData) {
 }
 
 async function createHeadlineImage(uploadedImageBuffer, processedText, validatedParams) {
-  console.log('Starting createHeadlineImage function');
+  log.debug('Starting createHeadlineImage function');
   try {
     await checkFiles();
     registerFonts();
@@ -43,9 +46,9 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
     // Background rendering
     if (useBackgroundImage && uploadedImageBuffer) {
       // If background image is provided, use it with overlay
-      console.log('Loading background image from buffer, size:', uploadedImageBuffer.length);
+      log.debug('Loading background image from buffer, size:', uploadedImageBuffer.length);
       const img = await loadImage(uploadedImageBuffer);
-      console.log('Background image loaded successfully, dimensions:', img.width, 'x', img.height);
+      log.debug('Background image loaded successfully, dimensions:', img.width, 'x', img.height);
 
       // Scale and center background image
       const imageAspectRatio = img.width / img.height;
@@ -71,7 +74,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
       ctx.fillRect(0, 0, params.OUTPUT_WIDTH, params.OUTPUT_HEIGHT);
     } else {
       // Solid background color
-      console.log('Using solid background color:', backgroundColor);
+      log.debug('Using solid background color:', backgroundColor);
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, params.OUTPUT_WIDTH, params.OUTPUT_HEIGHT);
     }
@@ -97,9 +100,9 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
       ctx.drawImage(sunflowerImage, -50, 100, sunflower3Size, sunflower3Size);
       
       ctx.globalAlpha = 1.0; // Reset opacity
-      console.log('Decorative sunflowers added to background');
+      log.debug('Decorative sunflowers added to background');
     } catch (error) {
-      console.warn('Could not add decorative sunflowers:', error.message);
+      log.warn('Could not add decorative sunflowers:', error.message);
     }
 
     // Text rendering
@@ -109,7 +112,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
       throw new Error('Keine gültigen Textzeilen gefunden');
     }
 
-    console.log('Setting up text rendering with font size:', fontSize);
+    log.debug('Setting up text rendering with font size:', fontSize);
     ctx.font = `${fontSize}px GrueneTypeNeue`;
     ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
@@ -123,7 +126,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
     ctx.font = `${fontSize}px GrueneTypeNeue`; // Set back
     const afterWidth = ctx.measureText(testText).width;
     
-    console.log('Font loading test:', {
+    log.debug('Font loading test:', {
       grueneTypeWidth: beforeWidth,
       serifWidth: serifWidth,
       grueneTypeWidthAfter: afterWidth,
@@ -136,7 +139,7 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
     const centerY = (params.OUTPUT_HEIGHT / 2) + verticalOffset;
     let startY = centerY - (totalTextHeight / 2);
 
-    console.log('Text positioning:', {
+    log.debug('Text positioning:', {
       centerY,
       startY,
       totalTextHeight,
@@ -149,18 +152,18 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
       const textY = startY + (index * lineSpacing);
       const textX = params.OUTPUT_WIDTH / 2;
       
-      console.log(`Drawing line ${index}: "${line.text}" at position (${textX}, ${textY})`);
+      log.debug(`Drawing line ${index}: "${line.text}" at position (${textX}, ${textY})`);
       ctx.fillText(line.text, textX, textY);
       
       // Validation warning for character count
       if (!line.isValid) {
-        console.warn(`Line ${index + 1} has ${line.text.length} characters, recommended 6-12 characters`);
+        log.warn(`Line ${index + 1} has ${line.text.length} characters, recommended 6-12 characters`);
       }
     });
 
     // Credit text at bottom
     if (credit) {
-      console.log('Adding credit text:', credit);
+      log.debug('Adding credit text:', credit);
       ctx.font = '60px GrueneTypeNeue';
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
@@ -168,20 +171,20 @@ async function createHeadlineImage(uploadedImageBuffer, processedText, validated
       
       const creditY = params.OUTPUT_HEIGHT - 40;
       ctx.fillText(credit, params.OUTPUT_WIDTH / 2, creditY);
-      console.log('Credit text added at position:', { x: params.OUTPUT_WIDTH / 2, y: creditY });
+      log.debug('Credit text added at position:', { x: params.OUTPUT_WIDTH / 2, y: creditY });
     }
 
     return canvas.toBuffer('image/png');
   } catch (error) {
-    console.error('Error in createHeadlineImage:', error);
+    log.error('Error in createHeadlineImage:', error);
     throw error;
   }
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  console.log('Received request for headline_canvas');
+  log.debug('Received request for headline_canvas');
   try {
-    console.log('Received request body:', req.body);
+    log.debug('Received request body:', req.body);
 
     const {
       line1, line2, line3,
@@ -205,7 +208,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       useBackgroundImage: useBackgroundImage === 'true' || false
     };
 
-    console.log('Parsed headline params:', modParams);
+    log.debug('Parsed headline params:', modParams);
 
     await checkFiles();
     registerFonts();
@@ -219,10 +222,10 @@ router.post('/', upload.single('image'), async (req, res) => {
       verticalOffset: Math.max(-300, Math.min(300, modParams.verticalOffset))
     };
 
-    console.log('Validated headline params:', headlineValidatedParams);
+    log.debug('Validated headline params:', headlineValidatedParams);
 
     const processedText = await processText({ line1, line2, line3 });
-    console.log('Processed text:', processedText);
+    log.debug('Processed text:', processedText);
 
     // Generate the image
     const generatedImageBuffer = await createHeadlineImage(
@@ -233,11 +236,11 @@ router.post('/', upload.single('image'), async (req, res) => {
     
     const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
 
-    console.log('Headline image generated successfully');
+    log.debug('Headline image generated successfully');
     res.json({ image: base64Image });
 
   } catch (err) {
-    console.error('Error in headline_canvas request:', err);
+    log.error('Error in headline_canvas request:', err);
     res.status(500).json({ 
       error: 'Fehler beim Erstellen des Headline-Bildes: ' + err.message 
     });

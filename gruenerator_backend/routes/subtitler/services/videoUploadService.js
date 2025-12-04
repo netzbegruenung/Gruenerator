@@ -3,6 +3,9 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('videoUpload');
+
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -11,7 +14,7 @@ async function getVideoMetadata(videoPath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
       if (err) {
-        console.error('Fehler beim Lesen der Video-Metadaten:', err);
+        log.error('Fehler beim Lesen der Video-Metadaten:', err);
         reject(err);
         return;
       }
@@ -52,7 +55,7 @@ async function getVideoMetadata(videoPath) {
 // Helper function to extract audio track (remains unchanged)
 async function extractAudio(videoPath, outputPath) {
   try {
-    console.log('Starte Audio-Extraktion:', {
+    log.debug('Starte Audio-Extraktion:', {
       inputPath: videoPath,
       outputPath: outputPath
     });
@@ -75,11 +78,11 @@ async function extractAudio(videoPath, outputPath) {
 
       // Debug logging
       command.on('start', (commandLine) => {
-        console.log('FFmpeg Befehl:', commandLine);
+        log.debug('FFmpeg Befehl:', commandLine);
       });
 
       command.on('progress', (progress) => {
-        console.log('Fortschritt:', progress.percent?.toFixed(1) + '%');
+        log.debug('Fortschritt:', progress.percent?.toFixed(1) + '%');
       });
 
       command
@@ -94,17 +97,17 @@ async function extractAudio(videoPath, outputPath) {
           // Log file size
           const stats = fs.statSync(outputPath);
           const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-          console.log(`Audio-Extraktion erfolgreich: ${outputPath} (${fileSizeMB} MB)`);
+          log.debug(`Audio-Extraktion erfolgreich: ${outputPath} (${fileSizeMB} MB)`);
           
           resolve(outputPath);
         })
         .on('error', (err) => {
-          console.error('FFmpeg Fehler:', err);
+          log.error('FFmpeg Fehler:', err);
           reject(err);
         });
     });
   } catch (error) {
-    console.error('Kritischer Fehler bei Audio-Extraktion:', error);
+    log.error('Kritischer Fehler bei Audio-Extraktion:', error);
     throw error;
   }
 }
@@ -115,12 +118,12 @@ async function cleanupFiles(...filePaths) {
     try {
       if (filePath && await fsPromises.stat(filePath).catch(() => false)) { // Check if file exists before unlinking
         await fsPromises.unlink(filePath);
-        console.log('Temporäre Datei gelöscht:', filePath);
+        log.debug('Temporäre Datei gelöscht:', filePath);
       }
     } catch (err) {
       // Log only if it's not a 'file not found' error, which is expected if cleanup runs multiple times
       if (err.code !== 'ENOENT') { 
-        console.warn('Fehler beim Löschen der temporären Datei:', filePath, err);
+        log.warn('Fehler beim Löschen der temporären Datei:', filePath, err);
       }
     }
   }

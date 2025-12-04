@@ -4,6 +4,9 @@ import { getProfileService } from '../../services/ProfileService.mjs';
 import { getQdrantDocumentService } from '../../services/DocumentSearchService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { KeycloakApiClient } from '../../utils/keycloakApiClient.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('userProfile');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -52,7 +55,7 @@ router.get('/profile', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Profile /profile GET] Error:', error);
+    log.error('[User Profile /profile GET] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Laden des Profils.'
@@ -88,12 +91,12 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
     }
 
     // Update profile using ProfileService
-    console.log(`[User Profile /profile PUT] Updating profile for user ${req.user.id}:`, updateData);
+    log.debug(`[User Profile /profile PUT] Updating profile for user ${req.user.id}:`, updateData);
     const data = await profileService.updateProfile(req.user.id, updateData);
     
     // Log the result of the update
     if (updateData.avatar_robot_id !== undefined) {
-      console.log(`[User Profile /profile PUT] Avatar update result: avatar_robot_id=${data.avatar_robot_id}`);
+      log.debug(`[User Profile /profile PUT] Avatar update result: avatar_robot_id=${data.avatar_robot_id}`);
     }
     
     // Update user object in session while preserving beta_features
@@ -115,7 +118,7 @@ router.put('/profile', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Profile /profile PUT] Error:', error);
+    log.error('[User Profile /profile PUT] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren des Profils.'
@@ -144,9 +147,9 @@ router.patch('/profile/avatar', ensureAuthenticated, async (req, res) => {
     // Force session save to persist the avatar change
     req.session.save((err) => {
       if (err) {
-        console.error('[User Profile /profile/avatar PATCH] Session save error:', err);
+        log.error('[User Profile /profile/avatar PATCH] Session save error:', err);
       } else {
-        console.log('[User Profile /profile/avatar PATCH] Session saved with avatar_robot_id:', avatar_robot_id);
+        log.debug('[User Profile /profile/avatar PATCH] Session saved with avatar_robot_id:', avatar_robot_id);
       }
     });
     
@@ -157,7 +160,7 @@ router.patch('/profile/avatar', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/avatar PATCH] Error:', error);
+    log.error('[User Profile /profile/avatar PATCH] Error:', error);
     // Return validation errors from ProfileService
     const statusCode = error.message.includes('must be between') ? 400 : 500;
     res.status(statusCode).json({ 
@@ -176,7 +179,7 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
     const profile = await profileService.getProfileById(req.user.id);
     
     if (!profile) {
-      console.error('[User Profile /profile/beta-features GET] Profile not found');
+      log.error('[User Profile /profile/beta-features GET] Profile not found');
       throw new Error('Profil nicht gefunden');
     }
     
@@ -192,7 +195,7 @@ router.get('/profile/beta-features', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/beta-features GET] Error:', error);
+    log.error('[User Profile /profile/beta-features GET] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Laden der Beta Features.'
@@ -251,7 +254,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
     const updatedBetaFeatures = profileService.getMergedBetaFeatures(updatedProfile);
     
     // Log beta feature change
-    console.log(`[Beta Feature Change] User ${req.user.id}: ${feature} ${enabled ? 'ENABLED' : 'DISABLED'}`);
+    log.debug(`[Beta Feature Change] User ${req.user.id}: ${feature} ${enabled ? 'ENABLED' : 'DISABLED'}`);
     
     // Update session for immediate UI feedback using ProfileService
     if (req.user) {
@@ -265,7 +268,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       // Force session save to persist the updated user object
       req.session.save((err) => {
         if (err) {
-          console.error('[User Profile /profile/beta-features PATCH] Session save error:', err);
+          log.error('[User Profile /profile/beta-features PATCH] Session save error:', err);
         }
       });
     }
@@ -277,7 +280,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/beta-features PATCH] Error:', error);
+    log.error('[User Profile /profile/beta-features PATCH] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren der Beta Features.'
@@ -308,7 +311,7 @@ router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/message-color PATCH] Error:', error);
+    log.error('[User Profile /profile/message-color PATCH] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren der Nachrichtenfarbe.'
@@ -339,7 +342,7 @@ router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) =
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/memory-settings PATCH] Error:', error);
+    log.error('[User Profile /profile/memory-settings PATCH] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren der Memory-Einstellungen.'
@@ -364,7 +367,7 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
     await profileService.updateBetaFeatures(req.user.id, 'igel_modus', igel_modus);
     
     // Log igel modus change
-    console.log(`[Igel Modus Change] User ${req.user.id}: igel_modus ${igel_modus ? 'ENABLED' : 'DISABLED'}`);
+    log.debug(`[Igel Modus Change] User ${req.user.id}: igel_modus ${igel_modus ? 'ENABLED' : 'DISABLED'}`);
     
     // Get updated profile and update session using ProfileService
     const updatedProfile = await profileService.getProfileById(req.user.id);
@@ -377,7 +380,7 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
       
       req.session.save((err) => {
         if (err) {
-          console.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
+          log.error('[User Profile /profile/igel-modus PATCH] Session save error:', err);
         }
       });
     }
@@ -389,7 +392,7 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/igel-modus PATCH] Error:', error);
+    log.error('[User Profile /profile/igel-modus PATCH] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren des Igel-Modus.'
@@ -414,7 +417,7 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
     await profileService.updateBetaFeatures(req.user.id, 'bundestag_api_enabled', bundestag_api_enabled);
     
     // Log bundestag API change
-    console.log(`[Bundestag API Change] User ${req.user.id}: bundestag_api_enabled ${bundestag_api_enabled ? 'ENABLED' : 'DISABLED'}`);
+    log.debug(`[Bundestag API Change] User ${req.user.id}: bundestag_api_enabled ${bundestag_api_enabled ? 'ENABLED' : 'DISABLED'}`);
     
     // Get updated profile and update session using ProfileService
     const updatedProfile = await profileService.getProfileById(req.user.id);
@@ -427,7 +430,7 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
       
       req.session.save((err) => {
         if (err) {
-          console.error('[User Profile /profile/bundestag-api PATCH] Session save error:', err);
+          log.error('[User Profile /profile/bundestag-api PATCH] Session save error:', err);
         }
       });
     }
@@ -439,7 +442,7 @@ router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[User Profile /profile/bundestag-api PATCH] Error:', error);
+    log.error('[User Profile /profile/bundestag-api PATCH] Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren der Bundestag API Einstellung.'
@@ -473,7 +476,7 @@ router.delete('/delete-account', ensureAuthenticated, async (req, res) => {
     ]);
 
     if (!acceptedPhrases.has(normalized)) {
-      console.log(`[User Delete] Invalid confirmation attempt for user ${userId}: "${rawConfirm}"`);
+      log.debug(`[User Delete] Invalid confirmation attempt for user ${userId}: "${rawConfirm}"`);
       return res.status(400).json({
         success: false,
         error: 'invalid_confirmation',
@@ -481,31 +484,31 @@ router.delete('/delete-account', ensureAuthenticated, async (req, res) => {
       });
     }
 
-    console.log(`[User Delete] Starting account deletion process for user ${userId}`);
-    console.log(`[User Delete] User email: ${req.user.email || 'N/A'}, username: ${req.user.username || 'N/A'}, keycloak_id: ${keycloakId || 'N/A'}`);
+    log.debug(`[User Delete] Starting account deletion process for user ${userId}`);
+    log.debug(`[User Delete] User email: ${req.user.email || 'N/A'}, username: ${req.user.username || 'N/A'}, keycloak_id: ${keycloakId || 'N/A'}`);
 
     // Step 1: Delete vectors in Qdrant (best-effort)
-    console.log(`[User Delete] Step 1: Deleting Qdrant vectors for user ${userId}`);
+    log.debug(`[User Delete] Step 1: Deleting Qdrant vectors for user ${userId}`);
     try {
       const qdrantDocService = getQdrantDocumentService();
       await qdrantDocService.deleteUserDocuments(userId);
-      console.log(`[User Delete] Successfully deleted Qdrant vectors for user ${userId}`);
+      log.debug(`[User Delete] Successfully deleted Qdrant vectors for user ${userId}`);
     } catch (vectorErr) {
-      console.warn(`[User Delete] Warning deleting Qdrant vectors for user ${userId}:`, vectorErr.message);
+      log.warn(`[User Delete] Warning deleting Qdrant vectors for user ${userId}:`, vectorErr.message);
     }
 
     // Step 2: Delete from Keycloak (if keycloak_id exists)
     if (keycloakId) {
-      console.log(`[User Delete] Step 2: Deleting user from Keycloak with ID ${keycloakId}`);
+      log.debug(`[User Delete] Step 2: Deleting user from Keycloak with ID ${keycloakId}`);
       try {
         const keycloakClient = new KeycloakApiClient();
-        console.log(`[User Delete] Keycloak client initialized, attempting deletion...`);
+        log.debug(`[User Delete] Keycloak client initialized, attempting deletion...`);
         
         await keycloakClient.deleteUser(keycloakId);
-        console.log(`[User Delete] ✅ Successfully deleted user from Keycloak: ${keycloakId}`);
+        log.debug(`[User Delete] ✅ Successfully deleted user from Keycloak: ${keycloakId}`);
       } catch (keycloakErr) {
-        console.error(`[User Delete] ❌ Error deleting user from Keycloak ${keycloakId}:`, keycloakErr);
-        console.error(`[User Delete] Keycloak error details:`, {
+        log.error(`[User Delete] ❌ Error deleting user from Keycloak ${keycloakId}:`, keycloakErr);
+        log.error(`[User Delete] Keycloak error details:`, {
           message: keycloakErr.message,
           code: keycloakErr.code,
           status: keycloakErr.response?.status,
@@ -513,30 +516,30 @@ router.delete('/delete-account', ensureAuthenticated, async (req, res) => {
           data: keycloakErr.response?.data,
           stack: keycloakErr.stack
         });
-        console.warn(`[User Delete] ⚠️ Continuing with database deletion despite Keycloak error`);
+        log.warn(`[User Delete] ⚠️ Continuing with database deletion despite Keycloak error`);
         // Don't fail the entire deletion if Keycloak deletion fails
         // The user might have been deleted from Keycloak already or there might be connectivity issues
       }
     } else {
-      console.log(`[User Delete] Step 2: Skipping Keycloak deletion - no keycloak_id found for user ${userId}`);
-      console.log(`[User Delete] User object keycloak_id field:`, req.user.keycloak_id);
+      log.debug(`[User Delete] Step 2: Skipping Keycloak deletion - no keycloak_id found for user ${userId}`);
+      log.debug(`[User Delete] User object keycloak_id field:`, req.user.keycloak_id);
     }
 
     // Step 3: Delete user profile (cascades to most user-owned data)
-    console.log(`[User Delete] Step 3: Deleting user profile and cascading data for user ${userId}`);
+    log.debug(`[User Delete] Step 3: Deleting user profile and cascading data for user ${userId}`);
     const profileService = getProfileService();
     const deleteResult = await profileService.deleteProfile(userId);
-    console.log(`[User Delete] Profile deletion result for user ${userId}:`, deleteResult);
+    log.debug(`[User Delete] Profile deletion result for user ${userId}:`, deleteResult);
 
     // Step 4: Logout and clear session/cookie
-    console.log(`[User Delete] Step 4: Clearing session and cookies for user ${userId}`);
+    log.debug(`[User Delete] Step 4: Clearing session and cookies for user ${userId}`);
     req.logout?.(() => {});
     if (req.session) {
       try {
         await new Promise((resolve) => req.session.destroy(() => resolve()));
-        console.log(`[User Delete] Session destroyed for user ${userId}`);
+        log.debug(`[User Delete] Session destroyed for user ${userId}`);
       } catch (e) {
-        console.warn(`[User Delete] Session destruction warning for user ${userId}:`, e?.message);
+        log.warn(`[User Delete] Session destruction warning for user ${userId}:`, e?.message);
       }
     }
     res.clearCookie('gruenerator.sid', {
@@ -544,9 +547,9 @@ router.delete('/delete-account', ensureAuthenticated, async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax'
     });
-    console.log(`[User Delete] Cookies cleared for user ${userId}`);
+    log.debug(`[User Delete] Cookies cleared for user ${userId}`);
 
-    console.log(`[User Delete] ✅ Account deletion completed successfully for user ${userId}`);
+    log.debug(`[User Delete] ✅ Account deletion completed successfully for user ${userId}`);
 
     return res.status(200).json({
       success: true,
@@ -554,7 +557,7 @@ router.delete('/delete-account', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error(`[User Delete] ❌ Error during account deletion for user ${req.user?.id}:`, error);
+    log.error(`[User Delete] ❌ Error during account deletion for user ${req.user?.id}:`, error);
     return res.status(500).json({
       success: false,
       error: 'deletion_failed',

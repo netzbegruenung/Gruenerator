@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { generateShortSubtitlesViaAI } = require('./subtitler/services/shortSubtitleGeneratorService');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('claude_subtitle');
+
 
 router.post('/generate-short-subtitles', async (req, res) => {
   const { text, words } = req.body;
@@ -24,7 +27,7 @@ router.post('/generate-short-subtitles', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Fehler im /generate-short-subtitles Handler nach Aufruf des Service:', error);
+    log.error('Fehler im /generate-short-subtitles Handler nach Aufruf des Service:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Erstellung der kurzen Untertitel',
       details: error.message 

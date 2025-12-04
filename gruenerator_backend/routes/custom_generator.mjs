@@ -2,6 +2,9 @@ import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { createRequire } from 'module';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('custom_generato');
+
 
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
@@ -17,7 +20,7 @@ router.get('/:slug', requireAuth, async (req, res) => {
     const { slug } = req.params;
     const userId = req.user.id;
 
-    console.log(`[custom_generator] GET /:slug - Fetching generator with slug: ${slug} for user: ${userId}`);
+    log.debug(`[custom_generator] GET /:slug - Fetching generator with slug: ${slug} for user: ${userId}`);
 
     // Fetch generator by slug with owner info
     const generator = await postgres.queryOne(
@@ -32,7 +35,7 @@ router.get('/:slug', requireAuth, async (req, res) => {
     );
 
     if (!generator) {
-      console.log(`[custom_generator] Generator not found for slug: ${slug}`);
+      log.debug(`[custom_generator] Generator not found for slug: ${slug}`);
       return res.status(404).json({
         success: false,
         message: 'Generator nicht gefunden.'
@@ -70,7 +73,7 @@ router.get('/:slug', requireAuth, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[custom_generator] Error fetching generator:', error);
+    log.error('[custom_generator] Error fetching generator:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden des Generators.'
@@ -79,7 +82,7 @@ router.get('/:slug', requireAuth, async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  console.log('[custom_generator] Request received via promptProcessor');
+  log.debug('[custom_generator] Request received via promptProcessor');
   await processGraphRequest('custom_generator', req, res);
 });
 

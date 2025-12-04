@@ -18,13 +18,16 @@ const { createSharepicComposer } = require('../../services/text2sharepic');
 const { listTemplates, getTemplate } = require('../../services/text2sharepic/zoneTemplates');
 const { listComponents, getCorporateDesign } = require('../../services/text2sharepic/componentLibrary');
 const { generateLayoutPlan } = require('../../agents/sharepic/layoutPlanner');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('text2sharepic');
+
 
 // Try to load Redis client
 let redisClient = null;
 try {
   redisClient = require('../../utils/redisClient');
 } catch (err) {
-  console.warn('[Text2Sharepic] Redis client not available, caching disabled');
+  log.warn('[Text2Sharepic] Redis client not available, caching disabled');
 }
 
 // Create composer instance with Redis if available
@@ -70,7 +73,7 @@ router.post('/generate', async (req, res) => {
       });
     }
 
-    console.log(`[Text2Sharepic] Generate request: "${description.substring(0, 100)}..."`);
+    log.debug(`[Text2Sharepic] Generate request: "${description.substring(0, 100)}..."`);
 
     const result = await composer.generateFromDescription(description, {
       templateId,
@@ -86,7 +89,7 @@ router.post('/generate', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Generation error:', error);
+    log.error('[Text2Sharepic] Generation error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate sharepic'
@@ -140,7 +143,7 @@ router.post('/generate-ai', async (req, res) => {
       });
     }
 
-    console.log(`[Text2Sharepic] AI Generate request: "${description.substring(0, 100)}..." (useBackgroundImage: ${useBackgroundImage})`);
+    log.debug(`[Text2Sharepic] AI Generate request: "${description.substring(0, 100)}..." (useBackgroundImage: ${useBackgroundImage})`);
 
     const result = await composer.generateFromAI(description, req, {
       templateHint,
@@ -155,7 +158,7 @@ router.post('/generate-ai', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] AI Generation error:', error);
+    log.error('[Text2Sharepic] AI Generation error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate AI sharepic'
@@ -210,7 +213,7 @@ router.post('/edit-ai', async (req, res) => {
       });
     }
 
-    console.log(`[Text2Sharepic] AI Edit request: "${editRequest.substring(0, 100)}..."`);
+    log.debug(`[Text2Sharepic] AI Edit request: "${editRequest.substring(0, 100)}..."`);
 
     const result = await composer.editFromAI(layoutPlan, editRequest, req);
 
@@ -221,7 +224,7 @@ router.post('/edit-ai', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] AI Edit error:', error);
+    log.error('[Text2Sharepic] AI Edit error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to edit sharepic'
@@ -250,7 +253,7 @@ router.post('/variants', async (req, res) => {
 
     const variantCount = Math.min(Math.max(parseInt(count) || 4, 1), 8);
 
-    console.log(`[Text2Sharepic] Generating ${variantCount} variants`);
+    log.debug(`[Text2Sharepic] Generating ${variantCount} variants`);
 
     const variants = await composer.generateVariants(description, variantCount);
 
@@ -261,7 +264,7 @@ router.post('/variants', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Variants error:', error);
+    log.error('[Text2Sharepic] Variants error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate variants'
@@ -288,7 +291,7 @@ router.post('/preview', async (req, res) => {
       });
     }
 
-    console.log(`[Text2Sharepic] Preview request: "${description.substring(0, 100)}..."`);
+    log.debug(`[Text2Sharepic] Preview request: "${description.substring(0, 100)}..."`);
 
     const layoutPlan = await generateLayoutPlan(description, { templateId });
 
@@ -299,7 +302,7 @@ router.post('/preview', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Preview error:', error);
+    log.error('[Text2Sharepic] Preview error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to generate preview'
@@ -325,7 +328,7 @@ router.post('/render-plan', async (req, res) => {
       });
     }
 
-    console.log(`[Text2Sharepic] Render plan request for template: ${layoutPlan.templateId}`);
+    log.debug(`[Text2Sharepic] Render plan request for template: ${layoutPlan.templateId}`);
 
     const result = await composer.generateFromPlan(layoutPlan);
 
@@ -335,7 +338,7 @@ router.post('/render-plan', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Render plan error:', error);
+    log.error('[Text2Sharepic] Render plan error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to render layout plan'
@@ -358,7 +361,7 @@ router.get('/templates', (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Templates error:', error);
+    log.error('[Text2Sharepic] Templates error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to list templates'
@@ -388,7 +391,7 @@ router.get('/templates/:id', (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Template error:', error);
+    log.error('[Text2Sharepic] Template error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get template'
@@ -411,7 +414,7 @@ router.get('/components', (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Components error:', error);
+    log.error('[Text2Sharepic] Components error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to list components'
@@ -433,7 +436,7 @@ router.get('/corporate-design', (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Corporate design error:', error);
+    log.error('[Text2Sharepic] Corporate design error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get corporate design'
@@ -460,7 +463,7 @@ router.post('/update', async (req, res) => {
       });
     }
 
-    console.log(`[Text2Sharepic] Update request for template: ${layoutPlan.templateId}`);
+    log.debug(`[Text2Sharepic] Update request for template: ${layoutPlan.templateId}`);
 
     const result = await composer.updateAndRender(layoutPlan, contentUpdates);
 
@@ -470,7 +473,7 @@ router.post('/update', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Text2Sharepic] Update error:', error);
+    log.error('[Text2Sharepic] Update error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to update and render'

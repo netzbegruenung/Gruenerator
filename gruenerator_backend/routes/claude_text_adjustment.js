@@ -1,5 +1,8 @@
 // src/routes/claude_text_adjustment.js
 const express = require('express');
+const { createLogger } = require('../utils/logger.js');
+const log = createLogger('claude_text_adj');
+
 const router = express.Router();
 
 router.post('/', async (req, res) => {
@@ -40,7 +43,7 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
       throw new Error(result.error);
     }
   } catch (error) {
-    console.error('Fehler bei der KI-Anfrage:', error);
+    log.error('Fehler bei der KI-Anfrage:', error);
     res.status(500).json({ 
       error: 'Fehler bei der Verarbeitung der KI-Anfrage',
       details: error.message 

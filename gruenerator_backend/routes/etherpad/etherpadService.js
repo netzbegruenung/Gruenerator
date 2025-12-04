@@ -1,4 +1,7 @@
 const axios = require('axios');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('etherpad');
+
 
 // Hardcoded Etherpad endpoints (ep_post_data flow)
 const ETHERPAD_BASE_URL = 'https://textbegruenung.de';
@@ -53,16 +56,16 @@ exports.createPadWithText = async (padId, text, documentType) => {
         validateStatus: (status) => status >= 200 && status < 400
       });
       if (process.env.NODE_ENV === 'development') {
-        console.log('ep_post_data response:', response.status);
+        log.debug('ep_post_data response:', response.status);
       }
     } catch (err) {
       const status = err.response?.status;
       const data = err.response?.data;
       // If the endpoint is not available (plugin not installed), still return the pad URL
       if (status === 404 || status === 405) {
-        console.warn('ep_post_data not available; proceeding with empty pad. Status:', status);
+        log.warn('ep_post_data not available; proceeding with empty pad. Status:', status);
       } else {
-        console.error('ep_post_data request failed:', status, typeof data === 'string' ? data.slice(0, 500) : data);
+        log.error('ep_post_data request failed:', status, typeof data === 'string' ? data.slice(0, 500) : data);
         throw new Error('Fehler bei der Kommunikation mit Etherpad');
       }
     }
@@ -71,7 +74,7 @@ exports.createPadWithText = async (padId, text, documentType) => {
     const padURL = `${ETHERPAD_PAD_BASE_URL}/${formattedPadId}`;
     return padURL;
   } catch (error) {
-    console.error('Fehler bei Etherpad-API-Aufruf:', error.response ? error.response.data : error.message);
+    log.error('Fehler bei Etherpad-API-Aufruf:', error.response ? error.response.data : error.message);
     throw new Error('Fehler bei der Kommunikation mit Etherpad');
   }
 };

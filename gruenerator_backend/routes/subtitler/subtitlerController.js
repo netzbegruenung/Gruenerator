@@ -184,9 +184,9 @@ router.get('/result/:uploadId', async (req, res) => {
 
     try {
         jobDataString = await redisClient.get(jobKey);
-        console.log(`[Upstash Redis] Status für ${jobKey} abgefragt. Rohdaten:`, jobDataString);
+        log.debug(`Redis status queried for ${jobKey}`);
     } catch (redisError) {
-        console.error(`[Upstash Redis] Fehler beim Abrufen des Status für ${jobKey}:`, redisError);
+        log.error(`Redis error fetching status for ${jobKey}: ${redisError.message}`);
         return res.status(500).json({ status: 'error', error: 'Interner Serverfehler beim Abrufen des Job-Status.' });
     }
 
@@ -196,7 +196,7 @@ router.get('/result/:uploadId', async (req, res) => {
 
     try {
         const job = JSON.parse(jobDataString);
-        console.log(`Statusabfrage für Job ${jobKey}: ${job.status}`);
+        log.debug(`Job status for ${jobKey}: ${job.status}`);
 
         // Get compression status for additional info
         const compressionStatus = await getCompressionStatus(uploadId);
@@ -220,11 +220,11 @@ router.get('/result/:uploadId', async (req, res) => {
                     compression: compressionStatus
                 });
             default:
-                console.error(`Unbekannter Job-Status in Redis für ${jobKey}:`, job.status);
+                log.error(`Unknown job status for ${jobKey}: ${job.status}`);
                 return res.status(500).json({ status: 'unknown', error: 'Unbekannter Job-Status.' });
         }
     } catch (parseError) {
-        console.error(`Fehler beim Parsen der Redis-Daten für ${jobKey}:`, parseError, 'Daten:', jobDataString);
+        log.error(`Error parsing Redis data for ${jobKey}: ${parseError.message}`);
         return res.status(500).json({ status: 'error', error: 'Interner Fehler beim Lesen des Job-Status.' });
     }
 });
@@ -245,7 +245,7 @@ router.get('/export-progress/:exportToken', async (req, res) => {
         return res.status(200).json(progress);
         
     } catch (error) {
-        console.error(`Fehler beim Abrufen des Export-Progress für Token ${exportToken}:`, error); // Log with exportToken
+        log.error(`Error fetching export progress for token ${exportToken}: ${error.message}`);
         return res.status(500).json({ status: 'error', error: 'Fehler beim Abrufen des Progress' });
     }
 });
@@ -258,7 +258,7 @@ router.get('/compression-status/:uploadId', async (req, res) => {
         const compressionStatus = await getCompressionStatus(uploadId);
         return res.status(200).json(compressionStatus);
     } catch (error) {
-        console.error(`Fehler beim Abrufen des Compression-Status für ${uploadId}:`, error);
+        log.error(`Error fetching compression status for ${uploadId}: ${error.message}`);
         return res.status(500).json({ status: 'error', error: 'Fehler beim Abrufen des Compression-Status' });
     }
 });
@@ -272,14 +272,11 @@ router.delete('/cleanup/:uploadId', async (req, res) => {
   }
 
   try {
-    console.log(`[Cleanup] Manual cleanup requested for uploadId: ${uploadId}`);
-    
-    // Verwende die neue Cleanup-Funktion aus tusService
+    log.debug(`Manual cleanup requested for ${uploadId}`);
     scheduleImmediateCleanup(uploadId, 'manual cleanup request');
-    
     res.status(200).json({ success: true, message: 'Cleanup erfolgreich geplant' });
   } catch (error) {
-    console.error(`[Cleanup] Error during manual cleanup for ${uploadId}:`, error);
+    log.error(`Cleanup error for ${uploadId}: ${error.message}`);
     res.status(500).json({ error: 'Fehler beim Cleanup', details: error.message });
   }
 });
@@ -293,7 +290,7 @@ router.post('/export-token', async (req, res) => {
       ...result
     });
   } catch (error) {
-    console.error('[Export Token] Error:', error);
+    log.error(`Export token error: ${error.message}`);
     res.status(400).json({ error: error.message });
   }
 });
@@ -305,7 +302,7 @@ router.get('/download/:token', async (req, res) => {
   try {
     await processDirectDownload(token, res);
   } catch (error) {
-    console.error(`[Direct Download] Error processing token ${token}:`, error);
+    log.error(`Direct download error for token ${token}: ${error.message}`);
     if (!res.headersSent) {
       res.status(error.message.includes('ungültig') ? 404 : 500).json({ 
         error: error.message 
@@ -321,7 +318,7 @@ router.get('/download-chunk/:uploadId/:chunkIndex', async (req, res) => {
   try {
     await processChunkedDownload(uploadId, parseInt(chunkIndex), res);
   } catch (error) {
-    console.error(`[Chunked Download] Error for ${uploadId} chunk ${chunkIndex}:`, error);
+    log.error(`Chunked download error for ${uploadId} chunk ${chunkIndex}: ${error.message}`);
     if (!res.headersSent) {
       res.status(404).json({ error: error.message });
     }
@@ -370,7 +367,7 @@ router.get('/export-download/:exportToken', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=${sanitizedFilename}`);
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     
-    console.log(`[Export Download] Streaming completed export: ${exportToken} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+    log.info(`Streaming export: ${exportToken} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
     
     // Stream the file
     const fileStream = fs.createReadStream(outputPath);
@@ -382,22 +379,22 @@ router.get('/export-download/:exportToken', async (req, res) => {
         try {
           await cleanupFiles(null, outputPath);
           await redisClient.del(`export:${exportToken}`);
-          console.log(`[Export Download] Cleaned up completed export: ${exportToken}`);
+          log.debug(`Cleaned up export: ${exportToken}`);
         } catch (cleanupError) {
-          console.warn(`[Export Download] Cleanup failed for ${exportToken}:`, cleanupError.message);
+          log.warn(`Cleanup failed for ${exportToken}: ${cleanupError.message}`);
         }
       }, 2000);
     });
-    
+
     fileStream.on('error', (error) => {
-      console.error(`[Export Download] Stream error for ${exportToken}:`, error.message);
+      log.error(`Stream error for ${exportToken}: ${error.message}`);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Error streaming export file' });
       }
     });
     
   } catch (error) {
-    console.error(`[Export Download] Error for token ${exportToken}:`, error);
+    log.error(`Export download error for ${exportToken}: ${error.message}`);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -424,13 +421,13 @@ router.post('/export', async (req, res) => {
     return res.status(400).json({ error: 'Upload-ID und Untertitel werden benötigt' });
   }
 
-  console.log(`[Export] Starting export with stylePreference: ${stylePreference}, heightPreference: ${heightPreference}, locale: ${locale}`);
+  log.debug(`Export starting: style=${stylePreference}, height=${heightPreference}, locale=${locale}`);
 
   try {
     inputPath = getFilePathFromUploadId(uploadId);
     const fileExists = await checkFileExists(inputPath);
      if (!fileExists) {
-        console.error(`Video-Datei für Export nicht gefunden: ${uploadId} am Pfad: ${inputPath}`);
+        log.error(`Video file for export not found: ${uploadId}`);
         return res.status(404).json({ error: 'Zugehörige Video-Datei für Export nicht gefunden.' });
     }
     
@@ -448,17 +445,8 @@ router.post('/export', async (req, res) => {
     await checkFont(); // Font check remains the same
     const metadata = await getVideoMetadata(inputPath); // Get metadata from the actual file
     
-    // Log Export-Metadaten (using file size from stats)
     const fileStats = await fsPromises.stat(inputPath);
-    console.log('Export-Info:', {
-      uploadId: uploadId,
-      inputGröße: `${(fileStats.size / 1024 / 1024).toFixed(2)}MB`,
-      dimensionen: `${metadata.width}x${metadata.height}`,
-      rotation: metadata.rotation || 'keine'
-    });
-
-    console.log('Starte Video-Export');
-    console.log('Video-Datei:', inputPath);
+    log.info(`Export: ${uploadId}, ${(fileStats.size / 1024 / 1024).toFixed(2)}MB, ${metadata.width}x${metadata.height}`);
     
     const outputDir = path.join(__dirname, '../../uploads/exports');
     await fsPromises.mkdir(outputDir, { recursive: true });
@@ -466,7 +454,6 @@ router.post('/export', async (req, res) => {
     // Use original filename (or fallback) for output
     const outputBaseName = path.basename(originalFilename, path.extname(originalFilename));
     outputPath = path.join(outputDir, `${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
-    console.log('Ausgabepfad:', outputPath);
 
     // Intelligent font size calculation for short subtitle segments
     const isVertical = metadata.width < metadata.height;
@@ -510,7 +497,6 @@ router.post('/export', async (req, res) => {
     const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize/48))));
 
     // Process subtitle segments
-    console.log('[subtitlerController] Raw subtitles input (last 500 chars):', subtitles.slice(-500));
     
     // First pass: Extract raw data and sort
     const preliminarySegments = subtitles
@@ -537,35 +523,22 @@ router.post('/export', async (req, res) => {
         let endSec = parseInt(timeMatch[5]);
         let endFrac = parseInt(timeMatch[6]);
 
-        // DEBUG: Log time parsing for segments with potential issues
-        const totalSegments = subtitles.split('\n\n').length;
-        const isLastSegments = index >= totalSegments - 5; // Last 5 segments
-        if (isLastSegments || startSec >= 60 || endSec >= 60) {
-          console.log(`[DEBUG TIME] Segment ${index}: Raw="${timeLine}" → startMin=${startMin}, startSec=${startSec}.${startFrac}, endMin=${endMin}, endSec=${endSec}.${endFrac}`);
-        }
-
         // Handle minute overflow for fractional seconds (shouldn't happen with new format)
         if (startSec >= 60) {
           startMin += Math.floor(startSec / 60);
           startSec = startSec % 60;
-          if (isLastSegments) console.log(`[DEBUG TIME] Converted start: ${startMin}:${startSec}.${startFrac}`);
         }
         if (endSec >= 60) {
           endMin += Math.floor(endSec / 60);
           endSec = endSec % 60;
-          if (isLastSegments) console.log(`[DEBUG TIME] Converted end: ${endMin}:${endSec}.${endFrac}`);
         }
-        
+
         // Convert to precise floating point seconds
         const startTime = startMin * 60 + startSec + (startFrac / 10);
         const endTime = endMin * 60 + endSec + (endFrac / 10);
-        
-        if (isLastSegments) {
-          console.log(`[DEBUG TIME] Final times: ${startTime}s - ${endTime}s (duration: ${endTime - startTime}s)`);
-        }
-        
+
         if (startTime >= endTime) {
-          console.warn(`[subtitlerController] Invalid time range in block ${index}: ${startTime} >= ${endTime}`);
+          log.warn(`Invalid time range in block ${index}: ${startTime} >= ${endTime}`);
           return null;
         }
 
@@ -622,13 +595,8 @@ router.post('/export', async (req, res) => {
       throw new Error('Keine finalen Untertitel-Segmente nach der Verarbeitung gefunden');
     }
 
-    console.log(`[subtitlerController] Parsed ${segments.length} segments. Erste 3:`,
-      segments.slice(0, 3).map((s, i) => `${i}: ${s.startTime}s-${s.endTime}s "${s.text.substring(0, 20)}..."`));
-    
-    // Logging for the segments that are now used (almost) directly from user input for FFmpeg
-    console.log(`[subtitlerController] Finale Segmente (User-Input priorisiert, keine Backend-Anpassungen):`,
-      segments.map((s, i) => `${i}: ${s.startTime.toFixed(2)}-${s.endTime.toFixed(2)}s (${(s.endTime - s.startTime).toFixed(2)}s)`));
-    
+    log.debug(`Parsed ${segments.length} segments`);
+
     const calculateScaleFactor = (avgChars, avgWords) => {
         // Verstärkte Skalierung für kurze Texte (typisch für Untertitel)
         const shortCharThreshold = 20;  // Reduziert von 15
@@ -673,14 +641,7 @@ router.post('/export', async (req, res) => {
     const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
     const finalSpacing = Math.max(minSpacing, Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor)));
 
-    // Log the extended calculation for short subtitles
-    console.log('Font calculation:', {
-      videoDimensionen: `${metadata.width}x${metadata.height}`,
-      avgTextLength: avgLength.toFixed(1),
-      scaleFactor: scaleFactor.toFixed(2),
-      finalFontSize: `${finalFontSize}px`,
-      finalSpacing: `${finalSpacing}px`
-    });
+    log.debug(`Font: ${finalFontSize}px, spacing: ${finalSpacing}px`);
 
     // Updated cache key to include stylePreference, heightPreference, and locale
     const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
@@ -738,26 +699,16 @@ router.post('/export', async (req, res) => {
       tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
       try {
         await fsPromises.copyFile(sourceFontPath, tempFontPath);
-        console.log(`[ASS] Copied font ${fontFilename} to temp: ${tempFontPath}`);
+        log.debug(`Font copied to temp: ${fontFilename}`);
       } catch (fontCopyError) {
-        console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
+        log.warn(`Font copy failed, using fallback: ${fontCopyError.message}`);
         tempFontPath = null;
       }
 
-      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference} → ${effectiveStyle}, height: ${heightPreference}, locale: ${locale}`);
-      console.log(`[ASS] Processing ${segments.length} segments`);
-      if (subtitlePreference === 'word') {
-        console.log(`[ASS] TikTok word mode positioning: center screen (50% height)`);
-      } else {
-        const marginVValue = heightPreference === 'tief' 
-          ? Math.floor(metadata.height * 0.20) 
-          : Math.floor(metadata.height * 0.33);
-        const heightDesc = heightPreference === 'tief' ? 'deeper (1/5 height)' : 'standard (1/3 height)';
-        console.log(`[ASS] Instagram Reels positioning: ${marginVValue}px from bottom - ${heightDesc}`);
-      }
-      
+      log.debug(`ASS: mode=${subtitlePreference}, style=${effectiveStyle}, ${segments.length} segments`);
+
     } catch (assError) {
-      console.error('[ASS] Error generating ASS subtitles:', assError);
+      log.error(`ASS generation error: ${assError.message}`);
       assFilePath = null; // Proceed without subtitles
     }
 
@@ -788,12 +739,12 @@ router.post('/export', async (req, res) => {
     // Start background processing (fire and forget)
     processVideoExportInBackground(backgroundParams)
       .catch(error => {
-        console.error('[Export] Background processing failed:', error);
+        log.error(`Background processing failed: ${error.message}`);
         // Error handling is done inside the background function
       });
 
   } catch (error) {
-    console.error('Export-Fehler:', error);
+    log.error(`Export error: ${error.message}`);
     await cleanupFiles(null, outputPath); // Only cleanup output file on error
 
     if (!res.headersSent) {
@@ -824,7 +775,7 @@ async function processVideoExportInBackground(params) {
   } = params;
 
   try {
-    console.log(`[Export Background] Starting background processing for token: ${exportToken}`);
+    log.debug(`Background export starting for token: ${exportToken}`);
     
     // Set initial progress
     await redisClient.set(`export:${exportToken}`, JSON.stringify({
@@ -886,16 +837,13 @@ async function processVideoExportInBackground(params) {
       tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
       try {
         await fsPromises.copyFile(sourceFontPath, tempFontPath);
-        console.log(`[ASS] Copied font ${fontFilename} to temp: ${tempFontPath}`);
       } catch (fontCopyError) {
-        console.warn('[ASS] Font copy failed, using system fallback:', fontCopyError.message);
+        log.warn(`Font copy failed: ${fontCopyError.message}`);
         tempFontPath = null;
       }
 
-      console.log(`[ASS] Created ASS file with mode: ${subtitlePreference}, style: ${stylePreference} → ${effectiveStyle}, height: ${heightPreference}, locale: ${locale}`);
-      
     } catch (assError) {
-      console.error('[ASS] Error generating ASS subtitles:', assError);
+      log.error(`ASS generation error: ${assError.message}`);
       assFilePath = null;
     }
 
@@ -908,7 +856,7 @@ async function processVideoExportInBackground(params) {
       let crf, preset, tune;
       
       if (fileSizeMB > 200) {
-        console.log(`[FFmpeg] Large file detected (${fileSizeMB.toFixed(1)}MB), using size-optimized settings`);
+        log.debug(`Large file (${fileSizeMB.toFixed(1)}MB), using size-optimized settings`);
         preset = 'superfast';
         tune = 'film';
         
@@ -945,7 +893,7 @@ async function processVideoExportInBackground(params) {
         }
       }
       
-      console.log(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
+      log.debug(`FFmpeg: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
 
       // Audio settings
       let audioCodec, audioBitrate;
@@ -955,12 +903,10 @@ async function processVideoExportInBackground(params) {
       if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
         audioCodec = 'copy';
         audioBitrate = null;
-        console.log(`[FFmpeg] Copying original AAC audio (fastest option)`);
       } else {
         audioCodec = 'aac';
         if (fileSizeMB > 200) {
           audioBitrate = '96k';
-          console.log(`[FFmpeg] Using 96k audio for large file (size optimized)`);
         } else {
           if (referenceDimension >= 1440) {
             audioBitrate = '256k';
@@ -976,7 +922,6 @@ async function processVideoExportInBackground(params) {
       let videoCodec;
       if (fileSizeMB > 200) {
         videoCodec = 'libx264';
-        console.log(`[FFmpeg] Using H.264 for large file (good compression/compatibility balance)`);
       } else if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
         videoCodec = 'libx265';
       } else {
@@ -1007,7 +952,6 @@ async function processVideoExportInBackground(params) {
           '-refs', '3',
           '-trellis', '1'
         );
-        console.log(`[FFmpeg] Added compression optimizations for large file`);
       }
 
       if (metadata.rotation && metadata.rotation !== '0') {
@@ -1020,16 +964,14 @@ async function processVideoExportInBackground(params) {
       if (assFilePath) {
         const fontDir = path.dirname(tempFontPath);
         command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
-        console.log(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
       }
 
       command
         .on('start', () => {
-          console.log('[FFmpeg] Processing started');
+          log.debug('FFmpeg processing started');
         })
         .on('progress', async (progress) => {
           const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
-          console.log('Fortschritt:', `${progressPercent}%`);
           
           // Store progress in Redis
           const progressData = {
@@ -1040,28 +982,28 @@ async function processVideoExportInBackground(params) {
           try {
             await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 });
           } catch (redisError) {
-            console.warn('Redis Progress Update Fehler:', redisError.message);
+            log.warn(`Redis progress update error: ${redisError.message}`);
           }
         })
         .on('error', (err) => {
-          console.error('FFmpeg Fehler:', err);
+          log.error(`FFmpeg error: ${err.message}`);
           // Store error status in Redis
           redisClient.set(`export:${exportToken}`, JSON.stringify({
             status: 'error',
             error: err.message || 'FFmpeg processing failed'
-          }), { EX: 60 * 60 }).catch(redisErr => console.warn('Redis error storage failed:', redisErr));
+          }), { EX: 60 * 60 }).catch(redisErr => log.warn(`Redis error storage failed: ${redisErr.message}`));
           
           // Cleanup ASS files
           if (assFilePath) {
-            assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr));
+            assService.cleanupTempFile(assFilePath).catch(cleanupErr => log.warn(`ASS cleanup failed: ${cleanupErr.message}`));
             if (tempFontPath) {
-              fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Error] Font cleanup failed:', fontErr.message));
+              fsPromises.unlink(tempFontPath).catch(fontErr => log.warn(`Font cleanup failed: ${fontErr.message}`));
             }
           }
           reject(err);
         })
         .on('end', async () => {
-          console.log('FFmpeg Verarbeitung abgeschlossen');
+          log.info(`FFmpeg processing complete for ${exportToken}`);
           
           // Store completion status with file path in Redis
           try {
@@ -1072,16 +1014,15 @@ async function processVideoExportInBackground(params) {
               originalFilename: originalFilename
             };
             await redisClient.set(`export:${exportToken}`, JSON.stringify(completionData), { EX: 60 * 60 });
-            console.log(`[Export Background] Stored completion status for token: ${exportToken}`);
           } catch (redisError) {
-            console.warn('Redis completion status storage failed:', redisError.message);
+            log.warn(`Redis completion status storage failed: ${redisError.message}`);
           }
-          
+
           // Cleanup ASS files
           if (assFilePath) {
-            await assService.cleanupTempFile(assFilePath).catch(cleanupErr => console.warn('[FFmpeg Success] ASS cleanup failed:', cleanupErr));
+            await assService.cleanupTempFile(assFilePath).catch(cleanupErr => log.warn(`ASS cleanup failed: ${cleanupErr.message}`));
             if (tempFontPath) {
-              await fsPromises.unlink(tempFontPath).catch(fontErr => console.warn('[FFmpeg Success] Font cleanup failed:', fontErr.message));
+              await fsPromises.unlink(tempFontPath).catch(fontErr => log.warn(`Font cleanup failed: ${fontErr.message}`));
             }
           }
           resolve();
@@ -1091,10 +1032,8 @@ async function processVideoExportInBackground(params) {
       });
     }, `export-${exportToken}`);
 
-    console.log(`[Export Background] Background processing completed for token: ${exportToken}`);
-
   } catch (error) {
-    console.error(`[Export Background] Background processing failed for token ${exportToken}:`, error);
+    log.error(`Background processing failed for ${exportToken}: ${error.message}`);
     
     // Store error status in Redis
     try {
@@ -1103,7 +1042,7 @@ async function processVideoExportInBackground(params) {
         error: error.message || 'Background processing failed'
       }), { EX: 60 * 60 });
     } catch (redisError) {
-      console.warn('Redis error storage failed:', redisError.message);
+      log.warn(`Redis error storage failed: ${redisError.message}`);
     }
   }
 }

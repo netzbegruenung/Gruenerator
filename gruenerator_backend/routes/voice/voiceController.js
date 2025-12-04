@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const mistralVoiceService = require('./mistralVoiceService');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('voice');
+
 
 // Konfiguration für Multer (Memory-Upload für direkte Verarbeitung)
 const storage = multer.memoryStorage();
@@ -42,7 +45,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
   };
 
   try {
-    console.log('[Voice Controller] Starting transcription for:', filename, 'Options:', options);
+    log.debug('[Voice Controller] Starting transcription for:', filename, 'Options:', options);
 
     const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
 
@@ -54,7 +57,7 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       language: options.language
     });
   } catch (error) {
-    console.error('[Voice Controller] Transcription error:', error);
+    log.error('[Voice Controller] Transcription error:', error);
 
     return res.status(500).json({
       success: false,
@@ -81,7 +84,7 @@ router.post('/transcribe-url', async (req, res) => {
   };
 
   try {
-    console.log('[Voice Controller] Starting URL transcription for:', url, 'Options:', options);
+    log.debug('[Voice Controller] Starting URL transcription for:', url, 'Options:', options);
 
     const result = await mistralVoiceService.transcribeFromUrl(url, options);
 
@@ -94,7 +97,7 @@ router.post('/transcribe-url', async (req, res) => {
       sourceUrl: url
     });
   } catch (error) {
-    console.error('[Voice Controller] URL transcription error:', error);
+    log.error('[Voice Controller] URL transcription error:', error);
 
     return res.status(500).json({
       success: false,
@@ -117,7 +120,7 @@ router.post('/chat', upload.single('audio'), async (req, res) => {
   const prompt = req.body.prompt || req.query.prompt || "Was ist in dieser Audio-Datei?";
 
   try {
-    console.log('[Voice Controller] Starting audio chat for:', filename, 'Prompt:', prompt);
+    log.debug('[Voice Controller] Starting audio chat for:', filename, 'Prompt:', prompt);
 
     const response = await mistralVoiceService.chatWithAudio(audioBuffer, filename, prompt);
 
@@ -127,7 +130,7 @@ router.post('/chat', upload.single('audio'), async (req, res) => {
       prompt: prompt
     });
   } catch (error) {
-    console.error('[Voice Controller] Audio chat error:', error);
+    log.error('[Voice Controller] Audio chat error:', error);
 
     return res.status(500).json({
       success: false,
@@ -149,7 +152,7 @@ router.get('/formats', (_, res) => {
       provider: 'Mistral Voxtral'
     });
   } catch (error) {
-    console.error('[Voice Controller] Formats error:', error);
+    log.error('[Voice Controller] Formats error:', error);
 
     return res.status(500).json({
       success: false,

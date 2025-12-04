@@ -6,6 +6,9 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const { checkFiles, registerFonts } = require('./fileManagement');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('zitat_canvas');
+
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
@@ -17,7 +20,7 @@ const quotationMarkPath = path.resolve(__dirname, '../../../public/quote.svg');
 try {
   registerFonts();
 } catch (err) {
-  console.error('Fehler beim Registrieren der Schriftarten:', err);
+  log.error('Fehler beim Registrieren der Schriftarten:', err);
   process.exit(1);
 }
 
@@ -28,12 +31,12 @@ if (!fs.existsSync(quotationMarkPath)) {
 
 async function addTextToImage(imagePath, outputImagePath, quote, name) {
   try {
-    console.log('Lade Bild:', imagePath);
+    log.debug('Lade Bild:', imagePath);
     const [image, quotationMark] = await Promise.all([
       loadImage(imagePath),
       loadImage(quotationMarkPath)
     ]);
-    console.log('Bilder erfolgreich geladen');
+    log.debug('Bilder erfolgreich geladen');
 
     const canvas = createCanvas(1080, 1350);
     const ctx = canvas.getContext('2d');
@@ -106,9 +109,9 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
 
     const buffer = canvas.toBuffer('image/png');
     fs.writeFileSync(outputImagePath, buffer);
-    console.log('Bild erfolgreich gespeichert:', outputImagePath);
+    log.debug('Bild erfolgreich gespeichert:', outputImagePath);
   } catch (err) {
-    console.error('Fehler beim Erstellen des Bildes:', err);
+    log.error('Fehler beim Erstellen des Bildes:', err);
     throw err;
   }
 }
@@ -139,17 +142,17 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     res.json({ image: base64Image });
   } catch (err) {
-    console.error('Fehler bei der Anfrage:', err);
+    log.error('Fehler bei der Anfrage:', err);
     res.status(500).send('Fehler beim Erstellen des Bildes: ' + err.message);
   } finally {
     if (req.file) {
       fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+        if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
       });
     }
     if (outputImagePath) {
       fs.unlink(outputImagePath, (err) => {
-        if (err) console.error('Fehler beim Löschen der temporären Output-Datei:', err);
+        if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
       });
     }
   }

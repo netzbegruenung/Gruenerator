@@ -2,6 +2,9 @@ import express from 'express';
 import { QAQdrantHelper } from '../database/services/QAQdrantHelper.js';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
 import authMiddleware from '../middleware/authMiddleware.js';
+import { createLogger } from '../utils/logger.js';
+const log = createLogger('qaCollections');
+
 const { requireAuth } = authMiddleware;
 
 const router = express.Router();
@@ -30,10 +33,10 @@ async function resolveWolkeLinksToDocuments(userId, wolkeShareLinkIds) {
             ORDER BY created_at DESC
         `, [userId, wolkeShareLinkIds]);
 
-        console.log(`[QA Collections] Resolved ${wolkeShareLinkIds.length} Wolke links to ${documents.length} documents`);
+        log.debug(`[QA Collections] Resolved ${wolkeShareLinkIds.length} Wolke links to ${documents.length} documents`);
         return documents;
     } catch (error) {
-        console.error('[QA Collections] Error resolving Wolke links:', error);
+        log.error('[QA Collections] Error resolving Wolke links:', error);
         throw new Error('Failed to resolve Wolke links to documents');
     }
 }
@@ -50,10 +53,10 @@ async function validateWolkeShareLinks(userId, wolkeShareLinkIds) {
         // For now, we'll assume all share links belong to the user
         // In a more complex system, you might need to check share link ownership
         // This is a placeholder for proper validation logic
-        console.log(`[QA Collections] Validating access to ${wolkeShareLinkIds.length} Wolke share links for user ${userId}`);
+        log.debug(`[QA Collections] Validating access to ${wolkeShareLinkIds.length} Wolke share links for user ${userId}`);
         return true;
     } catch (error) {
-        console.error('[QA Collections] Error validating Wolke share links:', error);
+        log.error('[QA Collections] Error validating Wolke share links:', error);
         return false;
     }
 }
@@ -62,7 +65,7 @@ async function validateWolkeShareLinks(userId, wolkeShareLinkIds) {
 router.get('/', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
-        console.log('[QA Collections] GET / - User ID:', userId);
+        log.debug('[QA Collections] GET / - User ID:', userId);
 
         // Get collections from Qdrant
         const collections = await qaHelper.getUserQACollections(userId);
@@ -90,7 +93,7 @@ router.get('/', requireAuth, async (req, res) => {
                         // Add more details here if needed
                     }));
                 } catch (error) {
-                    console.error('[QA Collections] Error fetching Wolke share links:', error);
+                    log.error('[QA Collections] Error fetching Wolke share links:', error);
                 }
             }
 
@@ -107,17 +110,17 @@ router.get('/', requireAuth, async (req, res) => {
             };
         }));
 
-        console.log('[QA Collections] GET / - Transformed data:', transformedData);
+        log.debug('[QA Collections] GET / - Transformed data:', transformedData);
         
         const responseData = {
             success: true,
             collections: transformedData
         };
         
-        console.log('[QA Collections] GET / - Sending response:', responseData);
+        log.debug('[QA Collections] GET / - Sending response:', responseData);
         res.json(responseData);
     } catch (error) {
-        console.error('[QA Collections] Error in GET /:', error);
+        log.error('[QA Collections] Error in GET /:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -201,7 +204,7 @@ router.post('/', requireAuth, async (req, res) => {
         const result = await qaHelper.storeQACollection(collectionData);
         
         if (!result.success) {
-            console.error('[QA Collections] Error creating collection:', result.error);
+            log.error('[QA Collections] Error creating collection:', result.error);
             return res.status(500).json({ error: 'Failed to create Q&A collection' });
         }
 
@@ -211,7 +214,7 @@ router.post('/', requireAuth, async (req, res) => {
         try {
             await qaHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
         } catch (docError) {
-            console.error('[QA Collections] Error adding documents:', docError);
+            log.error('[QA Collections] Error adding documents:', docError);
             // Clean up - delete the collection if document insertion failed
             await qaHelper.deleteQACollection(collectionId);
             return res.status(500).json({ error: 'Failed to add documents to collection' });
@@ -230,7 +233,7 @@ router.post('/', requireAuth, async (req, res) => {
             message: `Q&A collection created successfully with ${allDocumentIds.length} document(s)`
         });
     } catch (error) {
-        console.error('[QA Collections] Error in POST /:', error);
+        log.error('[QA Collections] Error in POST /:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -345,7 +348,7 @@ router.put('/:id', requireAuth, async (req, res) => {
             wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : []
         });
     } catch (error) {
-        console.error('[QA Collections] Error in PUT /:id:', error);
+        log.error('[QA Collections] Error in PUT /:id:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -415,7 +418,7 @@ router.post('/:id/sync', requireAuth, async (req, res) => {
             wolke_share_links: wolkeLinkIds
         });
     } catch (error) {
-        console.error('[QA Collections] Error in POST /:id/sync:', error);
+        log.error('[QA Collections] Error in POST /:id/sync:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -440,7 +443,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
             message: 'Q&A collection deleted successfully' 
         });
     } catch (error) {
-        console.error('[QA Collections] Error in DELETE /:id:', error);
+        log.error('[QA Collections] Error in DELETE /:id:', error);
         res.status(500).json({ error: 'Failed to delete Q&A collection' });
     }
 });
@@ -461,7 +464,7 @@ router.post('/:id/share', requireAuth, async (req, res) => {
         const result = await qaHelper.createPublicAccess(collectionId, userId);
 
         if (!result.success) {
-            console.error('[QA Collections] Error creating public access:', result.error);
+            log.error('[QA Collections] Error creating public access:', result.error);
             return res.status(500).json({ error: 'Failed to generate public link' });
         }
 
@@ -474,7 +477,7 @@ router.post('/:id/share', requireAuth, async (req, res) => {
             message: 'Public link generated successfully'
         });
     } catch (error) {
-        console.error('[QA Collections] Error in POST /:id/share:', error);
+        log.error('[QA Collections] Error in POST /:id/share:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -499,7 +502,7 @@ router.delete('/:id/share', requireAuth, async (req, res) => {
             message: 'Public access revoked successfully' 
         });
     } catch (error) {
-        console.error('[QA Collections] Error in DELETE /:id/share:', error);
+        log.error('[QA Collections] Error in DELETE /:id/share:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -525,7 +528,7 @@ router.delete('/bulk', requireAuth, async (req, res) => {
             });
         }
 
-        console.log(`[QA Collections] Bulk delete request for ${ids.length} collections from user ${userId}`);
+        log.debug(`[QA Collections] Bulk delete request for ${ids.length} collections from user ${userId}`);
 
         // Perform bulk delete with ownership verification
         const result = await qaHelper.bulkDeleteCollections(ids, userId);
@@ -533,7 +536,7 @@ router.delete('/bulk', requireAuth, async (req, res) => {
         const deletedIds = result.results.deleted;
         const failedIds = result.results.failed.map(f => f.id);
 
-        console.log(`[QA Collections] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+        log.debug(`[QA Collections] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
 
         res.json({
             success: true,
@@ -545,7 +548,7 @@ router.delete('/bulk', requireAuth, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[QA Collections] Error in bulk delete:', error);
+        log.error('[QA Collections] Error in bulk delete:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to perform bulk delete of Q&A collections'

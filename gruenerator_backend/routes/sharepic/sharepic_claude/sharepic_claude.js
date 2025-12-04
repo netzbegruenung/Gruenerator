@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const prompts = require('../../../prompts/sharepic');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('sharepic_claude');
+
 // const aiShortenerService = require('../../../services/aiShortenerService');
 
 // Helper function to detect if an error is related to throttling/temporary issues
@@ -34,14 +37,14 @@ const extractCleanJSON = (content) => {
       const parsed = JSON.parse(jsonMatch[0]);
       return parsed;
     } catch (parseError) {
-      console.warn('[extractCleanJSON] Parse error:', parseError.message);
+      log.warn('[extractCleanJSON] Parse error:', parseError.message);
       // Try non-greedy fallback for nested objects
       const fallbackMatch = cleanedContent.match(/\{[^{}]*\}/);
       if (fallbackMatch) {
         try {
           return JSON.parse(fallbackMatch[0]);
         } catch (fallbackError) {
-          console.warn('[extractCleanJSON] Fallback parse error:', fallbackError.message);
+          log.warn('[extractCleanJSON] Fallback parse error:', fallbackError.message);
         }
       }
     }
@@ -71,7 +74,7 @@ const extractCleanJSONArray = (content) => {
         return parsed;
       }
     } catch (parseError) {
-      console.warn('[extractCleanJSONArray] Parse error:', parseError.message);
+      log.warn('[extractCleanJSONArray] Parse error:', parseError.message);
     }
   }
 
@@ -162,7 +165,7 @@ const extractQuoteArray = (content) => {
     const parsed = JSON.parse(candidate);
     return Array.isArray(parsed) ? parsed : null;
   } catch (error) {
-    console.warn('[sharepic] Failed to parse sanitized JSON response', error);
+    log.warn('[sharepic] Failed to parse sanitized JSON response', error);
     return null;
   }
 };
@@ -175,7 +178,7 @@ const cleanLine = (line) => {
 
 // Helper function to parse dreizeilen response
 const parseDreizeilenResponse = (content, skipShortener = false) => {
-  console.log(`[parser] Received content starting with: "${content.substring(0, 30)}"`);
+  log.debug(`[parser] Received content starting with: "${content.substring(0, 30)}"`);
 
   const allLines = content.split('\n');
 
@@ -187,24 +190,24 @@ const parseDreizeilenResponse = (content, skipShortener = false) => {
 
     // Check if all 3 lines exist and are valid
     if (line1 && line2 && line3) {
-      console.log(`[parser] Checking lines: ["${line1}", "${line2}", "${line3}"]`);
+      log.debug(`[parser] Checking lines: ["${line1}", "${line2}", "${line3}"]`);
 
       if (line1.toLowerCase().includes('suchbegriff') || line2.toLowerCase().includes('suchbegriff') || line3.toLowerCase().includes('suchbegriff')) {
-        console.log(`[parser] Rejected: contains 'suchbegriff'`);
+        log.debug(`[parser] Rejected: contains 'suchbegriff'`);
         continue;
       }
 
       if (line1.length < 3 || line1.length > 35 || line2.length < 3 || line2.length > 35 || line3.length < 3 || line3.length > 35) {
-        console.log(`[parser] Rejected: length issue [${line1.length}, ${line2.length}, ${line3.length}]`);
+        log.debug(`[parser] Rejected: length issue [${line1.length}, ${line2.length}, ${line3.length}]`);
         continue;
       }
 
-      console.log(`[parser] SUCCESS - returning valid slogan`);
+      log.debug(`[parser] SUCCESS - returning valid slogan`);
       return { line1, line2, line3 };
     }
   }
 
-  console.log(`[parser] FAILED - no valid lines found in ${allLines.length} total lines`);
+  log.debug(`[parser] FAILED - no valid lines found in ${allLines.length} total lines`);
   return { line1: '', line2: '', line3: '' };
 };
 
@@ -276,7 +279,7 @@ const handleDreizeilenRequest = async (req, res) => {
           attempts++;
         }
 
-        console.error(`[sharepic_dreizeilen] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+        log.error(`[sharepic_dreizeilen] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
 
         if (attempts === maxAttempts) {
           return res.status(500).json({ success: false, error: result.error });
@@ -302,25 +305,25 @@ const handleDreizeilenRequest = async (req, res) => {
 
       if (singleItem) {
         // Log raw AI response for debugging
-        console.log(`[sharepic_dreizeilen] Raw AI response on attempt ${attempts}:`, content.substring(0, 300) + (content.length > 300 ? '...' : ''));
+        log.debug(`[sharepic_dreizeilen] Raw AI response on attempt ${attempts}:`, content.substring(0, 300) + (content.length > 300 ? '...' : ''));
 
         // Parse single item response
-        console.log(`[sharepic_dreizeilen] Calling parser with ${content.length} chars`);
+        log.debug(`[sharepic_dreizeilen] Calling parser with ${content.length} chars`);
         mainSlogan = parseDreizeilenResponse(content, skipShortener);
 
         // Log parsing result for debugging
-        console.log(`[sharepic_dreizeilen] Parsed slogan on attempt ${attempts}:`, mainSlogan);
+        log.debug(`[sharepic_dreizeilen] Parsed slogan on attempt ${attempts}:`, mainSlogan);
 
         // Check if parsing succeeded
         if (isSloganValid(mainSlogan)) {
-          console.log(`[sharepic_dreizeilen] Valid slogan found on attempt ${attempts}`);
+          log.debug(`[sharepic_dreizeilen] Valid slogan found on attempt ${attempts}`);
           break;
         } else {
-          console.log(`[sharepic_dreizeilen] Invalid slogan on attempt ${attempts}, continuing...`);
+          log.debug(`[sharepic_dreizeilen] Invalid slogan on attempt ${attempts}, continuing...`);
         }
       } else {
         // Handle multiple slogans without headers
-        console.log(`[sharepic_dreizeilen] Parsing multiple slogans (count=${count})`);
+        log.debug(`[sharepic_dreizeilen] Parsing multiple slogans (count=${count})`);
         const slogans = [];
         const lines = content.split('\n');
 
@@ -339,7 +342,7 @@ const handleDreizeilenRequest = async (req, res) => {
               line2.length >= 3 && line2.length <= 35 &&
               line3.length >= 3 && line3.length <= 35) {
 
-            console.log(`[sharepic_dreizeilen] Found slogan ${slogans.length + 1}: "${line1}", "${line2}", "${line3}"`);
+            log.debug(`[sharepic_dreizeilen] Found slogan ${slogans.length + 1}: "${line1}", "${line2}", "${line3}"`);
             slogans.push({ line1, line2, line3 });
             i += 2; // Skip the lines we just processed (i++ will add 1 more)
 
@@ -348,7 +351,7 @@ const handleDreizeilenRequest = async (req, res) => {
           }
         }
 
-        console.log(`[sharepic_dreizeilen] Found ${slogans.length} slogans total`);
+        log.debug(`[sharepic_dreizeilen] Found ${slogans.length} slogans total`);
         mainSlogan = slogans[0] || { line1: '', line2: '', line3: '' };
         if (isSloganValid(mainSlogan)) {
           const alternatives = slogans.slice(1);
@@ -370,9 +373,9 @@ const handleDreizeilenRequest = async (req, res) => {
       const contentPreview = lastContent.substring(0, 200) + (lastContent.length > 200 ? '...' : '');
 
       if (skipShortener) {
-        console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts`);
-        console.error(`[sharepic_dreizeilen] Last generated content preview:`, contentPreview);
-        console.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
+        log.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts`);
+        log.error(`[sharepic_dreizeilen] Last generated content preview:`, contentPreview);
+        log.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
 
         return res.status(500).json({
           success: false,
@@ -399,16 +402,16 @@ const handleDreizeilenRequest = async (req, res) => {
       //     });
       //   }
       // } catch (shortenerError) {
-      //   console.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
+      //   log.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
       // }
 
       // Create a preview of the last generated content for debugging
       const finalContent = result?.content || 'No content available';
       const finalPreview = finalContent.substring(0, 200) + (finalContent.length > 200 ? '...' : '');
 
-      console.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts`);
-      console.error(`[sharepic_dreizeilen] Last generated content preview:`, finalPreview);
-      console.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
+      log.error(`[sharepic_dreizeilen] Failed to generate valid dreizeilen after ${maxAttempts} attempts`);
+      log.error(`[sharepic_dreizeilen] Last generated content preview:`, finalPreview);
+      log.error(`[sharepic_dreizeilen] Final mainSlogan state:`, mainSlogan);
 
       return res.status(500).json({
         success: false,
@@ -432,7 +435,7 @@ const handleDreizeilenRequest = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[sharepic_dreizeilen] Error:', error);
+    log.error('[sharepic_dreizeilen] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -474,7 +477,7 @@ const handleZitatRequest = async (req, res) => {
           attempts++;
         }
 
-        console.error(`[sharepic_zitat] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+        log.error(`[sharepic_zitat] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
 
         if (attempts === maxAttempts) {
           return res.status(500).json({ success: false, error: result.error });
@@ -507,7 +510,7 @@ const handleZitatRequest = async (req, res) => {
         // AI shortener disabled - no truncation
 
       } catch (parseError) {
-        console.warn('[sharepic_zitat] Single item JSON parsing failed, using fallback:', parseError.message);
+        log.warn('[sharepic_zitat] Single item JSON parsing failed, using fallback:', parseError.message);
         firstQuote = (result.content || '').trim();
         alternatives = [];
 
@@ -537,7 +540,7 @@ const handleZitatRequest = async (req, res) => {
       name: name || ''
     });
   } catch (error) {
-    console.error('[sharepic_zitat] Error:', error);
+    log.error('[sharepic_zitat] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -579,7 +582,7 @@ const handleZitatPureRequest = async (req, res) => {
           attempts++;
         }
 
-        console.error(`[sharepic_zitat_pure] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+        log.error(`[sharepic_zitat_pure] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
 
         if (attempts === maxAttempts) {
           return res.status(500).json({ success: false, error: result.error });
@@ -636,7 +639,7 @@ const handleZitatPureRequest = async (req, res) => {
       name: quoteName
     });
   } catch (error) {
-    console.error('[sharepic_zitat_pure] Error:', error);
+    log.error('[sharepic_zitat_pure] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -678,7 +681,7 @@ const handleHeadlineRequest = async (req, res) => {
           attempts++;
         }
 
-        console.error(`[sharepic_headline] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+        log.error(`[sharepic_headline] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
 
         if (attempts === maxAttempts) {
           return res.status(500).json({ success: false, error: result.error });
@@ -755,20 +758,20 @@ const handleHeadlineRequest = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('[sharepic_headline] Error:', error);
+    log.error('[sharepic_headline] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
 // Handler for info type
 const handleInfoRequest = async (req, res) => {
-  console.log('[sharepic_info] handleInfoRequest called with body:', req.body);
+  log.debug('[sharepic_info] handleInfoRequest called with body:', req.body);
 
   const { thema, details, count = 5, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
-  console.log('[sharepic_info] Config:', { singleItem, skipShortener, count, source });
+  log.debug('[sharepic_info] Config:', { singleItem, skipShortener, count, source });
 
   // Use campaign prompt if provided, otherwise use standard
   const config = req.body._campaignPrompt || prompts.info;
@@ -802,7 +805,7 @@ const handleInfoRequest = async (req, res) => {
           attempts++;
         }
 
-        console.error(`[sharepic_info] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+        log.error(`[sharepic_info] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
 
         if (attempts === maxAttempts) {
           return res.status(500).json({ success: false, error: result.error });
@@ -819,8 +822,8 @@ const handleInfoRequest = async (req, res) => {
       if (singleItem) {
         // Parse JSON response for single item
         const infoData = extractCleanJSON(content);
-        console.log(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
-        console.log(`[sharepic_info] Attempt ${attempts} - Parsed infoData:`, infoData);
+        log.debug(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        log.debug(`[sharepic_info] Attempt ${attempts} - Parsed infoData:`, infoData);
 
         if (infoData) {
           const header = sanitizeInfoField(infoData.header);
@@ -828,7 +831,7 @@ const handleInfoRequest = async (req, res) => {
           const body = sanitizeInfoField(infoData.body);
           const searchTerm = sanitizeInfoField(infoData.searchTerm);
 
-          console.log(`[sharepic_info] Attempt ${attempts} - Sanitized values:`, {
+          log.debug(`[sharepic_info] Attempt ${attempts} - Sanitized values:`, {
             header: header?.substring(0, 50) + '...',
             subheader: subheader?.substring(0, 50) + '...',
             body: body?.substring(0, 50) + '...',
@@ -840,7 +843,7 @@ const handleInfoRequest = async (req, res) => {
           // Validate required fields - check for empty strings
           if (!header || !subheader || !body ||
               header.trim() === '' || subheader.trim() === '' || body.trim() === '') {
-            console.log(`[sharepic_info] Attempt ${attempts} - Validation failed: empty or missing fields`);
+            log.debug(`[sharepic_info] Attempt ${attempts} - Validation failed: empty or missing fields`);
             if (attempts === maxAttempts) {
               return res.status(500).json({
                 success: false,
@@ -896,11 +899,11 @@ const handleInfoRequest = async (req, res) => {
       } else {
         // Parse JSON array response for multiple items
         const infoArray = extractCleanJSONArray(content);
-        console.log(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
-        console.log(`[sharepic_info] Attempt ${attempts} - Parsed array:`, infoArray?.length || 0, 'items');
+        log.debug(`[sharepic_info] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        log.debug(`[sharepic_info] Attempt ${attempts} - Parsed array:`, infoArray?.length || 0, 'items');
 
         if (!infoArray || !Array.isArray(infoArray) || infoArray.length === 0) {
-          console.log(`[sharepic_info] Attempt ${attempts} - Array extraction failed or empty`);
+          log.debug(`[sharepic_info] Attempt ${attempts} - Array extraction failed or empty`);
           if (attempts === maxAttempts) {
             return res.status(500).json({
               success: false,
@@ -917,7 +920,7 @@ const handleInfoRequest = async (req, res) => {
           const subheader = sanitizeInfoField(item.subheader);
           const body = sanitizeInfoField(item.body);
 
-          console.log(`[sharepic_info] Validating item:`, {
+          log.debug(`[sharepic_info] Validating item:`, {
             header: header?.substring(0, 30) + '...',
             subheader: subheader?.substring(0, 30) + '...',
             body: body?.substring(0, 30) + '...',
@@ -935,12 +938,12 @@ const handleInfoRequest = async (req, res) => {
               body: body.length > 255 ? body.substring(0, 255).trim() : body
             });
           } else {
-            console.log(`[sharepic_info] Item rejected: empty field(s)`);
+            log.debug(`[sharepic_info] Item rejected: empty field(s)`);
           }
         }
 
         if (validInfos.length === 0) {
-          console.log(`[sharepic_info] Attempt ${attempts} - No valid items after validation`);
+          log.debug(`[sharepic_info] Attempt ${attempts} - No valid items after validation`);
           if (attempts === maxAttempts) {
             return res.status(500).json({
               success: false,
@@ -953,7 +956,7 @@ const handleInfoRequest = async (req, res) => {
         // Extract search term from first item
         const searchTerms = infoArray[0]?.searchTerm ? [infoArray[0].searchTerm] : [];
 
-        console.log(`[sharepic_info] Success: ${validInfos.length} valid items, searchTerms:`, searchTerms);
+        log.debug(`[sharepic_info] Success: ${validInfos.length} valid items, searchTerms:`, searchTerms);
 
         // Format: first as main, rest as alternatives
         responseData = {
@@ -969,14 +972,14 @@ const handleInfoRequest = async (req, res) => {
     if (responseData) {
       res.json(responseData);
     } else {
-      console.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts`);
+      log.error(`[sharepic_info] Failed to generate valid info after ${maxAttempts} attempts`);
       res.status(500).json({
         success: false,
         error: `Failed to generate valid info after ${maxAttempts} attempts`
       });
     }
   } catch (error) {
-    console.error('[sharepic_info] Error:', error);
+    log.error('[sharepic_info] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -1000,7 +1003,7 @@ const handleDefaultRequest = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[sharepic_default] Error:', error);
+    log.error('[sharepic_default] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

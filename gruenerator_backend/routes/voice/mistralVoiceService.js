@@ -1,6 +1,9 @@
 const mistralClient = require('../../workers/mistralClient');
 const fs = require('fs').promises;
 const path = require('path');
+const { createLogger } = require('../../utils/logger.js');
+const log = createLogger('mistralVoice');
+
 
 /**
  * Mistral Voxtral transcription service
@@ -18,7 +21,7 @@ class MistralVoiceService {
     try {
       const { language, timestamp_granularities } = options;
 
-      console.log('[Mistral Voice] Starting transcription with options:', { language, timestamp_granularities, filename });
+      log.debug('[Mistral Voice] Starting transcription with options:', { language, timestamp_granularities, filename });
 
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
         model: "voxtral-mini-latest",
@@ -30,10 +33,10 @@ class MistralVoiceService {
         timestamp_granularities: timestamp_granularities || undefined
       });
 
-      console.log('[Mistral Voice] Transcription response received:', transcriptionResponse);
+      log.debug('[Mistral Voice] Transcription response received:', transcriptionResponse);
       return this._formatResponse(transcriptionResponse, options);
     } catch (error) {
-      console.error('[Mistral Voice] Transcription error details:', {
+      log.error('[Mistral Voice] Transcription error details:', {
         message: error.message,
         stack: error.stack,
         response: error.response?.data || 'No response data',
@@ -53,7 +56,7 @@ class MistralVoiceService {
     try {
       const { language, timestamp_granularities } = options;
 
-      console.log('[Mistral Voice] Starting URL transcription for:', audioUrl);
+      log.debug('[Mistral Voice] Starting URL transcription for:', audioUrl);
 
       // Download the audio file first since Mistral SDK doesn't support direct URLs
       const response = await fetch(audioUrl);
@@ -64,7 +67,7 @@ class MistralVoiceService {
       const audioBuffer = Buffer.from(await response.arrayBuffer());
       const filename = audioUrl.split('/').pop() || 'audio_from_url.mp3';
 
-      console.log('[Mistral Voice] Downloaded audio file, size:', audioBuffer.length, 'bytes');
+      log.debug('[Mistral Voice] Downloaded audio file, size:', audioBuffer.length, 'bytes');
 
       const transcriptionResponse = await mistralClient.audio.transcriptions.complete({
         model: "voxtral-mini-latest",
@@ -76,10 +79,10 @@ class MistralVoiceService {
         timestamp_granularities: timestamp_granularities || undefined
       });
 
-      console.log('[Mistral Voice] URL transcription response received:', transcriptionResponse);
+      log.debug('[Mistral Voice] URL transcription response received:', transcriptionResponse);
       return this._formatResponse(transcriptionResponse, options);
     } catch (error) {
-      console.error('[Mistral Voice] URL transcription error details:', {
+      log.error('[Mistral Voice] URL transcription error details:', {
         message: error.message,
         stack: error.stack,
         response: error.response?.data || 'No response data',
@@ -123,7 +126,7 @@ class MistralVoiceService {
 
       return chatResponse.choices[0].message.content;
     } catch (error) {
-      console.error('[Mistral Voice] Chat error:', error);
+      log.error('[Mistral Voice] Chat error:', error);
       throw new Error(`Audio chat failed: ${error.message}`);
     }
   }

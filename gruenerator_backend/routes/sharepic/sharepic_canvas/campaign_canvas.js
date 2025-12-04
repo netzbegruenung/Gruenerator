@@ -4,6 +4,9 @@ const { createCanvas, loadImage, registerFont } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } = require('./config');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('campaign_canvas');
+
 
 // Register fonts
 registerFont(FONT_PATH, { family: 'GrueneTypeNeue' });
@@ -23,7 +26,7 @@ function loadCampaignConfig(campaignId, typeId) {
   const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
 
   if (!fs.existsSync(campaignPath)) {
-    console.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
+    log.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
     return null;
   }
 
@@ -32,7 +35,7 @@ function loadCampaignConfig(campaignId, typeId) {
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {
-      console.warn(`[CampaignCanvas] Type ${typeId} not found in campaign ${campaignId}`);
+      log.warn(`[CampaignCanvas] Type ${typeId} not found in campaign ${campaignId}`);
       return null;
     }
 
@@ -44,7 +47,7 @@ function loadCampaignConfig(campaignId, typeId) {
       const theme = campaign.colorThemes[typeConfig.theme];
 
       if (!theme) {
-        console.warn(`[CampaignCanvas] Theme ${typeConfig.theme} not found in campaign ${campaignId}`);
+        log.warn(`[CampaignCanvas] Theme ${typeConfig.theme} not found in campaign ${campaignId}`);
         return null;
       }
 
@@ -67,13 +70,13 @@ function loadCampaignConfig(campaignId, typeId) {
       // Set unique background image
       canvasConfig.backgroundImage = typeConfig.backgroundImage;
 
-      console.log(`[CampaignCanvas] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
+      log.debug(`[CampaignCanvas] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`);
     } else {
       // Use explicit canvas config (backward compatible)
       canvasConfig = typeConfig.canvas;
     }
 
-    console.log(`[CampaignCanvas] Loaded config for ${campaignId}/${typeId}`);
+    log.debug(`[CampaignCanvas] Loaded config for ${campaignId}/${typeId}`);
 
     // Return in expected format with canvas property
     return {
@@ -81,7 +84,7 @@ function loadCampaignConfig(campaignId, typeId) {
       basedOn: typeConfig.basedOn
     };
   } catch (error) {
-    console.error(`[CampaignCanvas] Failed to load config:`, error);
+    log.error(`[CampaignCanvas] Failed to load config:`, error);
     return null;
   }
 }
@@ -106,7 +109,7 @@ async function generateCampaignCanvas(campaignId, campaignTypeId, textData, loca
     throw new Error('Campaign canvas configuration required');
   }
 
-  console.log('[CampaignCanvas] Rendering with config:', {
+  log.debug('[CampaignCanvas] Rendering with config:', {
     width: campaignConfig.canvas.width,
     height: campaignConfig.canvas.height,
     textLines: campaignConfig.canvas.textLines?.length,
@@ -114,7 +117,7 @@ async function generateCampaignCanvas(campaignId, campaignTypeId, textData, loca
     hasBackground: !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor
   });
 
-  console.log('[CampaignCanvas] Text data:', textData);
+  log.debug('[CampaignCanvas] Text data:', textData);
 
   const canvasConfig = campaignConfig.canvas;
   const canvas = createCanvas(canvasConfig.width, canvasConfig.height);
@@ -139,7 +142,7 @@ async function generateCampaignCanvas(campaignId, campaignTypeId, textData, loca
     creditText = renderCredit(ctx, canvasConfig.credit, location, customCredit);
   }
 
-  console.log('[CampaignCanvas] Returning creditText:', creditText);
+  log.debug('[CampaignCanvas] Returning creditText:', creditText);
 
   // Return base64 image and credit text
   const imageBase64 = canvas.toBuffer('image/png').toString('base64');
@@ -172,7 +175,7 @@ router.post('/', async (req, res) => {
     if (!campaignConfig) {
       const { campaignId, campaignTypeId } = req.body;
 
-      console.log(`[CampaignCanvas] Loading config for ${campaignId}/${campaignTypeId}`);
+      log.debug(`[CampaignCanvas] Loading config for ${campaignId}/${campaignTypeId}`);
 
       if (!campaignId || !campaignTypeId) {
         return res.status(400).json({
@@ -190,7 +193,7 @@ router.post('/', async (req, res) => {
         line5: req.body.line5 || ''
       };
 
-      console.log(`[CampaignCanvas] Text data from request:`, textData);
+      log.debug(`[CampaignCanvas] Text data from request:`, textData);
 
       // Use helper function
       const { image, creditText } = await generateCampaignCanvas(campaignId, campaignTypeId, textData, location, customCredit);
@@ -208,7 +211,7 @@ router.post('/', async (req, res) => {
       });
     }
 
-    console.log('[CampaignCanvas] Rendering with config:', {
+    log.debug('[CampaignCanvas] Rendering with config:', {
       width: campaignConfig.canvas.width,
       height: campaignConfig.canvas.height,
       textLines: campaignConfig.canvas.textLines?.length,
@@ -216,7 +219,7 @@ router.post('/', async (req, res) => {
       hasBackground: !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor
     });
 
-    console.log('[CampaignCanvas] Text data:', textData);
+    log.debug('[CampaignCanvas] Text data:', textData);
 
     const canvasConfig = campaignConfig.canvas;
     const canvas = createCanvas(canvasConfig.width, canvasConfig.height);
@@ -250,7 +253,7 @@ router.post('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[CampaignCanvas] Error:', error);
+    log.error('[CampaignCanvas] Error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -266,14 +269,14 @@ async function renderBackground(ctx, config, width, height) {
     const bgPath = path.join(__dirname, '../../../public', config.backgroundImage);
 
     if (!fs.existsSync(bgPath)) {
-      console.warn(`[CampaignCanvas] Background image not found: ${bgPath}`);
+      log.warn(`[CampaignCanvas] Background image not found: ${bgPath}`);
       // Fallback to solid color
       ctx.fillStyle = config.backgroundColor || '#FFFFFF';
       ctx.fillRect(0, 0, width, height);
       return;
     }
 
-    console.log(`[CampaignCanvas] Loading background image: ${bgPath}`);
+    log.debug(`[CampaignCanvas] Loading background image: ${bgPath}`);
     const bgImage = await loadImage(bgPath);
 
     // Crop to fit (same logic as existing canvas files)
@@ -293,15 +296,15 @@ async function renderBackground(ctx, config, width, height) {
     }
 
     ctx.drawImage(bgImage, sx, sy, sWidth, sHeight, 0, 0, width, height);
-    console.log(`[CampaignCanvas] Background image rendered successfully`);
+    log.debug(`[CampaignCanvas] Background image rendered successfully`);
 
   } else if (config.backgroundColor) {
-    console.log(`[CampaignCanvas] Using solid background color: ${config.backgroundColor}`);
+    log.debug(`[CampaignCanvas] Using solid background color: ${config.backgroundColor}`);
     ctx.fillStyle = config.backgroundColor;
     ctx.fillRect(0, 0, width, height);
   } else {
     // Default white background
-    console.log(`[CampaignCanvas] Using default white background`);
+    log.debug(`[CampaignCanvas] Using default white background`);
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, width, height);
   }
@@ -317,7 +320,7 @@ async function renderDecorations(ctx, decorations) {
         const decoPath = path.join(__dirname, '../../../public', deco.path);
 
         if (!fs.existsSync(decoPath)) {
-          console.warn(`[CampaignCanvas] Decoration not found: ${decoPath}, skipping`);
+          log.warn(`[CampaignCanvas] Decoration not found: ${decoPath}, skipping`);
           continue;
         }
 
@@ -331,11 +334,11 @@ async function renderDecorations(ctx, decorations) {
         ctx.drawImage(decoImage, deco.x, deco.y, deco.width, deco.height);
         ctx.globalAlpha = oldAlpha;
 
-        console.log(`[CampaignCanvas] Decoration rendered: ${deco.path}`);
+        log.debug(`[CampaignCanvas] Decoration rendered: ${deco.path}`);
       }
       // Add SVG support later if needed
     } catch (error) {
-      console.warn(`[CampaignCanvas] Failed to render decoration:`, error.message);
+      log.warn(`[CampaignCanvas] Failed to render decoration:`, error.message);
     }
   }
 }
@@ -348,7 +351,7 @@ function renderTextLines(ctx, textLines, textData) {
     const text = textData[lineConfig.field];
 
     if (!text) {
-      console.warn(`[CampaignCanvas] No text data for field: ${lineConfig.field}`);
+      log.warn(`[CampaignCanvas] No text data for field: ${lineConfig.field}`);
       continue;
     }
 
@@ -359,14 +362,14 @@ function renderTextLines(ctx, textLines, textData) {
     ctx.fillStyle = lineConfig.color;
     ctx.textAlign = lineConfig.align || 'left';
 
-    console.log(`[CampaignCanvas] Rendering text "${text}" with font: ${font}`);
+    log.debug(`[CampaignCanvas] Rendering text "${text}" with font: ${font}`);
 
     // Handle multi-line text wrapping if maxWidth specified
     if (lineConfig.maxWidth && lineConfig.lineHeight) {
       const lines = wrapText(ctx, text, lineConfig.maxWidth);
       let currentY = lineConfig.y;
 
-      console.log(`[CampaignCanvas] Text wrapped into ${lines.length} lines`);
+      log.debug(`[CampaignCanvas] Text wrapped into ${lines.length} lines`);
 
       for (const line of lines) {
         ctx.fillText(line, lineConfig.x, currentY);
@@ -425,7 +428,7 @@ function renderCredit(ctx, creditConfig, location = '', customCredit = null) {
   }
 
   ctx.fillText(creditText, creditConfig.x, creditConfig.y);
-  console.log(`[CampaignCanvas] Credit rendered: ${creditText}`);
+  log.debug(`[CampaignCanvas] Credit rendered: ${creditText}`);
 
   return creditText;
 }

@@ -1,6 +1,9 @@
 import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('userCustomGener');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const postgres = getPostgresInstance();
@@ -9,7 +12,7 @@ const router = express.Router();
 
 // Add debugging middleware to all custom generators routes
 router.use((req, res, next) => {
-  console.log(`[User Custom Generators] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
+  log.debug(`[User Custom Generators] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
@@ -62,7 +65,7 @@ router.get('/custom_generator', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator GET] Error:', error);
+    log.error('[User Custom Generators /custom_generator GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Grüneratoren.'
@@ -112,7 +115,7 @@ router.post('/custom_generator/create', ensureAuthenticated, async (req, res) =>
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator/create POST] Error:', error);
+    log.error('[User Custom Generators /custom_generator/create POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Erstellen des Grünerators.'
@@ -190,7 +193,7 @@ router.put('/custom_generator/:id', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator/:id PUT] Error:', error);
+    log.error('[User Custom Generators /custom_generator/:id PUT] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Aktualisieren des Grünerators.'
@@ -232,7 +235,7 @@ router.delete('/custom_generator/:id', ensureAuthenticated, async (req, res) => 
       { table: 'custom_generators' }
     );
 
-    console.log(`[User Custom Generators] Generator "${existingGenerator.name}" (${id}) deleted by user ${userId}`);
+    log.debug(`[User Custom Generators] Generator "${existingGenerator.name}" (${id}) deleted by user ${userId}`);
 
     res.json({
       success: true,
@@ -240,7 +243,7 @@ router.delete('/custom_generator/:id', ensureAuthenticated, async (req, res) => 
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator/:id DELETE] Error:', error);
+    log.error('[User Custom Generators /custom_generator/:id DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Löschen des Grünerators.'
@@ -294,7 +297,7 @@ router.get('/custom_generator/:id/documents', ensureAuthenticated, async (req, r
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator/:id/documents GET] Error:', error);
+    log.error('[User Custom Generators /custom_generator/:id/documents GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Dokumente.'
@@ -387,7 +390,7 @@ router.post('/custom_generator/:id/documents', ensureAuthenticated, async (req, 
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator/:id/documents POST] Error:', error);
+    log.error('[User Custom Generators /custom_generator/:id/documents POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Verknüpfen des Dokuments.'
@@ -444,7 +447,7 @@ router.delete('/custom_generator/:id/documents/:documentId', ensureAuthenticated
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /custom_generator/:id/documents/:documentId DELETE] Error:', error);
+    log.error('[User Custom Generators /custom_generator/:id/documents/:documentId DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Entfernen des Dokuments.'
@@ -481,7 +484,7 @@ router.get('/saved_generators', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /saved_generators GET] Error:', error);
+    log.error('[User Custom Generators /saved_generators GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der gespeicherten Grüneratoren.'
@@ -545,7 +548,7 @@ router.post('/saved_generators/:generatorId', ensureAuthenticated, async (req, r
       { table: 'saved_generators' }
     );
 
-    console.log(`[User Custom Generators] Generator "${generator.name}" (${generatorId}) saved by user ${userId}`);
+    log.debug(`[User Custom Generators] Generator "${generator.name}" (${generatorId}) saved by user ${userId}`);
 
     res.json({
       success: true,
@@ -553,7 +556,7 @@ router.post('/saved_generators/:generatorId', ensureAuthenticated, async (req, r
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /saved_generators/:generatorId POST] Error:', error);
+    log.error('[User Custom Generators /saved_generators/:generatorId POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Speichern des Grünerators.'
@@ -580,7 +583,7 @@ router.delete('/saved_generators/:generatorId', ensureAuthenticated, async (req,
       });
     }
 
-    console.log(`[User Custom Generators] Saved generator ${generatorId} removed by user ${userId}`);
+    log.debug(`[User Custom Generators] Saved generator ${generatorId} removed by user ${userId}`);
 
     res.json({
       success: true,
@@ -588,7 +591,7 @@ router.delete('/saved_generators/:generatorId', ensureAuthenticated, async (req,
     });
 
   } catch (error) {
-    console.error('[User Custom Generators /saved_generators/:generatorId DELETE] Error:', error);
+    log.error('[User Custom Generators /saved_generators/:generatorId DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Entfernen des Grünerators.'

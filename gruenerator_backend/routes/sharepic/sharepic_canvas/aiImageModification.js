@@ -1,5 +1,8 @@
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
+const { createLogger } = require('../../../utils/logger.js');
+const log = createLogger('aiImageModifica');
+
 const router = express.Router();
 require('dotenv').config();
 
@@ -8,7 +11,7 @@ const anthropic = new Anthropic({
 });
 
 function flattenParams(params) {
-  console.log('[AI Image Modification API] Flattening params:', params);
+  log.debug('[AI Image Modification API] Flattening params:', params);
   return {
     'fontSize': params.fontSize,
     'colors_0_background': params.colors[0].background,
@@ -29,7 +32,7 @@ function flattenParams(params) {
 }
 
 function validateModifiedParams(params) {
-  console.log('[AI Image Modification API] Validating params:', params);
+  log.debug('[AI Image Modification API] Validating params:', params);
   const validatedParams = { ...params };
 
   // Validierung für balkenGruppenOffset
@@ -67,12 +70,12 @@ function validateModifiedParams(params) {
     ? params.sunflowerOffset.map(offset => Math.min(Math.max(offset, -100), 100))
     : [0, 0];
 
-  console.log('[AI Image Modification API] Validated params:', validatedParams);
+  log.debug('[AI Image Modification API] Validated params:', validatedParams);
   return validatedParams;
 }
 
 async function generateImageModification(userInstruction, currentParams) {
-  console.log('[AI Image Modification API] Generating image modification for instruction:', userInstruction);
+  log.debug('[AI Image Modification API] Generating image modification for instruction:', userInstruction);
   const prompt = `
   Du bist ein Experte für Bildmodifikation. Deine Aufgabe ist es, natürlichsprachliche Anweisungen genau wie vom User gewünscht in präzise Bildparameter umzuwandeln.
   
@@ -153,17 +156,17 @@ async function generateImageModification(userInstruction, currentParams) {
     }
 
     const textContent = response.content.map(item => item.text).join("");
-    console.log('[AI Image Modification API] Processed text content:', textContent);
+    log.debug('[AI Image Modification API] Processed text content:', textContent);
 
     return JSON.parse(textContent);
   } catch (error) {
-    console.error('[AI Image Modification API] Error generating image modification:', error);
+    log.error('[AI Image Modification API] Error generating image modification:', error);
     throw error;
   }
 }
 
 router.post('/', async (req, res) => {
-  console.log('[AI Image Modification API] Received request:', req.body);
+  log.debug('[AI Image Modification API] Received request:', req.body);
   const { userInstruction, currentImageParams } = req.body;
 
   try {
@@ -176,10 +179,10 @@ router.post('/', async (req, res) => {
     flattenedParams.text_1 = currentImageParams.line2;
     flattenedParams.text_2 = currentImageParams.line3;
 
-    console.log('[AI Image Modification API] Sending flattened params:', flattenedParams);
+    log.debug('[AI Image Modification API] Sending flattened params:', flattenedParams);
     res.json(flattenedParams);
   } catch (error) {
-    console.error('[AI Image Modification API] Error processing request:', error);
+    log.error('[AI Image Modification API] Error processing request:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });

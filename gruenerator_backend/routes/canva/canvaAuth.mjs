@@ -5,6 +5,9 @@ import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createRequire } from 'module';
 import { getProfileService } from '../../services/ProfileService.mjs';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('canvaAuth');
+
 const require = createRequire(import.meta.url);
 const CanvaTokenManager = require('../../utils/canvaTokenManager.js');
 const redisOAuthStateManager = require('../../utils/redisOAuthStateManager.js');
@@ -15,19 +18,19 @@ const router = express.Router();
 
 // Validate configuration on module load
 if (!CanvaTokenManager.validateConfiguration()) {
-  console.error('[Canva Auth] Invalid Canva configuration - routes may not work correctly');
+  log.error('[Canva Auth] Invalid Canva configuration - routes may not work correctly');
 }
 
 redisOAuthStateManager.getStats().then(stats => {
-  console.log('[Canva Auth] Redis OAuth state manager status:', stats);
+  log.debug('[Canva Auth] Redis OAuth state manager status:', stats);
 }).catch(err => {
-  console.warn('[Canva Auth] Could not get Redis OAuth stats:', err.message);
+  log.warn('[Canva Auth] Could not get Redis OAuth stats:', err.message);
 });
 
 router.use(passport.session());
 
 router.use((req, res, next) => {
-  console.log(`[Canva Auth] ${req.method} ${req.originalUrl} - Session ID: ${req.sessionID} - User: ${req.user?.id}`);
+  log.debug(`[Canva Auth] ${req.method} ${req.originalUrl} - Session ID: ${req.sessionID} - User: ${req.user?.id}`);
   next();
 });
 
@@ -47,7 +50,7 @@ router.use('/authorize', (req, res, next) => {
  */
 router.get('/authorize', ensureAuthenticated, (req, res) => {
   try {
-    console.log(`[Canva Auth] Authorization request by user: ${req.user?.id}`, {
+    log.debug(`[Canva Auth] Authorization request by user: ${req.user?.id}`, {
       sessionId: req.sessionID,
       userAgent: req.headers['user-agent'],
       origin: req.headers.origin
@@ -67,7 +70,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
       sessionId: req.sessionID // For debugging
     };
     
-    console.log('[Canva Auth] Generated PKCE values and state', {
+    log.debug('[Canva Auth] Generated PKCE values and state', {
       sessionId: req.sessionID,
       userId: req.user.id,
       stateLength: state.length,
@@ -93,7 +96,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('redirect_uri', process.env.CANVA_REDIRECT_URI);
     
-    console.log('[Canva Auth] Authorization URL generated for scopes:', scopes);
+    log.debug('[Canva Auth] Authorization URL generated for scopes:', scopes);
 
     const storeOAuthState = async () => {
       try {
@@ -101,11 +104,11 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
         const redisSuccess = await redisOAuthStateManager.storeState(state, oauthData);
         
         if (redisSuccess) {
-          console.log('[Canva Auth] OAuth state stored in Redis successfully');
+          log.debug('[Canva Auth] OAuth state stored in Redis successfully');
           return true;
         } else {
           // Fallback to session storage
-          console.warn('[Canva Auth] Redis unavailable, falling back to session storage');
+          log.warn('[Canva Auth] Redis unavailable, falling back to session storage');
           req.session.canva_code_verifier = codeVerifier;
           req.session.canva_state = state;
           req.session.canva_user_id = req.user.id;
@@ -113,17 +116,17 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
           return new Promise((resolve, reject) => {
             req.session.save((err) => {
               if (err) {
-                console.error('[Canva Auth] Error saving session fallback:', err);
+                log.error('[Canva Auth] Error saving session fallback:', err);
                 reject(err);
               } else {
-                console.log('[Canva Auth] Session fallback saved successfully');
+                log.debug('[Canva Auth] Session fallback saved successfully');
                 resolve(true);
               }
             });
           });
         }
       } catch (error) {
-        console.error('[Canva Auth] Error storing OAuth state:', error);
+        log.error('[Canva Auth] Error storing OAuth state:', error);
         throw error;
       }
     };
@@ -139,7 +142,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
         });
       })
       .catch((error) => {
-        console.error('[Canva Auth] Failed to store OAuth state:', error);
+        log.error('[Canva Auth] Failed to store OAuth state:', error);
         res.status(500).json({
           success: false,
           error: 'Failed to store OAuth state'
@@ -147,7 +150,7 @@ router.get('/authorize', ensureAuthenticated, (req, res) => {
       });
     
   } catch (error) {
-    console.error('[Canva Auth] Error in authorization:', error);
+    log.error('[Canva Auth] Error in authorization:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to generate authorization URL',
@@ -165,7 +168,7 @@ router.get('/callback', async (req, res) => {
   try {
     const { code, state, error: oauthError } = req.query;
     
-    console.log(`[Canva Auth] Callback received`, {
+    log.debug(`[Canva Auth] Callback received`, {
       sessionId: req.sessionID,
       hasCode: !!code,
       hasState: !!state,
@@ -175,7 +178,7 @@ router.get('/callback', async (req, res) => {
     
     // Validate required parameters first
     if (!code || !state) {
-      console.error('[Canva Auth] Missing code or state in callback');
+      log.error('[Canva Auth] Missing code or state in callback');
       return res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_error=missing_parameters`);
     }
     
@@ -189,16 +192,16 @@ router.get('/callback', async (req, res) => {
       oauthData = await redisOAuthStateManager.retrieveState(state);
       
       if (oauthData) {
-        console.log('[Canva Auth] OAuth state retrieved from Redis');
+        log.debug('[Canva Auth] OAuth state retrieved from Redis');
         userId = oauthData.userId;
         codeVerifier = oauthData.codeVerifier;
       } else {
         // Fallback to session storage
-        console.warn('[Canva Auth] OAuth state not found in Redis, checking session fallback');
+        log.warn('[Canva Auth] OAuth state not found in Redis, checking session fallback');
         
         const sessionState = req.session.canva_state;
         if (sessionState === state) {
-          console.log('[Canva Auth] OAuth state found in session fallback');
+          log.debug('[Canva Auth] OAuth state found in session fallback');
           userId = req.session.canva_user_id;
           codeVerifier = req.session.canva_code_verifier;
           
@@ -210,12 +213,12 @@ router.get('/callback', async (req, res) => {
       }
       
     } catch (error) {
-      console.error('[Canva Auth] Error retrieving OAuth state:', error);
+      log.error('[Canva Auth] Error retrieving OAuth state:', error);
     }
     
     // Validate that we have the necessary data
     if (!userId || !codeVerifier) {
-      console.error('[Canva Auth] OAuth state not found or incomplete', {
+      log.error('[Canva Auth] OAuth state not found or incomplete', {
         hasUserId: !!userId,
         hasCodeVerifier: !!codeVerifier,
         redisAvailable: redisOAuthStateManager.isAvailable()
@@ -225,11 +228,11 @@ router.get('/callback', async (req, res) => {
     
     // Handle OAuth errors
     if (oauthError) {
-      console.error('[Canva Auth] OAuth error in callback:', oauthError);
+      log.error('[Canva Auth] OAuth error in callback:', oauthError);
       return res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_error=${encodeURIComponent(oauthError)}`);
     }
     
-    console.log('[Canva Auth] State verified, exchanging code for tokens');
+    log.debug('[Canva Auth] State verified, exchanging code for tokens');
 
     const tokenResponse = await exchangeCodeForTokens(code, codeVerifier);
     
@@ -237,7 +240,7 @@ router.get('/callback', async (req, res) => {
       throw new Error('No access token received from Canva');
     }
     
-    console.log('[Canva Auth] Successfully received tokens from Canva');
+    log.debug('[Canva Auth] Successfully received tokens from Canva');
     
     // Get user info from Canva to validate token and get user ID
     const canvaUser = await getCanvaUserInfo(tokenResponse.access_token);
@@ -253,13 +256,13 @@ router.get('/callback', async (req, res) => {
       canva_email: canvaUser.email // Will be null from /users/me
     });
     
-    console.log(`[Canva Auth] Successfully connected Canva account for user: ${userId}`);
+    log.debug(`[Canva Auth] Successfully connected Canva account for user: ${userId}`);
     
     // Redirect to Canva overview page with success indicator
     res.redirect(`${process.env.BASE_URL}/profile/inhalte/canva?canva_connected=true`);
     
   } catch (error) {
-    console.error('[Canva Auth] Error in callback:', {
+    log.error('[Canva Auth] Error in callback:', {
       error: error.message,
       sessionId: req.sessionID,
       redisAvailable: redisOAuthStateManager.isAvailable()
@@ -275,7 +278,7 @@ router.get('/callback', async (req, res) => {
  */
 router.get('/status', ensureAuthenticated, async (req, res) => {
   try {
-    console.log(`[Canva Auth] Status check for user: ${req.user?.id}`);
+    log.debug(`[Canva Auth] Status check for user: ${req.user?.id}`);
     
     // Check if user has Canva tokens
     const profileService = getProfileService();
@@ -289,7 +292,7 @@ router.get('/status', ensureAuthenticated, async (req, res) => {
     const isExpired = profile.canva_token_expires_at ? 
       new Date(profile.canva_token_expires_at) <= new Date() : true;
     
-    console.log(`[Canva Auth] User ${req.user.id} connection status:`, {
+    log.debug(`[Canva Auth] User ${req.user.id} connection status:`, {
       hasConnection,
       isExpired,
       canvaUserId: profile.canva_user_id
@@ -309,7 +312,7 @@ router.get('/status', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[Canva Auth] Error checking status:', error);
+    log.error('[Canva Auth] Error checking status:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to check Canva connection status',
@@ -324,7 +327,7 @@ router.get('/status', ensureAuthenticated, async (req, res) => {
  */
 router.post('/disconnect', ensureAuthenticated, async (req, res) => {
   try {
-    console.log(`[Canva Auth] Disconnect request for user: ${req.user?.id}`);
+    log.debug(`[Canva Auth] Disconnect request for user: ${req.user?.id}`);
     
     // Clear Canva tokens from profile
     const profileService = getProfileService();
@@ -338,7 +341,7 @@ router.post('/disconnect', ensureAuthenticated, async (req, res) => {
       canva_scopes: null
     });
     
-    console.log(`[Canva Auth] Successfully disconnected Canva account for user: ${req.user.id}`);
+    log.debug(`[Canva Auth] Successfully disconnected Canva account for user: ${req.user.id}`);
     
     res.json({
       success: true,
@@ -346,7 +349,7 @@ router.post('/disconnect', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[Canva Auth] Error disconnecting:', error);
+    log.error('[Canva Auth] Error disconnecting:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to disconnect Canva account',
@@ -363,7 +366,7 @@ router.post('/disconnect', ensureAuthenticated, async (req, res) => {
  */
 async function exchangeCodeForTokens(code, codeVerifier) {
   try {
-    console.log('[Canva Auth] Exchanging authorization code for tokens');
+    log.debug('[Canva Auth] Exchanging authorization code for tokens');
     
     const credentials = Buffer.from(`${process.env.CANVA_CLIENT_ID}:${process.env.CANVA_CLIENT_SECRET}`).toString('base64');
     
@@ -383,11 +386,11 @@ async function exchangeCodeForTokens(code, codeVerifier) {
       }
     });
     
-    console.log('[Canva Auth] Token exchange successful');
+    log.debug('[Canva Auth] Token exchange successful');
     return response.data;
     
   } catch (error) {
-    console.error('[Canva Auth] Token exchange failed:', error.response?.data || error.message);
+    log.error('[Canva Auth] Token exchange failed:', error.response?.data || error.message);
     
     // Provide specific error messages for common OAuth issues
     if (error.response?.status === 400) {
@@ -414,7 +417,7 @@ async function exchangeCodeForTokens(code, codeVerifier) {
  */
 async function getCanvaUserInfo(accessToken) {
   try {
-    console.log('[Canva Auth] Fetching user info from Canva');
+    log.debug('[Canva Auth] Fetching user info from Canva');
     
     const response = await axios.get('https://api.canva.com/rest/v1/users/me', {
       headers: {
@@ -423,7 +426,7 @@ async function getCanvaUserInfo(accessToken) {
       }
     });
     
-    console.log('[Canva Auth] Raw API response:', JSON.stringify(response.data, null, 2));
+    log.debug('[Canva Auth] Raw API response:', JSON.stringify(response.data, null, 2));
     
     // Validate response structure
     if (!response.data || !response.data.team_user) {
@@ -437,7 +440,7 @@ async function getCanvaUserInfo(accessToken) {
       throw new Error('Missing user_id in Canva API response');
     }
     
-    console.log('[Canva Auth] User info fetched successfully', {
+    log.debug('[Canva Auth] User info fetched successfully', {
       user_id: teamUser.user_id,
       team_id: teamUser.team_id
     });
@@ -452,7 +455,7 @@ async function getCanvaUserInfo(accessToken) {
     };
     
   } catch (error) {
-    console.error('[Canva Auth] Failed to fetch user info:', error.response?.data || error.message);
+    log.error('[Canva Auth] Failed to fetch user info:', error.response?.data || error.message);
     throw new Error(`Failed to fetch user info: ${error.response?.data?.message || error.message}`);
   }
 }
@@ -464,7 +467,7 @@ async function getCanvaUserInfo(accessToken) {
  */
 async function saveCanvaUserInfoToProfile(userId, userInfo) {
   try {
-    console.log(`[Canva Auth] Saving user info for user: ${userId}`, {
+    log.debug(`[Canva Auth] Saving user info for user: ${userId}`, {
       canva_user_id: userInfo.canva_user_id,
       canva_team_id: userInfo.canva_team_id,
       hasDisplayName: !!userInfo.canva_display_name,
@@ -490,10 +493,10 @@ async function saveCanvaUserInfoToProfile(userId, userInfo) {
     const profileService = getProfileService();
     await profileService.updateProfile(userId, updateData);
     
-    console.log(`[Canva Auth] User info saved successfully for user: ${userId}`);
+    log.debug(`[Canva Auth] User info saved successfully for user: ${userId}`);
     
   } catch (error) {
-    console.error('[Canva Auth] Error saving user info:', error);
+    log.error('[Canva Auth] Error saving user info:', error);
     throw error;
   }
 }

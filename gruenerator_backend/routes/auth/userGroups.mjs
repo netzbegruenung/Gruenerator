@@ -4,6 +4,9 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger.js';
+const log = createLogger('userGroups');
+
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
@@ -93,7 +96,7 @@ router.get('/groups', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups GET] Error:', error);
+    log.error('[User Groups /groups GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Gruppen.'
@@ -164,7 +167,7 @@ router.post('/groups', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups POST] Error:', error);
+    log.error('[User Groups /groups POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Erstellen der Gruppe.'
@@ -248,7 +251,7 @@ router.delete('/groups/:groupId', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups DELETE] Error:', error);
+    log.error('[User Groups /groups DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Löschen der Gruppe.'
@@ -300,7 +303,7 @@ router.get('/groups/verify-token/:joinToken', ensureAuthenticated, async (req, r
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/verify-token GET] Error:', error);
+    log.error('[User Groups /groups/verify-token GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Überprüfen des Einladungslinks.'
@@ -367,7 +370,7 @@ router.post('/groups/join', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/join POST] Error:', error);
+    log.error('[User Groups /groups/join POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Beitritt zur Gruppe.'
@@ -452,7 +455,7 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/details GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/details GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Gruppendetails.'
@@ -547,7 +550,7 @@ router.put('/groups/:groupId/info', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/info PUT] Error:', error);
+    log.error('[User Groups /groups/:groupId/info PUT] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Aktualisieren der Gruppendetails.'
@@ -595,7 +598,7 @@ router.put('/groups/:groupId/name', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/name PUT] Error:', error);
+    log.error('[User Groups /groups/:groupId/name PUT] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Aktualisieren des Gruppennamens.'
@@ -638,7 +641,7 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/instructions GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/instructions GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Gruppenanweisungen.'
@@ -716,7 +719,7 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/instructions PUT] Error:', error);
+    log.error('[User Groups /groups/:groupId/instructions PUT] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Aktualisieren der Gruppenanweisungen.'
@@ -768,7 +771,7 @@ router.post('/groups/:groupId/knowledge', ensureAuthenticated, async (req, res) 
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/knowledge POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/knowledge POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Hinzufügen des Gruppenwissens.'
@@ -812,7 +815,7 @@ router.get('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/knowledge/:knowledgeId GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden des Wissenseintrags.'
@@ -881,7 +884,7 @@ router.put('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, async
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId PUT] Error:', error);
+    log.error('[User Groups /groups/:groupId/knowledge/:knowledgeId PUT] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Aktualisieren des Gruppenwissens.'
@@ -924,7 +927,7 @@ router.delete('/groups/:groupId/knowledge/:knowledgeId', ensureAuthenticated, as
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/knowledge/:knowledgeId DELETE] Error:', error);
+    log.error('[User Groups /groups/:groupId/knowledge/:knowledgeId DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Löschen des Gruppenwissens.'
@@ -979,7 +982,7 @@ router.get('/groups/:groupId/members', ensureAuthenticated, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/members GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/members GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Gruppenmitglieder.'
@@ -1033,7 +1036,7 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     );
 
     if (!contentOwnership) {
-      console.error('[User Groups /groups/:groupId/share POST] Content ownership verification failed:', {
+      log.error('[User Groups /groups/:groupId/share POST] Content ownership verification failed:', {
         contentType,
         contentId,
         userId
@@ -1085,7 +1088,7 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/share POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/share POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Teilen des Inhalts.'
@@ -1148,7 +1151,7 @@ router.delete('/groups/:groupId/share', ensureAuthenticated, async (req, res) =>
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/share DELETE] Error:', error);
+    log.error('[User Groups /groups/:groupId/share DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Entfernen des Inhalts aus der Gruppe.'
@@ -1329,7 +1332,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/content GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/content GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Laden der Gruppeninhalte.'
@@ -1404,7 +1407,7 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Error:', error);
+    log.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Aktualisieren der Berechtigungen.'
@@ -1456,7 +1459,7 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
     );
 
     if (!shareRecord) {
-      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Share check error');
+      log.error('[User Groups /groups/:groupId/content/:contentId DELETE] Share check error');
       return res.status(404).json({
         success: false,
         message: 'Geteilter Inhalt nicht gefunden.'
@@ -1470,7 +1473,7 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
     );
 
     if (result.changes === 0) {
-      console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare error');
+      log.error('[User Groups /groups/:groupId/content/:contentId DELETE] Unshare error');
       throw new Error('Share record not found or already deleted');
     }
 
@@ -1481,7 +1484,7 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
     });
     
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/content/:contentId DELETE] Error:', error);
+    log.error('[User Groups /groups/:groupId/content/:contentId DELETE] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Entfernen des geteilten Inhalts.'
@@ -1529,7 +1532,7 @@ router.get('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res) 
     });
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/share-links GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/share-links GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Abrufen der Wolke-Links.'
@@ -1625,7 +1628,7 @@ router.post('/:groupId/wolke/share-links', ensureAuthenticated, async (req, res)
     });
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/share-links POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/share-links POST] Error:', error);
     
     if (error.message.includes('Keine Berechtigung')) {
       return res.status(403).json({
@@ -1701,7 +1704,7 @@ router.delete('/:groupId/wolke/share-links/:shareId', ensureAuthenticated, async
     });
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/share-links/:shareId DELETE] Error:', error);
     
     if (error.message.includes('Keine Berechtigung')) {
       return res.status(403).json({
@@ -1748,7 +1751,7 @@ router.post('/:groupId/wolke/test-connection', ensureAuthenticated, async (req, 
     res.json(testResult);
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/test-connection POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/test-connection POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Testen der Verbindung.'
@@ -1805,7 +1808,7 @@ router.post('/:groupId/wolke/upload-test', ensureAuthenticated, async (req, res)
     res.json(uploadResult);
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/upload-test POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/upload-test POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Test-Upload.'
@@ -1839,7 +1842,7 @@ router.get('/:groupId/wolke/sync-status', ensureAuthenticated, async (req, res) 
     });
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/sync-status GET] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/sync-status GET] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Abrufen der Sync-Status.'
@@ -1877,7 +1880,7 @@ router.post('/:groupId/wolke/sync', ensureAuthenticated, async (req, res) => {
       .then(result => {
       })
       .catch(error => {
-        console.error(`[User Groups /groups/:groupId/wolke/sync POST] Sync failed:`, error);
+        log.error(`[User Groups /groups/:groupId/wolke/sync POST] Sync failed:`, error);
       });
 
     res.json({
@@ -1888,7 +1891,7 @@ router.post('/:groupId/wolke/sync', ensureAuthenticated, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/sync POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/sync POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler beim Starten der Synchronisation.'
@@ -1931,7 +1934,7 @@ router.post('/:groupId/wolke/auto-sync', ensureAuthenticated, async (req, res) =
     });
 
   } catch (error) {
-    console.error('[User Groups /groups/:groupId/wolke/auto-sync POST] Error:', error);
+    log.error('[User Groups /groups/:groupId/wolke/auto-sync POST] Error:', error);
     
     if (error.message.includes('Keine Berechtigung')) {
       return res.status(403).json({
