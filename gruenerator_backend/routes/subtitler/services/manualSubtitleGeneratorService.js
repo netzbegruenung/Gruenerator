@@ -19,7 +19,8 @@ const CONFIG = {
     minDurationPunctuation: 1.0,  // Minimum duration for punctuation-ended segments
     strongPunctuation: ['.', '!', '?'],  // Always end segment
     weakPunctuation: [',', ';', ':'],    // End segment if >min duration
-    maxWordsPerSegment: 5,   // Allow more words per segment for readability
+    maxWordsPerSegment: 4,   // Max 4 words per segment for readability
+    longWordThreshold: 15,   // Words longer than this get their own segment
     // Natural break words for smart phrase breaking
     breakWords: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
                  'von', 'zu', 'mit', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'für', 'ohne', 'gegen',
@@ -132,7 +133,42 @@ function groupWordsIntoSegments(words, fullText) {
     
     for (let i = 0; i < words.length; i++) {
         const word = words[i];
-        
+        const cleanWordLength = word.word.replace(/[.!?,:;""''()\[\]{}]/g, '').length;
+        const isLongWord = cleanWordLength >= CONFIG.longWordThreshold;
+
+        // If this is a long word and we already have words in the segment,
+        // end the current segment first so the long word gets its own segment
+        if (isLongWord && currentSegment.words.length > 0) {
+            // Finalize current segment before the long word
+            const firstWordIndex = currentSegment.wordIndices[0];
+            const lastWordIndex = currentSegment.wordIndices[currentSegment.wordIndices.length - 1];
+            const firstWordPos = wordPositions.find(pos => pos.wordIndex === firstWordIndex);
+            const lastWordPos = wordPositions.find(pos => pos.wordIndex === lastWordIndex);
+
+            let segmentText = '';
+            if (firstWordPos && lastWordPos) {
+                segmentText = fullText.slice(firstWordPos.textStart, lastWordPos.textEnd).trim();
+            } else {
+                segmentText = currentSegment.words.join(' ').trim();
+            }
+
+            segments.push({
+                start: currentSegment.start,
+                end: words[i - 1].end,
+                text: segmentText,
+                duration: words[i - 1].end - currentSegment.start,
+                reason: 'before long word'
+            });
+
+            // Start fresh segment for the long word
+            currentSegment = {
+                words: [],
+                wordIndices: [],
+                start: word.start,
+                end: word.start
+            };
+        }
+
         // Add word to current segment
         currentSegment.words.push(word.word);
         currentSegment.wordIndices.push(i);
@@ -189,9 +225,13 @@ function groupWordsIntoSegments(words, fullText) {
         let shouldEndSegment = false;
         let reason = '';
 
+        // Rule 0: Long words (like "Sozialversicherungsbeiträge") get their own segment
+        if (isLongWord) {
+            shouldEndSegment = true;
+            reason = 'long word';
+        }
         // Rule 1: Max words per segment (Hard Limit)
-        // This is now a primary rule to enforce short, punchy subtitles.
-        if (currentSegment.words.length >= CONFIG.maxWordsPerSegment) {
+        else if (currentSegment.words.length >= CONFIG.maxWordsPerSegment) {
             shouldEndSegment = true;
             reason = 'max words';
         }
