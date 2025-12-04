@@ -186,16 +186,16 @@ router.get('/:projectId/video', requireAuth, async (req, res) => {
         const { projectId } = req.params;
 
         const service = await getProjectService();
-        const project = await service.getProject(userId, projectId);
+        const videoPathRelative = await service.getVideoPathOnly(userId, projectId);
 
-        if (!project || !project.video_path) {
+        if (!videoPathRelative) {
             return res.status(404).json({
                 success: false,
                 error: 'Video nicht gefunden'
             });
         }
 
-        const videoPath = service.getVideoPath(project.video_path);
+        const videoPath = service.getVideoPath(videoPathRelative);
 
         try {
             await fsPromises.access(videoPath);

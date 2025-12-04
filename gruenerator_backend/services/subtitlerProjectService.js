@@ -113,6 +113,19 @@ class SubtitlerProjectService {
         }
     }
 
+    async getVideoPathOnly(userId, projectId) {
+        await this.ensureInitialized();
+
+        try {
+            const query = `SELECT video_path FROM subtitler_projects WHERE id = $1 AND user_id = $2`;
+            const result = await this.postgres.queryOne(query, [projectId, userId]);
+            return result?.video_path;
+        } catch (error) {
+            console.error('[SubtitlerProjectService] Failed to get video path:', error);
+            throw new Error(`Failed to retrieve video path: ${error.message}`);
+        }
+    }
+
     async createProject(userId, projectData) {
         await this.ensureInitialized();
 

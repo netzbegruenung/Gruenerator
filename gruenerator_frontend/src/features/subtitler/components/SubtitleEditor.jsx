@@ -373,6 +373,17 @@ const SubtitleEditor = ({
     );
   }, []);
 
+  // Adjust textarea heights on mobile (must be before early return)
+  useEffect(() => {
+    if (window.innerWidth <= 768 && videoFile && subtitles) {
+      const textareas = document.querySelectorAll('.segment-text');
+      textareas.forEach((element) => {
+        element.style.height = 'auto';
+        element.style.height = element.scrollHeight + 'px';
+      });
+    }
+  }, [editableSubtitles, videoFile, subtitles]);
+
   // Frühe Rückgabe bei fehlenden Props
   if (!videoFile || !subtitles) {
     console.log('[SubtitleEditor] Missing required props');
@@ -390,20 +401,13 @@ const SubtitleEditor = ({
     element.style.height = element.scrollHeight + 'px';
   };
 
-  useEffect(() => {
-    if (window.innerWidth <= 768) {
-      const textareas = document.querySelectorAll('.segment-text');
-      textareas.forEach(adjustTextareaHeight);
-    }
-  }, [editableSubtitles]);
-
   const handleSubtitleEdit = (id, newText, event) => {
-    setEditableSubtitles(prev => 
-      prev.map(segment => 
+    setEditableSubtitles(prev =>
+      prev.map(segment =>
         segment.id === id ? { ...segment, text: newText } : segment
       )
     );
-    
+
     if (window.innerWidth <= 768) {
       adjustTextareaHeight(event.target);
     }
