@@ -531,14 +531,16 @@ async function generateAssSubtitles(segments, metadata, subtitlePreference, styl
       alignment: subtitlePreference === 'word' ? 5 : 2
     };
     
-    const assContent = assService.generateAssContent(
-      segments, 
-      metadata, 
-      styleOptions, 
+    const { content: assContent } = assService.generateAssContent(
+      segments,
+      metadata,
+      styleOptions,
       subtitlePreference,
-      stylePreference
+      stylePreference,
+      'de-DE',
+      heightPreference
     );
-    
+
     assFilePath = await assService.createTempAssFile(assContent, cacheKey);
     
     // Copy font to temp directory
