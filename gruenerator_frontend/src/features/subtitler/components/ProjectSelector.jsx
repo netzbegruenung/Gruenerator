@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { FaPlus, FaTrash, FaClock, FaVideo, FaShare } from 'react-icons/fa';
 import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
 import ShareVideoModal from './ShareVideoModal';
+import Spinner from '../../../components/common/Spinner';
 import '../styles/ProjectSelector.css';
 import '../../../assets/styles/components/ui/button.css';
 
@@ -61,7 +62,7 @@ const SkeletonGrid = () => (
     </div>
 );
 
-const ProjectCard = ({ project, onSelect, onDelete, onShare }) => {
+const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -107,8 +108,8 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare }) => {
 
     return (
         <div
-            className={`project-card ${confirmDelete ? 'deleting' : ''}`}
-            onClick={() => !confirmDelete && onSelect(project.id)}
+            className={`project-card ${confirmDelete ? 'deleting' : ''} ${isLoading ? 'loading' : ''}`}
+            onClick={() => !confirmDelete && !isLoading && onSelect(project.id)}
             onKeyDown={handleKeyDown}
             tabIndex={0}
             role="button"
@@ -196,11 +197,17 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare }) => {
                     </div>
                 </div>
             )}
+
+            {isLoading && (
+                <div className="project-loading-overlay">
+                    <Spinner size="medium" />
+                </div>
+            )}
         </div>
     );
 };
 
-const ProjectSelector = ({ onSelectProject, onNewProject }) => {
+const ProjectSelector = ({ onSelectProject, onNewProject, loadingProjectId }) => {
     const {
         projects,
         fetchProjects,
@@ -252,6 +259,7 @@ const ProjectSelector = ({ onSelectProject, onNewProject }) => {
                             onSelect={onSelectProject}
                             onDelete={handleDelete}
                             onShare={handleShare}
+                            isLoading={project.id === loadingProjectId}
                         />
                     ))}
                 </div>

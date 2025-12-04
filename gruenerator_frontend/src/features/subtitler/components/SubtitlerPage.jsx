@@ -43,6 +43,7 @@ const SubtitlerPage = () => {
   const [heightPreference, setHeightPreference] = useState('standard'); // Height preference for subtitle positioning
   const [isProModeActive, setIsProModeActive] = useState(false);
   const [loadedProject, setLoadedProject] = useState(null); // Track loaded project for editing
+  const [loadingProjectId, setLoadingProjectId] = useState(null); // Track which project is loading
 
   // Use centralized export store
   const exportStore = useSubtitlerExportStore();
@@ -329,6 +330,7 @@ const SubtitlerPage = () => {
     try {
       setError(null);
       setIsProcessing(true);
+      setLoadingProjectId(projectId);
 
       const project = await loadProject(projectId);
 
@@ -369,6 +371,7 @@ const SubtitlerPage = () => {
       setError('Projekt konnte nicht geladen werden');
     } finally {
       setIsProcessing(false);
+      setLoadingProjectId(null);
     }
   }, [loadProject]);
 
@@ -420,6 +423,7 @@ const SubtitlerPage = () => {
                 <ProjectSelector
                   onSelectProject={handleSelectProject}
                   onNewProject={handleNewProject}
+                  loadingProjectId={loadingProjectId}
                 />
               )}
 
