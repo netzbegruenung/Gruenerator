@@ -8,19 +8,17 @@
  */
 
 import express from 'express';
-const router = express.Router();
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import {
 import { createLogger } from '../../utils/logger.js';
-const log = createLogger('experimentalRou');
-
+import {
   initiateInteractiveAntrag,
   continueInteractiveAntrag
 } from '../../agents/langgraph/interactiveAntragGraph.mjs';
-import {
-  getExperimentalSession
-} from '../../services/chatMemoryService.js';
+import { getExperimentalSession } from '../../services/chatMemoryService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
+const router = express.Router();
+const log = createLogger('experimentalRoutes');
 
 // Request logger middleware
 router.use((req, res, next) => {

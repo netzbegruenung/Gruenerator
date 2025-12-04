@@ -1,18 +1,17 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import { DocumentSearchService } from '../services/DocumentSearchService.js';
-const documentSearchService = new DocumentSearchService();
 import passport from '../config/passportSetup.mjs';
-import { 
 import { createLogger } from '../utils/logger.js';
-const log = createLogger('claude_gruenera');
-
-  MARKDOWN_FORMATTING_INSTRUCTIONS, 
-  SEARCH_DOCUMENTS_TOOL, 
-  extractCitationsFromText, 
-  processAIResponseWithCitations 
+import {
+  MARKDOWN_FORMATTING_INSTRUCTIONS,
+  SEARCH_DOCUMENTS_TOOL,
+  extractCitationsFromText,
+  processAIResponseWithCitations
 } from '../utils/promptUtils.js';
 
+const log = createLogger('claude_gruenerator_ask');
+const documentSearchService = new DocumentSearchService();
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router = express.Router();
 
