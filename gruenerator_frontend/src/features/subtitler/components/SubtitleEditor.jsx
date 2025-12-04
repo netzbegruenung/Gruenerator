@@ -1,22 +1,122 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { FaSave, FaCheck, FaDownload, FaMagic } from 'react-icons/fa';
+import { HiCog } from 'react-icons/hi';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
+import Timeline from './Timeline';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
+import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
 import { useAuthStore } from '../../../stores/authStore';
+import useSubtitleCorrection from '../hooks/useSubtitleCorrection';
 import '../../../assets/styles/components/subtitler/download-fallback.css';
+import '../../../assets/styles/components/ui/button.css';
+import '../../../assets/styles/components/ui/spinner.css';
+import '../../../assets/styles/components/actions/action-buttons.css';
+import '../styles/SubtitleEditor.css';
 
-const SubtitleEditor = ({ 
-  videoFile, 
-  subtitles, 
-  uploadId, 
-  subtitlePreference, 
-  stylePreference = 'standard',
+const SubtitleEditor = ({
+  videoFile,
+  subtitles,
+  uploadId,
+  subtitlePreference,
+  stylePreference = 'shadow',
   heightPreference = 'standard',
-  onExportSuccess, 
-  isExporting, 
+  onStyleChange,
+  onHeightChange,
+  onExportSuccess,
+  isExporting,
   onExportComplete,
-  onBackToStyling
+  loadedProject = null,
+  videoMetadataFromUpload = null,
+  videoFilename = null,
+  videoSize = null
 }) => {
+  // Style options configuration with preview styling
+  const styleOptions = [
+    {
+      id: 'shadow',
+      name: 'Empfohlen',
+      isRecommended: true,
+      preview: {
+        backgroundColor: 'transparent',
+        color: 'var(--font-color)',
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
+        padding: '0',
+        borderRadius: '0'
+      }
+    },
+    {
+      id: 'standard',
+      name: 'Klassisch',
+      preview: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        color: '#ffffff',
+        textShadow: 'none',
+        padding: '0.25em 0.5em',
+        borderRadius: '0.2em'
+      }
+    },
+    {
+      id: 'clean',
+      name: 'Minimal',
+      preview: {
+        backgroundColor: 'transparent',
+        color: 'var(--font-color)',
+        textShadow: 'none',
+        padding: '0',
+        borderRadius: '0'
+      }
+    },
+    {
+      id: 'tanne',
+      name: 'Grün',
+      preview: {
+        backgroundColor: 'var(--secondary-600)',
+        color: '#ffffff',
+        textShadow: 'none',
+        padding: '0.3em 0.6em',
+        borderRadius: '0.2em'
+      }
+    }
+  ];
+
+  const heightOptions = [
+    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' },
+    { id: 'tief', name: 'Tiefer', subtitle: 'Standard' }
+  ];
+
+  const qualityOptions = [
+    { id: 'normal', name: 'Standard', subtitle: 'Perfekt für Reels' },
+    { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' }
+  ];
+
+  // Local state for style preferences (synced with parent)
+  const [localStyle, setLocalStyle] = useState(stylePreference);
+  const [localHeight, setLocalHeight] = useState(heightPreference);
+  const [localQuality, setLocalQuality] = useState('normal');
+
+  // Sync local state when props change (e.g., when loading a project)
+  useEffect(() => {
+    setLocalStyle(stylePreference);
+  }, [stylePreference]);
+
+  useEffect(() => {
+    setLocalHeight(heightPreference);
+  }, [heightPreference]);
+
+  const handleLocalStyleChange = (styleId) => {
+    setLocalStyle(styleId);
+    onStyleChange?.(styleId);
+  };
+
+  const handleLocalHeightChange = (heightId) => {
+    setLocalHeight(heightId);
+    onHeightChange?.(heightId);
+  };
+
+  const handleLocalQualityChange = (qualityId) => {
+    setLocalQuality(qualityId);
+  };
   // Use the centralized export store
   const exportStore = useSubtitlerExportStore();
   const {
@@ -29,16 +129,32 @@ const SubtitleEditor = ({
     subscribe
   } = exportStore;
 
+  // Use project store for saving
+  const { saveProject, updateProject, isSaving, saveSuccess } = useSubtitlerProjectStore();
+
   // Get user locale for Austria-specific styling
   const locale = useAuthStore((state) => state.locale);
   const videoRef = useRef(null);
+  const segmentRefs = useRef({});
   const [videoUrl, setVideoUrl] = useState(null);
   const [editableSubtitles, setEditableSubtitles] = useState([]);
   const [error, setError] = useState(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState(0);
   const [videoMetadata, setVideoMetadata] = useState(null);
-  const [showFallbackButton, setShowFallbackButton] = useState(null); // For fallback download button
-  
+  const [showFallbackButton, setShowFallbackButton] = useState(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState(null);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [showStyling, setShowStyling] = useState(false);
+  const [correctedSegmentIds, setCorrectedSegmentIds] = useState(new Set());
+  const [correctionMessage, setCorrectionMessage] = useState(null);
+
+  // Use subtitle correction hook
+  const {
+    loading: isCorrecting,
+    error: correctionError,
+    correctSubtitles
+  } = useSubtitleCorrection();
+
   // Subscribe to export store for cleanup
   useEffect(() => {
     const unsubscribe = subscribe();
@@ -169,7 +285,7 @@ const SubtitleEditor = ({
         duration: video.duration
       };
       setVideoMetadata(metadata);
-      console.log('[SubtitleEditor] Video metadata loaded:', metadata);
+      setVideoDuration(video.duration);
     }
   };
 
@@ -178,9 +294,38 @@ const SubtitleEditor = ({
     if (videoRef.current) {
       const currentTime = videoRef.current.currentTime;
       setCurrentTimeInSeconds(currentTime);
-      console.log('[SubtitleEditor] Time update:', currentTime.toFixed(2), 's');
     }
   };
+
+  // Timeline handlers
+  const handleTimelineSeek = useCallback((timeInSeconds) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = timeInSeconds;
+    }
+  }, []);
+
+  const scrollToSegment = useCallback((segmentId) => {
+    const element = segmentRefs.current[segmentId];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
+
+  const handleSegmentClick = useCallback((segmentId) => {
+    setSelectedSegmentId(segmentId);
+    const segment = editableSubtitles.find(s => s.id === segmentId);
+    if (segment && videoRef.current) {
+      videoRef.current.currentTime = segment.startTime;
+    }
+  }, [editableSubtitles]);
+
+  const handleTextChange = useCallback((segmentId, newText) => {
+    setEditableSubtitles(prev =>
+      prev.map(segment =>
+        segment.id === segmentId ? { ...segment, text: newText } : segment
+      )
+    );
+  }, []);
 
   // Frühe Rückgabe bei fehlenden Props
   if (!videoFile || !subtitles) {
@@ -252,8 +397,8 @@ const SubtitleEditor = ({
       console.log('[SubtitleEditor] Starting export via store:', {
         uploadId,
         subtitlesLength: subtitlesText.length,
-        stylePreference,
-        heightPreference,
+        stylePreference: localStyle,
+        heightPreference: localHeight,
         locale,
         maxResolution
       });
@@ -262,8 +407,8 @@ const SubtitleEditor = ({
       await startExport(subtitlesText, {
         uploadId,
         subtitlePreference,
-        stylePreference,
-        heightPreference,
+        stylePreference: localStyle,
+        heightPreference: localHeight,
         locale,
         maxResolution
       });
@@ -274,11 +419,100 @@ const SubtitleEditor = ({
     }
   };
 
+  // Handle saving project
+  const handleSaveProject = async () => {
+    if (!uploadId || !editableSubtitles.length) {
+      setError('Keine Daten zum Speichern vorhanden.');
+      return;
+    }
 
+    try {
+      setError(null);
 
+      // Format subtitles text for storage
+      const subtitlesText = editableSubtitles
+        .map(segment => {
+          const startMin = Math.floor(segment.startTime / 60);
+          const startWholeSeconds = Math.floor(segment.startTime % 60);
+          const startFractional = Math.floor((segment.startTime % 1) * 10);
+          const endMin = Math.floor(segment.endTime / 60);
+          const endWholeSeconds = Math.floor(segment.endTime % 60);
+          const endFractional = Math.floor((segment.endTime % 1) * 10);
+          return `${startMin.toString().padStart(2, '0')}:${startWholeSeconds.toString().padStart(2, '0')}.${startFractional}` +
+                 ` - ${endMin.toString().padStart(2, '0')}:${endWholeSeconds.toString().padStart(2, '0')}.${endFractional}` +
+                 `\n${segment.text}`;
+        })
+        .join('\n\n');
 
+      if (loadedProject) {
+        await updateProject(loadedProject.id, {
+          subtitles: subtitlesText,
+          stylePreference: localStyle,
+          heightPreference: localHeight
+        });
+      } else {
+        // Create new project
+        console.log('[SubtitleEditor] Creating new project with uploadId:', uploadId);
+        const projectData = {
+          uploadId,
+          subtitles: subtitlesText,
+          title: videoFilename ? videoFilename.replace(/\.[^.]+$/, '') : `Projekt ${new Date().toLocaleDateString('de-DE')}`,
+          stylePreference: localStyle,
+          heightPreference: localHeight,
+          modePreference: subtitlePreference,
+          videoMetadata: videoMetadataFromUpload || {},
+          videoFilename: videoFilename || 'video.mp4',
+          videoSize: videoSize || 0
+        };
+        await saveProject(projectData);
+      }
+    } catch (error) {
+      console.error('[SubtitleEditor] Save project error:', error);
+      setError(error.message || 'Fehler beim Speichern des Projekts');
+    }
+  };
 
+  // Handle AI correction of subtitles
+  const handleCorrection = async () => {
+    if (!editableSubtitles.length) return;
 
+    try {
+      setError(null);
+      setCorrectionMessage(null);
+
+      const response = await correctSubtitles(editableSubtitles);
+
+      if (!response.hasCorrections) {
+        setCorrectionMessage('Keine Korrekturen notwendig');
+        setTimeout(() => setCorrectionMessage(null), 3000);
+        return;
+      }
+
+      // Apply corrections to subtitles
+      const correctedIds = new Set(response.corrections.map(c => c.id));
+      setEditableSubtitles(prev => prev.map(segment => {
+        const correction = response.corrections.find(c => c.id === segment.id);
+        if (correction) {
+          return { ...segment, text: correction.corrected };
+        }
+        return segment;
+      }));
+
+      // Highlight corrected segments
+      setCorrectedSegmentIds(correctedIds);
+      setCorrectionMessage(`${response.corrections.length} Segment${response.corrections.length > 1 ? 'e' : ''} korrigiert`);
+
+      // Clear highlights after 2 seconds
+      setTimeout(() => {
+        setCorrectedSegmentIds(new Set());
+        setCorrectionMessage(null);
+      }, 2000);
+
+    } catch (error) {
+      console.error('[SubtitleEditor] Correction error:', error);
+      setError(error.message || 'Fehler bei der KI-Korrektur');
+    }
+  };
 
   return (
     <div className="subtitle-editor-container">
@@ -318,133 +552,176 @@ const SubtitleEditor = ({
         </div>
       )}
 
-      <div className="editor-header">
-        <h3>Untertitel bearbeiten</h3>
-        {onBackToStyling && (
-          <button 
-            className="btn-secondary editor-back-button"
-            onClick={onBackToStyling}
-            title="Zurück zur Style-Auswahl"
-          >
-            Style ändern
-          </button>
-        )}
-      </div>
-
       <div className="editor-layout">
-        <div className="video-section">
-          <div className="video-preview">
-            {videoUrl ? (
-              <div style={{ position: 'relative' }}>
-                <video 
-                  ref={videoRef}
-                  className="preview-video"
-                  controls
-                  src={videoUrl}
-                  onLoadedMetadata={handleVideoLoadedMetadata}
-                  onTimeUpdate={handleVideoTimeUpdate}
-                >
-                  Dein Browser unterstützt keine Video-Wiedergabe.
-                </video>
-                
-                <LiveSubtitlePreview
-                  editableSubtitles={editableSubtitles}
-                  currentTimeInSeconds={currentTimeInSeconds}
-                  videoMetadata={videoMetadata}
-                  stylePreference={stylePreference}
-                  heightPreference={heightPreference}
-                />
-                
-              </div>
-            ) : (
-              <div className="video-loading">
-                {error ? 'Fehler beim Laden des Videos' : 'Video wird geladen...'}
+        <div className="preview-and-styling">
+          <div className="video-section">
+            <div className="video-preview">
+              {videoUrl ? (
+                <div style={{ position: 'relative' }}>
+                  <video
+                    ref={videoRef}
+                    className="preview-video"
+                    controls
+                    src={videoUrl}
+                    onLoadedMetadata={handleVideoLoadedMetadata}
+                    onTimeUpdate={handleVideoTimeUpdate}
+                  >
+                    Dein Browser unterstützt keine Video-Wiedergabe.
+                  </video>
+
+                  <LiveSubtitlePreview
+                    editableSubtitles={editableSubtitles}
+                    currentTimeInSeconds={currentTimeInSeconds}
+                    videoMetadata={videoMetadata}
+                    stylePreference={localStyle}
+                    heightPreference={localHeight}
+                    subtitlePreference={subtitlePreference}
+                  />
+                </div>
+              ) : (
+                <div className="video-loading">
+                  {error ? 'Fehler beim Laden des Videos' : 'Video wird geladen...'}
+                </div>
+              )}
+            </div>
+            <div className="subtitle-preview-notice">
+              Nur eine Vorschau. Das finale Styling sieht besser aus!
+            </div>
+            <div className="video-controls">
+              <button
+                className="btn-icon btn-primary"
+                onClick={() => handleExport(localQuality === 'normal' ? 1080 : null)}
+                disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
+                title={localQuality === 'normal' ? 'Download (1080p)' : 'Download (HD)'}
+              >
+                {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
+                  <div className="button-spinner" />
+                ) : (
+                  <FaDownload />
+                )}
+              </button>
+              <button
+                className={`btn-icon btn-secondary ${saveSuccess ? 'submit-button--success' : ''}`}
+                onClick={handleSaveProject}
+                disabled={!editableSubtitles.length}
+                title="Projekt speichern"
+              >
+                {saveSuccess ? <FaCheck /> : <FaSave />}
+              </button>
+              <button
+                className={`btn-icon ${showStyling ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setShowStyling(!showStyling)}
+                title="Einstellungen"
+              >
+                <HiCog />
+              </button>
+              <button
+                className="btn-icon btn-secondary"
+                onClick={handleCorrection}
+                disabled={isCorrecting || !editableSubtitles.length}
+                title="AI-Korrektur"
+              >
+                {isCorrecting ? (
+                  <span className="spinner spinner-small" />
+                ) : (
+                  <FaMagic />
+                )}
+              </button>
+            </div>
+            {correctionMessage && (
+              <div className="correction-message">
+                {correctionMessage}
               </div>
             )}
           </div>
-          <div className="subtitle-preview-notice">
-            Nur eine Vorschau. Das finale Styling sieht besser aus!
-          </div>
-          <div className="video-controls desktop-only">
-            <button
-              className="btn-primary"
-              onClick={() => handleExport(1080)}
-              disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
-            >
-              {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
-                <div className="button-loading-content">
-                  <div className="button-spinner" />
-                  <span>Video wird verarbeitet...</span>
-                  {exportProgress > 0 && <span> ({exportProgress}%)</span>}
-                </div>
-              ) : (
-                'Für Instagram'
-              )}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={() => handleExport(null)}
-              disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
-            >
-              Volle Auflösung
-            </button>
-          </div>
-        </div>
 
-        <div className="subtitles-editor">
-          <div className="subtitles-list">
-            {editableSubtitles.map(segment => (
-              <div key={segment.id} className="subtitle-segment">
-                <div className="segment-time">
-                  {formatTime(segment.startTime)} - {formatTime(segment.endTime)}
-                </div>
-                <div className="segment-text-container">
-                  <textarea
-                    value={segment.text}
-                    onChange={(e) => handleSubtitleEdit(segment.id, e.target.value, e)}
-                    className={`segment-text ${detectEmojis(segment.text) ? 'has-emojis' : ''}`}
-                    rows={window.innerWidth <= 768 ? undefined : 2}
-                  />
-                  {detectEmojis(segment.text) && (
-                    <div className="emoji-warning">
-                      ⚠️ Emojis werden im Video nicht angezeigt
+          {showStyling ? (
+          <div className="styling-section">
+            <div className="style-options-compact">
+              <h4>Stil</h4>
+              <div className="style-options-grid style-grid-2x2">
+                {styleOptions.map(option => (
+                  <label
+                    key={option.id}
+                    className={`style-option-card ${localStyle === option.id ? 'selected' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="styleOption"
+                      value={option.id}
+                      checked={localStyle === option.id}
+                      onChange={() => handleLocalStyleChange(option.id)}
+                      className="style-option-radio"
+                    />
+                    <div className="style-option-content">
+                      <div className="style-option-header">
+                        <h4 className="style-option-name">
+                          {option.isRecommended && <span className="recommended-badge">★</span>}
+                          {option.name}
+                        </h4>
+                      </div>
+                      <div className="style-option-preview">
+                        <span className="preview-text" style={option.preview}>
+                          Beispiel
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  <div 
-                    className="segment-text-preview"
-                    dangerouslySetInnerHTML={{ __html: formatTextWithEmojis(segment.text) }}
-                  />
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="settings-row">
+              <div className="setting-group">
+                <h4>Position</h4>
+                <div className="setting-buttons">
+                  {heightOptions.map(option => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`setting-button ${localHeight === option.id ? 'active' : ''}`}
+                      onClick={() => handleLocalHeightChange(option.id)}
+                    >
+                      <span className="setting-button-title">{option.name}</span>
+                      {option.subtitle && <span className="setting-button-subtitle">{option.subtitle}</span>}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
+              <div className="setting-group">
+                <h4>Qualität</h4>
+                <div className="setting-buttons">
+                  {qualityOptions.map(option => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`setting-button ${localQuality === option.id ? 'active' : ''}`}
+                      onClick={() => handleLocalQualityChange(option.id)}
+                    >
+                      <span className="setting-button-title">{option.name}</span>
+                      {option.subtitle && <span className="setting-button-subtitle">{option.subtitle}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
+          ) : (
+          <div className="timeline-inline">
+            <Timeline
+              duration={videoDuration}
+              currentTime={currentTimeInSeconds}
+              segments={editableSubtitles}
+              selectedSegmentId={selectedSegmentId}
+              correctedSegmentIds={correctedSegmentIds}
+              onSeek={handleTimelineSeek}
+              onSegmentClick={handleSegmentClick}
+              onTextChange={handleTextChange}
+            />
+          </div>
+          )}
         </div>
       </div>
 
-      <div className="editor-controls mobile-only">
-        <button
-          className="btn-primary"
-          onClick={() => handleExport(1080)}
-          disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
-        >
-          {(isExporting || exportStatus === 'starting' || exportStatus === 'exporting') ? (
-            <div className="button-loading-content">
-              <div className="button-spinner" />
-              <span>Video wird verarbeitet...</span>
-              {exportProgress > 0 && <span> ({exportProgress}%)</span>}
-            </div>
-          ) : (
-            'Für Instagram'
-          )}
-        </button>
-        <button
-          className="btn-secondary"
-          onClick={() => handleExport(null)}
-          disabled={isExporting || exportStatus === 'starting' || exportStatus === 'exporting'}
-        >
-          Volle Auflösung
-        </button>
-      </div>
     </div>
   );
 };
@@ -456,10 +733,15 @@ SubtitleEditor.propTypes = {
   subtitlePreference: PropTypes.string.isRequired,
   stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne']),
   heightPreference: PropTypes.oneOf(['standard', 'tief']),
+  onStyleChange: PropTypes.func,
+  onHeightChange: PropTypes.func,
   onExportSuccess: PropTypes.func.isRequired,
   isExporting: PropTypes.bool,
   onExportComplete: PropTypes.func,
-  onBackToStyling: PropTypes.func
+  loadedProject: PropTypes.object,
+  videoMetadataFromUpload: PropTypes.object,
+  videoFilename: PropTypes.string,
+  videoSize: PropTypes.number
 };
 
 export default SubtitleEditor; 

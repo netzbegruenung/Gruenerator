@@ -28,6 +28,7 @@ const TUS_CLEANUP_CONFIG = {
 // Set für aktive Upload-IDs (zur Verfolgung des Status)
 const activeUploads = new Set();
 const processedUploads = new Set();
+const promotedUploads = new Set(); // Uploads promoted to permanent project storage
 
 // Erstelle Upload-Verzeichnis falls es nicht existiert
 (async () => {
@@ -113,9 +114,26 @@ const markUploadAsProcessed = (uploadId) => {
   processedUploads.add(uploadId);
 };
 
+const markUploadAsPromoted = (uploadId) => {
+  activeUploads.delete(uploadId);
+  processedUploads.delete(uploadId);
+  promotedUploads.add(uploadId);
+  log.debug(`Upload ${uploadId} promoted to project storage`);
+};
+
+const isUploadPromoted = (uploadId) => {
+  return promotedUploads.has(uploadId);
+};
+
 const scheduleImmediateCleanup = async (uploadId, reason = 'immediate') => {
+  if (promotedUploads.has(uploadId)) {
+    log.debug(`Skipping cleanup for promoted upload: ${uploadId}`);
+    return;
+  }
   setTimeout(async () => {
-    await cleanupUploadFiles(uploadId, reason);
+    if (!promotedUploads.has(uploadId)) {
+      await cleanupUploadFiles(uploadId, reason);
+    }
   }, 5000);
 };
 
@@ -166,6 +184,11 @@ const intelligentCleanup = async () => {
           const status = await getUploadStatus(uploadId);
 
           if (!status.exists) return false;
+
+          // Skip promoted uploads (saved to permanent project storage)
+          if (promotedUploads.has(uploadId)) {
+            return false;
+          }
 
           let shouldCleanup = false;
           let reason = '';
@@ -227,6 +250,11 @@ const emergencyCleanup = async () => {
 
       const results = await Promise.all(batch.map(async (uploadId) => {
         try {
+          // Skip promoted uploads (saved to permanent project storage)
+          if (promotedUploads.has(uploadId)) {
+            return false;
+          }
+
           const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
           const stats = await fs.stat(filePath).catch(() => null);
           if (!stats) return false;
@@ -312,6 +340,8 @@ module.exports = {
   checkFileExists,
   cleanupTusUploads,
   markUploadAsProcessed,
+  markUploadAsPromoted,
+  isUploadPromoted,
   scheduleImmediateCleanup,
   getUploadStatus,
   cleanupUploadFiles
