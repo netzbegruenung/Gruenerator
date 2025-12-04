@@ -50,7 +50,7 @@ class AssSubtitleService {
   // Default style configuration
   get defaultStyle() {
     return {
-      fontName: 'GrueneTypeNeue-Regular', // Full font name from TTF file
+      fontName: 'GrueneType Neue', // Must match TTF font family name exactly
       fontSize: 20,
       primaryColor: '&Hffffff', // White text
       secondaryColor: '&Hffffff', // White secondary
@@ -157,7 +157,7 @@ class AssSubtitleService {
         // GJ Minimalistisch - transparent style with GJ font
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline for minimalistic style
@@ -171,7 +171,7 @@ class AssSubtitleService {
         // GJ Schatten - shadow effect with GJ font
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline - shadow provides contrast
@@ -188,7 +188,7 @@ class AssSubtitleService {
         console.log(`[ASS] Lavendel color conversion: #9f88ff → ${lavendelColor}`);
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: lavendelColor, // Lavendel background
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -206,7 +206,7 @@ class AssSubtitleService {
         console.log(`[ASS] Hellgrün color conversion: #c7ff7a → ${hellgruenColor}`);
         return {
           ...baseStyle,
-          fontName: 'GJFontRegular', // GJ Font
+          fontName: 'Wix Madefor Display', // Must match TTF font family name exactly
           backColor: hellgruenColor, // Light green background
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -222,7 +222,7 @@ class AssSubtitleService {
         // AT Klassisch - schwarzer Hintergrund mit Montserrat Bold
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: '&HCC000000', // rgba(0, 0, 0, 0.8) - Semi-transparent black
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
@@ -237,7 +237,7 @@ class AssSubtitleService {
         // AT Minimalistisch - transparent style with Montserrat Bold
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline for minimalistic style
@@ -251,7 +251,7 @@ class AssSubtitleService {
         // AT Schatten - shadow effect with Montserrat Bold
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: '&H00000000', // Transparent background
           borderStyle: 0, // No background box
           outline: 0, // No outline - shadow provides contrast
@@ -268,7 +268,7 @@ class AssSubtitleService {
         console.log(`[ASS] Austria Grün color conversion: #6baa25 → ${atGruenColor}`);
         return {
           ...baseStyle,
-          fontName: 'Montserrat Bold', // Austria font
+          fontName: 'Montserrat', // Must match TTF font family name exactly
           backColor: atGruenColor, // Austrian Green background
           borderStyle: 3, // Background box
           outline: 1, // Minimal outline
