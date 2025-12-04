@@ -733,7 +733,9 @@ router.post('/export', async (req, res) => {
       locale,
       finalFontSize,
       uploadId,
-      originalFilename
+      originalFilename,
+      assFilePath,   // Pass pre-generated ASS file to avoid regeneration
+      tempFontPath   // Pass pre-copied font path
     };
 
     // Start background processing (fire and forget)
@@ -771,7 +773,9 @@ async function processVideoExportInBackground(params) {
     locale = 'de-DE',
     finalFontSize,
     uploadId,
-    originalFilename
+    originalFilename,
+    assFilePath: preGeneratedAssPath = null,   // Pre-generated ASS file from export endpoint
+    tempFontPath: preGeneratedFontPath = null  // Pre-copied font path from export endpoint
   } = params;
 
   try {
@@ -789,62 +793,63 @@ async function processVideoExportInBackground(params) {
     const referenceDimension = isVertical ? metadata.width : metadata.height;
     const fileSizeMB = fileStats.size / 1024 / 1024;
 
-    // Create cache key and generate ASS subtitles (includes locale for Austria support)
-    const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
-    let assFilePath = null;
-    let tempFontPath = null;
+    // Use pre-generated ASS file if available, otherwise generate new one
+    let assFilePath = preGeneratedAssPath;
+    let tempFontPath = preGeneratedFontPath;
 
-    try {
-      // Check for cached ASS content first
-      let assContent = await assService.getCachedAssContent(cacheKey);
+    if (!assFilePath) {
+      // Only generate if not passed from export endpoint (fallback)
+      log.debug('No pre-generated ASS file, generating in background');
+      const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
 
-      if (!assContent) {
-        // Generate new ASS content with optimized styling
-        const styleOptions = {
-          fontSize: Math.floor(finalFontSize / 2),
-          marginL: 10,
-          marginR: 10,
-          marginV: subtitlePreference === 'word'
-            ? Math.floor(metadata.height * 0.50)
-            : (heightPreference === 'tief'
-                ? Math.floor(metadata.height * 0.20)
-                : Math.floor(metadata.height * 0.33)),
-          alignment: subtitlePreference === 'word' ? 5 : 2
-        };
-
-        const assResult = assService.generateAssContent(
-          segments,
-          metadata,
-          styleOptions,
-          subtitlePreference,
-          stylePreference,
-          locale // Add locale for Austria-specific styling
-        );
-        assContent = assResult.content;
-
-        await assService.cacheAssContent(cacheKey, assContent);
-      }
-
-      // Create temporary ASS file
-      assFilePath = await assService.createTempAssFile(assContent, uploadId);
-
-      // Get the effective style (may be mapped for Austrian users)
-      const effectiveStyle = assService.mapStyleForLocale(stylePreference, locale);
-
-      // Copy the correct font to temp directory based on effective style
-      const sourceFontPath = assService.getFontPathForStyle(effectiveStyle);
-      const fontFilename = path.basename(sourceFontPath);
-      tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
       try {
-        await fsPromises.copyFile(sourceFontPath, tempFontPath);
-      } catch (fontCopyError) {
-        log.warn(`Font copy failed: ${fontCopyError.message}`);
-        tempFontPath = null;
-      }
+        let assContent = await assService.getCachedAssContent(cacheKey);
 
-    } catch (assError) {
-      log.error(`ASS generation error: ${assError.message}`);
-      assFilePath = null;
+        if (!assContent) {
+          const styleOptions = {
+            fontSize: Math.floor(finalFontSize / 2),
+            marginL: 10,
+            marginR: 10,
+            marginV: subtitlePreference === 'word'
+              ? Math.floor(metadata.height * 0.50)
+              : (heightPreference === 'tief'
+                  ? Math.floor(metadata.height * 0.20)
+                  : Math.floor(metadata.height * 0.33)),
+            alignment: subtitlePreference === 'word' ? 5 : 2
+          };
+
+          const assResult = assService.generateAssContent(
+            segments,
+            metadata,
+            styleOptions,
+            subtitlePreference,
+            stylePreference,
+            locale
+          );
+          assContent = assResult.content;
+
+          await assService.cacheAssContent(cacheKey, assContent);
+        }
+
+        assFilePath = await assService.createTempAssFile(assContent, uploadId);
+
+        const effectiveStyle = assService.mapStyleForLocale(stylePreference, locale);
+        const sourceFontPath = assService.getFontPathForStyle(effectiveStyle);
+        const fontFilename = path.basename(sourceFontPath);
+        tempFontPath = path.join(path.dirname(assFilePath), fontFilename);
+        try {
+          await fsPromises.copyFile(sourceFontPath, tempFontPath);
+        } catch (fontCopyError) {
+          log.warn(`Font copy failed: ${fontCopyError.message}`);
+          tempFontPath = null;
+        }
+
+      } catch (assError) {
+        log.error(`ASS generation error: ${assError.message}`);
+        assFilePath = null;
+      }
+    } else {
+      log.debug('Using pre-generated ASS file from export endpoint');
     }
 
     // FFmpeg processing - wrapped in pool to limit concurrent processes
@@ -870,25 +875,26 @@ async function processVideoExportInBackground(params) {
           crf = 26;
         }
       } else {
+        // Use faster presets with lower CRF to maintain quality while speeding up encoding
         if (referenceDimension >= 2160) {
-          crf = 18;
-          preset = fileSizeMB > 100 ? 'fast' : 'slow';
+          crf = 17; // Lower CRF compensates for faster preset
+          preset = 'medium';
           tune = 'film';
         } else if (referenceDimension >= 1440) {
-          crf = 19;
-          preset = fileSizeMB > 80 ? 'fast' : 'slow';
+          crf = 18;
+          preset = 'medium';
           tune = 'film';
         } else if (referenceDimension >= 1080) {
-          crf = 20;
-          preset = fileSizeMB > 60 ? 'medium' : 'slow';
+          crf = 19;
+          preset = 'medium';
           tune = 'film';
         } else if (referenceDimension >= 720) {
-          crf = 21;
-          preset = fileSizeMB > 40 ? 'medium' : 'slower';
+          crf = 20;
+          preset = 'medium';
           tune = 'film';
         } else {
-          crf = 22;
-          preset = 'slower';
+          crf = 21;
+          preset = 'medium';
           tune = 'film';
         }
       }
