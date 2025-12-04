@@ -281,7 +281,10 @@ class URLCrawlerService {
       throw new Error('Crawlee not available: ' + importError.message);
     }
 
-    const { CheerioCrawler, PlaywrightCrawler, Configuration } = crawlee;
+    const { CheerioCrawler, PlaywrightCrawler, Configuration, log } = crawlee;
+
+    // Reduce Crawlee log verbosity - only show warnings and errors
+    log.setLevel(log.LEVELS.WARNING);
 
     // Clear memory storage before starting
     await this.memoryStorage.clear();
