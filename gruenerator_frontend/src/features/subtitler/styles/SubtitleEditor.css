@@ -274,24 +274,34 @@
 
 .video-controls {
   margin-top: 0rem;
-  display: block;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
   width: 100%;
 }
 
-.video-controls .btn-primary {
-  display: block;
-  margin: 0 auto;
+.video-controls button {
   padding: var(--primary-button-padding-m, 16px 32px);
   font-size: 16px;
   border-radius: var(--primary-button-radius, 72px);
   font-weight: 500;
   transition: all 0.2s ease;
-  background-color: var(--primary-button-bg, var(--primary));
   border: none;
-  color: var(--primary-button-text, white);
-  box-shadow: 0 2px 4px rgba(0, 85, 56, 0.2);
   min-height: var(--primary-button-height-m, 48px);
   gap: 8px;
+  cursor: pointer;
+}
+
+.video-controls .btn-primary {
+  background-color: var(--primary-button-bg, var(--primary));
+  color: var(--primary-button-text, white);
+  box-shadow: 0 2px 4px rgba(0, 85, 56, 0.2);
+}
+
+.video-controls .btn-secondary {
+  background-color: transparent;
+  color: var(--font-color);
+  border: 1px solid var(--border-color);
 }
 
 .video-controls .btn-primary:hover:not(:disabled) {
@@ -300,12 +310,17 @@
   box-shadow: 0 4px 12px rgba(0, 85, 56, 0.3);
 }
 
-.video-controls .btn-primary:focus {
+.video-controls .btn-secondary:hover:not(:disabled) {
+  background-color: var(--background-color-alt);
+  transform: translateY(-1px);
+}
+
+.video-controls button:focus {
   outline: 2px solid var(--primary-button-bg, var(--primary));
   outline-offset: 2px;
 }
 
-.video-controls .btn-primary:disabled {
+.video-controls button:disabled {
   background-color: #cccccc;
   color: #666666;
   transform: none;
@@ -314,7 +329,8 @@
 }
 
 .desktop-only {
-  display: block;
+  /* No display property here - let container's display (flex/grid/block) apply */
+  /* Hidden on mobile via media query below */
 }
 
 .mobile-only {
@@ -432,6 +448,15 @@
   .video-controls .btn-primary:hover:not(:disabled) {
     background-color: var(--klee);
     box-shadow: 0 4px 12px rgba(0, 137, 57, 0.4);
+  }
+
+  .video-controls .btn-secondary {
+    border-color: var(--border-color);
+    color: var(--font-color);
+  }
+
+  .video-controls .btn-secondary:hover:not(:disabled) {
+    background-color: var(--background-color-alt);
   }
 
   .editor-back-button {
