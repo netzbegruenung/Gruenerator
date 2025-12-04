@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { FaPlus, FaTrash, FaClock, FaVideo } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaClock, FaVideo, FaShare } from 'react-icons/fa';
 import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
+import ShareVideoModal from './ShareVideoModal';
 import '../styles/ProjectSelector.css';
+import '../../../assets/styles/components/ui/button.css';
 
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
 const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
@@ -59,9 +61,14 @@ const SkeletonGrid = () => (
     </div>
 );
 
-const ProjectCard = ({ project, onSelect, onDelete }) => {
+const ProjectCard = ({ project, onSelect, onDelete, onShare }) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
+
+    const handleShareClick = (e) => {
+        e.stopPropagation();
+        onShare(project);
+    };
 
     const handleDeleteClick = (e) => {
         e.stopPropagation();
@@ -145,15 +152,25 @@ const ProjectCard = ({ project, onSelect, onDelete }) => {
                 </div>
             </div>
 
-            <button
-                className="project-delete-btn"
-                onClick={handleDeleteClick}
-                onKeyDown={handleDeleteKeyDown}
-                title="Projekt löschen"
-                aria-label="Projekt löschen"
-            >
-                <FaTrash />
-            </button>
+            <div className="project-actions">
+                <button
+                    className="project-share-btn"
+                    onClick={handleShareClick}
+                    title="Projekt teilen"
+                    aria-label="Projekt teilen"
+                >
+                    <FaShare />
+                </button>
+                <button
+                    className="project-delete-btn"
+                    onClick={handleDeleteClick}
+                    onKeyDown={handleDeleteKeyDown}
+                    title="Projekt löschen"
+                    aria-label="Projekt löschen"
+                >
+                    <FaTrash />
+                </button>
+            </div>
 
             {confirmDelete && (
                 <div
@@ -192,6 +209,8 @@ const ProjectSelector = ({ onSelectProject, onNewProject }) => {
         error
     } = useSubtitlerProjectStore();
 
+    const [shareProject, setShareProject] = useState(null);
+
     useEffect(() => {
         fetchProjects();
     }, [fetchProjects]);
@@ -199,6 +218,10 @@ const ProjectSelector = ({ onSelectProject, onNewProject }) => {
     const handleDelete = useCallback(async (projectId) => {
         await deleteProject(projectId);
     }, [deleteProject]);
+
+    const handleShare = useCallback((project) => {
+        setShareProject(project);
+    }, []);
 
     return (
         <div className="project-selector">
@@ -228,6 +251,7 @@ const ProjectSelector = ({ onSelectProject, onNewProject }) => {
                             project={project}
                             onSelect={onSelectProject}
                             onDelete={handleDelete}
+                            onShare={handleShare}
                         />
                     ))}
                 </div>
@@ -236,6 +260,14 @@ const ProjectSelector = ({ onSelectProject, onNewProject }) => {
             <p className="project-limit-info">
                 Maximal 20 Projekte werden gespeichert. Ältere Projekte werden automatisch gelöscht.
             </p>
+
+            {shareProject && (
+                <ShareVideoModal
+                    projectId={shareProject.id}
+                    title={shareProject.title}
+                    onClose={() => setShareProject(null)}
+                />
+            )}
         </div>
     );
 };

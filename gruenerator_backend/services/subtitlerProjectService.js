@@ -53,7 +53,7 @@ class SubtitlerProjectService {
         try {
             const query = `
                 SELECT id, title, status, video_filename, video_size, video_metadata,
-                       thumbnail_path, style_preference, height_preference, mode_preference,
+                       thumbnail_path, subtitled_video_path, style_preference, height_preference, mode_preference,
                        created_at, updated_at, last_edited_at, export_count
                 FROM subtitler_projects
                 WHERE user_id = $1
@@ -71,6 +71,7 @@ class SubtitlerProjectService {
                 video_size: row.video_size,
                 video_metadata: row.video_metadata,
                 thumbnail_path: row.thumbnail_path,
+                subtitled_video_path: row.subtitled_video_path,
                 style_preference: row.style_preference,
                 height_preference: row.height_preference,
                 mode_preference: row.mode_preference,
@@ -92,7 +93,7 @@ class SubtitlerProjectService {
         try {
             const query = `
                 SELECT id, title, status, video_path, video_filename, video_size, video_metadata,
-                       thumbnail_path, subtitles, style_preference, height_preference, mode_preference,
+                       thumbnail_path, subtitled_video_path, subtitles, style_preference, height_preference, mode_preference,
                        created_at, updated_at, last_edited_at, export_count
                 FROM subtitler_projects
                 WHERE id = $1 AND user_id = $2
@@ -248,6 +249,33 @@ class SubtitlerProjectService {
         }
     }
 
+    async updateSubtitledVideoPath(userId, projectId, subtitledVideoPath) {
+        await this.ensureInitialized();
+
+        try {
+            const query = `
+                UPDATE subtitler_projects
+                SET subtitled_video_path = $1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $2 AND user_id = $3
+                RETURNING *
+            `;
+
+            const result = await this.postgres.query(query, [subtitledVideoPath, projectId, userId]);
+
+            if (result.length === 0) {
+                throw new Error('Project not found or access denied');
+            }
+
+            console.log(`[SubtitlerProjectService] Updated subtitled_video_path for project ${projectId}`);
+            return result[0];
+
+        } catch (error) {
+            console.error('[SubtitlerProjectService] Failed to update subtitled video path:', error);
+            throw new Error(`Failed to update subtitled video path: ${error.message}`);
+        }
+    }
+
     async deleteProject(userId, projectId) {
         await this.ensureInitialized();
 
@@ -364,6 +392,10 @@ class SubtitlerProjectService {
     }
 
     getThumbnailPath(relativePath) {
+        return path.join(PROJECT_STORAGE_PATH, relativePath);
+    }
+
+    getSubtitledVideoPath(relativePath) {
         return path.join(PROJECT_STORAGE_PATH, relativePath);
     }
 }

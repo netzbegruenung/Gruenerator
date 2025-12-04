@@ -32,6 +32,7 @@ const AskBundestagsfraktionPage = lazy(() => import('../features/ask/AskBundesta
 const AskGrueneratorPage = lazy(() => import('../features/ask/AskGrueneratorPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
+const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
 const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/KampagnenGenerator'));
 const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
@@ -147,6 +148,7 @@ const standardRoutes = [
   { path: '/gruenerator-notebook', component: GrueneratorenBundle.AskGruenerator, withForm: true },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
+  { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/you', component: GrueneratorenBundle.You, withForm: true },
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
