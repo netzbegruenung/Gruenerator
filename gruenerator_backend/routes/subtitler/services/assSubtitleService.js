@@ -573,17 +573,9 @@ ${dialogueLines}`;
 
   /**
    * Finds optimal line break point aiming for balanced 50/50 split
-   * Uses German linguistic patterns for natural breaks without splitting words
+   * Only adjusts for punctuation (commas, semicolons) - not for articles/prepositions
    */
   findOptimalLineBreak(words, text) {
-    // German function words that make good break points
-    const functionWords = [
-      'der', 'die', 'das', 'den', 'dem', 'des',
-      'ein', 'eine', 'einen', 'einem', 'einer', 'eines',
-      'von', 'zu', 'mit', 'bei', 'nach', 'vor', 'über', 'unter', 'durch', 'für', 'ohne', 'gegen',
-      'und', 'oder', 'aber', 'doch', 'jedoch', 'sowie'
-    ];
-
     // Target: 50/50 split for balanced readability
     const totalLength = text.length;
     const targetSplitPoint = totalLength / 2;
@@ -603,16 +595,15 @@ ${dialogueLines}`;
       }
     }
 
-    // Try to find a nearby function word or punctuation for more natural break
-    const searchRadius = 1; // Look 1 word before/after optimal position
+    // Only adjust for punctuation - break after commas/semicolons if nearby
+    const searchRadius = 1;
     for (let offset = 0; offset <= searchRadius; offset++) {
       for (const delta of [0, -offset, offset]) {
-        const checkIndex = bestBreakIndex + delta - 1;
-        if (checkIndex >= 0 && checkIndex < words.length - 1) {
-          const word = words[checkIndex].toLowerCase().replace(/[.,!?]$/, '');
-          // Prefer breaking after function words or punctuation
-          if (functionWords.includes(word) || words[checkIndex].match(/[,;:]$/)) {
-            bestBreakIndex = checkIndex + 1;
+        const checkIndex = bestBreakIndex + delta;
+        if (checkIndex > 0 && checkIndex < words.length) {
+          const prevWord = words[checkIndex - 1];
+          if (prevWord && prevWord.match(/[,;:]$/)) {
+            bestBreakIndex = checkIndex;
             break;
           }
         }
