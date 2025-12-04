@@ -78,8 +78,11 @@ typings/
 # DynamoDB Local files
 .dynamodb/
 
-# Audio files
-uploads/voice/*.wav
+# Uploads - user generated content
+uploads/
+!uploads/.gitkeep
+!uploads/*/.gitkeep
+routes/uploads/
 
 # Test results and reports
 test-results/
