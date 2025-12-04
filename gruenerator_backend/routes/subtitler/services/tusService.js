@@ -136,82 +136,117 @@ tusServer.on('upload-error', (event) => {
   scheduleImmediateCleanup(event.upload.id, 'error');
 });
 
-// Intelligentes TTL-basiertes Cleanup
+// Intelligentes TTL-basiertes Cleanup (non-blocking with batching)
+const CLEANUP_BATCH_SIZE = 10;
+
 const intelligentCleanup = async () => {
   try {
     const files = await fs.readdir(TUS_UPLOAD_PATH);
     const now = Date.now();
     let cleanedCount = 0;
-    
-    for (const file of files) {
-      if (file === '.gitkeep') continue;
-      
-      const filePath = path.join(TUS_UPLOAD_PATH, file);
-      const stats = await fs.stat(filePath).catch(() => null);
-      if (!stats) continue;
-      
-      const fileAge = now - stats.mtime.getTime();
-      
-      // Extrahiere Upload-ID (entferne .json Endung falls vorhanden)
-      const uploadId = file.endsWith('.json') ? file.slice(0, -5) : file;
-      
-      // Ermittle Upload-Status
-      const status = await getUploadStatus(uploadId);
-      
-      let shouldCleanup = false;
-      let reason = '';
-      
-      if (!status.exists) {
-        continue; // Datei existiert nicht mehr
-      }
-      
-      // Verschiedene Cleanup-Strategien basierend auf Status
-      if (status.isOrphaned && fileAge > TUS_CLEANUP_CONFIG.ORPHANED_METADATA_TTL) {
-        shouldCleanup = true;
-        reason = 'orphaned metadata';
-      } else if (status.isIncomplete && fileAge > TUS_CLEANUP_CONFIG.INCOMPLETE_UPLOAD_TTL) {
-        shouldCleanup = true;
-        reason = 'incomplete upload TTL';
-      } else if (processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.PROCESSED_FILE_TTL) {
-        shouldCleanup = true;
-        reason = 'processed file TTL';
-      } else if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE) {
-        shouldCleanup = true;
-        reason = 'maximum age exceeded';
-      }
-      
-      if (shouldCleanup) {
-        const success = await cleanupUploadFiles(uploadId, reason);
-        if (success) cleanedCount++;
+
+    // Filter out .gitkeep and get unique upload IDs
+    const uploadIds = [...new Set(
+      files
+        .filter(file => file !== '.gitkeep')
+        .map(file => file.endsWith('.json') ? file.slice(0, -5) : file)
+    )];
+
+    // Process in batches to avoid blocking the event loop
+    for (let i = 0; i < uploadIds.length; i += CLEANUP_BATCH_SIZE) {
+      const batch = uploadIds.slice(i, i + CLEANUP_BATCH_SIZE);
+
+      const results = await Promise.all(batch.map(async (uploadId) => {
+        try {
+          const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
+          const stats = await fs.stat(filePath).catch(() => null);
+          if (!stats) return false;
+
+          const fileAge = now - stats.mtime.getTime();
+          const status = await getUploadStatus(uploadId);
+
+          if (!status.exists) return false;
+
+          let shouldCleanup = false;
+          let reason = '';
+
+          if (status.isOrphaned && fileAge > TUS_CLEANUP_CONFIG.ORPHANED_METADATA_TTL) {
+            shouldCleanup = true;
+            reason = 'orphaned metadata';
+          } else if (status.isIncomplete && fileAge > TUS_CLEANUP_CONFIG.INCOMPLETE_UPLOAD_TTL) {
+            shouldCleanup = true;
+            reason = 'incomplete upload TTL';
+          } else if (processedUploads.has(uploadId) && fileAge > TUS_CLEANUP_CONFIG.PROCESSED_FILE_TTL) {
+            shouldCleanup = true;
+            reason = 'processed file TTL';
+          } else if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE) {
+            shouldCleanup = true;
+            reason = 'maximum age exceeded';
+          }
+
+          if (shouldCleanup) {
+            return await cleanupUploadFiles(uploadId, reason);
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      }));
+
+      cleanedCount += results.filter(Boolean).length;
+
+      // Yield to event loop between batches to prevent blocking uploads
+      if (i + CLEANUP_BATCH_SIZE < uploadIds.length) {
+        await new Promise(resolve => setImmediate(resolve));
       }
     }
-    
+
     if (cleanedCount > 0) log.debug(`Cleanup: ${cleanedCount} files removed`);
   } catch (err) {
     log.debug(`Cleanup error: ${err.message}`);
   }
 };
 
-// Emergency Cleanup (aggressiver)
+// Emergency Cleanup (aggressiver, non-blocking with batching)
 const emergencyCleanup = async () => {
   try {
     const files = await fs.readdir(TUS_UPLOAD_PATH);
     const now = Date.now();
     let cleanedCount = 0;
 
-    for (const file of files) {
-      if (file === '.gitkeep') continue;
+    // Filter out .gitkeep and get unique upload IDs
+    const uploadIds = [...new Set(
+      files
+        .filter(file => file !== '.gitkeep')
+        .map(file => file.endsWith('.json') ? file.slice(0, -5) : file)
+    )];
 
-      const filePath = path.join(TUS_UPLOAD_PATH, file);
-      const stats = await fs.stat(filePath).catch(() => null);
-      if (!stats) continue;
+    // Process in batches to avoid blocking the event loop
+    for (let i = 0; i < uploadIds.length; i += CLEANUP_BATCH_SIZE) {
+      const batch = uploadIds.slice(i, i + CLEANUP_BATCH_SIZE);
 
-      const fileAge = now - stats.mtime.getTime();
+      const results = await Promise.all(batch.map(async (uploadId) => {
+        try {
+          const filePath = path.join(TUS_UPLOAD_PATH, uploadId);
+          const stats = await fs.stat(filePath).catch(() => null);
+          if (!stats) return false;
 
-      if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE / 2) {
-        const uploadId = file.endsWith('.json') ? file.slice(0, -5) : file;
-        const success = await cleanupUploadFiles(uploadId, 'emergency');
-        if (success) cleanedCount++;
+          const fileAge = now - stats.mtime.getTime();
+
+          if (fileAge > TUS_CLEANUP_CONFIG.MAX_FILE_AGE / 2) {
+            return await cleanupUploadFiles(uploadId, 'emergency');
+          }
+          return false;
+        } catch {
+          return false;
+        }
+      }));
+
+      cleanedCount += results.filter(Boolean).length;
+
+      // Yield to event loop between batches
+      if (i + CLEANUP_BATCH_SIZE < uploadIds.length) {
+        await new Promise(resolve => setImmediate(resolve));
       }
     }
 

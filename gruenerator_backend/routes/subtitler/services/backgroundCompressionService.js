@@ -5,6 +5,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const redisClient = require('../../../utils/redisClient');
 const { getVideoMetadata } = require('./videoUploadService');
+const { ffmpegPool } = require('./ffmpegPool');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -207,9 +208,10 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
       output: compressedPath
     });
     
-    // Perform compression
-    await new Promise((resolve, reject) => {
-      const command = ffmpeg(originalVideoPath);
+    // Perform compression - wrapped in pool to limit concurrent FFmpeg processes
+    await ffmpegPool.run(async () => {
+      await new Promise((resolve, reject) => {
+        const command = ffmpeg(originalVideoPath);
       
       // Intelligent codec selection
       const videoCodec = metadata.width >= 2160 ? 'libx265' : 'libx264';
@@ -284,8 +286,9 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
           reject(err);
         })
         .save(compressedPath);
-    });
-    
+      });
+    }, `compression-${uploadId}`);
+
     // Verify compression results
     const compressedStats = await fsPromises.stat(compressedPath);
     const compressedSizeMB = compressedStats.size / (1024 * 1024);
