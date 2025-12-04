@@ -505,10 +505,16 @@ Style: ${styleLine}`;
       
       // Add horizontal padding for background box styles
       text = this.addHorizontalPadding(text, stylePreference);
-      
+
       const escapedText = this.escapeAssText(text);
-      
-      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${escapedText}`;
+
+      // Count lines to adjust vertical margin for center alignment
+      const lineCount = (text.match(/\n/g) || []).length + 1;
+      // For 2 lines, reduce marginV so the center stays at same position as 1-line
+      // 0 = use style default (30px), 15 = reduced to shift 2-line block down
+      const marginV = lineCount === 2 ? 15 : 0;
+
+      return `Dialogue: 0,${startTime},${endTime},Default,,0,0,${marginV},,${escapedText}`;
     }).join('\n');
 
     return `[Events]
