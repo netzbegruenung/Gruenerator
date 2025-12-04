@@ -276,6 +276,29 @@
     opacity: 0.4;
 }
 
+.project-card.loading {
+    pointer-events: none;
+}
+
+.project-card.loading .project-thumbnail,
+.project-card.loading .project-info,
+.project-card.loading .project-actions {
+    filter: blur(2px);
+    opacity: 0.5;
+}
+
+.project-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--card-border-radius-large);
+    z-index: 10;
+    animation: fadeIn 0.2s ease;
+}
+
 .delete-confirm-overlay {
     position: absolute;
     inset: 0;
@@ -506,6 +529,10 @@
     }
 
     .delete-confirm-overlay {
+        border-radius: var(--card-border-radius-medium);
+    }
+
+    .project-loading-overlay {
         border-radius: var(--card-border-radius-medium);
     }
 }
