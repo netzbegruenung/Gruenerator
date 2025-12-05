@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const ffmpeg = require('fluent-ffmpeg');
+const { ffmpeg } = require('./services/ffmpegWrapper.js');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
 const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
@@ -531,8 +531,7 @@ router.post('/export', async (req, res) => {
         }
         
         const timeLine = lines[0].trim();
-        // Updated regex to handle fractional seconds format (MM:SS.s - MM:SS.s) with optional metadata
-        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)(?:\s*\[(?:HIGHLIGHT|STATIC)\])?$/);
+        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
         if (!timeMatch) {
           // console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine); // Keep this commented
           return null;
@@ -566,21 +565,13 @@ router.post('/export', async (req, res) => {
 
         const rawText = lines.slice(1).join(' ').trim();
         if (!rawText) {
-          // console.warn(`[subtitlerController] Empty text in block ${index}`); // Keep this commented
           return null;
         }
-        
-        // Extract highlight metadata for word mode
-        const isHighlight = timeLine.includes('[HIGHLIGHT]');
-        const isStatic = timeLine.includes('[STATIC]');
-        
+
         return {
           startTime,
           endTime,
-          rawText, // Store raw text first
-          isHighlight: isHighlight,
-          isStatic: isStatic,
-          originalText: rawText // Store original text for word mode processing
+          rawText
         };
       })
       .filter(Boolean) // Remove nulls from invalid blocks
@@ -601,17 +592,11 @@ router.post('/export', async (req, res) => {
     const avgWords = preliminarySegments.length > 0 ? totalWords / preliminarySegments.length : 5;
 
     // ---- Second pass to process text and create final segments ----
-    const segments = preliminarySegments.map((pSegment, index) => {
-      // For ASS subtitles, we keep the raw text and let ASS handle formatting
-      return {
-        startTime: pSegment.startTime,
-        endTime: pSegment.endTime,
-        text: pSegment.rawText, // Use raw text for ASS processing
-        isHighlight: pSegment.isHighlight,
-        isStatic: pSegment.isStatic,
-        originalText: pSegment.originalText // Pass original text for word mode processing
-      };
-    });
+    const segments = preliminarySegments.map((pSegment) => ({
+      startTime: pSegment.startTime,
+      endTime: pSegment.endTime,
+      text: pSegment.rawText
+    }));
 
     if (segments.length === 0) {
       throw new Error('Keine finalen Untertitel-Segmente nach der Verarbeitung gefunden');
