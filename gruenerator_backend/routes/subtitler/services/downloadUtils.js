@@ -185,7 +185,8 @@ async function processVideoWithSubtitles(inputPath, outputPath, subtitles, metad
 
   // FFmpeg processing
   await new Promise((resolve, reject) => {
-    const command = ffmpeg(inputPath);
+    const command = ffmpeg(inputPath)
+      .setDuration(parseFloat(metadata.duration) || 0);
 
     // Quality optimization
     const { crf, preset, tune, audioCodec, audioBitrate, videoCodec: cpuVideoCodec } = calculateQualitySettings(metadata);

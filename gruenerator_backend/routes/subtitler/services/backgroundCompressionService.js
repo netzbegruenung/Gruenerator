@@ -214,7 +214,8 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
     // Perform compression - wrapped in pool to limit concurrent FFmpeg processes
     await ffmpegPool.run(async () => {
       await new Promise((resolve, reject) => {
-        const command = ffmpeg(originalVideoPath);
+        const command = ffmpeg(originalVideoPath)
+          .setDuration(parseFloat(metadata.duration) || 0);
 
       // Codec and quality settings based on hardware availability
       const is4K = metadata.width >= 2160;

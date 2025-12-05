@@ -187,7 +187,8 @@ export async function processProjectExport(project, projService) {
 
         await ffmpegPool.run(async () => {
             await new Promise((resolve, reject) => {
-                const command = ffmpeg(inputPath);
+                const command = ffmpeg(inputPath)
+                    .setDuration(parseFloat(metadata.duration) || 0);
 
                 const isLargeFile = fileSizeMB > 200;
                 const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
