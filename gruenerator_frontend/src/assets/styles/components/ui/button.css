@@ -798,6 +798,9 @@
   gap: 8px;
   text-decoration: none;
   font-family: inherit;
+  padding: var(--primary-button-padding-s);
+  height: var(--primary-button-height-s);
+  font-size: 14px;
 }
 
 .btn-primary.size-s {
