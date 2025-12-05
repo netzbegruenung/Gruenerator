@@ -123,12 +123,14 @@
 
 .shared-video-loading,
 .shared-video-expired,
-.shared-video-error {
+.shared-video-error,
+.shared-video-rendering {
     padding: var(--spacing-xxlarge);
     text-align: center;
 }
 
-.shared-video-loading .spinner {
+.shared-video-loading .spinner,
+.shared-video-rendering .spinner {
     width: 48px;
     height: 48px;
     border: 4px solid var(--border-color-disabled);
@@ -146,9 +148,22 @@
 
 .shared-video-loading p,
 .shared-video-expired p,
-.shared-video-error p {
+.shared-video-error p,
+.shared-video-rendering p {
     color: var(--font-color-disabled);
     margin: 0;
+}
+
+.shared-video-rendering h2 {
+    margin: 0 0 var(--spacing-small) 0;
+    color: var(--font-color-h);
+}
+
+.shared-video-rendering .rendering-hint {
+    font-size: 0.875rem;
+    margin-top: var(--spacing-medium);
+    color: var(--font-color-disabled);
+    opacity: 0.7;
 }
 
 .shared-video-expired svg,

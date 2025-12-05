@@ -125,7 +125,7 @@ class SubtitlerShareService {
             const query = `
                 SELECT sv.id, sv.user_id, sv.project_id, sv.share_token, sv.video_path, sv.video_filename,
                        sv.title, sv.thumbnail_path, sv.duration, sv.expires_at, sv.download_count, sv.created_at,
-                       COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
+                       sv.status, COALESCE(p.first_name, p.display_name, 'Jemand') as sharer_name
                 FROM subtitler_shared_videos sv
                 LEFT JOIN profiles p ON sv.user_id = p.id
                 WHERE sv.share_token = $1
@@ -158,7 +158,7 @@ class SubtitlerShareService {
         try {
             const query = `
                 SELECT id, share_token, title, thumbnail_path, duration,
-                       expires_at, download_count, created_at
+                       expires_at, download_count, created_at, status
                 FROM subtitler_shared_videos
                 WHERE user_id = $1
                 ORDER BY created_at DESC
@@ -252,6 +252,102 @@ class SubtitlerShareService {
         } catch (error) {
             console.error('[SubtitlerShareService] Failed to delete share:', error);
             throw new Error(`Failed to delete share: ${error.message}`);
+        }
+    }
+
+    async createPendingShare(userId, { title, thumbnailPath, duration, projectId, expiresInDays = DEFAULT_EXPIRATION_DAYS }) {
+        await this.ensureInitialized();
+
+        const shareToken = this.generateShareToken();
+        const shareDir = path.join(SHARED_VIDEOS_PATH, shareToken);
+
+        try {
+            await fs.mkdir(shareDir, { recursive: true });
+
+            let relativeThumbnailPath = null;
+            if (thumbnailPath) {
+                try {
+                    await fs.access(thumbnailPath);
+                    const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
+                    await fs.copyFile(thumbnailPath, targetThumbnailPath);
+                    relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
+                } catch {
+                    console.log('[SubtitlerShareService] No thumbnail to copy for pending share');
+                }
+            }
+
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+            const query = `
+                INSERT INTO subtitler_shared_videos
+                (user_id, project_id, share_token, video_path, video_filename, title, thumbnail_path, duration, expires_at, status)
+                VALUES ($1, $2, $3, NULL, NULL, $4, $5, $6, $7, 'rendering')
+                RETURNING id, share_token, created_at, expires_at
+            `;
+
+            const result = await this.postgres.queryOne(query, [
+                userId,
+                projectId || null,
+                shareToken,
+                title || 'Untertiteltes Video',
+                relativeThumbnailPath,
+                duration || null,
+                expiresAt.toISOString()
+            ]);
+
+            console.log(`[SubtitlerShareService] Created pending share ${shareToken} for user ${userId}`);
+
+            return {
+                id: result.id,
+                shareToken: result.share_token,
+                shareUrl: `/subtitler/share/${shareToken}`,
+                createdAt: result.created_at,
+                expiresAt: result.expires_at,
+                status: 'rendering'
+            };
+
+        } catch (error) {
+            try {
+                await fs.rm(shareDir, { recursive: true, force: true });
+            } catch {}
+            console.error('[SubtitlerShareService] Failed to create pending share:', error);
+            throw new Error(`Failed to create pending share: ${error.message}`);
+        }
+    }
+
+    async finalizeShare(shareToken, videoPath) {
+        await this.ensureInitialized();
+
+        try {
+            const shareDir = path.join(SHARED_VIDEOS_PATH, shareToken);
+            const targetVideoPath = path.join(shareDir, 'video.mp4');
+            await fs.copyFile(videoPath, targetVideoPath);
+
+            const query = `
+                UPDATE subtitler_shared_videos
+                SET video_path = $1, video_filename = 'video.mp4', status = 'ready'
+                WHERE share_token = $2
+            `;
+            await this.postgres.query(query, [`${shareToken}/video.mp4`, shareToken]);
+
+            console.log(`[SubtitlerShareService] Finalized share ${shareToken}`);
+
+        } catch (error) {
+            console.error('[SubtitlerShareService] Failed to finalize share:', error);
+            throw new Error(`Failed to finalize share: ${error.message}`);
+        }
+    }
+
+    async markShareFailed(shareToken) {
+        await this.ensureInitialized();
+
+        try {
+            const query = `UPDATE subtitler_shared_videos SET status = 'failed' WHERE share_token = $1`;
+            await this.postgres.query(query, [shareToken]);
+            console.log(`[SubtitlerShareService] Marked share ${shareToken} as failed`);
+        } catch (error) {
+            console.error('[SubtitlerShareService] Failed to mark share as failed:', error);
         }
     }
 
