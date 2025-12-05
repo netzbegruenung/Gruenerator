@@ -18,6 +18,7 @@ const SharedVideoPage = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
+  const [isRendering, setIsRendering] = useState(false);
 
   useEffect(() => {
     const fetchShareData = async () => {
@@ -27,6 +28,11 @@ const SharedVideoPage = () => {
         });
         if (response.data.success) {
           setShareData(response.data.share);
+          if (response.data.share.status === 'rendering') {
+            setIsRendering(true);
+          } else if (response.data.share.status === 'failed') {
+            setError('Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.');
+          }
         }
       } catch (err) {
         if (err.response?.status === 410) {
@@ -43,6 +49,31 @@ const SharedVideoPage = () => {
 
     fetchShareData();
   }, [shareToken]);
+
+  useEffect(() => {
+    if (!isRendering) return;
+
+    const pollStatus = async () => {
+      try {
+        const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
+          skipAuthRedirect: true
+        });
+        if (response.data.success) {
+          const newStatus = response.data.share.status;
+          if (newStatus === 'ready') {
+            setIsRendering(false);
+            setShareData(response.data.share);
+          } else if (newStatus === 'failed') {
+            setIsRendering(false);
+            setError('Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.');
+          }
+        }
+      } catch {}
+    };
+
+    const interval = setInterval(pollStatus, 5000);
+    return () => clearInterval(interval);
+  }, [isRendering, shareToken]);
 
   const handleDownload = async () => {
     if (!isAuthenticated) return;
@@ -141,6 +172,21 @@ const SharedVideoPage = () => {
             </svg>
             <h2>Fehler</h2>
             <p>{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isRendering) {
+    return (
+      <div className="shared-video-page">
+        <div className="shared-video-container">
+          <div className="shared-video-rendering">
+            <div className="spinner" />
+            <h2>Video wird gerendert...</h2>
+            <p>Das Video wird gerade vorbereitet. Dies kann einige Minuten dauern.</p>
+            <p className="rendering-hint">Diese Seite aktualisiert sich automatisch.</p>
           </div>
         </div>
       </div>

@@ -103,6 +103,39 @@ router.post('/', requireAuth, async (req, res) => {
     }
 });
 
+// Background render function for share creation
+async function triggerBackgroundRender(userId, projectId, shareToken, project) {
+    try {
+        const projService = await getProjectService();
+        const { processProjectExport } = await import('./services/exportService.js');
+
+        log.info(`Background render starting for share ${shareToken}`);
+
+        const result = await processProjectExport(project, projService);
+
+        const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
+        const subtitledVideoFullPath = projService.getSubtitledVideoPath(subtitledVideoRelativePath);
+
+        await fsPromises.mkdir(path.dirname(subtitledVideoFullPath), { recursive: true });
+        await fsPromises.copyFile(result.outputPath, subtitledVideoFullPath);
+        await projService.updateSubtitledVideoPath(userId, projectId, subtitledVideoRelativePath);
+
+        const service = await getShareService();
+        await service.finalizeShare(shareToken, subtitledVideoFullPath);
+
+        try {
+            await fsPromises.unlink(result.outputPath);
+        } catch {}
+
+        log.info(`Background render complete for share ${shareToken}`);
+
+    } catch (error) {
+        log.error(`Background render failed for ${shareToken}:`, error);
+        const service = await getShareService();
+        await service.markShareFailed(shareToken);
+    }
+}
+
 // POST /api/subtitler/share/from-project - Create a share from a saved project (auth required)
 router.post('/from-project', requireAuth, async (req, res) => {
     try {
@@ -116,7 +149,6 @@ router.post('/from-project', requireAuth, async (req, res) => {
             });
         }
 
-        // Get project service and verify ownership
         const projService = await getProjectService();
         let project;
         try {
@@ -135,30 +167,6 @@ router.post('/from-project', requireAuth, async (req, res) => {
             });
         }
 
-        // Check if subtitled video exists - require export before sharing
-        if (!project.subtitled_video_path) {
-            return res.status(400).json({
-                success: false,
-                error: 'Bitte exportiere das Video zuerst, bevor du es teilen kannst.',
-                code: 'EXPORT_REQUIRED'
-            });
-        }
-
-        // Get the subtitled video path
-        const videoPath = projService.getSubtitledVideoPath(project.subtitled_video_path);
-
-        // Check if subtitled video file exists
-        try {
-            await fsPromises.access(videoPath);
-        } catch {
-            return res.status(400).json({
-                success: false,
-                error: 'Bitte exportiere das Video erneut, bevor du es teilen kannst.',
-                code: 'EXPORT_REQUIRED'
-            });
-        }
-
-        // Get thumbnail path if exists
         let thumbnailPath = null;
         if (project.thumbnail_path) {
             thumbnailPath = projService.getThumbnailPath(project.thumbnail_path);
@@ -169,8 +177,76 @@ router.post('/from-project', requireAuth, async (req, res) => {
             }
         }
 
-        // Create the share
         const service = await getShareService();
+
+        if (!project.subtitled_video_path) {
+            if (!project.subtitles) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Projekt hat keine Untertitel zum Exportieren.',
+                    code: 'NO_SUBTITLES'
+                });
+            }
+
+            const share = await service.createPendingShare(userId, {
+                title: title || project.title || 'Untertiteltes Video',
+                thumbnailPath: thumbnailPath,
+                duration: project.video_metadata?.duration || null,
+                projectId: projectId,
+                expiresInDays
+            });
+
+            triggerBackgroundRender(userId, projectId, share.shareToken, project);
+
+            log.info(`Share created (rendering): ${share.shareToken} for project ${projectId} by user ${userId}`);
+
+            return res.json({
+                success: true,
+                share: {
+                    shareToken: share.shareToken,
+                    shareUrl: share.shareUrl,
+                    expiresAt: share.expiresAt,
+                    status: 'rendering'
+                }
+            });
+        }
+
+        const videoPath = projService.getSubtitledVideoPath(project.subtitled_video_path);
+
+        try {
+            await fsPromises.access(videoPath);
+        } catch {
+            if (!project.subtitles) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Video-Datei nicht gefunden und keine Untertitel zum Rendern.',
+                    code: 'NO_SUBTITLES'
+                });
+            }
+
+            const share = await service.createPendingShare(userId, {
+                title: title || project.title || 'Untertiteltes Video',
+                thumbnailPath: thumbnailPath,
+                duration: project.video_metadata?.duration || null,
+                projectId: projectId,
+                expiresInDays
+            });
+
+            triggerBackgroundRender(userId, projectId, share.shareToken, project);
+
+            log.info(`Share created (re-rendering): ${share.shareToken} for project ${projectId} by user ${userId}`);
+
+            return res.json({
+                success: true,
+                share: {
+                    shareToken: share.shareToken,
+                    shareUrl: share.shareUrl,
+                    expiresAt: share.expiresAt,
+                    status: 'rendering'
+                }
+            });
+        }
+
         const share = await service.createShare(userId, {
             videoPath: videoPath,
             title: title || project.title || 'Untertiteltes Video',
@@ -187,7 +263,8 @@ router.post('/from-project', requireAuth, async (req, res) => {
             share: {
                 shareToken: share.shareToken,
                 shareUrl: share.shareUrl,
-                expiresAt: share.expiresAt
+                expiresAt: share.expiresAt,
+                status: 'ready'
             }
         });
 
@@ -252,7 +329,8 @@ router.get('/:shareToken', async (req, res) => {
                 thumbnailUrl: share.thumbnail_path ? `/api/subtitler/share/${shareToken}/thumbnail` : null,
                 expiresAt: share.expires_at,
                 downloadCount: share.download_count,
-                sharerName: share.sharer_name
+                sharerName: share.sharer_name,
+                status: share.status || 'ready'
             }
         });
 
@@ -304,6 +382,21 @@ router.get('/:shareToken/preview', async (req, res) => {
 
         if (share.expired) {
             return res.status(410).json({ error: 'Link abgelaufen' });
+        }
+
+        if (share.status === 'rendering') {
+            return res.status(202).json({
+                status: 'rendering',
+                message: 'Video wird noch gerendert'
+            });
+        }
+
+        if (share.status === 'failed') {
+            return res.status(500).json({ error: 'Video-Rendering fehlgeschlagen' });
+        }
+
+        if (!share.video_path) {
+            return res.status(404).json({ error: 'Video-Datei nicht verfügbar' });
         }
 
         const videoPath = service.getVideoFilePath(share.video_path);
@@ -366,6 +459,28 @@ router.get('/:shareToken/download', requireAuth, async (req, res) => {
             return res.status(410).json({
                 success: false,
                 error: 'Link abgelaufen'
+            });
+        }
+
+        if (share.status === 'rendering') {
+            return res.status(202).json({
+                success: false,
+                status: 'rendering',
+                error: 'Video wird noch gerendert. Bitte warte einen Moment.'
+            });
+        }
+
+        if (share.status === 'failed') {
+            return res.status(500).json({
+                success: false,
+                error: 'Video-Rendering fehlgeschlagen'
+            });
+        }
+
+        if (!share.video_path) {
+            return res.status(404).json({
+                success: false,
+                error: 'Video-Datei nicht verfügbar'
             });
         }
 
