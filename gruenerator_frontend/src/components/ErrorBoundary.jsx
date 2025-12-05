@@ -5,15 +5,38 @@ import '../assets/styles/components/error-boundary.css';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null, copied: false };
+    this.state = { hasError: false, error: null, errorInfo: null, copied: false, isChunkError: false };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error };
+    const isChunkError = ErrorBoundary.isChunkLoadError(error);
+    return { hasError: true, error, isChunkError };
+  }
+
+  static isChunkLoadError(error) {
+    return (
+      error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.message?.includes('Loading CSS chunk') ||
+      error?.name === 'ChunkLoadError'
+    );
   }
 
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
+
+    // Handle chunk load errors with auto-reload
+    if (ErrorBoundary.isChunkLoadError(error)) {
+      const hasReloaded = sessionStorage.getItem('chunk-reload-attempted');
+      if (!hasReloaded) {
+        sessionStorage.setItem('chunk-reload-attempted', 'true');
+        window.location.reload();
+        return;
+      }
+      // Clear the flag so future chunk errors can trigger reload
+      sessionStorage.removeItem('chunk-reload-attempted');
+    }
+
     this.logErrorToService(error, errorInfo);
   }
 
@@ -64,8 +87,17 @@ class ErrorBoundary extends React.Component {
   };
 
   getErrorMessage() {
-    const { error } = this.state;
-    
+    const { error, isChunkError } = this.state;
+
+    // Check for chunk load error first (after auto-reload failed)
+    if (isChunkError) {
+      return {
+        title: 'Neue Version verfügbar',
+        message: 'Eine neue Version der Anwendung wurde veröffentlicht. Bitte führen Sie einen harten Refresh durch: Strg+Shift+R (Windows/Linux) oder Cmd+Shift+R (Mac).',
+        isChunkError: true
+      };
+    }
+
     // Verbesserte Fehlertyperkennung
     if (error?.name === 'ServerError') {
       return {
