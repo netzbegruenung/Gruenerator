@@ -971,10 +971,20 @@ async function processVideoExportInBackground(params) {
 
       // Build video filters
       let scaleFilter = null;
-      if (maxResolution && metadata.height > maxResolution) {
+      const isVertical = metadata.width < metadata.height;
+      const qualityDimension = isVertical ? metadata.width : metadata.height;
+      if (maxResolution && qualityDimension > maxResolution) {
         const aspectRatio = metadata.width / metadata.height;
-        const targetHeight = maxResolution;
-        const targetWidth = Math.round(targetHeight * aspectRatio);
+        let targetWidth, targetHeight;
+        if (isVertical) {
+          // Vertical: scale width to maxResolution, calculate height
+          targetWidth = maxResolution;
+          targetHeight = Math.round(targetWidth / aspectRatio);
+        } else {
+          // Horizontal: scale height to maxResolution, calculate width
+          targetHeight = maxResolution;
+          targetWidth = Math.round(targetHeight * aspectRatio);
+        }
         const finalWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
         const finalHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
         scaleFilter = `scale=${finalWidth}:${finalHeight}`;
