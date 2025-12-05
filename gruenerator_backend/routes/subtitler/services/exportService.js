@@ -1,10 +1,14 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../../utils/logger.js';
 import redisClient from '../../../utils/redisClient.js';
 import * as hwaccel from './hwaccelUtils.js';
+
+const require = createRequire(import.meta.url);
+const { ffmpeg, ffprobe } = require('./ffmpegWrapper.js');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +18,6 @@ const log = createLogger('export-service');
 const EXPORTS_DIR = path.join(__dirname, '../../../uploads/exports');
 
 async function getVideoMetadata(inputPath) {
-    const { default: ffmpeg } = await import('fluent-ffmpeg');
     return new Promise((resolve, reject) => {
         ffmpeg.ffprobe(inputPath, (err, metadata) => {
             if (err) {
@@ -48,7 +51,7 @@ function parseSubtitleSegments(subtitles) {
             if (lines.length < 2) return null;
 
             const timeLine = lines[0].trim();
-            const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)(?:\s*\[(?:HIGHLIGHT|STATIC)\])?$/);
+            const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
             if (!timeMatch) return null;
 
             const startMin = parseInt(timeMatch[1]);
@@ -60,18 +63,9 @@ function parseSubtitleSegments(subtitles) {
 
             const startTime = startMin * 60 + startSec + startFrac * 0.1;
             const endTime = endMin * 60 + endSec + endFrac * 0.1;
-
             const text = lines.slice(1).join('\n');
-            const hasHighlight = timeLine.includes('[HIGHLIGHT]');
-            const hasStatic = timeLine.includes('[STATIC]');
 
-            return {
-                startTime,
-                endTime,
-                text,
-                hasHighlight,
-                hasStatic
-            };
+            return { startTime, endTime, text };
         })
         .filter(Boolean)
         .sort((a, b) => a.startTime - b.startTime);
@@ -185,7 +179,6 @@ export async function processProjectExport(project, projService) {
         }
 
         const { default: ffmpegPool } = await import('./ffmpegPool.js');
-        const { default: ffmpeg } = await import('fluent-ffmpeg');
 
         const referenceDimension = isVertical ? metadata.width : metadata.height;
         const fileSizeMB = fileStats.size / 1024 / 1024;

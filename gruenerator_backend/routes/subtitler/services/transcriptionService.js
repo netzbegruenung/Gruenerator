@@ -6,7 +6,6 @@ const { extractAudio } = require('./videoUploadService');
 // UNUSED: Short subtitle generator service commented out - only manual mode is used
 // const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
 const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
-const { generateWordHighlightSubtitles } = require('./wordHighlightSubtitleService');
 const { startBackgroundCompression } = require('./backgroundCompressionService');
 const { createLogger } = require('../../../utils/logger.js');
 
@@ -265,18 +264,6 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
 
         // Use manual service to generate 2-second intelligent segments
         finalTranscription = await generateManualSubtitles(transcriptionResult.text, transcriptionResult.words);
-
-    } else if (subtitlePreference === 'word') {
-        const transcriptionResult = await transcribeWithProvider(audioPath, true);
-
-        if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-            throw new Error('Invalid transcription data received from provider');
-        }
-
-        log.debug(`Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`);
-
-        // Use word highlight service to generate individual word segments
-        finalTranscription = await generateWordHighlightSubtitles(transcriptionResult.text, transcriptionResult.words);
 
     } else {
         // Fallback to manual mode if unknown mode provided

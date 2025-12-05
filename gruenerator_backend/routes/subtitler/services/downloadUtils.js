@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const ffmpeg = require('fluent-ffmpeg');
+const { ffmpeg } = require('./ffmpegWrapper.js');
 const { v4: uuidv4 } = require('uuid');
 const { getVideoMetadata, cleanupFiles } = require('./videoUploadService');
 const { getFilePathFromUploadId, checkFileExists } = require('./tusService');
@@ -499,12 +499,12 @@ function processSubtitleSegments(subtitles) {
   
   const preliminarySegments = subtitles
     .split('\n\n')
-    .map((block, index) => {
+    .map((block) => {
       const lines = block.trim().split('\n');
       if (lines.length < 2) return null;
-      
+
       const timeLine = lines[0].trim();
-      const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)(?:\s*\[(?:HIGHLIGHT|STATIC)\])?$/);
+      const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
       if (!timeMatch) return null;
 
       let startMin = parseInt(timeMatch[1]);
@@ -514,7 +514,6 @@ function processSubtitleSegments(subtitles) {
       let endSec = parseInt(timeMatch[5]);
       let endFrac = parseInt(timeMatch[6]);
 
-      // Handle minute overflow
       if (startSec >= 60) {
         startMin += Math.floor(startSec / 60);
         startSec = startSec % 60;
@@ -523,26 +522,16 @@ function processSubtitleSegments(subtitles) {
         endMin += Math.floor(endSec / 60);
         endSec = endSec % 60;
       }
-      
+
       const startTime = startMin * 60 + startSec + (startFrac / 10);
       const endTime = endMin * 60 + endSec + (endFrac / 10);
-      
+
       if (startTime >= endTime) return null;
 
-      const rawText = lines.slice(1).join(' ').trim();
-      if (!rawText) return null;
-      
-      const isHighlight = timeLine.includes('[HIGHLIGHT]');
-      const isStatic = timeLine.includes('[STATIC]');
-      
-      return {
-        startTime,
-        endTime,
-        text: rawText,
-        isHighlight,
-        isStatic,
-        originalText: rawText
-      };
+      const text = lines.slice(1).join(' ').trim();
+      if (!text) return null;
+
+      return { startTime, endTime, text };
     })
     .filter(Boolean)
     .sort((a, b) => a.startTime - b.startTime);
