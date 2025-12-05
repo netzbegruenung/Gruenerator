@@ -1,17 +1,13 @@
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const { ffmpeg } = require('./ffmpegWrapper.js');
 const redisClient = require('../../../utils/redisClient');
 const { getVideoMetadata } = require('./videoUploadService');
 const { ffmpegPool } = require('./ffmpegPool');
 const { createLogger } = require('../../../utils/logger.js');
 const hwaccel = require('./hwaccelUtils.js');
 const log = createLogger('backgroundCompr');
-
-
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Configuration for background compression
 const COMPRESSION_CONFIG = {

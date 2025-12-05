@@ -1,13 +1,9 @@
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const { ffmpeg } = require('./ffmpegWrapper.js');
 const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('videoUpload');
-
-
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Function to get video metadata (remains unchanged)
 async function getVideoMetadata(videoPath) {
