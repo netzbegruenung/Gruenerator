@@ -129,30 +129,6 @@ const SubtitlerPage = () => {
     };
   }, [uploadInfo?.uploadId, baseURL, isProcessing]);
 
-  // Background video loading for saved projects
-  useEffect(() => {
-    const loadVideoInBackground = async () => {
-      if (step === 'edit' && uploadInfo?.isFromProject && !originalVideoFile && loadedProject?.id) {
-        try {
-          const videoResponse = await apiClient.get(
-            `/subtitler/projects/${loadedProject.id}/video`,
-            { responseType: 'blob' }
-          );
-          const videoFile = new File(
-            [videoResponse.data],
-            loadedProject.video_filename || 'video.mp4',
-            { type: 'video/mp4' }
-          );
-          setOriginalVideoFile(videoFile);
-        } catch (err) {
-          console.error('[SubtitlerPage] Background video load failed:', err);
-          setError('Video konnte nicht geladen werden');
-        }
-      }
-    };
-    loadVideoInBackground();
-  }, [step, uploadInfo?.isFromProject, originalVideoFile, loadedProject?.id, loadedProject?.video_filename]);
-
   const handleUploadComplete = (uploadData) => { 
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
     if (uploadData.originalFile instanceof File) {
@@ -365,16 +341,17 @@ const SubtitlerPage = () => {
         setHeightPreference(project.height_preference || 'standard');
         setModePreference(project.mode_preference || 'manual');
 
-        // Set upload info from project data
+        // Set upload info from project data with streaming video URL
         setUploadInfo({
           uploadId: project.id,
           metadata: project.video_metadata,
           name: project.video_filename,
           size: project.video_size,
-          isFromProject: true // Flag to indicate this is loaded from a project
+          isFromProject: true,
+          videoUrl: `${baseURL}/subtitler/projects/${project.id}/video`
         });
 
-        // Navigate immediately - video will load in background via useEffect
+        // Navigate immediately - video streams from URL
         setStep('edit');
       }
     } catch (err) {
@@ -413,11 +390,11 @@ const SubtitlerPage = () => {
       <div className="subtitler-container container with-header">
         {/* Check for maintenance mode first */}
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (
-          <MaintenanceNotice featureName="Reel-Grünerator" />
+          <MaintenanceNotice featureName="Grünerator Reel-Studio" />
         ) : (
           <>
             {(step === 'upload' || step === 'confirm') && (
-              <h1 className="subtitler-title">Reel-Grünerator</h1>
+              <h1 className="subtitler-title">Grünerator Reel-Studio</h1>
             )}
             
             {error && (
@@ -524,6 +501,7 @@ const SubtitlerPage = () => {
 
                   <SubtitleEditor
                     videoFile={originalVideoFile}
+                    videoUrl={uploadInfo?.videoUrl}
                     subtitles={subtitles}
                     uploadId={uploadInfo?.uploadId}
                     subtitlePreference={subtitlePreference}
@@ -564,6 +542,6 @@ const SubtitlerPage = () => {
 };
 
 export default withAuthRequired(SubtitlerPage, {
-  title: 'Reel Generator',
-  message: 'Anmeldung erforderlich für den Reel Generator'
+  title: 'Grünerator Reel-Studio',
+  message: 'Anmeldung erforderlich für das Grünerator Reel-Studio'
 });

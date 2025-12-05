@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const ffmpeg = require('fluent-ffmpeg');
+const { ffmpeg } = require('./services/ffmpegWrapper.js');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
 const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
@@ -15,6 +15,7 @@ const { getCompressionStatus } = require('./services/backgroundCompressionServic
 const { ffmpegPool } = require('./services/ffmpegPool');
 const { createLogger } = require('../../utils/logger.js');
 const { correctSubtitlesViaAI } = require('./services/subtitleCorrectionService');
+const hwaccel = require('./services/hwaccelUtils.js');
 
 const log = createLogger('subtitler');
 
@@ -530,8 +531,7 @@ router.post('/export', async (req, res) => {
         }
         
         const timeLine = lines[0].trim();
-        // Updated regex to handle fractional seconds format (MM:SS.s - MM:SS.s) with optional metadata
-        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)(?:\s*\[(?:HIGHLIGHT|STATIC)\])?$/);
+        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
         if (!timeMatch) {
           // console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine); // Keep this commented
           return null;
@@ -565,21 +565,13 @@ router.post('/export', async (req, res) => {
 
         const rawText = lines.slice(1).join(' ').trim();
         if (!rawText) {
-          // console.warn(`[subtitlerController] Empty text in block ${index}`); // Keep this commented
           return null;
         }
-        
-        // Extract highlight metadata for word mode
-        const isHighlight = timeLine.includes('[HIGHLIGHT]');
-        const isStatic = timeLine.includes('[STATIC]');
-        
+
         return {
           startTime,
           endTime,
-          rawText, // Store raw text first
-          isHighlight: isHighlight,
-          isStatic: isStatic,
-          originalText: rawText // Store original text for word mode processing
+          rawText
         };
       })
       .filter(Boolean) // Remove nulls from invalid blocks
@@ -600,17 +592,11 @@ router.post('/export', async (req, res) => {
     const avgWords = preliminarySegments.length > 0 ? totalWords / preliminarySegments.length : 5;
 
     // ---- Second pass to process text and create final segments ----
-    const segments = preliminarySegments.map((pSegment, index) => {
-      // For ASS subtitles, we keep the raw text and let ASS handle formatting
-      return {
-        startTime: pSegment.startTime,
-        endTime: pSegment.endTime,
-        text: pSegment.rawText, // Use raw text for ASS processing
-        isHighlight: pSegment.isHighlight,
-        isStatic: pSegment.isStatic,
-        originalText: pSegment.originalText // Pass original text for word mode processing
-      };
-    });
+    const segments = preliminarySegments.map((pSegment) => ({
+      startTime: pSegment.startTime,
+      endTime: pSegment.endTime,
+      text: pSegment.rawText
+    }));
 
     if (segments.length === 0) {
       throw new Error('Keine finalen Untertitel-Segmente nach der Verarbeitung gefunden');
@@ -879,129 +865,102 @@ async function processVideoExportInBackground(params) {
       log.debug('Using pre-generated ASS file from export endpoint');
     }
 
+    // Detect hardware acceleration availability
+    const useHwAccel = await hwaccel.detectVaapi();
+
     // FFmpeg processing - wrapped in pool to limit concurrent processes
     await ffmpegPool.run(async () => {
       await new Promise((resolve, reject) => {
-        const command = ffmpeg(inputPath);
-      
-      // Quality settings
-      let crf, preset, tune;
-      
-      if (fileSizeMB > 200) {
-        log.debug(`Large file (${fileSizeMB.toFixed(1)}MB), using size-optimized settings`);
-        preset = 'superfast';
-        tune = 'film';
-        
-        if (referenceDimension >= 2160) {
-          crf = 26;
-        } else if (referenceDimension >= 1440) {
-          crf = 25;
-        } else if (referenceDimension >= 1080) {
-          crf = 25;
-        } else {
-          crf = 26;
-        }
-      } else {
-        // Use faster presets with lower CRF to maintain quality while speeding up encoding
-        if (referenceDimension >= 2160) {
-          crf = 17; // Lower CRF compensates for faster preset
-          preset = 'medium';
-          tune = 'film';
-        } else if (referenceDimension >= 1440) {
-          crf = 18;
-          preset = 'medium';
-          tune = 'film';
-        } else if (referenceDimension >= 1080) {
-          crf = 19;
-          preset = 'medium';
-          tune = 'film';
-        } else if (referenceDimension >= 720) {
-          crf = 20;
-          preset = 'medium';
-          tune = 'film';
-        } else {
-          crf = 21;
-          preset = 'medium';
-          tune = 'film';
-        }
+        const command = ffmpeg(inputPath)
+          .setDuration(parseFloat(metadata.duration) || 0);
+
+      // Quality settings from centralized config
+      const isLargeFile = fileSizeMB > 200;
+      const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
+      const { crf, preset } = qualitySettings;
+      const tune = 'film';
+
+      if (isLargeFile) {
+        log.debug(`Large file (${fileSizeMB.toFixed(1)}MB), using optimized settings: CRF ${crf}, preset ${preset}`);
       }
-      
-      log.debug(`FFmpeg: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
 
       // Audio settings
       let audioCodec, audioBitrate;
       const originalAudioCodec = metadata.originalFormat?.audioCodec;
       const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
-      
+
       if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
         audioCodec = 'copy';
         audioBitrate = null;
       } else {
         audioCodec = 'aac';
-        if (fileSizeMB > 200) {
-          audioBitrate = '96k';
-        } else {
-          if (referenceDimension >= 1440) {
-            audioBitrate = '256k';
-          } else if (referenceDimension >= 1080) {
-            audioBitrate = '192k';
-          } else {
-            audioBitrate = '128k';
-          }
-        }
+        audioBitrate = qualitySettings.audioBitrate;
       }
 
-      // Video codec
+      // Video codec and output options based on hardware availability
+      const is4K = referenceDimension >= 2160;
+      const isHevcSource = metadata.originalFormat?.codec === 'hevc';
       let videoCodec;
-      if (fileSizeMB > 200) {
-        videoCodec = 'libx264';
-      } else if (referenceDimension >= 2160 && metadata.originalFormat?.codec === 'hevc') {
-        videoCodec = 'libx265';
+      let outputOptions;
+
+      if (useHwAccel) {
+        videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
+        const qp = hwaccel.crfToQp(crf);
+
+        command.inputOptions(hwaccel.getVaapiInputOptions());
+
+        outputOptions = [
+          '-y',
+          ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
+          '-c:a', audioCodec,
+          ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+          '-movflags', '+faststart',
+          '-avoid_negative_ts', 'make_zero'
+        ];
+
+        log.debug(`FFmpeg VAAPI: ${referenceDimension}p, encoder: ${videoCodec}, QP: ${qp}`);
       } else {
-        videoCodec = 'libx264';
-      }
+        if (isLargeFile) {
+          videoCodec = 'libx264';
+        } else if (is4K && isHevcSource) {
+          videoCodec = 'libx265';
+        } else {
+          videoCodec = 'libx264';
+        }
 
-      // Use original video bitrate if available, otherwise fall back to CRF
-      const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
-      let bitrateOptions = [];
+        const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
+        let bitrateOptions = [];
 
-      if (originalVideoBitrate && originalVideoBitrate > 0) {
-        // Use original bitrate with slight headroom for subtitle complexity
-        const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
-        const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
-        const bufSize = Math.ceil(originalVideoBitrate * 2);
-        bitrateOptions = ['-b:v', targetBitrate.toString(), '-maxrate', maxBitrate.toString(), '-bufsize', bufSize.toString()];
-        log.debug(`Using original bitrate: ${(originalVideoBitrate / 1000000).toFixed(1)} Mbps → target: ${(targetBitrate / 1000000).toFixed(1)} Mbps`);
-      } else {
-        // Fallback to CRF-based encoding
-        bitrateOptions = ['-crf', crf.toString()];
-        log.debug(`No original bitrate, using CRF: ${crf}`);
-      }
+        if (originalVideoBitrate && originalVideoBitrate > 0) {
+          const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
+          const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
+          const bufSize = Math.ceil(originalVideoBitrate * 2);
+          bitrateOptions = ['-b:v', targetBitrate.toString(), '-maxrate', maxBitrate.toString(), '-bufsize', bufSize.toString()];
+          log.debug(`Using original bitrate: ${(originalVideoBitrate / 1000000).toFixed(1)} Mbps → target: ${(targetBitrate / 1000000).toFixed(1)} Mbps`);
+        } else {
+          bitrateOptions = ['-crf', crf.toString()];
+          log.debug(`No original bitrate, using CRF: ${crf}`);
+        }
 
-      // Output options
-      const outputOptions = [
-        '-y',
-        '-c:v', videoCodec,
-        '-preset', preset,
-        ...bitrateOptions,
-        ...(tune ? ['-tune', tune] : []),
-        '-profile:v', fileSizeMB > 200 ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
-        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-        '-c:a', audioCodec,
-        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-        '-movflags', '+faststart',
-        '-avoid_negative_ts', 'make_zero'
-      ];
-      
-      if (fileSizeMB > 200) {
-        outputOptions.push(
-          '-threads', '0',
-          '-me_method', 'umh',
-          '-subq', '6',
-          '-bf', '3',
-          '-refs', '3',
-          '-trellis', '1'
-        );
+        outputOptions = [
+          '-y',
+          '-c:v', videoCodec,
+          '-preset', preset,
+          ...bitrateOptions,
+          ...(tune ? ['-tune', tune] : []),
+          '-profile:v', isLargeFile ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
+          '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+          '-c:a', audioCodec,
+          ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+          '-movflags', '+faststart',
+          '-avoid_negative_ts', 'make_zero'
+        ];
+
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
+        }
+
+        log.debug(`FFmpeg CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
       }
 
       if (metadata.rotation && metadata.rotation !== '0') {
@@ -1010,30 +969,44 @@ async function processVideoExportInBackground(params) {
 
       command.outputOptions(outputOptions);
 
-      // Build video filters array
-      const videoFilters = [];
-
-      // Add scale filter if maxResolution is set and video exceeds it
-      if (maxResolution && metadata.height > maxResolution) {
+      // Build video filters
+      let scaleFilter = null;
+      const isVertical = metadata.width < metadata.height;
+      const qualityDimension = isVertical ? metadata.width : metadata.height;
+      if (maxResolution && qualityDimension > maxResolution) {
         const aspectRatio = metadata.width / metadata.height;
-        const targetHeight = maxResolution;
-        const targetWidth = Math.round(targetHeight * aspectRatio);
-        // Ensure dimensions are divisible by 2 (required by most codecs)
+        let targetWidth, targetHeight;
+        if (isVertical) {
+          // Vertical: scale width to maxResolution, calculate height
+          targetWidth = maxResolution;
+          targetHeight = Math.round(targetWidth / aspectRatio);
+        } else {
+          // Horizontal: scale height to maxResolution, calculate width
+          targetHeight = maxResolution;
+          targetWidth = Math.round(targetHeight * aspectRatio);
+        }
         const finalWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
         const finalHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
-        videoFilters.push(`scale=${finalWidth}:${finalHeight}`);
+        scaleFilter = `scale=${finalWidth}:${finalHeight}`;
         log.info(`Scaling video from ${metadata.width}x${metadata.height} to ${finalWidth}x${finalHeight} (maxResolution: ${maxResolution})`);
       }
 
-      // Apply ASS subtitles filter if available
-      if (assFilePath) {
-        const fontDir = path.dirname(tempFontPath);
-        videoFilters.push(`subtitles=${assFilePath}:fontsdir=${fontDir}`);
-      }
-
-      // Apply all video filters
-      if (videoFilters.length > 0) {
-        command.videoFilters(videoFilters);
+      if (useHwAccel) {
+        const fontDir = assFilePath ? path.dirname(tempFontPath) : null;
+        const filterChain = hwaccel.getSubtitleFilterChain(assFilePath, fontDir, scaleFilter);
+        command.videoFilters([filterChain]);
+      } else {
+        const videoFilters = [];
+        if (scaleFilter) {
+          videoFilters.push(scaleFilter);
+        }
+        if (assFilePath) {
+          const fontDir = path.dirname(tempFontPath);
+          videoFilters.push(`subtitles=${assFilePath}:fontsdir=${fontDir}`);
+        }
+        if (videoFilters.length > 0) {
+          command.videoFilters(videoFilters);
+        }
       }
 
       command

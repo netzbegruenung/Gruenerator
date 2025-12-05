@@ -809,13 +809,14 @@ CREATE TABLE IF NOT EXISTS subtitler_shared_videos (
     project_id UUID REFERENCES subtitler_projects(id) ON DELETE SET NULL,
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     share_token VARCHAR(32) UNIQUE NOT NULL,
-    video_path TEXT NOT NULL,
-    video_filename TEXT NOT NULL,
+    video_path TEXT,
+    video_filename TEXT,
     title TEXT,
     thumbnail_path TEXT,
     duration DECIMAL,
     expires_at TIMESTAMPTZ NOT NULL,
     download_count INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'ready' CHECK (status IN ('rendering', 'ready', 'failed')),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -17,6 +17,7 @@ import '../styles/SubtitleEditor.css';
 
 const SubtitleEditor = ({
   videoFile,
+  videoUrl: videoUrlProp,
   subtitles,
   uploadId,
   subtitlePreference,
@@ -196,8 +197,16 @@ const SubtitleEditor = ({
 
   // Validiere Props und erstelle Video-URL
   useEffect(() => {
+    // Use streaming URL directly if provided (for saved projects)
+    if (videoUrlProp) {
+      console.log('[SubtitleEditor] Using streaming video URL');
+      setVideoUrl(videoUrlProp);
+      return;
+    }
+
+    // Create blob URL from file (for new uploads)
     if (!videoFile) {
-      console.log('[SubtitleEditor] No video file provided');
+      console.log('[SubtitleEditor] No video file or URL provided');
       return;
     }
 
@@ -213,10 +222,10 @@ const SubtitleEditor = ({
         type: videoFile.type,
         size: videoFile.size
       });
-      
+
       const url = URL.createObjectURL(videoFile);
       setVideoUrl(url);
-      
+
       return () => {
         console.log('[SubtitleEditor] Cleaning up video URL');
         URL.revokeObjectURL(url);
@@ -225,7 +234,7 @@ const SubtitleEditor = ({
       console.error('[SubtitleEditor] Error creating video URL:', error);
       setError('Fehler beim Laden der Video-Vorschau');
     }
-  }, [videoFile]);
+  }, [videoFile, videoUrlProp]);
 
   // Verarbeite Untertitel
   useEffect(() => {
@@ -375,17 +384,17 @@ const SubtitleEditor = ({
 
   // Adjust textarea heights on mobile (must be before early return)
   useEffect(() => {
-    if (window.innerWidth <= 768 && videoFile && subtitles) {
+    if (window.innerWidth <= 768 && (videoFile || videoUrlProp) && subtitles) {
       const textareas = document.querySelectorAll('.segment-text');
       textareas.forEach((element) => {
         element.style.height = 'auto';
         element.style.height = element.scrollHeight + 'px';
       });
     }
-  }, [editableSubtitles, videoFile, subtitles]);
+  }, [editableSubtitles, videoFile, videoUrlProp, subtitles]);
 
   // Frühe Rückgabe bei fehlenden Props
-  if (!videoFile || !subtitles) {
+  if ((!videoFile && !videoUrlProp) || !subtitles) {
     console.log('[SubtitleEditor] Missing required props');
     return (
       <div className="subtitle-editor-container">
@@ -795,6 +804,7 @@ const SubtitleEditor = ({
 
 SubtitleEditor.propTypes = {
   videoFile: PropTypes.instanceOf(File),
+  videoUrl: PropTypes.string,
   subtitles: PropTypes.string.isRequired,
   uploadId: PropTypes.string.isRequired,
   subtitlePreference: PropTypes.string.isRequired,

@@ -72,7 +72,7 @@ const ShareVideoModal = ({ exportToken, projectId, title, onClose }) => {
         {!currentShare ? (
           <>
             <p className="share-modal-description">
-              Erstelle einen Link, den du mit anderen teilen kannst. Empfänger müssen ihre E-Mail-Adresse angeben, bevor sie das Video herunterladen können.
+              Erstelle einen Link, den du mit anderen teilen kannst.
             </p>
 
             <div className="share-modal-form">
@@ -166,9 +166,11 @@ const ShareVideoModal = ({ exportToken, projectId, title, onClose }) => {
               </button>
             </div>
 
-            <p className="share-modal-info">
-              Empfänger müssen ihre E-Mail-Adresse eingeben, um das Video herunterladen zu können.
-            </p>
+            {currentShare.status === 'rendering' && (
+              <p className="share-modal-info share-modal-rendering-info">
+                Das Video wird im Hintergrund gerendert. Der Empfänger kann es herunterladen, sobald es fertig ist.
+              </p>
+            )}
 
             <div className="share-modal-actions">
               <button

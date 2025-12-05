@@ -1,16 +1,13 @@
 const path = require('path');
 const fs = require('fs');
 const fsPromises = fs.promises;
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const { ffmpeg } = require('./ffmpegWrapper.js');
 const redisClient = require('../../../utils/redisClient');
 const { getVideoMetadata } = require('./videoUploadService');
 const { ffmpegPool } = require('./ffmpegPool');
 const { createLogger } = require('../../../utils/logger.js');
+const hwaccel = require('./hwaccelUtils.js');
 const log = createLogger('backgroundCompr');
-
-
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Configuration for background compression
 const COMPRESSION_CONFIG = {
@@ -27,14 +24,14 @@ const COMPRESSION_CONFIG = {
   QUALITY_SETTINGS: {
     // High quality compression - minimal quality loss
     HIGH_QUALITY: {
-      crf: 18,
+      crf: 19,
       preset: 'slow',
       tune: 'film'
     },
     // Balanced compression for very large files
     BALANCED: {
-      crf: 20,
-      preset: 'medium', 
+      crf: 21,
+      preset: 'medium',
       tune: 'film'
     }
   },
@@ -211,50 +208,80 @@ async function compressVideoInBackground(originalVideoPath, uploadId) {
       output: compressedPath
     });
     
+    // Detect hardware acceleration availability
+    const useHwAccel = await hwaccel.detectVaapi();
+
     // Perform compression - wrapped in pool to limit concurrent FFmpeg processes
     await ffmpegPool.run(async () => {
       await new Promise((resolve, reject) => {
-        const command = ffmpeg(originalVideoPath);
-      
-      // Intelligent codec selection
-      const videoCodec = metadata.width >= 2160 ? 'libx265' : 'libx264';
-      
-      // Optimized compression settings
-      const outputOptions = [
-        '-y', // Overwrite output
-        '-c:v', videoCodec,
-        '-preset', settings.preset,
-        '-crf', settings.crf.toString(),
-        '-tune', settings.tune,
-        // Audio preservation - copy if already AAC and good quality
-        '-c:a', 'aac',
-        '-b:a', '192k', // Good quality audio
-        // Container optimizations
-        '-movflags', '+faststart',
-        '-avoid_negative_ts', 'make_zero'
-      ];
-      
+        const command = ffmpeg(originalVideoPath)
+          .setDuration(parseFloat(metadata.duration) || 0);
+
+      // Codec and quality settings based on hardware availability
+      const is4K = metadata.width >= 2160;
+      let videoCodec, outputOptions;
+
+      if (useHwAccel) {
+        videoCodec = hwaccel.getVaapiEncoder(is4K, false);
+        const qp = hwaccel.crfToQp(settings.crf);
+
+        command.inputOptions(hwaccel.getVaapiInputOptions());
+
+        outputOptions = [
+          '-y',
+          ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-movflags', '+faststart',
+          '-avoid_negative_ts', 'make_zero'
+        ];
+
+        log.debug(`[BackgroundCompression] Using VAAPI hardware encoding: ${videoCodec}, QP: ${qp}`);
+      } else {
+        videoCodec = is4K ? 'libx265' : 'libx264';
+
+        outputOptions = [
+          '-y',
+          '-c:v', videoCodec,
+          '-preset', settings.preset,
+          '-crf', settings.crf.toString(),
+          '-tune', settings.tune,
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-movflags', '+faststart',
+          '-avoid_negative_ts', 'make_zero'
+        ];
+
+        if (videoCodec === 'libx264') {
+          outputOptions.push(...hwaccel.getX264QualityParams());
+        }
+
+        log.debug(`[BackgroundCompression] Using CPU encoding: ${videoCodec}, CRF: ${settings.crf}`);
+      }
+
       // Preserve metadata including rotation
       if (metadata.rotation && metadata.rotation !== '0') {
         outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
       }
-      
-      // Apply video filters if needed (resolution scaling)
-      const videoFilters = [];
-      if (targetResolution) {
-        // Scale video to target resolution, preserving aspect ratio and ensuring even dimensions
-        videoFilters.push(`scale=${targetResolution.width}:${targetResolution.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`);
-        log.debug(`[BackgroundCompression] Applying resolution scaling: ${metadata.width}x${metadata.height} → ${targetResolution.width}x${targetResolution.height}`);
+
+      // Apply video filters
+      const scaleFilter = targetResolution
+        ? `scale=${targetResolution.width}:${targetResolution.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`
+        : null;
+
+      if (useHwAccel) {
+        const filterChain = hwaccel.getCompressionFilterChain(scaleFilter);
+        command.videoFilters([filterChain]);
+        if (scaleFilter) {
+          log.debug(`[BackgroundCompression] Applying VAAPI scaling: ${metadata.width}x${metadata.height} → ${targetResolution.width}x${targetResolution.height}`);
+        }
+      } else if (scaleFilter) {
+        command.videoFilters([scaleFilter]);
+        log.debug(`[BackgroundCompression] Applying CPU scaling: ${metadata.width}x${metadata.height} → ${targetResolution.width}x${targetResolution.height}`);
       }
-      
-      command
-        .outputOptions(outputOptions);
-      
-      // Apply video filters if any
-      if (videoFilters.length > 0) {
-        command.videoFilters(videoFilters);
-      }
-      
+
+      command.outputOptions(outputOptions);
+
       command
         .on('start', (cmd) => {
           log.debug(`[BackgroundCompression] FFmpeg started: ${cmd.substring(0, 100)}...`);
