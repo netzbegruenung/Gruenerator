@@ -8,6 +8,7 @@ const { getFilePathFromUploadId, checkFileExists } = require('./tusService');
 const redisClient = require('../../../utils/redisClient');
 const AssSubtitleService = require('./assSubtitleService');
 const { createLogger } = require('../../../utils/logger.js');
+const hwaccel = require('./hwaccelUtils.js');
 const log = createLogger('downloadUtils');
 
 
@@ -172,33 +173,70 @@ async function processVideoExport(exportParams, res) {
 async function processVideoWithSubtitles(inputPath, outputPath, subtitles, metadata, subtitlePreference, stylePreference, heightPreference, exportToken) {
   // Font size calculation logic (extracted from controller)
   const { finalFontSize, finalSpacing } = calculateFontSizes(subtitles, metadata);
-  
+
   // Process subtitle segments
   const segments = processSubtitleSegments(subtitles);
-  
+
   // Generate ASS subtitles
   const { assFilePath, tempFontPath } = await generateAssSubtitles(segments, metadata, subtitlePreference, stylePreference, heightPreference, finalFontSize);
-  
+
+  // Detect hardware acceleration
+  const useHwAccel = await hwaccel.detectVaapi();
+
   // FFmpeg processing
   await new Promise((resolve, reject) => {
     const command = ffmpeg(inputPath);
-    
+
     // Quality optimization
-    const { crf, preset, tune, audioCodec, audioBitrate, videoCodec } = calculateQualitySettings(metadata);
-    
-    const outputOptions = [
-      '-y',
-      '-c:v', videoCodec,
-      '-preset', preset,
-      '-crf', crf.toString(),
-      '-tune', tune,
-      '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-      '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-      '-c:a', audioCodec,
-      ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-      '-movflags', '+faststart',
-      '-avoid_negative_ts', 'make_zero'
-    ];
+    const { crf, preset, tune, audioCodec, audioBitrate, videoCodec: cpuVideoCodec } = calculateQualitySettings(metadata);
+
+    const isVertical = metadata.width < metadata.height;
+    const referenceDimension = isVertical ? metadata.width : metadata.height;
+    const is4K = referenceDimension >= 2160;
+    const isHevcSource = metadata.originalFormat?.codec === 'hevc';
+
+    let videoCodec;
+    let outputOptions;
+
+    if (useHwAccel) {
+      videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
+      const qp = hwaccel.crfToQp(crf);
+
+      command.inputOptions(hwaccel.getVaapiInputOptions());
+
+      outputOptions = [
+        '-y',
+        ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
+        '-c:a', audioCodec,
+        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+        '-movflags', '+faststart',
+        '-avoid_negative_ts', 'make_zero'
+      ];
+
+      log.debug(`[FFmpeg] Using VAAPI: ${referenceDimension}p, encoder: ${videoCodec}, QP: ${qp}`);
+    } else {
+      videoCodec = cpuVideoCodec;
+
+      outputOptions = [
+        '-y',
+        '-c:v', videoCodec,
+        '-preset', preset,
+        '-crf', crf.toString(),
+        '-tune', tune,
+        '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
+        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
+        '-c:a', audioCodec,
+        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
+        '-movflags', '+faststart',
+        '-avoid_negative_ts', 'make_zero'
+      ];
+
+      if (videoCodec === 'libx264') {
+        outputOptions.push(...hwaccel.getX264QualityParams());
+      }
+
+      log.debug(`[FFmpeg] Using CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
+    }
 
     if (metadata.rotation && metadata.rotation !== '0') {
       outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
@@ -206,8 +244,13 @@ async function processVideoWithSubtitles(inputPath, outputPath, subtitles, metad
 
     command.outputOptions(outputOptions);
 
-    // Apply ASS subtitles filter if available
-    if (assFilePath) {
+    // Apply video filters
+    if (useHwAccel) {
+      const fontDir = assFilePath ? path.dirname(tempFontPath) : null;
+      const filterChain = hwaccel.getSubtitleFilterChain(assFilePath, fontDir, null);
+      command.videoFilters([filterChain]);
+      log.debug(`[FFmpeg] Applied VAAPI filter chain with subtitles`);
+    } else if (assFilePath) {
       const fontDir = path.dirname(tempFontPath);
       command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
       log.debug(`[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`);
@@ -563,53 +606,28 @@ async function generateAssSubtitles(segments, metadata, subtitlePreference, styl
   return { assFilePath, tempFontPath };
 }
 
-function calculateQualitySettings(metadata) {
+function calculateQualitySettings(metadata, fileSizeMB = 0) {
   const isVertical = metadata.width < metadata.height;
   const referenceDimension = isVertical ? metadata.width : metadata.height;
-  
-  let crf, preset, tune;
-  
-  if (referenceDimension >= 2160) {
-    crf = 18;
-    preset = 'slow';
-    tune = 'film';
-  } else if (referenceDimension >= 1440) {
-    crf = 19;
-    preset = 'slow';
-    tune = 'film';
-  } else if (referenceDimension >= 1080) {
-    crf = 20;
-    preset = 'medium';
-    tune = 'film';
-  } else if (referenceDimension >= 720) {
-    crf = 21;
-    preset = 'medium';
-    tune = 'film';
-  } else {
-    crf = 22;
-    preset = 'slower';
-    tune = 'film';
-  }
-  
+  const isLargeFile = fileSizeMB > 200;
+
+  const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
+  const { crf, preset } = qualitySettings;
+  const tune = 'film';
+
   log.debug(`[FFmpeg] ${referenceDimension}p, CRF: ${crf}, Preset: ${preset}`);
 
   // Audio settings
   const originalAudioCodec = metadata.originalFormat?.audioCodec;
   const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
-  
+
   let audioCodec, audioBitrate;
   if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
     audioCodec = 'copy';
     audioBitrate = null;
   } else {
     audioCodec = 'aac';
-    if (referenceDimension >= 1440) {
-      audioBitrate = '256k';
-    } else if (referenceDimension >= 1080) {
-      audioBitrate = '192k';
-    } else {
-      audioBitrate = '128k';
-    }
+    audioBitrate = qualitySettings.audioBitrate;
   }
 
   // Video codec
