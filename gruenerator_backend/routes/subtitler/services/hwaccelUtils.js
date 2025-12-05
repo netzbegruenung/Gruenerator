@@ -117,6 +117,15 @@ async function detectVaapi() {
   }
 
   try {
+    fs.accessSync(VAAPI_DEVICE, fs.constants.R_OK | fs.constants.W_OK);
+  } catch (permErr) {
+    log.warn(`VAAPI device ${VAAPI_DEVICE} permission denied, using CPU encoding. Add user to 'render' or 'video' group.`);
+    hwaccelAvailable = false;
+    hwaccelTested = true;
+    return false;
+  }
+
+  try {
     execSync(
       `ffmpeg -hide_banner -vaapi_device ${VAAPI_DEVICE} -f lavfi -i testsrc=duration=0.1:size=320x240 -vf 'format=nv12,hwupload' -c:v h264_vaapi -f null - 2>&1`,
       { timeout: 15000, stdio: 'pipe' }
@@ -125,7 +134,10 @@ async function detectVaapi() {
     log.info('VAAPI hardware acceleration detected and working');
   } catch (err) {
     hwaccelAvailable = false;
-    log.warn(`VAAPI test failed: ${err.message || 'unknown error'}, using CPU encoding`);
+    const stderr = err.stderr ? err.stderr.toString().trim() : '';
+    const stdout = err.stdout ? err.stdout.toString().trim() : '';
+    const output = stderr || stdout || err.message || 'unknown error';
+    log.warn(`VAAPI test failed: ${output}, using CPU encoding`);
   }
 
   hwaccelTested = true;
