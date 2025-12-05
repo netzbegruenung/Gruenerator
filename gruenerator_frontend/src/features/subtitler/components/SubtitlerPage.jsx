@@ -390,11 +390,11 @@ const SubtitlerPage = () => {
       <div className="subtitler-container container with-header">
         {/* Check for maintenance mode first */}
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (
-          <MaintenanceNotice featureName="Reel-Grünerator" />
+          <MaintenanceNotice featureName="Grünerator Reel-Studio" />
         ) : (
           <>
             {(step === 'upload' || step === 'confirm') && (
-              <h1 className="subtitler-title">Reel-Grünerator</h1>
+              <h1 className="subtitler-title">Grünerator Reel-Studio</h1>
             )}
             
             {error && (
@@ -542,6 +542,6 @@ const SubtitlerPage = () => {
 };
 
 export default withAuthRequired(SubtitlerPage, {
-  title: 'Reel Generator',
-  message: 'Anmeldung erforderlich für den Reel Generator'
+  title: 'Grünerator Reel-Studio',
+  message: 'Anmeldung erforderlich für das Grünerator Reel-Studio'
 });

@@ -233,7 +233,7 @@ const ProjectSelector = ({ onSelectProject, onNewProject, loadingProjectId }) =>
     return (
         <div className="project-selector">
             <div className="project-selector-header">
-                <h1 className="project-selector-title">Reel-Grünerator</h1>
+                <h1 className="project-selector-title">Grünerator Reel-Studio</h1>
                 <button
                     className="btn-primary new-project-btn"
                     onClick={onNewProject}
