@@ -871,7 +871,8 @@ async function processVideoExportInBackground(params) {
     // FFmpeg processing - wrapped in pool to limit concurrent processes
     await ffmpegPool.run(async () => {
       await new Promise((resolve, reject) => {
-        const command = ffmpeg(inputPath);
+        const command = ffmpeg(inputPath)
+          .setDuration(parseFloat(metadata.duration) || 0);
 
       // Quality settings from centralized config
       const isLargeFile = fileSizeMB > 200;
