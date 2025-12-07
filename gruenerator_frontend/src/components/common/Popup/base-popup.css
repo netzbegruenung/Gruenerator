@@ -720,6 +720,15 @@
     margin: 0;
   }
 
+  .popup-single-container {
+    min-height: 100vh;
+    min-height: var(--app-height, 100vh);
+    height: 100vh;
+    height: var(--app-height, 100vh);
+    max-height: 100vh;
+    max-height: var(--app-height, 100vh);
+  }
+
   .popup-slider-dots {
     top: env(safe-area-inset-top, 10px);
     left: 10px;
