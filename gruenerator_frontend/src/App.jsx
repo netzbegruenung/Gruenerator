@@ -13,7 +13,8 @@ import { routes } from './config/routes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
-const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
+// const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
+const PopupWeihnachten = lazy(() => import('./components/Popups/popup_weihnachten'));
 
 // QueryClient Instanz erstellen
 const queryClient = new QueryClient({
@@ -95,7 +96,7 @@ function App() {
                 <RouteLogger />
                 <SuspenseWrapper>
                   <PopupNutzungsbedingungen />
-                  <CustomGrueneratorenPopup />
+                  <PopupWeihnachten />
                   <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
                   
                   <Routes>

@@ -234,7 +234,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
 
   // Help content for the generator
   const helpContent = {
-    content: "Dieser Grünerator erstellt festliche Weihnachtsgrüße für deine Region mit grünen Werten. Wähle einen Hintergrund und gib deinen Ort ein - der Rest wird automatisch generiert.",
+    content: "Dieser Grünerator erstellt festliche Weihnachtsgrüße für deine Region mit grünen Werten. Wähle einen Hintergrund und gib deinen Ort ein - der Rest wird automatisch grüneriert.",
     tips: [
       "Wähle ein Hintergrund-Design aus 6 festlichen Varianten",
       "Gib deinen Ort oder deine Region ein (z.B. Hamburg, Köln, München)",
