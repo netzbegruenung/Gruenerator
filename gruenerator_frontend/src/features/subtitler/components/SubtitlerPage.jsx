@@ -28,7 +28,7 @@ import '../styles/ProjectSelector.css';
 const IS_SUBTITLER_UNDER_MAINTENANCE = false;
 // ------------------------
 
-const SubtitlerPage = () => {
+const SubtitlerPage = ({ user }) => {
   const [step, setStep] = useState('select');
   const [originalVideoFile, setOriginalVideoFile] = useState(null); // Original File-Objekt
   const [uploadInfo, setUploadInfo] = useState(null); // Upload-ID, Metadaten und Präferenz
@@ -55,9 +55,9 @@ const SubtitlerPage = () => {
   // Get Igel mode status from auth store
   const { igelModus } = useAuthStore();
 
-  // Skip to upload if no projects exist
+  // Skip to upload if no projects exist (only fetch when authenticated)
   useEffect(() => {
-    if (step === 'select') {
+    if (step === 'select' && user) {
       fetchProjects().then(() => {
         const { projects: currentProjects } = useSubtitlerProjectStore.getState();
         if (currentProjects.length === 0) {
@@ -65,7 +65,7 @@ const SubtitlerPage = () => {
         }
       });
     }
-  }, [step, fetchProjects]);
+  }, [step, fetchProjects, user]);
 
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);
