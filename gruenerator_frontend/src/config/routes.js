@@ -130,6 +130,7 @@ const standardRoutes = [
   { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
   { path: '/kampagnen', component: GrueneratorenBundle.Kampagnen, withForm: true },
+  { path: '/weihnachten', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/imagine', component: GrueneratorenBundle.Imagine, withForm: true },
   { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
   { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
