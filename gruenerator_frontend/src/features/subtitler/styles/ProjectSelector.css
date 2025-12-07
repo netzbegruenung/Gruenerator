@@ -266,10 +266,6 @@
     font-size: 0.9rem;
 }
 
-.project-card.deleting {
-    pointer-events: none;
-}
-
 .project-card.deleting .project-thumbnail,
 .project-card.deleting .project-info {
     filter: blur(2px);

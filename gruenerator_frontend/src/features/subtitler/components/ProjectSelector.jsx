@@ -80,10 +80,10 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
         e.stopPropagation();
         try {
             await onDelete(project.id);
+            setConfirmDelete(false);
         } catch (err) {
             console.error('Failed to delete project:', err);
         }
-        setConfirmDelete(false);
     };
 
     const handleCancelDelete = (e) => {
