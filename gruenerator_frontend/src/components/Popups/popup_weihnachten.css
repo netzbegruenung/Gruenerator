@@ -1,0 +1,63 @@
+.popup-weihnachten {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xlarge);
+  padding: var(--spacing-xlarge);
+}
+
+.popup-weihnachten-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.popup-weihnachten-image-container {
+  position: relative;
+  max-width: 240px;
+  width: 100%;
+}
+
+.popup-weihnachten-image {
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius-large);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.popup-weihnachten-caption {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  margin-top: var(--spacing-small);
+  font-style: italic;
+}
+
+.popup-weihnachten .popup-slide-content {
+  text-align: left;
+  max-width: 350px;
+}
+
+.popup-weihnachten .popup-buttons {
+  justify-content: flex-start;
+}
+
+@media (max-width: 768px) {
+  .popup-weihnachten-preview {
+    display: none;
+  }
+
+  .popup-weihnachten .popup-slide-content {
+    text-align: center;
+    max-width: 100%;
+  }
+
+  .popup-weihnachten .popup-buttons {
+    justify-content: center;
+  }
+}
