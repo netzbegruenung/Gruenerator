@@ -135,7 +135,7 @@
   justify-content: center;
   gap: var(--spacing-small);
   background: linear-gradient(135deg, #7d2ae8 0%, #00c4cc 100%);
-  color: var(--weiss);
+  color: white;
   border: none;
   padding: var(--spacing-small) var(--spacing-large);
   border-radius: var(--card-border-radius-small);
