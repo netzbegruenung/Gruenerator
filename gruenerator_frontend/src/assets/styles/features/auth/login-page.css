@@ -467,10 +467,14 @@
 
 /* Enhanced Mobile Layout (<768px) */
 @media (max-width: 767px) {
+  .auth-container--modal {
+    padding: var(--spacing-large);
+  }
+
   .auth-content-wrapper {
     display: block;
   }
-  
+
   .auth-content-left,
   .auth-content-right {
     width: 100%;
@@ -513,9 +517,10 @@
   .auth-modal-overlay {
     padding: var(--spacing-medium);
   }
-  
+
   .auth-container--modal {
     max-height: 95vh;
+    padding: var(--spacing-medium);
   }
 }
 
