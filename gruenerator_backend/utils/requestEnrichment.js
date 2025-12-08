@@ -137,6 +137,7 @@ class RequestEnricher {
       enableWebSearch = false,
       enableDocQnA = true,
       usePrivacyMode = false,
+      useProMode = false,
       webSearchQuery = null,
       systemRole = null,
       constraints = null,
@@ -176,7 +177,9 @@ class RequestEnricher {
       // Store content selection IDs for vector search
       selectedDocumentIds,
       selectedTextIds,
-      searchQuery
+      searchQuery,
+      // Pro Mode flag for reasoning
+      useProMode
     };
 
     // Check if document knowledge was already processed (from chat route)
