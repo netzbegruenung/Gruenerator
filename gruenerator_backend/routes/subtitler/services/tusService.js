@@ -334,6 +334,11 @@ if (!isInitialized) {
   isInitialized = true;
 }
 
+const getOriginalFilename = async (uploadId) => {
+  const status = await getUploadStatus(uploadId);
+  return status.metadata?.metadata?.filename || `video_${uploadId}.mp4`;
+};
+
 module.exports = {
   tusServer,
   getFilePathFromUploadId,
@@ -344,5 +349,6 @@ module.exports = {
   isUploadPromoted,
   scheduleImmediateCleanup,
   getUploadStatus,
-  cleanupUploadFiles
+  cleanupUploadFiles,
+  getOriginalFilename
 };

@@ -6,11 +6,13 @@ const fsPromises = fs.promises;
 const { ffmpeg } = require('./services/ffmpegWrapper.js');
 const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
 const { transcribeVideo } = require('./services/transcriptionService');
-const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup } = require('./services/tusService');
+const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup, getOriginalFilename } = require('./services/tusService');
 const redisClient = require('../../utils/redisClient');
 const { v4: uuidv4 } = require('uuid');
 const AssSubtitleService = require('./services/assSubtitleService');
-const { generateDownloadToken, processDirectDownload, processChunkedDownload } = require('./services/downloadUtils');
+const { generateDownloadToken, processDirectDownload, processChunkedDownload, processSubtitleSegments } = require('./services/downloadUtils');
+const { calculateFontSizing } = require('./services/subtitleSizingService');
+const { saveToExistingProject, autoSaveProject } = require('./services/projectSavingService');
 const { getCompressionStatus } = require('./services/backgroundCompressionService');
 const { ffmpegPool } = require('./services/ffmpegPool');
 const { createLogger } = require('../../utils/logger.js');
@@ -24,6 +26,21 @@ const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Reg
 
 // Create ASS service instance
 const assService = new AssSubtitleService();
+
+async function setRedisStatus(key, status, data = null, ttlSeconds = 86400) {
+    const payload = data !== null ? { status, ...data } : { status };
+    await redisClient.set(key, JSON.stringify(payload), { EX: ttlSeconds });
+    log.debug(`Redis status '${status}' set for ${key}`);
+}
+
+async function cleanupExportArtifacts(assFilePath, tempFontPath) {
+    if (assFilePath) {
+        await assService.cleanupTempFile(assFilePath).catch(err => log.warn(`ASS cleanup failed: ${err.message}`));
+        if (tempFontPath) {
+            await fsPromises.unlink(tempFontPath).catch(err => log.warn(`Font cleanup failed: ${err.message}`));
+        }
+    }
+}
 
 // Check if the font exists (optional for ASS - will fallback to system fonts)
 async function checkFont() {
@@ -460,7 +477,7 @@ router.post('/export', async (req, res) => {
     // Fall back to uploadId if no project video found
     if (!inputPath && uploadId) {
       inputPath = getFilePathFromUploadId(uploadId);
-      originalFilename = `video_${uploadId}.mp4`;
+      originalFilename = await getOriginalFilename(uploadId);
     }
 
     if (!inputPath) {
@@ -487,178 +504,12 @@ router.post('/export', async (req, res) => {
     const outputBaseName = path.basename(originalFilename, path.extname(originalFilename));
     outputPath = path.join(outputDir, `${outputBaseName}_${Date.now()}${path.extname(originalFilename)}`);
 
-    // Intelligent font size calculation for short subtitle segments
-    const isVertical = metadata.width < metadata.height;
-    const referenceDimension = isVertical ? metadata.width : metadata.height;
-    const totalPixels = metadata.width * metadata.height;
-    
-    // Increased base values for better readability of short texts
-    let minFontSize, maxFontSize, basePercentage;
-    
-    if (referenceDimension >= 2160) { // 4K and higher
-      minFontSize = 80;  // +20px for short texts
-      maxFontSize = 180; // +40px for better visibility
-      basePercentage = isVertical ? 0.070 : 0.065; // +1.5% / +1.5%
-    } else if (referenceDimension >= 1440) { // 2K/1440p
-      minFontSize = 60;  // +15px
-      maxFontSize = 140; // +40px
-      basePercentage = isVertical ? 0.065 : 0.060; // +1.5% / +1.5%
-    } else if (referenceDimension >= 1080) { // FullHD
-      minFontSize = 40;  // Reduced by 10%
-      maxFontSize = 90; // Reduced by 10%
-      basePercentage = isVertical ? 0.054 : 0.0495; // Reduced by 10%
-    } else if (referenceDimension >= 720) { // HD - reduced by 10%
-      minFontSize = 32;
-      maxFontSize = 63;
-      basePercentage = isVertical ? 0.0495 : 0.045;
-    } else { // SD and smaller - reduced by 10%
-      minFontSize = 29;
-      maxFontSize = 58;
-      basePercentage = isVertical ? 0.0585 : 0.054;
-    }
-    
-    // Logarithmic adjustment for very high resolutions (amplified)
-    const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1; // Increased from 0.1 to 0.15
-    const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4); // Max 40% increase (instead of 30%)
-    
-    const fontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage)));
-
-    // Calculate line spacing with a hybrid approach
-    const minSpacing = 40; // Minimum spacing in pixels
-    const maxSpacing = fontSize * 1.25;
-    const spacing = Math.max(minSpacing, Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize/48))));
-
-    // Process subtitle segments
-    
-    // First pass: Extract raw data and sort
-    const preliminarySegments = subtitles
-      .split('\n\n')
-      .map((block, index) => {
-        const lines = block.trim().split('\n');
-        if (lines.length < 2) {
-          // console.warn(`[subtitlerController] Skipping invalid block ${index}:`, block); // Keep this commented unless very verbose debugging is needed
-          return null;
-        }
-        
-        const timeLine = lines[0].trim();
-        const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
-        if (!timeMatch) {
-          // console.warn(`[subtitlerController] Invalid time format in block ${index}:`, timeLine); // Keep this commented
-          return null;
-        }
-
-        let startMin = parseInt(timeMatch[1]);
-        let startSec = parseInt(timeMatch[2]);
-        let startFrac = parseInt(timeMatch[3]);
-        let endMin = parseInt(timeMatch[4]);
-        let endSec = parseInt(timeMatch[5]);
-        let endFrac = parseInt(timeMatch[6]);
-
-        // Handle minute overflow for fractional seconds (shouldn't happen with new format)
-        if (startSec >= 60) {
-          startMin += Math.floor(startSec / 60);
-          startSec = startSec % 60;
-        }
-        if (endSec >= 60) {
-          endMin += Math.floor(endSec / 60);
-          endSec = endSec % 60;
-        }
-
-        // Convert to precise floating point seconds
-        const startTime = startMin * 60 + startSec + (startFrac / 10);
-        const endTime = endMin * 60 + endSec + (endFrac / 10);
-
-        if (startTime >= endTime) {
-          log.warn(`Invalid time range in block ${index}: ${startTime} >= ${endTime}`);
-          return null;
-        }
-
-        const rawText = lines.slice(1).join(' ').trim();
-        if (!rawText) {
-          return null;
-        }
-
-        return {
-          startTime,
-          endTime,
-          rawText
-        };
-      })
-      .filter(Boolean) // Remove nulls from invalid blocks
-      .sort((a, b) => a.startTime - b.startTime); // Sort by startTime
-
-    if (preliminarySegments.length === 0) {
-      throw new Error('Keine gültigen vorläufigen Untertitel-Segmente gefunden');
-    }
-
-    // ---- Start: Calculate average segment length and enhanced scale factor based on rawText ----
-    let totalChars = 0;
-    let totalWords = 0;
-    preliminarySegments.forEach(segment => {
-      totalChars += segment.rawText.length;
-      totalWords += segment.rawText.split(' ').length;
-    });
-    const avgLength = preliminarySegments.length > 0 ? totalChars / preliminarySegments.length : 30;
-    const avgWords = preliminarySegments.length > 0 ? totalWords / preliminarySegments.length : 5;
-
-    // ---- Second pass to process text and create final segments ----
-    const segments = preliminarySegments.map((pSegment) => ({
-      startTime: pSegment.startTime,
-      endTime: pSegment.endTime,
-      text: pSegment.rawText
-    }));
-
-    if (segments.length === 0) {
-      throw new Error('Keine finalen Untertitel-Segmente nach der Verarbeitung gefunden');
-    }
-
+    // Parse subtitle segments using shared service
+    const segments = processSubtitleSegments(subtitles);
     log.debug(`Parsed ${segments.length} segments`);
 
-    const calculateScaleFactor = (avgChars, avgWords) => {
-        // Verstärkte Skalierung für kurze Texte (typisch für Untertitel)
-        const shortCharThreshold = 20;  // Reduziert von 15
-        const longCharThreshold = 40;   // Reduziert von 45
-        const shortWordThreshold = 3;   // Sehr kurze Segmente
-        const longWordThreshold = 7;    // Längere Segmente
-        
-        // Basis-Faktoren für Textlänge (verstärkt)
-        let charFactor;
-        if (avgChars <= shortCharThreshold) {
-            charFactor = 1.35; // Erhöht von 1.15 auf 1.35 für sehr kurze Texte
-        } else if (avgChars >= longCharThreshold) {
-            charFactor = 0.95; // Leicht reduziert für lange Texte
-        } else {
-            // Linear interpolation
-            const range = longCharThreshold - shortCharThreshold;
-            const position = avgChars - shortCharThreshold;
-            charFactor = 1.35 - ((1.35 - 0.95) * (position / range));
-        }
-        
-        // Zusätzlicher Wort-basierter Faktor
-        let wordFactor;
-        if (avgWords <= shortWordThreshold) {
-            wordFactor = 1.25; // Bonus für sehr wenige Wörter
-        } else if (avgWords >= longWordThreshold) {
-            wordFactor = 0.95; // Leichte Reduktion für viele Wörter
-        } else {
-            const range = longWordThreshold - shortWordThreshold;
-            const position = avgWords - shortWordThreshold;
-            wordFactor = 1.25 - ((1.25 - 0.95) * (position / range));
-        }
-        
-        // Kombiniere beide Faktoren (gewichtet)
-        return (charFactor * 0.7) + (wordFactor * 0.3);
-    };
-
-    const scaleFactor = calculateScaleFactor(avgLength, avgWords);
-
-    // Apply scale factor and clamp
-    const finalFontSize = Math.max(minFontSize, Math.min(maxFontSize, Math.floor(fontSize * scaleFactor)));
-    // Also scale maxSpacing when scaling up, keep minSpacing fixed
-    const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
-    const finalSpacing = Math.max(minSpacing, Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor)));
-
-    log.debug(`Font: ${finalFontSize}px, spacing: ${finalSpacing}px`);
+    // Calculate font sizing using shared service
+    const { finalFontSize, finalSpacing } = calculateFontSizing(metadata, segments);
 
     // Updated cache key to include stylePreference, heightPreference, and locale
     const cacheKey = `${uploadId}_${subtitlePreference}_${stylePreference}_${heightPreference}_${locale}_${metadata.width}x${metadata.height}`;
@@ -1040,121 +891,46 @@ async function processVideoExportInBackground(params) {
             log.warn(`Redis progress update error: ${redisError.message}`);
           }
         })
-        .on('error', (err) => {
+        .on('error', async (err) => {
           log.error(`FFmpeg error: ${err.message}`);
           // Store error status in Redis
           redisClient.set(`export:${exportToken}`, JSON.stringify({
             status: 'error',
             error: err.message || 'FFmpeg processing failed'
           }), { EX: 60 * 60 }).catch(redisErr => log.warn(`Redis error storage failed: ${redisErr.message}`));
-          
-          // Cleanup ASS files
-          if (assFilePath) {
-            assService.cleanupTempFile(assFilePath).catch(cleanupErr => log.warn(`ASS cleanup failed: ${cleanupErr.message}`));
-            if (tempFontPath) {
-              fsPromises.unlink(tempFontPath).catch(fontErr => log.warn(`Font cleanup failed: ${fontErr.message}`));
-            }
-          }
+
+          await cleanupExportArtifacts(assFilePath, tempFontPath);
           reject(err);
         })
         .on('end', async () => {
           log.info(`FFmpeg processing complete for ${exportToken}`);
 
-          // If projectId and userId are provided, save subtitled video to project
+          // Save to existing project if provided
           if (projectId && userId) {
             try {
-              const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
-              const projectService = getSubtitlerProjectService();
-              await projectService.ensureInitialized();
-
-              // Get project to check for existing subtitled video
-              const project = await projectService.getProject(userId, projectId);
-
-              // Define persistent path
-              const projectDir = path.join(__dirname, '../../uploads/subtitler-projects', userId, projectId);
-              const subtitledFilename = `subtitled_${Date.now()}.mp4`;
-              const persistentPath = path.join(projectDir, subtitledFilename);
-              const relativeSubtitledPath = `${userId}/${projectId}/${subtitledFilename}`;
-
-              // Ensure directory exists
-              await fsPromises.mkdir(projectDir, { recursive: true });
-
-              // Clean up old subtitled video if exists
-              if (project.subtitled_video_path) {
-                const oldPath = path.join(__dirname, '../../uploads/subtitler-projects', project.subtitled_video_path);
-                await fsPromises.unlink(oldPath).catch(() => {});
-              }
-
-              // Copy the exported video to persistent storage
-              await fsPromises.copyFile(outputPath, persistentPath);
-
-              // Update database with new subtitled video path
-              await projectService.updateSubtitledVideoPath(userId, projectId, relativeSubtitledPath);
-
-              log.info(`Saved subtitled video for project ${projectId}: ${relativeSubtitledPath}`);
+              await saveToExistingProject(userId, projectId, outputPath);
             } catch (saveError) {
-              log.warn(`Failed to save subtitled video for project: ${saveError.message}`);
+              log.warn(`Failed to save to project: ${saveError.message}`);
             }
           }
 
           // Auto-save: Check for existing project or create new one
           if (!projectId && userId && uploadId) {
             try {
-              const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
-              const projectService = getSubtitlerProjectService();
-              await projectService.ensureInitialized();
-
-              // Check if project with same video filename already exists
-              const existingProject = await projectService.findProjectByVideoFilename(userId, originalFilename);
-
-              if (existingProject) {
-                // Update existing project
-                projectId = existingProject.id;
-                const projectDir = path.join(__dirname, '../../uploads/subtitler-projects', userId, projectId);
-                const subtitledFilename = `subtitled_${Date.now()}.mp4`;
-                const persistentPath = path.join(projectDir, subtitledFilename);
-                const relativeSubtitledPath = `${userId}/${projectId}/${subtitledFilename}`;
-
-                // Clean up old subtitled video if exists
-                if (existingProject.subtitled_video_path) {
-                  const oldPath = path.join(__dirname, '../../uploads/subtitler-projects', existingProject.subtitled_video_path);
-                  await fsPromises.unlink(oldPath).catch(() => {});
-                }
-
-                await fsPromises.mkdir(projectDir, { recursive: true });
-                await fsPromises.copyFile(outputPath, persistentPath);
-                await projectService.updateSubtitledVideoPath(userId, projectId, relativeSubtitledPath);
-
-                log.info(`Updated existing project ${projectId} for export ${exportToken}`);
-              } else {
-                // Create new project
-                const projectTitle = originalFilename.replace(/\.[^/.]+$/, '') || 'Untertiteltes Video';
-
-                const newProject = await projectService.createProject(userId, {
-                  uploadId: uploadId,
-                  title: projectTitle,
-                  subtitles: segments,
-                  stylePreference: stylePreference,
-                  heightPreference: heightPreference,
-                  modePreference: subtitlePreference,
-                  videoMetadata: metadata,
-                  videoFilename: originalFilename,
-                  videoSize: fileStats?.size || 0
-                });
-
-                projectId = newProject.id;
-
-                const projectDir = path.join(__dirname, '../../uploads/subtitler-projects', userId, projectId);
-                const subtitledFilename = `subtitled_${Date.now()}.mp4`;
-                const persistentPath = path.join(projectDir, subtitledFilename);
-                const relativeSubtitledPath = `${userId}/${projectId}/${subtitledFilename}`;
-
-                await fsPromises.mkdir(projectDir, { recursive: true });
-                await fsPromises.copyFile(outputPath, persistentPath);
-                await projectService.updateSubtitledVideoPath(userId, projectId, relativeSubtitledPath);
-
-                log.info(`Auto-created project ${projectId} for export ${exportToken}`);
-              }
+              const result = await autoSaveProject({
+                userId,
+                outputPath,
+                uploadId,
+                originalFilename,
+                segments,
+                metadata,
+                fileStats,
+                stylePreference,
+                heightPreference,
+                subtitlePreference,
+                exportToken
+              });
+              projectId = result.projectId;
             } catch (autoSaveError) {
               log.warn(`Auto-save failed: ${autoSaveError.message}`);
             }
@@ -1162,25 +938,17 @@ async function processVideoExportInBackground(params) {
 
           // Store completion status with file path in Redis
           try {
-            const completionData = {
-              status: 'complete',
+            await setRedisStatus(`export:${exportToken}`, 'complete', {
               progress: 100,
               outputPath: outputPath,
               originalFilename: originalFilename,
               projectId: projectId || null
-            };
-            await redisClient.set(`export:${exportToken}`, JSON.stringify(completionData), { EX: 60 * 60 });
+            }, 3600);
           } catch (redisError) {
             log.warn(`Redis completion status storage failed: ${redisError.message}`);
           }
 
-          // Cleanup ASS files
-          if (assFilePath) {
-            await assService.cleanupTempFile(assFilePath).catch(cleanupErr => log.warn(`ASS cleanup failed: ${cleanupErr.message}`));
-            if (tempFontPath) {
-              await fsPromises.unlink(tempFontPath).catch(fontErr => log.warn(`Font cleanup failed: ${fontErr.message}`));
-            }
-          }
+          await cleanupExportArtifacts(assFilePath, tempFontPath);
           resolve();
         });
 
