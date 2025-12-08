@@ -54,6 +54,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
     // Prepare AI Worker payload with image
     const payload = {
       systemPrompt,
+      provider: 'mistral',
       messages: [{
         role: 'user',
         content: [
@@ -74,7 +75,7 @@ Gib deinen Alt-Text in <alt_text> Tags aus.`;
       options: {
         max_tokens: 2000,
         temperature: 0.3,
-        useBedrock: true
+        model: 'mistral-large-2512'
       }
     };
 
