@@ -5,6 +5,7 @@ const fs = require('fs');
 const fsPromises = fs.promises;
 const { requireAuth } = require('../../middleware/authMiddleware');
 const { createLogger } = require('../../utils/logger.js');
+const { saveOrUpdateProject } = require('./services/projectSavingService');
 
 const log = createLogger('subtitler-projects');
 
@@ -89,8 +90,7 @@ router.post('/', requireAuth, async (req, res) => {
             });
         }
 
-        const service = await getProjectService();
-        const project = await service.createProject(userId, {
+        const { project, isNew } = await saveOrUpdateProject(userId, {
             uploadId,
             subtitles,
             title,
@@ -102,11 +102,10 @@ router.post('/', requireAuth, async (req, res) => {
             videoSize
         });
 
-        log.info(`Created project ${project.id} for user ${userId}`);
-
-        res.status(201).json({
+        res.status(isNew ? 201 : 200).json({
             success: true,
-            project
+            project,
+            isNew
         });
 
     } catch (error) {

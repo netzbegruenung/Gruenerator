@@ -642,5 +642,6 @@ module.exports = {
   generateDownloadToken,
   processDirectDownload,
   processChunkedDownload,
-  processVideoExport
+  processVideoExport,
+  processSubtitleSegments
 };
