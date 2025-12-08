@@ -11,27 +11,23 @@ const expirationOptions = [
   { value: 30, label: '30 Tage' },
 ];
 
-const ShareVideoModal = ({ exportToken, projectId, title, onClose }) => {
+const ShareVideoModal = ({ projectId, title, onClose }) => {
   const [shareTitle, setShareTitle] = useState(title || 'Untertiteltes Video');
   const [expiresInDays, setExpiresInDays] = useState(expirationOptions[1]);
   const [copied, setCopied] = useState(false);
 
-  const { createShare, createShareFromProject, currentShare, isCreatingShare, error, errorCode, clearError, clearCurrentShare } = useSubtitlerShareStore();
+  const { createShareFromProject, currentShare, isCreatingShare, error, errorCode, clearError, clearCurrentShare } = useSubtitlerShareStore();
 
-  // Clear any previous share state when modal opens
   useEffect(() => {
     clearCurrentShare();
     clearError();
   }, [clearCurrentShare, clearError]);
 
   const handleCreateShare = async () => {
+    if (!projectId) return;
     try {
       clearError();
-      if (projectId) {
-        await createShareFromProject(projectId, shareTitle, expiresInDays.value);
-      } else {
-        await createShare(exportToken, shareTitle, null, expiresInDays.value);
-      }
+      await createShareFromProject(projectId, shareTitle, expiresInDays.value);
     } catch (err) {
       console.error('Failed to create share:', err);
     }
@@ -188,8 +184,7 @@ const ShareVideoModal = ({ exportToken, projectId, title, onClose }) => {
 };
 
 ShareVideoModal.propTypes = {
-  exportToken: PropTypes.string,
-  projectId: PropTypes.string,
+  projectId: PropTypes.string.isRequired,
   title: PropTypes.string,
   onClose: PropTypes.func.isRequired,
 };
