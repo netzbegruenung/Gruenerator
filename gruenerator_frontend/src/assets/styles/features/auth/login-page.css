@@ -223,6 +223,10 @@
   animation: slideUp 0.3s ease-out;
 }
 
+.auth-container--modal .auth-header h1 {
+  padding-right: calc(36px + var(--spacing-medium));
+}
+
 /* Modal close button */
 .auth-modal-close {
   position: absolute;
@@ -469,6 +473,11 @@
 @media (max-width: 767px) {
   .auth-container--modal {
     padding: var(--spacing-large);
+  }
+
+  .auth-container--modal .auth-header,
+  .auth-container--modal .auth-header h1 {
+    text-align: left;
   }
 
   .auth-content-wrapper {
