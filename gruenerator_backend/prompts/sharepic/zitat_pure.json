@@ -6,6 +6,7 @@
     "max_tokens": 600,
     "temperature": 0.5,
     "top_p": 0.7,
-    "useBedrock": true
+    "provider": "mistral",
+    "model": "magistral-medium-latest"
   }
 }
