@@ -8,7 +8,7 @@ const LiveSubtitlePreview = ({
   currentTimeInSeconds,
   videoMetadata,
   stylePreference = 'standard',
-  heightPreference = 'standard',
+  heightPreference = 'tief',
   subtitlePreference = 'manual'
 }) => {
   // Get user locale for Austria-specific styling

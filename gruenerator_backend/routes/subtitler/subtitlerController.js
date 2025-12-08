@@ -41,7 +41,7 @@ router.post('/process', async (req, res) => {
     uploadId, 
     subtitlePreference = 'manual', // ONLY manual mode supported - word mode commented out
     stylePreference = 'standard',
-    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+    heightPreference = 'tief' // Height positioning: 'standard' or 'tief'
   } = req.body; // Expect uploadId, subtitlePreference (manual only), stylePreference, and heightPreference
   let videoPath = null;
 
@@ -179,7 +179,7 @@ router.get('/result/:uploadId', async (req, res) => {
       const { 
     subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
     stylePreference = 'standard',
-    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+    heightPreference = 'tief' // Height positioning: 'standard' or 'tief'
   } = req.query; // Get mode, style, and height preferences from query params
     const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
     let jobDataString;
@@ -507,14 +507,14 @@ router.post('/export', async (req, res) => {
       minFontSize = 40;  // Reduced by 10%
       maxFontSize = 90; // Reduced by 10%
       basePercentage = isVertical ? 0.054 : 0.0495; // Reduced by 10%
-    } else if (referenceDimension >= 720) { // HD
-      minFontSize = 35;  // +10px
-      maxFontSize = 70;  // +15px
-      basePercentage = isVertical ? 0.055 : 0.050; // +1.5% / +1.5%
-    } else { // SD and smaller
-      minFontSize = 32;  // Increased from 24 for better readability on small screens
-      maxFontSize = 65;  // Increased from 50 for better visibility
-      basePercentage = isVertical ? 0.065 : 0.060; // Increased from 0.050/0.045 for better proportion
+    } else if (referenceDimension >= 720) { // HD - reduced by 10%
+      minFontSize = 32;
+      maxFontSize = 63;
+      basePercentage = isVertical ? 0.0495 : 0.045;
+    } else { // SD and smaller - reduced by 10%
+      minFontSize = 29;
+      maxFontSize = 58;
+      basePercentage = isVertical ? 0.0585 : 0.054;
     }
     
     // Logarithmic adjustment for very high resolutions (amplified)
