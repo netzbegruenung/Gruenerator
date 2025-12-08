@@ -500,6 +500,7 @@ async function processGraphRequest(routeType, req, res) {
       enableWebSearch: !!webSearchQuery,
       enableDocQnA: config.features?.docQnA !== false,
       usePrivacyMode: usePrivacyMode || false,
+      useProMode: requestData.useProMode || false,
       webSearchQuery,
       systemRole,
       constraints,
