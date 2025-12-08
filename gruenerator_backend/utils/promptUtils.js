@@ -183,7 +183,9 @@ Bitte formatiere deine Antwort als Markdown und beachte folgende Punkte für ein
 
 const MARKDOWN_FORMATTING_INSTRUCTIONS = `
 **Formatierung:**
-Nutze Markdown: **fett**, # Überschriften, - Listen. Kein HTML.
+Nutze Markdown: **fett**, - Listen. Kein HTML.
+Überschriften sparsam einsetzen: ## nur für Hauptabschnitte, ### nur wenn wirklich nötig für Unterabschnitte.
+Keine Überschriften mitten im Fließtext - nutze sie nur für klar abgegrenzte Abschnitte am Anfang eines neuen Themenblocks.
 `;
 
 const COMPREHENSIVE_DOSSIER_INSTRUCTIONS = `
