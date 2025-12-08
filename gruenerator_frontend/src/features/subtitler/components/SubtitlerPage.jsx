@@ -6,8 +6,8 @@ import SubtitleEditor from './SubtitleEditor';
 import SuccessScreen from './SuccessScreen';
 import ProjectSelector from './ProjectSelector';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
+import { useSubtitlerProjects } from '../hooks/useSubtitlerProjects';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
 import { FaVideo, FaFileVideo, FaRuler, FaClock, FaUserCog } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
@@ -28,7 +28,7 @@ import '../styles/ProjectSelector.css';
 const IS_SUBTITLER_UNDER_MAINTENANCE = false;
 // ------------------------
 
-const SubtitlerPage = ({ user }) => {
+const SubtitlerPage = () => {
   const [step, setStep] = useState('select');
   const [originalVideoFile, setOriginalVideoFile] = useState(null); // Original File-Objekt
   const [uploadInfo, setUploadInfo] = useState(null); // Upload-ID, Metadaten und Präferenz
@@ -49,23 +49,27 @@ const SubtitlerPage = ({ user }) => {
   const exportStore = useSubtitlerExportStore();
   const { status: exportStatus, exportToken, resetExport } = exportStore;
 
-  // Use project store for loading saved projects
-  const { loadProject, saveProject, updateProject, currentProject, projects, fetchProjects } = useSubtitlerProjectStore();
+  // Use project hook with built-in auth guards
+  const {
+    projects,
+    currentProject,
+    isLoading: isProjectsLoading,
+    loadProject,
+    saveProject,
+    updateProject,
+    deleteProject,
+    isReady: isAuthReady
+  } = useSubtitlerProjects();
 
   // Get Igel mode status from auth store
   const { igelModus } = useAuthStore();
 
-  // Skip to upload if no projects exist (only fetch when authenticated)
+  // Skip to upload if no projects exist (auto-triggered by useSubtitlerProjects when auth ready)
   useEffect(() => {
-    if (step === 'select' && user) {
-      fetchProjects().then(() => {
-        const { projects: currentProjects } = useSubtitlerProjectStore.getState();
-        if (currentProjects.length === 0) {
-          setStep('upload');
-        }
-      });
+    if (step === 'select' && isAuthReady && !isProjectsLoading && projects.length === 0) {
+      setStep('upload');
     }
-  }, [step, fetchProjects, user]);
+  }, [step, isAuthReady, isProjectsLoading, projects.length]);
 
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);
@@ -412,6 +416,9 @@ const SubtitlerPage = ({ user }) => {
                   onSelectProject={handleSelectProject}
                   onNewProject={handleNewProject}
                   loadingProjectId={loadingProjectId}
+                  projects={projects}
+                  isLoading={isProjectsLoading}
+                  onDeleteProject={deleteProject}
                 />
               )}
 
