@@ -265,23 +265,33 @@ router.get('/compression-status/:uploadId', async (req, res) => {
     }
 });
 
-// Route for cleanup of uploaded files
-router.delete('/cleanup/:uploadId', async (req, res) => {
+// Cleanup/cancellation handler (shared logic)
+async function handleCleanup(req, res) {
   const { uploadId } = req.params;
-  
+
   if (!uploadId) {
     return res.status(400).json({ error: 'Upload-ID fehlt' });
   }
 
   try {
-    log.debug(`Manual cleanup requested for ${uploadId}`);
+    log.debug(`Cancellation/cleanup requested for ${uploadId}`);
+
+    // Set cancellation flag in Redis (5 min TTL) to stop ongoing transcription
+    await redisClient.set(`cancel:${uploadId}`, 'true', { EX: 300 });
+
+    // Also schedule file cleanup
     scheduleImmediateCleanup(uploadId, 'manual cleanup request');
-    res.status(200).json({ success: true, message: 'Cleanup erfolgreich geplant' });
+
+    res.status(200).json({ success: true, message: 'Abbruch angefordert' });
   } catch (error) {
-    log.error(`Cleanup error for ${uploadId}: ${error.message}`);
-    res.status(500).json({ error: 'Fehler beim Cleanup', details: error.message });
+    log.error(`Cleanup/cancel error for ${uploadId}: ${error.message}`);
+    res.status(500).json({ error: 'Fehler beim Abbrechen', details: error.message });
   }
-});
+}
+
+// Route for cleanup - supports both DELETE and POST (POST needed for sendBeacon)
+router.delete('/cleanup/:uploadId', handleCleanup);
+router.post('/cleanup/:uploadId', handleCleanup);
 
 // Route to generate download token (Phase 1: Direct URL Download)
 router.post('/export-token', async (req, res) => {

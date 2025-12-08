@@ -4,7 +4,6 @@
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  margin-top: -1rem;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -344,4 +343,32 @@
   font-size: 1rem;
   color: var(--font-color);
   font-weight: bold;
-} 
+}
+
+/* Cancel button */
+.cancel-btn {
+  margin-top: var(--spacing-medium);
+  width: 100%;
+}
+
+/* Error state */
+.dropzone.error {
+  border-color: var(--error-red);
+}
+
+.upload-icon.error-icon {
+  color: var(--error-red);
+}
+
+/* AI notice styling in uploader */
+.upload-container .ai-notice {
+  margin-top: var(--spacing-medium);
+  padding: var(--spacing-small);
+  background-color: var(--background-color-alt);
+  border-radius: var(--spacing-xsmall);
+}
+
+.upload-container .ai-notice a {
+  color: var(--link-color, var(--primary));
+  text-decoration: underline;
+}
