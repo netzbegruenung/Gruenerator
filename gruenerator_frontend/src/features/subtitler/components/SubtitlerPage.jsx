@@ -106,31 +106,19 @@ const SubtitlerPage = () => {
   // Cleanup effect for tab close detection
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (uploadInfo?.uploadId) {
+      // Only cleanup if export hasn't started - otherwise keep the file for export
+      if (uploadInfo?.uploadId && exportStatus === 'idle' && !exportToken) {
         console.log(`[SubtitlerPage] Sending cleanup beacon for uploadId: ${uploadInfo.uploadId}`);
-        // Use beacon API for reliable cleanup signal even when tab is closing
-        // Das neue Cleanup-System plant automatisch Cleanup, daher ist das als Backup gedacht
         navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
       }
     };
-    
-    const handleVisibilityChange = () => {
-      // Zusätzlicher Cleanup-Trigger bei Tab-Wechsel (falls Upload läuft)
-      if (document.visibilityState === 'hidden' && isProcessing && uploadInfo?.uploadId) {
-        console.log(`[SubtitlerPage] Tab hidden during processing, sending cleanup signal for: ${uploadInfo.uploadId}`);
-        navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup function
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [uploadInfo?.uploadId, baseURL, isProcessing]);
+  }, [uploadInfo?.uploadId, baseURL, exportStatus, exportToken]);
 
   const handleUploadComplete = async (uploadData) => {
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
