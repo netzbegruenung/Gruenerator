@@ -41,7 +41,7 @@ router.post('/process', async (req, res) => {
     uploadId, 
     subtitlePreference = 'manual', // ONLY manual mode supported - word mode commented out
     stylePreference = 'standard',
-    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+    heightPreference = 'tief' // Height positioning: 'standard' or 'tief'
   } = req.body; // Expect uploadId, subtitlePreference (manual only), stylePreference, and heightPreference
   let videoPath = null;
 
@@ -179,7 +179,7 @@ router.get('/result/:uploadId', async (req, res) => {
       const { 
     subtitlePreference = 'manual', // Mode: only 'manual' supported (word mode commented out)
     stylePreference = 'standard',
-    heightPreference = 'standard' // Height positioning: 'standard' or 'tief'
+    heightPreference = 'tief' // Height positioning: 'standard' or 'tief'
   } = req.query; // Get mode, style, and height preferences from query params
     const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
     let jobDataString;
