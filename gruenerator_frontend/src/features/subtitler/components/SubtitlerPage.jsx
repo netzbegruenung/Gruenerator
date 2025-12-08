@@ -549,6 +549,6 @@ const SubtitlerPage = () => {
 };
 
 export default withAuthRequired(SubtitlerPage, {
-  title: 'Grünerator Reel-Studio',
-  message: 'Anmeldung erforderlich für das Grünerator Reel-Studio'
+  title: 'Reel-Studio',
+  message: 'Anmeldung für Reel-Studio erforderlich'
 });
