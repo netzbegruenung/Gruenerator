@@ -180,7 +180,7 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false, onCancel, proce
                 <div className="spinner" />
                 <div className="upload-text">
                   <h3>Video wird verarbeitet...</h3>
-                  <p>Die KI erstellt jetzt deine Untertitel</p>
+                  <p>Der Grünerator erstellt jetzt deine Untertitel</p>
                 </div>
               </>
             ) : (

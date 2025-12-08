@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
-import { FaPlus, FaEdit, FaShareAlt, FaInstagram } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import ShareVideoModal from './ShareVideoModal';
@@ -95,7 +95,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
     <div className="success-screen">
       <div className="success-content">
         <div className="success-main">
-          <div className={`success-icon ${showSpinner ? 'loading' : ''}`}>
+          <div className={`success-icon ${showSpinner ? 'loading' : ''} ${exportError ? 'error' : ''}`}>
             {showSpinner ? (
               <div className="spinner-container">
                 <div className="spinner" />
@@ -105,23 +105,26 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
                   </div>
                 )}
               </div>
+            ) : exportError ? (
+              <FaTimes style={{ fontSize: '60px', color: 'var(--error-red)' }} />
             ) : (
               <AnimatedCheckmark />
             )}
           </div>
-          <h2>{showSpinner ? 'Dein Video wird verarbeitet' : 'Dein Video wurde heruntergeladen'}</h2>
+          <h2>
+            {showSpinner
+              ? 'Dein Video wird verarbeitet'
+              : exportError
+                ? 'Export fehlgeschlagen'
+                : 'Dein Video wurde heruntergeladen'}
+          </h2>
           <p>
             {showSpinner
               ? 'Dein Video wird mit Untertiteln versehen...'
-              : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
+              : exportError
+                ? exportError
+                : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
           </p>
-          
-          {/* Show error if export failed */}
-          {exportError && (
-            <div className="error-message" style={{ marginBottom: 'var(--spacing-medium)' }}>
-              <p>Fehler beim Export: {exportError}</p>
-            </div>
-          )}
           
 
           {!showSpinner && (
@@ -140,7 +143,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
               >
                 <FaEdit />
               </button>
-              {(exportStore.exportToken || projectId) && (
+              {(exportStore.projectId || projectId) && (
                 <button
                   className="btn-icon btn-secondary"
                   onClick={() => setShowShareModal(true)}
@@ -178,10 +181,9 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
         )}
       </div>
 
-      {showShareModal && (exportStore.exportToken || projectId) && (
+      {showShareModal && (exportStore.projectId || projectId) && (
         <ShareVideoModal
-          exportToken={exportStore.exportToken}
-          projectId={projectId}
+          projectId={exportStore.projectId || projectId}
           title={projectTitle}
           onClose={() => setShowShareModal(false)}
         />

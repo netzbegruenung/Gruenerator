@@ -13,36 +13,6 @@ const initialState = {
 export const useSubtitlerShareStore = create((set, get) => ({
   ...initialState,
 
-  createShare: async (exportToken, title = null, projectId = null, expiresInDays = 7) => {
-    set({ isCreatingShare: true, error: null, errorCode: null });
-
-    try {
-      const response = await apiClient.post('/subtitler/share', {
-        exportToken,
-        title,
-        projectId,
-        expiresInDays,
-      });
-
-      if (response.data.success) {
-        const newShare = response.data.share;
-        set((state) => ({
-          isCreatingShare: false,
-          currentShare: newShare,
-          shares: [newShare, ...state.shares],
-        }));
-        return newShare;
-      } else {
-        throw new Error(response.data.error || 'Failed to create share');
-      }
-    } catch (error) {
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to create share';
-      const errorCode = error.response?.data?.code || null;
-      set({ isCreatingShare: false, error: errorMessage, errorCode });
-      throw new Error(errorMessage);
-    }
-  },
-
   createShareFromProject: async (projectId, title = null, expiresInDays = 7) => {
     set({ isCreatingShare: true, error: null, errorCode: null });
 

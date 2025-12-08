@@ -27,6 +27,7 @@ const initialState = {
   status: EXPORT_STATUS.IDLE,
   progress: 0, // 0-100
   exportToken: null,
+  projectId: null,
   error: null,
   timeRemaining: null,
   
@@ -216,6 +217,7 @@ export const useSubtitlerExportStore = create((set, get) => ({
           set({
             status: EXPORT_STATUS.COMPLETE,
             progress: 100,
+            projectId: progressData.projectId || null,
           });
           get().stopPolling();
           
