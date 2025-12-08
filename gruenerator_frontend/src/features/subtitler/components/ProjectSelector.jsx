@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { FaPlus, FaTrash, FaClock, FaVideo, FaShare } from 'react-icons/fa';
-import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
 import ShareVideoModal from './ShareVideoModal';
 import Spinner from '../../../components/common/Spinner';
 import '../styles/ProjectSelector.css';
@@ -207,24 +206,22 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
     );
 };
 
-const ProjectSelector = ({ onSelectProject, onNewProject, loadingProjectId }) => {
-    const {
-        projects,
-        fetchProjects,
-        deleteProject,
-        isLoading,
-        error
-    } = useSubtitlerProjectStore();
-
+const ProjectSelector = ({
+    onSelectProject,
+    onNewProject,
+    loadingProjectId,
+    projects = [],
+    isLoading = false,
+    error = null,
+    onDeleteProject
+}) => {
     const [shareProject, setShareProject] = useState(null);
 
-    useEffect(() => {
-        fetchProjects();
-    }, [fetchProjects]);
-
     const handleDelete = useCallback(async (projectId) => {
-        await deleteProject(projectId);
-    }, [deleteProject]);
+        if (onDeleteProject) {
+            await onDeleteProject(projectId);
+        }
+    }, [onDeleteProject]);
 
     const handleShare = useCallback((project) => {
         setShareProject(project);

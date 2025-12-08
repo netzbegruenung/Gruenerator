@@ -11,9 +11,10 @@ const TUS_UPLOAD_ENDPOINT = `${apiClient.defaults.baseURL}/subtitler/upload`;
 
 console.log(`[VideoUploader] Using Tus Endpoint:`, TUS_UPLOAD_ENDPOINT);
 
-const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
+const VideoUploader = ({ onUpload, onBack, isProcessing = false, onCancel, processingError }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [currentUpload, setCurrentUpload] = useState(null);
 
   const getVideoMetadata = (file) => {
     return new Promise((resolve) => {
@@ -99,10 +100,25 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
         }
       });
 
+      setCurrentUpload(upload);
       upload.start();
     } catch (error) {
       console.error('[VideoUploader] Upload Start Fehler:', error);
       setIsUploading(false);
+      setCurrentUpload(null);
+    }
+  };
+
+  const handleCancelClick = () => {
+    if (currentUpload) {
+      console.log('[VideoUploader] Aborting upload');
+      currentUpload.abort();
+      setCurrentUpload(null);
+    }
+    setIsUploading(false);
+    setUploadProgress(0);
+    if (onCancel) {
+      onCancel();
     }
   };
 
@@ -127,15 +143,25 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
       <div className="upload-container">
         <div
           {...getRootProps()}
-          className={`dropzone ${isDragActive ? 'active' : ''} ${isProcessing || isUploading ? 'processing' : ''}`}
+          className={`dropzone ${isDragActive ? 'active' : ''} ${isProcessing || isUploading ? 'processing' : ''} ${processingError ? 'error' : ''}`}
         >
           <input {...getInputProps()} />
           <div className="upload-content">
-            {isUploading ? (
+            {processingError ? (
+              <>
+                <div className="upload-icon-container error">
+                  <FaTimes className="upload-icon error-icon" />
+                </div>
+                <div className="upload-text">
+                  <h3>Fehler bei der Verarbeitung</h3>
+                  <p>{processingError}</p>
+                </div>
+              </>
+            ) : isUploading ? (
               <>
                 <div className="upload-progress-container">
                   <div className="upload-progress-bar">
-                    <div 
+                    <div
                       className="upload-progress-fill"
                       style={{ width: `${uploadProgress}%` }}
                     />
@@ -145,7 +171,7 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
                   </div>
                 </div>
                 <div className="upload-text">
-                  <h3>Upload läuft...</h3>
+                  <h3>Video wird hochgeladen...</h3>
                   <p>Bitte warte, bis der Upload abgeschlossen ist</p>
                 </div>
               </>
@@ -153,8 +179,8 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
               <>
                 <div className="spinner" />
                 <div className="upload-text">
-                  <h3>Dein Video wird verarbeitet...</h3>
-                  <p>Bitte warte einen Moment</p>
+                  <h3>Video wird verarbeitet...</h3>
+                  <p>Die KI erstellt jetzt deine Untertitel</p>
                 </div>
               </>
             ) : (
@@ -179,14 +205,29 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
                     Unterstützte Formate: MP4, MOV, AVI, MKV
                   </div>
                   <div className="upload-limit">
-                    Maximale Dateigröße: 500MB 
+                    Maximale Dateigröße: 500MB
                   </div>
                 </div>
               </>
             )}
           </div>
         </div>
-        {onBack && !isUploading && !isProcessing && (
+
+        {/* Data privacy notice */}
+        <p className="ai-notice">
+          Die Verarbeitung erfolgt mit AssemblyAI auf EU-Servern mit automatischer Datenlöschung nach der Transkription (Zero Data Retention).
+          Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a>.
+        </p>
+
+        {/* Cancel button - visible during upload or processing */}
+        {(isUploading || isProcessing) && (
+          <button className="btn-secondary cancel-btn" onClick={handleCancelClick}>
+            {isProcessing ? 'Verarbeitung abbrechen' : 'Upload abbrechen'}
+          </button>
+        )}
+
+        {/* Back button - only when idle */}
+        {onBack && !isUploading && !isProcessing && !processingError && (
           <button className="btn-secondary" onClick={onBack} style={{ marginTop: 'var(--spacing-medium)' }}>
             Zurück zur Projektauswahl
           </button>
@@ -199,7 +240,9 @@ const VideoUploader = ({ onUpload, onBack, isProcessing = false }) => {
 VideoUploader.propTypes = {
   onUpload: PropTypes.func.isRequired,
   onBack: PropTypes.func,
-  isProcessing: PropTypes.bool
+  isProcessing: PropTypes.bool,
+  onCancel: PropTypes.func,
+  processingError: PropTypes.string
 };
 
 export default VideoUploader;

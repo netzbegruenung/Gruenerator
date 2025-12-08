@@ -15,14 +15,19 @@ const log = createLogger('transcription');
  * Transcribe audio using AssemblyAI (ONLY provider - provides word timestamps)
  * @param {string} audioPath - Path to audio file
  * @param {boolean} requestWordTimestamps - Whether to request word timestamps
+ * @param {string|null} uploadId - Optional upload ID for cancellation support
  * @returns {Promise<Object>} - Transcription result in consistent format
  */
-async function transcribeWithProvider(audioPath, requestWordTimestamps = false) {
+async function transcribeWithProvider(audioPath, requestWordTimestamps = false, uploadId = null) {
     log.debug('Using AssemblyAI EU provider');
 
     try {
-        return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps);
+        return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps, uploadId);
     } catch (error) {
+        if (error.message === 'CANCELLED') {
+            log.info(`Transcription cancelled for upload: ${uploadId}`);
+            throw error;
+        }
         log.error(`AssemblyAI transcription failed: ${error.message}`);
         throw new Error(`Transcription failed - AssemblyAI is required for word timestamps: ${error.message}`);
     }
@@ -254,7 +259,7 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
     } else
     */
     if (subtitlePreference === 'manual') {
-        const transcriptionResult = await transcribeWithProvider(audioPath, true);
+        const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
 
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from provider');
@@ -268,7 +273,7 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
     } else {
         // Fallback to manual mode if unknown mode provided
         log.warn(`Unknown mode '${subtitlePreference}', using manual mode as fallback`);
-        const transcriptionResult = await transcribeWithProvider(audioPath, true);
+        const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
 
         if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
             throw new Error('Invalid transcription data received from provider');

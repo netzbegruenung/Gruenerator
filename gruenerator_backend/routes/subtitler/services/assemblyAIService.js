@@ -2,6 +2,7 @@ const fs = require('fs');
 const https = require('https');
 const FormData = require('form-data');
 const { createLogger } = require('../../../utils/logger.js');
+const redisClient = require('../../../utils/redisClient');
 
 const log = createLogger('assemblyAI');
 
@@ -136,14 +137,30 @@ async function submitTranscriptionRequest(audioUrl, requestWordTimestamps = fals
 /**
  * Poll for transcription completion with exponential backoff
  * @param {string} transcriptId - The transcript ID
+ * @param {string|null} uploadId - Optional upload ID for cancellation checking
  * @returns {Promise<Object>} - Complete transcript data
  */
-async function pollForCompletion(transcriptId) {
+async function pollForCompletion(transcriptId, uploadId = null) {
   const maxAttempts = 60; // 10 minutes max with exponential backoff
   let attempt = 0;
   let baseDelay = 2000; // Start with 2 second delay
 
   while (attempt < maxAttempts) {
+    // Check cancellation flag before each poll
+    if (uploadId) {
+      try {
+        const cancelled = await redisClient.get(`cancel:${uploadId}`);
+        if (cancelled) {
+          log.info(`Transcription cancelled by user: ${uploadId}`);
+          await deleteTranscript(transcriptId);
+          throw new Error('CANCELLED');
+        }
+      } catch (cancelCheckError) {
+        if (cancelCheckError.message === 'CANCELLED') throw cancelCheckError;
+        log.warn(`Cancellation check failed: ${cancelCheckError.message}`);
+      }
+    }
+
     try {
       const transcriptData = await getTranscript(transcriptId);
 
@@ -163,6 +180,7 @@ async function pollForCompletion(transcriptId) {
         throw new Error(`Unknown transcription status: ${transcriptData.status}`);
       }
     } catch (error) {
+      if (error.message === 'CANCELLED') throw error;
       if (attempt >= maxAttempts - 1) {
         throw error;
       }
@@ -315,16 +333,17 @@ function transformToOpenAIFormat(assemblyAIResponse, requestWordTimestamps) {
  * Main transcription function compatible with OpenAI service interface
  * @param {string} filePath - Path to audio file
  * @param {boolean} requestWordTimestamps - Whether to request word-level timestamps
+ * @param {string|null} uploadId - Optional upload ID for cancellation support
  * @returns {Promise<Object>} - Transcription result in OpenAI-compatible format
  */
-async function transcribeWithAssemblyAI(filePath, requestWordTimestamps = false) {
+async function transcribeWithAssemblyAI(filePath, requestWordTimestamps = false, uploadId = null) {
   let transcriptId = null; // Declare here for cleanup in catch block
 
   try {
     // Log the file size for monitoring
     const stats = fs.statSync(filePath);
     const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-    log.debug(`Starting transcription (${fileSizeMB} MB)`);
+    log.debug(`Starting transcription (${fileSizeMB} MB)${uploadId ? ` for upload ${uploadId}` : ''}`);
 
     // Step 1: Upload audio file
     const audioUrl = await uploadAudioFile(filePath);
@@ -332,8 +351,8 @@ async function transcribeWithAssemblyAI(filePath, requestWordTimestamps = false)
     // Step 2: Submit transcription request
     transcriptId = await submitTranscriptionRequest(audioUrl, requestWordTimestamps);
 
-    // Step 3: Poll for completion
-    const transcriptData = await pollForCompletion(transcriptId);
+    // Step 3: Poll for completion (with cancellation support)
+    const transcriptData = await pollForCompletion(transcriptId, uploadId);
 
     // Step 4: Transform to OpenAI-compatible format
     const result = transformToOpenAIFormat(transcriptData, requestWordTimestamps);

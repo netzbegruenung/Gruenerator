@@ -6,9 +6,9 @@ import SubtitleEditor from './SubtitleEditor';
 import SuccessScreen from './SuccessScreen';
 import ProjectSelector from './ProjectSelector';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
+import { useSubtitlerProjects } from '../hooks/useSubtitlerProjects';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
-import { FaVideo, FaFileVideo, FaRuler, FaClock, FaUserCog } from 'react-icons/fa';
+import { FaUserCog } from 'react-icons/fa';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import MaintenanceNotice from '../../../components/common/MaintenanceNotice';
 import FeatureToggle from '../../../components/common/FeatureToggle';
@@ -16,7 +16,6 @@ import { useAuthStore } from '../../../stores/authStore';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 
 import '../styles/subtitler.css';
-import '../styles/ConfirmSection.css';
 import '../styles/SubtitleEditor.css';
 import '../styles/SuccessScreen.css';
 import '../styles/VideoUploader.css';
@@ -49,23 +48,27 @@ const SubtitlerPage = () => {
   const exportStore = useSubtitlerExportStore();
   const { status: exportStatus, exportToken, resetExport } = exportStore;
 
-  // Use project store for loading saved projects
-  const { loadProject, saveProject, updateProject, currentProject, projects, fetchProjects } = useSubtitlerProjectStore();
+  // Use project hook with built-in auth guards
+  const {
+    projects,
+    currentProject,
+    isLoading: isProjectsLoading,
+    loadProject,
+    saveProject,
+    updateProject,
+    deleteProject,
+    isReady: isAuthReady
+  } = useSubtitlerProjects();
 
   // Get Igel mode status from auth store
   const { igelModus } = useAuthStore();
 
-  // Skip to upload if no projects exist
+  // Skip to upload if no projects exist (auto-triggered by useSubtitlerProjects when auth ready)
   useEffect(() => {
-    if (step === 'select') {
-      fetchProjects().then(() => {
-        const { projects: currentProjects } = useSubtitlerProjectStore.getState();
-        if (currentProjects.length === 0) {
-          setStep('upload');
-        }
-      });
+    if (step === 'select' && isAuthReady && !isProjectsLoading && projects.length === 0) {
+      setStep('upload');
     }
-  }, [step, fetchProjects]);
+  }, [step, isAuthReady, isProjectsLoading, projects.length]);
 
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);
@@ -83,7 +86,7 @@ const SubtitlerPage = () => {
   useEffect(() => {
     const handlePopState = (event) => {
       if (event.state?.step) {
-        const validSteps = ['select', 'upload', 'confirm', 'edit', 'success'];
+        const validSteps = ['select', 'upload', 'edit', 'success'];
         if (validSteps.includes(event.state.step)) {
           setStep(event.state.step);
         }
@@ -103,33 +106,21 @@ const SubtitlerPage = () => {
   // Cleanup effect for tab close detection
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (uploadInfo?.uploadId) {
+      // Only cleanup if export hasn't started - otherwise keep the file for export
+      if (uploadInfo?.uploadId && exportStatus === 'idle' && !exportToken) {
         console.log(`[SubtitlerPage] Sending cleanup beacon for uploadId: ${uploadInfo.uploadId}`);
-        // Use beacon API for reliable cleanup signal even when tab is closing
-        // Das neue Cleanup-System plant automatisch Cleanup, daher ist das als Backup gedacht
         navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
       }
     };
-    
-    const handleVisibilityChange = () => {
-      // Zusätzlicher Cleanup-Trigger bei Tab-Wechsel (falls Upload läuft)
-      if (document.visibilityState === 'hidden' && isProcessing && uploadInfo?.uploadId) {
-        console.log(`[SubtitlerPage] Tab hidden during processing, sending cleanup signal for: ${uploadInfo.uploadId}`);
-        navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup function
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [uploadInfo?.uploadId, baseURL, isProcessing]);
+  }, [uploadInfo?.uploadId, baseURL, exportStatus, exportToken]);
 
-  const handleUploadComplete = (uploadData) => { 
+  const handleUploadComplete = async (uploadData) => {
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
     if (uploadData.originalFile instanceof File) {
       // Speichere das originale File-Objekt direkt
@@ -138,59 +129,68 @@ const SubtitlerPage = () => {
     } else {
       console.error("[SubtitlerPage] Did not receive a valid File object in uploadData", uploadData);
       setError("Fehler beim Empfangen der Videodatei vom Uploader.");
-      setStep('upload'); // Gehe zurück zum Upload-Schritt
-      return; 
+      return;
     }
-  
+
     // Speichere andere Upload-Infos separat
-    setUploadInfo({
+    const newUploadInfo = {
       uploadId: uploadData.uploadId,
       metadata: uploadData.metadata,
       name: uploadData.name,
       size: uploadData.size,
       type: uploadData.type,
-    });
-  
-    setStep('confirm');
-  };
+    };
+    setUploadInfo(newUploadInfo);
 
-  const handleVideoConfirm = async () => {
-    setError(null); // Reset error on new attempt
-    setIsProcessing(true); // Set processing true to show spinner and trigger polling
-    
+    // Auto-start processing immediately after upload
+    setError(null);
+    setIsProcessing(true);
+
     try {
-
-      if (!uploadInfo?.uploadId) {
-        throw new Error('Keine Upload-ID gefunden');
-      }
-
-      // Start processing request with mode, style, and height preferences
-      const response = await axios.post(`${baseURL}/subtitler/process`, { 
-        uploadId: uploadInfo.uploadId, 
-        subtitlePreference: modePreference, // Use modePreference as the main parameter
-        stylePreference: stylePreference, // Include style preference
-        heightPreference: heightPreference // Include height preference
+      const response = await axios.post(`${baseURL}/subtitler/process`, {
+        uploadId: uploadData.uploadId,
+        subtitlePreference: modePreference,
+        stylePreference: stylePreference,
+        heightPreference: heightPreference
       }, {
-        // Header oder andere Axios-Konfigurationen könnten hier nötig sein
-        // Beachte: Interceptors von apiClient (z.B. Auth Token) werden hier NICHT angewendet
-        timeout: 900000 // Beispiel: Timeout manuell setzen, falls benötigt
+        timeout: 900000
       });
 
-      // Check if backend accepted the request (Status 202 with status 'processing')
       if (response.status === 202 && response.data?.status === 'processing') {
         // Processing started successfully, polling will be handled by useEffect
+        console.log('[SubtitlerPage] Processing started for:', uploadData.uploadId);
       } else {
-        // Unexpected response from /process endpoint
         throw new Error(response.data?.message || 'Unerwartete Antwort vom Server beim Start der Verarbeitung.');
       }
-
     } catch (error) {
       console.error('[SubtitlerPage] Error initiating video processing:', error);
       setError(error.response?.data?.error || error.message || 'Fehler beim Starten der Videoverarbeitung.');
-      setIsProcessing(false); // Stop processing state if initiation failed
+      setIsProcessing(false);
     }
-    // No finally block setting isProcessing to false here, polling handles it
   };
+
+  // Cancel handler for upload and processing
+  const handleCancel = useCallback(() => {
+    console.log('[SubtitlerPage] Cancel requested');
+
+    // Clear polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    // Send cleanup request if we have an uploadId
+    if (uploadInfo?.uploadId) {
+      console.log(`[SubtitlerPage] Sending cleanup for uploadId: ${uploadInfo.uploadId}`);
+      navigator.sendBeacon(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`);
+    }
+
+    // Reset state
+    setIsProcessing(false);
+    setError(null);
+    setOriginalVideoFile(null);
+    setUploadInfo(null);
+  }, [uploadInfo?.uploadId, baseURL]);
 
   // Effect for Polling the result endpoint
   useEffect(() => {
@@ -321,10 +321,6 @@ const SubtitlerPage = () => {
     setStep('edit');
   }, []);
 
-  const handleBackToConfirm = useCallback(() => {
-    setStep('confirm');
-  }, []);
-
   // Handler for selecting a saved project from ProjectSelector
   const handleSelectProject = useCallback(async (projectId) => {
     try {
@@ -387,13 +383,13 @@ const SubtitlerPage = () => {
 
   return (
     <ErrorBoundary>
-      <div className="subtitler-container container with-header">
+      <div className="subtitler-container">
         {/* Check for maintenance mode first */}
         {IS_SUBTITLER_UNDER_MAINTENANCE ? (
           <MaintenanceNotice featureName="Grünerator Reel-Studio" />
         ) : (
           <>
-            {(step === 'upload' || step === 'confirm') && (
+            {step === 'upload' && !isProcessing && (
               <h1 className="subtitler-title">Grünerator Reel-Studio</h1>
             )}
             
@@ -412,6 +408,9 @@ const SubtitlerPage = () => {
                   onSelectProject={handleSelectProject}
                   onNewProject={handleNewProject}
                   loadingProjectId={loadingProjectId}
+                  projects={projects}
+                  isLoading={isProjectsLoading}
+                  onDeleteProject={deleteProject}
                 />
               )}
 
@@ -420,71 +419,11 @@ const SubtitlerPage = () => {
                   onUpload={handleUploadComplete}
                   onBack={projects.length > 0 ? handleBackToSelect : null}
                   isProcessing={isProcessing}
+                  onCancel={handleCancel}
+                  processingError={error}
                 />
               )}
 
-              {step === 'confirm' && uploadInfo && (
-                <div className={`confirm-section ${isExiting ? 'exit' : ''}`}>
-                  <h3>
-                    <FaVideo />
-                    Dein ausgewähltes Video
-                  </h3>
-                  <div className="VideoInfo">
-                    <div className="VideoInfo__Item">
-                      <span className="VideoInfo__Label">Name</span>
-                      <span className="VideoInfo__Icon"><FaFileVideo /></span>
-                      <span className="VideoInfo__Content">{uploadInfo.name}</span>
-                    </div>
-                    <div className="VideoInfo__Item">
-                      <span className="VideoInfo__Label">Größe</span>
-                      <span className="VideoInfo__Icon"><FaRuler /></span>
-                      <span className="VideoInfo__Content">{(uploadInfo.size / 1024 / 1024).toFixed(2)} MB</span>
-                    </div>
-                    {uploadInfo.metadata && (
-                      <>
-                        <div className="VideoInfo__Item">
-                          <span className="VideoInfo__Label">Länge</span>
-                          <span className="VideoInfo__Icon"><FaClock /></span>
-                          <span className="VideoInfo__Content">{Math.round(uploadInfo.metadata.duration)} Sekunden</span>
-                        </div>
-                        <div className="VideoInfo__Item">
-                          <span className="VideoInfo__Label">Auflösung</span>
-                          <span className="VideoInfo__Icon"><FaRuler /></span>
-                          <span className="VideoInfo__Content">{uploadInfo.metadata.width}x{uploadInfo.metadata.height}</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <p className="ai-notice">
-                    Die Verarbeitung erfolgt mit AssemblyAI auf EU-Servern mit automatischer Datenlöschung nach der Transkription (Zero Data Retention). Bitte beachte unsere <a href="/datenschutz">Datenschutzerklärung</a> bezüglich der Verarbeitung deiner Daten.
-                  </p>
-
-
-                  <div className="confirm-buttons">
-                    <button 
-                      className="btn-primary"
-                      onClick={handleVideoConfirm}
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? (
-                        <div className="button-loading-content">
-                          <div className="button-spinner" />
-                          <span>Verarbeite...</span>
-                        </div>
-                      ) : (
-                        'Video verarbeiten'
-                      )}
-                    </button>
-                    <button 
-                      className="btn-secondary"
-                      onClick={handleReset}
-                      disabled={isProcessing}
-                    >
-                      Anderes Video auswählen
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {step === 'edit' && (
                 <>
@@ -542,6 +481,6 @@ const SubtitlerPage = () => {
 };
 
 export default withAuthRequired(SubtitlerPage, {
-  title: 'Grünerator Reel-Studio',
-  message: 'Anmeldung erforderlich für das Grünerator Reel-Studio'
+  title: 'Reel-Studio',
+  message: 'Anmeldung für Reel-Studio erforderlich'
 });
