@@ -11,6 +11,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { HiInformationCircle } from 'react-icons/hi';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -31,6 +32,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { isAuthenticated, user } = useOptimizedAuth();
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
+  const canUseSharepic = isAuthenticated && !isAustrian;
 
   const platformOptions = useMemo(() => {
     const options = [
@@ -43,8 +47,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
       { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> }
     ];
-    return isAuthenticated ? options : options.filter(opt => opt.id !== 'sharepic');
-  }, [isAuthenticated]);
+    return canUseSharepic ? options : options.filter(opt => opt.id !== 'sharepic');
+  }, [canUseSharepic]);
 
   const sharepicTypeOptions = [
     { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
@@ -63,7 +67,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         key => initialContent.platforms[key]
       );
       if (selectedPlatforms.length > 0) {
-        return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
+        return canUseSharepic ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
       }
     }
 
@@ -72,8 +76,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       selectedPlatforms = ['instagram'];
     }
 
-    return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic'); // No default selection or filtered
-  }, [initialContent, isAuthenticated]);
+    return canUseSharepic ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
+  }, [initialContent, canUseSharepic]);
 
   // Use useBaseForm to get automatic document/text fetching
   const form = useBaseForm({
@@ -109,15 +113,15 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
+  const watchSharepic = canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
 
-  // Ensure sharepic is not selected when user is not authenticated
+  // Ensure sharepic is not selected when user cannot use it
   useEffect(() => {
-    if (!isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
+    if (!canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
       const filtered = watchPlatforms.filter(p => p !== 'sharepic');
       setValue('platforms', filtered);
     }
-  }, [isAuthenticated, watchPlatforms, setValue]);
+  }, [canUseSharepic, watchPlatforms, setValue]);
 
 
   const handleImageChange = useCallback((file) => {
@@ -179,7 +183,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
-      const hasSharepic = isAuthenticated && selectedPlatforms.includes('sharepic');
+      const hasSharepic = canUseSharepic && selectedPlatforms.includes('sharepic');
 
       // Combine file attachments with crawled URLs
       const allAttachments = [
@@ -318,7 +322,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedDocumentIds, selectedTextIds, getFeatureState, isAuthenticated]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedDocumentIds, selectedTextIds, getFeatureState, canUseSharepic]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);

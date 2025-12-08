@@ -95,13 +95,13 @@ export const getMenuItems = (betaFeatures = {}) => {
           description: 'Untertitel Reels für Social Media',
           icon: getIcon('navigation', 'reel')
         },
-        {
+        ...(!betaFeatures.isAustrian ? [{
           id: 'sharepic',
           path: '/sharepic',
           title: 'Sharepics',
           description: 'Erstelle Sharepics für Social Media',
           icon: getIcon('navigation', 'sharepic')
-        },
+        }] : []),
         {
           id: 'imagine',
           path: '/imagine',
