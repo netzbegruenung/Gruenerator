@@ -729,6 +729,13 @@ router.post('/export', async (req, res) => {
       assFilePath = null; // Proceed without subtitles
     }
 
+    // Set Redis key BEFORE response to prevent race condition
+    await redisClient.set(`export:${exportToken}`, JSON.stringify({
+      status: 'exporting',
+      progress: 0,
+      message: 'Starting video processing...'
+    }), { EX: 60 * 60 });
+
     // Return JSON response immediately to enable progress polling
     res.status(202).json({
       status: 'exporting',
@@ -797,19 +804,14 @@ async function processVideoExportInBackground(params) {
     originalFilename,
     assFilePath: preGeneratedAssPath = null,   // Pre-generated ASS file from export endpoint
     tempFontPath: preGeneratedFontPath = null, // Pre-copied font path from export endpoint
-    projectId = null,  // Optional: project ID for saving subtitled video
+    projectId: initialProjectId = null,  // Optional: project ID for saving subtitled video
     userId = null      // Optional: user ID for saving subtitled video
   } = params;
 
+  let projectId = initialProjectId;
+
   try {
     log.debug(`Background export starting for token: ${exportToken}`);
-    
-    // Set initial progress
-    await redisClient.set(`export:${exportToken}`, JSON.stringify({
-      status: 'exporting',
-      progress: 0,
-      message: 'Starting video processing...'
-    }), { EX: 60 * 60 });
 
     // Get reference dimension for quality settings
     const isVertical = metadata.width < metadata.height;
@@ -1095,13 +1097,77 @@ async function processVideoExportInBackground(params) {
             }
           }
 
+          // Auto-save: Check for existing project or create new one
+          if (!projectId && userId && uploadId) {
+            try {
+              const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
+              const projectService = getSubtitlerProjectService();
+              await projectService.ensureInitialized();
+
+              // Check if project with same video filename already exists
+              const existingProject = await projectService.findProjectByVideoFilename(userId, originalFilename);
+
+              if (existingProject) {
+                // Update existing project
+                projectId = existingProject.id;
+                const projectDir = path.join(__dirname, '../../uploads/subtitler-projects', userId, projectId);
+                const subtitledFilename = `subtitled_${Date.now()}.mp4`;
+                const persistentPath = path.join(projectDir, subtitledFilename);
+                const relativeSubtitledPath = `${userId}/${projectId}/${subtitledFilename}`;
+
+                // Clean up old subtitled video if exists
+                if (existingProject.subtitled_video_path) {
+                  const oldPath = path.join(__dirname, '../../uploads/subtitler-projects', existingProject.subtitled_video_path);
+                  await fsPromises.unlink(oldPath).catch(() => {});
+                }
+
+                await fsPromises.mkdir(projectDir, { recursive: true });
+                await fsPromises.copyFile(outputPath, persistentPath);
+                await projectService.updateSubtitledVideoPath(userId, projectId, relativeSubtitledPath);
+
+                log.info(`Updated existing project ${projectId} for export ${exportToken}`);
+              } else {
+                // Create new project
+                const projectTitle = originalFilename.replace(/\.[^/.]+$/, '') || 'Untertiteltes Video';
+
+                const newProject = await projectService.createProject(userId, {
+                  uploadId: uploadId,
+                  title: projectTitle,
+                  subtitles: segments,
+                  stylePreference: stylePreference,
+                  heightPreference: heightPreference,
+                  modePreference: subtitlePreference,
+                  videoMetadata: metadata,
+                  videoFilename: originalFilename,
+                  videoSize: fileStats?.size || 0
+                });
+
+                projectId = newProject.id;
+
+                const projectDir = path.join(__dirname, '../../uploads/subtitler-projects', userId, projectId);
+                const subtitledFilename = `subtitled_${Date.now()}.mp4`;
+                const persistentPath = path.join(projectDir, subtitledFilename);
+                const relativeSubtitledPath = `${userId}/${projectId}/${subtitledFilename}`;
+
+                await fsPromises.mkdir(projectDir, { recursive: true });
+                await fsPromises.copyFile(outputPath, persistentPath);
+                await projectService.updateSubtitledVideoPath(userId, projectId, relativeSubtitledPath);
+
+                log.info(`Auto-created project ${projectId} for export ${exportToken}`);
+              }
+            } catch (autoSaveError) {
+              log.warn(`Auto-save failed: ${autoSaveError.message}`);
+            }
+          }
+
           // Store completion status with file path in Redis
           try {
             const completionData = {
               status: 'complete',
               progress: 100,
               outputPath: outputPath,
-              originalFilename: originalFilename
+              originalFilename: originalFilename,
+              projectId: projectId || null
             };
             await redisClient.set(`export:${exportToken}`, JSON.stringify(completionData), { EX: 60 * 60 });
           } catch (redisError) {

@@ -113,6 +113,25 @@ class SubtitlerProjectService {
         }
     }
 
+    async findProjectByVideoFilename(userId, videoFilename) {
+        await this.ensureInitialized();
+
+        try {
+            const query = `
+                SELECT id, title, status, video_path, video_filename, subtitled_video_path
+                FROM subtitler_projects
+                WHERE user_id = $1 AND video_filename = $2
+                ORDER BY updated_at DESC
+                LIMIT 1
+            `;
+            const result = await this.postgres.queryOne(query, [userId, videoFilename]);
+            return result || null;
+        } catch (error) {
+            console.error('[SubtitlerProjectService] Failed to find project by filename:', error);
+            return null;
+        }
+    }
+
     async getVideoPathOnly(userId, projectId) {
         await this.ensureInitialized();
 
