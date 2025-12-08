@@ -22,7 +22,7 @@ const SubtitleEditor = ({
   uploadId,
   subtitlePreference,
   stylePreference = 'shadow',
-  heightPreference = 'standard',
+  heightPreference = 'tief',
   onStyleChange,
   onHeightChange,
   onExportSuccess,
@@ -83,8 +83,8 @@ const SubtitleEditor = ({
   ];
 
   const heightOptions = [
-    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' },
-    { id: 'tief', name: 'Tiefer', subtitle: 'Standard' }
+    { id: 'tief', name: 'Tiefer', subtitle: 'Standard' },
+    { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' }
   ];
 
   const qualityOptions = [
