@@ -7,7 +7,8 @@ const initialState = {
     isLoading: false,
     isSaving: false,
     error: null,
-    saveSuccess: false
+    saveSuccess: false,
+    initialFetchComplete: false
 };
 
 export const useSubtitlerProjectStore = create((set, get) => ({
@@ -22,7 +23,8 @@ export const useSubtitlerProjectStore = create((set, get) => ({
             if (response.data.success) {
                 set({
                     projects: response.data.projects,
-                    isLoading: false
+                    isLoading: false,
+                    initialFetchComplete: true
                 });
             } else {
                 throw new Error(response.data.error || 'Failed to fetch projects');
@@ -31,7 +33,8 @@ export const useSubtitlerProjectStore = create((set, get) => ({
             console.error('[SubtitlerProjectStore] Failed to fetch projects:', error);
             set({
                 error: error.response?.data?.error || error.message || 'Projekte konnten nicht geladen werden',
-                isLoading: false
+                isLoading: false,
+                initialFetchComplete: true
             });
         }
     },

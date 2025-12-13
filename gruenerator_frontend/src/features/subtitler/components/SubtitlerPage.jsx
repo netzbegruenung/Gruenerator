@@ -57,7 +57,8 @@ const SubtitlerPage = () => {
     saveProject,
     updateProject,
     deleteProject,
-    isReady: isAuthReady
+    isReady: isAuthReady,
+    initialFetchComplete
   } = useSubtitlerProjects();
 
   // Get Igel mode status from auth store
@@ -65,10 +66,10 @@ const SubtitlerPage = () => {
 
   // Skip to upload if no projects exist (auto-triggered by useSubtitlerProjects when auth ready)
   useEffect(() => {
-    if (step === 'select' && isAuthReady && !isProjectsLoading && projects.length === 0) {
+    if (step === 'select' && isAuthReady && initialFetchComplete && !isProjectsLoading && projects.length === 0) {
       setStep('upload');
     }
-  }, [step, isAuthReady, isProjectsLoading, projects.length]);
+  }, [step, isAuthReady, isProjectsLoading, projects.length, initialFetchComplete]);
 
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);
