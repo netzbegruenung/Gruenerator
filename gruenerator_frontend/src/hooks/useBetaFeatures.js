@@ -16,6 +16,7 @@ const BETA_FEATURES_CONFIG = [
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
   { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true },
+  { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false, defaultEnabled: true },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
@@ -51,26 +52,50 @@ export const useBetaFeatures = (options = {}) => {
   const isAdmin = React.useMemo(() => user?.is_admin === true, [user?.is_admin]);
   
   // Helper functions - memoized with stable dependencies
-  const getBetaFeatureState = React.useCallback((key) => !!betaFeatures?.[key], [betaFeatures]);
+  const getBetaFeatureState = React.useCallback((key) => {
+    if (betaFeatures?.[key] !== undefined) {
+      return !!betaFeatures[key];
+    }
+    const featureConfig = BETA_FEATURES_CONFIG.find(f => f.key === key);
+    return featureConfig?.defaultEnabled ?? false;
+  }, [betaFeatures]);
   
   const canAccessBetaFeature = React.useCallback((featureKey) => {
     const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
-    
+
     if (isAdminOnlyFeature && !isAdmin) {
       return false;
     }
-    
-    return !!betaFeatures?.[featureKey];
+
+    const isDev = import.meta.env.DEV;
+    const featureConfig = BETA_FEATURES_CONFIG.find(f => f.key === featureKey);
+    if (isDev && featureConfig?.devOnly) {
+      return true;
+    }
+
+    if (betaFeatures?.[featureKey] !== undefined) {
+      return !!betaFeatures[featureKey];
+    }
+    return featureConfig?.defaultEnabled ?? false;
   }, [betaFeatures, isAdmin]);
 
   const shouldShowTab = React.useCallback((featureKey) => {
     const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
-    
+
     if (isAdminOnlyFeature && !isAdmin) {
       return false;
     }
-    
-    return !!betaFeatures?.[featureKey];
+
+    const isDev = import.meta.env.DEV;
+    const featureConfig = BETA_FEATURES_CONFIG.find(f => f.key === featureKey);
+    if (isDev && featureConfig?.devOnly) {
+      return true;
+    }
+
+    if (betaFeatures?.[featureKey] !== undefined) {
+      return !!betaFeatures[featureKey];
+    }
+    return featureConfig?.defaultEnabled ?? false;
   }, [betaFeatures, isAdmin]);
 
   const getAvailableFeatures = React.useCallback(() => {

@@ -54,4 +54,31 @@
   .help-content {
     padding: 0px;
   }
+}
+
+/* New Feature Announcement Styling */
+.help-display--new-feature {
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: var(--spacing-small) var(--spacing-medium);
+}
+
+.help-display__badge {
+  display: inline-block;
+  background: var(--klee);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-small);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* New Feature border for entire DisplaySection */
+.display-container--new-feature {
+  border: 2px solid var(--klee);
+  border-radius: 8px;
+  padding: var(--spacing-small);
 } 
