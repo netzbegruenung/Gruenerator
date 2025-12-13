@@ -10,14 +10,14 @@ class PrivacyCounter {
   }
 
   /**
-   * Get the appropriate provider for privacy mode based on request count
+   * Get the appropriate provider for privacy mode
    * @param {string} userId - User ID for tracking
-   * @returns {Promise<string>} Provider name ('litellm' for first request, 'ionos' for subsequent)
+   * @returns {Promise<string>} Provider name (always 'litellm', ionos fallback handled by aiWorker)
    */
   async getProviderForUser(userId) {
     if (!userId) {
-      console.warn('[PrivacyCounter] No userId provided, defaulting to ionos');
-      return 'ionos';
+      console.warn('[PrivacyCounter] No userId provided, defaulting to litellm');
+      return 'litellm';
     }
 
     try {
@@ -31,8 +31,8 @@ class PrivacyCounter {
         await this.redis.expire(redisKey, this.TTL_HOURS * 3600);
       }
       
-      // Provider selection based on count
-      const provider = count === 1 ? 'litellm' : 'ionos';
+      // Always use litellm for privacy mode - ionos is fallback on error only
+      const provider = 'litellm';
       
       console.log(`[PrivacyCounter] User ${userId}: Request #${count}, using provider: ${provider}`);
       
@@ -40,8 +40,8 @@ class PrivacyCounter {
       
     } catch (error) {
       console.error('[PrivacyCounter] Redis error:', error);
-      // Fallback to ionos on any error
-      return 'ionos';
+      // Fallback to litellm on any error - ionos fallback happens in aiWorker on failure
+      return 'litellm';
     }
   }
 
