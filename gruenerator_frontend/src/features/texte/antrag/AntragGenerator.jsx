@@ -14,7 +14,7 @@ import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 import useInteractiveAntrag from '../../../hooks/useInteractiveAntrag';
 import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
-import { HiChatAlt2 } from 'react-icons/hi';
+import { HiAnnotation } from 'react-icons/hi';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 
 const REQUEST_TYPES = {
@@ -51,8 +51,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   // State for request type - moved outside of form control
   const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
 
-  // Interactive mode state
-  const [useInteractiveMode, setUseInteractiveMode] = useState(false);
+  // Interactive mode state - enabled by default
+  const [useInteractiveMode, setUseInteractiveMode] = useState(true);
   const [interactiveState, setInteractiveState] = useState('initial'); // 'initial' | 'questions' | 'generating' | 'completed'
   const [sessionId, setSessionId] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -93,8 +93,16 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     tabIndexKey: 'ANTRAG',
     defaultMode: 'pro',
     helpContent: {
-      content: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
+      content: `Interaktiver Modus! Die KI stellt dir 6 kurze Fragen, um deinen Antrag besser zu verstehen. So entstehen passgenauere Ergebnisse.`,
       tips: [
+        "Beantworte die Quiz-artigen Fragen mit einem Klick",
+        "Die KI nutzt deine Antworten für ein maßgeschneidertes Ergebnis",
+        "Du kannst den interaktiven Modus jederzeit ausschalten"
+      ],
+      isNewFeature: true,
+      featureId: 'interactive-antrag-v1',
+      fallbackContent: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
+      fallbackTips: [
         "Wähle die Art: Antrag, Kleine oder Große Anfrage",
         "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
         "Große Anfragen: Umfassende politische Themen mit Debatte",
@@ -357,7 +365,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         }
       },
       label: "Interaktiver Modus",
-      icon: HiChatAlt2,
+      icon: HiAnnotation,
       description: "KI stellt Verständnisfragen vor der Generierung"
     };
   }, [interactiveAntragEnabled, useInteractiveMode]);
