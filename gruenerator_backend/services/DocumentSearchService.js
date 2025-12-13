@@ -145,6 +145,7 @@ class DocumentSearchService extends BaseSearchService {
             const sourceType = params.filters?.sourceType;
             const group_id = params.filters?.group_id;
             const searchCollection = params.filters?.searchCollection;
+            const titleFilter = params.filters?.titleFilter;
 
             // Extract and validate options
             const limit = InputValidator.validateNumber(
@@ -172,7 +173,7 @@ class DocumentSearchService extends BaseSearchService {
             return {
                 query,
                 userId,
-                filters: { documentIds, sourceType, group_id, searchCollection },
+                filters: { documentIds, sourceType, group_id, searchCollection, titleFilter },
                 options
             };
         }
@@ -215,7 +216,8 @@ class DocumentSearchService extends BaseSearchService {
                     documentIds,
                     sourceType: params.sourceType,
                     group_id: params.group_id,
-                    searchCollection: params.searchCollection
+                    searchCollection: params.searchCollection,
+                    titleFilter: params.titleFilter
                 },
                 options: {
                     limit,
@@ -252,7 +254,8 @@ class DocumentSearchService extends BaseSearchService {
                 documentIds: validated.documentIds,
                 sourceType: validated.sourceType,
                 group_id: validated.group_id,
-                searchCollection: params.searchCollection
+                searchCollection: params.searchCollection,
+                titleFilter: params.titleFilter
             },
             options: {
                 limit: validated.limit,
@@ -604,6 +607,13 @@ class DocumentSearchService extends BaseSearchService {
                 match: { value: filters.sourceType }
             });
         }
+
+        if (filters.titleFilter) {
+            filter.must.push({
+                key: 'title',
+                match: { value: filters.titleFilter }
+            });
+        }
         // Optional quality_min range gating
         if (typeof qualityMin === 'number') {
             filter.must.push({ key: 'quality_score', range: { gte: qualityMin } });
@@ -686,7 +696,14 @@ class DocumentSearchService extends BaseSearchService {
                 match: { value: filters.sourceType }
             });
         }
-        
+
+        if (filters.titleFilter) {
+            filter.must.push({
+                key: 'title',
+                match: { value: filters.titleFilter }
+            });
+        }
+
         console.log('[DocumentSearchService] Calling Qdrant hybridSearch...');
         const hybridResult = await this.qdrantOps.hybridSearch(
             searchCollection,

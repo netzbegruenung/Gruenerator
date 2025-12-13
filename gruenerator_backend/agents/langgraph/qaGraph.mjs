@@ -476,7 +476,7 @@ async function repairNode(badDraft, referencesMap, aiWorkerPool) {
   return text || badDraft;
 }
 
-export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60 }) {
+export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60, titleFilter = null }) {
   // 1) plan subqueries (skip for simple queries ≤3 words)
   const isGrundsatz = (collection?.id === 'grundsatz-system') || ((collection?.user_id === 'SYSTEM') && (collection?.settings?.system_collection === true));
   const wordCount = question.trim().split(/\s+/).length;
@@ -502,7 +502,8 @@ export async function runQaGraph({ question, collection, aiWorkerPool, searchCol
           threshold: 0.38,
           searchCollection,
           recallLimit: recallLimit || 80,
-          qualityMin: collection.settings?.min_quality || 0.35
+          qualityMin: collection.settings?.min_quality || 0.35,
+          titleFilter
         });
       });
       const responses = await Promise.all(searchPromises);
