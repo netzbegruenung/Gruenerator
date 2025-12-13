@@ -1,8 +1,8 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiPlusCircle, HiClipboardList, HiUpload, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
-import { HiRocketLaunch } from 'react-icons/hi2';
+import { HiGlobeAlt, HiEye, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
+import { HiRocketLaunch, HiSparkles } from 'react-icons/hi2';
 import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import AttachedFilesList from './AttachedFilesList';
 import ContentSelector from './ContentSelector';
@@ -379,7 +379,7 @@ const FeatureIcons = ({
             {(useUltraMode && <HiRocketLaunch className="feature-icons__icon" />) ||
              (usePrivacyMode && <GrueneratorGPTIcon className="feature-icons__icon" />) ||
              (useProMode && <HiPlusCircle className="feature-icons__icon" />) ||
-             (<HiAdjustments className="feature-icons__icon" />)}
+             (<HiSparkles className="feature-icons__icon" />)}
             <span className="feature-icons-button__label">
               {useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ'))}
             </span>
@@ -542,7 +542,7 @@ const FeatureIcons = ({
           })}
           type="button"
         >
-          <HiAdjustments className="balanced-dropdown-icon" />
+          <HiSparkles className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Kreativ</span>
             <span className="balanced-dropdown-desc">Kreative Texte mit Mistral Medium.</span>
