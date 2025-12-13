@@ -142,6 +142,10 @@ async function processAIRequest(requestId, data) {
       console.log(`[AI Worker ${requestId}] Using Bedrock provider with temperature: ${effectiveOptions.temperature || 'default'}`);
       sendProgress(requestId, 15);
       result = await providers.executeProvider('bedrock', requestId, { ...data, options: effectiveOptions });
+    } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
+      console.log(`[AI Worker ${requestId}] Using LiteLLM provider with temperature: ${effectiveOptions.temperature || 'default'}`);
+      sendProgress(requestId, 15);
+      result = await providers.executeProvider('litellm', requestId, { ...data, options: effectiveOptions });
     } else if (!result && !explicitProvider) {
       console.log(`[AI Worker ${requestId}] Using default Mistral provider with temperature: ${effectiveOptions.temperature || 'default'}`);
       sendProgress(requestId, 15);
