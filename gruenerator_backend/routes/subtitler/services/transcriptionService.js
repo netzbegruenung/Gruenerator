@@ -2,9 +2,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const { transcribeWithAssemblyAI } = require('./assemblyAIService');
+const { transcribeWithGladia } = require('./gladiaService');
 const { extractAudio } = require('./videoUploadService');
-// UNUSED: Short subtitle generator service commented out - only manual mode is used
-// const { generateShortSubtitlesViaAI } = require('./shortSubtitleGeneratorService');
+
 const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
 const { startBackgroundCompression } = require('./backgroundCompressionService');
 const { createLogger } = require('../../../utils/logger.js');
@@ -12,24 +12,35 @@ const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('transcription');
 
 /**
- * Transcribe audio using AssemblyAI (ONLY provider - provides word timestamps)
+ * Transcribe audio using Gladia as primary provider with AssemblyAI as fallback
  * @param {string} audioPath - Path to audio file
  * @param {boolean} requestWordTimestamps - Whether to request word timestamps
  * @param {string|null} uploadId - Optional upload ID for cancellation support
  * @returns {Promise<Object>} - Transcription result in consistent format
  */
 async function transcribeWithProvider(audioPath, requestWordTimestamps = false, uploadId = null) {
-    log.debug('Using AssemblyAI EU provider');
+    log.debug('Using Gladia as primary provider with AssemblyAI fallback');
 
     try {
-        return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps, uploadId);
+        return await transcribeWithGladia(audioPath, requestWordTimestamps, uploadId);
     } catch (error) {
         if (error.message === 'CANCELLED') {
             log.info(`Transcription cancelled for upload: ${uploadId}`);
             throw error;
         }
-        log.error(`AssemblyAI transcription failed: ${error.message}`);
-        throw new Error(`Transcription failed - AssemblyAI is required for word timestamps: ${error.message}`);
+
+        log.warn(`Gladia transcription failed: ${error.message} - falling back to AssemblyAI`);
+
+        try {
+            return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps, uploadId);
+        } catch (fallbackError) {
+            if (fallbackError.message === 'CANCELLED') {
+                log.info(`Transcription cancelled for upload: ${uploadId}`);
+                throw fallbackError;
+            }
+            log.error(`AssemblyAI fallback also failed: ${fallbackError.message}`);
+            throw new Error(`Transcription failed: Primary (Gladia) - ${error.message}, Fallback (AssemblyAI) - ${fallbackError.message}`);
+        }
     }
 }
 
