@@ -64,7 +64,18 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
         }
 
         const trimmedQuestion = question.trim();
-        log.debug(`[QA Multi] Processing question across ${collectionIds.length} collections: "${trimmedQuestion.slice(0, 50)}..."`);
+
+        // Detect document scope from query to filter collections/documents
+        const documentScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+        const effectiveCollectionIds = documentScope.detectedPhrase
+            ? documentScope.collections.filter(c => collectionIds.includes(c))
+            : collectionIds;
+
+        if (documentScope.detectedPhrase) {
+            log.debug(`[QA Multi] Detected scope: "${documentScope.detectedPhrase}" -> collections: ${effectiveCollectionIds.join(', ')}, titleFilter: ${documentScope.documentTitleFilter || 'none'}`);
+        }
+
+        log.debug(`[QA Multi] Processing question across ${effectiveCollectionIds.length} collections: "${trimmedQuestion.slice(0, 50)}..."`);
 
         // Import DocumentSearchService for direct searching
         const { DocumentSearchService } = await import('../services/DocumentSearchService.js');
@@ -112,12 +123,17 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
         };
 
         // Search all collections in parallel
-        const searchPromises = collectionIds.map(async (collectionId) => {
+        const searchPromises = effectiveCollectionIds.map(async (collectionId) => {
             const config = SYSTEM_COLLECTIONS[collectionId];
             if (!config) {
                 log.warn(`[QA Multi] Unknown collection: ${collectionId}`);
                 return [];
             }
+
+            // Only apply titleFilter to grundsatz-system collection
+            const titleFilter = (collectionId === 'grundsatz-system' && documentScope.documentTitleFilter)
+                ? documentScope.documentTitleFilter
+                : undefined;
 
             try {
                 const resp = await documentSearchService.search({
@@ -130,7 +146,8 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
                     threshold: 0.35,
                     searchCollection: config.searchCollection,
                     recallLimit: 50,
-                    qualityMin: config.settings?.min_quality || 0.3
+                    qualityMin: config.settings?.min_quality || 0.3,
+                    titleFilter
                 });
 
                 return expandResultsWithCollection(resp.results || [], collectionId, config.name);
@@ -265,7 +282,7 @@ ${refsSummary}`;
 
         // Group sources by collection
         const sourcesByCollection = {};
-        for (const collectionId of collectionIds) {
+        for (const collectionId of effectiveCollectionIds) {
             const config = SYSTEM_COLLECTIONS[collectionId];
             if (!config) continue;
 
@@ -332,7 +349,9 @@ ${refsSummary}`;
             sourcesByCollection,
             metadata: {
                 response_time_ms: responseTime,
-                collections_queried: collectionIds,
+                collections_queried: effectiveCollectionIds,
+                document_scope_detected: documentScope.detectedPhrase || null,
+                document_title_filter: documentScope.documentTitleFilter || null,
                 total_results: sortedResults.length,
                 citations_count: citations.length
             }
@@ -429,6 +448,12 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             log.debug(`[QA Interaction] Detected intent: ${intent.type} (lang=${intent.language}, conf=${intent.confidence})`);
         }
 
+        // Detect document scope for precise filtering (e.g., "im Grundsatzprogramm" -> only Grundsatzprogramm 2020)
+        const documentScope = queryIntentService.detectDocumentScope(trimmedQuestion);
+        if (documentScope.detectedPhrase) {
+            log.debug(`[QA Interaction] Detected document scope: "${documentScope.detectedPhrase}" -> titleFilter: ${documentScope.documentTitleFilter || 'none'}`);
+        }
+
         let result;
         if (isGrundsatzSystem) {
             result = await runQaGraph({
@@ -438,7 +463,8 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
                 searchCollection: 'grundsatz_documents',
                 userId: null,
                 documentIds: undefined,
-                recallLimit: 60
+                recallLimit: 60,
+                titleFilter: documentScope.documentTitleFilter
             });
         } else if (isBundestagsfraktionSystem) {
             result = await runQaGraph({
