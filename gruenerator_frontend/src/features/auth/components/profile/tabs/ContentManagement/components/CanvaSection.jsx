@@ -152,12 +152,11 @@ const CanvaSection = ({
         }
     }, [onErrorMessage, templatesQuery]);
 
-    // Template handlers
+    // Template handlers - prefer original URL for opening
     const handleEditTemplate = (template) => {
-        if (template.source === 'canva' && template.canva_url) {
-            window.open(template.canva_url, '_blank');
-        } else if (template.canva_url || template.external_url) {
-            window.open(template.canva_url || template.external_url, '_blank');
+        const url = template.content_data?.originalUrl || template.canva_url || template.external_url;
+        if (url) {
+            window.open(url, '_blank');
         } else {
             onErrorMessage('Keine Canva-URL für diese Vorlage verfügbar.');
         }
