@@ -3,6 +3,11 @@ import { lazy } from 'react';
 const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
 const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
 const GalleryPage = lazy(() => import('../components/common/Gallery'));
+const VorlagenGallery = lazy(() =>
+  import('../components/common/Gallery').then(mod => ({
+    default: (props) => mod.default({ ...props, initialContentType: 'vorlagen', availableContentTypes: ['vorlagen'] })
+  }))
+);
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const YouPage = lazy(() => import('../features/you'));
 // EmptyEditor removed - deprecated component
@@ -26,6 +31,7 @@ const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Ter
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const BundestagSearch = lazy(() => import('../features/bundestag/components/BundestagSearchPage'));
+const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
 const AskPage = lazy(() => import('../features/ask/AskPage'));
 const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
 const AskBundestagsfraktionPage = lazy(() => import('../features/ask/AskBundestagsfraktionPage'));
@@ -38,6 +44,7 @@ const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/Kampag
 const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
+const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
 const SurveyIndex = lazy(() => import('../features/umfragen'));
 const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ default: module.SurveyPage })));
 
@@ -91,6 +98,7 @@ export const GrueneratorenBundle = {
   Kampagnen: KampagnenGenerator,
   Accessibility: AccessibilityTextGenerator,
   AltText: AltTextGenerator,
+  Website: WebsiteGenerator,
   Imagine: GrueneratorImagine,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
   Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
@@ -99,6 +107,7 @@ export const GrueneratorenBundle = {
   Wahlprogramm: UniversalTextGenerator,
   Search: Search,
   BundestagSearch: BundestagSearch,
+  Oparl: OparlPage,
   Ask: AskPage,
   AskGrundsatz: AskGrundsatzPage,
   AskBundestagsfraktion: AskBundestagsfraktionPage,
@@ -106,6 +115,7 @@ export const GrueneratorenBundle = {
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
   AntragDetail: AntragDetailPage,
+  VorlagenListe: VorlagenGallery,
   Reel: Reel,
   You: YouPage,
   Campaign: CampaignPage,
@@ -134,6 +144,7 @@ const standardRoutes = [
   { path: '/imagine', component: GrueneratorenBundle.Imagine, withForm: true },
   { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
   { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
+  { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/antragscheck', component: GrueneratorenBundle.Antragscheck, withForm: true },
   { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
@@ -141,8 +152,10 @@ const standardRoutes = [
   { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
+  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/bundestag', component: GrueneratorenBundle.BundestagSearch, withForm: true },
+  { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
   { path: '/gruene-notebook', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
   { path: '/gruene-bundestag', component: GrueneratorenBundle.AskBundestagsfraktion, withForm: true },

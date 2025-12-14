@@ -32,11 +32,11 @@ const ShareToGroupModal = ({
     collaborative: false
   });
 
-  // Get user's groups
-  const { userGroups, isLoadingGroups, isErrorGroups } = useGroups();
-  
+  // Get user's groups - isActive: true since modal is open
+  const { userGroups, isLoadingGroups, isErrorGroups } = useGroups({ isActive: true });
+
   // Get sharing functionality for the selected group
-  const { shareContent, isSharing } = useGroupSharing(selectedGroupId);
+  const { shareContent, isSharing } = useGroupSharing(selectedGroupId, { isActive: true });
 
   if (!isOpen) return null;
 

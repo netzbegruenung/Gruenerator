@@ -21,7 +21,7 @@ const JoinGroupPage = () => {
     isJoinGroupError,
     joinGroupError,
     isJoinGroupSuccess
-  } = useGroups();
+  } = useGroups({ isActive: true });
 
   // Verify token and fetch group info
   useEffect(() => {

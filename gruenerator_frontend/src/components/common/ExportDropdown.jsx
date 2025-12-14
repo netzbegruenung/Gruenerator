@@ -20,7 +20,15 @@ import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { hashContent } from '../../utils/contentHash';
 import '../../assets/styles/components/actions/exportToDocument.css';
 
-const ExportDropdown = ({ content, title, className = 'action-button', onSaveToLibrary, saveToLibraryLoading }) => {
+const ExportDropdown = ({
+  content,
+  title,
+  className = 'action-button',
+  onSaveToLibrary,
+  saveToLibraryLoading,
+  customExportOptions = [],
+  hideDefaultOptions = false
+}) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [shareLinks, setShareLinks] = useState([]);
   const [selectedShareLinkId, setSelectedShareLinkId] = useState('');
@@ -412,85 +420,116 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
 
       {showDropdown && (
         <div className="format-dropdown">
-          <button
-            className="format-option"
-            onClick={handleDocsExport}
-            disabled={docsLoading}
-          >
-            <CiMemoPad size={16} />
-            <div className="format-option-content">
-              <div className="format-option-title">
-                {docsLoading ? 'Exportiere...' : 'Textbegrünung Export'}
+          {/* Custom export options rendered first */}
+          {customExportOptions.map(option => (
+            <button
+              key={option.id}
+              className="format-option"
+              onClick={() => {
+                option.onClick();
+                setShowDropdown(false);
+              }}
+              disabled={option.disabled}
+            >
+              {option.icon}
+              <div className="format-option-content">
+                <div className="format-option-title">{option.label}</div>
+                {option.subtitle && (
+                  <div className="format-option-subtitle">{option.subtitle}</div>
+                )}
               </div>
-              <div className="format-option-subtitle">
-                Öffentlich verfügbar, als Link teilbar
-              </div>
-            </div>
-          </button>
-          
-          <button
-            className="format-option"
-            onClick={handleDOCXDownload}
-            disabled={isGenerating}
-          >
-            <FaFileWord size={16} />
-            <div className="format-option-content">
-              <div className="format-option-title">
-            {isGenerating ? (
-              <>
-                <HiRefresh className="spinning" size={14} style={{ marginRight: '6px' }} />
-                Wird erstellt...
-              </>
-            ) : 'Datei herunterladen'}
-              </div>
-              <div className="format-option-subtitle">
-                Für Word und LibreOffice
-              </div>
-            </div>
-          </button>
-          
-          {isAuthenticated && onSaveToLibrary && (
+            </button>
+          ))}
+
+          {/* Divider if both custom and default options exist */}
+          {customExportOptions.length > 0 && !hideDefaultOptions && (
+            <div className="format-divider"></div>
+          )}
+
+          {/* Default options - conditionally rendered */}
+          {!hideDefaultOptions && (
             <>
-              <div className="format-divider"></div>
               <button
                 className="format-option"
-                onClick={handleSaveToLibrary}
-                disabled={saveToLibraryLoading}
+                onClick={handleDocsExport}
+                disabled={docsLoading}
               >
-                {saveIcon === 'checkmark' ? (
-                  <IoCheckmarkOutline size={12} />
-                ) : (
-                  <HiCog size={12} />
-                )}
+                <CiMemoPad size={16} />
                 <div className="format-option-content">
                   <div className="format-option-title">
-                    {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
+                    {docsLoading ? 'Exportiere...' : 'Textbegrünung Export'}
                   </div>
                   <div className="format-option-subtitle">
-                    Für später wiederverwenden
+                    Öffentlich verfügbar, als Link teilbar
                   </div>
                 </div>
               </button>
+
+              <button
+                className="format-option"
+                onClick={handleDOCXDownload}
+                disabled={isGenerating}
+              >
+                <FaFileWord size={16} />
+                <div className="format-option-content">
+                  <div className="format-option-title">
+                {isGenerating ? (
+                  <>
+                    <HiRefresh className="spinning" size={14} style={{ marginRight: '6px' }} />
+                    Wird erstellt...
+                  </>
+                ) : 'Datei herunterladen'}
+                  </div>
+                  <div className="format-option-subtitle">
+                    Für Word und LibreOffice
+                  </div>
+                </div>
+              </button>
+
+              {isAuthenticated && onSaveToLibrary && (
+                <>
+                  <div className="format-divider"></div>
+                  <button
+                    className="format-option"
+                    onClick={handleSaveToLibrary}
+                    disabled={saveToLibraryLoading}
+                  >
+                    {saveIcon === 'checkmark' ? (
+                      <IoCheckmarkOutline size={12} />
+                    ) : (
+                      <HiCog size={12} />
+                    )}
+                    <div className="format-option-content">
+                      <div className="format-option-title">
+                        {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
+                      </div>
+                      <div className="format-option-subtitle">
+                        Für später wiederverwenden
+                      </div>
+                    </div>
+                  </button>
+                </>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  className="format-option wolke-trigger"
+                  onClick={handleWolkeClick}
+                  disabled={uploadingToWolke || loadingShareLinks}
+                >
+                  <FaCloud size={16} />
+                  <div className="format-option-content">
+                    <div className="format-option-title">
+                      {uploadingToWolke ? 'Uploade...' : loadingShareLinks ? 'Lade...' : 'Wolke Export'}
+                    </div>
+                    <div className="format-option-subtitle">
+                      In der Grünen Wolke speichern
+                    </div>
+                  </div>
+                  {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
+                </button>
+              )}
             </>
-          )}
-          
-          {isAuthenticated && (
-            <button
-              className="format-option wolke-trigger"
-              onClick={handleWolkeClick}
-              disabled={uploadingToWolke || loadingShareLinks}
-            >
-              <FaCloud size={16} />
-              <div className="format-option-content">
-                <div className="format-option-title">
-                  {uploadingToWolke ? 'Uploade...' : loadingShareLinks ? 'Lade...' : 'Wolke Export'}
-                </div>
-                <div className="format-option-subtitle">
-                  In der Grünen Wolke speichern
-                </div>
-              </div>
-              {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
-            </button>
           )}
         </div>
       )}
@@ -589,7 +628,16 @@ ExportDropdown.propTypes = {
   title: PropTypes.string,
   className: PropTypes.string,
   onSaveToLibrary: PropTypes.func,
-  saveToLibraryLoading: PropTypes.bool
+  saveToLibraryLoading: PropTypes.bool,
+  customExportOptions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    subtitle: PropTypes.string,
+    icon: PropTypes.node,
+    onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool
+  })),
+  hideDefaultOptions: PropTypes.bool
 };
 
 export default ExportDropdown;

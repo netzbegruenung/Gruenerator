@@ -496,7 +496,8 @@ export const useUserTexts = ({ isActive, enabled = true } = {}) => {
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always'
   });
 
   const updateTitleMutation = useMutation({
@@ -545,7 +546,8 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchOnMount: 'always'
   });
 
   const updateTitleMutation = useMutation({
@@ -563,6 +565,22 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
     }
   });
 
+  const visibilityMutation = useMutation({
+    mutationFn: ({ templateId, isPrivate }) =>
+      profileApiService.updateTemplateVisibility(templateId, isPrivate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ templateId, data }) =>
+      profileApiService.updateTemplate(templateId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userTemplates(user?.id) });
+    }
+  });
+
   // Sync with profileStore
   useEffect(() => {
     if (query.data) {
@@ -572,11 +590,17 @@ export const useUserTemplates = ({ isActive, enabled = true } = {}) => {
 
   return {
     query,
-    updateTemplateTitle: (templateId, newTitle) => 
+    updateTemplateTitle: (templateId, newTitle) =>
       updateTitleMutation.mutateAsync({ templateId, newTitle }),
     deleteTemplate: deleteMutation.mutateAsync,
+    updateTemplateVisibility: (templateId, isPrivate) =>
+      visibilityMutation.mutateAsync({ templateId, isPrivate }),
+    updateTemplate: (templateId, data) =>
+      updateMutation.mutateAsync({ templateId, data }),
     isUpdatingTitle: updateTitleMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isUpdatingVisibility: visibilityMutation.isPending,
+    isUpdating: updateMutation.isPending,
     updateError: updateTitleMutation.error,
     deleteError: deleteMutation.error
   };

@@ -243,7 +243,7 @@ class ModulePreloader {
     const preloadStrategies = {
       '/profile': [
         { name: 'ProfileInfoTab', importFn: () => import('../features/auth/components/profile/ProfileInfoTab'), priority: 'CRITICAL' },
-        { name: 'GroupsManagementTab', importFn: () => import('../features/auth/components/profile/GroupsManagementTab'), priority: 'NORMAL' },
+        { name: 'GroupsManagementTab', importFn: () => import('../features/auth/components/profile/tabs/GroupsManagement'), priority: 'NORMAL' },
         ...(betaFeatures.customGenerators ? [{ name: 'CustomGeneratorsTab', importFn: () => import('../features/auth/components/profile/CustomGeneratorsTab'), priority: 'LOW' }] : []),
       ],
       '/': [

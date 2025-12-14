@@ -26,7 +26,7 @@ import '../../../assets/styles/components/auth/avatar-selection.css';
 
 // Enhanced lazy loading with cache support
 const ProfileInfoTab = lazy(() => import('../components/profile/ProfileInfoTab'));
-const GroupsManagementTab = lazy(() => import('../components/profile/GroupsManagementTab'));
+const GroupsManagementTab = lazy(() => import('../components/profile/tabs/GroupsManagement'));
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 

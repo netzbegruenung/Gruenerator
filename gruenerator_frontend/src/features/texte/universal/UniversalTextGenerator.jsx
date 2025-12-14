@@ -165,6 +165,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     disableKnowledgeSystem: false, // Enable knowledge system for fetching documents/texts
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'UNIVERSAL',
+    defaultMode: 'privacy',
     helpContent: helpContent
   });
 
