@@ -45,6 +45,25 @@ export const getMenuItems = (betaFeatures = {}) => {
     icon: getIcon('navigation', 'barrierefreiheit')
   });
 
+  toolsItems.push({
+    id: 'vorlagen',
+    path: '/datenbank/vorlagen',
+    title: 'Vorlagen',
+    description: 'Design-Vorlagen für Canva und mehr',
+    icon: getIcon('navigation', 'vorlagen')
+  });
+
+  // Add website generator if beta feature is enabled
+  if (betaFeatures.websiteBetaEnabled) {
+    toolsItems.push({
+      id: 'website',
+      path: '/website',
+      title: 'Website',
+      description: 'Landing Page JSON für WordPress',
+      icon: getIcon('navigation', 'website')
+    });
+  }
+
   // Build texte items, conditionally including gruene-jugend based on igel mode
   const texteItems = [
     {

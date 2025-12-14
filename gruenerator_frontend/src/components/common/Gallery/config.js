@@ -100,7 +100,26 @@ export const GALLERY_CONTENT_TYPES = {
     filterTypes: PR_TYPES,
     allowCategoryFilter: true,
     cardRenderer: 'pr'
+  },
+  vorlagen: {
+    id: 'vorlagen',
+    label: 'Vorlagen',
+    title: 'Vorlagen-Datenbank',
+    intro: 'Durchsuchen Sie hier Design-Vorlagen für Canva, InDesign und mehr.',
+    searchModes: [
+      { value: 'title', label: 'Titel' },
+      { value: 'fulltext', label: 'Volltext' }
+    ],
+    defaultSearchMode: 'title',
+    fetcher: 'fetchVorlagen',
+    categorySource: {
+      type: 'api',
+      queryKey: ['vorlagenCategories'],
+      endpoint: '/auth/vorlagen-categories'
+    },
+    cardRenderer: 'vorlagen',
+    allowCategoryFilter: true
   }
 };
 
-export const ORDERED_CONTENT_TYPE_IDS = ['antraege', 'generators', 'pr', 'all'];
+export const ORDERED_CONTENT_TYPE_IDS = ['antraege', 'generators', 'pr', 'vorlagen', 'all'];

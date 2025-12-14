@@ -1,24 +1,11 @@
 .gallery-layout {
   max-width: 1200px;
-  margin: 80px auto 0 auto;
-  padding: 2rem 2rem 2rem 2rem;
+  margin: 60px auto 0 auto;
   flex-direction: column;
 }
 
 .gallery-header {
-  margin-bottom: var(--spacing-xxlarge);
-  padding-bottom: var(--spacing-large);
   text-align: center;
-}
-
-.gallery-header::after {
-  content: "";
-  display: block;
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--secondary-600), var(--primary-600));
-  margin: var(--spacing-large) auto 0;
-  border-radius: 2px;
 }
 
 .gallery-header h1 {
@@ -73,6 +60,7 @@
 
 .gallery-category-filter {
   display: flex;
+  padding-top: 1rem;
   flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: center;
@@ -271,4 +259,71 @@
   background: var(--primary);
   color: var(--weiß);
   border-color: var(--primary);
+}
+
+/* Vorlagen card with thumbnail */
+.gallery-item-card.vorlagen-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--background-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gallery-item-card.vorlagen-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-item-card.vorlagen-card.has-thumbnail {
+  padding: 0;
+}
+
+.gallery-item-card.vorlagen-card:not(.has-thumbnail) {
+  padding: 1rem;
+}
+
+.gallery-card-thumbnail {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--background-color-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-card-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gallery-item-card.has-thumbnail .gallery-card-content {
+  padding: 1rem;
+}
+
+.gallery-item-card.has-thumbnail .antrag-card-date {
+  padding: 0 1rem 1rem;
+  border-top: none;
+  margin-top: 0;
+}
+
+.gallery-controls {
+  width: 100%;
+  max-width: 800px;
+}
+
+.gallery-controls-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+}
+
+.gallery-controls-row .search-bar-container {
+  flex: 1;
 }

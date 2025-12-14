@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { FaSearch } from 'react-icons/fa';
+import { HiCog } from 'react-icons/hi';
 import Icon from '../../../components/common/Icon';
 import '../styles/SearchBarStyles.css';
 
@@ -25,8 +26,27 @@ const SearchBar = ({
   onDeepResearchToggle,
   isDeepResearchActive = false,
   hideExamples = false,
-  hideDisclaimer = false
+  hideDisclaimer = false,
+  settingsContent = null
 }) => {
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+        setShowSettings(false);
+      }
+    };
+
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (value.trim() && !loading) {
@@ -55,6 +75,24 @@ const SearchBar = ({
             disabled={loading}
           />
           <div className="search-buttons">
+            {settingsContent && (
+              <div className="search-settings" ref={settingsRef}>
+                <button
+                  type="button"
+                  className={`search-settings-toggle ${showSettings ? 'active' : ''}`}
+                  onClick={() => setShowSettings(!showSettings)}
+                  aria-label="Einstellungen"
+                  title="Einstellungen"
+                >
+                  <HiCog />
+                </button>
+                {showSettings && (
+                  <div className="search-settings-dropdown">
+                    {settingsContent}
+                  </div>
+                )}
+              </div>
+            )}
             {onDeepResearchToggle && (
               <button
                 type="button"
@@ -121,7 +159,8 @@ SearchBar.propTypes = {
   onDeepResearchToggle: PropTypes.func,
   isDeepResearchActive: PropTypes.bool,
   hideExamples: PropTypes.bool,
-  hideDisclaimer: PropTypes.bool
+  hideDisclaimer: PropTypes.bool,
+  settingsContent: PropTypes.node
 };
 
 SearchBar.defaultProps = {

@@ -10,7 +10,7 @@ const formatDate = (value) => {
   }
 };
 
-export const GalleryCard = ({ title, description, meta, tags, onClick, className }) => {
+export const GalleryCard = ({ title, description, meta, tags, onClick, className, thumbnailUrl }) => {
   const handleKeyPress = (event) => {
     if (!onClick) return;
     if (event.key === 'Enter' || event.key === ' ') {
@@ -21,13 +21,18 @@ export const GalleryCard = ({ title, description, meta, tags, onClick, className
 
   return (
     <div
-      className={`gallery-item-card${className ? ` ${className}` : ''}`}
+      className={`gallery-item-card${className ? ` ${className}` : ''}${thumbnailUrl ? ' has-thumbnail' : ''}`}
       onClick={onClick}
       role={onClick ? 'link' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyPress={handleKeyPress}
     >
-      <div>
+      {thumbnailUrl && (
+        <div className="gallery-card-thumbnail">
+          <img src={thumbnailUrl} alt={title || ''} loading="lazy" />
+        </div>
+      )}
+      <div className="gallery-card-content">
         {title && <h3 className="antrag-card-title">{title}</h3>}
         {description && (
           <p className="antrag-card-description">{description}</p>
@@ -51,7 +56,8 @@ GalleryCard.propTypes = {
   meta: PropTypes.string,
   tags: PropTypes.arrayOf(PropTypes.string),
   onClick: PropTypes.func,
-  className: PropTypes.string
+  className: PropTypes.string,
+  thumbnailUrl: PropTypes.string
 };
 
 GalleryCard.defaultProps = {
@@ -60,7 +66,8 @@ GalleryCard.defaultProps = {
   meta: '',
   tags: [],
   onClick: undefined,
-  className: ''
+  className: '',
+  thumbnailUrl: ''
 };
 
 export const GallerySkeleton = ({ className }) => (
@@ -125,6 +132,30 @@ export const cardAdapters = {
         description: rawText ? `${preview}${rawText.length > 180 ? '...' : ''}` : '',
         meta: item.type ? `${item.type} · ${formatDate(item.created_at)}` : formatDate(item.created_at),
         className: 'pr-card'
+      }
+    };
+  },
+  vorlagen: (item) => {
+    if (!item?.id) return null;
+    const templateType = item.template_type
+      ? item.template_type.charAt(0).toUpperCase() + item.template_type.slice(1)
+      : '';
+
+    return {
+      key: item.id,
+      props: {
+        title: item.title || 'Unbenannte Vorlage',
+        description: item.description || '',
+        meta: templateType || '',
+        tags: Array.isArray(item.categories) ? item.categories.slice(0, 3) : [],
+        thumbnailUrl: item.thumbnail_url || '',
+        onClick: () => {
+          if (typeof window === 'undefined') return;
+          if (item.external_url) {
+            window.open(item.external_url, '_blank', 'noopener,noreferrer');
+          }
+        },
+        className: 'vorlagen-card'
       }
     };
   },

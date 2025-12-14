@@ -134,6 +134,21 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
   return { items: list, sections };
 };
 
+const fetchVorlagen = async ({ searchTerm, searchMode, selectedCategory, signal }) => {
+  const params = new URLSearchParams();
+  if (searchTerm) {
+    params.append('searchTerm', searchTerm);
+    if (searchMode) params.append('searchMode', searchMode);
+  }
+  if (selectedCategory && selectedCategory !== 'all') {
+    params.append('templateType', selectedCategory);
+  }
+
+  const url = buildUrl(`/auth/vorlagen${params.toString() ? `?${params.toString()}` : ''}`);
+  const data = await fetchJson(url, { method: 'GET', signal });
+  return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
+};
+
 const categoryQueryOptions = {
   antraege: {
     queryKey: ['antraegeCategories'],
@@ -143,13 +158,23 @@ const categoryQueryOptions = {
       const categories = Array.isArray(data?.categories) ? data.categories : [];
       return [{ id: 'all', label: 'Alle Kategorien' }, ...categories];
     }
+  },
+  vorlagen: {
+    queryKey: ['vorlagenCategories'],
+    queryFn: async () => {
+      const url = buildUrl('/auth/vorlagen-categories');
+      const data = await fetchJson(url, { method: 'GET' });
+      const categories = Array.isArray(data?.categories) ? data.categories : [];
+      return [{ id: 'all', label: 'Alle Typen' }, ...categories];
+    }
   }
 };
 
 const fetcherMap = {
   fetchAntraege: fetchAntraege,
   fetchGenerators: fetchGenerators,
-  fetchUnified: fetchUnified
+  fetchUnified: fetchUnified,
+  fetchVorlagen: fetchVorlagen
 };
 
 export const useGalleryController = ({
@@ -181,7 +206,7 @@ export const useGalleryController = ({
   }, [inputValue]);
 
   const categoriesQuery = useQuery({
-    ...categoryQueryOptions.antraege,
+    ...(categoryQueryOptions[resolvedType] || categoryQueryOptions.antraege),
     enabled: config.categorySource?.type === 'api'
   });
 
@@ -281,6 +306,7 @@ export const useGalleryController = ({
     categories: baseCategories,
     contentType: resolvedType,
     typeOptions,
-    isFetching: dataQuery.isFetching
+    isFetching: dataQuery.isFetching,
+    refetch: dataQuery.refetch
   };
 };
