@@ -20,7 +20,7 @@
   border: 2px solid var(--background-color-alt);
   border-radius: 24px;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .search-input-wrapper:focus-within {
@@ -142,6 +142,101 @@
   width: 20px;
   height: 20px;
   transition: transform 0.2s ease-in-out;
+}
+
+/* Settings toggle button */
+.search-bar-container .search-form .search-input-wrapper .search-settings {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-settings-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  padding: 8px;
+  color: var(--font-color);
+  opacity: 0.7;
+  transition: color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  border-radius: 50%;
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-settings-toggle:hover {
+  color: var(--klee);
+  opacity: 1;
+  background-color: var(--background-color-alt);
+  transform: scale(1.05);
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-settings-toggle.active {
+  color: var(--klee);
+  opacity: 1;
+  background-color: var(--background-color-alt);
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-settings-toggle svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.3s ease;
+}
+
+.search-bar-container .search-form .search-input-wrapper .search-settings-toggle.active svg {
+  transform: rotate(90deg);
+}
+
+/* Settings dropdown */
+.search-settings-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--background-color);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-border-radius-medium, 12px);
+  padding: var(--spacing-medium);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  min-width: 240px;
+}
+
+.search-settings-dropdown label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--font-color);
+  margin-bottom: var(--spacing-small);
+}
+
+.search-settings-dropdown .category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.search-settings-dropdown .category-chip {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 15px;
+  background: var(--background-color);
+  color: var(--font-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.search-settings-dropdown .category-chip:hover {
+  background: var(--background-color-alt);
+  border-color: var(--primary);
+}
+
+.search-settings-dropdown .category-chip.active {
+  background: var(--primary);
+  color: var(--weiß);
+  border-color: var(--primary);
 }
 
 .button-spinner {

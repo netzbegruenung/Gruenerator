@@ -42,7 +42,8 @@ const GalleryContainer = ({
     selectedCategory,
     setSelectedCategory,
     categories,
-    typeOptions
+    typeOptions,
+    refetch
   } = useGalleryController({ contentType, availableContentTypeIds: typeOrder });
 
   const activeConfig = config || GALLERY_CONTENT_TYPES[contentType] || GALLERY_CONTENT_TYPES[DEFAULT_GALLERY_TYPE];
@@ -132,6 +133,7 @@ const GalleryContainer = ({
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
             showCategoryFilter={showCategoryFilter}
+            onRefresh={refetch}
           />
         </div>
       </div>

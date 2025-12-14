@@ -19,7 +19,8 @@ import {
   PiArrowRight,
   PiBrain,
   PiTextAlignLeftFill,
-  PiGlobe
+  PiGlobe,
+  PiPaintBrush
 } from 'react-icons/pi';
 
 import {
@@ -119,6 +120,7 @@ export const ICONS = {
     reel: PiVideoCamera,
     sharepic: PiImageSquare,
     datenbank: PiArchive,
+    vorlagen: PiPaintBrush,
     you: PiUser,
     tools: PiWrench,
     barrierefreiheit: IoAccessibilityOutline,

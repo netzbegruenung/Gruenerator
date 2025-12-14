@@ -27,8 +27,10 @@ const Footer = () => {
                                 <h3 id="footer-tools">Tools</h3>
                                 <ul>
                                     <li><Link to="/suche">Suche</Link></li>
+                                    <li><Link to="/kommunal">Kommunale Anträge</Link></li>
                                     <li><Link to="/barrierefreiheit">Barrierefreiheit</Link></li>
                                     <li><Link to="/kampagnen">Kampagnen</Link></li>
+                                    <li><Link to="/datenbank/vorlagen">Vorlagen</Link></li>
                                 </ul>
                             </section>
 
