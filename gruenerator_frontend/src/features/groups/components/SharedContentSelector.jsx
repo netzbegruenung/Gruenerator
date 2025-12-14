@@ -333,9 +333,10 @@ const SharedContentSelector = ({
         handleEnhancedPreview(item);
         break;
       case 'database':
-        // Open template (Canva URL) in new tab
-        if (item.canva_url || item.external_url) {
-          window.open(item.canva_url || item.external_url, '_blank', 'noopener,noreferrer');
+        // Open template (Canva URL) in new tab - prefer original URL
+        const templateUrl = item.content_data?.originalUrl || item.canva_url || item.external_url;
+        if (templateUrl) {
+          window.open(templateUrl, '_blank', 'noopener,noreferrer');
         } else {
           console.warn('Template has no URL to open:', item);
         }

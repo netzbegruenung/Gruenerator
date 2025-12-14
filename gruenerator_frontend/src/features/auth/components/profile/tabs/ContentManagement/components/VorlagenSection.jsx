@@ -63,11 +63,11 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             onClick: () => setEditingTemplate(template)
         });
 
-        if (template.external_url) {
+        if (template.external_url || template.content_data?.originalUrl) {
             actions.push({
                 icon: HiExternalLink,
                 label: 'In Canva öffnen',
-                onClick: () => window.open(template.external_url, '_blank')
+                onClick: () => window.open(template.content_data?.originalUrl || template.external_url, '_blank')
             });
         }
 

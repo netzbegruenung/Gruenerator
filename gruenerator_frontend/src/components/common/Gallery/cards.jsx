@@ -151,8 +151,9 @@ export const cardAdapters = {
         thumbnailUrl: item.thumbnail_url || '',
         onClick: () => {
           if (typeof window === 'undefined') return;
-          if (item.external_url) {
-            window.open(item.external_url, '_blank', 'noopener,noreferrer');
+          const url = item.content_data?.originalUrl || item.external_url;
+          if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
           }
         },
         className: 'vorlagen-card'
