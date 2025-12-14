@@ -308,7 +308,7 @@ if (cluster.isMaster) {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "https://piwik.gruenes-cms.de"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com", "https://*.canva.com", "https://static.canva.com"],
         connectSrc: [
           "'self'",
           "data:",
