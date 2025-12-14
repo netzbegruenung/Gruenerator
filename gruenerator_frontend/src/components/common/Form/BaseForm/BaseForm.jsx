@@ -96,6 +96,7 @@ const BaseFormInternal = ({
   nextButtonText,
   generatedContent,
   hideDisplayContainer = false,
+  customRenderer = null,
 
   helpContent,
   submitButtonProps = {},
@@ -160,7 +161,9 @@ const BaseFormInternal = ({
   onImageChange = null,
   enableKnowledgeSelector = false,
   hideFormExtras = false,
-  onImageEditModeChange = null // Callback when image edit mode changes (true = active, false = inactive)
+  onImageEditModeChange = null, // Callback when image edit mode changes (true = active, false = inactive)
+  customExportOptions = [],
+  hideDefaultExportOptions = false
 }) => {
 
   const baseFormRef = useRef(null);
@@ -736,6 +739,9 @@ const BaseFormInternal = ({
               isEditModeActive={isEditModeActive}
               showEditModeToggle={resolvedUIConfig.enableEditMode}
               customEditContent={customEditContent}
+              customRenderer={customRenderer}
+              customExportOptions={customExportOptions}
+              hideDefaultExportOptions={hideDefaultExportOptions}
             />
           </motion.div>
         )}
@@ -836,6 +842,9 @@ const BaseFormInternal = ({
               isEditModeActive={isEditModeActive}
               showEditModeToggle={resolvedUIConfig.enableEditMode}
               customEditContent={customEditContent}
+              customRenderer={customRenderer}
+              customExportOptions={customExportOptions}
+              hideDefaultExportOptions={hideDefaultExportOptions}
             />
           </motion.div>
         )}
@@ -1033,7 +1042,16 @@ BaseFormInternal.propTypes = {
   showImageUpload: PropTypes.bool,
   uploadedImage: PropTypes.object,
   onImageChange: PropTypes.func,
-  hideFormExtras: PropTypes.bool
+  hideFormExtras: PropTypes.bool,
+  customExportOptions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    subtitle: PropTypes.string,
+    icon: PropTypes.node,
+    onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool
+  })),
+  hideDefaultExportOptions: PropTypes.bool
 };
 
 BaseFormInternal.defaultProps = {

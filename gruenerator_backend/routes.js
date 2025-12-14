@@ -115,7 +115,8 @@ async function setupRoutes(app) {
   const { default: documentsRouter } = await import('./routes/documents.mjs');
 
   const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
-  
+  const { default: oparlRouter } = await import('./routes/oparl.mjs');
+
   // Import claude_social as ES6 module
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
   // Import claude_alttext as ES6 module
@@ -124,6 +125,8 @@ async function setupRoutes(app) {
   const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
   // Import claude_gruenerator_ask as ES6 module
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
+  // Import claude_website as ES6 module
+  const { default: claudeWebsiteRoute } = await import('./routes/claude_website.js');
   // Import custom generator routes as ES6 modules
   const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
   const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
@@ -156,6 +159,7 @@ async function setupRoutes(app) {
   app.use('/api/auth/qa', qaInteractionRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/bundestag', bundestagRouter);
+  app.use('/api/oparl', oparlRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
 
@@ -170,6 +174,7 @@ async function setupRoutes(app) {
 
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_alttext', claudeAlttextRoute);
+  app.use('/api/claude_website', claudeWebsiteRoute);
   app.use('/api/leichte_sprache', leichteSpracheRoute);
   app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);

@@ -33,6 +33,8 @@ const BETA_VIEWS = {
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
     AI_SHAREPIC: 'aiSharepic',
     CHAT: 'chat',
+    GROUPS: 'groups',
+    WEBSITE: 'website',
 };
 
 const SettingsSection = ({
@@ -185,6 +187,30 @@ const SettingsSection = ({
                     linkTo: '/chat',
                     linkText: 'Zum Chat',
                     icon: HiOutlineChat
+                };
+            case BETA_VIEWS.GROUPS:
+                return {
+                    title: 'Gruppen',
+                    description: 'Erstelle und verwalte Gruppen für gemeinsames Arbeiten. Teile Anweisungen, Wissen und Inhalte mit deinem Team oder Verband.',
+                    checked: getBetaFeatureState('groups'),
+                    setter: (value) => updateUserBetaFeatures('groups', value),
+                    featureName: 'Gruppen',
+                    checkboxLabel: 'Gruppen-Tab im Profil anzeigen und Funktionalität aktivieren',
+                    linkTo: '/profile/groups',
+                    linkText: 'Zu den Gruppen',
+                    icon: HiOutlineUsers
+                };
+            case BETA_VIEWS.WEBSITE:
+                return {
+                    title: 'Website Generator',
+                    description: 'Generiere JSON-Inhalte für WordPress Landing Pages. Ideal für Kandidat*innen, die eine professionelle politische Website erstellen möchten.',
+                    checked: getBetaFeatureState('website'),
+                    setter: (value) => updateUserBetaFeatures('website', value),
+                    featureName: 'Website Generator',
+                    checkboxLabel: 'Website Generator aktivieren',
+                    linkTo: '/website',
+                    linkText: 'Zum Website Generator',
+                    icon: getIcon('navigation', 'website')
                 };
             default:
                 return null;

@@ -31,7 +31,8 @@ class QdrantService {
             qa_collection_documents: 'qa_collection_documents',
             qa_usage_logs: 'qa_usage_logs',
             qa_public_access: 'qa_public_access',
-            bundestag_content: 'bundestag_content'
+            bundestag_content: 'bundestag_content',
+            oparl_papers: 'oparl_papers'
         };
         this.lastHealthCheck = 0;
         this.healthCheckInterval = 30000; // 30 seconds
@@ -589,6 +590,70 @@ class QdrantService {
                 });
 
                 await this.client.createPayloadIndex(this.collections.bundestag_content, {
+                    field_name: 'chunk_text',
+                    field_schema: {
+                        type: 'text',
+                        tokenizer: 'word',
+                        min_token_len: 2,
+                        max_token_len: 50,
+                        lowercase: true
+                    }
+                });
+            }
+
+            // OParl papers collection (municipal green party motions)
+            if (!existingCollections.includes(this.collections.oparl_papers)) {
+                await this.client.createCollection(this.collections.oparl_papers, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 2,
+                        max_segment_size: 20000,
+                        memmap_threshold: 10000,
+                        indexing_threshold: 20000
+                    },
+                    hnsw_config: {
+                        m: 16,
+                        ef_construct: 100,
+                        full_scan_threshold: 10000,
+                        max_indexing_threads: 0
+                    }
+                });
+                console.log(`[QdrantService] Created oparl_papers collection with ${this.vectorSize} dimensions`);
+
+                // Create indexes for efficient filtering
+                await this.client.createPayloadIndex(this.collections.oparl_papers, {
+                    field_name: 'city',
+                    field_schema: {
+                        type: 'keyword',
+                        is_tenant: true
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.oparl_papers, {
+                    field_name: 'paper_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.oparl_papers, {
+                    field_name: 'oparl_id',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.oparl_papers, {
+                    field_name: 'paper_type',
+                    field_schema: {
+                        type: 'keyword'
+                    }
+                });
+
+                await this.client.createPayloadIndex(this.collections.oparl_papers, {
                     field_name: 'chunk_text',
                     field_schema: {
                         type: 'text',

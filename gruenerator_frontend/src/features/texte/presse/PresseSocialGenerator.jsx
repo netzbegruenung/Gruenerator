@@ -97,6 +97,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     instructionType: 'social',
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'PRESS_SOCIAL',
+    defaultMode: 'privacy',
     disableKnowledgeSystem: false  // Enable knowledge system for document/text fetching
   });
 

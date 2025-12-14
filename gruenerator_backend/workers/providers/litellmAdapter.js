@@ -4,12 +4,13 @@ const ToolHandler = require('../../services/toolHandler');
 
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
-  // Pick a sensible default for LiteLLM if caller supplied a model from another family
-  let model = options.model || 'llama3.3';
+  // Use GPT-OSS 120B as the default model for LiteLLM
+  let model = options.model || 'gpt-oss:120b';
   const modelStr = String(model).toLowerCase();
-  const looksIncompatible = /mistral|mixtral|gpt-|claude|anthropic|bedrock|openai/.test(modelStr);
-  if (looksIncompatible || !/llama/.test(modelStr)) {
-    model = 'llama3.3';
+  // Override incompatible models to use gpt-oss:120b
+  const looksIncompatible = /mistral|mixtral|gpt-4|gpt-3|claude|anthropic|bedrock|openai/.test(modelStr);
+  if (looksIncompatible && !modelStr.includes('gpt-oss')) {
+    model = 'gpt-oss:120b';
   }
 
   const client = getLiteLlmClient();

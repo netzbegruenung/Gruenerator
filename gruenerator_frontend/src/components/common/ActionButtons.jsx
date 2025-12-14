@@ -46,7 +46,9 @@ const ActionButtons = ({
   generatedPost,
   generatedContent,
   title,
-  componentName = 'default'
+  componentName = 'default',
+  customExportOptions = [],
+  hideDefaultExportOptions = false
 }) => {
   const { isAuthenticated } = useLazyAuth();
   const { getBetaFeatureState } = useBetaFeatures();
@@ -252,6 +254,8 @@ const ActionButtons = ({
               title={title}
               onSaveToLibrary={showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null}
               saveToLibraryLoading={saveToLibraryLoading}
+              customExportOptions={customExportOptions}
+              hideDefaultOptions={hideDefaultExportOptions}
             />
           )}
           {showRegenerate && generatedPost && onRegenerate && (
@@ -356,6 +360,15 @@ ActionButtons.propTypes = {
   generatedContent: PropTypes.any,
   title: PropTypes.string,
   componentName: PropTypes.string,
+  customExportOptions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    subtitle: PropTypes.string,
+    icon: PropTypes.node,
+    onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool
+  })),
+  hideDefaultExportOptions: PropTypes.bool
 };
 
 ActionButtons.defaultProps = {

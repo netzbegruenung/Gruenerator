@@ -183,6 +183,8 @@ export const profileApiService = {
         antragGliederung: data.instructions.custom_antrag_gliederung || '',
         socialPrompt: data.instructions.custom_social_prompt || '',
         universalPrompt: data.instructions.custom_universal_prompt || '',
+        redePrompt: data.instructions.custom_rede_prompt || '',
+        buergeranfragenPrompt: data.instructions.custom_buergeranfragen_prompt || '',
         gruenejugendPrompt: data.instructions.custom_gruenejugend_prompt || '',
         presseabbinder: data.instructions.presseabbinder || '',
         knowledge: data.knowledge || [],
@@ -190,7 +192,7 @@ export const profileApiService = {
         groupInfo: data.group,
         userRole: data.membership.role,
         isAdmin: data.membership.isAdmin,
-        joinToken: data.group?.join_token || data.joinToken, // Fix: Include joinToken for join link functionality
+        joinToken: data.group?.join_token || data.joinToken,
         antragInstructionsEnabled: data.instructions.antrag_instructions_enabled || false,
         socialInstructionsEnabled: data.instructions.social_instructions_enabled || false
       };
@@ -248,6 +250,8 @@ export const profileApiService = {
         custom_antrag_gliederung: data.customAntragGliederung,
         custom_social_prompt: data.customSocialPrompt,
         custom_universal_prompt: data.customUniversalPrompt,
+        custom_rede_prompt: data.customRedePrompt,
+        custom_buergeranfragen_prompt: data.customBuergeranfragenPrompt,
         custom_gruenejugend_prompt: data.customGruenejugendPrompt,
         presseabbinder: data.presseabbinder,
         antrag_instructions_enabled: data.antragInstructionsEnabled,
@@ -700,7 +704,47 @@ export const profileApiService = {
     if (!result.success) {
       throw new Error(result.message || 'Failed to delete template');
     }
-    
+
+    return result;
+  },
+
+  async updateTemplateVisibility(templateId, isPrivate) {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_private: isPrivate })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update template visibility');
+    }
+
+    return result;
+  },
+
+  async updateTemplate(templateId, data) {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update template');
+    }
+
     return result;
   },
 

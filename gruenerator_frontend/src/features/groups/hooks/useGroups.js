@@ -85,26 +85,15 @@ export const useGroups = ({ isActive } = {}) => {
   const query = useQuery({
     queryKey: groupsQueryKey,
     queryFn: fetchGroupsFn,
-    enabled: !!user?.id && isAuthenticated && !authLoading,
-    staleTime: 15 * 60 * 1000, // 15 minutes for better performance
-    gcTime: 30 * 60 * 1000, // 30 minutes cache time
+    enabled: !!user?.id && isAuthenticated && !authLoading && isActive,
+    staleTime: 5 * 60 * 1000, // 5 minutes - aligned with useAnweisungenWissen
+    gcTime: 15 * 60 * 1000, // 15 minutes cache time
     refetchOnWindowFocus: false,
-    refetchOnMount: false, // Only refetch on explicit user actions
+    refetchOnMount: 'always', // Always refetch on mount for fresh data
     refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: false // Disable auto-refetch to reduce backend calls
+    refetchInterval: false
   });
-
-  // Only refetch when tab becomes active if data is very stale (>10 minutes)
-  useEffect(() => {
-    if (isActive && query.isStale && !query.isFetching) {
-      const dataAge = Date.now() - (query.dataUpdatedAt || 0);
-      const TEN_MINUTES = 10 * 60 * 1000;
-      if (dataAge > TEN_MINUTES) {
-        query.refetch();
-      }
-    }
-  }, [isActive, query.isStale, query.isFetching, query.dataUpdatedAt, query.refetch]);
 
   // Create group mutation
   const createGroupMutation = useMutation({
@@ -495,12 +484,13 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
 
   // Fetch group content from backend API
   const fetchGroupContentFn = async () => {
+    console.log('[useGroupSharing] fetchGroupContentFn called:', { userId: user?.id, groupId });
     if (!user?.id || !groupId) {
       throw new Error('User not authenticated or group ID missing');
     }
 
-
-    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content`, {
+    console.log('[useGroupSharing] Fetching group content from API...');
+    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content?_t=${Date.now()}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -518,18 +508,38 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     return data.content || {};
   };
 
+  // Debug: log query enabled state
+  const queryEnabled = !!user?.id && !!groupId && isAuthenticated && !authLoading;
+  console.log('[useGroupSharing] Query state:', {
+    queryEnabled,
+    userId: user?.id,
+    groupId,
+    isAuthenticated,
+    authLoading,
+    isActive
+  });
+
   // React Query for fetching group content
   const groupContentQuery = useQuery({
     queryKey: groupContentQueryKey,
     queryFn: fetchGroupContentFn,
-    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
-    staleTime: 10 * 60 * 1000, // 10 minutes for group content
-    gcTime: 30 * 60 * 1000,
+    enabled: queryEnabled,
+    staleTime: 0, // Always consider stale to ensure fresh data
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: false,
-    refetchOnMount: false, // Only fetch on explicit actions
+    refetchOnMount: 'always', // Always fetch on mount
     refetchOnReconnect: true,
     retry: (failureCount) => failureCount < 2,
-    refetchInterval: false // Disable auto-refetch
+    refetchInterval: false
+  });
+
+  // Log query status
+  console.log('[useGroupSharing] Query status:', {
+    isPending: groupContentQuery.isPending,
+    isFetching: groupContentQuery.isFetching,
+    isStale: groupContentQuery.isStale,
+    dataUpdatedAt: groupContentQuery.dataUpdatedAt,
+    hasData: !!groupContentQuery.data
   });
 
   // Share content mutation
@@ -699,7 +709,15 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     isFetchingGroupContent: groupContentQuery.isFetching,
     isErrorGroupContent: groupContentQuery.isError,
     errorGroupContent: groupContentQuery.error,
-    refetchGroupContent: groupContentQuery.refetch,
+    refetchGroupContent: async () => {
+      console.log('[useGroupSharing] refetchGroupContent called');
+      if (!user?.id || !groupId) {
+        console.log('[useGroupSharing] Cannot refetch - missing user or groupId');
+        return;
+      }
+      console.log('[useGroupSharing] Triggering refetch...');
+      return groupContentQuery.refetch();
+    },
 
     // Mutations
     shareContent,

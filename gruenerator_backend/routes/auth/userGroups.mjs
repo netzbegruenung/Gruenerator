@@ -420,7 +420,7 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
 
     // 3. Fetch instructions
     const instructions = await postgres.queryOne(
-      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
+      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_rede_prompt, custom_buergeranfragen_prompt, custom_gruenejugend_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
       [groupId],
       { table: 'group_instructions' }
     );
@@ -439,10 +439,14 @@ router.get('/groups/:groupId/details', ensureAuthenticated, async (req, res) => 
     res.json({
       success: true,
       group: group,
-      instructions: instructions || { 
+      instructions: instructions || {
         group_id: groupId,
         custom_antrag_prompt: '',
         custom_social_prompt: '',
+        custom_universal_prompt: '',
+        custom_rede_prompt: '',
+        custom_buergeranfragen_prompt: '',
+        custom_gruenejugend_prompt: '',
         antrag_instructions_enabled: false,
         social_instructions_enabled: false
       },
@@ -623,7 +627,7 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
 
     // Fetch instructions
     const instructions = await postgres.queryOne(
-      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
+      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_rede_prompt, custom_buergeranfragen_prompt, custom_gruenejugend_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
       [groupId],
       { table: 'group_instructions' }
     );
@@ -631,10 +635,14 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
 
     res.json({
       success: true,
-      instructions: instructions || { 
+      instructions: instructions || {
         group_id: groupId,
         custom_antrag_prompt: '',
         custom_social_prompt: '',
+        custom_universal_prompt: '',
+        custom_rede_prompt: '',
+        custom_buergeranfragen_prompt: '',
+        custom_gruenejugend_prompt: '',
         antrag_instructions_enabled: false,
         social_instructions_enabled: false
       }
@@ -654,11 +662,15 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
   try {
     const { groupId } = req.params;
     const userId = req.user.id;
-    const { 
-      custom_antrag_prompt, 
+    const {
+      custom_antrag_prompt,
       custom_social_prompt,
+      custom_universal_prompt,
+      custom_rede_prompt,
+      custom_buergeranfragen_prompt,
+      custom_gruenejugend_prompt,
       antrag_instructions_enabled,
-      social_instructions_enabled 
+      social_instructions_enabled
     } = req.body;
     
     if (!groupId) {
@@ -682,6 +694,22 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated, async (req, res
     if (custom_social_prompt !== undefined) {
       updateFields.push(`custom_social_prompt = $${paramIndex++}`);
       updateValues.push(custom_social_prompt);
+    }
+    if (custom_universal_prompt !== undefined) {
+      updateFields.push(`custom_universal_prompt = $${paramIndex++}`);
+      updateValues.push(custom_universal_prompt);
+    }
+    if (custom_rede_prompt !== undefined) {
+      updateFields.push(`custom_rede_prompt = $${paramIndex++}`);
+      updateValues.push(custom_rede_prompt);
+    }
+    if (custom_buergeranfragen_prompt !== undefined) {
+      updateFields.push(`custom_buergeranfragen_prompt = $${paramIndex++}`);
+      updateValues.push(custom_buergeranfragen_prompt);
+    }
+    if (custom_gruenejugend_prompt !== undefined) {
+      updateFields.push(`custom_gruenejugend_prompt = $${paramIndex++}`);
+      updateValues.push(custom_gruenejugend_prompt);
     }
     if (antrag_instructions_enabled !== undefined) {
       updateFields.push(`antrag_instructions_enabled = $${paramIndex++}`);
@@ -1018,21 +1046,31 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
     // Verify user owns the content
-    
+
+    // Map content type to actual table name
+    const tableNameMap = {
+      'database': 'user_templates',
+      'template': 'user_templates',
+      'user_templates': 'user_templates',
+      'instructions': 'user_instructions',
+      'user_instructions': 'user_instructions'
+    };
+    const tableName = tableNameMap[contentType] || contentType;
+
     // Build ownership query based on content type
-    let ownershipSQL = `SELECT user_id FROM ${contentType} WHERE id = $1`;
+    let ownershipSQL = `SELECT user_id FROM ${tableName} WHERE id = $1`;
     let ownershipParams = [contentId];
-    
-    // For database table (templates), also filter by type = 'template'
-    if (contentType === 'database') {
+
+    // For user_templates table (templates), also filter by type = 'template'
+    if (tableName === 'user_templates') {
       ownershipSQL += ` AND type = $2`;
       ownershipParams.push('template');
     }
-    
+
     const contentOwnership = await postgres.queryOne(
       ownershipSQL,
       ownershipParams,
-      { table: contentType }
+      { table: tableName }
     );
 
     if (!contentOwnership) {
@@ -1076,11 +1114,20 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     };
 
     // Share content using junction table
+    log.debug('[User Groups /share] Inserting share record:', {
+      contentType,
+      contentId,
+      groupId,
+      userId,
+      permissions: sharePermissions
+    });
+
     await postgres.exec(
       'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions) VALUES ($1, $2, $3, $4, $5)',
       [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions)]
     );
 
+    log.debug('[User Groups /share] Share record inserted successfully');
 
     res.json({
       success: true,
@@ -1183,7 +1230,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
 
     // Fetch shared content with user profile information
     const sharedContent = await postgres.query(`
-      SELECT 
+      SELECT
         gcs.content_type,
         gcs.content_id,
         gcs.shared_at,
@@ -1196,6 +1243,12 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       WHERE gcs.group_id = $1
       ORDER BY gcs.shared_at DESC
     `, [groupId], { table: 'group_content_shares' }) || [];
+
+    log.debug('[User Groups /content] Fetched shared content:', {
+      groupId,
+      totalShares: sharedContent.length,
+      contentTypes: sharedContent.map(s => s.content_type)
+    });
 
     // Group shared content by type for easier processing
     const contentByType = {
@@ -1276,12 +1329,23 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
     // Templates (User Content)
     if (contentByType.database.length > 0) {
       const templateIds = contentByType.database.map(s => s.content_id);
+      log.debug('[User Groups /content] Fetching templates:', { templateIds });
+
       const templatesData = await postgres.query(
-        `SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM database WHERE id = ANY($1) AND type = 'template'`,
+        `SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template'`,
         [templateIds],
-        { table: 'database' }
+        { table: 'user_templates' }
       ) || [];
+
+      log.debug('[User Groups /content] Templates fetched:', {
+        requestedCount: templateIds.length,
+        foundCount: templatesData.length,
+        foundIds: templatesData.map(t => t.id)
+      });
+
       contentResults.push({ type: 'database', result: { data: templatesData }, shares: contentByType.database });
+    } else {
+      log.debug('[User Groups /content] No database/template shares found in group_content_shares');
     }
 
     // Process and format results
@@ -1325,6 +1389,11 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       groupContent[keyMap[type]] = items;
     });
 
+    log.debug('[User Groups /content] Final response:', {
+      templatesCount: groupContent.templates.length,
+      documentsCount: groupContent.documents.length,
+      textsCount: groupContent.texts.length
+    });
 
     res.json({
       success: true,

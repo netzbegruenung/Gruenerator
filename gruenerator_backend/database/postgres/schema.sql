@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
     chat BOOLEAN DEFAULT FALSE,
+    website BOOLEAN DEFAULT FALSE,
     ai_sharepic BOOLEAN DEFAULT FALSE,
     interactive_antrag_enabled BOOLEAN DEFAULT TRUE,
     nextcloud_share_links JSONB DEFAULT '[]',

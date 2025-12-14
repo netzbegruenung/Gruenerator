@@ -236,6 +236,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'sites',
       'interactiveAntrag',
       'autoSaveOnExport',
+      'website',
       // Profile settings treated as beta features for consistency
       'igel_modus',
       'bundestag_api_enabled'

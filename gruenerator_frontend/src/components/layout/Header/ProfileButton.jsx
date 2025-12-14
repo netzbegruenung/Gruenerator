@@ -4,6 +4,7 @@ import { FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
+import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useProfileStore } from '../../../stores/profileStore';
 import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
 
@@ -16,6 +17,9 @@ const ProfileButton = () => {
   // Fetch custom generators for authenticated users
   useCustomGeneratorsData({ isActive: !!user?.id });
   const customGenerators = useProfileStore(state => state.customGenerators) || [];
+
+  // Fetch user groups for authenticated users
+  const { userGroups = [] } = useGroups({ isActive: !!user?.id });
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
   const displayName = profile?.display_name || '';
@@ -166,6 +170,7 @@ const ProfileButton = () => {
               variant="dropdown"
               onNavigate={() => setIsDropdownOpen(false)}
               customGenerators={customGenerators}
+              groups={userGroups}
             />
             <div className="profile-dropdown-divider" />
             <button
