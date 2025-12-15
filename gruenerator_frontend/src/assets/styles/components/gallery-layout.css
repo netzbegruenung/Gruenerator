@@ -166,15 +166,30 @@
 }
 
 .antrag-card-tag {
-  display: inline-block; 
-  background-color: var(--background-color-alt); 
-  color: var(--font-color); 
+  display: inline-block;
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
   font-size: 0.8rem;
-  padding: 0.2rem 0.6rem; 
-  border-radius: 4px; 
-  margin-right: 0.4rem; 
-  margin-bottom: 0.4rem; 
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+  margin-bottom: 0.4rem;
   font-weight: 500;
+}
+
+.antrag-card-tag.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.antrag-card-tag.clickable:hover {
+  background-color: var(--klee);
+  color: var(--weiß);
+}
+
+.antrag-card-tag.clickable:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 
 .antrag-card-tag-more {
@@ -310,6 +325,21 @@
   padding: 0 1rem 1rem;
   border-top: none;
   margin-top: 0;
+}
+
+.gallery-card-author {
+  font-size: 0.85rem;
+  color: var(--font-color-muted);
+  margin: 0.5rem 0 0 0;
+}
+
+.gallery-card-author a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.gallery-card-author a:hover {
+  text-decoration: underline;
 }
 
 .gallery-controls {

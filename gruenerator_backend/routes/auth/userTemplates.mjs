@@ -20,6 +20,23 @@ router.use((req, res, next) => {
 // === HELPER FUNCTIONS ===
 
 /**
+ * Extracts tags from description using #hashtag syntax
+ * @param {string} description - The description text
+ * @returns {string[]} Array of extracted tags (lowercase, unique)
+ */
+function extractTagsFromDescription(description) {
+  if (!description || typeof description !== 'string') return [];
+  const tagPattern = /#([\w-]+)/g;
+  const tags = [];
+  let match;
+  while ((match = tagPattern.exec(description)) !== null) {
+    const tag = match[1].toLowerCase();
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags;
+}
+
+/**
  * Validates and extracts information from Canva URLs
  * @param {string} url - The Canva URL to process
  * @returns {Promise<{isValid: boolean, designId?: string, viewKey?: string, cleanUrl?: string, thumbnailUrl?: string, error?: string}>}
@@ -59,7 +76,7 @@ async function validateCanvaUrl(url) {
       ? fullPathMatch[2]
       : null;
 
-    // Create a clean URL without tracking parameters
+    // Create a clean URL without tracking parameters - preserve /view or keep original for embedding
     const cleanUrl = viewKey
       ? `https://www.canva.com/design/${designId}/${viewKey}/view`
       : `https://www.canva.com/design/${designId}/view`;
@@ -264,6 +281,11 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       });
     }
     
+    // Extract tags from description and merge with provided tags
+    const descriptionTags = extractTagsFromDescription(description);
+    const providedTags = Array.isArray(tags) ? tags : [];
+    const mergedTags = [...new Set([...descriptionTags, ...providedTags])];
+
     // Prepare template data for user_templates table
     const templateData = {
       user_id: userId,
@@ -275,7 +297,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       thumbnail_url: preview_image_url || null,
       images: JSON.stringify(Array.isArray(images) ? images : []),
       categories: JSON.stringify(Array.isArray(categories) ? categories : []),
-      tags: JSON.stringify(Array.isArray(tags) ? tags : []),
+      tags: JSON.stringify(mergedTags),
       content_data: JSON.stringify(content_data || {}),
       metadata: JSON.stringify(metadata || {}),
       is_private: is_private !== false,
@@ -498,7 +520,7 @@ router.delete('/user-templates/:id', ensureAuthenticated, async (req, res) => {
 router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { url, enhancedMetadata = false, preview = false, title: customTitle, description: customDescription } = req.body;
+    const { url, enhancedMetadata = false, preview = false, title: customTitle, description: customDescription, metadata: inputMetadata = {} } = req.body;
 
     // Validate required fields
     if (!url) {
@@ -531,7 +553,8 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
           thumbnail_url: templateData.preview_image_url || null,
           external_url: templateData.canva_url,
           template_type: templateData.template_type,
-          designId: templateData.designId
+          designId: templateData.designId,
+          dimensions: templateData.dimensions || null
         }
       });
     }
@@ -559,13 +582,18 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       });
     }
     
+    // Extract tags from description
+    const descriptionTags = extractTagsFromDescription(templateData.description);
+
     // Prepare template data for user_templates table
     const categoriesArray = templateData.categories && templateData.categories.length > 0
       ? [...new Set([...templateData.categories, 'canva'])]
       : ['canva'];
-    const tagsArray = templateData.categories && templateData.categories.length > 0
-      ? [...new Set([...templateData.categories, 'imported'])]
-      : ['imported'];
+    const tagsArray = [...new Set([
+      ...descriptionTags,
+      ...(templateData.categories || []),
+      'imported'
+    ])];
     const contentDataObj = {
       originalUrl: templateData.originalUrl,
       designId: templateData.designId,
@@ -575,7 +603,9 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       source: 'url_import',
       designId: templateData.designId,
       ...(templateData.dimensions && { dimensions: templateData.dimensions }),
-      enhanced_metadata: true
+      enhanced_metadata: true,
+      ...(inputMetadata?.author_name && { author_name: inputMetadata.author_name }),
+      ...(inputMetadata?.contact_email && { contact_email: inputMetadata.contact_email })
     };
 
     const newTemplateData = {
@@ -1003,8 +1033,9 @@ router.get('/vorlagen-categories', ensureAuthenticated, async (req, res) => {
 
 // List all published templates for Vorlagen gallery
 router.get('/vorlagen', ensureAuthenticated, async (req, res) => {
+  console.log('>>> /vorlagen endpoint HIT <<<');
   try {
-    const { searchTerm = '', searchMode = 'title', templateType } = req.query;
+    const { searchTerm = '', searchMode = 'title', templateType, tags } = req.query;
 
     const conditions = ['is_private = $1', 'status = $2'];
     const params = [false, 'published'];
@@ -1013,6 +1044,19 @@ router.get('/vorlagen', ensureAuthenticated, async (req, res) => {
     if (templateType && templateType !== 'all') {
       conditions.push(`template_type = $${paramIndex++}`);
       params.push(templateType);
+    }
+
+    // Filter by tags using JSONB containment
+    if (tags) {
+      try {
+        const tagsArray = JSON.parse(tags);
+        if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+          conditions.push(`tags @> $${paramIndex++}::jsonb`);
+          params.push(JSON.stringify(tagsArray));
+        }
+      } catch (e) {
+        log.warn('[Vorlagen Gallery] Invalid tags JSON:', tags);
+      }
     }
 
     if (searchTerm && String(searchTerm).trim().length > 0) {
@@ -1028,7 +1072,7 @@ router.get('/vorlagen', ensureAuthenticated, async (req, res) => {
 
     const query = `
       SELECT id, title, description, template_type, thumbnail_url, external_url,
-             images, categories, tags, created_at, updated_at
+             images, categories, tags, content_data, metadata, created_at, updated_at
       FROM user_templates
       WHERE ${conditions.join(' AND ')}
       ORDER BY created_at DESC
@@ -1037,19 +1081,24 @@ router.get('/vorlagen', ensureAuthenticated, async (req, res) => {
 
     const data = await postgres.query(query, params, { table: 'user_templates' });
 
-    const vorlagen = (data || []).map(item => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      template_type: item.template_type,
-      thumbnail_url: item.thumbnail_url,
-      external_url: item.external_url,
-      images: item.images || [],
-      categories: item.categories || [],
-      tags: item.tags || [],
-      created_at: item.created_at,
-      updated_at: item.updated_at
-    }));
+    const vorlagen = (data || []).map(item => {
+      log.info(`[Vorlagen DEBUG] Item: id=${item.id}, title=${item.title}, external_url=${item.external_url}, content_data=${JSON.stringify(item.content_data)}, originalUrl=${item.content_data?.originalUrl}`);
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        template_type: item.template_type,
+        thumbnail_url: item.thumbnail_url,
+        external_url: item.external_url,
+        images: item.images || [],
+        categories: item.categories || [],
+        tags: item.tags || [],
+        content_data: item.content_data || {},
+        metadata: item.metadata || {},
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      };
+    });
 
     res.json({ success: true, vorlagen });
   } catch (err) {

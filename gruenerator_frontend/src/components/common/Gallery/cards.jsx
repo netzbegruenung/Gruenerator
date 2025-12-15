@@ -10,13 +10,19 @@ const formatDate = (value) => {
   }
 };
 
-export const GalleryCard = ({ title, description, meta, tags, onClick, className, thumbnailUrl }) => {
+export const GalleryCard = ({ title, description, meta, tags, onClick, onTagClick, className, thumbnailUrl, authorName, authorEmail }) => {
   const handleKeyPress = (event) => {
     if (!onClick) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onClick(event);
     }
+  };
+
+  const handleTagClick = (e, tag) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onTagClick) onTagClick(tag);
   };
 
   return (
@@ -37,10 +43,31 @@ export const GalleryCard = ({ title, description, meta, tags, onClick, className
         {description && (
           <p className="antrag-card-description">{description}</p>
         )}
+        {authorName && (
+          <p className="gallery-card-author">
+            {authorName}
+            {authorEmail && (
+              <>
+                {' · '}
+                <a href={`mailto:${authorEmail}`} onClick={(e) => e.stopPropagation()}>
+                  {authorEmail}
+                </a>
+              </>
+            )}
+          </p>
+        )}
         {Array.isArray(tags) && tags.length > 0 && (
           <div className="antrag-card-tags">
             {tags.map((tag) => (
-              <span key={tag} className="antrag-card-tag">{tag}</span>
+              <span
+                key={tag}
+                className={`antrag-card-tag${onTagClick ? ' clickable' : ''}`}
+                onClick={onTagClick ? (e) => handleTagClick(e, tag) : undefined}
+                role={onTagClick ? 'button' : undefined}
+                tabIndex={onTagClick ? 0 : undefined}
+              >
+                #{tag}
+              </span>
             ))}
           </div>
         )}
@@ -56,8 +83,11 @@ GalleryCard.propTypes = {
   meta: PropTypes.string,
   tags: PropTypes.arrayOf(PropTypes.string),
   onClick: PropTypes.func,
+  onTagClick: PropTypes.func,
   className: PropTypes.string,
-  thumbnailUrl: PropTypes.string
+  thumbnailUrl: PropTypes.string,
+  authorName: PropTypes.string,
+  authorEmail: PropTypes.string
 };
 
 GalleryCard.defaultProps = {
@@ -66,8 +96,11 @@ GalleryCard.defaultProps = {
   meta: '',
   tags: [],
   onClick: undefined,
+  onTagClick: undefined,
   className: '',
-  thumbnailUrl: ''
+  thumbnailUrl: '',
+  authorName: '',
+  authorEmail: ''
 };
 
 export const GallerySkeleton = ({ className }) => (
@@ -135,11 +168,24 @@ export const cardAdapters = {
       }
     };
   },
-  vorlagen: (item) => {
+  vorlagen: (item, options = {}) => {
     if (!item?.id) return null;
     const templateType = item.template_type
       ? item.template_type.charAt(0).toUpperCase() + item.template_type.slice(1)
       : '';
+    const tags = Array.isArray(item.tags) ? item.tags.slice(0, 5) : [];
+    const authorName = item.metadata?.author_name || '';
+    const authorEmail = item.metadata?.contact_email || '';
+
+    const handleClick = options.onOpenPreview
+      ? () => options.onOpenPreview(item)
+      : () => {
+          if (typeof window === 'undefined') return;
+          const url = item.content_data?.originalUrl || item.external_url;
+          if (url) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        };
 
     return {
       key: item.id,
@@ -147,16 +193,13 @@ export const cardAdapters = {
         title: item.title || 'Unbenannte Vorlage',
         description: item.description || '',
         meta: templateType || '',
-        tags: Array.isArray(item.categories) ? item.categories.slice(0, 3) : [],
+        tags,
         thumbnailUrl: item.thumbnail_url || '',
-        onClick: () => {
-          if (typeof window === 'undefined') return;
-          const url = item.content_data?.originalUrl || item.external_url;
-          if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
-          }
-        },
-        className: 'vorlagen-card'
+        onTagClick: options.onTagClick,
+        onClick: handleClick,
+        className: 'vorlagen-card',
+        authorName,
+        authorEmail
       }
     };
   },

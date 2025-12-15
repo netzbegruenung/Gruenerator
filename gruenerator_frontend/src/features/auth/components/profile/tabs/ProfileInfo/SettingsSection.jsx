@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from "motion/react";
 import { GiHedgehog } from 'react-icons/gi';
-import { getIcon, NotebookIcon } from '../../../../../../../config/icons';
-import FeatureToggle from '../../../../../../../components/common/FeatureToggle';
-import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
+import { NotebookIcon, getIcon } from '../../../../../../config/icons';
+import FeatureToggle from '../../../../../../components/common/FeatureToggle';
+import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../../../../../stores/authStore';
 import {
     HiOutlineExternalLink,
     HiOutlineDatabase,
@@ -19,6 +19,33 @@ import {
     HiSparkles,
     HiOutlineChat
 } from 'react-icons/hi';
+
+const LocaleSelector = () => {
+    const { locale, updateLocale } = useAuthStore();
+
+    const handleLocaleChange = async (event) => {
+        const newLocale = event.target.value;
+        const success = await updateLocale(newLocale);
+        if (!success) {
+            console.error('Failed to update locale');
+        }
+    };
+
+    return (
+        <div className="form-field-wrapper">
+            <select
+                id="locale"
+                value={locale}
+                onChange={handleLocaleChange}
+                className="form-select"
+                aria-label="Sprachvariant auswählen"
+            >
+                <option value="de-DE">Deutsch (Deutschland)</option>
+                <option value="de-AT">Deutsch (Österreich)</option>
+            </select>
+        </div>
+    );
+};
 
 const BETA_VIEWS = {
     DATABASE: 'database',
@@ -43,8 +70,6 @@ const SettingsSection = ({
     onErrorMessage,
     igelActive,
     onToggleIgelModus,
-    laborActive,
-    onToggleLaborModus,
     isBetaFeaturesUpdating
 }) => {
     const {
@@ -226,95 +251,72 @@ const SettingsSection = ({
         >
             <div className="auth-form">
                 <div className="form-group">
-                    <div className="form-group-title">Mitgliedschaften</div>
-                    <FeatureToggle
-                        isActive={igelActive}
-                        onToggle={onToggleIgelModus}
-                        label="Igel-Modus"
-                        icon={GiHedgehog}
-                        description="Aktiviere den Igel-Modus, um als Mitglied der Grünen Jugend erkannt zu werden. Dies beeinflusst deine Erfahrung und verfügbare Funktionen."
-                        className="igel-modus-toggle"
-                        disabled={isBetaFeaturesUpdating}
-                    />
+                    <div className="form-group-title">Sprache & Mitgliedschaften</div>
+                    <div className="settings-row">
+                        <LocaleSelector />
+                        <FeatureToggle
+                            isActive={igelActive}
+                            onToggle={onToggleIgelModus}
+                            label="Igel-Modus (Grüne Jugend)"
+                            icon={GiHedgehog}
+                            className="igel-modus-toggle"
+                            disabled={isBetaFeaturesUpdating}
+                        />
+                    </div>
                 </div>
 
                 <hr className="form-divider" />
 
                 <div className="form-group">
-                    <div className="form-group-title">Experimentell</div>
-                    <FeatureToggle
-                        isActive={laborActive}
-                        onToggle={onToggleLaborModus}
-                        label="Labor-Modus"
-                        icon={getIcon('actions', 'labor')}
-                        description="Aktiviere den Labor-Modus für Zugriff auf experimentelle Features und Beta-Funktionen. Diese Features befinden sich noch in Entwicklung."
-                        className="labor-modus-toggle"
-                        disabled={isBetaFeaturesUpdating}
-                    />
+                    <div className="form-group-title">Experimentelle Features</div>
+                    <div className="profile-cards-grid">
+                        {getAvailableFeatures().map(feature => {
+                            const config = getBetaFeatureConfig(feature.key);
+                            if (!config) return null;
 
-                    {laborActive && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3 }}
-                            style={{ marginTop: 'var(--spacing-large)' }}
-                        >
-                            <div className="profile-cards-grid">
-                                {getAvailableFeatures().map(feature => {
-                                    const config = getBetaFeatureConfig(feature.key);
-                                    if (!config) return null;
-
-                                    return (
-                                        <div key={feature.key} className="profile-card">
-                                            <div className="profile-card-header">
-                                                <h3>{config.title}</h3>
-                                                {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
-                                            </div>
-                                            <div className="profile-card-content">
-                                                <p className="group-description">
-                                                    {config.description}
-                                                </p>
-
-                                                <div className="labor-tab-toggle-container">
-                                                    <FeatureToggle
-                                                        isActive={config.checked}
-                                                        onToggle={(checked) => {
-                                                            config.setter(checked);
-                                                            onSuccessMessage(`${config.featureName} Beta-Test ${checked ? 'aktiviert' : 'deaktiviert'}.`);
-                                                        }}
-                                                        label={config.checkboxLabel}
-                                                        icon={config.icon}
-                                                        description={config.description}
-                                                        className="labor-feature-toggle"
-                                                    />
-                                                </div>
-
-                                                {config.linkTo && config.checked && (
-                                                    <Link
-                                                        to={config.linkTo}
-                                                        className="profile-action-button profile-secondary-button labor-tab-external-link"
-                                                    >
-                                                        {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (
-                                <div className="profile-card" style={{marginTop: 'var(--spacing-large)'}}>
+                            return (
+                                <div key={feature.key} className="profile-card">
                                     <div className="profile-card-header">
-                                        <h3>Administrator-Features</h3>
+                                        <h3>{config.title}</h3>
+                                        {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
                                     </div>
                                     <div className="profile-card-content">
-                                        <p><strong>Hinweis:</strong> Einige Beta-Features sind nur für Administratoren verfügbar.</p>
+                                        <FeatureToggle
+                                            isActive={config.checked}
+                                            onToggle={(checked) => {
+                                                config.setter(checked);
+                                                onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+                                            }}
+                                            label={config.checkboxLabel}
+                                            icon={config.icon}
+                                            description={config.description}
+                                            className="labor-feature-toggle"
+                                            noBorder
+                                        />
+
+                                        {config.linkTo && config.checked && (
+                                            <Link
+                                                to={config.linkTo}
+                                                className="profile-action-button profile-secondary-button labor-tab-external-link"
+                                            >
+                                                {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
+                                            </Link>
+                                        )}
                                     </div>
                                 </div>
-                            )}
-                        </motion.div>
+                            );
+                        })}
+                    </div>
+
+                    {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (
+                        <div className="profile-card" style={{marginTop: 'var(--spacing-large)'}}>
+                            <div className="profile-card-header">
+                                <h3>Administrator-Features</h3>
+                            </div>
+                            <div className="profile-card-content">
+                                <p><strong>Hinweis:</strong> Einige Beta-Features sind nur für Administratoren verfügbar.</p>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

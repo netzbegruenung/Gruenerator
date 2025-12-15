@@ -1,38 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { useTranslation } from 'react-i18next';
 import Spinner from '../../../../../../components/common/Spinner';
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
-import { useAuthStore } from '../../../../../../stores/authStore';
-
-const LocaleSelector = () => {
-  const { t } = useTranslation();
-  const { locale, updateLocale } = useAuthStore();
-
-  const handleLocaleChange = async (event) => {
-    const newLocale = event.target.value;
-    const success = await updateLocale(newLocale);
-    if (!success) {
-      console.error('Failed to update locale');
-    }
-  };
-
-  return (
-    <div className="form-field-wrapper">
-      <label htmlFor="locale">Sprache:</label>
-      <select
-        id="locale"
-        value={locale}
-        onChange={handleLocaleChange}
-        className="form-select"
-        aria-label="Sprachvariant auswählen"
-      >
-        <option value="de-DE">Deutsch (Deutschland)</option>
-        <option value="de-AT">Deutsch (Österreich)</option>
-      </select>
-    </div>
-  );
-};
+import SettingsSection from './SettingsSection';
 
 const ProfileView = ({
   // User and profile
@@ -63,6 +33,11 @@ const ProfileView = ({
   deleteAccountError,
   isDeletingAccount,
   onDeleteAccountSubmit,
+  // Settings/Beta features
+  igelActive,
+  onToggleIgelModus,
+  isBetaFeaturesUpdating,
+  onSuccessMessage,
 }) => {
   const getPossessiveForm = (name) => {
     if (!name) return 'Dein';
@@ -109,6 +84,9 @@ const ProfileView = ({
             {(email || user?.email || user?.username) && (
               <div className="profile-user-email">{email || user?.email || user?.username}</div>
             )}
+            {username && (
+              <div className="profile-user-email">@{username}</div>
+            )}
           </div>
         </div>
 
@@ -130,59 +108,58 @@ const ProfileView = ({
 
           <div className="auth-form">
             <div className="form-group">
-              <div className="form-group-title">Persönliche Daten</div>
-              <div className="form-field-wrapper">
-                <label htmlFor="email">E-Mail:</label>
-                <TextInput
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={
-                    profile?.keycloak_id && (profile?.email || profile?.auth_email)
-                      ? 'E-Mail wird von deinem Login-Anbieter verwaltet'
-                      : 'Deine E-Mail-Adresse'
-                  }
-                  aria-label="E-Mail"
-                  disabled={isLoading || (profile?.keycloak_id && (profile?.email || profile?.auth_email))}
-                />
-              </div>
-              <div className="form-field-wrapper">
-                <label htmlFor="displayName">Name:</label>
-                <TextInput
-                  id="displayName"
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder={
-                    profile?.keycloak_id && profile?.display_name
-                      ? 'Name wird von deinem Login-Anbieter verwaltet'
-                      : 'Dein vollständiger Name'
-                  }
-                  aria-label="Name"
-                  disabled={isLoading || (profile?.keycloak_id && profile?.display_name)}
-                />
-              </div>
-              <div className="form-field-wrapper">
-                <label htmlFor="username">Benutzername:</label>
-                <TextInput
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={
-                    profile?.keycloak_id && profile?.username
-                      ? 'Benutzername wird von deinem Login-Anbieter verwaltet'
-                      : 'Dein Benutzername'
-                  }
-                  aria-label="Benutzername"
-                  disabled={isLoading || (profile?.keycloak_id && profile?.username)}
-                />
-              </div>
-              <LocaleSelector />
+              {!(profile?.keycloak_id && (profile?.email || profile?.auth_email)) && (
+                <div className="form-field-wrapper">
+                  <label htmlFor="email">E-Mail:</label>
+                  <TextInput
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Deine E-Mail-Adresse"
+                    aria-label="E-Mail"
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
+              {!(profile?.keycloak_id && profile?.display_name) && (
+                <div className="form-field-wrapper">
+                  <label htmlFor="displayName">Name:</label>
+                  <TextInput
+                    id="displayName"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Dein vollständiger Name"
+                    aria-label="Name"
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
+              {!(profile?.keycloak_id && profile?.username) && (
+                <div className="form-field-wrapper">
+                  <label htmlFor="username">Benutzername:</label>
+                  <TextInput
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Dein Benutzername"
+                    aria-label="Benutzername"
+                    disabled={isLoading}
+                  />
+                </div>
+              )}
             </div>
-            <div className="form-help-text">Änderungen werden automatisch gespeichert</div>
           </div>
+
+          <SettingsSection
+            igelActive={igelActive}
+            onToggleIgelModus={onToggleIgelModus}
+            isBetaFeaturesUpdating={isBetaFeaturesUpdating}
+            onSuccessMessage={onSuccessMessage}
+            onErrorMessage={() => {}}
+          />
 
           {canManageCurrentAccount && !showDeleteAccountForm && (
             <>

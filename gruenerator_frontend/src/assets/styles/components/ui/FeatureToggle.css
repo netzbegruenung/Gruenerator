@@ -105,4 +105,9 @@
 
 .form-container:not(.visible) .form-feature-toggle {
   display: none !important;
+}
+
+.feature-toggle-no-border {
+  border: none;
+  padding: 0;
 } 
