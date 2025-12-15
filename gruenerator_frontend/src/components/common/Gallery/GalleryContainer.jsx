@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import GalleryControls from './GalleryControls';
 import { GalleryCard, GallerySkeleton, cardAdapters } from './cards.jsx';
@@ -8,6 +8,7 @@ import {
   ORDERED_CONTENT_TYPE_IDS
 } from './config';
 import { useGalleryController } from './useGalleryController';
+import TemplatePreviewModal from '../TemplatePreviewModal';
 
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
@@ -28,6 +29,10 @@ const GalleryContainer = ({
   const [contentType, setContentType] = useState(
     GALLERY_CONTENT_TYPES[initialContentType] ? initialContentType : (firstAvailableType || DEFAULT_GALLERY_TYPE)
   );
+  const [previewTemplate, setPreviewTemplate] = useState(null);
+
+  const handleOpenPreview = useCallback((template) => setPreviewTemplate(template), []);
+  const handleClosePreview = useCallback(() => setPreviewTemplate(null), []);
 
   const {
     config,
@@ -43,7 +48,8 @@ const GalleryContainer = ({
     setSelectedCategory,
     categories,
     typeOptions,
-    refetch
+    refetch,
+    handleTagClick
   } = useGalleryController({ contentType, availableContentTypeIds: typeOrder });
 
   const activeConfig = config || GALLERY_CONTENT_TYPES[contentType] || GALLERY_CONTENT_TYPES[DEFAULT_GALLERY_TYPE];
@@ -59,10 +65,14 @@ const GalleryContainer = ({
   const renderList = (list, rendererId) => {
     if (!Array.isArray(list) || list.length === 0) return null;
     const adapter = cardAdapters[rendererId] || cardAdapters.default;
+    const adapterOptions = rendererId === 'vorlagen'
+      ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
+      : {};
 
     return list.map((item) => {
-      const { key, props } = adapter(item) || {};
-      if (!key) return null;
+      const result = adapter(item, adapterOptions);
+      if (!result || !result.key) return null;
+      const { key, props } = result;
       return <GalleryCard key={key} {...props} />;
     });
   };
@@ -141,6 +151,15 @@ const GalleryContainer = ({
       <div className="gallery-grid">
         {renderContent()}
       </div>
+
+      {previewTemplate && (
+        <TemplatePreviewModal
+          isOpen={!!previewTemplate}
+          onClose={handleClosePreview}
+          template={previewTemplate}
+          onTagClick={handleTagClick}
+        />
+      )}
     </div>
   );
 };

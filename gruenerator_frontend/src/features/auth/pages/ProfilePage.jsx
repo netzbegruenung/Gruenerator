@@ -228,7 +228,7 @@ const ProfilePage = () => {
     
     // Validate subtab URLs for content management tab (now includes integrations)
     if (tab === 'inhalte' && subtab) {
-      const validSubtabs = ['anweisungen', 'canva', 'wolke', 'einstellungen'];
+      const validSubtabs = ['vorlagen', 'anweisungen', 'canva', 'wolke', 'einstellungen'];
       if (!validSubtabs.includes(subtab)) {
         navigate('/profile/inhalte', { replace: true });
         return;
