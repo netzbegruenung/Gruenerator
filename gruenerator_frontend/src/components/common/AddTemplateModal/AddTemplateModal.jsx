@@ -2,7 +2,10 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HiX } from 'react-icons/hi';
 import { SiCanva } from 'react-icons/si';
-import './AddTemplateModal.css';
+import { useAuthStore } from '../../../stores/authStore';
+import { suggestTagsFromTemplate } from './tagSuggestions';
+import { useTagAutocomplete } from '../TemplateModal';
+import '../TemplateModal/template-modal.css';
 
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -39,6 +42,11 @@ const AddTemplateModal = ({
     const [submitError, setSubmitError] = useState(null);
     const [notShareLinkError, setNotShareLinkError] = useState(false);
 
+    const [authorName, setAuthorName] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+
+    const tagAutocomplete = useTagAutocomplete(description, setDescription);
+
     useEffect(() => {
         if (!isOpen) {
             setMode('canva');
@@ -50,6 +58,17 @@ const AddTemplateModal = ({
             setExternalUrl('');
             setSubmitError(null);
             setNotShareLinkError(false);
+            setAuthorName('');
+            setContactEmail('');
+            tagAutocomplete.reset();
+        } else {
+            const user = useAuthStore.getState().user;
+            if (user) {
+                const name = user.display_name ||
+                    [user.first_name, user.last_name].filter(Boolean).join(' ') || '';
+                setAuthorName(name);
+                setContactEmail(user.email || '');
+            }
         }
     }, [isOpen]);
 
@@ -86,7 +105,9 @@ const AddTemplateModal = ({
             }
 
             setPreviewData(data.preview);
-            setDescription(data.preview.description || '');
+            const existingDesc = data.preview.description || '';
+            const suggestedTags = suggestTagsFromTemplate(data.preview, 'canva');
+            setDescription(existingDesc + (existingDesc && suggestedTags ? '\n\n' : '') + suggestedTags);
         } catch (error) {
             setPreviewError(error.message || 'Fehler beim Laden der Vorschau');
         } finally {
@@ -116,7 +137,11 @@ const AddTemplateModal = ({
                     body: JSON.stringify({
                         url: canvaUrl.trim(),
                         title: title.trim(),
-                        description: description.trim()
+                        description: description.trim(),
+                        metadata: {
+                            author_name: authorName.trim() || null,
+                            contact_email: contactEmail.trim() || null
+                        }
                     })
                 });
 
@@ -146,7 +171,11 @@ const AddTemplateModal = ({
                         title: title.trim(),
                         description: description.trim(),
                         canva_url: externalUrl.trim(),
-                        template_type: 'external'
+                        template_type: 'external',
+                        metadata: {
+                            author_name: authorName.trim() || null,
+                            contact_email: contactEmail.trim() || null
+                        }
                     })
                 });
 
@@ -173,7 +202,7 @@ const AddTemplateModal = ({
         } finally {
             setIsSubmitting(false);
         }
-    }, [mode, previewData, title, description, externalUrl, canvaUrl, groupId, onShareContent, onSuccess, onClose]);
+    }, [mode, previewData, title, description, externalUrl, canvaUrl, groupId, onShareContent, onSuccess, onClose, authorName, contactEmail]);
 
     const handleBackdropClick = useCallback((e) => {
         if (e.target === e.currentTarget) {
@@ -205,15 +234,24 @@ const AddTemplateModal = ({
         ? (previewData && title.trim() && !notShareLinkError)
         : (title.trim() && description.trim() && externalUrl.trim());
 
+    const renderGhostText = () => (
+        tagAutocomplete.suggestionSuffix && (
+            <div className="template-modal-ghost-text">
+                <span className="template-modal-ghost-prefix">{tagAutocomplete.ghostPrefix}</span>
+                <span className="template-modal-ghost-suffix">{tagAutocomplete.suggestionSuffix}</span>
+            </div>
+        )
+    );
+
     const modalContent = (
-        <div className="add-template-modal-backdrop" onClick={handleBackdropClick}>
-            <div className="add-template-modal" role="dialog" aria-modal="true" aria-labelledby="add-template-modal-title">
-                <div className="add-template-modal-header">
-                    <h2 id="add-template-modal-title">
+        <div className="template-modal-backdrop" onClick={handleBackdropClick}>
+            <div className="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
+                <div className="template-modal-header">
+                    <h2 id="template-modal-title">
                         {groupId ? 'Vorlage zur Gruppe hinzufügen' : 'Neue Vorlage erstellen'}
                     </h2>
                     <button
-                        className="add-template-modal-close"
+                        className="template-modal-close"
                         onClick={onClose}
                         aria-label="Schließen"
                     >
@@ -221,28 +259,28 @@ const AddTemplateModal = ({
                     </button>
                 </div>
 
-                <div className="add-template-modal-tabs">
+                <div className="template-modal-tabs">
                     <button
-                        className={`add-template-modal-tab ${isCanvaMode ? 'active' : ''}`}
+                        className={`template-modal-tab ${isCanvaMode ? 'active' : ''}`}
                         onClick={() => setMode('canva')}
                     >
-                        <SiCanva className="add-template-modal-tab-icon" />
+                        <SiCanva className="template-modal-tab-icon" />
                         <span>Canva</span>
                     </button>
                     <button
-                        className={`add-template-modal-tab ${!isCanvaMode ? 'active' : ''}`}
+                        className={`template-modal-tab ${!isCanvaMode ? 'active' : ''}`}
                         onClick={() => setMode('other')}
                     >
                         <span>Andere Vorlage</span>
                     </button>
                 </div>
 
-                <div className="add-template-modal-body">
+                <div className="template-modal-body">
                     {isCanvaMode ? (
                         <>
-                            <div className="add-template-modal-field">
+                            <div className="template-modal-field">
                                 <label>Canva URL</label>
-                                <div className="add-template-modal-url-row">
+                                <div className="template-modal-url-row">
                                     <input
                                         type="url"
                                         value={canvaUrl}
@@ -259,10 +297,10 @@ const AddTemplateModal = ({
                                     </button>
                                 </div>
                                 {previewError && (
-                                    <p className="add-template-modal-error">{previewError}</p>
+                                    <p className="template-modal-error">{previewError}</p>
                                 )}
                                 {notShareLinkError && (
-                                    <div className="add-template-modal-share-error">
+                                    <div className="template-modal-share-error">
                                         <p>
                                             Diese URL ist kein Vorlagen-Link. Um die Vorlage zu teilen,
                                             musst du in Canva einen Vorlagen-Link erstellen.
@@ -279,9 +317,9 @@ const AddTemplateModal = ({
                             </div>
 
                             {previewData && (
-                                <div className="add-template-modal-preview">
+                                <div className="template-modal-preview">
                                     {previewData.thumbnail_url && (
-                                        <div className="add-template-modal-preview-image">
+                                        <div className="template-modal-preview-image">
                                             <img
                                                 src={previewData.thumbnail_url}
                                                 alt="Vorschau"
@@ -289,8 +327,8 @@ const AddTemplateModal = ({
                                             />
                                         </div>
                                     )}
-                                    <div className="add-template-modal-preview-fields">
-                                        <div className="add-template-modal-field">
+                                    <div className="template-modal-preview-fields">
+                                        <div className="template-modal-field">
                                             <label>Titel *</label>
                                             <input
                                                 type="text"
@@ -299,13 +337,36 @@ const AddTemplateModal = ({
                                                 placeholder="Titel der Vorlage"
                                             />
                                         </div>
-                                        <div className="add-template-modal-field">
+                                        <div className="template-modal-field">
                                             <label>Beschreibung</label>
-                                            <textarea
-                                                value={description}
-                                                onChange={(e) => setDescription(e.target.value)}
-                                                placeholder="Beschreibung der Vorlage..."
-                                                rows={3}
+                                            <div className="template-modal-textarea-wrapper">
+                                                {renderGhostText()}
+                                                <textarea
+                                                    ref={tagAutocomplete.textareaRef}
+                                                    value={description}
+                                                    onChange={tagAutocomplete.handleChange}
+                                                    onKeyDown={tagAutocomplete.handleKeyDown}
+                                                    placeholder="Beschreibung der Vorlage..."
+                                                    rows={3}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="template-modal-field">
+                                            <label>Autor*in</label>
+                                            <input
+                                                type="text"
+                                                value={authorName}
+                                                onChange={(e) => setAuthorName(e.target.value)}
+                                                placeholder="Name des Erstellers"
+                                            />
+                                        </div>
+                                        <div className="template-modal-field">
+                                            <label>Kontakt E-Mail</label>
+                                            <input
+                                                type="email"
+                                                value={contactEmail}
+                                                onChange={(e) => setContactEmail(e.target.value)}
+                                                placeholder="email@example.com"
                                             />
                                         </div>
                                     </div>
@@ -314,7 +375,7 @@ const AddTemplateModal = ({
                         </>
                     ) : (
                         <>
-                            <div className="add-template-modal-field">
+                            <div className="template-modal-field">
                                 <label>Titel *</label>
                                 <input
                                     type="text"
@@ -323,16 +384,21 @@ const AddTemplateModal = ({
                                     placeholder="Titel der Vorlage"
                                 />
                             </div>
-                            <div className="add-template-modal-field">
+                            <div className="template-modal-field">
                                 <label>Beschreibung *</label>
-                                <textarea
-                                    value={description}
-                                    onChange={(e) => setDescription(e.target.value)}
-                                    placeholder="Beschreibung der Vorlage..."
-                                    rows={3}
-                                />
+                                <div className="template-modal-textarea-wrapper">
+                                    {renderGhostText()}
+                                    <textarea
+                                        ref={tagAutocomplete.textareaRef}
+                                        value={description}
+                                        onChange={tagAutocomplete.handleChange}
+                                        onKeyDown={tagAutocomplete.handleKeyDown}
+                                        placeholder="Beschreibung der Vorlage..."
+                                        rows={3}
+                                    />
+                                </div>
                             </div>
-                            <div className="add-template-modal-field">
+                            <div className="template-modal-field">
                                 <label>URL *</label>
                                 <input
                                     type="url"
@@ -341,15 +407,33 @@ const AddTemplateModal = ({
                                     placeholder="https://..."
                                 />
                             </div>
+                            <div className="template-modal-field">
+                                <label>Autor*in</label>
+                                <input
+                                    type="text"
+                                    value={authorName}
+                                    onChange={(e) => setAuthorName(e.target.value)}
+                                    placeholder="Name des Erstellers"
+                                />
+                            </div>
+                            <div className="template-modal-field">
+                                <label>Kontakt E-Mail</label>
+                                <input
+                                    type="email"
+                                    value={contactEmail}
+                                    onChange={(e) => setContactEmail(e.target.value)}
+                                    placeholder="email@example.com"
+                                />
+                            </div>
                         </>
                     )}
 
                     {submitError && (
-                        <p className="add-template-modal-error">{submitError}</p>
+                        <p className="template-modal-error">{submitError}</p>
                     )}
                 </div>
 
-                <div className="add-template-modal-footer">
+                <div className="template-modal-footer">
                     <button
                         className="pabtn pabtn--m pabtn--ghost"
                         onClick={onClose}

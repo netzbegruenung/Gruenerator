@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { HiX } from 'react-icons/hi';
-import './EditTemplateModal.css';
+import { useTagAutocomplete } from '../TemplateModal';
+import '../TemplateModal/template-modal.css';
 
 const EditTemplateModal = ({
     isOpen,
@@ -14,11 +15,12 @@ const EditTemplateModal = ({
     const [description, setDescription] = useState('');
     const [externalUrl, setExternalUrl] = useState('');
     const [thumbnailUrl, setThumbnailUrl] = useState('');
-    const [templateType, setTemplateType] = useState('canva');
     const [isPrivate, setIsPrivate] = useState(false);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState(null);
+
+    const tagAutocomplete = useTagAutocomplete(description, setDescription);
 
     useEffect(() => {
         if (isOpen && template) {
@@ -26,15 +28,16 @@ const EditTemplateModal = ({
             setDescription(template.description || '');
             setExternalUrl(template.external_url || template.canva_url || '');
             setThumbnailUrl(template.thumbnail_url || template.preview_image_url || '');
-            setTemplateType(template.template_type || 'canva');
             setIsPrivate(template.is_private !== false);
             setSubmitError(null);
+            tagAutocomplete.reset();
         }
     }, [isOpen, template]);
 
     useEffect(() => {
         if (!isOpen) {
             setSubmitError(null);
+            tagAutocomplete.reset();
         }
     }, [isOpen]);
 
@@ -52,8 +55,6 @@ const EditTemplateModal = ({
                 title: title.trim(),
                 description: description.trim(),
                 canva_url: externalUrl.trim(),
-                preview_image_url: thumbnailUrl.trim(),
-                template_type: templateType,
                 is_private: isPrivate
             });
 
@@ -64,7 +65,7 @@ const EditTemplateModal = ({
         } finally {
             setIsSubmitting(false);
         }
-    }, [template, title, description, externalUrl, thumbnailUrl, templateType, isPrivate, onSave, onSuccess, onClose]);
+    }, [template, title, description, externalUrl, isPrivate, onSave, onSuccess, onClose]);
 
     const handleBackdropClick = useCallback((e) => {
         if (e.target === e.currentTarget) {
@@ -94,12 +95,12 @@ const EditTemplateModal = ({
     const canSubmit = title.trim().length > 0;
 
     const modalContent = (
-        <div className="edit-template-modal-backdrop" onClick={handleBackdropClick}>
-            <div className="edit-template-modal" role="dialog" aria-modal="true" aria-labelledby="edit-template-modal-title">
-                <div className="edit-template-modal-header">
-                    <h2 id="edit-template-modal-title">Vorlage bearbeiten</h2>
+        <div className="template-modal-backdrop" onClick={handleBackdropClick}>
+            <div className="template-modal" role="dialog" aria-modal="true" aria-labelledby="template-modal-title">
+                <div className="template-modal-header">
+                    <h2 id="template-modal-title">Vorlage bearbeiten</h2>
                     <button
-                        className="edit-template-modal-close"
+                        className="template-modal-close"
                         onClick={onClose}
                         aria-label="Schließen"
                     >
@@ -107,9 +108,9 @@ const EditTemplateModal = ({
                     </button>
                 </div>
 
-                <div className="edit-template-modal-body">
+                <div className="template-modal-body">
                     {thumbnailUrl && (
-                        <div className="edit-template-modal-preview-image">
+                        <div className="template-modal-preview-image template-modal-preview-image--large">
                             <img
                                 src={thumbnailUrl}
                                 alt="Vorschau"
@@ -118,7 +119,7 @@ const EditTemplateModal = ({
                         </div>
                     )}
 
-                    <div className="edit-template-modal-field">
+                    <div className="template-modal-field">
                         <label htmlFor="edit-title">Titel *</label>
                         <input
                             id="edit-title"
@@ -130,34 +131,29 @@ const EditTemplateModal = ({
                         />
                     </div>
 
-                    <div className="edit-template-modal-field">
+                    <div className="template-modal-field">
                         <label htmlFor="edit-description">Beschreibung</label>
-                        <textarea
-                            id="edit-description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Beschreibung der Vorlage..."
-                            rows={3}
-                            disabled={isSubmitting}
-                        />
+                        <div className="template-modal-textarea-wrapper">
+                            {tagAutocomplete.suggestionSuffix && (
+                                <div className="template-modal-ghost-text">
+                                    <span className="template-modal-ghost-prefix">{tagAutocomplete.ghostPrefix}</span>
+                                    <span className="template-modal-ghost-suffix">{tagAutocomplete.suggestionSuffix}</span>
+                                </div>
+                            )}
+                            <textarea
+                                id="edit-description"
+                                ref={tagAutocomplete.textareaRef}
+                                value={description}
+                                onChange={tagAutocomplete.handleChange}
+                                onKeyDown={tagAutocomplete.handleKeyDown}
+                                placeholder="Beschreibung der Vorlage..."
+                                rows={3}
+                                disabled={isSubmitting}
+                            />
+                        </div>
                     </div>
 
-                    <div className="edit-template-modal-field">
-                        <label htmlFor="edit-type">Typ</label>
-                        <select
-                            id="edit-type"
-                            value={templateType}
-                            onChange={(e) => setTemplateType(e.target.value)}
-                            disabled={isSubmitting}
-                        >
-                            <option value="canva">Canva</option>
-                            <option value="sharepic">Sharepic</option>
-                            <option value="external">Externe Vorlage</option>
-                            <option value="other">Sonstige</option>
-                        </select>
-                    </div>
-
-                    <div className="edit-template-modal-field">
+                    <div className="template-modal-field">
                         <label htmlFor="edit-url">URL</label>
                         <input
                             id="edit-url"
@@ -169,19 +165,7 @@ const EditTemplateModal = ({
                         />
                     </div>
 
-                    <div className="edit-template-modal-field">
-                        <label htmlFor="edit-thumbnail">Vorschaubild URL</label>
-                        <input
-                            id="edit-thumbnail"
-                            type="url"
-                            value={thumbnailUrl}
-                            onChange={(e) => setThumbnailUrl(e.target.value)}
-                            placeholder="https://..."
-                            disabled={isSubmitting}
-                        />
-                    </div>
-
-                    <div className="edit-template-modal-field edit-template-modal-checkbox">
+                    <div className="template-modal-field template-modal-checkbox">
                         <label>
                             <input
                                 type="checkbox"
@@ -194,11 +178,11 @@ const EditTemplateModal = ({
                     </div>
 
                     {submitError && (
-                        <p className="edit-template-modal-error">{submitError}</p>
+                        <p className="template-modal-error">{submitError}</p>
                     )}
                 </div>
 
-                <div className="edit-template-modal-footer">
+                <div className="template-modal-footer">
                     <button
                         className="pabtn pabtn--m pabtn--ghost"
                         onClick={onClose}
