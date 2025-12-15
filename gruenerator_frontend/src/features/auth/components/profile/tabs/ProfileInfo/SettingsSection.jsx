@@ -118,11 +118,11 @@ const SettingsSection = ({
                 case BETA_VIEWS.QA:
                 return {
                     title: 'Notebooks',
-                    description: 'Erstelle intelligente Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
+                    description: 'Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
                     checked: getBetaFeatureState('qa'),
                     setter: (value) => updateUserBetaFeatures('qa', value),
                     featureName: 'Notebooks',
-                    checkboxLabel: 'Notebook-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
+                    checkboxLabel: 'Notebooks aktivieren',
                     icon: NotebookIcon
                 };
             case BETA_VIEWS.ELEARNING:

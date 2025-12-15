@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FaTwitter, FaLinkedin, FaInstagram } from 'react-icons/fa';
 import ThemeToggleButton from '../Header/ThemeToggleButton';
 import useDarkMode from '../../hooks/useDarkMode';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 
 const Footer = () => {
     const [darkMode, toggleDarkMode] = useDarkMode();
+    const { getBetaFeatureState } = useBetaFeatures();
+    const notebooksBetaEnabled = useMemo(() => getBetaFeatureState('qa'), [getBetaFeatureState]);
 
     return (
         <footer className="footer" role="contentinfo">
@@ -30,7 +33,6 @@ const Footer = () => {
                                     <li><Link to="/kommunal">Kommunale Anträge</Link></li>
                                     <li><Link to="/barrierefreiheit">Barrierefreiheit</Link></li>
                                     <li><Link to="/kampagnen">Kampagnen</Link></li>
-                                    <li><Link to="/datenbank/vorlagen">Vorlagen</Link></li>
                                 </ul>
                             </section>
 
@@ -40,6 +42,7 @@ const Footer = () => {
                                     <li><Link to="/reel">Reel</Link></li>
                                     <li><Link to="/sharepic">Sharepics</Link></li>
                                     <li><Link to="/imagine">Imagine</Link></li>
+                                    <li><Link to="/datenbank/vorlagen">Vorlagen</Link></li>
                                 </ul>
                             </section>
 
@@ -52,6 +55,17 @@ const Footer = () => {
                                     <li><a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" target="_blank" rel="noopener noreferrer">Newsletter</a></li>
                                 </ul>
                             </section>
+
+                            {notebooksBetaEnabled && (
+                                <section className="footer-section" aria-labelledby="footer-notebooks">
+                                    <h3 id="footer-notebooks">Notebooks</h3>
+                                    <ul>
+                                        <li><Link to="/gruenerator-notebook">Grünerator Notebook</Link></li>
+                                        <li><Link to="/gruene-notebook">Grünes Notebook</Link></li>
+                                        <li><Link to="/gruene-bundestag">Bundestagsfraktion</Link></li>
+                                    </ul>
+                                </section>
+                            )}
 
                             <section className="footer-section" aria-labelledby="footer-gpts">
                                 <h3 id="footer-gpts">GPTs für ChatGPT</h3>
