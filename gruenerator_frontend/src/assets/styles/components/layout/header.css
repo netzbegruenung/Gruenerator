@@ -206,7 +206,7 @@
     justify-content: center;
     left: 50%;
     pointer-events: none;
-    gap: 0.25rem;
+    gap: 0.15rem;
     /* Add top margin to prevent overlap with trigger */
     margin-top: 0.5rem;
 }
@@ -220,7 +220,7 @@
 
 .header-dropdown-content li {
     width: 100%;
-    margin: 0.2rem 0;
+    margin: 0.1rem 0;
     padding: 0;
 }
 
@@ -654,7 +654,7 @@ input:not(:checked) + .slider .icon.moon {
 
     .header-dropdown-content li {
         width: 100%;
-        margin-bottom: 10px;
+        margin-bottom: 4px;
     }
 
     .header-nav ul li span {
@@ -692,12 +692,12 @@ input:not(:checked) + .slider .icon.moon {
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 1rem 1.2rem;
+    padding: 0.75rem 1rem;
     transition: background-color 0.2s ease;
     border-radius: 0.5rem;
     width: 100%;
     margin: 0;
-    gap: 1.2rem;
+    gap: 1rem;
 }
 
 .menu-item-icon {

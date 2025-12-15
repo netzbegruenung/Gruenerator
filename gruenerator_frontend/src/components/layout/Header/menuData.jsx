@@ -45,14 +45,6 @@ export const getMenuItems = (betaFeatures = {}) => {
     icon: getIcon('navigation', 'barrierefreiheit')
   });
 
-  toolsItems.push({
-    id: 'vorlagen',
-    path: '/datenbank/vorlagen',
-    title: 'Vorlagen',
-    description: 'Design-Vorlagen für Canva und mehr',
-    icon: getIcon('navigation', 'vorlagen')
-  });
-
   // Add website generator if beta feature is enabled
   if (betaFeatures.websiteBetaEnabled) {
     toolsItems.push({
@@ -125,8 +117,15 @@ export const getMenuItems = (betaFeatures = {}) => {
           id: 'imagine',
           path: '/imagine',
           title: 'Imagine',
-          description: 'Begrüne deine Straße mit magischer KI-Bildbearbeitung',
+          description: 'Magische KI-Bildbearbeitung',
           icon: getIcon('navigation', 'imagine')
+        },
+        {
+          id: 'vorlagen',
+          path: '/datenbank/vorlagen',
+          title: 'Vorlagen',
+          description: 'Design-Vorlagen für Canva und mehr',
+          icon: getIcon('navigation', 'vorlagen')
         }
       ]
     },
@@ -165,12 +164,12 @@ export const getMenuItems = (betaFeatures = {}) => {
 
 
 
-  // Build result with labor items if any
+  // Build result with optional sections
   let result = staticMenuItems;
 
   if (laborItems.length > 0) {
     result = {
-      ...staticMenuItems,
+      ...result,
       labor: {
         title: 'Labor',
         items: laborItems
