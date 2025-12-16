@@ -6,7 +6,7 @@ import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import ShareVideoModal from './ShareVideoModal';
 import '../../../assets/styles/components/ui/button.css';
-import '../styles/SuccessScreen.css';
+import '../styles/VideoSuccessScreen.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -18,9 +18,9 @@ const AnimatedCheckmark = () => {
       viewBox="0 0 60 60"
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
-      transition={{ 
-        type: "spring", 
-        stiffness: 300, 
+      transition={{
+        type: "spring",
+        stiffness: 300,
         damping: 20,
         delay: 0.2
       }}
@@ -34,7 +34,7 @@ const AnimatedCheckmark = () => {
         strokeWidth="3"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
-        transition={{ 
+        transition={{
           duration: 0.6,
           ease: "easeInOut"
         }}
@@ -48,7 +48,7 @@ const AnimatedCheckmark = () => {
         strokeLinejoin="round"
         initial={{ pathLength: 0 }}
         animate={{ pathLength: 1 }}
-        transition={{ 
+        transition={{
           duration: 0.8,
           ease: "easeInOut",
           delay: 0.4
@@ -58,11 +58,10 @@ const AnimatedCheckmark = () => {
   );
 };
 
-const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
+const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // Use centralized export store for progress tracking
   const exportStore = useSubtitlerExportStore();
   const {
     status: exportStatus,
@@ -71,13 +70,11 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
     subscribe
   } = exportStore;
 
-  // Subscribe to export store
   useEffect(() => {
     const unsubscribe = subscribe();
     return unsubscribe;
   }, [subscribe]);
 
-  // Update spinner based on export status or legacy isLoading prop
   useEffect(() => {
     const shouldShowSpinner = isLoading || exportStatus === 'starting' || exportStatus === 'exporting';
 
@@ -102,16 +99,16 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
   };
 
   return (
-    <div className="success-screen">
-      <div className="success-content">
-        <div className="success-main">
+    <div className="video-success-screen">
+      <div className="video-success-content">
+        <div className="video-success-main">
           {showSpinner ? (
             <>
-              <div className="success-icon loading">
+              <div className="video-success-icon loading">
                 <div className="spinner-container">
-                  <div className="spinner" />
+                  <div className="video-success-spinner" />
                   {exportProgress > 0 && (
-                    <div className="spinner-percentage">
+                    <div className="video-spinner-percentage">
                       {exportProgress}%
                     </div>
                   )}
@@ -122,7 +119,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
             </>
           ) : exportError ? (
             <>
-              <div className="success-icon error">
+              <div className="video-success-icon error">
                 <FaTimes style={{ fontSize: '60px', color: 'var(--error-red)' }} />
               </div>
               <h2>Export fehlgeschlagen</h2>
@@ -139,9 +136,9 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
                   />
                 </div>
               )}
-              <div className="success-info">
+              <div className="video-success-info">
                 {!videoUrl && (
-                  <div className="success-icon">
+                  <div className="video-success-icon">
                     <AnimatedCheckmark />
                   </div>
                 )}
@@ -176,7 +173,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
                   )}
                 </div>
 
-                <div className="success-buttons">
+                <div className="video-success-buttons">
                   <button
                     className="btn-icon btn-secondary"
                     onClick={onReset}
@@ -203,7 +200,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
         </div>
 
         {socialText && (
-          <div className="social-text-result">
+          <div className="video-social-text-result">
             <h3>Dein Instagram Reel Text:</h3>
             <div className="markdown-content">
               <Suspense fallback={<div>Loading...</div>}>
@@ -226,7 +223,7 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
   );
 };
 
-SuccessScreen.propTypes = {
+VideoSuccessScreen.propTypes = {
   onReset: PropTypes.func.isRequired,
   onEditAgain: PropTypes.func.isRequired,
   isLoading: PropTypes.bool,
@@ -239,4 +236,4 @@ SuccessScreen.propTypes = {
   videoUrl: PropTypes.string
 };
 
-export default SuccessScreen; 
+export default VideoSuccessScreen;

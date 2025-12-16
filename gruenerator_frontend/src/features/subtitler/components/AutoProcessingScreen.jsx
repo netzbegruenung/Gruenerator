@@ -51,7 +51,8 @@ const AutoProcessingScreen = ({ uploadId, onComplete, onError }) => {
             outputPath: data.outputPath,
             duration: data.duration,
             uploadId,
-            projectId: data.projectId || null
+            projectId: data.projectId || null,
+            subtitles: data.subtitles || null
           });
         }
         return;

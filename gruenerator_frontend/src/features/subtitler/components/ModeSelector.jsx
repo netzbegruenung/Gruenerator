@@ -4,8 +4,15 @@ import '../styles/ModeSelector.css';
 
 const modes = [
   {
+    id: 'auto',
+    title: 'Automatisch',
+    description: 'Ein Klick: Stille entfernen, Untertitel hinzufügen',
+    Icon: MdAutoAwesome,
+    enabled: true
+  },
+  {
     id: 'subtitle',
-    title: 'Untertitel hinzufügen',
+    title: 'Manuell',
     description: 'Schnell Untertitel zu deinem Video hinzufügen',
     Icon: MdSubtitles,
     enabled: true
@@ -15,14 +22,8 @@ const modes = [
     title: 'Volle Bearbeitung inkl. Untertitel',
     description: 'Video schneiden, Text-Overlays und Untertitel',
     Icon: MdVideoSettings,
-    enabled: true
-  },
-  {
-    id: 'auto',
-    title: 'Automatisch',
-    description: 'Ein Klick: Stille entfernen, Untertitel hinzufügen',
-    Icon: MdAutoAwesome,
-    enabled: true
+    enabled: true,
+    badge: 'Beta'
   }
 ];
 

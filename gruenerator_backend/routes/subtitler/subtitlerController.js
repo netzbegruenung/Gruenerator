@@ -1278,7 +1278,8 @@ router.post('/process-auto', async (req, res) => {
         overallProgress: 100,
         outputPath: result.outputPath,
         duration: result.duration,
-        projectId
+        projectId,
+        subtitles: result.subtitles || null
       }), { EX: 60 * 60 });
     }).catch((error) => {
       log.error(`[process-auto] Failed for ${uploadId}: ${error.message}`);
