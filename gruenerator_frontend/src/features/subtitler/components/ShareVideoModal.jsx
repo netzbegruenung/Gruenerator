@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import QRCode from 'react-qr-code';
 import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
 import '../styles/ShareVideoModal.css';
@@ -160,6 +161,14 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
                   </svg>
                 )}
               </button>
+            </div>
+
+            <div className="share-qr-container">
+              <QRCode
+                value={getShareUrl(currentShare.shareToken)}
+                size={180}
+                level="M"
+              />
             </div>
 
             {currentShare.status === 'rendering' && (

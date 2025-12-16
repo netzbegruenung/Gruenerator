@@ -120,7 +120,8 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
     });
 
     const metadata = await getVideoMetadata(inputPath);
-    log.debug(`Video metadata: ${metadata.width}x${metadata.height}, duration: ${metadata.duration}s`);
+    const fileStats = await fs.stat(inputPath);
+    log.debug(`Video metadata: ${metadata.width}x${metadata.height}, duration: ${metadata.duration}s, size: ${(fileStats.size / 1024 / 1024).toFixed(2)}MB`);
 
     await updateProgress(uploadId, {
       stage: STAGES.ANALYZING.id,
@@ -208,6 +209,7 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
       subtitles,
       trimPoints,
       metadata,
+      fileStats,
       {
         stylePreference,
         heightPreference,
@@ -263,7 +265,7 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
 /**
  * Export video with trim and subtitles in a single pass
  */
-async function exportWithEnhancements(inputPath, subtitles, trimPoints, metadata, options) {
+async function exportWithEnhancements(inputPath, subtitles, trimPoints, metadata, fileStats, options) {
   const {
     stylePreference,
     heightPreference,
@@ -272,6 +274,9 @@ async function exportWithEnhancements(inputPath, subtitles, trimPoints, metadata
     autoProcessToken,
     uploadId
   } = options;
+
+  const fileSizeMB = fileStats.size / 1024 / 1024;
+  const isLargeFile = fileSizeMB > 200;
 
   await fs.mkdir(EXPORTS_DIR, { recursive: true });
   const outputFilename = `auto_${autoProcessToken}_${Date.now()}.mp4`;
@@ -322,8 +327,12 @@ async function exportWithEnhancements(inputPath, subtitles, trimPoints, metadata
       const command = ffmpeg(inputPath)
         .setDuration(trimmedDuration);
 
-      const qualitySettings = hwaccel.getQualitySettings(referenceDimension, false);
+      const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
       const { crf, preset } = qualitySettings;
+
+      if (isLargeFile) {
+        log.debug(`Large file (${fileSizeMB.toFixed(1)}MB), using optimized settings: CRF ${crf}, preset ${preset}`);
+      }
 
       const fontDir = path.dirname(tempFontPath || assFilePath);
       const videoFilter = `subtitles=${assFilePath}:fontsdir=${fontDir}`;
