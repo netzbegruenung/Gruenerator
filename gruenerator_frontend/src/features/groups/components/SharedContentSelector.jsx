@@ -128,13 +128,13 @@ const SharedContentSelector = ({
       })));
     }
     
-    // Add Q&As
-    if (groupContent.qas &&
-        (!config.contentFilter || config.contentFilter === 'qa_collections') &&
-        !(config.excludeTypes && config.excludeTypes.includes('qa_collections'))) {
-      content.push(...groupContent.qas.map(item => ({
+    // Add Notebooks
+    if (groupContent.notebooks &&
+        (!config.contentFilter || config.contentFilter === 'notebook_collections') &&
+        !(config.excludeTypes && config.excludeTypes.includes('notebook_collections'))) {
+      content.push(...groupContent.notebooks.map(item => ({
         ...item,
-        contentType: 'qa_collections',
+        contentType: 'notebook_collections',
         icon: NotebookIcon,
         typeLabel: 'Notebook'
       })));
@@ -320,9 +320,9 @@ const SharedContentSelector = ({
         // Navigate to collaborative editor
         navigate(`/editor/collab/${item.id}`);
         break;
-      case 'qa_collections':
+      case 'notebook_collections':
         // Navigate to Q&A interface
-        navigate(`/qa/${item.id}`);
+        navigate(`/notebook/${item.id}`);
         break;
       case 'custom_generators':
         // Navigate to custom generator

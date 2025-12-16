@@ -23,7 +23,7 @@ import {
     useCustomGeneratorsData,
     useCustomGeneratorsMutations,
     useAvailableDocuments,
-    useQACollections,
+    useNotebookCollections,
     useSavedGenerators,
     QUERY_KEYS
 } from '../../../../hooks/useProfileData';
@@ -49,7 +49,7 @@ const CustomGeneratorsView = ({
     // Auth and beta features
     const { user: authUser } = useOptimizedAuth();
     const { canAccessBetaFeature } = useBetaFeatures();
-    const isQAEnabled = canAccessBetaFeature('qa');
+    const isQAEnabled = canAccessBetaFeature('notebook');
     const isSitesEnabled = canAccessBetaFeature('sites');
     
     // Message handling
@@ -74,8 +74,8 @@ const CustomGeneratorsView = ({
     const savedGeneratorsHook = useSavedGenerators({ isActive });
     const savedGenerators = useProfileStore(state => state.savedGenerators) || [];
 
-    const qaQuery = useQACollections({ isActive: isActive && isQAEnabled });
-    const qaCollections = useProfileStore(state => state.qaCollections) || [];
+    const qaQuery = useNotebookCollections({ isActive: isActive && isQAEnabled });
+    const notebookCollections = useProfileStore(state => state.notebookCollections) || [];
 
     const availableDocuments = useAvailableDocuments();
 
@@ -256,7 +256,7 @@ const CustomGeneratorsView = ({
     
     // QA navigation handler
     const handleViewQA = useCallback((qaId) => {
-        navigate(`/qa/${qaId}`);
+        navigate(`/notebook/${qaId}`);
     }, [navigate]);
     
     // Render content based on current view
@@ -286,7 +286,7 @@ const CustomGeneratorsView = ({
                                         Custom Grüneratoren{isQAEnabled ? ' oder Notebooks' : ''} nach deinen Vorstellungen.
                                     </p>
                                 </section>
-                                {(!generators || generators.length === 0) && (!isQAEnabled || !qaCollections || qaCollections.length === 0) && (
+                                {(!generators || generators.length === 0) && (!isQAEnabled || !notebookCollections || notebookCollections.length === 0) && (
                                     <section className="group-overview-section">
                                         <p>
                                             Du hast noch keine eigenen Grüneratoren{isQAEnabled ? ' oder Notebooks' : ''} erstellt.
@@ -307,7 +307,7 @@ const CustomGeneratorsView = ({
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
                         onNotebookSelect={handleNotebookSelect}
-                        qaCollections={qaCollections}
+                        notebookCollections={notebookCollections}
                         qaQuery={qaQuery}
                     />
                 );
@@ -355,7 +355,7 @@ const CustomGeneratorsView = ({
                         qaId={selectedQAId}
                         onBack={handleBackToNotebooks}
                         onViewQA={handleViewQA}
-                        qaCollections={qaCollections}
+                        notebookCollections={notebookCollections}
                         qaQuery={qaQuery}
                         availableDocuments={availableDocuments.data}
                     />
@@ -506,9 +506,9 @@ const CustomGeneratorsView = ({
                         </>
                     )}
 
-                    {Array.isArray(qaCollections) && qaCollections.length > 0 && (
+                    {Array.isArray(notebookCollections) && notebookCollections.length > 0 && (
                         <>
-                            {qaCollections.map((qa) => (
+                            {notebookCollections.map((qa) => (
                                 <button
                                     key={qa.id}
                                     className={`profile-vertical-tab qa-tab ${selectedQAId === qa.id && (view === 'notebook-detail') ? 'active' : ''}`}

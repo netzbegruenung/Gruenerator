@@ -10,7 +10,7 @@ const CONTENT_TABS = [
     { id: 'documents', label: 'Dokumente', icon: HiDocumentText, contentType: 'documents' },
     { id: 'texts', label: 'Texte', icon: HiDocumentText, contentType: 'user_documents' },
     { id: 'generators', label: 'Generatoren', icon: HiCollection, contentType: 'custom_generators' },
-    { id: 'qas', label: 'Notebooks', icon: ICONS.actions.notebook, contentType: 'qa_collections' },
+    { id: 'notebooks', label: 'Notebooks', icon: ICONS.actions.notebook, contentType: 'notebook_collections' },
     { id: 'templates', label: 'Vorlagen', icon: HiCollection, contentType: 'database' }
 ];
 
@@ -34,7 +34,7 @@ const AddContentToGroupModal = ({
         documents: [],
         texts: [],
         generators: [],
-        qas: [],
+        notebooks: [],
         templates: []
     });
 
@@ -57,11 +57,11 @@ const AddContentToGroupModal = ({
         const loadContent = async () => {
             setIsLoading(true);
             try {
-                const [docs, texts, generators, qas, templates] = await Promise.all([
+                const [docs, texts, generators, notebooks, templates] = await Promise.all([
                     profileApiService.getAvailableDocuments().catch(() => []),
                     profileApiService.getUserTexts().catch(() => []),
                     profileApiService.getCustomGenerators().catch(() => []),
-                    profileApiService.getQACollections().catch(() => []),
+                    profileApiService.getNotebookCollections().catch(() => []),
                     profileApiService.getUserTemplates().catch(() => [])
                 ]);
 
@@ -69,7 +69,7 @@ const AddContentToGroupModal = ({
                     documents: docs || [],
                     texts: texts || [],
                     generators: generators || [],
-                    qas: qas || [],
+                    notebooks: notebooks || [],
                     templates: templates || []
                 });
             } catch (error) {

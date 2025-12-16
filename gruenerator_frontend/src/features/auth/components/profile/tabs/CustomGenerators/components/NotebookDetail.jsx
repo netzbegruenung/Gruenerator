@@ -6,7 +6,7 @@ import { HiInformationCircle } from 'react-icons/hi';
 import { ProfileIconButton, ProfileActionButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 import EditableDetailForm from '../../shared/EditableDetailForm';
 import useEditableDetail from '../../shared/useEditableDetail';
-import NotebookEditor from '../../../../../../qa/components/NotebookEditor';
+import NotebookEditor from '../../../../../../notebook/components/NotebookEditor';
 import { handleError } from '../../../../../../../components/utils/errorHandling';
 import NextcloudShareManager from '../../../../../../../utils/nextcloudShareManager';
 
@@ -14,7 +14,7 @@ import NextcloudShareManager from '../../../../../../../utils/nextcloudShareMana
 import '../../../../../../../assets/styles/components/profile/profile-action-buttons.css';
 
 // Hooks
-import { useQACollections } from '../../../../../hooks/useProfileData';
+import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 
 const NotebookDetail = ({ 
@@ -24,13 +24,13 @@ const NotebookDetail = ({
     qaId,
     onBack,
     onViewQA,
-    qaCollections,
+    notebookCollections,
     qaQuery,
     availableDocuments
 }) => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
-    const isQAEnabled = canAccessBetaFeature('qa');
+    const isQAEnabled = canAccessBetaFeature('notebook');
     
     // Use centralized hooks
     const { 
@@ -40,10 +40,10 @@ const NotebookDetail = ({
         isUpdating: isUpdatingQA, 
         isDeleting: isDeletingQA,
         isSyncing
-    } = useQACollections({ isActive: isActive && isQAEnabled });
+    } = useNotebookCollections({ isActive: isActive && isQAEnabled });
 
     // Find the current QA collection
-    const qa = (qaCollections || []).find(q => String(q.id) === String(qaId));
+    const qa = (notebookCollections || []).find(q => String(q.id) === String(qaId));
     
     // Use shared editable detail hook
     const editableDetail = useEditableDetail({
@@ -145,7 +145,7 @@ const NotebookDetail = ({
             onSuccessMessage('Notebook erfolgreich gelöscht.');
             onBack();
         } catch (error) {
-            // Error already handled by useQACollections hook
+            // Error already handled by useNotebookCollections hook
         }
     };
 

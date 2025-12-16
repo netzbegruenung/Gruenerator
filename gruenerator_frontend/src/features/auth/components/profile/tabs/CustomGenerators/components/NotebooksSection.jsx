@@ -11,7 +11,7 @@ import { ProfileIconButton } from '../../../../../../../components/profile/actio
 import { NotebookIcon } from '../../../../../../../config/icons';
 
 // Hooks
-import { useQACollections } from '../../../../../hooks/useProfileData';
+import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 import { useRovingTabindex } from '../../../../../../../hooks/useKeyboardNavigation';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
@@ -24,12 +24,12 @@ const NotebooksSection = ({
     onSuccessMessage, 
     onErrorMessage,
     onNotebookSelect,
-    qaCollections,
+    notebookCollections,
     qaQuery
 }) => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
-    const isQAEnabled = canAccessBetaFeature('qa');
+    const isQAEnabled = canAccessBetaFeature('notebook');
     
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_NOTEBOOKS');
@@ -38,7 +38,7 @@ const NotebooksSection = ({
     const { 
         deleteQACollection,
         isDeleting: isDeletingQA
-    } = useQACollections({ isActive: isActive && isQAEnabled });
+    } = useNotebookCollections({ isActive: isActive && isQAEnabled });
 
     const qaError = qaQuery?.error;
 
@@ -52,7 +52,7 @@ const NotebooksSection = ({
 
     // Delete handler
     const handleDeleteQA = async (qaId) => {
-        const qa = qaCollections.find(q => q.id === qaId);
+        const qa = notebookCollections.find(q => q.id === qaId);
         if (!qa) return;
         
         if (!window.confirm(`Möchten Sie das Notebook "${qa.name}" wirklich löschen?`)) {
@@ -70,7 +70,7 @@ const NotebooksSection = ({
 
     // Navigation items for roving tabindex
     const navigationItems = [
-        ...(qaCollections ? qaCollections.map(q => `qa-${q.id}`) : []),
+        ...(notebookCollections ? notebookCollections.map(q => `qa-${q.id}`) : []),
         'create-new'
     ];
     
@@ -103,7 +103,7 @@ const NotebooksSection = ({
     }
 
     // Error state
-    if (qaError && (!qaCollections || qaCollections.length === 0)) {
+    if (qaError && (!notebookCollections || notebookCollections.length === 0)) {
         return (
             <div className="profile-content-card centered-content-card">
                 <HiInformationCircle size={48} className="warning-icon" />
@@ -145,14 +145,14 @@ const NotebooksSection = ({
                 </div>
 
                 <div className="group-overview-content">
-                    {qaCollections && qaCollections.length > 0 ? (
+                    {notebookCollections && notebookCollections.length > 0 ? (
                         <div className="notebooks-list">
                             <div 
                                 className="profile-vertical-navigation notebooks-navigation"
                                 role="list"
                                 aria-label="Notebooks Liste"
                             >
-                                {qaCollections.map(qa => (
+                                {notebookCollections.map(qa => (
                                     <div 
                                         key={qa.id}
                                         className="notebook-item"
