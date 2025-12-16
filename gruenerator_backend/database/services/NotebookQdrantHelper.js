@@ -1,15 +1,16 @@
 /**
- * QAQdrantHelper - Q&A Collections specific Qdrant operations
- * Handles Q&A collection CRUD operations in Qdrant vector database
+ * NotebookQdrantHelper - Notebook Collections specific Qdrant operations
+ * Handles Notebook collection CRUD operations in Qdrant vector database
  */
 
 import { getQdrantInstance } from './QdrantService.js';
 import { QdrantOperations } from './QdrantOperations.js';
 import { fastEmbedService } from '../../services/FastEmbedService.js';
+import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
-class QAQdrantHelper {
+class NotebookQdrantHelper {
     constructor() {
         this.qdrant = getQdrantInstance();
         this.qdrantOps = null;
@@ -43,7 +44,7 @@ class QAQdrantHelper {
     }
 
     /**
-     * Generate embedding for Q&A collection metadata
+     * Generate embedding for Notebook collection metadata
      */
     async generateCollectionEmbedding(name, description = '', customPrompt = '') {
         await fastEmbedService.init();
@@ -52,9 +53,9 @@ class QAQdrantHelper {
     }
 
     /**
-     * Store Q&A collection in Qdrant
+     * Store Notebook collection in Qdrant
      */
-    async storeQACollection(collectionData) {
+    async storeNotebookCollection(collectionData) {
         await this.ensureInitialized();
 
         try {
@@ -87,21 +88,21 @@ class QAQdrantHelper {
                 }
             };
 
-            await this.qdrantOps.batchUpsert(this.qdrant.collections.qa_collections, [point]);
+            await this.qdrantOps.batchUpsert(this.qdrant.collections.notebook_collections, [point]);
 
-            console.log(`[QAQdrantHelper] Stored Q&A collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Stored Notebook collection: ${collectionId}`);
             return { success: true, collection_id: collectionId };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error storing Q&A collection:', error);
-            throw new Error(`Failed to store Q&A collection: ${error.message}`);
+            console.error('[NotebookQdrantHelper] Error storing Notebook collection:', error);
+            throw new Error(`Failed to store Notebook collection: ${error.message}`);
         }
     }
 
     /**
-     * Get Q&A collection by ID
+     * Get Notebook collection by ID
      */
-    async getQACollection(collectionId) {
+    async getNotebookCollection(collectionId) {
         await this.ensureInitialized();
 
         try {
@@ -110,7 +111,7 @@ class QAQdrantHelper {
             };
 
             const results = await this.qdrantOps.scrollDocuments(
-                this.qdrant.collections.qa_collections,
+                this.qdrant.collections.notebook_collections,
                 filter,
                 { limit: 1, withPayload: true }
             );
@@ -122,15 +123,15 @@ class QAQdrantHelper {
             return this.formatCollectionFromPayload(results[0].payload);
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error getting Q&A collection:', error);
-            throw new Error(`Failed to get Q&A collection: ${error.message}`);
+            console.error('[NotebookQdrantHelper] Error getting Notebook collection:', error);
+            throw new Error(`Failed to get Notebook collection: ${error.message}`);
         }
     }
 
     /**
-     * Get user's Q&A collections
+     * Get user's Notebook collections
      */
-    async getUserQACollections(userId, options = {}) {
+    async getUserNotebookCollections(userId, options = {}) {
         await this.ensureInitialized();
 
         try {
@@ -141,7 +142,7 @@ class QAQdrantHelper {
             };
 
             const results = await this.qdrantOps.scrollDocuments(
-                this.qdrant.collections.qa_collections,
+                this.qdrant.collections.notebook_collections,
                 filter,
                 { limit, offset, withPayload: true }
             );
@@ -151,29 +152,29 @@ class QAQdrantHelper {
             // Get document associations for each collection
             for (const collection of collections) {
                 const documents = await this.getCollectionDocuments(collection.id);
-                collection.qa_collection_documents = documents;
+                collection.notebook_collection_documents = documents;
                 collection.document_count = documents.length;
             }
 
             return collections;
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error getting user Q&A collections:', error);
-            throw new Error(`Failed to get user Q&A collections: ${error.message}`);
+            console.error('[NotebookQdrantHelper] Error getting user Notebook collections:', error);
+            throw new Error(`Failed to get user Notebook collections: ${error.message}`);
         }
     }
 
     /**
-     * Update Q&A collection
+     * Update Notebook collection
      */
-    async updateQACollection(collectionId, updateData) {
+    async updateNotebookCollection(collectionId, updateData) {
         await this.ensureInitialized();
 
         try {
             // First get existing collection
-            const existingCollection = await this.getQACollection(collectionId);
+            const existingCollection = await this.getNotebookCollection(collectionId);
             if (!existingCollection) {
-                throw new Error('Q&A collection not found');
+                throw new Error('Notebook collection not found');
             }
 
             // Merge with updates
@@ -185,21 +186,21 @@ class QAQdrantHelper {
             };
 
             // Store updated collection
-            await this.storeQACollection(updatedData);
+            await this.storeNotebookCollection(updatedData);
 
-            console.log(`[QAQdrantHelper] Updated Q&A collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Updated Notebook collection: ${collectionId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error updating Q&A collection:', error);
-            throw new Error(`Failed to update Q&A collection: ${error.message}`);
+            console.error('[NotebookQdrantHelper] Error updating Notebook collection:', error);
+            throw new Error(`Failed to update Notebook collection: ${error.message}`);
         }
     }
 
     /**
-     * Delete Q&A collection
+     * Delete Notebook collection
      */
-    async deleteQACollection(collectionId) {
+    async deleteNotebookCollection(collectionId) {
         await this.ensureInitialized();
 
         try {
@@ -207,31 +208,31 @@ class QAQdrantHelper {
             const collectionFilter = {
                 must: [{ key: 'collection_id', match: { value: collectionId } }]
             };
-            await this.qdrantOps.batchDelete(this.qdrant.collections.qa_collections, collectionFilter);
+            await this.qdrantOps.batchDelete(this.qdrant.collections.notebook_collections, collectionFilter);
 
             // Delete document associations
             const docsFilter = {
                 must: [{ key: 'collection_id', match: { value: collectionId } }]
             };
-            await this.qdrantOps.batchDelete(this.qdrant.collections.qa_collection_documents, docsFilter);
+            await this.qdrantOps.batchDelete(this.qdrant.collections.notebook_collection_documents, docsFilter);
 
             // Delete public access tokens
             const accessFilter = {
                 must: [{ key: 'collection_id', match: { value: collectionId } }]
             };
-            await this.qdrantOps.batchDelete(this.qdrant.collections.qa_public_access, accessFilter);
+            await this.qdrantOps.batchDelete(this.qdrant.collections.notebook_public_access, accessFilter);
 
-            console.log(`[QAQdrantHelper] Deleted Q&A collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Deleted Notebook collection: ${collectionId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error deleting Q&A collection:', error);
-            throw new Error(`Failed to delete Q&A collection: ${error.message}`);
+            console.error('[NotebookQdrantHelper] Error deleting Notebook collection:', error);
+            throw new Error(`Failed to delete Notebook collection: ${error.message}`);
         }
     }
 
     /**
-     * Add documents to Q&A collection
+     * Add documents to Notebook collection
      */
     async addDocumentsToCollection(collectionId, documentIds, addedBy = null) {
         await this.ensureInitialized();
@@ -248,19 +249,19 @@ class QAQdrantHelper {
                 }
             }));
 
-            await this.qdrantOps.batchUpsert(this.qdrant.collections.qa_collection_documents, points);
+            await this.qdrantOps.batchUpsert(this.qdrant.collections.notebook_collection_documents, points);
 
-            console.log(`[QAQdrantHelper] Added ${documentIds.length} documents to collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Added ${documentIds.length} documents to collection: ${collectionId}`);
             return { success: true, added_count: documentIds.length };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error adding documents to collection:', error);
+            console.error('[NotebookQdrantHelper] Error adding documents to collection:', error);
             throw new Error(`Failed to add documents to collection: ${error.message}`);
         }
     }
 
     /**
-     * Remove documents from Q&A collection
+     * Remove documents from Notebook collection
      */
     async removeDocumentsFromCollection(collectionId, documentIds) {
         await this.ensureInitialized();
@@ -273,19 +274,19 @@ class QAQdrantHelper {
                 ]
             };
 
-            await this.qdrantOps.batchDelete(this.qdrant.collections.qa_collection_documents, filter);
+            await this.qdrantOps.batchDelete(this.qdrant.collections.notebook_collection_documents, filter);
 
-            console.log(`[QAQdrantHelper] Removed ${documentIds.length} documents from collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Removed ${documentIds.length} documents from collection: ${collectionId}`);
             return { success: true, removed_count: documentIds.length };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error removing documents from collection:', error);
+            console.error('[NotebookQdrantHelper] Error removing documents from collection:', error);
             throw new Error(`Failed to remove documents from collection: ${error.message}`);
         }
     }
 
     /**
-     * Get documents associated with a Q&A collection
+     * Get documents associated with a Notebook collection
      */
     async getCollectionDocuments(collectionId) {
         await this.ensureInitialized();
@@ -296,7 +297,7 @@ class QAQdrantHelper {
             };
 
             const results = await this.qdrantOps.scrollDocuments(
-                this.qdrant.collections.qa_collection_documents,
+                this.qdrant.collections.notebook_collection_documents,
                 filter,
                 { limit: 1000, withPayload: true }
             );
@@ -308,7 +309,7 @@ class QAQdrantHelper {
             }));
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error getting collection documents:', error);
+            console.error('[NotebookQdrantHelper] Error getting collection documents:', error);
             return [];
         }
     }
@@ -337,13 +338,13 @@ class QAQdrantHelper {
                 }
             };
 
-            await this.qdrantOps.batchUpsert(this.qdrant.collections.qa_public_access, [point]);
+            await this.qdrantOps.batchUpsert(this.qdrant.collections.notebook_public_access, [point]);
 
-            console.log(`[QAQdrantHelper] Created public access for collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Created public access for collection: ${collectionId}`);
             return { success: true, access_token: accessToken };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error creating public access:', error);
+            console.error('[NotebookQdrantHelper] Error creating public access:', error);
             throw new Error(`Failed to create public access: ${error.message}`);
         }
     }
@@ -360,7 +361,7 @@ class QAQdrantHelper {
             };
 
             const results = await this.qdrantOps.scrollDocuments(
-                this.qdrant.collections.qa_public_access,
+                this.qdrant.collections.notebook_public_access,
                 filter,
                 { limit: 1, withPayload: true }
             );
@@ -372,7 +373,7 @@ class QAQdrantHelper {
             return results[0].payload;
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error getting public access:', error);
+            console.error('[NotebookQdrantHelper] Error getting public access:', error);
             throw new Error(`Failed to get public access: ${error.message}`);
         }
     }
@@ -388,21 +389,21 @@ class QAQdrantHelper {
                 must: [{ key: 'collection_id', match: { value: collectionId } }]
             };
 
-            await this.qdrantOps.batchDelete(this.qdrant.collections.qa_public_access, filter);
+            await this.qdrantOps.batchDelete(this.qdrant.collections.notebook_public_access, filter);
 
-            console.log(`[QAQdrantHelper] Revoked public access for collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Revoked public access for collection: ${collectionId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error revoking public access:', error);
+            console.error('[NotebookQdrantHelper] Error revoking public access:', error);
             throw new Error(`Failed to revoke public access: ${error.message}`);
         }
     }
 
     /**
-     * Log Q&A usage
+     * Log Notebook usage
      */
-    async logQAUsage(collectionId, userId, question, answerLength, responseTime, metadata = {}) {
+    async logNotebookUsage(collectionId, userId, question, answerLength, responseTime, metadata = {}) {
         await this.ensureInitialized();
 
         try {
@@ -425,13 +426,13 @@ class QAQdrantHelper {
                 }
             };
 
-            await this.qdrantOps.batchUpsert(this.qdrant.collections.qa_usage_logs, [point]);
+            await this.qdrantOps.batchUpsert(this.qdrant.collections.notebook_usage_logs, [point]);
 
-            console.log(`[QAQdrantHelper] Logged Q&A usage for collection: ${collectionId}`);
+            console.log(`[NotebookQdrantHelper] Logged Notebook usage for collection: ${collectionId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error logging Q&A usage:', error);
+            console.error('[NotebookQdrantHelper] Error logging Notebook usage:', error);
             // Don't throw error for logging failures
             return { success: false, error: error.message };
         }
@@ -472,13 +473,13 @@ class QAQdrantHelper {
             for (const collectionId of collectionIds) {
                 try {
                     // Verify ownership
-                    const collection = await this.getQACollection(collectionId);
+                    const collection = await this.getNotebookCollection(collectionId);
                     if (!collection || collection.user_id !== userId) {
                         results.failed.push({ id: collectionId, error: 'Not found or access denied' });
                         continue;
                     }
 
-                    await this.deleteQACollection(collectionId);
+                    await this.deleteNotebookCollection(collectionId);
                     results.deleted.push(collectionId);
 
                 } catch (error) {
@@ -489,7 +490,7 @@ class QAQdrantHelper {
             return { success: true, results };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error in bulk delete:', error);
+            console.error('[NotebookQdrantHelper] Error in bulk delete:', error);
             throw new Error(`Bulk delete failed: ${error.message}`);
         }
     }
@@ -499,46 +500,47 @@ class QAQdrantHelper {
      */
     async ensureSystemGrundsatzCollection() {
         await this.ensureInitialized();
-        
-        const systemCollectionId = 'grundsatz-system';
-        
+
+        const config = getSystemCollectionConfig('grundsatz-system');
+        const systemCollectionId = config.id;
+
         try {
             // Check if the system collection already exists
-            const existingCollection = await this.getQACollection(systemCollectionId);
+            const existingCollection = await this.getNotebookCollection(systemCollectionId);
             if (existingCollection) {
-                console.log(`[QAQdrantHelper] System Grundsatz collection already exists: ${systemCollectionId}`);
+                console.log(`[NotebookQdrantHelper] System Grundsatz collection already exists: ${systemCollectionId}`);
                 return { success: true, collection_id: systemCollectionId, created: false };
             }
 
             // Import COMPREHENSIVE_DOSSIER_INSTRUCTIONS
             const { COMPREHENSIVE_DOSSIER_INSTRUCTIONS } = await import('../../utils/promptUtils.js');
-            
-            // Create the system Grundsatz collection
+
+            // Create the system Grundsatz collection using centralized config
             const systemCollectionData = {
                 id: systemCollectionId,
                 user_id: 'SYSTEM',
-                name: 'Grüne Grundsatzprogramme',
-                description: 'Offizielle Grundsatzprogramme von Bündnis 90/Die Grünen (Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025)',
+                name: config.name,
+                description: config.description,
                 custom_prompt: COMPREHENSIVE_DOSSIER_INSTRUCTIONS,
                 selection_mode: 'documents',
                 is_active: true,
                 settings: {
-                    min_quality: 0.25,
+                    min_quality: config.minQuality,
                     system_collection: true,
                     allow_public: false
                 },
                 created_at: new Date().toISOString()
             };
 
-            const result = await this.storeQACollection(systemCollectionData);
-            console.log(`[QAQdrantHelper] Created system Grundsatz collection: ${systemCollectionId}`);
+            const result = await this.storeNotebookCollection(systemCollectionData);
+            console.log(`[NotebookQdrantHelper] Created system Grundsatz collection: ${systemCollectionId}`);
             return { ...result, created: true };
 
         } catch (error) {
-            console.error('[QAQdrantHelper] Error creating system Grundsatz collection:', error);
+            console.error('[NotebookQdrantHelper] Error creating system Grundsatz collection:', error);
             throw new Error(`Failed to create system Grundsatz collection: ${error.message}`);
         }
     }
 }
 
-export { QAQdrantHelper };
+export { NotebookQdrantHelper };

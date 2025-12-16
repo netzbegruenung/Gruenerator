@@ -2,9 +2,9 @@ import { create } from 'zustand';
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 
-const useQAStore = create((set, get) => ({
+const useNotebookStore = create((set, get) => ({
     // State
-    qaCollections: [],
+    notebookCollections: [],
     loading: false,
     error: null,
     selectedCollection: null,
@@ -13,7 +13,7 @@ const useQAStore = create((set, get) => ({
     setLoading: (loading) => set({ loading }),
     setError: (error) => set({ error }),
     
-    // Fetch user's Q&A collections
+    // Fetch user's Notebook collections
     fetchQACollections: async () => {
         const { isAuthenticated, user } = useAuthStore.getState();
         if (!isAuthenticated || !user) {
@@ -27,17 +27,17 @@ const useQAStore = create((set, get) => ({
             const data = response.data;
             
             if (!data.success) {
-                throw new Error(data.message || 'Failed to fetch Q&A collections');
+                throw new Error(data.message || 'Failed to fetch Notebook collections');
             }
 
-            set({ qaCollections: data.collections || [], loading: false });
+            set({ notebookCollections: data.collections || [], loading: false });
         } catch (error) {
-            console.error('Error fetching Q&A collections:', error);
+            console.error('Error fetching Notebook collections:', error);
             set({ error: error.message, loading: false });
         }
     },
 
-    // Create new Q&A collection
+    // Create new Notebook collection
     createQACollection: async (collectionData) => {
         set({ loading: true, error: null });
         try {
@@ -60,7 +60,7 @@ const useQAStore = create((set, get) => ({
             const data = response.data;
             
             if (!data.success) {
-                throw new Error(data.message || 'Failed to create Q&A collection');
+                throw new Error(data.message || 'Failed to create Notebook collection');
             }
 
             // Refresh collections
@@ -69,13 +69,13 @@ const useQAStore = create((set, get) => ({
             
             return data.collection;
         } catch (error) {
-            console.error('Error creating Q&A collection:', error);
+            console.error('Error creating Notebook collection:', error);
             set({ error: error.message, loading: false });
             throw error;
         }
     },
 
-    // Update Q&A collection
+    // Update Notebook collection
     updateQACollection: async (collectionId, collectionData) => {
         set({ loading: true, error: null });
         try {
@@ -98,20 +98,20 @@ const useQAStore = create((set, get) => ({
             const data = response.data;
             
             if (!data.success) {
-                throw new Error(data.message || 'Failed to update Q&A collection');
+                throw new Error(data.message || 'Failed to update Notebook collection');
             }
 
             // Refresh collections
             await get().fetchQACollections();
             set({ loading: false });
         } catch (error) {
-            console.error('Error updating Q&A collection:', error);
+            console.error('Error updating Notebook collection:', error);
             set({ error: error.message, loading: false });
             throw error;
         }
     },
 
-    // Delete Q&A collection
+    // Delete Notebook collection
     deleteQACollection: async (collectionId) => {
         set({ loading: true, error: null });
         try {
@@ -120,16 +120,16 @@ const useQAStore = create((set, get) => ({
             const data = response.data;
             
             if (!data.success) {
-                throw new Error(data.message || 'Failed to delete Q&A collection');
+                throw new Error(data.message || 'Failed to delete Notebook collection');
             }
 
             // Update local state
             set(state => ({
-                qaCollections: state.qaCollections.filter(c => c.id !== collectionId),
+                notebookCollections: state.notebookCollections.filter(c => c.id !== collectionId),
                 loading: false
             }));
         } catch (error) {
-            console.error('Error deleting Q&A collection:', error);
+            console.error('Error deleting Notebook collection:', error);
             set({ error: error.message, loading: false });
             throw error;
         }
@@ -137,8 +137,8 @@ const useQAStore = create((set, get) => ({
 
     // Get collection by ID
     getQACollection: (collectionId) => {
-        const { qaCollections } = get();
-        return qaCollections.find(c => c.id === collectionId);
+        const { notebookCollections } = get();
+        return notebookCollections.find(c => c.id === collectionId);
     },
 
     // Set selected collection
@@ -149,8 +149,8 @@ const useQAStore = create((set, get) => ({
 
     // Get collection with enhanced data (includes selection mode and source info)
     getEnhancedCollection: (collectionId) => {
-        const { qaCollections } = get();
-        const collection = qaCollections.find(c => c.id === collectionId);
+        const { notebookCollections } = get();
+        const collection = notebookCollections.find(c => c.id === collectionId);
         
         if (!collection) return null;
 
@@ -167,8 +167,8 @@ const useQAStore = create((set, get) => ({
 
     // Get collections by source type
     getCollectionsBySourceType: (sourceType) => {
-        const { qaCollections } = get();
-        return qaCollections.filter(collection => {
+        const { notebookCollections } = get();
+        return notebookCollections.filter(collection => {
             if (sourceType === 'documents') {
                 return (collection.documents || []).length > 0 && !(collection.wolke_share_links || []).length;
             } else if (sourceType === 'wolke') {
@@ -182,17 +182,17 @@ const useQAStore = create((set, get) => ({
 
     // Get statistics about collections
     getCollectionStats: () => {
-        const { qaCollections } = get();
+        const { notebookCollections } = get();
         
         const stats = {
-            total: qaCollections.length,
+            total: notebookCollections.length,
             documentsOnly: 0,
             wolkeOnly: 0,
             mixed: 0,
             empty: 0
         };
 
-        qaCollections.forEach(collection => {
+        notebookCollections.forEach(collection => {
             const docCount = (collection.documents || []).length;
             const wolkeCount = (collection.wolke_share_links || []).length;
 
@@ -212,11 +212,11 @@ const useQAStore = create((set, get) => ({
 
     // Reset store
     reset: () => set({
-        qaCollections: [],
+        notebookCollections: [],
         loading: false,
         error: null,
         selectedCollection: null
     })
 }));
 
-export default useQAStore;
+export default useNotebookStore;

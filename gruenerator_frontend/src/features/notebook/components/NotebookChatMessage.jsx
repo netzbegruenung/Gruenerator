@@ -3,12 +3,12 @@ import { motion } from 'motion/react';
 import { HiChip } from 'react-icons/hi';
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import ActionButtons from '../../../components/common/ActionButtons';
-import '../../../assets/styles/features/qa/qa-mobile-message.css';
+import '../../../assets/styles/features/notebook/notebook-mobile-message.css';
 import '../../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-const QAChatMessage = ({ msg, index }) => {
+const NotebookChatMessage = ({ msg, index }) => {
   const hasResultData = msg.type === 'assistant' && msg.resultData;
 
   const hasSources = hasResultData && (
@@ -73,4 +73,4 @@ const QAChatMessage = ({ msg, index }) => {
   );
 };
 
-export default QAChatMessage;
+export default NotebookChatMessage;
