@@ -46,10 +46,14 @@ async function execute(requestId, data) {
   }
 
   const response = await client.chat.completions.create(litellmConfig);
-  const choice = response.choices && response.choices[0];
+  const choice = response.choices?.[0];
   const responseContent = choice?.message?.content || null;
   const toolCalls = choice?.message?.tool_calls || [];
   const stopReason = choice?.finish_reason || 'stop';
+
+  if (!responseContent && stopReason !== 'tool_use') {
+    console.warn(`[LiteLLM ${requestId}] Empty response from model=${response.model || model}`);
+  }
 
   return {
     content: responseContent,
