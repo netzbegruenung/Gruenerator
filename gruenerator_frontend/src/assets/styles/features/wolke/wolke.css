@@ -635,8 +635,9 @@
     margin-bottom: var(--spacing-xxsmall);
 }
 
-/* Spinner for loading states */
-.spinner-small {
+/* Spinner for loading states in wolke buttons */
+.wolke-share-manager-container .spinner-small,
+.wolke-modal .spinner-small {
     width: 16px;
     height: 16px;
     border: 2px solid transparent;

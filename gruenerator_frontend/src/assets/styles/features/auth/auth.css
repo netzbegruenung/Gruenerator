@@ -460,15 +460,15 @@
 }
 
 .gruenes-netz-button {
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: var(--weiß);
-  border-color: var(--primary); 
+  border-color: var(--secondary);
 }
 
 .gruenes-netz-button:hover:not(:disabled) {
-  background-color: var(--klee);
+  background-color: var(--secondary-700);
   color: var(--weiß);
-  border-color: var(--klee);
+  border-color: var(--secondary-700);
 }
 
 .delete-account-warning {
@@ -535,7 +535,7 @@
   text-decoration: underline;
 }
 
-.spinner {
+.auth-container .spinner {
   width: 40px;
   height: 40px;
   border: 3px solid var(--border-subtle);
@@ -589,7 +589,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .auth-container .spinner {
     animation: none !important;
     transition: none !important;
   }

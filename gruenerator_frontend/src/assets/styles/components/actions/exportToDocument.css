@@ -177,7 +177,7 @@
     border-radius: 8px;
     font-size: 1em;
     cursor: pointer;
-    background-color: var(--primary);
+    background-color: var(--secondary);
     color: var(--weiß);
     transition: all 0.2s ease;
     display: flex;

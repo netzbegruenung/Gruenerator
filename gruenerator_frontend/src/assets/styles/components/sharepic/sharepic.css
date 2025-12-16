@@ -560,7 +560,7 @@
 
 .sharepic-unsplash-search-button {
     padding: 0.5rem 1rem;
-    background-color: var(--primary);
+    background-color: var(--secondary);
     color: var(--weiß);
     border: 2px solid var(--weiß);
     border-radius: 4px;
@@ -574,7 +574,7 @@
 }
 
 .sharepic-unsplash-search-button:hover {
-    background-color: var(--klee);
+    background-color: var(--secondary-700);
 }
 
 @media (max-width: 768px) {

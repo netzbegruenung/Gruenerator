@@ -305,13 +305,13 @@
 }
 
 .profile-primary-button {
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: white;
   border: none;
 }
 
 .profile-primary-button:hover {
-  background-color: var(--button-hover-color, #005229);
+  background-color: var(--secondary-700);
 }
 
 .profile-secondary-button {

@@ -21,14 +21,14 @@
 }
 
 .custom-generator-button-open {
-  color: var(--primary);
-  border: 1px solid var(--primary);
+  color: var(--secondary);
+  border: 1px solid var(--secondary);
 }
 
 .custom-generator-button-open:hover {
   color: var(--weiß);
-  background-color: var(--primary);
-  border-color: var(--primary);
+  background-color: var(--secondary);
+  border-color: var(--secondary);
 }
 
 .custom-generator-button-delete {

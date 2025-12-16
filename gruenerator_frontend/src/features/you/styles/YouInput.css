@@ -95,7 +95,7 @@
 }
 
 .you-submit-button:hover {
-  background-color: var(--primary);
+  background-color: var(--secondary);
 }
 
 .you-submit-button:disabled {
