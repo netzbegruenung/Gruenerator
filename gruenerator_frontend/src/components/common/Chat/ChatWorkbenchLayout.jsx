@@ -41,7 +41,9 @@ const ChatWorkbenchLayout = ({
   singleLine = false,
   showStartPage = false,
   startPageTitle = "Was möchtest du wissen?",
-  exampleQuestions = []
+  exampleQuestions = [],
+  sources = [],
+  onSourceToggle
 }) => {
   // Consolidated voice recording and file upload via useChatInput hook
   const {
@@ -194,6 +196,8 @@ const ChatWorkbenchLayout = ({
             attachedFiles={attachedFiles}
             onRemoveFile={onRemoveFile}
             exampleQuestions={exampleQuestions}
+            sources={sources}
+            onSourceToggle={onSourceToggle}
             isVoiceRecording={isVoiceRecording}
             isVoiceProcessing={isVoiceProcessing}
             startRecording={startRecording}
@@ -261,6 +265,8 @@ const ChatWorkbenchLayout = ({
             attachedFiles={attachedFiles}
             onRemoveFile={onRemoveFile}
             exampleQuestions={exampleQuestions}
+            sources={sources}
+            onSourceToggle={onSourceToggle}
             isVoiceRecording={isVoiceRecording}
             isVoiceProcessing={isVoiceProcessing}
             startRecording={startRecording}
@@ -355,7 +361,14 @@ ChatWorkbenchLayout.propTypes = {
   exampleQuestions: PropTypes.arrayOf(PropTypes.shape({
     icon: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired
-  }))
+  })),
+  sources: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    count: PropTypes.string.isRequired,
+    id: PropTypes.string,
+    selected: PropTypes.bool
+  })),
+  onSourceToggle: PropTypes.func
 };
 
 export default ChatWorkbenchLayout;

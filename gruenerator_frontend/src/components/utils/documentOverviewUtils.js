@@ -77,7 +77,7 @@ export const formatDate = (dateString) => {
 
 export const getSearchValueFactory = (itemType) => {
   return (item, field) => {
-    if (itemType === 'qa') {
+    if (itemType === 'notebook') {
       switch (field) {
         case 'title':
           return item.name || '';
@@ -95,7 +95,7 @@ export const getSearchValueFactory = (itemType) => {
 
 export const getSortValueFactory = (itemType) => {
   return (item, field) => {
-    if (itemType === 'qa') {
+    if (itemType === 'notebook') {
       switch (field) {
         case 'title':
           return (item.name || '').toLowerCase();

@@ -8,7 +8,7 @@ import Spinner from './Spinner';
  * @param {Object} props
  * @param {boolean} props.isOpen - Whether modal is open
  * @param {Function} props.onClose - Close modal callback
- * @param {string} props.contentType - Type of content (documents, custom_generators, qa_collections, user_documents)
+ * @param {string} props.contentType - Type of content (documents, custom_generators, notebook_collections, user_documents)
  * @param {string} props.contentId - ID of content to share
  * @param {string} props.contentTitle - Display title of content
  * @param {Function} props.onSuccess - Success callback
@@ -80,7 +80,7 @@ const ShareToGroupModal = ({
     const labels = {
       'documents': 'Dokument',
       'custom_generators': 'Custom Generator',
-      'qa_collections': 'Notebook',
+      'notebook_collections': 'Notebook',
       'user_documents': 'Text',
       'database': 'Template'
     };
