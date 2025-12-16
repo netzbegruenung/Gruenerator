@@ -9,6 +9,7 @@ import * as hwaccel from './hwaccelUtils.js';
 
 const require = createRequire(import.meta.url);
 const { ffmpeg, ffprobe } = require('./ffmpegWrapper.js');
+const { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } = require('./ffmpegExportUtils.js');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -181,93 +182,35 @@ export async function processProjectExport(project, projService) {
 
         const { ffmpegPool } = await import('./ffmpegPool.js');
 
-        const referenceDimension = isVertical ? metadata.width : metadata.height;
-        const fileSizeMB = fileStats.size / 1024 / 1024;
-
         const useHwAccel = await hwaccel.detectVaapi();
+
+        const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
+            metadata,
+            fileStats,
+            useHwAccel,
+            includeTune: true
+        });
+
+        const videoFilters = buildVideoFilters({
+            assFilePath,
+            tempFontPath,
+            scaleFilter: null,
+            useHwAccel
+        });
 
         await ffmpegPool.run(async () => {
             await new Promise((resolve, reject) => {
                 const command = ffmpeg(inputPath)
                     .setDuration(parseFloat(metadata.duration) || 0);
 
-                const isLargeFile = fileSizeMB > 200;
-                const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
-                const { crf, preset } = qualitySettings;
-                const tune = 'film';
-
-                let audioCodec, audioBitrate;
-                const originalAudioCodec = metadata.originalFormat?.audioCodec;
-                const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
-
-                if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
-                    audioCodec = 'copy';
-                    audioBitrate = null;
-                } else {
-                    audioCodec = 'aac';
-                    audioBitrate = qualitySettings.audioBitrate;
-                }
-
-                const is4K = referenceDimension >= 2160;
-                const isHevcSource = metadata.originalFormat?.codec === 'hevc';
-                let videoCodec;
-                let outputOptions;
-
-                if (useHwAccel) {
-                    videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-                    const qp = hwaccel.crfToQp(crf);
-
-                    command.inputOptions(hwaccel.getVaapiInputOptions());
-
-                    outputOptions = [
-                        '-y',
-                        ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-                        '-c:a', audioCodec,
-                        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-                        '-movflags', '+faststart',
-                        '-avoid_negative_ts', 'make_zero'
-                    ];
-
-                    log.debug(`Export using VAAPI: ${referenceDimension}p, encoder: ${videoCodec}, QP: ${qp}`);
-                } else {
-                    videoCodec = (is4K && isHevcSource) ? 'libx265' : 'libx264';
-
-                    outputOptions = [
-                        '-y',
-                        '-c:v', videoCodec,
-                        '-preset', preset,
-                        '-crf', crf.toString(),
-                        ...(tune ? ['-tune', tune] : []),
-                        '-profile:v', videoCodec === 'libx264' ? 'high' : 'main',
-                        '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-                        '-c:a', audioCodec,
-                        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-                        '-movflags', '+faststart',
-                        '-avoid_negative_ts', 'make_zero'
-                    ];
-
-                    if (videoCodec === 'libx264') {
-                        outputOptions.push(...hwaccel.getX264QualityParams());
-                    }
-
-                    log.debug(`Export using CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
+                if (inputOptions.length > 0) {
+                    command.inputOptions(inputOptions);
                 }
 
                 command.outputOptions(outputOptions);
 
-                if (useHwAccel) {
-                    const fontDir = assFilePath ? path.dirname(tempFontPath || assFilePath) : null;
-                    const filterChain = hwaccel.getSubtitleFilterChain(assFilePath, fontDir, null);
-                    command.videoFilters([filterChain]);
-                } else {
-                    const videoFilters = [];
-                    if (assFilePath) {
-                        const fontDir = path.dirname(tempFontPath || assFilePath);
-                        videoFilters.push(`subtitles=${assFilePath}:fontsdir=${fontDir}`);
-                    }
-                    if (videoFilters.length > 0) {
-                        command.videoFilters(videoFilters);
-                    }
+                if (videoFilters.length > 0) {
+                    command.videoFilters(videoFilters);
                 }
 
                 command
