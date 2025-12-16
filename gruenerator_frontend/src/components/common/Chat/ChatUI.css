@@ -688,7 +688,7 @@
 }
 
 .floating-input button:hover:not(:disabled) {
-  background-color: var(--primary);
+  background-color: var(--secondary);
   transform: scale(1.05);
   box-shadow: var(--shadow-md);
 }

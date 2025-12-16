@@ -246,7 +246,7 @@
 }
 
 .project-share-btn:hover {
-    background-color: var(--primary);
+    background-color: var(--secondary);
 }
 
 .project-delete-btn:hover {

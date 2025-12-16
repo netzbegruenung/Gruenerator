@@ -1146,7 +1146,7 @@
 }
 
 .group-name-edit-button.save:hover:not(:disabled) {
-  background-color: var(--primary);
+  background-color: var(--secondary-700);
 }
 
 .group-name-edit-button.cancel {

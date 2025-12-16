@@ -84,7 +84,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: var(--weiß);
   border: 2px solid var(--weiß);
   border-radius: var(--button-border-radius);

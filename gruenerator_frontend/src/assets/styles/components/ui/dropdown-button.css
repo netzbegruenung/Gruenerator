@@ -95,16 +95,16 @@
 
 /* Primary button styling for content variant */
 .dropdown-button-container.content-variant .dropdown-button {
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: var(--weiß);
-  border-color: var(--primary);
+  border-color: var(--secondary);
   min-width: 180px;
   justify-content: space-between;
 }
 
 .dropdown-button-container.content-variant .dropdown-button:hover:not(:disabled) {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background-color: var(--secondary-700);
+  border-color: var(--secondary-700);
   transform: translateY(-1px);
 }
 
