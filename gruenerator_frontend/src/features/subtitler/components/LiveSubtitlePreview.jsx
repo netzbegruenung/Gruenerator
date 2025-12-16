@@ -24,16 +24,16 @@ const LiveSubtitlePreview = ({
   }, [videoMetadata, editableSubtitles, subtitlePreference, stylePreference]);
 
   const getStyleForPreference = useMemo(() => {
-    // Base styles - use Montserrat for Austrian users
+    // Base styles - use GrueneType as default, Montserrat for Austrian users
     const baseStyles = {
+      fontFamily: isAustrian ? "'Montserrat', Arial, sans-serif" : "'GrueneType', Arial, sans-serif",
       fontWeight: 'bold',
       color: '#ffffff',
       textAlign: 'center',
       lineHeight: '1.2',
       maxWidth: '100%',
       wordWrap: 'break-word',
-      hyphens: 'auto',
-      ...(isAustrian && { fontFamily: "'Montserrat', Arial, sans-serif" })
+      hyphens: 'auto'
     };
 
     switch (stylePreference) {
@@ -41,7 +41,7 @@ const LiveSubtitlePreview = ({
         return {
           ...baseStyles,
           backgroundColor: 'transparent',
-          textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
+          textShadow: 'none',
           padding: '0',
           borderRadius: '0'
         };
@@ -72,7 +72,7 @@ const LiveSubtitlePreview = ({
           fontFamily: "'GJFontRegular', Arial, sans-serif",
           fontWeight: 'normal',
           backgroundColor: 'transparent',
-          textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -1px 0 #000, 0 1px 0 #000, -1px 0 0 #000, 1px 0 0 #000',
+          textShadow: 'none',
           padding: '0',
           borderRadius: '0'
         };
@@ -165,12 +165,6 @@ const LiveSubtitlePreview = ({
   if (isMobile) {
     textStyles.fontSize = 'clamp(14px, 3vw, 18px)';
     textStyles.lineHeight = '1.1';
-    
-    // Remove some effects on mobile for better performance
-    if (stylePreference === 'clean' || stylePreference === 'standard' || 
-        stylePreference === 'gj_clean') {
-      textStyles.textShadow = 'none';
-    }
   }
 
   return (

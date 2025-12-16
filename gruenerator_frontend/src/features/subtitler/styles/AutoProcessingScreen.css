@@ -1,0 +1,217 @@
+.auto-processing-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-large);
+  min-height: 400px;
+}
+
+.auto-processing-screen.error {
+  color: var(--error-red);
+}
+
+.auto-processing-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+}
+
+.auto-processing-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--font-color);
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.auto-processing-subtitle {
+  font-size: 0.9375rem;
+  color: var(--grey-500);
+  margin-bottom: var(--spacing-large);
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+  margin-bottom: var(--spacing-large);
+}
+
+.progress-bar-wrapper {
+  flex: 1;
+  height: 8px;
+  background: var(--grey-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+}
+
+.progress-percentage {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary-600);
+  min-width: 40px;
+  text-align: right;
+}
+
+.stages-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  width: 100%;
+}
+
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: var(--card-background);
+  border: 1px solid var(--grey-200);
+  border-radius: var(--card-border-radius-medium);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.stage-item.active {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+}
+
+.stage-item.completed {
+  border-color: var(--primary-400);
+  opacity: 0.7;
+}
+
+.stage-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.stage-icon.pending {
+  background: var(--grey-100);
+  color: var(--grey-400);
+}
+
+.stage-icon.active {
+  background: var(--primary-500);
+  color: var(--white);
+}
+
+.stage-icon.completed {
+  background: var(--primary-600);
+  color: var(--white);
+}
+
+.stage-info {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.stage-name {
+  font-size: 0.875rem;
+  color: var(--font-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stage-item.completed .stage-name {
+  color: var(--grey-500);
+}
+
+.stage-progress {
+  font-size: 0.75rem;
+  color: var(--primary-600);
+  font-weight: 600;
+}
+
+.stage-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary-600);
+}
+
+.completion-message {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  margin-top: var(--spacing-large);
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: var(--primary-50);
+  border-radius: var(--card-border-radius-medium);
+  color: var(--primary-700);
+  font-weight: 500;
+}
+
+.completion-icon {
+  font-size: 20px;
+  color: var(--primary-600);
+}
+
+.error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--background-color-alt);
+  color: var(--error-red);
+  font-size: 32px;
+  margin-bottom: var(--spacing-medium);
+}
+
+.error-message {
+  font-size: 0.875rem;
+  color: var(--grey-600);
+  margin-top: var(--spacing-small);
+}
+
+@media (max-width: 640px) {
+  .auto-processing-screen {
+    padding: var(--spacing-medium);
+    min-height: 300px;
+  }
+
+  .auto-processing-content h2 {
+    font-size: 1.25rem;
+  }
+
+  .stage-item {
+    padding: var(--spacing-xsmall) var(--spacing-small);
+  }
+
+  .stage-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .stage-name {
+    font-size: 0.8125rem;
+  }
+}
