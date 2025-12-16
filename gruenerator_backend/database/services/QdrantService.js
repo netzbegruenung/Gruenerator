@@ -23,14 +23,15 @@ class QdrantService {
         this.collections = {
             documents: 'documents',
             grundsatz_documents: 'grundsatz_documents',
+            oesterreich_gruene_documents: 'oesterreich_gruene_documents',
             user_knowledge: 'user_knowledge',
             content_examples: 'content_examples',
             social_media_examples: 'social_media_examples',
             user_texts: 'user_texts',
-            qa_collections: 'qa_collections',
-            qa_collection_documents: 'qa_collection_documents',
-            qa_usage_logs: 'qa_usage_logs',
-            qa_public_access: 'qa_public_access',
+            notebook_collections: 'notebook_collections',
+            notebook_collection_documents: 'notebook_collection_documents',
+            notebook_usage_logs: 'notebook_usage_logs',
+            notebook_public_access: 'notebook_public_access',
             bundestag_content: 'bundestag_content',
             oparl_papers: 'oparl_papers'
         };
@@ -297,6 +298,21 @@ class QdrantService {
                 console.log(`[QdrantService] Created grundsatz_documents collection with ${this.vectorSize} dimensions`);
             }
 
+            // Austrian Greens documents collection
+            if (!existingCollections.includes(this.collections.oesterreich_gruene_documents)) {
+                await this.client.createCollection(this.collections.oesterreich_gruene_documents, {
+                    vectors: {
+                        size: this.vectorSize,
+                        distance: 'Cosine'
+                    },
+                    optimizers_config: {
+                        default_segment_number: 2,
+                        max_segment_size: 20000
+                    }
+                });
+                console.log(`[QdrantService] Created oesterreich_gruene_documents collection with ${this.vectorSize} dimensions`);
+            }
+
             // User knowledge collection
             if (!existingCollections.includes(this.collections.user_knowledge)) {
                 await this.client.createCollection(this.collections.user_knowledge, {
@@ -424,9 +440,9 @@ class QdrantService {
                 console.log(`[QdrantService] Created title index for user_texts`);
             }
 
-            // Q&A collections collection (metadata storage)
-            if (!existingCollections.includes(this.collections.qa_collections)) {
-                await this.client.createCollection(this.collections.qa_collections, {
+            // Notebook collections collection (metadata storage)
+            if (!existingCollections.includes(this.collections.notebook_collections)) {
+                await this.client.createCollection(this.collections.notebook_collections, {
                     vectors: {
                         size: this.vectorSize,
                         distance: 'Cosine'
@@ -436,10 +452,10 @@ class QdrantService {
                         max_segment_size: 5000
                     }
                 });
-                console.log(`[QdrantService] Created qa_collections collection with ${this.vectorSize} dimensions`);
+                console.log(`[QdrantService] Created notebook_collections collection with ${this.vectorSize} dimensions`);
 
                 // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_collections, {
+                await this.client.createPayloadIndex(this.collections.notebook_collections, {
                     field_name: 'user_id',
                     field_schema: {
                         type: 'keyword',
@@ -447,7 +463,7 @@ class QdrantService {
                     }
                 });
 
-                await this.client.createPayloadIndex(this.collections.qa_collections, {
+                await this.client.createPayloadIndex(this.collections.notebook_collections, {
                     field_name: 'collection_id',
                     field_schema: {
                         type: 'keyword'
@@ -455,9 +471,9 @@ class QdrantService {
                 });
             }
 
-            // Q&A collection documents junction collection
-            if (!existingCollections.includes(this.collections.qa_collection_documents)) {
-                await this.client.createCollection(this.collections.qa_collection_documents, {
+            // Notebook collection documents junction collection
+            if (!existingCollections.includes(this.collections.notebook_collection_documents)) {
+                await this.client.createCollection(this.collections.notebook_collection_documents, {
                     vectors: {
                         size: this.vectorSize,
                         distance: 'Cosine'
@@ -467,17 +483,17 @@ class QdrantService {
                         max_segment_size: 5000
                     }
                 });
-                console.log(`[QdrantService] Created qa_collection_documents collection with ${this.vectorSize} dimensions`);
+                console.log(`[QdrantService] Created notebook_collection_documents collection with ${this.vectorSize} dimensions`);
 
                 // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_collection_documents, {
+                await this.client.createPayloadIndex(this.collections.notebook_collection_documents, {
                     field_name: 'collection_id',
                     field_schema: {
                         type: 'keyword'
                     }
                 });
 
-                await this.client.createPayloadIndex(this.collections.qa_collection_documents, {
+                await this.client.createPayloadIndex(this.collections.notebook_collection_documents, {
                     field_name: 'document_id',
                     field_schema: {
                         type: 'keyword'
@@ -485,9 +501,9 @@ class QdrantService {
                 });
             }
 
-            // Q&A usage logs collection
-            if (!existingCollections.includes(this.collections.qa_usage_logs)) {
-                await this.client.createCollection(this.collections.qa_usage_logs, {
+            // Notebook usage logs collection
+            if (!existingCollections.includes(this.collections.notebook_usage_logs)) {
+                await this.client.createCollection(this.collections.notebook_usage_logs, {
                     vectors: {
                         size: this.vectorSize,
                         distance: 'Cosine'
@@ -497,17 +513,17 @@ class QdrantService {
                         max_segment_size: 10000
                     }
                 });
-                console.log(`[QdrantService] Created qa_usage_logs collection with ${this.vectorSize} dimensions`);
+                console.log(`[QdrantService] Created notebook_usage_logs collection with ${this.vectorSize} dimensions`);
 
                 // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_usage_logs, {
+                await this.client.createPayloadIndex(this.collections.notebook_usage_logs, {
                     field_name: 'collection_id',
                     field_schema: {
                         type: 'keyword'
                     }
                 });
 
-                await this.client.createPayloadIndex(this.collections.qa_usage_logs, {
+                await this.client.createPayloadIndex(this.collections.notebook_usage_logs, {
                     field_name: 'user_id',
                     field_schema: {
                         type: 'keyword'
@@ -515,9 +531,9 @@ class QdrantService {
                 });
             }
 
-            // Q&A public access collection
-            if (!existingCollections.includes(this.collections.qa_public_access)) {
-                await this.client.createCollection(this.collections.qa_public_access, {
+            // Notebook public access collection
+            if (!existingCollections.includes(this.collections.notebook_public_access)) {
+                await this.client.createCollection(this.collections.notebook_public_access, {
                     vectors: {
                         size: this.vectorSize,
                         distance: 'Cosine'
@@ -527,17 +543,17 @@ class QdrantService {
                         max_segment_size: 1000
                     }
                 });
-                console.log(`[QdrantService] Created qa_public_access collection with ${this.vectorSize} dimensions`);
+                console.log(`[QdrantService] Created notebook_public_access collection with ${this.vectorSize} dimensions`);
 
                 // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_public_access, {
+                await this.client.createPayloadIndex(this.collections.notebook_public_access, {
                     field_name: 'access_token',
                     field_schema: {
                         type: 'keyword'
                     }
                 });
 
-                await this.client.createPayloadIndex(this.collections.qa_public_access, {
+                await this.client.createPayloadIndex(this.collections.notebook_public_access, {
                     field_name: 'collection_id',
                     field_schema: {
                         type: 'keyword'

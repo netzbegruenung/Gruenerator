@@ -3,6 +3,7 @@
  */
 
 const { vectorConfig } = require('../config/vectorConfig.js');
+const { getDefaultMultiCollectionIds } = require('../config/systemCollectionsConfig.js');
 
 class QueryIntentService {
   /**
@@ -108,7 +109,7 @@ class QueryIntentService {
   detectDocumentScope(query) {
     const q = (query || '').trim();
     if (!q) {
-      return { collections: ['grundsatz-system', 'bundestagsfraktion-system'], documentTitleFilter: null, detectedPhrase: null };
+      return { collections: getDefaultMultiCollectionIds(), documentTitleFilter: null, detectedPhrase: null };
     }
 
     const docPatterns = [
@@ -150,7 +151,7 @@ class QueryIntentService {
       }
     }
 
-    return { collections: ['grundsatz-system', 'bundestagsfraktion-system'], documentTitleFilter: null, detectedPhrase: null };
+    return { collections: getDefaultMultiCollectionIds(), documentTitleFilter: null, detectedPhrase: null };
   }
 
   // ----- helpers -----

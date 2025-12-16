@@ -1035,7 +1035,7 @@ router.post('/groups/:groupId/share', ensureAuthenticated, async (req, res) => {
     }
 
     // Validate content type
-    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'database'];
+    const validContentTypes = ['documents', 'custom_generators', 'notebook_collections', 'user_documents', 'database'];
     if (!validContentTypes.includes(contentType)) {
       return res.status(400).json({
         success: false,
@@ -1254,7 +1254,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
     const contentByType = {
       documents: [],
       custom_generators: [],
-      qa_collections: [],
+      notebook_collections: [],
       user_documents: [],
       database: []
     };
@@ -1290,15 +1290,15 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       contentResults.push({ type: 'custom_generators', result: { data: generatorsData }, shares: contentByType.custom_generators });
     }
 
-    // Q&A Collections
-    if (contentByType.qa_collections.length > 0) {
-      const qaIds = contentByType.qa_collections.map(s => s.content_id);
-      const qasData = await postgres.query(
-        `SELECT id, name, description, view_count, created_at, updated_at, user_id FROM qa_collections WHERE id = ANY($1)`,
-        [qaIds],
-        { table: 'qa_collections' }
+    // Notebook Collections
+    if (contentByType.notebook_collections.length > 0) {
+      const notebookIds = contentByType.notebook_collections.map(s => s.content_id);
+      const notebooksData = await postgres.query(
+        `SELECT id, name, description, view_count, created_at, updated_at, user_id FROM notebook_collections WHERE id = ANY($1)`,
+        [notebookIds],
+        { table: 'notebook_collections' }
       ) || [];
-      contentResults.push({ type: 'qa_collections', result: { data: qasData }, shares: contentByType.qa_collections });
+      contentResults.push({ type: 'notebook_collections', result: { data: notebooksData }, shares: contentByType.notebook_collections });
     }
 
     // User Documents (Texts)
@@ -1353,7 +1353,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       knowledge: groupKnowledge,
       documents: [],
       generators: [],
-      qas: [],
+      notebooks: [],
       texts: [],
       templates: []
     };
@@ -1381,7 +1381,7 @@ router.get('/groups/:groupId/content', ensureAuthenticated, async (req, res) => 
       const keyMap = {
         documents: 'documents',
         custom_generators: 'generators',
-        qa_collections: 'qas',
+        notebook_collections: 'notebooks',
         user_documents: 'texts',
         database: 'templates'
       };
@@ -1424,7 +1424,7 @@ router.put('/groups/:groupId/content/:contentId/permissions', ensureAuthenticate
     }
 
     // Validate content type
-    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'database'];
+    const validContentTypes = ['documents', 'custom_generators', 'notebook_collections', 'user_documents', 'database'];
     if (!validContentTypes.includes(contentType)) {
       return res.status(400).json({
         success: false,
@@ -1499,7 +1499,7 @@ router.delete('/groups/:groupId/content/:contentId', ensureAuthenticated, async 
     }
 
     // Validate content type - include database for templates
-    const validContentTypes = ['documents', 'custom_generators', 'qa_collections', 'user_documents', 'database'];
+    const validContentTypes = ['documents', 'custom_generators', 'notebook_collections', 'user_documents', 'database'];
     if (!validContentTypes.includes(contentType)) {
       return res.status(400).json({
         success: false,

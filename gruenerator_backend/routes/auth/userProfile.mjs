@@ -224,7 +224,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'aiSharepic',
       'anweisungen',
       'you',
-      'qa',
+      'notebook',
       'advanced_editor',
       'collaborative_editing',
       'e_learning',

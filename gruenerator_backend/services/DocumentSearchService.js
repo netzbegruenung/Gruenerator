@@ -10,6 +10,7 @@ import { QdrantOperations } from '../database/services/QdrantOperations.js';
 import { BaseSearchService } from './BaseSearchService.js';
 import { InputValidator } from '../utils/inputValidation.js';
 import { vectorConfig } from '../config/vectorConfig.js';
+import { isSystemQdrantCollection } from '../config/systemCollectionsConfig.js';
 import { v4 as uuidv4 } from 'uuid';
 
 class DocumentSearchService extends BaseSearchService {
@@ -131,10 +132,9 @@ class DocumentSearchService extends BaseSearchService {
         // Nested shape (from performSimilarity/Hybrid invocations)
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
-            const isGrundsatz = params.filters?.searchCollection === 'grundsatz_documents';
-            const isBundestagContent = params.filters?.searchCollection === 'bundestag_content';
-            // Allow null userId for system searches (grundsatz or bundestag_content)
-            const userId = (isGrundsatz || isBundestagContent) && (params.userId === null || params.userId === undefined)
+            const isSystemSearch = isSystemQdrantCollection(params.filters?.searchCollection);
+            // Allow null userId for system collection searches
+            const userId = isSystemSearch && (params.userId === null || params.userId === undefined)
                 ? null
                 : InputValidator.validateUserId(params.userId);
 
@@ -179,8 +179,8 @@ class DocumentSearchService extends BaseSearchService {
         }
 
         // Flat shape (direct external calls)
-        // Special-case: allow null user_id when searching system collections (grundsatz or bundestag)
-        const isSystemCollection = params && (params.searchCollection === 'grundsatz_documents' || params.searchCollection === 'bundestag_content');
+        // Special-case: allow null user_id when searching system collections
+        const isSystemCollection = params && isSystemQdrantCollection(params.searchCollection);
         if (isSystemCollection && (params.user_id === null || params.user_id === undefined)) {
             const query = InputValidator.validateSearchQuery(params.query);
             // Optional fields

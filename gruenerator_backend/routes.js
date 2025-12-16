@@ -131,8 +131,8 @@ async function setupRoutes(app) {
   const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
   const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
   // Import Q&A routes as ES6 modules
-  const { default: qaCollectionsRouter } = await import('./routes/qaCollections.mjs');
-  const { default: qaInteractionRouter } = await import('./routes/qaInteraction.mjs');
+  const { default: notebookCollectionsRouter } = await import('./routes/notebookCollections.mjs');
+  const { default: notebookInteractionRouter } = await import('./routes/notebookInteraction.mjs');
   // Import Canva routes as ES6 modules
   const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.mjs');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.mjs');
@@ -155,8 +155,8 @@ async function setupRoutes(app) {
   app.use('/api/auth', userTemplates);
   // MOBILE AUTH DISABLED
   // app.use('/api/auth/mobile', mobileAuthRoutes);
-  app.use('/api/auth/qa-collections', qaCollectionsRouter);
-  app.use('/api/auth/qa', qaInteractionRouter);
+  app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
+  app.use('/api/auth/notebook', notebookInteractionRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/bundestag', bundestagRouter);
   app.use('/api/oparl', oparlRouter);
