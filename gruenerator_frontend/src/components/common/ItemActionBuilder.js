@@ -29,7 +29,7 @@ export const getActionItems = (item, ctx) => {
     wolkeShareLinks = [],
   } = ctx || {};
 
-  if (itemType === 'qa') {
+  if (itemType === 'notebook') {
     return [
       {
         icon: HiOutlineEye,

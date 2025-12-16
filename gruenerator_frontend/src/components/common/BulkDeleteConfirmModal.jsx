@@ -71,7 +71,7 @@ const BulkDeleteConfirmModal = ({
       'documents': 'Dokumente',
       'text': 'Text',
       'texts': 'Texte',
-      'qa': 'Notebook',
+      'notebook': 'Notebook',
       'qas': 'Notebooks',
       'template': 'Vorlage',
       'templates': 'Vorlagen'
@@ -83,7 +83,7 @@ const BulkDeleteConfirmModal = ({
     const singular = {
       'documents': 'document',
       'texts': 'text', 
-      'qas': 'qa',
+      'qas': 'notebook',
       'templates': 'template'
     };
     return singular[itemType] || itemType;

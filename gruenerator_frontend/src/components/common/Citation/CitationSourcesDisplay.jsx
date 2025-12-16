@@ -134,7 +134,7 @@ const CitationSourcesDisplay = ({
 
       <div className="ask-document-groups">
         {documentGroups.map((group, index) => (
-          <div key={group.documentId || index} className="ask-document-group">
+          <div key={group.documentId || group.documentTitle || `doc-${index}`} className="ask-document-group">
             <div className="ask-document-header">
               <h5
                 className={`ask-document-title ${linkConfig.type !== 'none' ? 'clickable-link' : ''}`}
@@ -190,7 +190,7 @@ const CitationSourcesDisplay = ({
           </summary>
           <div className="ask-additional-sources-list">
             {additionalSourceGroups.map((source, idx) => (
-              <div key={source.document_id || idx} className="ask-additional-source-item">
+              <div key={source.document_id || source.document_title || `additional-${idx}`} className="ask-additional-source-item">
                 <div className="ask-additional-source-header">
                   <span
                     className={`ask-additional-source-title ${linkConfig.type !== 'none' && (source.document_id || source.url) ? 'clickable-link' : ''}`}
