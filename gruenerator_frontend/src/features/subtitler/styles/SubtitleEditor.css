@@ -4,7 +4,7 @@
   width: 100%;
 }
 
-.editor-layout {
+.subtitle-editor-layout {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-medium);
@@ -75,13 +75,13 @@
 }
 
 /* Video Section */
-.video-section {
+.subtitle-editor-video-section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.video-preview {
+.subtitle-editor-video-preview {
   border-radius: 8px;
   overflow: hidden;
   display: flex;
@@ -89,7 +89,7 @@
   align-items: center;
 }
 
-.preview-video {
+.subtitle-editor-preview-video {
   width: auto;
   height: auto;
   max-height: 40vh;
@@ -107,13 +107,13 @@
   opacity: 0.7;
 }
 
-.video-controls {
+.subtitle-editor-video-controls {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
 }
 
-.video-controls button {
+.subtitle-editor-video-controls button {
   padding: 8px 16px;
   font-size: 14px;
   border-radius: var(--primary-button-radius, 72px);
@@ -124,26 +124,26 @@
   cursor: pointer;
 }
 
-.video-controls .btn-primary {
-  background-color: var(--primary);
+.subtitle-editor-video-controls .btn-primary {
+  background-color: var(--secondary);
   color: white;
 }
 
-.video-controls .btn-secondary {
+.subtitle-editor-video-controls .btn-secondary {
   background-color: transparent;
   color: var(--font-color);
   border: 1px solid var(--border-color);
 }
 
-.video-controls .btn-primary:hover:not(:disabled) {
+.subtitle-editor-video-controls .btn-primary:hover:not(:disabled) {
   background-color: var(--klee);
 }
 
-.video-controls .btn-secondary:hover:not(:disabled) {
+.subtitle-editor-video-controls .btn-secondary:hover:not(:disabled) {
   background-color: var(--background-color-alt);
 }
 
-.video-controls button:disabled {
+.subtitle-editor-video-controls button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -523,12 +523,12 @@
     padding: var(--spacing-large);
   }
 
-  .video-section {
+  .subtitle-editor-video-section {
     flex: 0 0 280px;
     max-width: 280px;
   }
 
-  .preview-video {
+  .subtitle-editor-preview-video {
     width: 100%;
     height: auto;
     max-height: none;
@@ -567,7 +567,7 @@
     gap: var(--spacing-small);
   }
 
-  .preview-video {
+  .subtitle-editor-preview-video {
     max-height: 50vh;
   }
 
@@ -616,7 +616,7 @@
     padding-right: 0;
   }
 
-  .video-controls button {
+  .subtitle-editor-video-controls button {
     padding: 6px 12px;
     font-size: 12px;
     min-height: 32px;
@@ -668,20 +668,20 @@
   border-color: var(--border-subtle);
 }
 
-[data-theme="dark"] .video-controls .btn-primary {
+[data-theme="dark"] .subtitle-editor-video-controls .btn-primary {
   background-color: var(--primary-600);
 }
 
-[data-theme="dark"] .video-controls .btn-primary:hover:not(:disabled) {
+[data-theme="dark"] .subtitle-editor-video-controls .btn-primary:hover:not(:disabled) {
   background-color: var(--klee);
 }
 
-[data-theme="dark"] .video-controls .btn-secondary {
+[data-theme="dark"] .subtitle-editor-video-controls .btn-secondary {
   border-color: var(--border-color);
   color: var(--font-color);
 }
 
-[data-theme="dark"] .video-controls .btn-secondary:hover:not(:disabled) {
+[data-theme="dark"] .subtitle-editor-video-controls .btn-secondary:hover:not(:disabled) {
   background-color: var(--background-color-alt);
 }
 
