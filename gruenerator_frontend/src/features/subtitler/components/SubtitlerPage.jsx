@@ -4,7 +4,7 @@ import apiClient from '../../../components/utils/apiClient';
 import ProcessingIndicator from './ProcessingIndicator';
 import { VideoEditor } from './videoEditor';
 import SubtitleEditor from './SubtitleEditor';
-import SuccessScreen from './SuccessScreen';
+import VideoSuccessScreen from './VideoSuccessScreen';
 import ProjectSelector from './ProjectSelector';
 import ModeSelector from './ModeSelector';
 import AutoProcessingScreen from './AutoProcessingScreen';
@@ -20,7 +20,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 
 import '../styles/subtitler.css';
 import '../styles/SubtitleEditor.css';
-import '../styles/SuccessScreen.css';
+import '../styles/VideoSuccessScreen.css';
 import '../styles/ProcessingIndicator.css';
 import '../styles/live-subtitle-preview.css';
 import '../styles/ProjectSelector.css';
@@ -419,6 +419,10 @@ const SubtitlerPage = () => {
     if (result.projectId) {
       setAutoSavedProjectId(result.projectId);
     }
+    // Store subtitles from auto processing for editing
+    if (result.subtitles) {
+      setSubtitles(result.subtitles);
+    }
     // Move to success screen - the video is ready for download
     setStep('success');
   }, []);
@@ -593,7 +597,7 @@ const SubtitlerPage = () => {
               )}
 
               {step === 'success' && (
-                <SuccessScreen
+                <VideoSuccessScreen
                   onReset={handleReset}
                   onEditAgain={handleEditAgain}
                   isLoading={exportStatus === 'starting' || exportStatus === 'exporting'}
