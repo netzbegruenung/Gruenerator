@@ -53,7 +53,8 @@
     /* Legacy compatibility - maintaining old variable names */
     --primary: var(--primary-600);
     --klee: var(--primary-500);
-    --secondary: var(--neutral-600);
+    --secondary: var(--secondary-600);
+    --sand: var(--neutral-600);
 
     --weiß: var(--white);
     --dunkelgruen: var(--primary-700);
