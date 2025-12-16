@@ -256,7 +256,9 @@
 /* Export Dropdown (ExportDropdown component) */
 .export-dropdown {
   position: relative;
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 

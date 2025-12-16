@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { IoDownloadOutline, IoShareSocialSharp, IoCloudUploadOutline, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
+import { IoDownloadOutline, IoShareSocialSharp, IoEllipsisVertical, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
 import { FaCloud } from "react-icons/fa";
 import { FaFileWord } from "react-icons/fa6";
 import { CiMemoPad } from "react-icons/ci";
@@ -28,7 +28,9 @@ const ExportDropdown = ({
   onSaveToLibrary,
   saveToLibraryLoading,
   customExportOptions = [],
-  hideDefaultOptions = false
+  hideDefaultOptions = false,
+  showShareButton = true,
+  showMoreMenu = true
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [shareLinks, setShareLinks] = useState([]);
@@ -428,26 +430,45 @@ const ExportDropdown = ({
 
   return (
     <div className="export-dropdown download-export">
-      <button
-        className={className}
-        onClick={handleDropdownClick}
-        disabled={isLoading}
-        aria-label="Teilen"
-        {...(!isMobileView && {
-          'data-tooltip-id': "action-tooltip",
-          'data-tooltip-content': "Teilen"
-        })}
-      >
-        {isLoading ? (
-          <HiRefresh className="spinning" size={16} />
-        ) : exportIcon === 'checkmark' ? (
-          <IoCheckmarkOutline size={16} />
-        ) : (
+      {/* Share button - Direct native share */}
+      {showShareButton && canNativeShare && (
+        <button
+          className={className}
+          onClick={handleNativeShare}
+          disabled={isLoading}
+          aria-label="Teilen"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Direkt teilen"
+          })}
+        >
           <IoShareSocialSharp size={16} />
-        )}
-      </button>
+        </button>
+      )}
 
-      {showDropdown && (
+      {/* More options button (3-dot menu) */}
+      {showMoreMenu && (
+        <button
+          className={className}
+          onClick={handleDropdownClick}
+          disabled={isLoading}
+          aria-label="Weitere Optionen"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Weitere Optionen"
+          })}
+        >
+          {isLoading ? (
+            <HiRefresh className="spinning" size={16} />
+          ) : exportIcon === 'checkmark' ? (
+            <IoCheckmarkOutline size={16} />
+          ) : (
+            <IoEllipsisVertical size={16} />
+          )}
+        </button>
+      )}
+
+      {showDropdown && showMoreMenu && (
         <div className="format-dropdown">
           {/* Custom export options rendered first */}
           {customExportOptions.map(option => (
@@ -478,21 +499,21 @@ const ExportDropdown = ({
           {/* Default options - conditionally rendered */}
           {!hideDefaultOptions && (
             <>
-              {/* Native share - only on mobile when supported */}
-              {canNativeShare && isMobileView && (
-                <button
-                  className="format-option"
-                  onClick={handleNativeShare}
-                >
-                  <IoShareSocialSharp size={16} />
-                  <div className="format-option-content">
-                    <div className="format-option-title">Direkt teilen</div>
-                    <div className="format-option-subtitle">
-                      Über System-Apps teilen
-                    </div>
+              <button
+                className="format-option"
+                onClick={handleDOCXDownload}
+                disabled={isGenerating}
+              >
+                <FaFileWord size={16} />
+                <div className="format-option-content">
+                  <div className="format-option-title">
+                    {isGenerating ? 'Wird erstellt...' : 'Word-Datei herunterladen'}
                   </div>
-                </button>
-              )}
+                  <div className="format-option-subtitle">
+                    Für Word und LibreOffice
+                  </div>
+                </div>
+              </button>
 
               <button
                 className="format-option"
@@ -510,50 +531,26 @@ const ExportDropdown = ({
                 </div>
               </button>
 
-              <button
-                className="format-option"
-                onClick={handleDOCXDownload}
-                disabled={isGenerating}
-              >
-                <FaFileWord size={16} />
-                <div className="format-option-content">
-                  <div className="format-option-title">
-                {isGenerating ? (
-                  <>
-                    <HiRefresh className="spinning" size={14} style={{ marginRight: '6px' }} />
-                    Wird erstellt...
-                  </>
-                ) : 'Datei herunterladen'}
-                  </div>
-                  <div className="format-option-subtitle">
-                    Für Word und LibreOffice
-                  </div>
-                </div>
-              </button>
-
               {isAuthenticated && onSaveToLibrary && (
-                <>
-                  <div className="format-divider"></div>
-                  <button
-                    className="format-option"
-                    onClick={handleSaveToLibrary}
-                    disabled={saveToLibraryLoading}
-                  >
-                    {saveIcon === 'checkmark' ? (
-                      <IoCheckmarkOutline size={12} />
-                    ) : (
-                      <HiCog size={12} />
-                    )}
-                    <div className="format-option-content">
-                      <div className="format-option-title">
-                        {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
-                      </div>
-                      <div className="format-option-subtitle">
-                        Für später wiederverwenden
-                      </div>
+                <button
+                  className="format-option"
+                  onClick={handleSaveToLibrary}
+                  disabled={saveToLibraryLoading}
+                >
+                  {saveIcon === 'checkmark' ? (
+                    <IoCheckmarkOutline size={12} />
+                  ) : (
+                    <HiSave size={12} />
+                  )}
+                  <div className="format-option-content">
+                    <div className="format-option-title">
+                      {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
                     </div>
-                  </button>
-                </>
+                    <div className="format-option-subtitle">
+                      Für später wiederverwenden
+                    </div>
+                  </div>
+                </button>
               )}
 
               {isAuthenticated && (
@@ -682,7 +679,9 @@ ExportDropdown.propTypes = {
     onClick: PropTypes.func.isRequired,
     disabled: PropTypes.bool
   })),
-  hideDefaultOptions: PropTypes.bool
+  hideDefaultOptions: PropTypes.bool,
+  showShareButton: PropTypes.bool,
+  showMoreMenu: PropTypes.bool
 };
 
 export default ExportDropdown;
