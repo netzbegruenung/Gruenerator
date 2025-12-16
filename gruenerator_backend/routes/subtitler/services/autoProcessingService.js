@@ -9,6 +9,7 @@ const { ffmpeg, ffprobe } = require('./ffmpegWrapper.js');
 const hwaccel = require('./hwaccelUtils.js');
 const AssSubtitleService = require('./assSubtitleService.js');
 const { ffmpegPool } = require('./ffmpegPool.js');
+const { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } = require('./ffmpegExportUtils.js');
 
 const assService = new AssSubtitleService();
 
@@ -275,16 +276,12 @@ async function exportWithEnhancements(inputPath, subtitles, trimPoints, metadata
     uploadId
   } = options;
 
-  const fileSizeMB = fileStats.size / 1024 / 1024;
-  const isLargeFile = fileSizeMB > 200;
-
   await fs.mkdir(EXPORTS_DIR, { recursive: true });
   const outputFilename = `auto_${autoProcessToken}_${Date.now()}.mp4`;
   const outputPath = path.join(EXPORTS_DIR, outputFilename);
 
   const subtitleSegments = parseSubtitlesToSegments(subtitles, trimPoints);
 
-  const isVertical = metadata.width < metadata.height;
   const styleOptions = {
     fontSize: calculateFontSize(metadata),
     marginL: 10,
@@ -318,68 +315,58 @@ async function exportWithEnhancements(inputPath, subtitles, trimPoints, metadata
     log.warn(`Font copy failed: ${fontCopyError.message}`);
   }
 
-  const referenceDimension = isVertical ? metadata.width : metadata.height;
   const useHwAccel = await hwaccel.detectVaapi();
   const hasAudio = metadata.originalFormat?.audioCodec != null;
+  const scaleFilter = calculateScaleFilter(metadata, maxResolution);
+
+  const { outputOptions: baseOutputOptions, inputOptions } = buildFFmpegOutputOptions({
+    metadata,
+    fileStats,
+    useHwAccel,
+    includeTune: false
+  });
+
+  const videoFilters = buildVideoFilters({
+    assFilePath,
+    tempFontPath,
+    scaleFilter,
+    useHwAccel
+  });
 
   await ffmpegPool.run(async () => {
     await new Promise((resolve, reject) => {
       const command = ffmpeg(inputPath)
         .setDuration(trimmedDuration);
 
-      const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
-      const { crf, preset } = qualitySettings;
-
-      if (isLargeFile) {
-        log.debug(`Large file (${fileSizeMB.toFixed(1)}MB), using optimized settings: CRF ${crf}, preset ${preset}`);
+      if (inputOptions.length > 0) {
+        command.inputOptions(inputOptions);
       }
 
-      const fontDir = path.dirname(tempFontPath || assFilePath);
-      const videoFilter = `subtitles=${assFilePath}:fontsdir=${fontDir}`;
+      const outputOptions = [
+        ...baseOutputOptions,
+        '-ss', trimPoints.trimStart.toString(),
+        '-t', trimmedDuration.toString()
+      ];
 
-      let outputOptions;
-
-      if (useHwAccel) {
-        const is4K = referenceDimension >= 2160;
-        const isHevcSource = metadata.originalFormat?.codec === 'hevc';
-        const videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-        const qp = hwaccel.crfToQp(crf);
-
-        command.inputOptions(hwaccel.getVaapiInputOptions());
-
-        outputOptions = [
-          '-y',
-          '-ss', trimPoints.trimStart.toString(),
-          '-t', trimmedDuration.toString(),
-          '-vf', videoFilter,
-          ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-          ...(hasAudio ? ['-c:a', 'aac', '-b:a', '160k'] : ['-an']),
-          '-movflags', '+faststart'
-        ];
-      } else {
-        const videoCodec = 'libx264';
-
-        outputOptions = [
-          '-y',
-          '-ss', trimPoints.trimStart.toString(),
-          '-t', trimmedDuration.toString(),
-          '-vf', videoFilter,
-          '-c:v', videoCodec,
-          '-preset', preset,
-          '-crf', crf.toString(),
-          '-profile:v', 'high',
-          '-level', '4.1',
-          ...(hasAudio ? ['-c:a', 'aac', '-b:a', '160k'] : ['-an']),
-          '-movflags', '+faststart'
-        ];
-
-        outputOptions.push(...hwaccel.getX264QualityParams());
+      if (!hasAudio) {
+        const audioIndex = outputOptions.findIndex(opt => opt === '-c:a');
+        if (audioIndex !== -1) {
+          const bitrateIndex = outputOptions.findIndex((opt, i) => i > audioIndex && opt === '-b:a');
+          if (bitrateIndex !== -1) {
+            outputOptions.splice(bitrateIndex, 2);
+          }
+          outputOptions.splice(audioIndex, 2, '-an');
+        }
       }
 
       command.outputOptions(outputOptions);
 
+      if (videoFilters.length > 0) {
+        command.videoFilters(videoFilters);
+      }
+
       command
-        .on('start', (cmdLine) => {
+        .on('start', () => {
           log.debug('FFmpeg auto export started');
         })
         .on('progress', async (progress) => {
