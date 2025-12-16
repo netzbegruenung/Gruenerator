@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import QRCode from 'react-qr-code';
+import { FaInstagram } from 'react-icons/fa';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import LoginRequired from '../../../components/common/LoginRequired/LoginRequired';
+import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
+import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 import '../styles/SharedVideoPage.css';
 import '../../../assets/styles/components/ui/button.css';
 
@@ -19,6 +23,28 @@ const SharedVideoPage = () => {
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const [isRendering, setIsRendering] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  useEffect(() => {
+    const checkShareCapability = async () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+
+      if (!isMobile || !navigator.share || !navigator.canShare) {
+        setCanNativeShare(false);
+        return;
+      }
+      try {
+        const testFile = new File(['test'], 'test.mp4', { type: 'video/mp4' });
+        setCanNativeShare(navigator.canShare({ files: [testFile] }));
+      } catch {
+        setCanNativeShare(false);
+      }
+    };
+    checkShareCapability();
+  }, []);
 
   useEffect(() => {
     const fetchShareData = async () => {
@@ -113,12 +139,51 @@ const SharedVideoPage = () => {
     }
   };
 
-  const formatDuration = (seconds) => {
-    if (!seconds) return '';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareTitle = shareData?.title || 'Geteiltes Video';
+
+    if (canShare()) {
+      try {
+        await shareContent({
+          title: shareTitle,
+          text: `Schau dir dieses Video an: ${shareTitle}`,
+          url: shareUrl,
+        });
+      } catch {
+        await copyToClipboard(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } else {
+      await copyToClipboard(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
+
+  const handleShareToInstagram = useCallback(async () => {
+    const videoUrl = `${baseURL}/subtitler/share/${shareToken}/preview`;
+    if (!videoUrl) return;
+    setIsSharing(true);
+    try {
+      const response = await fetch(videoUrl, { credentials: 'include' });
+      const blob = await response.blob();
+      const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
+
+      await navigator.share({
+        files: [file],
+        title: shareData?.title || 'Grünerator Video',
+        text: '',
+      });
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Share failed:', error);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [shareToken, shareData?.title]);
 
   const formatExpiration = (expiresAt) => {
     if (!expiresAt) return '';
@@ -196,6 +261,18 @@ const SharedVideoPage = () => {
   return (
     <div className="shared-video-page">
       <div className="shared-video-card">
+        <button
+          className="shared-video-qr"
+          onClick={handleShare}
+          title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
+        >
+          <QRCode
+            value={window.location.href}
+            size={64}
+            level="M"
+          />
+          {copied && <span className="shared-video-qr-copied">Kopiert!</span>}
+        </button>
         <div className="shared-video-left">
           <video
             controls
@@ -213,9 +290,6 @@ const SharedVideoPage = () => {
               <strong>{shareData?.sharerName || 'Jemand'}</strong> hat ein Reel mit dir geteilt
             </p>
             <h1>{shareData?.title || 'Geteiltes Video'}</h1>
-            {shareData?.duration && (
-              <span className="video-duration">{formatDuration(shareData.duration)}</span>
-            )}
 
             <div className="shared-video-download">
               {!isAuthenticated ? (
@@ -234,13 +308,36 @@ const SharedVideoPage = () => {
                 </div>
               ) : (
                 <>
-                  <button
-                    className="btn-primary"
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                  >
-                    {isDownloading ? 'Wird geladen...' : 'Video herunterladen'}
-                  </button>
+                  <div className="shared-video-buttons">
+                    <button
+                      className="btn-primary"
+                      onClick={handleDownload}
+                      disabled={isDownloading}
+                    >
+                      {isDownloading ? 'Wird geladen...' : 'Video herunterladen'}
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={handleShare}
+                    >
+                      {copied ? 'Link kopiert!' : 'Link teilen'}
+                    </button>
+                    {canNativeShare && (
+                      <button
+                        className="btn-primary"
+                        onClick={handleShareToInstagram}
+                        disabled={isSharing}
+                        title="Auf Instagram posten"
+                      >
+                        {isSharing ? (
+                          <Spinner size="small" white />
+                        ) : (
+                          <FaInstagram />
+                        )}
+                        Posten
+                      </button>
+                    )}
+                  </div>
 
                   {downloadError && (
                     <div className="download-error">{downloadError}</div>
@@ -257,7 +354,7 @@ const SharedVideoPage = () => {
 
             <div className="shared-video-footer">
               <p>
-                Erstellt mit <a href="https://gruenerator.de" target="_blank" rel="noopener noreferrer">Grünerator</a>
+                Willst du auch solche Videos erstellen? Mit dem <a href="https://gruenerator.de/subtitler" target="_blank" rel="noopener noreferrer">Grünerator</a> kannst du Reels mit automatischen Untertiteln und grünem Design erstellen!
               </p>
             </div>
           </div>
