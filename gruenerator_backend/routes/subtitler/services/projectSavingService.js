@@ -61,6 +61,7 @@ async function autoSaveProject(params) {
     const {
         userId,
         outputPath,
+        originalVideoPath,
         uploadId,
         originalFilename,
         segments,
@@ -99,7 +100,8 @@ async function autoSaveProject(params) {
             modePreference: subtitlePreference,
             videoMetadata: metadata,
             videoFilename: originalFilename,
-            videoSize: fileStats?.size || 0
+            videoSize: fileStats?.size || 0,
+            videoSourcePath: originalVideoPath
         });
 
         const result = await saveSubtitledVideo(userId, newProject.id, outputPath, null);
