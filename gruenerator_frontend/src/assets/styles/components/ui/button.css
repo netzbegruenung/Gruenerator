@@ -784,6 +784,17 @@
   cursor: wait;
 }
 
+.btn-primary .spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.btn-primary.size-m .spinner {
+  width: 16px;
+  height: 16px;
+}
+
 .btn-primary.btn-success {
   background-color: var(--success-green, #22c55e);
 }
