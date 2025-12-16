@@ -8,7 +8,7 @@ import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 const Footer = () => {
     const [darkMode, toggleDarkMode] = useDarkMode();
     const { getBetaFeatureState } = useBetaFeatures();
-    const notebooksBetaEnabled = useMemo(() => getBetaFeatureState('qa'), [getBetaFeatureState]);
+    const notebooksBetaEnabled = useMemo(() => getBetaFeatureState('notebook'), [getBetaFeatureState]);
 
     return (
         <footer className="footer" role="contentinfo">
@@ -30,7 +30,6 @@ const Footer = () => {
                                 <h3 id="footer-tools">Tools</h3>
                                 <ul>
                                     <li><Link to="/suche">Suche</Link></li>
-                                    <li><Link to="/kommunal">Kommunale Anträge</Link></li>
                                     <li><Link to="/barrierefreiheit">Barrierefreiheit</Link></li>
                                     <li><Link to="/kampagnen">Kampagnen</Link></li>
                                 </ul>
@@ -60,9 +59,10 @@ const Footer = () => {
                                 <section className="footer-section" aria-labelledby="footer-notebooks">
                                     <h3 id="footer-notebooks">Notebooks</h3>
                                     <ul>
-                                        <li><Link to="/gruenerator-notebook">Grünerator Notebook</Link></li>
-                                        <li><Link to="/gruene-notebook">Grünes Notebook</Link></li>
-                                        <li><Link to="/gruene-bundestag">Bundestagsfraktion</Link></li>
+                                        <li><Link to="/gruenerator-notebook">Frag Grünerator</Link></li>
+                                        <li><Link to="/gruene-notebook">Frag Bündnis 90/Die Grünen</Link></li>
+                                        <li><Link to="/gruene-bundestag">Frag die Bundestagsfraktion</Link></li>
+                                        <li><Link to="/gruene-oesterreich">Frag Die Grünen Österreich</Link></li>
                                     </ul>
                                 </section>
                             )}
