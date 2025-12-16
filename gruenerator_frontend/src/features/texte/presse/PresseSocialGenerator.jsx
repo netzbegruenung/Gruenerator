@@ -310,6 +310,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           // For backward compatibility, also set the main content
           content: combinedResults.social?.content || '',
           metadata: combinedResults.social?.metadata || {},
+          // Add selected platforms for social sharing feature
+          selectedPlatforms: otherPlatforms,
           // Add edit handler for sharepics
           onEditSharepic: handleEditSharepic
         };

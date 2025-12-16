@@ -148,6 +148,8 @@ const ContentRenderer = ({
                 enableCanvaEdit={processedGeneratedContent.enableCanvaEdit}
                 canvaTemplateUrl={processedGeneratedContent.canvaTemplateUrl}
                 onSharepicUpdate={processedGeneratedContent.onSharepicUpdate}
+                socialContent={processedGeneratedContent.social?.content || processedGeneratedContent.content || ''}
+                selectedPlatforms={processedGeneratedContent.selectedPlatforms}
               />
             ) : (
               // Single sharepic - render individually as before
@@ -190,6 +192,8 @@ const ContentRenderer = ({
                     enableCanvaEdit={enableCanvaEdit}
                     canvaTemplateUrl={canvaTemplateUrl}
                     onSharepicUpdate={onSharepicUpdate}
+                    socialContent={processedGeneratedContent.social?.content || processedGeneratedContent.content || ''}
+                    selectedPlatforms={processedGeneratedContent.selectedPlatforms}
                   />
                 );
               })

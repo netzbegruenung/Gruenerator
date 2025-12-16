@@ -364,7 +364,7 @@ const NotebookEditor = ({
                         <div className="button-wrapper">
                             <button
                                 type="button"
-                                className="button form-button"
+                                className="btn-secondary"
                                 onClick={handleCancel}
                                 disabled={loading}
                             >
