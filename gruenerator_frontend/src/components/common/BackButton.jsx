@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { HiArrowLeft } from "react-icons/hi";
 
 const BackButton = ({ onClick }) => (
-  <button onClick={onClick} className="form-button" aria-label="Zurück">
+  <button onClick={onClick} className="btn-secondary" aria-label="Zurück">
     <HiArrowLeft className="icon" /> Zurück
   </button>
 );

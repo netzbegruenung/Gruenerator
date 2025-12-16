@@ -11,7 +11,7 @@ const NotFound = () => {
           Ups! Diese Seite scheint nicht zu existieren. 
           Vielleicht wurde sie verschoben oder gelöscht.
         </p>
-        <Link to="/" className="home-button">
+        <Link to="/" className="btn-primary">
           <FaHome /> Zurück zur Startseite
         </Link>
       </div>
