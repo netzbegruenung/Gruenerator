@@ -1139,6 +1139,7 @@ router.post('/process-auto', async (req, res) => {
           const saveResult = await autoSaveProject({
             userId,
             outputPath: result.outputPath,
+            originalVideoPath: videoPath,
             uploadId,
             originalFilename,
             segments: result.subtitles || '',
