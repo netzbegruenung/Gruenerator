@@ -174,13 +174,14 @@ function buildVideoFilters(params) {
 
   const videoFilters = [];
 
-  if (scaleFilter) {
-    videoFilters.push(scaleFilter);
-  }
-
+  // Subtitles FIRST (render at full resolution), then scale
   if (assFilePath) {
     const fontDir = path.dirname(tempFontPath || assFilePath);
     videoFilters.push(`subtitles=${assFilePath}:fontsdir=${fontDir}`);
+  }
+
+  if (scaleFilter) {
+    videoFilters.push(scaleFilter);
   }
 
   return videoFilters;

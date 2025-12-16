@@ -18,6 +18,7 @@ const { ffmpegPool } = require('./services/ffmpegPool');
 const { createLogger } = require('../../utils/logger.js');
 const { correctSubtitlesViaAI } = require('./services/subtitleCorrectionService');
 const hwaccel = require('./services/hwaccelUtils.js');
+const { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } = require('./services/ffmpegExportUtils.js');
 const { processRemotionExport } = require('./services/remotionExportService');
 
 const log = createLogger('subtitler');
@@ -719,11 +720,6 @@ async function processVideoExportInBackground(params) {
   try {
     log.debug(`Background export starting for token: ${exportToken}`);
 
-    // Get reference dimension for quality settings
-    const isVertical = metadata.width < metadata.height;
-    const referenceDimension = isVertical ? metadata.width : metadata.height;
-    const fileSizeMB = fileStats.size / 1024 / 1024;
-
     // Use pre-generated ASS file if available, otherwise generate new one
     let assFilePath = preGeneratedAssPath;
     let tempFontPath = preGeneratedFontPath;
@@ -787,6 +783,21 @@ async function processVideoExportInBackground(params) {
 
     // Detect hardware acceleration availability
     const useHwAccel = await hwaccel.detectVaapi();
+    const scaleFilter = calculateScaleFilter(metadata, maxResolution);
+
+    const { outputOptions, inputOptions } = buildFFmpegOutputOptions({
+      metadata,
+      fileStats,
+      useHwAccel,
+      includeTune: true
+    });
+
+    const videoFilters = buildVideoFilters({
+      assFilePath,
+      tempFontPath,
+      scaleFilter,
+      useHwAccel
+    });
 
     // FFmpeg processing - wrapped in pool to limit concurrent processes
     await ffmpegPool.run(async () => {
@@ -794,139 +805,14 @@ async function processVideoExportInBackground(params) {
         const command = ffmpeg(inputPath)
           .setDuration(parseFloat(metadata.duration) || 0);
 
-      // Quality settings from centralized config
-      const isLargeFile = fileSizeMB > 200;
-      const qualitySettings = hwaccel.getQualitySettings(referenceDimension, isLargeFile);
-      const { crf, preset } = qualitySettings;
-      const tune = 'film';
-
-      if (isLargeFile) {
-        log.debug(`Large file (${fileSizeMB.toFixed(1)}MB), using optimized settings: CRF ${crf}, preset ${preset}`);
-      }
-
-      // Audio settings
-      let audioCodec, audioBitrate;
-      const originalAudioCodec = metadata.originalFormat?.audioCodec;
-      const originalAudioBitrate = metadata.originalFormat?.audioBitrate;
-
-      if (originalAudioCodec === 'aac' && originalAudioBitrate && originalAudioBitrate >= 128) {
-        audioCodec = 'copy';
-        audioBitrate = null;
-      } else {
-        audioCodec = 'aac';
-        audioBitrate = qualitySettings.audioBitrate;
-      }
-
-      // Video codec and output options based on hardware availability
-      const is4K = referenceDimension >= 2160;
-      const isHevcSource = metadata.originalFormat?.codec === 'hevc';
-      let videoCodec;
-      let outputOptions;
-
-      if (useHwAccel) {
-        videoCodec = hwaccel.getVaapiEncoder(is4K, isHevcSource);
-        const qp = hwaccel.crfToQp(crf);
-
-        command.inputOptions(hwaccel.getVaapiInputOptions());
-
-        outputOptions = [
-          '-y',
-          ...hwaccel.getVaapiOutputOptions(qp, videoCodec),
-          '-c:a', audioCodec,
-          ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-          '-movflags', '+faststart',
-          '-avoid_negative_ts', 'make_zero'
-        ];
-
-        log.debug(`FFmpeg VAAPI: ${referenceDimension}p, encoder: ${videoCodec}, QP: ${qp}`);
-      } else {
-        if (isLargeFile) {
-          videoCodec = 'libx264';
-        } else if (is4K && isHevcSource) {
-          videoCodec = 'libx265';
-        } else {
-          videoCodec = 'libx264';
-        }
-
-        const originalVideoBitrate = metadata.originalFormat?.videoBitrate;
-        let bitrateOptions = [];
-
-        if (originalVideoBitrate && originalVideoBitrate > 0) {
-          const targetBitrate = Math.ceil(originalVideoBitrate * 1.05);
-          const maxBitrate = Math.ceil(originalVideoBitrate * 1.15);
-          const bufSize = Math.ceil(originalVideoBitrate * 2);
-          bitrateOptions = ['-b:v', targetBitrate.toString(), '-maxrate', maxBitrate.toString(), '-bufsize', bufSize.toString()];
-          log.debug(`Using original bitrate: ${(originalVideoBitrate / 1000000).toFixed(1)} Mbps → target: ${(targetBitrate / 1000000).toFixed(1)} Mbps`);
-        } else {
-          bitrateOptions = ['-crf', crf.toString()];
-          log.debug(`No original bitrate, using CRF: ${crf}`);
-        }
-
-        outputOptions = [
-          '-y',
-          '-c:v', videoCodec,
-          '-preset', preset,
-          ...bitrateOptions,
-          ...(tune ? ['-tune', tune] : []),
-          '-profile:v', isLargeFile ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
-          '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
-          '-c:a', audioCodec,
-          ...(audioBitrate ? ['-b:a', audioBitrate] : []),
-          '-movflags', '+faststart',
-          '-avoid_negative_ts', 'make_zero'
-        ];
-
-        if (videoCodec === 'libx264') {
-          outputOptions.push(...hwaccel.getX264QualityParams());
-        }
-
-        log.debug(`FFmpeg CPU: ${referenceDimension}p, CRF: ${crf}, preset: ${preset}`);
-      }
-
-      if (metadata.rotation && metadata.rotation !== '0') {
-        outputOptions.push('-metadata:s:v:0', `rotate=${metadata.rotation}`);
+      if (inputOptions.length > 0) {
+        command.inputOptions(inputOptions);
       }
 
       command.outputOptions(outputOptions);
 
-      // Build video filters
-      let scaleFilter = null;
-      const isVertical = metadata.width < metadata.height;
-      const qualityDimension = isVertical ? metadata.width : metadata.height;
-      if (maxResolution && qualityDimension > maxResolution) {
-        const aspectRatio = metadata.width / metadata.height;
-        let targetWidth, targetHeight;
-        if (isVertical) {
-          // Vertical: scale width to maxResolution, calculate height
-          targetWidth = maxResolution;
-          targetHeight = Math.round(targetWidth / aspectRatio);
-        } else {
-          // Horizontal: scale height to maxResolution, calculate width
-          targetHeight = maxResolution;
-          targetWidth = Math.round(targetHeight * aspectRatio);
-        }
-        const finalWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
-        const finalHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
-        scaleFilter = `scale=${finalWidth}:${finalHeight}`;
-        log.info(`Scaling video from ${metadata.width}x${metadata.height} to ${finalWidth}x${finalHeight} (maxResolution: ${maxResolution})`);
-      }
-
-      if (useHwAccel) {
-        const fontDir = assFilePath ? path.dirname(tempFontPath) : null;
-        const filterChain = hwaccel.getSubtitleFilterChain(assFilePath, fontDir, scaleFilter);
-        command.videoFilters([filterChain]);
-      } else {
-        const videoFilters = [];
-        if (scaleFilter) {
-          videoFilters.push(scaleFilter);
-        }
-        if (assFilePath) {
-          const fontDir = path.dirname(tempFontPath);
-          videoFilters.push(`subtitles=${assFilePath}:fontsdir=${fontDir}`);
-        }
-        if (videoFilters.length > 0) {
-          command.videoFilters(videoFilters);
-        }
+      if (videoFilters.length > 0) {
+        command.videoFilters(videoFilters);
       }
 
       command
