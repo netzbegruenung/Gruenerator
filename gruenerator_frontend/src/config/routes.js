@@ -32,10 +32,11 @@ const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const BundestagSearch = lazy(() => import('../features/bundestag/components/BundestagSearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
-const AskPage = lazy(() => import('../features/ask/AskPage'));
-const AskGrundsatzPage = lazy(() => import('../features/ask/AskGrundsatzPage'));
-const AskBundestagsfraktionPage = lazy(() => import('../features/ask/AskBundestagsfraktionPage'));
-const AskGrueneratorPage = lazy(() => import('../features/ask/AskGrueneratorPage'));
+const NotebookSearchPage = lazy(() => import('../features/notebook/NotebookSearchPage'));
+const GrueneNotebookPage = lazy(() => import('../features/notebook/GrueneNotebookPage'));
+const BundestagsfraktionNotebookPage = lazy(() => import('../features/notebook/BundestagsfraktionNotebookPage'));
+const GrueneratorNotebookPage = lazy(() => import('../features/notebook/GrueneratorNotebookPage'));
+const OesterreichGrueneNotebookPage = lazy(() => import('../features/notebook/OesterreichGrueneNotebookPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
@@ -53,8 +54,8 @@ const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ d
 // const CollabEditorPage = lazy(() => import('../pages/CollabEditorPage/CollabEditorPage'));
 
 
-// Q&A Chat Komponente importieren
-const QAChat = lazy(() => import('../features/qa/components/QAChat'));
+// Notebook Chat Komponente importieren
+const NotebookChat = lazy(() => import('../features/notebook/components/NotebookChat'));
 
 // Grünerator Chat Komponente importieren
 const GrueneratorChat = lazy(() => import('../features/chat/components/GrueneratorChat'));
@@ -108,10 +109,11 @@ export const GrueneratorenBundle = {
   Search: Search,
   BundestagSearch: BundestagSearch,
   Oparl: OparlPage,
-  Ask: AskPage,
-  AskGrundsatz: AskGrundsatzPage,
-  AskBundestagsfraktion: AskBundestagsfraktionPage,
-  AskGruenerator: AskGrueneratorPage,
+  Ask: NotebookSearchPage,
+  GrueneNotebook: GrueneNotebookPage,
+  BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
+  GrueneratorNotebook: GrueneratorNotebookPage,
+  OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
   AntragDetail: AntragDetailPage,
@@ -122,7 +124,7 @@ export const GrueneratorenBundle = {
   Webinar: WebinarCampaign,
   // EmptyEditor: EmptyEditor, // Removed - deprecated
   CustomGenerator: CustomGeneratorPage,
-  QAChat: QAChat,
+  NotebookChat: NotebookChat,
   Chat: WrappedGrueneratorChat,
   ELearning: ELearningPage,
   ELearningTutorial: ELearningPage,
@@ -157,9 +159,10 @@ const standardRoutes = [
   { path: '/bundestag', component: GrueneratorenBundle.BundestagSearch, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
-  { path: '/gruene-notebook', component: GrueneratorenBundle.AskGrundsatz, withForm: true },
-  { path: '/gruene-bundestag', component: GrueneratorenBundle.AskBundestagsfraktion, withForm: true },
-  { path: '/gruenerator-notebook', component: GrueneratorenBundle.AskGruenerator, withForm: true },
+  { path: '/gruene-notebook', component: GrueneratorenBundle.GrueneNotebook, withForm: true },
+  { path: '/gruene-bundestag', component: GrueneratorenBundle.BundestagsfraktionNotebook, withForm: true },
+  { path: '/gruenerator-notebook', component: GrueneratorenBundle.GrueneratorNotebook, withForm: true },
+  { path: '/gruene-oesterreich', component: GrueneratorenBundle.OesterreichGrueneNotebook, withForm: true },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
@@ -187,7 +190,7 @@ const standardRoutes = [
   // NEU: Route für Preview-Modus (mit /preview suffix) - DISABLED
   // { path: '/editor/collab/:documentId/preview', component: CollabEditorPage, showHeaderFooter: false }, // Preview-Modus ohne Header/Footer
   // Q&A Chat Routen
-  { path: '/qa/:id', component: GrueneratorenBundle.QAChat },
+  { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   // Grünerator Chat Route
   { path: '/chat', component: GrueneratorenBundle.Chat },
   // E-Learning Routes
