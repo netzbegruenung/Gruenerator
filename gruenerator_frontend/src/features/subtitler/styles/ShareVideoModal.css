@@ -198,6 +198,15 @@
   margin-bottom: var(--spacing-large);
 }
 
+.share-qr-container {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-medium);
+  background: white;
+  border-radius: var(--card-border-radius-small);
+  margin-bottom: var(--spacing-medium);
+}
+
 @media (max-width: 480px) {
   .share-modal {
     padding: var(--spacing-medium);
