@@ -1,7 +1,7 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
-import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload, FaFileAlt } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import ShareVideoModal from './ShareVideoModal';
@@ -61,6 +61,8 @@ const AnimatedCheckmark = () => {
 const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const exportStore = useSubtitlerExportStore();
   const {
@@ -88,6 +90,25 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
     }
   }, [isLoading, exportStatus]);
 
+  useEffect(() => {
+    const checkShareCapability = async () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints > 0 && window.innerWidth <= 768);
+
+      if (!isMobile || !navigator.share || !navigator.canShare) {
+        setCanNativeShare(false);
+        return;
+      }
+      try {
+        const testFile = new File(['test'], 'test.mp4', { type: 'video/mp4' });
+        setCanNativeShare(navigator.canShare({ files: [testFile] }));
+      } catch {
+        setCanNativeShare(false);
+      }
+    };
+    checkShareCapability();
+  }, []);
+
   const handleDownload = () => {
     if (!videoUrl) return;
     const link = document.createElement('a');
@@ -97,6 +118,28 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
     link.click();
     document.body.removeChild(link);
   };
+
+  const handleShareToInstagram = useCallback(async () => {
+    if (!videoUrl) return;
+    setIsSharing(true);
+    try {
+      const response = await fetch(videoUrl, { credentials: 'include' });
+      const blob = await response.blob();
+      const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
+
+      await navigator.share({
+        files: [file],
+        title: 'Gruenerator Video',
+        text: socialText || '',
+      });
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Share failed:', error);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [videoUrl, socialText]);
 
   return (
     <div className="video-success-screen">
@@ -155,6 +198,21 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
                       Herunterladen
                     </button>
                   )}
+                  {videoUrl && canNativeShare && (
+                    <button
+                      className="btn-primary"
+                      onClick={handleShareToInstagram}
+                      disabled={isSharing}
+                      title="Auf Instagram posten"
+                    >
+                      {isSharing ? (
+                        <div className="button-spinner" />
+                      ) : (
+                        <FaInstagram />
+                      )}
+                      Posten
+                    </button>
+                  )}
                   <button
                     className="btn-primary"
                     onClick={onEditAgain}
@@ -168,7 +226,7 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
                       onClick={() => setShowShareModal(true)}
                     >
                       <FaShareAlt />
-                      Teilen
+                      Video Teilen
                     </button>
                   )}
                 </div>
@@ -190,7 +248,7 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
                     {isGeneratingSocialText ? (
                       <div className="button-spinner" />
                     ) : (
-                      <FaInstagram />
+                      <FaFileAlt />
                     )}
                   </button>
                 </div>
