@@ -21,7 +21,7 @@ import {
   buildReferencesMap,
   validateAndInjectCitations,
   summarizeReferencesForPrompt
-} from './qaGraphCitations.mjs';
+} from './notebookGraphCitations.mjs';
 
 // State schema for the search graph
 const SearchState = Annotation.Root({
