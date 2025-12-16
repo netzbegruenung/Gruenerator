@@ -271,12 +271,13 @@ if (cluster.isMaster) {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "https://piwik.gruenes-cms.de"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com", "https://*.canva.com", "https://static.canva.com"],
+        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com", "https://*.canva.com", "https://static.canva.com", "https://piwik.gruenes-cms.de"],
         connectSrc: [
           "'self'",
           "data:",
           "blob:",
           "https://*.supabase.co",
+          "https://piwik.gruenes-cms.de",
           // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
