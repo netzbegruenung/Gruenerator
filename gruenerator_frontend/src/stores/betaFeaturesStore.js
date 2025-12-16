@@ -13,7 +13,7 @@ const normalizeBetaFeatures = (features = {}) => {
     bundestag_api_enabled: 'bundestag_api_enabled',
     igel_modus: 'igel_modus',
     collab: 'collab',
-    qa: 'qa',
+    notebook: 'notebook',
     sharepic: 'sharepic',
     anweisungen: 'anweisungen',
     memory: 'memory',
