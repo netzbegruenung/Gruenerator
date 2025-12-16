@@ -206,124 +206,153 @@ const ActionButtons = ({
   }, [canUndoState, canRedoState, activeContent, shouldHideButtons]);
 
 
-  // Normal mode render
+  // Button definitions for easy reordering
+  const renderButton = (type) => {
+    const exportDropdownProps = {
+      content: activeContent,
+      title,
+      onSaveToLibrary: showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null,
+      saveToLibraryLoading,
+      customExportOptions,
+      hideDefaultOptions: hideDefaultExportOptions
+    };
+
+    const buttons = {
+      copy: (
+        <button
+          key="copy"
+          onClick={handleCopyToClipboard}
+          className="action-button"
+          aria-label="Kopieren"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Kopieren"
+          })}
+        >
+          {copyIcon}
+        </button>
+      ),
+      share: (showExport || showDownload || showExportDropdown) && (
+        <ExportDropdown
+          key="share"
+          {...exportDropdownProps}
+          showShareButton={true}
+          showMoreMenu={false}
+        />
+      ),
+      undo: showUndo && canUndoState && (
+        <button
+          key="undo"
+          onClick={handleUndo}
+          className="action-button"
+          aria-label="Rückgängig (Strg+Z)"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Rückgängig (Strg+Z)"
+          })}
+        >
+          <IoArrowUndoOutline size={16} />
+        </button>
+      ),
+      redo: showRedo && canRedoState && (
+        <button
+          key="redo"
+          onClick={handleRedo}
+          className="action-button"
+          aria-label="Wiederholen (Strg+Y)"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Wiederholen (Strg+Y)"
+          })}
+        >
+          <IoArrowRedoOutline size={16} />
+        </button>
+      ),
+      regenerate: showRegenerate && generatedPost && onRegenerate && (
+        <button
+          key="regenerate"
+          onClick={onRegenerate}
+          className="action-button"
+          aria-label="Regenerieren"
+          disabled={regenerateLoading}
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Regenerieren"
+          })}
+        >
+          <HiCog size={16} />
+        </button>
+      ),
+      save: showSave && hasDatabaseAccess && generatedContent && onSave && (
+        <button
+          key="save"
+          onClick={handleSave}
+          className="action-button"
+          aria-label="In Supabase speichern"
+          disabled={saveLoading}
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "In Supabase speichern"
+          })}
+        >
+          {saveIcon}
+        </button>
+      ),
+      reset: showReset && onReset && (
+        <button
+          key="reset"
+          onClick={onReset}
+          className="action-button"
+          aria-label="Zurücksetzen"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Zurücksetzen"
+          })}
+        >
+          {getIcon('actions', 'refresh')({ size: 16 })}
+        </button>
+      ),
+      edit: showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
+        <button
+          key="edit"
+          onClick={() => {
+            if (onRequestEdit) {
+              onRequestEdit();
+            } else if (onEditModeToggle) {
+              onEditModeToggle();
+            }
+          }}
+          className={`action-button ${isEditModeActive ? 'active' : ''} hidden-mobile`}
+          aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': isEditModeActive ? "Schließen" : "Edit Mode"
+          })}
+        >
+          {isEditModeActive ? getIcon('actions', 'close')({ size: 16 }) : <HiPencil size={16} />}
+        </button>
+      ),
+      more: (showExport || showDownload || showExportDropdown) && (
+        <ExportDropdown
+          key="more"
+          {...exportDropdownProps}
+          showShareButton={false}
+          showMoreMenu={true}
+        />
+      )
+    };
+
+    return buttons[type];
+  };
+
+  // Button order: copy, share, edit, more (3-dot menu)
+  const buttonOrder = ['copy', 'share', 'edit', 'more'];
+
   return (
     <div className={className}>
       {activeContent && !shouldHideButtons && (
         <>
-          <button
-            onClick={handleCopyToClipboard}
-            className="action-button"
-            aria-label="Kopieren"
-            {...(!isMobileView && {
-              'data-tooltip-id': "action-tooltip",
-              'data-tooltip-content': "Kopieren"
-            })}
-          >
-            {copyIcon}
-          </button>
-          {showUndo && canUndoState && (
-            <button
-              onClick={handleUndo}
-              className="action-button"
-              aria-label="Rückgängig (Strg+Z)"
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Rückgängig (Strg+Z)"
-              })}
-            >
-              <IoArrowUndoOutline size={16} />
-            </button>
-          )}
-          {showRedo && canRedoState && (
-            <button
-              onClick={handleRedo}
-              className="action-button"
-              aria-label="Wiederholen (Strg+Y)"
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Wiederholen (Strg+Y)"
-              })}
-            >
-              <IoArrowRedoOutline size={16} />
-            </button>
-          )}
-          {(showExport || showDownload || showExportDropdown) && (
-            <ExportDropdown
-              content={activeContent}
-              title={title}
-              onSaveToLibrary={showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null}
-              saveToLibraryLoading={saveToLibraryLoading}
-              customExportOptions={customExportOptions}
-              hideDefaultOptions={hideDefaultExportOptions}
-            />
-          )}
-          {showRegenerate && generatedPost && onRegenerate && (
-            <button
-              onClick={onRegenerate}
-              className="action-button"
-              aria-label="Regenerieren"
-              disabled={regenerateLoading}
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Regenerieren"
-              })}
-            >
-              <HiCog size={16} />
-            </button>
-          )}
-          {showSave && hasDatabaseAccess && generatedContent && onSave && (
-            <button
-              onClick={handleSave}
-              className="action-button"
-              aria-label="In Supabase speichern"
-              disabled={saveLoading}
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "In Supabase speichern"
-              })}
-            >
-              {saveIcon}
-            </button>
-          )}
-          {showReset && onReset && (
-            <button
-              onClick={onReset}
-              className="action-button"
-              aria-label="Zurücksetzen"
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': "Zurücksetzen"
-              })}
-            >
-              {getIcon('actions', 'refresh')({ size: 16 })}
-            </button>
-          )}
-          {showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
-            <button
-              onClick={() => {
-                console.log('[ActionButtons] Edit button clicked', {
-                  showEditMode,
-                  isEditModeActive,
-                  hasOnRequestEdit: !!onRequestEdit,
-                  hasOnEditModeToggle: !!onEditModeToggle
-                });
-                if (onRequestEdit) {
-                  onRequestEdit();
-                } else if (onEditModeToggle) {
-                  onEditModeToggle();
-                }
-              }}
-              className={`action-button ${isEditModeActive ? 'active' : ''} hidden-mobile`}
-              aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
-              {...(!isMobileView && {
-                'data-tooltip-id': "action-tooltip",
-                'data-tooltip-content': isEditModeActive ? "Schließen" : "Edit Mode"
-              })}
-            >
-              {isEditModeActive ? getIcon('actions', 'close')({ size: 16 }) : <HiPencil size={16} />}
-            </button>
-          )}
+          {buttonOrder.map(type => renderButton(type))}
         </>
       )}
     </div>
