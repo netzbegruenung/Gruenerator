@@ -14,7 +14,7 @@ export const QUERY_KEYS = {
   profile: (userId) => ['profileData', userId],
   bundledProfile: (userId, options) => ['bundledProfileData', userId, options],
   anweisungenWissen: (userId) => ['anweisungenWissen', userId],
-  qaCollections: (userId) => ['qaCollections', userId],
+  notebookCollections: (userId) => ['notebookCollections', userId],
   customGenerators: (userId) => ['customGenerators', userId],
   savedGenerators: (userId) => ['savedGenerators', userId],
   generatorDocuments: (generatorId) => ['generatorDocuments', generatorId],
@@ -61,7 +61,7 @@ export const useBundledProfileData = (options = {}) => {
   
   const defaultOptions = {
     includeAnweisungen: true,
-    includeQACollections: true,
+    includeNotebookCollections: true,
     includeCustomGenerators: true,
     includeUserTexts: false,
     includeUserTemplates: false,
@@ -187,14 +187,14 @@ export const useAnweisungenWissen = ({
 };
 
 // === Q&A COLLECTIONS ===
-export const useQACollections = ({ isActive, enabled = true } = {}) => {
+export const useNotebookCollections = ({ isActive, enabled = true } = {}) => {
   const { user } = useOptimizedAuth();
   const queryClient = useQueryClient();
-  const syncQACollections = useProfileStore(state => state.syncQACollections);
+  const syncNotebookCollections = useProfileStore(state => state.syncNotebookCollections);
 
   const query = useQuery({
-    queryKey: QUERY_KEYS.qaCollections(user?.id),
-    queryFn: profileApiService.getQACollections,
+    queryKey: QUERY_KEYS.notebookCollections(user?.id),
+    queryFn: profileApiService.getNotebookCollections,
     enabled: enabled && !!user?.id && isActive,
     staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
     cacheTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
@@ -206,7 +206,7 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
   const createMutation = useMutation({
     mutationFn: profileApiService.createQACollection,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.qaCollections(user?.id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     }
   });
 
@@ -214,21 +214,21 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
     mutationFn: ({ collectionId, collectionData }) => 
       profileApiService.updateQACollection(collectionId, collectionData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.qaCollections(user?.id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: profileApiService.deleteQACollection,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.qaCollections(user?.id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     }
   });
 
   const syncMutation = useMutation({
     mutationFn: (collectionId) => profileApiService.syncQACollection(collectionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.qaCollections(user?.id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
     }
   });
 
@@ -240,9 +240,9 @@ export const useQACollections = ({ isActive, enabled = true } = {}) => {
   // Sync with profileStore
   useEffect(() => {
     if (query.data) {
-      syncQACollections(query.data);
+      syncNotebookCollections(query.data);
     }
-  }, [query.data, syncQACollections]);
+  }, [query.data, syncNotebookCollections]);
 
   return {
     query,

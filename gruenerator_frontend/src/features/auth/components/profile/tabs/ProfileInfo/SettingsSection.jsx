@@ -51,7 +51,7 @@ const BETA_VIEWS = {
     DATABASE: 'database',
     YOU: 'you',
     COLLAB: 'collab',
-    QA: 'qa',
+    NOTEBOOK: 'notebook',
     ELEARNING: 'e_learning',
     BUNDESTAG_API: 'bundestag_api_enabled',
     MEMORY: 'memory',
@@ -115,12 +115,12 @@ const SettingsSection = ({
                     checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
                     icon: HiOutlineUsers
                 };
-                case BETA_VIEWS.QA:
+                case BETA_VIEWS.NOTEBOOK:
                 return {
                     title: 'Notebooks',
                     description: 'Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
-                    checked: getBetaFeatureState('qa'),
-                    setter: (value) => updateUserBetaFeatures('qa', value),
+                    checked: getBetaFeatureState('notebook'),
+                    setter: (value) => updateUserBetaFeatures('notebook', value),
                     featureName: 'Notebooks',
                     checkboxLabel: 'Notebooks aktivieren',
                     icon: NotebookIcon

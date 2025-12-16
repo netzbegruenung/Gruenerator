@@ -5,11 +5,11 @@ import { HiInformationCircle, HiDocumentText } from 'react-icons/hi';
 import EnhancedSelect from '../../../../../../../components/common/EnhancedSelect';
 import { useFormFields } from '../../../../../../../components/common/Form/hooks';
 import { ProfileIconButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
-import { useQACollections } from '../../../../../hooks/useProfileData';
+import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 import { handleError } from '../../../../../../../components/utils/errorHandling';
 
-import '../../../../../../qa/styles/qa-creator.css';
+import '../../../../../../notebook/styles/notebook-creator.css';
 import '../../../../../../../assets/styles/components/ui/button.css';
 
 const STEPS = {
@@ -76,12 +76,12 @@ const NotebookCreator = ({
     availableDocuments = []
 }) => {
     const { canAccessBetaFeature } = useBetaFeatures();
-    const isQAEnabled = canAccessBetaFeature('qa');
+    const isQAEnabled = canAccessBetaFeature('notebook');
 
     const {
         createQACollection,
         isCreating: isCreatingQA
-    } = useQACollections({ isActive: isQAEnabled });
+    } = useNotebookCollections({ isActive: isQAEnabled });
 
     const [currentStep, setCurrentStep] = useState(STEPS.DOCUMENTS);
     const [selectedDocuments, setSelectedDocuments] = useState([]);

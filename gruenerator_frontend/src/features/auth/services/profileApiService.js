@@ -44,7 +44,7 @@ export const profileApiService = {
   async getBundledProfileData(options = {}) {
     const {
       includeAnweisungen = true,
-      includeQACollections = true,
+      includeNotebookCollections = true,
       includeCustomGenerators = true,
       includeUserTexts = false,
       includeUserTemplates = false,
@@ -53,7 +53,7 @@ export const profileApiService = {
 
     const params = new URLSearchParams({
       anweisungen: includeAnweisungen,
-      qa_collections: includeQACollections,
+      notebook_collections: includeNotebookCollections,
       custom_generators: includeCustomGenerators,
       user_texts: includeUserTexts,
       user_templates: includeUserTemplates,
@@ -79,7 +79,7 @@ export const profileApiService = {
     return {
       profile: data.profile,
       anweisungenWissen: data.anweisungen_wissen || null,
-      qaCollections: data.qa_collections || null,
+      notebookCollections: data.notebook_collections || null,
       customGenerators: data.custom_generators || null,
       userTexts: data.user_texts || null,
       userTemplates: data.user_templates || null,
@@ -389,8 +389,8 @@ export const profileApiService = {
   },
 
   // === Q&A COLLECTIONS ===
-  async getQACollections() {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
+  async getNotebookCollections() {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -421,7 +421,7 @@ export const profileApiService = {
       remove_missing_on_sync: selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : false
     };
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -464,7 +464,7 @@ export const profileApiService = {
       remove_missing_on_sync: selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : undefined
     };
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections/${collectionId}`, {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -494,7 +494,7 @@ export const profileApiService = {
   },
 
   async syncQACollection(collectionId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}/sync`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections/${collectionId}/sync`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -523,7 +523,7 @@ export const profileApiService = {
   },
 
   async deleteQACollection(collectionId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/qa-collections/${collectionId}`, {
+    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections/${collectionId}`, {
       method: 'DELETE',
       credentials: 'include'
     });
