@@ -353,10 +353,24 @@ const SubtitleEditor = ({
   };
 
   // Timeline handlers
+  const scrubTimeoutRef = useRef(null);
+
   const handleTimelineSeek = useCallback((timeInSeconds) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = timeInSeconds;
-    }
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    video.currentTime = timeInSeconds;
+    setCurrentTimeInSeconds(timeInSeconds);
+
+    // Debounce: only trigger frame refresh after scrubbing stops
+    clearTimeout(scrubTimeoutRef.current);
+    scrubTimeoutRef.current = setTimeout(() => {
+      if (video.paused) {
+        video.play()
+          .then(() => video.pause())
+          .catch(() => {});
+      }
+    }, 50);
   }, []);
 
   const scrollToSegment = useCallback((segmentId) => {
@@ -638,6 +652,7 @@ const SubtitleEditor = ({
                     ref={videoRef}
                     className="preview-video"
                     controls
+                    crossOrigin="anonymous"
                     src={videoUrl}
                     onLoadedMetadata={handleVideoLoadedMetadata}
                     onTimeUpdate={handleVideoTimeUpdate}

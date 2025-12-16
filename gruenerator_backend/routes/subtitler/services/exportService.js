@@ -143,7 +143,8 @@ export async function processProjectExport(project, projService) {
             message: 'Starting video processing...'
         }), { EX: 60 * 60 });
 
-        const { default: assService } = await import('./assSubtitleService.js');
+        const AssSubtitleService = (await import('./assSubtitleService.js')).default;
+        const assService = new AssSubtitleService();
 
         const isVertical = metadata.width < metadata.height;
         const styleOptions = {
@@ -178,7 +179,7 @@ export async function processProjectExport(project, projService) {
             log.warn(`Font copy failed: ${fontCopyError.message}`);
         }
 
-        const { default: ffmpegPool } = await import('./ffmpegPool.js');
+        const { ffmpegPool } = await import('./ffmpegPool.js');
 
         const referenceDimension = isVertical ? metadata.width : metadata.height;
         const fileSizeMB = fileStats.size / 1024 / 1024;

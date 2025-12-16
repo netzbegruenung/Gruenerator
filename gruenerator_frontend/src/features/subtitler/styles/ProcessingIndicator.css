@@ -1,0 +1,132 @@
+.processing-indicator {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.processing-container {
+    background-color: var(--background-color-alt);
+    border-radius: var(--card-border-radius-large);
+    padding: var(--spacing-xlarge);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-large);
+}
+
+.processing-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-large);
+    text-align: center;
+    padding: var(--spacing-xlarge);
+}
+
+.processing-icon-container {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background-color);
+    border-radius: 50%;
+}
+
+.processing-icon-container.error {
+    background-color: rgba(211, 47, 47, 0.1);
+}
+
+.processing-icon {
+    font-size: 2.5rem;
+    color: var(--primary);
+}
+
+.processing-icon.error-icon {
+    color: var(--error-red);
+}
+
+.processing-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-small);
+}
+
+.processing-text h3 {
+    color: var(--font-color-h);
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.processing-text p {
+    color: var(--font-color-disabled);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.processing-indicator .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--background-color);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.processing-indicator .cancel-btn {
+    width: 100%;
+    max-width: 300px;
+}
+
+[data-theme="dark"] .processing-container {
+    background-color: var(--background-color-alt);
+}
+
+[data-theme="dark"] .processing-icon-container {
+    background-color: var(--background-color);
+}
+
+[data-theme="dark"] .processing-indicator .spinner {
+    border-color: var(--background-color);
+    border-top-color: var(--klee);
+}
+
+@media (max-width: 768px) {
+    .processing-container {
+        padding: var(--spacing-large);
+    }
+
+    .processing-content {
+        padding: var(--spacing-large);
+    }
+
+    .processing-icon-container {
+        width: 60px;
+        height: 60px;
+    }
+
+    .processing-icon {
+        font-size: 2rem;
+    }
+
+    .processing-text h3 {
+        font-size: 1.1rem;
+    }
+}

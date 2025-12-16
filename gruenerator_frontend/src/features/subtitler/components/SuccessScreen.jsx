@@ -1,11 +1,12 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
-import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import ShareVideoModal from './ShareVideoModal';
 import '../../../assets/styles/components/ui/button.css';
+import '../styles/SuccessScreen.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -57,7 +58,7 @@ const AnimatedCheckmark = () => {
   );
 };
 
-const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText }) => {
+const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -75,13 +76,12 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
     const unsubscribe = subscribe();
     return unsubscribe;
   }, [subscribe]);
-  
+
   // Update spinner based on export status or legacy isLoading prop
   useEffect(() => {
     const shouldShowSpinner = isLoading || exportStatus === 'starting' || exportStatus === 'exporting';
-    
+
     if (!shouldShowSpinner) {
-      // Kurze Verzögerung, damit die Animation sauber beendet werden kann
       const timer = setTimeout(() => {
         setShowSpinner(false);
       }, 300);
@@ -91,80 +91,114 @@ const SuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, 
     }
   }, [isLoading, exportStatus]);
 
+  const handleDownload = () => {
+    if (!videoUrl) return;
+    const link = document.createElement('a');
+    link.href = videoUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="success-screen">
       <div className="success-content">
         <div className="success-main">
-          <div className={`success-icon ${showSpinner ? 'loading' : ''} ${exportError ? 'error' : ''}`}>
-            {showSpinner ? (
-              <div className="spinner-container">
-                <div className="spinner" />
-                {exportProgress > 0 && (
-                  <div className="spinner-percentage">
-                    {exportProgress}%
+          {showSpinner ? (
+            <>
+              <div className="success-icon loading">
+                <div className="spinner-container">
+                  <div className="spinner" />
+                  {exportProgress > 0 && (
+                    <div className="spinner-percentage">
+                      {exportProgress}%
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h2>Dein Video wird verarbeitet</h2>
+              <p>Dein Video wird mit Untertiteln versehen...</p>
+            </>
+          ) : exportError ? (
+            <>
+              <div className="success-icon error">
+                <FaTimes style={{ fontSize: '60px', color: 'var(--error-red)' }} />
+              </div>
+              <h2>Export fehlgeschlagen</h2>
+              <p>{exportError}</p>
+            </>
+          ) : (
+            <>
+              {videoUrl && (
+                <div className="video-preview-container">
+                  <video
+                    className="video-preview"
+                    controls
+                    src={videoUrl}
+                  />
+                </div>
+              )}
+              <div className="success-info">
+                {!videoUrl && (
+                  <div className="success-icon">
+                    <AnimatedCheckmark />
                   </div>
                 )}
-              </div>
-            ) : exportError ? (
-              <FaTimes style={{ fontSize: '60px', color: 'var(--error-red)' }} />
-            ) : (
-              <AnimatedCheckmark />
-            )}
-          </div>
-          <h2>
-            {showSpinner
-              ? 'Dein Video wird verarbeitet'
-              : exportError
-                ? 'Export fehlgeschlagen'
-                : 'Dein Video wurde heruntergeladen'}
-          </h2>
-          <p>
-            {showSpinner
-              ? 'Dein Video wird mit Untertiteln versehen...'
-              : exportError
-                ? exportError
-                : 'Dein Video wurde erfolgreich mit Untertiteln versehen und heruntergeladen.'}
-          </p>
-          
+                <h2>Dein Video ist fertig!</h2>
+                <p>Dein Video wurde erfolgreich mit Untertiteln versehen.</p>
 
-          {!showSpinner && (
-            <div className="success-buttons">
-              <button
-                className="btn-icon btn-primary"
-                onClick={onReset}
-                title="Neues Video verarbeiten"
-              >
-                <FaPlus />
-              </button>
-              <button
-                className="btn-icon btn-secondary"
-                onClick={onEditAgain}
-                title="Zurück zur Bearbeitung"
-              >
-                <FaEdit />
-              </button>
-              {(exportStore.projectId || projectId) && (
-                <button
-                  className="btn-icon btn-secondary"
-                  onClick={() => setShowShareModal(true)}
-                  title="Video teilen"
-                >
-                  <FaShareAlt />
-                </button>
-              )}
-              <button
-                className="btn-icon btn-secondary"
-                onClick={onGenerateSocialText}
-                disabled={isGeneratingSocialText || !!socialText}
-                title="Beitragstext erstellen"
-              >
-                {isGeneratingSocialText ? (
-                  <div className="button-spinner" />
-                ) : (
-                  <FaInstagram />
-                )}
-              </button>
-            </div>
+                <div className="action-buttons">
+                  {videoUrl && (
+                    <button
+                      className="btn-primary"
+                      onClick={handleDownload}
+                    >
+                      <FaDownload />
+                      Herunterladen
+                    </button>
+                  )}
+                  <button
+                    className="btn-primary"
+                    onClick={onEditAgain}
+                  >
+                    <FaEdit />
+                    Bearbeiten
+                  </button>
+                  {(exportStore.projectId || projectId) && (
+                    <button
+                      className="btn-primary"
+                      onClick={() => setShowShareModal(true)}
+                    >
+                      <FaShareAlt />
+                      Teilen
+                    </button>
+                  )}
+                </div>
+
+                <div className="success-buttons">
+                  <button
+                    className="btn-icon btn-secondary"
+                    onClick={onReset}
+                    title="Neues Video verarbeiten"
+                  >
+                    <FaPlus />
+                  </button>
+                  <button
+                    className="btn-icon btn-secondary"
+                    onClick={onGenerateSocialText}
+                    disabled={isGeneratingSocialText || !!socialText}
+                    title="Beitragstext erstellen"
+                  >
+                    {isGeneratingSocialText ? (
+                      <div className="button-spinner" />
+                    ) : (
+                      <FaInstagram />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
 
@@ -201,7 +235,8 @@ SuccessScreen.propTypes = {
   projectTitle: PropTypes.string,
   projectId: PropTypes.string,
   onGenerateSocialText: PropTypes.func,
-  isGeneratingSocialText: PropTypes.bool
+  isGeneratingSocialText: PropTypes.bool,
+  videoUrl: PropTypes.string
 };
 
 export default SuccessScreen; 

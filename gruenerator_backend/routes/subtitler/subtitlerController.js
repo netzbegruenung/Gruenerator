@@ -18,6 +18,7 @@ const { ffmpegPool } = require('./services/ffmpegPool');
 const { createLogger } = require('../../utils/logger.js');
 const { correctSubtitlesViaAI } = require('./services/subtitleCorrectionService');
 const hwaccel = require('./services/hwaccelUtils.js');
+const { processRemotionExport } = require('./services/remotionExportService');
 
 const log = createLogger('subtitler');
 
@@ -430,6 +431,55 @@ router.get('/export-download/:exportToken', async (req, res) => {
   }
 });
 
+// Internal endpoint for Remotion to access video files via HTTP
+router.get('/internal-video/:uploadId', async (req, res) => {
+  const { uploadId } = req.params;
+
+  try {
+    const videoPath = getFilePathFromUploadId(uploadId);
+    const fileExists = await checkFileExists(videoPath);
+
+    if (!fileExists) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const stat = await fsPromises.stat(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = end - start + 1;
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': 'video/mp4'
+      });
+
+      const stream = fs.createReadStream(videoPath, { start, end });
+      stream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+        'Accept-Ranges': 'bytes'
+      });
+
+      const stream = fs.createReadStream(videoPath);
+      stream.pipe(res);
+    }
+  } catch (error) {
+    log.error(`Internal video streaming error for ${uploadId}: ${error.message}`);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+});
+
 // Route zum Herunterladen des fertigen Videos (Legacy - kept for backward compatibility)
 router.post('/export', async (req, res) => {
   // Expect uploadId, subtitles, subtitlePreference, stylePreference, locale, and maxResolution in body
@@ -442,15 +492,16 @@ router.post('/export', async (req, res) => {
     locale = 'de-DE', // User locale for Austria-specific styling
     maxResolution = null, // Max output resolution (e.g., 1080 for Instagram compatibility, null for full quality)
     projectId = null, // Optional: project ID for saving subtitled video
-    userId = null // Optional: user ID for saving subtitled video
+    userId = null, // Optional: user ID for saving subtitled video
+    textOverlays = [] // Text overlays from VideoEditor (headers, subheaders)
   } = req.body; 
   let inputPath = null;
   let outputPath = null;
   let originalFilename = 'video.mp4'; // Default filename
   const exportToken = uuidv4(); // Generate a unique token for this export operation
 
-  if (!subtitles) {
-    return res.status(400).json({ error: 'Untertitel werden benötigt' });
+  if (!subtitles && (!textOverlays || textOverlays.length === 0)) {
+    return res.status(400).json({ error: 'Untertitel oder Text-Overlays werden benötigt' });
   }
 
   log.debug(`Export starting: style=${stylePreference}, height=${heightPreference}, locale=${locale}, projectId=${projectId}`);
@@ -547,7 +598,9 @@ router.post('/export', async (req, res) => {
           styleOptions,
           subtitlePreference,
           stylePreference,
-          locale // Add locale parameter for Austria-specific styling
+          locale, // Add locale parameter for Austria-specific styling
+          heightPreference,
+          textOverlays
         );
         assContent = assResult.content;
 
@@ -613,7 +666,8 @@ router.post('/export', async (req, res) => {
       assFilePath,   // Pass pre-generated ASS file to avoid regeneration
       tempFontPath,  // Pass pre-copied font path
       projectId,     // Optional: for saving subtitled video to project
-      userId         // Optional: for saving subtitled video to project
+      userId,        // Optional: for saving subtitled video to project
+      textOverlays   // Text overlays from VideoEditor
     };
 
     // Start background processing (fire and forget)
@@ -656,7 +710,8 @@ async function processVideoExportInBackground(params) {
     assFilePath: preGeneratedAssPath = null,   // Pre-generated ASS file from export endpoint
     tempFontPath: preGeneratedFontPath = null, // Pre-copied font path from export endpoint
     projectId: initialProjectId = null,  // Optional: project ID for saving subtitled video
-    userId = null      // Optional: user ID for saving subtitled video
+    userId = null,     // Optional: user ID for saving subtitled video
+    textOverlays = []  // Text overlays from VideoEditor
   } = params;
 
   let projectId = initialProjectId;
@@ -700,7 +755,9 @@ async function processVideoExportInBackground(params) {
             styleOptions,
             subtitlePreference,
             stylePreference,
-            locale
+            locale,
+            heightPreference,
+            textOverlays
           );
           assContent = assResult.content;
 
@@ -1003,6 +1060,337 @@ router.post('/correct-subtitles', async (req, res) => {
     log.error(`[correct-subtitles] Error: ${error.message}`);
     return res.status(500).json({
       error: 'Fehler bei der KI-Korrektur',
+      details: error.message
+    });
+  }
+});
+
+// Route for segment-based video export (cutting)
+router.post('/export-segments', async (req, res) => {
+  const { uploadId, projectId, segments, includeSubtitles, subtitleConfig } = req.body;
+
+  if (!uploadId && !projectId) {
+    log.error('No uploadId or projectId provided for segment export');
+    return res.status(400).json({ error: 'Keine Upload-ID oder Projekt-ID angegeben.' });
+  }
+
+  if (!segments || !Array.isArray(segments) || segments.length === 0) {
+    log.error('No segments provided for export');
+    return res.status(400).json({ error: 'Keine Segmente zum Exportieren.' });
+  }
+
+  log.info(`[export-segments] Starting export with ${segments.length} segments`);
+
+  try {
+    let videoPath;
+
+    if (projectId) {
+      const SubtitlerProjectService = require('../../services/subtitlerProjectService');
+      const projService = new SubtitlerProjectService();
+      const project = await projService.getProjectById(projectId);
+
+      if (!project) {
+        return res.status(404).json({ error: 'Projekt nicht gefunden.' });
+      }
+
+      videoPath = projService.getVideoPath(project.video_path);
+    } else {
+      videoPath = getFilePathFromUploadId(uploadId);
+    }
+
+    const fileExists = await checkFileExists(videoPath);
+    if (!fileExists) {
+      log.error(`Video file not found: ${videoPath}`);
+      return res.status(404).json({ error: 'Video-Datei nicht gefunden.' });
+    }
+
+    const segmentExportService = await import('./services/segmentExportService.js');
+
+    let result;
+    if (includeSubtitles && subtitleConfig) {
+      result = await segmentExportService.exportWithSegmentsAndSubtitles(
+        videoPath,
+        segments,
+        subtitleConfig,
+        { projectId: projectId || uploadId }
+      );
+    } else {
+      result = await segmentExportService.exportWithSegments(
+        videoPath,
+        segments,
+        { projectId: projectId || uploadId }
+      );
+    }
+
+    log.info(`[export-segments] Export started, token: ${result.exportToken}`);
+
+    return res.status(202).json({
+      exportToken: result.exportToken,
+      message: 'Export gestartet',
+      segmentCount: result.segmentCount
+    });
+
+  } catch (error) {
+    log.error(`[export-segments] Error: ${error.message}`);
+    return res.status(500).json({
+      error: 'Fehler beim Segment-Export',
+      details: error.message
+    });
+  }
+});
+
+// Route for Remotion-based video export (VideoEditor pixel-perfect rendering)
+router.post('/export-remotion', async (req, res) => {
+  const {
+    uploadId,
+    projectId,
+    userId,
+    clips,
+    segments,
+    subtitles,
+    stylePreference = 'shadow',
+    heightPreference = 'tief',
+    textOverlays = [],
+    maxResolution = null
+  } = req.body;
+
+  log.info(`[export-remotion] Starting: uploadId=${uploadId}, projectId=${projectId}, clips=${Object.keys(clips || {}).length}, segments=${segments?.length || 0}, overlays=${textOverlays?.length || 0}`);
+
+  if (!uploadId && !projectId && (!clips || Object.keys(clips).length === 0)) {
+    return res.status(400).json({ error: 'Upload-ID, Projekt-ID oder Clips werden benötigt' });
+  }
+
+  try {
+    const result = await processRemotionExport({
+      uploadId,
+      projectId,
+      userId,
+      clips,
+      segments,
+      subtitles,
+      stylePreference,
+      heightPreference,
+      textOverlays,
+      maxResolution
+    });
+
+    log.info(`[export-remotion] Export started, token: ${result.exportToken}`);
+
+    return res.status(202).json({
+      status: 'exporting',
+      exportToken: result.exportToken,
+      message: 'Remotion export gestartet. Verwende den Token zum Abrufen des Fortschritts.'
+    });
+
+  } catch (error) {
+    log.error(`[export-remotion] Error: ${error.message}`);
+    return res.status(500).json({
+      error: 'Fehler beim Remotion-Export',
+      details: error.message
+    });
+  }
+});
+
+// ===== AUTOMATIC PROCESSING ENDPOINTS =====
+
+const { processVideoAutomatically, getAutoProgress } = require('./services/autoProcessingService.js');
+
+/**
+ * Start automatic video processing
+ * POST /api/subtitler/process-auto
+ *
+ * Automatically:
+ * 1. Detects and trims silence at beginning/end
+ * 2. Generates subtitles
+ * 3. Enhances audio (noise reduction, normalization)
+ * 4. Exports finished video
+ */
+router.post('/process-auto', async (req, res) => {
+  const {
+    uploadId,
+    locale = 'de-DE',
+    maxResolution = null,
+    userId = null
+  } = req.body;
+
+  if (!uploadId) {
+    log.error('[process-auto] No uploadId in request');
+    return res.status(400).json({ error: 'Keine Upload-ID gefunden' });
+  }
+
+  log.info(`[process-auto] Starting automatic processing for: ${uploadId}, userId: ${userId}`);
+
+  try {
+    const videoPath = getFilePathFromUploadId(uploadId);
+    const fileExists = await checkFileExists(videoPath);
+
+    if (!fileExists) {
+      log.error(`[process-auto] Video file not found: ${uploadId}`);
+      return res.status(404).json({ error: 'Video-Datei nicht gefunden' });
+    }
+
+    const originalFilename = await getOriginalFilename(uploadId) || 'video.mp4';
+
+    res.status(202).json({
+      status: 'processing',
+      message: 'Automatische Verarbeitung gestartet'
+    });
+
+    processVideoAutomatically(videoPath, uploadId, {
+      stylePreference: 'shadow',
+      heightPreference: 'tief',
+      locale,
+      maxResolution,
+      userId,
+      originalFilename
+    }).then(async (result) => {
+      log.info(`[process-auto] Completed for ${uploadId}: ${result.outputPath}`);
+
+      let projectId = null;
+
+      if (userId) {
+        try {
+          const saveResult = await autoSaveProject({
+            userId,
+            outputPath: result.outputPath,
+            uploadId,
+            originalFilename,
+            segments: result.subtitles || '',
+            metadata: result.metadata || {},
+            fileStats: null,
+            stylePreference: 'shadow',
+            heightPreference: 'tief',
+            subtitlePreference: 'manual',
+            exportToken: result.autoProcessToken
+          });
+          projectId = saveResult.projectId;
+          log.info(`[process-auto] Auto-saved project ${projectId} for ${uploadId}`);
+        } catch (saveError) {
+          log.warn(`[process-auto] Auto-save failed: ${saveError.message}`);
+        }
+      }
+
+      await redisClient.set(`auto:${uploadId}`, JSON.stringify({
+        status: 'complete',
+        stage: 5,
+        stageName: 'Wird fertiggestellt...',
+        stageProgress: 100,
+        overallProgress: 100,
+        outputPath: result.outputPath,
+        duration: result.duration,
+        projectId
+      }), { EX: 60 * 60 });
+    }).catch((error) => {
+      log.error(`[process-auto] Failed for ${uploadId}: ${error.message}`);
+    });
+
+  } catch (error) {
+    log.error(`[process-auto] Error starting process: ${error.message}`);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: 'Fehler beim Starten der automatischen Verarbeitung',
+        details: error.message
+      });
+    }
+  }
+});
+
+/**
+ * Get automatic processing progress
+ * GET /api/subtitler/auto-progress/:uploadId
+ */
+router.get('/auto-progress/:uploadId', async (req, res) => {
+  const { uploadId } = req.params;
+
+  if (!uploadId) {
+    return res.status(400).json({ error: 'Keine Upload-ID angegeben' });
+  }
+
+  try {
+    const progressData = await redisClient.get(`auto:${uploadId}`);
+
+    if (!progressData) {
+      return res.status(404).json({
+        error: 'Kein Verarbeitungsstatus gefunden',
+        status: 'not_found'
+      });
+    }
+
+    const progress = JSON.parse(progressData);
+    return res.json(progress);
+
+  } catch (error) {
+    log.error(`[auto-progress] Error: ${error.message}`);
+    return res.status(500).json({
+      error: 'Fehler beim Abrufen des Fortschritts',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Download auto-processed video
+ * GET /api/subtitler/auto-download/:uploadId
+ */
+router.get('/auto-download/:uploadId', async (req, res) => {
+  const { uploadId } = req.params;
+
+  if (!uploadId) {
+    return res.status(400).json({ error: 'Keine Upload-ID angegeben' });
+  }
+
+  try {
+    const progressData = await redisClient.get(`auto:${uploadId}`);
+
+    if (!progressData) {
+      return res.status(404).json({ error: 'Auto-Verarbeitung nicht gefunden oder abgelaufen' });
+    }
+
+    const data = JSON.parse(progressData);
+
+    if (data.status !== 'complete') {
+      return res.status(400).json({
+        error: 'Verarbeitung noch nicht abgeschlossen',
+        status: data.status
+      });
+    }
+
+    const { outputPath } = data;
+
+    if (!outputPath || !await checkFileExists(outputPath)) {
+      return res.status(404).json({ error: 'Exportierte Datei nicht gefunden' });
+    }
+
+    const stats = await fsPromises.stat(outputPath);
+    const fileSize = stats.size;
+
+    const filename = `video_${uploadId}_gruenerator.mp4`;
+
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Length', fileSize);
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    log.info(`[auto-download] Streaming: ${uploadId} (${(fileSize / 1024 / 1024).toFixed(2)}MB)`);
+
+    const fileStream = fs.createReadStream(outputPath);
+    fileStream.pipe(res);
+
+    fileStream.on('end', async () => {
+      log.info(`[auto-download] Download complete: ${uploadId}`);
+    });
+
+    fileStream.on('error', (err) => {
+      log.error(`[auto-download] Stream error: ${err.message}`);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Download fehlgeschlagen' });
+      }
+    });
+
+  } catch (error) {
+    log.error(`[auto-download] Error: ${error.message}`);
+    return res.status(500).json({
+      error: 'Fehler beim Herunterladen',
       details: error.message
     });
   }

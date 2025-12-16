@@ -10,11 +10,13 @@ const Timeline = ({
   correctedSegmentIds = new Set(),
   onSeek,
   onSegmentClick,
-  onTextChange
+  onTextChange,
 }) => {
   const segmentRefs = useRef({});
   const inputRef = useRef(null);
   const [editingSegmentId, setEditingSegmentId] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const wasScrubbingRef = useRef(false);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -29,7 +31,6 @@ const Timeline = ({
     return active ? active.id : null;
   }, [segments, currentTime]);
 
-  // Auto-scroll to active segment only on desktop (not mobile)
   useEffect(() => {
     const isMobile = window.innerWidth <= 768;
     if (!isMobile && activeSegmentId !== null && segmentRefs.current[activeSegmentId]) {
@@ -47,8 +48,65 @@ const Timeline = ({
     }
   }, [editingSegmentId]);
 
+  const handleScrubStart = useCallback((e) => {
+    if (editingSegmentId !== null) return;
+    wasScrubbingRef.current = false;
+    setIsDragging(true);
+  }, [editingSegmentId]);
+
+  const handleScrubMove = useCallback((e) => {
+    if (!isDragging) return;
+
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+
+    const element = document.elementFromPoint(clientX, e.touches ? e.touches[0].clientY : e.clientY);
+    const segmentEl = element?.closest('.timeline-segment');
+
+    if (segmentEl) {
+      const segmentId = parseInt(segmentEl.dataset.segmentId, 10);
+      const segment = segments.find(s => s.id === segmentId);
+
+      if (segment) {
+        const rect = segmentEl.getBoundingClientRect();
+        const relativeX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const segmentDuration = segment.endTime - segment.startTime;
+        const seekTime = segment.startTime + (relativeX * segmentDuration);
+
+        wasScrubbingRef.current = true;
+        onSeek(seekTime);
+      }
+    }
+  }, [isDragging, segments, onSeek]);
+
+  const handleScrubEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const onMove = (e) => handleScrubMove(e);
+    const onEnd = () => handleScrubEnd();
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchend', onEnd);
+
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, [isDragging, handleScrubMove, handleScrubEnd]);
+
   const handleSegmentClick = useCallback((e, segment) => {
     e.stopPropagation();
+    if (wasScrubbingRef.current) {
+      wasScrubbingRef.current = false;
+      return;
+    }
     onSegmentClick(segment.id);
     onSeek(segment.startTime);
     setEditingSegmentId(segment.id);
@@ -67,7 +125,6 @@ const Timeline = ({
       const targetSegment = segments[targetIndex];
       onSegmentClick(targetSegment.id);
       onSeek(targetSegment.startTime);
-      // Focus the target segment
       if (segmentRefs.current[targetSegment.id]) {
         segmentRefs.current[targetSegment.id].focus();
       }
@@ -124,10 +181,13 @@ const Timeline = ({
             <div
               key={segment.id}
               ref={el => segmentRefs.current[segment.id] = el}
+              data-segment-id={segment.id}
               className={`timeline-segment ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isEditing ? 'editing' : ''} ${isCorrected ? 'corrected' : ''}`}
               tabIndex={0}
               onClick={(e) => handleSegmentClick(e, segment)}
               onKeyDown={(e) => !isEditing && handleSegmentKeyDown(e, segment.id)}
+              onMouseDown={handleScrubStart}
+              onTouchStart={handleScrubStart}
             >
               {isEditing ? (
                 <input
