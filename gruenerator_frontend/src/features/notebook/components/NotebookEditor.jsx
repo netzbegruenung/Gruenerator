@@ -7,9 +7,9 @@ import { motion } from "motion/react";
 import { useFormFields } from '../../../components/common/Form/hooks';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
-import '../styles/qa-creator.css';
-import '../../../assets/styles/features/qa/qa-chat.css';
-import '../../../assets/styles/features/qa/qa-collections.css';
+import '../styles/notebook-creator.css';
+import '../../../assets/styles/features/notebook/notebook-chat.css';
+import '../../../assets/styles/features/notebook/notebook-collections.css';
 import '../../../assets/styles/components/ui/button.css';
 
 const formatFileSize = (bytes) => {
@@ -211,14 +211,14 @@ const NotebookEditor = ({
 
     return (
         <motion.div
-            className="qa-creator-container"
+            className="notebook-creator-container"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
         >
-            <div className="qa-creator-card">
-                <form onSubmit={handleSubmit(onSubmit)} className="qa-creator-form">
-                    <div className="qa-creator-content">
+            <div className="notebook-creator-card">
+                <form onSubmit={handleSubmit(onSubmit)} className="notebook-creator-form">
+                    <div className="notebook-creator-content">
                         <div className="form-section">
                             <Input
                                 name="name"

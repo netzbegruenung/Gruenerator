@@ -3,10 +3,10 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
-import { useQAChatStore } from '../stores/qaChatStore';
+import { useNotebookChatStore } from '../stores/notebookChatStore';
 import { shallow } from 'zustand/shallow';
 
-const useQAChatLogic = ({
+const useNotebookChatLogic = ({
   collectionId,
   welcomeMessage,
   extraApiParams = {},
@@ -17,11 +17,11 @@ const useQAChatLogic = ({
   const [inputValue, setInputValue] = useState("");
 
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
-  const { submitForm, loading: submitLoading } = useApiSubmit(`/auth/qa/${collectionId}/ask`);
+  const { submitForm, loading: submitLoading } = useApiSubmit(`/auth/notebook/${collectionId}/ask`);
 
-  const chats = useQAChatStore(state => state.chats, shallow);
-  const addMessage = useQAChatStore(state => state.addMessage);
-  const setMessages = useQAChatStore(state => state.setMessages);
+  const chats = useNotebookChatStore(state => state.chats, shallow);
+  const addMessage = useNotebookChatStore(state => state.addMessage);
+  const setMessages = useNotebookChatStore(state => state.setMessages);
 
   const chatMessages = useMemo(() => {
     return chats[collectionId]?.messages || [];
@@ -75,7 +75,7 @@ const useQAChatLogic = ({
         });
       }
     } catch (error) {
-      console.error('[useQAChatLogic] Error:', error);
+      console.error('[useNotebookChatLogic] Error:', error);
       addMessage(collectionId, {
         type: 'error',
         content: 'Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.',
@@ -84,7 +84,7 @@ const useQAChatLogic = ({
     }
   }, [submitForm, user, extraApiParams, collectionId, setGeneratedText, setGeneratedTextMetadata, linkConfig, addMessage]);
 
-  const clearMessages = useQAChatStore(state => state.clearMessages);
+  const clearMessages = useNotebookChatStore(state => state.clearMessages);
 
   const handleClearMessages = useCallback(() => {
     clearMessages(collectionId);
@@ -113,4 +113,4 @@ const useQAChatLogic = ({
   };
 };
 
-export default useQAChatLogic;
+export default useNotebookChatLogic;

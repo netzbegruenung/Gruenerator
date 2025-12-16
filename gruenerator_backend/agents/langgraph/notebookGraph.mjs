@@ -8,6 +8,7 @@ import {
   buildDraftPromptGeneral
 } from './prompts.mjs';
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
+import { isSystemCollectionId } from '../../config/systemCollectionsConfig.js';
 
 const documentSearchService = new DocumentSearchService();
 
@@ -172,19 +173,18 @@ function buildReferencesMap(results) {
   return map;
 }
 
-function summarizeReferencesForPrompt(refMap, maxChars = 4000) {
-  // Compact string summary: id. title — first 150 chars of snippet
+function summarizeReferencesForPrompt(refMap) {
+  // Full reference summary - no truncation, all references included
   const lines = [];
   for (const id of Object.keys(refMap)) {
     const ref = refMap[id];
     const snippet = Array.isArray(ref.snippets) && ref.snippets[0] && Array.isArray(ref.snippets[0])
       ? String(ref.snippets[0].join(' '))
       : '';
-    const short = snippet.slice(0, 150).replace(/\s+/g, ' ').trim();
+    const short = snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
     lines.push(`${id}. ${ref.title} — "${short}"`);
   }
-  const joined = lines.join('\n');
-  return joined.length > maxChars ? joined.slice(0, maxChars) : joined;
+  return lines.join('\n');
 }
 
 function normalizeBracketListsToSingles(text) {
@@ -362,8 +362,8 @@ function validateAndInjectCitations(draft, refMap) {
   return { cleanDraft: content, citations, sources, errors };
 }
 
-async function plannerNode(question, aiWorkerPool, isGrundsatz) {
-  const { system } = isGrundsatz ? buildPlannerPromptGrundsatz() : buildPlannerPromptGeneral();
+async function plannerNode(question, aiWorkerPool, isSystemCollection) {
+  const { system } = isSystemCollection ? buildPlannerPromptGrundsatz() : buildPlannerPromptGeneral();
   const res = await aiWorkerPool.processRequest({
     type: 'qa_planner',
     messages: [{ role: 'user', content: `Question: ${question}\nRespond with JSON: {"subqueries":["..."]}` }],
@@ -385,7 +385,8 @@ async function plannerNode(question, aiWorkerPool, isGrundsatz) {
 }
 
 async function searchNode(subqueries, collection, searchOptions = {}) {
-  const isSystemCollection = (collection.user_id === 'SYSTEM') || (collection.settings?.system_collection === true) || (collection.id === 'grundsatz-system');
+  const isSystemCollection = isSystemCollectionId(collection?.id);
+  // Fallback: default to grundsatz_documents for system or 'documents' for user collections
   const searchCollection = isSystemCollection ? 'grundsatz_documents' : 'documents';
   const searchUserId = isSystemCollection ? null : collection.user_id;
 
@@ -423,14 +424,14 @@ async function searchNode(subqueries, collection, searchOptions = {}) {
   return dedupeAndDiversify(deduped, { limitPerDoc: 4 }); // Let dynamic params handle maxTotal and qualityMin
 }
 
-async function draftNode(question, referencesMap, collection, aiWorkerPool, isGrundsatz) {
-  const collectionName = collection?.name || (isGrundsatz ? 'Grüne Grundsatzprogramme' : 'Ihre Sammlung');
+async function draftNode(question, referencesMap, collection, aiWorkerPool, isSystemCollection) {
+  const collectionName = collection?.name || (isSystemCollection ? 'Grüne Grundsatzprogramme' : 'Ihre Sammlung');
 
   // Get adaptive draft parameters based on available references
   const { maxTokens } = determineDraftParams(referencesMap, question);
 
   // Always use dossier-style prompts (German)
-  const system = isGrundsatz
+  const system = isSystemCollection
     ? buildDraftPromptGrundsatz(collectionName).system
     : buildDraftPromptGeneral(collectionName).system;
   const temperature = 0.2;
@@ -476,13 +477,13 @@ async function repairNode(badDraft, referencesMap, aiWorkerPool) {
   return text || badDraft;
 }
 
-export async function runQaGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60, titleFilter = null }) {
+export async function runNotebookGraph({ question, collection, aiWorkerPool, searchCollection = null, userId = null, documentIds = undefined, recallLimit = 60, titleFilter = null }) {
   // 1) plan subqueries (skip for simple queries ≤3 words)
-  const isGrundsatz = (collection?.id === 'grundsatz-system') || ((collection?.user_id === 'SYSTEM') && (collection?.settings?.system_collection === true));
+  const isSystemCollection = isSystemCollectionId(collection?.id);
   const wordCount = question.trim().split(/\s+/).length;
   const subqueries = wordCount <= 3
     ? [question]
-    : await plannerNode(question, aiWorkerPool, isGrundsatz);
+    : await plannerNode(question, aiWorkerPool, isSystemCollection);
 
   // 2) search (recall -> diversify)
   const searchResults = await (async () => {
@@ -536,7 +537,7 @@ export async function runQaGraph({ question, collection, aiWorkerPool, searchCol
   const originalReferencesMap = buildReferencesMap(searchResults);
 
   // 4) draft
-  let draft = await draftNode(question, originalReferencesMap, collection, aiWorkerPool, isGrundsatz);
+  let draft = await draftNode(question, originalReferencesMap, collection, aiWorkerPool, isSystemCollection);
 
   // 4.5) Renumber citations by order of appearance for logical user experience
   // This ensures the first citation the user sees is [1], second is [2], etc.

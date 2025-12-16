@@ -1,58 +1,44 @@
 import express from 'express';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
-import { QAQdrantHelper } from '../database/services/QAQdrantHelper.js';
+import { NotebookQdrantHelper } from '../database/services/NotebookQdrantHelper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 const { requireAuth } = authMiddleware;
-// Legacy tool-use imports removed; graph-based agent is used for all QA flows
-import { runQaGraph } from '../agents/langgraph/qaGraph.mjs';
+import { runNotebookGraph } from '../agents/langgraph/notebookGraph.mjs';
 import { queryIntentService } from '../services/QueryIntentService.js';
 import { buildDraftPromptGrundsatz } from '../agents/langgraph/prompts.mjs';
 import { createLogger } from '../utils/logger.js';
-const log = createLogger('qaInteraction');
+import {
+    SYSTEM_COLLECTIONS,
+    isSystemCollectionId,
+    getSystemCollectionConfig,
+    buildSystemCollectionObject,
+    getDefaultMultiCollectionIds
+} from '../config/systemCollectionsConfig.js';
 
+const log = createLogger('notebookInteraction');
 
 const router = express.Router();
 
 const postgres = getPostgresInstance();
-const qaHelper = new QAQdrantHelper();
+const notebookHelper = new NotebookQdrantHelper();
 
 // Initialize system collections on startup
 (async () => {
     try {
-        await qaHelper.ensureSystemGrundsatzCollection();
+        await notebookHelper.ensureSystemGrundsatzCollection();
         log.debug('[QA Interaction] System collections initialized');
     } catch (error) {
         log.error('[QA Interaction] Failed to initialize system collections:', error);
     }
 })();
 
-// System collection configs for multi-collection queries
-const SYSTEM_COLLECTIONS = {
-    'grundsatz-system': {
-        id: 'grundsatz-system',
-        user_id: 'SYSTEM',
-        name: 'Grundsatzprogramme',
-        description: 'Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025',
-        settings: { system_collection: true, min_quality: 0.3 },
-        searchCollection: 'grundsatz_documents'
-    },
-    'bundestagsfraktion-system': {
-        id: 'bundestagsfraktion-system',
-        user_id: 'SYSTEM',
-        name: 'Bundestagsfraktion',
-        description: 'Fachtexte, Ziele und Positionen von gruene-bundestag.de',
-        settings: { system_collection: true, min_quality: 0.3 },
-        searchCollection: 'bundestag_content'
-    }
-};
-
-// POST /api/qa/multi/ask - Submit question to multiple Q&A collections (unified answer)
+// POST /api/qa/multi/ask - Submit question to multiple Notebook collections (unified answer)
 router.post('/multi/ask', requireAuth, async (req, res) => {
     const startTime = Date.now();
 
     try {
         const userId = req.user.id;
-        const { question, collectionIds = ['grundsatz-system', 'bundestagsfraktion-system'] } = req.body;
+        const { question, collectionIds = getDefaultMultiCollectionIds() } = req.body;
 
         // Validate input
         if (!question || !question.trim()) {
@@ -144,9 +130,9 @@ router.post('/multi/ask', requireAuth, async (req, res) => {
                     vectorWeight: 0.7,
                     textWeight: 0.3,
                     threshold: 0.35,
-                    searchCollection: config.searchCollection,
+                    searchCollection: config.qdrantCollection,
                     recallLimit: 50,
-                    qualityMin: config.settings?.min_quality || 0.3,
+                    qualityMin: config.minQuality || 0.3,
                     titleFilter
                 });
 
@@ -363,7 +349,7 @@ ${refsSummary}`;
     }
 });
 
-// POST /api/qa/:id/ask - Submit question to Q&A collection
+// POST /api/qa/:id/ask - Submit question to Notebook collection
 router.post('/:id/ask', requireAuth, async (req, res) => {
     const startTime = Date.now();
 
@@ -380,48 +366,29 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         const trimmedQuestion = question.trim();
 
         // Check if this is a system collection first
-        const isGrundsatzSystem = (collectionId === 'grundsatz-system');
-        const isBundestagsfraktionSystem = (collectionId === 'bundestagsfraktion-system');
         let collection;
         let documentIds;
+        const systemConfig = getSystemCollectionConfig(collectionId);
 
-        if (isGrundsatzSystem) {
-            // Hardcoded grundsatz collection info - no PostgreSQL needed
-            collection = {
-                id: 'grundsatz-system',
-                user_id: 'SYSTEM',
-                name: 'Grüne Grundsatzprogramme',
-                description: 'Offizielle Grundsatzprogramme und politische Dokumente der Grünen',
-                settings: { system_collection: true, min_quality: 0.3 }
-            };
-
-            log.debug('[QA Interaction] Using hardcoded grundsatz system collection');
-        } else if (isBundestagsfraktionSystem) {
-            // Hardcoded Bundestagsfraktion collection info
-            collection = {
-                id: 'bundestagsfraktion-system',
-                user_id: 'SYSTEM',
-                name: 'Grüne Bundestagsfraktion',
-                description: 'Inhalte von gruene-bundestag.de - Fachtexte, Ziele und Positionen',
-                settings: { system_collection: true, min_quality: 0.3 }
-            };
-
-            log.debug('[QA Interaction] Using hardcoded Bundestagsfraktion system collection');
+        if (systemConfig) {
+            // Use centralized system collection config
+            collection = buildSystemCollectionObject(collectionId);
+            log.debug(`[QA Interaction] Using system collection: ${systemConfig.name}`);
         } else {
             // Verify user has access to the collection (Qdrant)
-            collection = await qaHelper.getQACollection(collectionId);
+            collection = await notebookHelper.getNotebookCollection(collectionId);
 
             if (!collection) {
-                return res.status(404).json({ error: 'Q&A collection not found' });
+                return res.status(404).json({ error: 'Notebook collection not found' });
             }
 
             // Check access permissions: either user owns the collection or it's a system collection
             if (collection.user_id !== userId && collection.user_id !== 'SYSTEM') {
-                return res.status(404).json({ error: 'Q&A collection access denied' });
+                return res.status(404).json({ error: 'Notebook collection access denied' });
             }
 
             // Load documents for this collection (only for regular collections)
-            const qaDocAssociations = await qaHelper.getCollectionDocuments(collectionId);
+            const qaDocAssociations = await notebookHelper.getCollectionDocuments(collectionId);
             const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
 
             let qaDocs = [];
@@ -438,7 +405,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
             }
 
             if (qaDocs.length === 0) {
-                return res.status(400).json({ error: 'No documents found in this Q&A collection' });
+                return res.status(400).json({ error: 'No documents found in this Notebook collection' });
             }
         }
 
@@ -455,32 +422,27 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
         }
 
         let result;
-        if (isGrundsatzSystem) {
-            result = await runQaGraph({
+        if (systemConfig) {
+            // System collection: use config for searchCollection and recallLimit
+            const titleFilter = (collectionId === 'grundsatz-system')
+                ? documentScope.documentTitleFilter
+                : undefined;
+
+            result = await runNotebookGraph({
                 question: trimmedQuestion,
                 collection,
                 aiWorkerPool: req.app.locals.aiWorkerPool,
-                searchCollection: 'grundsatz_documents',
+                searchCollection: systemConfig.qdrantCollection,
                 userId: null,
                 documentIds: undefined,
-                recallLimit: 60,
-                titleFilter: documentScope.documentTitleFilter
-            });
-        } else if (isBundestagsfraktionSystem) {
-            result = await runQaGraph({
-                question: trimmedQuestion,
-                collection,
-                aiWorkerPool: req.app.locals.aiWorkerPool,
-                searchCollection: 'bundestag_content',
-                userId: null,
-                documentIds: undefined,
-                recallLimit: 60
+                recallLimit: systemConfig.recallLimit || 60,
+                titleFilter
             });
         } else {
-            // All user-created QA collections: scope to user and associated documentIds
+            // User-created collections: scope to user and associated documentIds
             const scopeDocIds = documentIds && documentIds.length > 0 ? documentIds : undefined;
             const recallLimit = scopeDocIds && scopeDocIds.length <= 5 ? 40 : 60;
-            result = await runQaGraph({
+            result = await runNotebookGraph({
                 question: trimmedQuestion,
                 collection,
                 aiWorkerPool: req.app.locals.aiWorkerPool,
@@ -502,7 +464,7 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
 
         // Log the interaction (Qdrant)
         try {
-            await qaHelper.logQAUsage(
+            await notebookHelper.logNotebookUsage(
                 collectionId,
                 userId,
                 trimmedQuestion,
@@ -535,16 +497,16 @@ router.post('/:id/ask', requireAuth, async (req, res) => {
     }
 });
 
-// GET /api/qa/public/:token - Public Q&A access (no authentication required)
+// GET /api/qa/public/:token - Public Notebook access (no authentication required)
 router.get('/public/:token', async (req, res) => {
     try {
         const accessToken = req.params.token;
 
         // Verify the public access token and get collection info (Qdrant)
-        const publicAccess = await qaHelper.getPublicAccess(accessToken);
+        const publicAccess = await notebookHelper.getPublicAccess(accessToken);
 
         if (!publicAccess) {
-            return res.status(404).json({ error: 'Public Q&A not found or access token invalid' });
+            return res.status(404).json({ error: 'Public Notebook not found or access token invalid' });
         }
 
         // Check if access has expired
@@ -554,13 +516,13 @@ router.get('/public/:token', async (req, res) => {
 
         // Check if collection is still active
         if (!publicAccess.is_active) {
-            return res.status(403).json({ error: 'This Q&A collection is no longer public' });
+            return res.status(403).json({ error: 'This Notebook collection is no longer public' });
         }
 
         // Get collection details
-        const collection = await qaHelper.getQACollection(publicAccess.collection_id);
+        const collection = await notebookHelper.getNotebookCollection(publicAccess.collection_id);
         if (!collection) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         res.json({
@@ -569,7 +531,7 @@ router.get('/public/:token', async (req, res) => {
                 name: collection.name,
                 description: collection.description
             },
-            message: 'Public Q&A collection found'
+            message: 'Public Notebook collection found'
         });
 
     } catch (error) {
@@ -578,7 +540,7 @@ router.get('/public/:token', async (req, res) => {
     }
 });
 
-// POST /api/qa/public/:token/ask - Ask question to public Q&A (no authentication required)
+// POST /api/qa/public/:token/ask - Ask question to public Notebook (no authentication required)
 router.post('/public/:token/ask', async (req, res) => {
     const startTime = Date.now();
 
@@ -594,10 +556,10 @@ router.post('/public/:token/ask', async (req, res) => {
         const trimmedQuestion = question.trim();
 
         // Verify the public access token and get collection info (Qdrant)
-        const publicAccess = await qaHelper.getPublicAccess(accessToken);
+        const publicAccess = await notebookHelper.getPublicAccess(accessToken);
 
         if (!publicAccess) {
-            return res.status(404).json({ error: 'Public Q&A not found or access token invalid' });
+            return res.status(404).json({ error: 'Public Notebook not found or access token invalid' });
         }
 
         // Check if access has expired
@@ -607,24 +569,24 @@ router.post('/public/:token/ask', async (req, res) => {
 
         // Check if collection is still active
         if (!publicAccess.is_active) {
-            return res.status(403).json({ error: 'This Q&A collection is no longer public' });
+            return res.status(403).json({ error: 'This Notebook collection is no longer public' });
         }
 
         // Get collection details
-        const collection = await qaHelper.getQACollection(publicAccess.collection_id);
+        const collection = await notebookHelper.getNotebookCollection(publicAccess.collection_id);
         if (!collection) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         // Load documents for this collection and scope the graph
-        const qaDocAssociations = await qaHelper.getCollectionDocuments(collection.id);
+        const qaDocAssociations = await notebookHelper.getCollectionDocuments(collection.id);
         const documentIds = qaDocAssociations.map(qcd => qcd.document_id);
         if (!documentIds || documentIds.length === 0) {
-            return res.status(400).json({ error: 'No documents found in this Q&A collection' });
+            return res.status(400).json({ error: 'No documents found in this Notebook collection' });
         }
 
         const recallLimit = documentIds.length <= 5 ? 40 : 60;
-        const result = await runQaGraph({
+        const result = await runNotebookGraph({
             question: trimmedQuestion,
             collection,
             aiWorkerPool: req.app.locals.aiWorkerPool,
@@ -645,7 +607,7 @@ router.post('/public/:token/ask', async (req, res) => {
 
         // Log the public interaction (without user_id)
         try {
-            await qaHelper.logQAUsage(
+            await notebookHelper.logNotebookUsage(
                 collection.id,
                 null, // No user ID for public access
                 trimmedQuestion,

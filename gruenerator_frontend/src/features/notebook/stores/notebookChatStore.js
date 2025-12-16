@@ -5,7 +5,7 @@ const QA_CHAT_CACHE_VERSION = '1.0';
 const QA_CHAT_VERSION_KEY = 'gruenerator_qa_chat_version';
 const QA_CHAT_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
-const loadPersistedQAChatState = () => {
+const loadPersistedNotebookChatState = () => {
   try {
     const storedVersion = localStorage.getItem(QA_CHAT_VERSION_KEY);
     if (storedVersion !== QA_CHAT_CACHE_VERSION) {
@@ -30,14 +30,14 @@ const loadPersistedQAChatState = () => {
       }
     }
   } catch (error) {
-    console.warn('[QAChatStore] Error loading persisted state:', error);
+    console.warn('[NotebookChatStore] Error loading persisted state:', error);
     localStorage.removeItem(QA_CHAT_STORAGE_KEY);
     localStorage.removeItem(QA_CHAT_VERSION_KEY);
   }
   return null;
 };
 
-const persistQAChatState = (chats) => {
+const persistNotebookChatState = (chats) => {
   try {
     const dataToStore = {
       chats,
@@ -48,7 +48,7 @@ const persistQAChatState = (chats) => {
     localStorage.setItem(QA_CHAT_STORAGE_KEY, JSON.stringify(dataToStore));
     localStorage.setItem(QA_CHAT_VERSION_KEY, QA_CHAT_CACHE_VERSION);
   } catch (error) {
-    console.warn('[QAChatStore] Error persisting state:', error);
+    console.warn('[NotebookChatStore] Error persisting state:', error);
     if (error.name === 'QuotaExceededError') {
       localStorage.removeItem(QA_CHAT_STORAGE_KEY);
       localStorage.removeItem(QA_CHAT_VERSION_KEY);
@@ -56,9 +56,9 @@ const persistQAChatState = (chats) => {
   }
 };
 
-const persistedState = loadPersistedQAChatState();
+const persistedState = loadPersistedNotebookChatState();
 
-export const useQAChatStore = create((set, get) => ({
+export const useNotebookChatStore = create((set, get) => ({
   chats: persistedState?.chats || {},
 
   getMessages: (collectionId) => {
@@ -113,16 +113,16 @@ export const useQAChatStore = create((set, get) => ({
   }
 }));
 
-useQAChatStore.subscribe(
+useNotebookChatStore.subscribe(
   (state) => {
     const hasMessages = Object.values(state.chats).some(
       chat => chat?.messages?.length > 0
     );
     if (hasMessages) {
-      persistQAChatState(state.chats);
+      persistNotebookChatState(state.chats);
     }
   },
   (state) => state.chats
 );
 
-export default useQAChatStore;
+export default useNotebookChatStore;

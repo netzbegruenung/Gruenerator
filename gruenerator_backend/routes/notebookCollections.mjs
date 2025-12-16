@@ -1,16 +1,16 @@
 import express from 'express';
-import { QAQdrantHelper } from '../database/services/QAQdrantHelper.js';
+import { NotebookQdrantHelper } from '../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../database/services/PostgresService.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { createLogger } from '../utils/logger.js';
-const log = createLogger('qaCollections');
+const log = createLogger('notebookCollections');
 
 const { requireAuth } = authMiddleware;
 
 const router = express.Router();
 
 // Initialize services
-const qaHelper = new QAQdrantHelper();
+const notebookHelper = new NotebookQdrantHelper();
 const postgres = getPostgresInstance();
 
 /**
@@ -33,10 +33,10 @@ async function resolveWolkeLinksToDocuments(userId, wolkeShareLinkIds) {
             ORDER BY created_at DESC
         `, [userId, wolkeShareLinkIds]);
 
-        log.debug(`[QA Collections] Resolved ${wolkeShareLinkIds.length} Wolke links to ${documents.length} documents`);
+        log.debug(`[Notebook Collections] Resolved ${wolkeShareLinkIds.length} Wolke links to ${documents.length} documents`);
         return documents;
     } catch (error) {
-        log.error('[QA Collections] Error resolving Wolke links:', error);
+        log.error('[Notebook Collections] Error resolving Wolke links:', error);
         throw new Error('Failed to resolve Wolke links to documents');
     }
 }
@@ -53,26 +53,26 @@ async function validateWolkeShareLinks(userId, wolkeShareLinkIds) {
         // For now, we'll assume all share links belong to the user
         // In a more complex system, you might need to check share link ownership
         // This is a placeholder for proper validation logic
-        log.debug(`[QA Collections] Validating access to ${wolkeShareLinkIds.length} Wolke share links for user ${userId}`);
+        log.debug(`[Notebook Collections] Validating access to ${wolkeShareLinkIds.length} Wolke share links for user ${userId}`);
         return true;
     } catch (error) {
-        log.error('[QA Collections] Error validating Wolke share links:', error);
+        log.error('[Notebook Collections] Error validating Wolke share links:', error);
         return false;
     }
 }
 
-// GET /api/qa-collections - List user's Q&A collections
+// GET /api/notebook-collections - List user's Notebook collections
 router.get('/', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
-        log.debug('[QA Collections] GET / - User ID:', userId);
+        log.debug('[Notebook Collections] GET / - User ID:', userId);
 
         // Get collections from Qdrant
-        const collections = await qaHelper.getUserQACollections(userId);
+        const collections = await notebookHelper.getUserNotebookCollections(userId);
 
         // Get document details from PostgreSQL for each collection
         const transformedData = await Promise.all(collections.map(async (collection) => {
-            const documentIds = collection.qa_collection_documents.map(qcd => qcd.document_id);
+            const documentIds = collection.notebook_collection_documents.map(qcd => qcd.document_id);
             
             let documents = [];
             if (documentIds.length > 0) {
@@ -93,7 +93,7 @@ router.get('/', requireAuth, async (req, res) => {
                         // Add more details here if needed
                     }));
                 } catch (error) {
-                    log.error('[QA Collections] Error fetching Wolke share links:', error);
+                    log.error('[Notebook Collections] Error fetching Wolke share links:', error);
                 }
             }
 
@@ -110,22 +110,22 @@ router.get('/', requireAuth, async (req, res) => {
             };
         }));
 
-        log.debug('[QA Collections] GET / - Transformed data:', transformedData);
+        log.debug('[Notebook Collections] GET / - Transformed data:', transformedData);
         
         const responseData = {
             success: true,
             collections: transformedData
         };
         
-        log.debug('[QA Collections] GET / - Sending response:', responseData);
+        log.debug('[Notebook Collections] GET / - Sending response:', responseData);
         res.json(responseData);
     } catch (error) {
-        log.error('[QA Collections] Error in GET /:', error);
+        log.error('[Notebook Collections] Error in GET /:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// POST /api/qa-collections - Create new Q&A collection
+// POST /api/notebook-collections - Create new Notebook collection
 router.post('/', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -201,22 +201,22 @@ router.post('/', requireAuth, async (req, res) => {
             remove_missing_on_sync: selection_mode === 'wolke' ? !!remove_missing_on_sync : false
         };
 
-        const result = await qaHelper.storeQACollection(collectionData);
+        const result = await notebookHelper.storeNotebookCollection(collectionData);
         
         if (!result.success) {
-            log.error('[QA Collections] Error creating collection:', result.error);
-            return res.status(500).json({ error: 'Failed to create Q&A collection' });
+            log.error('[Notebook Collections] Error creating collection:', result.error);
+            return res.status(500).json({ error: 'Failed to create Notebook collection' });
         }
 
         const collectionId = result.collection_id;
 
         // Add documents to the collection
         try {
-            await qaHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+            await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
         } catch (docError) {
-            log.error('[QA Collections] Error adding documents:', docError);
+            log.error('[Notebook Collections] Error adding documents:', docError);
             // Clean up - delete the collection if document insertion failed
-            await qaHelper.deleteQACollection(collectionId);
+            await notebookHelper.deleteNotebookCollection(collectionId);
             return res.status(500).json({ error: 'Failed to add documents to collection' });
         }
 
@@ -230,15 +230,15 @@ router.post('/', requireAuth, async (req, res) => {
                 wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
                 created_at: new Date().toISOString()
             },
-            message: `Q&A collection created successfully with ${allDocumentIds.length} document(s)`
+            message: `Notebook collection created successfully with ${allDocumentIds.length} document(s)`
         });
     } catch (error) {
-        log.error('[QA Collections] Error in POST /:', error);
+        log.error('[Notebook Collections] Error in POST /:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// PUT /api/qa-collections/:id - Update Q&A collection
+// PUT /api/notebook-collections/:id - Update Notebook collection
 router.put('/:id', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -260,9 +260,9 @@ router.put('/:id', requireAuth, async (req, res) => {
         }
 
         // Verify user owns the collection
-        const existingCollection = await qaHelper.getQACollection(collectionId);
+        const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
         if (!existingCollection || existingCollection.user_id !== userId) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         // Validate selection based on mode
@@ -327,42 +327,42 @@ router.put('/:id', requireAuth, async (req, res) => {
             updateData.remove_missing_on_sync = false;
         }
 
-        await qaHelper.updateQACollection(collectionId, updateData);
+        await notebookHelper.updateNotebookCollection(collectionId, updateData);
 
         // Update document associations
         // Remove existing associations
-        const existingDocuments = await qaHelper.getCollectionDocuments(collectionId);
+        const existingDocuments = await notebookHelper.getCollectionDocuments(collectionId);
         const existingDocIds = existingDocuments.map(doc => doc.document_id);
         
         if (existingDocIds.length > 0) {
-            await qaHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
+            await notebookHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
         }
 
         // Add new associations
-        await qaHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
+        await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
 
         res.json({ 
             success: true,
-            message: `Q&A collection updated successfully with ${allDocumentIds.length} document(s)`,
+            message: `Notebook collection updated successfully with ${allDocumentIds.length} document(s)`,
             documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
             wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : []
         });
     } catch (error) {
-        log.error('[QA Collections] Error in PUT /:id:', error);
+        log.error('[Notebook Collections] Error in PUT /:id:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// POST /api/qa-collections/:id/sync - Sync Wolke-based collection with current documents
+// POST /api/notebook-collections/:id/sync - Sync Wolke-based collection with current documents
 router.post('/:id/sync', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const collectionId = req.params.id;
 
         // Verify user owns the collection
-        const collection = await qaHelper.getQACollection(collectionId);
+        const collection = await notebookHelper.getNotebookCollection(collectionId);
         if (!collection || collection.user_id !== userId) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         if ((collection.selection_mode || 'documents') !== 'wolke') {
@@ -384,7 +384,7 @@ router.post('/:id/sync', requireAuth, async (req, res) => {
         const currentDocIds = new Set((wolkeDocuments || []).map(d => d.id));
 
         // Get existing associations
-        const existing = await qaHelper.getCollectionDocuments(collectionId);
+        const existing = await notebookHelper.getCollectionDocuments(collectionId);
         const existingIds = new Set((existing || []).map(ed => ed.document_id));
 
         // Compute additions and optional removals
@@ -394,18 +394,18 @@ router.post('/:id/sync', requireAuth, async (req, res) => {
 
         let addedCount = 0;
         if (docsToAdd.length > 0) {
-            await qaHelper.addDocumentsToCollection(collectionId, docsToAdd, userId);
+            await notebookHelper.addDocumentsToCollection(collectionId, docsToAdd, userId);
             addedCount = docsToAdd.length;
         }
         let removedCount = 0;
         if (docsToRemove.length > 0) {
-            await qaHelper.removeDocumentsFromCollection(collectionId, docsToRemove);
+            await notebookHelper.removeDocumentsFromCollection(collectionId, docsToRemove);
             removedCount = docsToRemove.length;
         }
 
         // Update document_count metadata
         const newTotal = existingIds.size + addedCount - removedCount;
-        await qaHelper.updateQACollection(collectionId, {
+        await notebookHelper.updateNotebookCollection(collectionId, {
             document_count: newTotal
         });
 
@@ -418,57 +418,57 @@ router.post('/:id/sync', requireAuth, async (req, res) => {
             wolke_share_links: wolkeLinkIds
         });
     } catch (error) {
-        log.error('[QA Collections] Error in POST /:id/sync:', error);
+        log.error('[Notebook Collections] Error in POST /:id/sync:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// DELETE /api/qa-collections/:id - Delete Q&A collection
+// DELETE /api/notebook-collections/:id - Delete Notebook collection
 router.delete('/:id', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const collectionId = req.params.id;
 
         // Verify user owns the collection
-        const existingCollection = await qaHelper.getQACollection(collectionId);
+        const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
         if (!existingCollection || existingCollection.user_id !== userId) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         // Delete the collection (includes related records)
-        await qaHelper.deleteQACollection(collectionId);
+        await notebookHelper.deleteNotebookCollection(collectionId);
 
         res.json({ 
             success: true,
-            message: 'Q&A collection deleted successfully' 
+            message: 'Notebook collection deleted successfully' 
         });
     } catch (error) {
-        log.error('[QA Collections] Error in DELETE /:id:', error);
-        res.status(500).json({ error: 'Failed to delete Q&A collection' });
+        log.error('[Notebook Collections] Error in DELETE /:id:', error);
+        res.status(500).json({ error: 'Failed to delete Notebook collection' });
     }
 });
 
-// POST /api/qa-collections/:id/share - Generate public sharing link
+// POST /api/notebook-collections/:id/share - Generate public sharing link
 router.post('/:id/share', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const collectionId = req.params.id;
 
         // Verify user owns the collection
-        const collection = await qaHelper.getQACollection(collectionId);
+        const collection = await notebookHelper.getNotebookCollection(collectionId);
         if (!collection || collection.user_id !== userId) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         // Create public access token
-        const result = await qaHelper.createPublicAccess(collectionId, userId);
+        const result = await notebookHelper.createPublicAccess(collectionId, userId);
 
         if (!result.success) {
-            log.error('[QA Collections] Error creating public access:', result.error);
+            log.error('[Notebook Collections] Error creating public access:', result.error);
             return res.status(500).json({ error: 'Failed to generate public link' });
         }
 
-        const publicUrl = `${process.env.BASE_URL}/qa/public/${result.access_token}`;
+        const publicUrl = `${process.env.BASE_URL}/notebook/public/${result.access_token}`;
 
         res.json({
             success: true,
@@ -477,37 +477,37 @@ router.post('/:id/share', requireAuth, async (req, res) => {
             message: 'Public link generated successfully'
         });
     } catch (error) {
-        log.error('[QA Collections] Error in POST /:id/share:', error);
+        log.error('[Notebook Collections] Error in POST /:id/share:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// DELETE /api/qa-collections/:id/share - Revoke public access
+// DELETE /api/notebook-collections/:id/share - Revoke public access
 router.delete('/:id/share', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const collectionId = req.params.id;
 
         // Verify user owns the collection
-        const collection = await qaHelper.getQACollection(collectionId);
+        const collection = await notebookHelper.getNotebookCollection(collectionId);
         if (!collection || collection.user_id !== userId) {
-            return res.status(404).json({ error: 'Q&A collection not found' });
+            return res.status(404).json({ error: 'Notebook collection not found' });
         }
 
         // Revoke public access
-        await qaHelper.revokePublicAccess(collectionId);
+        await notebookHelper.revokePublicAccess(collectionId);
 
         res.json({ 
             success: true,
             message: 'Public access revoked successfully' 
         });
     } catch (error) {
-        log.error('[QA Collections] Error in DELETE /:id/share:', error);
+        log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// DELETE /api/qa-collections/bulk - Bulk delete Q&A collections
+// DELETE /api/notebook-collections/bulk - Bulk delete Notebook collections
 router.delete('/bulk', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
@@ -528,19 +528,19 @@ router.delete('/bulk', requireAuth, async (req, res) => {
             });
         }
 
-        log.debug(`[QA Collections] Bulk delete request for ${ids.length} collections from user ${userId}`);
+        log.debug(`[Notebook Collections] Bulk delete request for ${ids.length} collections from user ${userId}`);
 
         // Perform bulk delete with ownership verification
-        const result = await qaHelper.bulkDeleteCollections(ids, userId);
+        const result = await notebookHelper.bulkDeleteCollections(ids, userId);
 
         const deletedIds = result.results.deleted;
         const failedIds = result.results.failed.map(f => f.id);
 
-        log.debug(`[QA Collections] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
+        log.debug(`[Notebook Collections] Bulk delete completed: ${deletedIds.length} deleted, ${failedIds.length} failed`);
 
         res.json({
             success: true,
-            message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} Q&A collections deleted successfully`,
+            message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} Notebook collections deleted successfully`,
             deleted_count: deletedIds.length,
             failed_ids: failedIds,
             total_requested: ids.length,
@@ -548,10 +548,10 @@ router.delete('/bulk', requireAuth, async (req, res) => {
         });
 
     } catch (error) {
-        log.error('[QA Collections] Error in bulk delete:', error);
+        log.error('[Notebook Collections] Error in bulk delete:', error);
         res.status(500).json({
             success: false,
-            message: error.message || 'Failed to perform bulk delete of Q&A collections'
+            message: error.message || 'Failed to perform bulk delete of Notebook collections'
         });
     }
 });

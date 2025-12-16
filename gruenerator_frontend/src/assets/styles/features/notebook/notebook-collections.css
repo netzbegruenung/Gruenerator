@@ -1,0 +1,121 @@
+/* Q&A Collections Styling - Cleaned up version after DocumentOverview integration */
+
+/* Empty State Enhancement */
+.notebook-empty-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-large);
+    margin: var(--spacing-xlarge) 0;
+    max-width: 600px;
+}
+
+.notebook-feature-item {
+    text-align: center;
+    padding: var(--spacing-large);
+    background: var(--neutral-600);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.notebook-feature-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-small);
+}
+
+.notebook-feature-item span {
+    display: block;
+    color: var(--font-color);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Error State */
+.notebook-error-state {
+    text-align: center;
+    padding: var(--spacing-xlarge);
+    background: #ffebee;
+    border-radius: 12px;
+    border: 1px solid #ffcdd2;
+}
+
+.notebook-error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-medium);
+}
+
+.notebook-error-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--error-red);
+}
+
+.notebook-error-text h4 {
+    margin: 0 0 var(--spacing-xsmall) 0;
+    color: var(--error-red);
+}
+
+.notebook-error-text p {
+    margin: 0;
+    color: var(--grey-700);
+}
+
+.notebook-error-details {
+    font-size: 0.875rem;
+    color: var(--grey-600);
+    margin-top: var(--spacing-xsmall);
+}
+
+.notebook-retry-button {
+    margin-top: var(--spacing-large);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    padding: var(--spacing-small) var(--spacing-large);
+    background: var(--secondary-600);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.notebook-retry-button:hover {
+    background: var(--secondary-700);
+    transform: translateY(-1px);
+}
+
+.notebook-retry-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Back Button */
+.notebook-back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xsmall);
+    padding: var(--spacing-xsmall) var(--spacing-medium);
+    background: transparent;
+    color: var(--secondary-600);
+    border: 1px solid var(--secondary-200);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.notebook-back-button:hover {
+    background: var(--secondary-50);
+    border-color: var(--secondary-600);
+}
+
+/* Dark theme support moved to document-overview.css for .notebook-document-count and .notebook-public-badge */
+
+[data-theme="dark"] .notebook-error-state {
+    background: rgba(211, 47, 47, 0.1);
+    border-color: rgba(211, 47, 47, 0.3);
+}

@@ -4,7 +4,7 @@ import { processText } from '../../../components/utils/apiClient';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
 
-const useMultiCollectionQA = ({
+const useMultiCollectionNotebook = ({
   collections,
   welcomeMessage
 }) => {
@@ -40,7 +40,7 @@ const useMultiCollectionQA = ({
     setActiveCollections(collections.map(c => c.name));
 
     try {
-      const result = await processText('/auth/qa/multi/ask', {
+      const result = await processText('/auth/notebook/multi/ask', {
         question,
         mode: 'dossier',
         collectionIds: collections.map(c => c.id)
@@ -50,6 +50,19 @@ const useMultiCollectionQA = ({
         const resultId = `qa-multi-unified-${Date.now()}`;
         const sourcesByCollection = result.sourcesByCollection || {};
         const citations = result.citations || [];
+
+        const sources = Object.values(sourcesByCollection)
+          .flatMap(collection => collection.sources || []);
+
+        const additionalSources = Object.values(sourcesByCollection)
+          .flatMap(collection => collection.allSources || []);
+
+        const linkConfig = {
+          type: 'external',
+          linkKey: 'document_id',
+          titleKey: 'document_title',
+          urlKey: 'url'
+        };
 
         setGeneratedText(resultId, result.answer);
         setGeneratedTextMetadata(resultId, {
@@ -66,7 +79,10 @@ const useMultiCollectionQA = ({
             resultId,
             question,
             sourcesByCollection,
-            citations
+            sources,
+            additionalSources,
+            citations,
+            linkConfig
           }
         }]);
       } else {
@@ -78,7 +94,7 @@ const useMultiCollectionQA = ({
       }
 
     } catch (error) {
-      console.error('[useMultiCollectionQA] Error:', error);
+      console.error('[useMultiCollectionNotebook] Error:', error);
       setChatMessages(prev => [...prev, {
         type: 'error',
         content: 'Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.',
@@ -103,4 +119,4 @@ const useMultiCollectionQA = ({
   };
 };
 
-export default useMultiCollectionQA;
+export default useMultiCollectionNotebook;

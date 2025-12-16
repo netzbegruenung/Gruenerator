@@ -1,5 +1,5 @@
 /**
- * Citation functions extracted from qaGraph.mjs for reuse in search system
+ * Citation functions extracted from notebookGraph.mjs for reuse in search system
  * These functions handle citation validation, reference mapping, and marker injection
  */
 
