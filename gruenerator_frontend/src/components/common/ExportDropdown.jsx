@@ -12,6 +12,7 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
+import { canShare, shareContent } from '../../utils/shareUtils';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
@@ -38,6 +39,7 @@ const ExportDropdown = ({
   const [showWolkeSubDropdown, setShowWolkeSubDropdown] = useState(false);
   const [exportIcon, setExportIcon] = useState('share');
   const [showWolkeSetupModal, setShowWolkeSetupModal] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
   
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
@@ -151,6 +153,11 @@ const ExportDropdown = ({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showDropdown, showWolkeSubDropdown]);
+
+  // Check native share capability on mount
+  useEffect(() => {
+    setCanNativeShare(canShare());
+  }, []);
 
   // Helper functions for document type and component name detection
   const getDocumentType = () => {
@@ -273,6 +280,28 @@ const ExportDropdown = ({
     console.log('[DEBUG] handleCopyText called');
     await handleExportWithAutoSave(handleCopyTextInner, 'Kopieren');
   };
+
+  const handleNativeShareInner = async () => {
+    setShowDropdown(false);
+    try {
+      const plainContent = await extractPlainText(content);
+      if (!plainContent || plainContent.trim().length === 0) {
+        alert('Kein Text zum Teilen verfügbar.');
+        return;
+      }
+
+      await shareContent({
+        title: title || 'Grünerator Text',
+        text: plainContent,
+      });
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Share failed:', error);
+      }
+    }
+  };
+
+  const handleNativeShare = async () => await handleExportWithAutoSave(handleNativeShareInner, 'Teilen');
 
   const handleDOCXDownloadInner = useCallback(async () => {
     setShowDropdown(false);
@@ -449,6 +478,22 @@ const ExportDropdown = ({
           {/* Default options - conditionally rendered */}
           {!hideDefaultOptions && (
             <>
+              {/* Native share - only on mobile when supported */}
+              {canNativeShare && isMobileView && (
+                <button
+                  className="format-option"
+                  onClick={handleNativeShare}
+                >
+                  <IoShareSocialSharp size={16} />
+                  <div className="format-option-content">
+                    <div className="format-option-title">Direkt teilen</div>
+                    <div className="format-option-subtitle">
+                      Über System-Apps teilen
+                    </div>
+                  </div>
+                </button>
+              )}
+
               <button
                 className="format-option"
                 onClick={handleDocsExport}
