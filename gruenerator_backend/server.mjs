@@ -29,6 +29,7 @@ const { tusServer } = tusServiceModule;
 import session from 'express-session';
 import {RedisStore} from 'connect-redis';
 import passport from './config/passportSetup.mjs';
+import { getCorsOrigins } from './utils/domainUtils.js';
 
 const require = createRequire(import.meta.url);
 
@@ -113,47 +114,9 @@ if (cluster.isMaster) {
 
   const redisClient = require('./utils/redisClient.js');
 
-  // Security: Environment-based CORS configuration
-  const productionOrigins = [
-    'https://gruenerator.at',
-    'https://www.gruenerator.at',
-    'https://gruenerator.eu',
-    'https://www.gruenerator.eu',
-    'https://gruenerator-test.de',
-    'https://www.gruenerator-test.de',
-    'https://gruenerator.netzbegruenung.verdigado.net',
-    'https://www.gruenerator.netzbegruenung.verdigado.net',
-    'https://gruenerator.de',
-    'https://www.gruenerator.de',
-    'https://beta.gruenerator.de',
-    'https://www.beta.gruenerator.de',
-    'https://gruenerator-test.netzbegruenung.verdigado.net',
-    'https://www.gruenerator-test.netzbegruenung.verdigado.net',
-    'https://xn--grenerator-test-4pb.de',
-    'https://www.xn--grenerator-test-4pb.de',
-    'https://xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-    'https://xn--grenerator-z2a.de',
-    'https://www.xn--grenerator-z2a.de',
-    'https://beta.xn--grenerator-z2a.de',
-    'https://www.beta.xn--grenerator-z2a.de',
-    'https://xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grenerator-test-4pb.xn--netzbegrnung-dfb.verdigado.net',
-    'https://www.xn--grnerator-z2a.xn--netzbegrnung-dfb.verdigado.net',
-  ];
-
-  const developmentOrigins = [
-    'http://localhost:3000',
-    'https://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001',
-    'http://localhost:3001',
-  ];
-
-  // Use production origins only in production, include development origins in development
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? productionOrigins
-    : [...productionOrigins, ...developmentOrigins];
+  // Security: Environment-based CORS configuration (centralized in domainUtils.js)
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const allowedOrigins = getCorsOrigins(isDevelopment);
 
   const corsOptions = {
     origin: function (origin, callback) {
