@@ -23,7 +23,7 @@
   background: var(--background-color);
   border-radius: var(--card-border-radius-large);
   padding: var(--spacing-large);
-  max-width: 480px;
+  max-width: 640px;
   width: 100%;
   position: relative;
   box-shadow: var(--shadow-xl);
@@ -174,7 +174,8 @@
   min-height: var(--form-element-min-height);
 }
 
-.share-copy-button {
+.share-copy-button,
+.share-native-button {
   padding: var(--spacing-small) var(--spacing-medium);
   background: var(--primary-600);
   border: none;
@@ -187,7 +188,8 @@
   transition: background 0.2s ease;
 }
 
-.share-copy-button:hover {
+.share-copy-button:hover,
+.share-native-button:hover {
   background: var(--primary-700);
 }
 
@@ -198,13 +200,88 @@
   margin-bottom: var(--spacing-large);
 }
 
+.share-modal-expiry {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  margin: 0;
+}
+
+.share-modal-success-layout {
+  display: flex;
+  gap: var(--spacing-large);
+  align-items: center;
+}
+
+.share-modal-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-modal-left .share-modal-success {
+  padding: 0;
+}
+
 .share-qr-container {
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: var(--spacing-medium);
   background: white;
   border-radius: var(--card-border-radius-small);
-  margin-bottom: var(--spacing-medium);
+}
+
+.share-modal-right {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.share-modal-right .share-link-container {
+  width: 100%;
+}
+
+.share-modal-actions-centered {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-medium);
+}
+
+.share-link-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--font-color);
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.share-modal-right .share-link-container {
+  margin: 0 0 var(--spacing-medium);
+}
+
+.share-modal-right .share-modal-actions {
+  margin-top: auto;
+}
+
+@media (max-width: 600px) {
+  .share-modal-success-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .share-modal-left {
+    width: 100%;
+  }
+
+  .share-modal-right {
+    width: 100%;
+  }
+
+  .share-modal-right .share-modal-actions {
+    justify-content: flex-end;
+  }
 }
 
 @media (max-width: 480px) {

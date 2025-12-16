@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import QRCode from 'react-qr-code';
 import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
+import { canShare, shareContent } from '../../../utils/shareUtils';
 import '../styles/ShareVideoModal.css';
 
 const expirationOptions = [
@@ -40,6 +41,17 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
       navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (currentShare?.shareToken) {
+      const url = getShareUrl(currentShare.shareToken);
+      await shareContent({
+        title: shareTitle,
+        text: 'Schau dir dieses Video an!',
+        url,
+      });
     }
   };
 
@@ -128,56 +140,67 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
           </>
         ) : (
           <>
-            <div className="share-modal-success">
-              <div className="share-success-icon">
-                <svg className="share-success-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" strokeWidth="2">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22,4 12,14.01 9,11.01" />
-                </svg>
-              </div>
-              <h3>Link erstellt</h3>
-              <p>Der Link ist gültig bis {formatExpiration(currentShare.expiresAt)}</p>
-            </div>
-
-            <div className="share-link-container">
-              <input
-                type="text"
-                readOnly
-                value={getShareUrl(currentShare.shareToken)}
-                className="share-link-input"
-              />
-              <button
-                className="share-copy-button"
-                onClick={handleCopyLink}
-              >
-                {copied ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="20,6 9,17 4,12" />
-                  </svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                )}
-              </button>
-            </div>
-
-            <div className="share-qr-container">
-              <QRCode
-                value={getShareUrl(currentShare.shareToken)}
-                size={180}
-                level="M"
-              />
-            </div>
-
             {currentShare.status === 'rendering' && (
               <p className="share-modal-info share-modal-rendering-info">
                 Das Video wird im Hintergrund gerendert. Der Empfänger kann es herunterladen, sobald es fertig ist.
               </p>
             )}
 
-            <div className="share-modal-actions">
+            <div className="share-modal-success-layout">
+              <div className="share-modal-left">
+                <div className="share-qr-container">
+                  <QRCode
+                    value={getShareUrl(currentShare.shareToken)}
+                    size={160}
+                    level="M"
+                  />
+                </div>
+              </div>
+
+              <div className="share-modal-right">
+                <label className="share-link-label">Link kopieren</label>
+                <div className="share-link-container">
+                  <input
+                    type="text"
+                    readOnly
+                    value={getShareUrl(currentShare.shareToken)}
+                    className="share-link-input"
+                  />
+                  <button
+                    className="share-copy-button"
+                    onClick={handleCopyLink}
+                  >
+                    {copied ? (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20,6 9,17 4,12" />
+                      </svg>
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                    )}
+                  </button>
+                  {canShare() && (
+                    <button
+                      className="share-native-button"
+                      onClick={handleNativeShare}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="18" cy="5" r="3" />
+                        <circle cx="6" cy="12" r="3" />
+                        <circle cx="18" cy="19" r="3" />
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <p className="share-modal-expiry">Gültig bis {formatExpiration(currentShare.expiresAt)}</p>
+              </div>
+            </div>
+
+            <div className="share-modal-actions-centered">
               <button
                 className="btn-primary"
                 onClick={onClose}
