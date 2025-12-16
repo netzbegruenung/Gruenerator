@@ -4,10 +4,10 @@
   --button-font-size: 1em;
   --button-transition: 0.3s ease;
   
-  /* Primary Button Variables */
-  --primary-button-bg: #005538;
-  --primary-button-hover-bg: #003d28;
-  --primary-button-text: #ffffff;
+  /* Primary Button Variables - Uses secondary (Eucalyptus) color */
+  --primary-button-bg: var(--secondary-600);
+  --primary-button-hover-bg: var(--secondary-700);
+  --primary-button-text: var(--white);
   --primary-button-radius: 72px;
   --primary-button-padding-s: 12px 24px;
   --primary-button-padding-m: 16px 32px;
@@ -59,15 +59,6 @@
 }
 
 
-
-.social-media-baseform .copy-button {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 5px;
-  transition: opacity 0.3s ease;
-  width: auto;
-}
 
 .form-buttons {
   width: 100%;
@@ -591,69 +582,11 @@
   height: 42px;
 }
 
-.show-alternatives-button,
-.hide-alternatives-button {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  padding: var(--button-padding);
-  border: 2px solid var(--weiß);
-  border-radius: var(--button-border-radius);
-  font-size: var(--button-font-size);
-  cursor: pointer;
-  transition: all var(--button-transition);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--primary);
-  color: var(--weiß);
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.show-alternatives-button:hover,
-.hide-alternatives-button:hover {
-  background-color: var(--klee);
-  transform: scale(1.01);
-}
-
-
-.button-fade-enter {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.button-fade-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
-}
-
-.button-fade-exit {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.button-fade-exit-active {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
-}
-
 @media (max-width: 768px) {
   .alternatives-button-wrapper {
     height: 48px;
   }
-
-  .show-alternatives-button,
-  .hide-alternatives-button {
-    font-size: 0.95em;
-    padding: 8px 16px;
-  }
 }
-
 
 .sharepic-download-button {
   width: 100%;

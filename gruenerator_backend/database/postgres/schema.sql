@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     database_access BOOLEAN DEFAULT FALSE,
     you_generator BOOLEAN DEFAULT FALSE,
     collab BOOLEAN DEFAULT FALSE,
-    qa BOOLEAN DEFAULT FALSE,
+    notebook BOOLEAN DEFAULT FALSE,
     sharepic BOOLEAN DEFAULT FALSE,
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
@@ -213,8 +213,8 @@ CREATE TABLE IF NOT EXISTS yjs_document_snapshots (
     UNIQUE(document_id, version)
 );
 
--- QA Collections
-CREATE TABLE IF NOT EXISTS qa_collections (
+-- Notebook Collections
+CREATE TABLE IF NOT EXISTS notebook_collections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -227,20 +227,20 @@ CREATE TABLE IF NOT EXISTS qa_collections (
     last_used_at TIMESTAMPTZ
 );
 
--- QA Collection Documents
-CREATE TABLE IF NOT EXISTS qa_collection_documents (
+-- Notebook Collection Documents
+CREATE TABLE IF NOT EXISTS notebook_collection_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES qa_collections(id) ON DELETE CASCADE,
+    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
     document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
     added_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     added_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
     UNIQUE(collection_id, document_id)
 );
 
--- QA Public Access
-CREATE TABLE IF NOT EXISTS qa_public_access (
+-- Notebook Public Access
+CREATE TABLE IF NOT EXISTS notebook_public_access (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES qa_collections(id) ON DELETE CASCADE,
+    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
     access_token TEXT UNIQUE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ,
@@ -248,10 +248,10 @@ CREATE TABLE IF NOT EXISTS qa_public_access (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- QA Usage Logs
-CREATE TABLE IF NOT EXISTS qa_usage_logs (
+-- Notebook Usage Logs
+CREATE TABLE IF NOT EXISTS notebook_usage_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES qa_collections(id) ON DELETE CASCADE,
+    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
     user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     question TEXT NOT NULL,
     answer_length INTEGER,
@@ -449,8 +449,8 @@ CREATE INDEX IF NOT EXISTS idx_group_instructions_is_active ON group_instruction
 CREATE INDEX IF NOT EXISTS idx_group_instructions_group_active ON group_instructions(group_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_group_knowledge_group_id ON group_knowledge(group_id);
 
-CREATE INDEX IF NOT EXISTS idx_qa_collections_user_id ON qa_collections(user_id);
-CREATE INDEX IF NOT EXISTS idx_qa_collection_documents_collection_id ON qa_collection_documents(collection_id);
+CREATE INDEX IF NOT EXISTS idx_notebook_collections_user_id ON notebook_collections(user_id);
+CREATE INDEX IF NOT EXISTS idx_notebook_collection_documents_collection_id ON notebook_collection_documents(collection_id);
 
 CREATE INDEX IF NOT EXISTS idx_yjs_document_updates_document_id ON yjs_document_updates(document_id);
 CREATE INDEX IF NOT EXISTS idx_yjs_document_updates_created_at ON yjs_document_updates(created_at);
@@ -510,9 +510,9 @@ CREATE TRIGGER update_groups_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_qa_collections_updated_at 
-    BEFORE UPDATE ON qa_collections 
-    FOR EACH ROW 
+CREATE TRIGGER update_notebook_collections_updated_at
+    BEFORE UPDATE ON notebook_collections
+    FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_group_instructions_updated_at 
