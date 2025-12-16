@@ -4,12 +4,12 @@ const ToolHandler = require('../../services/toolHandler');
 
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
-  // IONOS supports Llama via OpenAI-compatible API; ensure a valid Llama model
-  let model = options.model || 'meta-llama/Llama-3.3-70B-Instruct';
+  // IONOS supports GPT-OSS and Llama via OpenAI-compatible API
+  let model = options.model || 'openai/gpt-oss-120b';
   const modelStr = String(model).toLowerCase();
-  const looksIncompatible = /mistral|mixtral|gpt-|claude|anthropic|bedrock|openai/.test(modelStr);
-  if (looksIncompatible || !/llama/.test(modelStr)) {
-    model = 'meta-llama/Llama-3.3-70B-Instruct';
+  const looksIncompatible = /mistral|mixtral|gpt-4|claude|anthropic|bedrock/.test(modelStr);
+  if (looksIncompatible) {
+    model = 'openai/gpt-oss-120b';
   }
 
   const client = getIonosClient();

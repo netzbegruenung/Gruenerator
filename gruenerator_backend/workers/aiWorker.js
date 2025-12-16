@@ -29,7 +29,6 @@ parentPort.on('message', async (message) => {
     const result = await processAIRequest(requestId, data);
     
     // Validate result before sending - handle both text and tool responses
-    
     if (!result || (!result.content && result.stop_reason !== 'tool_use')) {
       throw new Error(`Empty or invalid result generated for request ${requestId}`);
     }
@@ -150,6 +149,15 @@ async function processAIRequest(requestId, data) {
       console.log(`[AI Worker ${requestId}] Using default Mistral provider with temperature: ${effectiveOptions.temperature || 'default'}`);
       sendProgress(requestId, 15);
       result = await providers.executeProvider('mistral', requestId, { ...data, options: effectiveOptions });
+    }
+
+    // Check for empty response and trigger fallback
+    const hasValidContent = result?.content || result?.stop_reason === 'tool_use';
+    if (!hasValidContent) {
+      console.warn(`[AI Worker ${requestId}] Empty response, trying fallback providers`);
+      result = await providerFallback.tryPrivacyModeProviders(async (providerName, privacyData) => {
+        return providers.executeProvider(providerName, requestId, privacyData);
+      }, requestId, data);
     }
 
     sendProgress(requestId, 100);
