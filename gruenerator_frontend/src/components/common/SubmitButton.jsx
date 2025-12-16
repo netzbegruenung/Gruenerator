@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import Spinner from './Spinner';
+import '../../assets/styles/components/ui/button.css';
 
 const SubmitButton = ({
   onClick,
