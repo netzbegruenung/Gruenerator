@@ -11,11 +11,10 @@ import express from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import {
-  initiateInteractiveAntrag,
-  continueInteractiveAntrag
-} from '../../agents/langgraph/interactiveAntragGraph.mjs';
+  initiateInteractiveGenerator,
+  continueInteractiveGenerator
+} from '../../agents/langgraph/simpleInteractiveGenerator.mjs';
 import { getExperimentalSession } from '../../services/chatMemoryService.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
 const router = express.Router();
 const log = createLogger('experimentalRoutes');
@@ -36,64 +35,6 @@ router.use((req, res, next) => {
   next();
 });
 
-/**
- * Middleware to check if user has interactive antrag beta feature enabled
- */
-async function requireInteractiveAntragBeta(req, res, next) {
-  const reqId = req._reqId || 'UNKNOWN';
-
-  try {
-    if (!req.user || !req.user.id) {
-      log.warn(`[experimental][${reqId}] Beta check failed: No user in request`);
-      return res.status(401).json({
-        error: 'Authentication required',
-        message: 'You must be logged in to access this feature'
-      });
-    }
-
-    const db = getPostgresInstance();
-
-    if (!db || !db.pool) {
-      log.error(`[experimental][${reqId}] Database not available for beta feature check`);
-      return res.status(503).json({
-        error: 'Service temporarily unavailable',
-        message: 'Database connection not available'
-      });
-    }
-
-    const result = await db.pool.query(
-      'SELECT interactive_antrag_enabled FROM profiles WHERE id = $1',
-      [req.user.id]
-    );
-
-    if (!result.rows || result.rows.length === 0) {
-      log.warn(`[experimental][${reqId}] User profile not found: ${req.user.id}`);
-      return res.status(404).json({
-        error: 'Profile not found',
-        message: 'User profile does not exist'
-      });
-    }
-
-    const isEnabled = result.rows[0].interactive_antrag_enabled;
-
-    if (!isEnabled) {
-      log.debug(`[experimental][${reqId}] Interactive antrag beta feature not enabled for user ${req.user.id}`);
-      return res.status(403).json({
-        error: 'Feature not enabled',
-        message: 'Der interaktive Antrag-Modus ist für deinen Account nicht aktiviert. Bitte aktiviere das Feature im Labor-Tab deines Profils.'
-      });
-    }
-
-    log.debug(`[experimental][${reqId}] Interactive antrag beta feature check passed for user ${req.user.id}`);
-    next();
-  } catch (error) {
-    log.error(`[experimental][${reqId}] Error checking beta feature:`, error);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to verify beta feature access'
-    });
-  }
-}
 
 /**
  * POST /antraege/experimental/initiate
@@ -102,8 +43,7 @@ async function requireInteractiveAntragBeta(req, res, next) {
  *
  * Body:
  * {
- *   "thema": "Klimaschutz in der Stadtplanung",
- *   "details": "Wir brauchen mehr Grünflächen und klimafreundliche Baumaterialien",
+ *   "inhalt": "Klimaschutz in der Stadtplanung - Wir brauchen mehr Grünflächen und klimafreundliche Baumaterialien",
  *   "requestType": "antrag" | "kleine_anfrage" | "grosse_anfrage",
  *   "locale": "de-DE" | "de-AT" (optional)
  * }
@@ -130,24 +70,17 @@ async function requireInteractiveAntragBeta(req, res, next) {
  *   }
  * }
  */
-router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, res) => {
+router.post('/initiate', requireAuth, async (req, res) => {
   const reqId = req._reqId || 'UNKNOWN';
 
   try {
     // Validate required fields
-    const { thema, details, requestType } = req.body;
+    const { inhalt, requestType } = req.body;
 
-    if (!thema || typeof thema !== 'string') {
+    if (!inhalt || typeof inhalt !== 'string') {
       return res.status(400).json({
         status: 'error',
-        message: 'Feld "thema" ist erforderlich und muss ein String sein'
-      });
-    }
-
-    if (!details || typeof details !== 'string') {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Feld "details" ist erforderlich und muss ein String sein'
+        message: 'Feld "inhalt" ist erforderlich und muss ein String sein'
       });
     }
 
@@ -177,14 +110,14 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
       });
     }
 
-    log.debug(`[experimental][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType} - "${thema}"`);
+    log.debug(`[experimental][${reqId}][PID:${process.pid}] Initiating for user ${userId}: ${requestType}`);
 
     // Start interactive flow
-    const result = await initiateInteractiveAntrag({
+    const result = await initiateInteractiveGenerator({
       userId,
-      thema,
-      details,
+      inhalt,
       requestType,
+      generatorType: 'antrag',
       locale: req.body.locale || req.user?.locale || 'de-DE',
       aiWorkerPool,
       req
@@ -263,7 +196,7 @@ router.post('/initiate', requireAuth, requireInteractiveAntragBeta, async (req, 
  *   }
  * }
  */
-router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, res) => {
+router.post('/continue', requireAuth, async (req, res) => {
   const reqId = req._reqId || 'UNKNOWN';
 
   try {
@@ -307,7 +240,7 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
     log.debug(`[experimental][${reqId}] Submitted answers:`, Object.keys(answers));
 
     // Continue interactive flow
-    const result = await continueInteractiveAntrag({
+    const result = await continueInteractiveGenerator({
       userId,
       sessionId,
       answers,
@@ -363,7 +296,7 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
  *   "session": {
  *     "sessionId": "exp_1234567890_abc123",
  *     "conversationState": "questions_asked" | "follow_up_asked" | "generating" | "completed" | "error",
- *     "thema": "Klimaschutz in der Stadtplanung",
+ *     "inhalt": "Klimaschutz in der Stadtplanung - Wir brauchen mehr Grünflächen",
  *     "requestType": "antrag",
  *     "questionRound": 1,
  *     "questions": [...],
@@ -373,7 +306,7 @@ router.post('/continue', requireAuth, requireInteractiveAntragBeta, async (req, 
  *   }
  * }
  */
-router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, async (req, res) => {
+router.get('/status/:sessionId', requireAuth, async (req, res) => {
   const reqId = req._reqId || 'UNKNOWN';
 
   try {
@@ -413,7 +346,7 @@ router.get('/status/:sessionId', requireAuth, requireInteractiveAntragBeta, asyn
     const sessionData = {
       sessionId: session.sessionId,
       conversationState: session.conversationState,
-      thema: session.thema,
+      inhalt: session.inhalt,
       requestType: session.requestType,
       questionRound: session.questionRound,
       questions: session.questions,

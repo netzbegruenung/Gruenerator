@@ -1,5 +1,25 @@
 // Centralized provider selection and model override logic (CommonJS)
 
+/**
+ * Check if a model name is compatible with LiteLLM
+ */
+function isLiteLLMCompatibleModel(modelName = '') {
+  const name = String(modelName || '').toLowerCase();
+  // LiteLLM models typically use prefixes like gpt-oss, or are mistral/mixtral variants
+  // Exclude Mistral API models (mistral-medium-latest, magistral-*, etc.)
+  if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
+    return true;
+  }
+  if (name.includes('mixtral') && !name.includes('-latest')) {
+    return true;
+  }
+  // Mistral API models are NOT litellm compatible
+  if (name.includes('mistral-') || name.includes('magistral-')) {
+    return false;
+  }
+  return false;
+}
+
 function shouldAllowMainLlmOverride(options = {}, metadata = {}) {
   if (options.privacyMode === true || metadata.privacyMode === true) return false;
   if (options.disableExternalProviders || metadata.requiresPrivacy) return false;
@@ -77,9 +97,9 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
     useBedrock = false;
-  } else if (type === 'antrag_question_generation') {
+  } else if (type === 'antrag_question_generation' || type === 'antrag_qa_summary') {
     provider = 'mistral';
-    model = options.model || 'magistral-medium-latest';
+    model = options.model || 'mistral-small-latest';
     useBedrock = false;
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
     provider = 'bedrock';
@@ -90,6 +110,11 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   // Respect explicit provider at top-level if present (routes may set data.provider)
   if (options.explicitProvider) {
     provider = options.explicitProvider;
+    // When explicitly using litellm, ensure model is litellm-compatible
+    if (provider === 'litellm' && !isLiteLLMCompatibleModel(model)) {
+      // Use explicitly provided litellm model or default
+      model = isLiteLLMCompatibleModel(options.model) ? options.model : 'gpt-oss:120b';
+    }
   }
 
   // MAIN_LLM override
