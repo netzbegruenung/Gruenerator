@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import Icon from './Icon';
+import { createFilterOption, findMatches, PLATFORM_ALIASES } from '../../utils/autocompleteUtils';
 
 /**
  * PlatformSelector - Flexible selection component using react-select
@@ -32,6 +33,11 @@ const PlatformSelector = ({
   enableSubtitles = false,
   iconType = 'component', // 'component' | 'react-icon' | 'function'
   isSearchable = true,
+  // Auto-select props
+  enableAutoSelect = false,
+  aliasMap = PLATFORM_ALIASES,
+  autoSelectDelay = 500,
+  onAutoSelect,
   ...rest
 }) => {
   // Determine options source (backward compatibility)
@@ -73,6 +79,89 @@ const PlatformSelector = ({
   // State to track if menu is open (for preventing Enter key form submission)
   const [menuIsOpen, setMenuIsOpen] = useState(false);
 
+  // Auto-select state
+  const [pendingAutoSelect, setPendingAutoSelect] = useState(null);
+  const autoSelectTimeoutRef = useRef(null);
+  const selectRefInternal = useRef(null);
+
+  // Custom filter option with alias support
+  const filterOption = useMemo(() =>
+    enableAutoSelect ? createFilterOption(aliasMap) : undefined,
+    [enableAutoSelect, aliasMap]
+  );
+
+  // Cleanup auto-select timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSelectTimeoutRef.current) {
+        clearTimeout(autoSelectTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle input change for auto-select
+  const handleAutoSelectInputChange = useCallback((newValue, actionMeta, currentValues, onChangeCallback) => {
+    if (!enableAutoSelect || actionMeta.action !== 'input-change') return;
+
+    if (autoSelectTimeoutRef.current) {
+      clearTimeout(autoSelectTimeoutRef.current);
+    }
+
+    if (!newValue || newValue.length < 2) {
+      setPendingAutoSelect(null);
+      return;
+    }
+
+    const optionsForMatching = selectOptions.map(opt => ({ value: opt.value, label: opt.label }));
+    const { bestMatch, isUniqueMatch } = findMatches(newValue, optionsForMatching, { aliases: aliasMap });
+
+    if (isUniqueMatch && bestMatch) {
+      const alreadySelected = isMulti
+        ? (currentValues || []).includes(bestMatch.value)
+        : currentValues === bestMatch.value;
+
+      if (!alreadySelected) {
+        setPendingAutoSelect(bestMatch.value);
+
+        autoSelectTimeoutRef.current = setTimeout(() => {
+          if (isMulti) {
+            const newValues = [...(currentValues || []), bestMatch.value];
+            onChangeCallback(newValues);
+          } else {
+            onChangeCallback(bestMatch.value);
+          }
+
+          onAutoSelect?.(bestMatch);
+          setPendingAutoSelect(null);
+
+          if (selectRefInternal.current?.clearValue) {
+            selectRefInternal.current.inputRef?.blur();
+          }
+        }, autoSelectDelay);
+      } else {
+        setPendingAutoSelect(null);
+      }
+    } else {
+      setPendingAutoSelect(null);
+    }
+  }, [enableAutoSelect, selectOptions, aliasMap, autoSelectDelay, isMulti, onAutoSelect]);
+
+  // Custom styles to highlight pending auto-select option
+  const autoSelectStyles = useMemo(() => {
+    if (!enableAutoSelect || !pendingAutoSelect) return {};
+
+    return {
+      option: (provided, state) => ({
+        ...provided,
+        ...(state.data.value === pendingAutoSelect ? {
+          backgroundColor: 'var(--klee-light, rgba(0, 128, 0, 0.15))',
+          borderLeft: '3px solid var(--klee, #46962b)',
+          transition: 'background-color 0.2s ease, border-left 0.2s ease'
+        } : {})
+      })
+    };
+  }, [enableAutoSelect, pendingAutoSelect]);
+
   // Handle Enter key - prevent form submission when menu is open but no options available
   const handleKeyDown = (event) => {
     if (event.key === 'Enter') {
@@ -100,7 +189,10 @@ const PlatformSelector = ({
     return (
       <div className={`platform-selector ${className}`.trim()}>
         <EnhancedSelect
-          ref={selectRef}
+          ref={(ref) => {
+            selectRef.current = ref;
+            selectRefInternal.current = ref;
+          }}
           inputId={`${name}-select`}
           label={label}
           required={required}
@@ -121,10 +213,13 @@ const PlatformSelector = ({
                 const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
                 onChange(values);
               } else {
-                const value = selectedOptions ? selectedOptions.value : null;
-                onChange(value);
+                const changedValue = selectedOptions ? selectedOptions.value : null;
+                onChange(changedValue);
               }
             }
+          }}
+          onInputChange={(newValue, actionMeta) => {
+            handleAutoSelectInputChange(newValue, actionMeta, value, onChange);
           }}
           onMenuOpen={() => setMenuIsOpen(true)}
           onMenuClose={() => setMenuIsOpen(false)}
@@ -145,6 +240,8 @@ const PlatformSelector = ({
           noOptionsMessage={() => 'Keine Optionen verfügbar'}
           menuPortalTarget={document.body}
           menuPosition="fixed"
+          filterOption={filterOption}
+          styles={autoSelectStyles}
           {...rest}
         />
       </div>
@@ -157,15 +254,15 @@ const PlatformSelector = ({
       name={name}
       control={control}
       rules={{
-        required: required ? (isMulti ? 'Bitte wählen Sie mindestens eine Option' : 'Bitte wählen Sie eine Option') : false,
+        required: required ? (isMulti ? 'Format wählen' : 'Bitte wählen') : false,
         validate: required ? (value) => {
           if (isMulti) {
             if (!value || (Array.isArray(value) && value.length === 0)) {
-              return 'Bitte wählen Sie mindestens eine Option';
+              return 'Format wählen';
             }
           } else {
             if (!value) {
-              return 'Bitte wählen Sie eine Option';
+              return 'Bitte wählen';
             }
           }
           return true;
@@ -177,6 +274,9 @@ const PlatformSelector = ({
         <div className={`platform-selector ${className}`.trim()}>
           <EnhancedSelect
             {...field}
+            ref={(ref) => {
+              selectRefInternal.current = ref;
+            }}
             inputId={`${name}-select`}
             label={label}
             required={required}
@@ -201,9 +301,12 @@ const PlatformSelector = ({
                 const values = selectedOptions ? selectedOptions.map(option => option.value) : [];
                 field.onChange(values);
               } else {
-                const value = selectedOptions ? selectedOptions.value : null;
-                field.onChange(value);
+                const changedValue = selectedOptions ? selectedOptions.value : null;
+                field.onChange(changedValue);
               }
+            }}
+            onInputChange={(newValue, actionMeta) => {
+              handleAutoSelectInputChange(newValue, actionMeta, field.value, field.onChange);
             }}
             onBlur={field.onBlur}
             onMenuOpen={() => setMenuIsOpen(true)}
@@ -225,6 +328,8 @@ const PlatformSelector = ({
             noOptionsMessage={() => 'Keine Optionen verfügbar'}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            filterOption={filterOption}
+            styles={autoSelectStyles}
             {...rest}
           />
         </div>
@@ -235,7 +340,7 @@ const PlatformSelector = ({
 
 PlatformSelector.propTypes = {
   name: PropTypes.string,
-  control: PropTypes.object, // Optional now
+  control: PropTypes.object,
   platformOptions: PropTypes.arrayOf(
     PropTypes.shape({
       id: PropTypes.string.isRequired,
@@ -266,7 +371,11 @@ PlatformSelector.propTypes = {
   enableIcons: PropTypes.bool,
   enableSubtitles: PropTypes.bool,
   iconType: PropTypes.oneOf(['component', 'react-icon', 'function']),
-  isSearchable: PropTypes.bool
+  isSearchable: PropTypes.bool,
+  enableAutoSelect: PropTypes.bool,
+  aliasMap: PropTypes.object,
+  autoSelectDelay: PropTypes.number,
+  onAutoSelect: PropTypes.func
 };
 
 export default PlatformSelector;

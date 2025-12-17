@@ -11,7 +11,9 @@ const HelpDisplay = ({
   isNewFeature,
   featureId,
   fallbackContent,
-  fallbackTips
+  fallbackTips,
+  layout = 'default',
+  features = null
 }) => {
   const { generatedText } = useGeneratedTextStore();
 
@@ -37,6 +39,32 @@ const HelpDisplay = ({
 
   if (!displayContent || isHidden) {
     return null;
+  }
+
+  // Cards layout for start mode (ChatStartPage-like feature cards)
+  if (layout === 'cards') {
+    const featureItems = features || displayTips?.map((tip, idx) => ({
+      title: `Tipp ${idx + 1}`,
+      description: typeof tip === 'string' ? tip : ''
+    })) || [];
+
+    return (
+      <div className="help-display help-display--cards">
+        {displayContent && (
+          <p className="help-display__cards-intro">{displayContent}</p>
+        )}
+        {featureItems.length > 0 && (
+          <div className="help-display__cards-grid">
+            {featureItems.map((feature, index) => (
+              <div key={index} className="help-display__card">
+                <h3 className="help-display__card-title">{feature.title}</h3>
+                <p className="help-display__card-description">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -122,7 +150,12 @@ HelpDisplay.propTypes = {
   isNewFeature: PropTypes.bool,
   featureId: PropTypes.string,
   fallbackContent: PropTypes.string,
-  fallbackTips: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.node]))
+  fallbackTips: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.node])),
+  layout: PropTypes.oneOf(['default', 'cards']),
+  features: PropTypes.arrayOf(PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired
+  }))
 };
 
 HelpDisplay.defaultProps = {
@@ -132,7 +165,9 @@ HelpDisplay.defaultProps = {
   isNewFeature: false,
   featureId: null,
   fallbackContent: null,
-  fallbackTips: null
+  fallbackTips: null,
+  layout: 'default',
+  features: null
 };
 
 export default HelpDisplay;

@@ -111,7 +111,6 @@ export const useChatStore = create((set, get) => ({
   multiResults: persistedState?.multiResults || [],
   lastMultiRunId: persistedState?.lastMultiRunId || null,
   activeResultId: persistedState?.activeResultId || null,
-  activeResultId: persistedState?.activeResultId || null,
 
   // UI state
   isLoading: false,
@@ -200,6 +199,7 @@ export const useChatStore = create((set, get) => ({
 
   /**
    * Replace multi-result deck content
+   * Stores content in generatedTextStore only, multiResults holds references
    * @param {Array} results - Array of processed intent responses
    * @param {Object} options - Additional options (runId)
    */
@@ -216,6 +216,7 @@ export const useChatStore = create((set, get) => ({
             ...(result.content?.sharepicMeta ? { sharepicMeta: result.content.sharepicMeta } : {})
           };
 
+          // Store content ONLY in generatedTextStore (single source of truth)
           const storePayload = result.content?.sharepic
             ? {
                 content: result.content?.text,
@@ -237,12 +238,12 @@ export const useChatStore = create((set, get) => ({
             textStore.setGeneratedText(`${componentId}_text`, textValue, metadata);
           }
 
+          // Return reference only (no content duplication)
           return {
             id: result.id || `${componentId}`,
             componentId,
             agent: result.agent,
             confidence: result.confidence,
-            content: result.content,
             metadata: result.metadata || result.content?.metadata || {},
             suggestions: result.suggestions || [],
             title: result.title,
@@ -278,7 +279,8 @@ export const useChatStore = create((set, get) => ({
   },
 
   /**
-   * Update content of a multi-result card and keep generated text store in sync
+   * Update content of a multi-result card in generatedTextStore
+   * Content is stored ONLY in generatedTextStore (single source of truth)
    * @param {string} componentId
    * @param {function|any} updater - Function receiving current content or direct replacement
    */
@@ -286,25 +288,17 @@ export const useChatStore = create((set, get) => ({
     if (!componentId) return;
 
     const state = get();
-    const index = state.multiResults.findIndex(result => result.componentId === componentId);
-    if (index === -1) {
+    const target = state.multiResults.find(result => result.componentId === componentId);
+    if (!target) {
       return;
     }
 
-    const target = state.multiResults[index];
-    const nextContent = typeof updater === 'function' ? updater(target.content) : updater;
-
-    const updatedResult = {
-      ...target,
-      content: nextContent
-    };
-
-    const updatedResults = [...state.multiResults];
-    updatedResults[index] = updatedResult;
-
     const textStore = useGeneratedTextStore.getState();
+    const currentContent = textStore.generatedTexts?.[componentId];
+    const nextContent = typeof updater === 'function' ? updater(currentContent) : updater;
+
     const metadata = {
-      agent: updatedResult.agent,
+      agent: target.agent,
       ...(nextContent?.metadata || {}),
       ...(nextContent?.sharepicMeta ? { sharepicMeta: nextContent.sharepicMeta } : {})
     };
@@ -321,8 +315,6 @@ export const useChatStore = create((set, get) => ({
       }
       textStore.setGeneratedText(`${componentId}_text`, textOnlyValue, metadata);
     }
-
-    set({ multiResults: updatedResults });
   },
 
   /**
@@ -472,6 +464,7 @@ export const useChatStore = create((set, get) => ({
 
   /**
    * Handle multiple agent responses in a single request
+   * Stores content in generatedTextStore only, multiResults holds references
    * @param {Array} responses - Parsed responses per intent
    */
   handleMultiAgentResponses: (responses = []) => {
@@ -488,6 +481,7 @@ export const useChatStore = create((set, get) => ({
       state.multiResults.forEach(result => {
         if (result?.componentId) {
           textStore.clearGeneratedText(result.componentId);
+          textStore.clearGeneratedText(`${result.componentId}_text`);
         }
       });
     }
@@ -503,6 +497,7 @@ export const useChatStore = create((set, get) => ({
         ...(response.content?.sharepicMeta ? { sharepicMeta: response.content.sharepicMeta } : {})
       };
 
+      // Store content ONLY in generatedTextStore (single source of truth)
       const storePayload = response.content?.sharepic
         ? {
             content: response.content?.text,
@@ -519,12 +514,17 @@ export const useChatStore = create((set, get) => ({
         textStore.setGeneratedText(componentId, storePayload, metadata);
       }
 
+      const textValue = resolveContentText(response.content);
+      if (textValue) {
+        textStore.setGeneratedText(`${componentId}_text`, textValue, metadata);
+      }
+
+      // Return reference only (no content duplication)
       return {
         id: response.id || `${componentId}`,
         componentId,
         agent: response.agent,
         confidence: response.confidence,
-        content: response.content,
         metadata: response.metadata || response.content?.metadata || {},
         suggestions: response.suggestions || [],
         error: response.error,
@@ -545,22 +545,33 @@ export const useChatStore = create((set, get) => ({
 }));
 
 // Subscribe to changes and persist them to localStorage
-useChatStore.subscribe(
-  (state) => {
-    // Only persist if there are messages to avoid overwriting with empty state
-    if (state.messages.length > 0) {
+// Use reference tracking to avoid unnecessary persistence
+let lastPersistedRefs = {
+  messages: null,
+  context: null,
+  currentAgent: null,
+  multiResults: null
+};
+
+useChatStore.subscribe((state) => {
+  // Only persist if messages exist and relevant state has actually changed
+  if (state.messages.length > 0) {
+    const hasChanged =
+      lastPersistedRefs.messages !== state.messages ||
+      lastPersistedRefs.context !== state.context ||
+      lastPersistedRefs.currentAgent !== state.currentAgent ||
+      lastPersistedRefs.multiResults !== state.multiResults;
+
+    if (hasChanged) {
+      lastPersistedRefs = {
+        messages: state.messages,
+        context: state.context,
+        currentAgent: state.currentAgent,
+        multiResults: state.multiResults
+      };
       persistChatState(state);
     }
-  },
-  (state) => ({
-    messages: state.messages,
-    context: state.context,
-    currentAgent: state.currentAgent,
-    metadata: state.metadata,
-    multiResults: state.multiResults,
-    lastMultiRunId: state.lastMultiRunId,
-    activeResultId: state.activeResultId,
-  })
-);
+  }
+});
 
 export default useChatStore;
