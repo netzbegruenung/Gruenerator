@@ -223,15 +223,15 @@ body {
 
 [data-theme="dark"] .gradient-title {
     background: none;
-    -webkit-text-fill-color: var(--secondary);
-    color: var(--secondary);
+    -webkit-text-fill-color: var(--white);
+    color: var(--white);
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) .gradient-title {
         background: none;
-        -webkit-text-fill-color: var(--secondary);
-        color: var(--secondary);
+        -webkit-text-fill-color: var(--white);
+        color: var(--white);
     }
 }
 
