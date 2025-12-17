@@ -117,32 +117,36 @@ const FormExtrasSection = ({
 
         {isStartMode ? (
           <>
-            {/* Start Mode: Left - FeatureIcons (hidden when not logged in) */}
-            {useFeatureIcons && (
+            {/* Start Mode: Row with Platform selector (left) and FeatureIcons (right) */}
+            <div className="form-extras__row">
               <div className="form-extras__left">
-                <FeatureIcons
-                  onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
-                  onAttachmentClick={onAttachmentClick}
-                  onRemoveFile={onRemoveFile}
-                  onAnweisungenClick={handleAnweisungenClick}
-                  onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
-                  anweisungenActive={anweisungenActive}
-                  interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
-                  attachedFiles={finalAttachedFiles}
-                  className="form-extras__feature-icons"
-                  tabIndex={featureIconsTabIndex}
-                  onPrivacyInfoClick={onPrivacyInfoClick}
-                  onWebSearchInfoClick={onWebSearchInfoClick}
-                  noBorder={true}
-                  hideLoginPrompt={true}
-                />
+                {firstExtrasChildren}
               </div>
-            )}
+              {useFeatureIcons && (
+                <div className="form-extras__right">
+                  <FeatureIcons
+                    onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
+                    onAttachmentClick={onAttachmentClick}
+                    onRemoveFile={onRemoveFile}
+                    onAnweisungenClick={handleAnweisungenClick}
+                    onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
+                    anweisungenActive={anweisungenActive}
+                    interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
+                    attachedFiles={finalAttachedFiles}
+                    className="form-extras__feature-icons"
+                    tabIndex={featureIconsTabIndex}
+                    onPrivacyInfoClick={onPrivacyInfoClick}
+                    onWebSearchInfoClick={onWebSearchInfoClick}
+                    noBorder={true}
+                    hideLoginPrompt={true}
+                  />
+                </div>
+              )}
+            </div>
 
-            {/* Start Mode: Right - Platform selector + Submit */}
-            <div className="form-extras__right">
-              {firstExtrasChildren}
-              {showSubmitButton && (
+            {/* Start Mode: Submit button on its own row */}
+            {showSubmitButton && (
+              <div className="form-extras__submit">
                 <SubmitButton
                   onClick={onSubmit}
                   loading={loading}
@@ -154,8 +158,8 @@ const FormExtrasSection = ({
                   tabIndex={submitButtonTabIndex}
                   {...submitButtonProps}
                 />
-              )}
-            </div>
+              </div>
+            )}
           </>
         ) : (
           <>
