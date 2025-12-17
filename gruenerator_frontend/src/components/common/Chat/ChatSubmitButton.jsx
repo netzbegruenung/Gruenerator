@@ -36,7 +36,7 @@ const ChatSubmitButton = ({
   return (
     <button
       type={hasText ? "submit" : "button"}
-      onClick={!hasText ? handleClick : undefined}
+      onClick={handleClick}
       disabled={disabled || isVoiceProcessing}
       className={`${className} ${isVoiceRecording ? 'voice-recording' : ''}`.trim()}
     >

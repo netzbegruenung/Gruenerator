@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import ChatUI from '../../Chat/ChatUI';
@@ -13,9 +13,8 @@ import { useProfile } from '../../../../features/auth/hooks/useProfileData';
 import useHeaderStore from '../../../../stores/headerStore';
 import useResponsive from '../hooks/useResponsive';
 import ActionButtons from '../../ActionButtons';
+import ReactMarkdown from 'react-markdown';
 import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const UniversalEditForm = ({ componentName }) => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
@@ -141,11 +140,9 @@ const UniversalEditForm = ({ componentName }) => {
           />
           <div className="edit-result-content">
             <div className="edit-result-text">
-              <Suspense fallback={<span>{msg.content}</span>}>
-                <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-                  {msg.content}
-                </ReactMarkdown>
-              </Suspense>
+              <ReactMarkdown components={MARKDOWN_COMPONENTS}>
+                {msg.content}
+              </ReactMarkdown>
             </div>
           </div>
         </motion.div>
@@ -160,11 +157,9 @@ const UniversalEditForm = ({ componentName }) => {
         {...MESSAGE_MOTION_PROPS}
       >
         <div className="chat-message-content">
-          <Suspense fallback={<span>{msg.content}</span>}>
-            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-              {msg.content}
-            </ReactMarkdown>
-          </Suspense>
+          <ReactMarkdown components={MARKDOWN_COMPONENTS}>
+            {msg.content}
+          </ReactMarkdown>
         </div>
       </motion.div>
     );
