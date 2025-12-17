@@ -26,8 +26,16 @@ const UniversalEditForm = ({ componentName }) => {
   const displayName = profile?.display_name || '';
   const setForceShrunk = useHeaderStore((state) => state.setForceShrunk);
 
-  // Mobile detection
+  // Mobile detection with stabilization to prevent flicker during keyboard events
   const { isMobileView } = useResponsive(768);
+  const [stableIsMobileView, setStableIsMobileView] = useState(isMobileView);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setStableIsMobileView(isMobileView);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [isMobileView]);
 
   useEffect(() => {
     setForceShrunk(true);
@@ -83,7 +91,7 @@ const UniversalEditForm = ({ componentName }) => {
 
   // Mobile messages initialization - show greeting + current text as first edit result
   useEffect(() => {
-    if (isSharepicOnly || !isMobileView) {
+    if (isSharepicOnly || !stableIsMobileView) {
       return;
     }
     if (!mobileInitializedRef.current) {
@@ -113,7 +121,7 @@ const UniversalEditForm = ({ componentName }) => {
       setMobileMessages(initialMobileMessages);
       mobileInitializedRef.current = true;
     }
-  }, [isMobileView, isSharepicOnly, displayName, storeContent]);
+  }, [stableIsMobileView, isSharepicOnly, displayName, storeContent]);
 
   // Custom message renderer for mobile - shows full text for edit results
   const renderMobileEditMessage = useCallback((msg, index) => {
@@ -171,7 +179,7 @@ const UniversalEditForm = ({ componentName }) => {
 
     const userMsg = { type: 'user', content: trimmed, timestamp: Date.now() };
     // Add user message to appropriate message list
-    if (isMobileView) {
+    if (stableIsMobileView) {
       setMobileMessages(prev => [...prev, userMsg]);
     } else {
       setMessages(prev => [...prev, userMsg]);
@@ -181,7 +189,7 @@ const UniversalEditForm = ({ componentName }) => {
     const currentText = getEditableText();
     if (!currentText) {
       const errorMsg = { type: 'error', content: 'Kein Text vorhanden, den ich verbessern kann.', timestamp: Date.now() };
-      if (isMobileView) {
+      if (stableIsMobileView) {
         setMobileMessages(prev => [...prev, errorMsg]);
       } else {
         setMessages(prev => [...prev, errorMsg]);
@@ -229,7 +237,7 @@ const UniversalEditForm = ({ componentName }) => {
 
       if (!Array.isArray(changes) || changes.length === 0) {
         const noChangesMsg = { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() };
-        if (isMobileView) {
+        if (stableIsMobileView) {
           setMobileMessages(prev => [...prev, noChangesMsg]);
         } else {
           setMessages(prev => [...prev, noChangesMsg]);
@@ -243,14 +251,14 @@ const UniversalEditForm = ({ componentName }) => {
             content: 'Die Änderungen konnten nicht angewendet werden. Der Text wurde möglicherweise bereits verändert. Bitte versuche es erneut oder formuliere die Änderung anders.',
             timestamp: Date.now()
           };
-          if (isMobileView) {
+          if (stableIsMobileView) {
             setMobileMessages(prev => [...prev, errorMsg]);
           } else {
             setMessages(prev => [...prev, errorMsg]);
           }
         } else if (result.appliedCount < result.totalCount) {
           // Partial success - on mobile, show the updated text anyway
-          if (isMobileView) {
+          if (stableIsMobileView) {
             const updatedText = getEditableText();
             setMobileMessages(prev => [...prev, {
               type: 'assistant',
@@ -303,7 +311,7 @@ const UniversalEditForm = ({ componentName }) => {
           }
 
           // Mobile: show full updated text, Desktop: show summary
-          if (isMobileView) {
+          if (stableIsMobileView) {
             const updatedText = getEditableText();
             const editSummary = `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet`;
             setMobileMessages(prev => [...prev, {
@@ -321,7 +329,7 @@ const UniversalEditForm = ({ componentName }) => {
     } catch (e) {
       const errText = e?.response?.data?.error || e.message || 'Fehler bei der Verarbeitung';
       const errorMsg = { type: 'error', content: errText, timestamp: Date.now() };
-      if (isMobileView) {
+      if (stableIsMobileView) {
         setMobileMessages(prev => [...prev, errorMsg]);
       } else {
         setMessages(prev => [...prev, errorMsg]);
@@ -329,14 +337,14 @@ const UniversalEditForm = ({ componentName }) => {
     } finally {
       setIsProcessing(false);
     }
-  }, [getEditableText, applyEdits, hasEditableText, isSharepicOnly, isMobileView]);
+  }, [getEditableText, applyEdits, hasEditableText, isSharepicOnly, stableIsMobileView]);
 
   if (isSharepicOnly) {
     return null;
   }
 
   // Mobile: full chat takeover with ChatWorkbenchLayout
-  if (isMobileView) {
+  if (stableIsMobileView) {
     return (
       <div className="universal-edit-form mobile-chat">
         <ChatWorkbenchLayout
