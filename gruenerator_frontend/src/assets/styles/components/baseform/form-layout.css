@@ -1,8 +1,11 @@
 /* FormCard Base Styles */
 .form-card {
-  background-color: var(--card-background);
-  border: var(--card-border);
+  background-color: var(--card-background, var(--background-color-alt));
+  border: 1px solid var(--card-border, var(--border-subtle));
   border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-large);
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition, all 0.25s ease-out);
   overflow: hidden;
 }
 
@@ -250,8 +253,16 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .form-card {
+    border: none;
+    box-shadow: none;
+    padding-top: 0;
+    border-radius: 0;
+  }
+
   .form-card--large {
     padding: var(--spacing-medium);
+    padding-top: 0;
   }
   
   .form-section {

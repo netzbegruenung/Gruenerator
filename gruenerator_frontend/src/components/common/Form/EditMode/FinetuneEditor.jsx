@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useCallback, useRef, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   MDXEditor,
@@ -46,11 +46,19 @@ const FinetuneEditor = ({ componentName, readOnly = false }) => {
   const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
   const editorRef = useRef(null);
   const lastSavedContent = useRef('');
   const debounceTimer = useRef(null);
   const isInitialized = useRef(false);
   const isExternalUpdate = useRef(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const initialContent = useMemo(() => {
     const text = extractEditableText(storeContent) || '';
@@ -119,13 +127,13 @@ const FinetuneEditor = ({ componentName, readOnly = false }) => {
     toolbarPlugin({
       toolbarContents: () => (
         <>
-          <BlockTypeSelect />
+          {!isMobile && <BlockTypeSelect />}
           <BoldItalicUnderlineToggles />
           <ListsToggle />
         </>
       )
     })
-  ], []);
+  ], [isMobile]);
 
   return (
     <div className="finetune-editor" data-readonly={readOnly}>

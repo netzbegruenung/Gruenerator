@@ -117,6 +117,10 @@
         margin: 0;
     }
 
+    .display-container {
+        padding: var(--spacing-medium);
+        box-shadow: none;
+    }
 
     .display-header h3 /* , .form-container h3 */ {
         padding-left: 0;

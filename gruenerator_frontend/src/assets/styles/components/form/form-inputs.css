@@ -236,15 +236,6 @@
   font-weight: bold;
 }
 
-/* ===== Card-based Form Container ===== */
-.form-card {
-  background-color: var(--card-background, var(--background-color-alt));
-  border: 1px solid var(--card-border, var(--border-subtle));
-  border-radius: var(--spacing-small);
-  padding: var(--spacing-large);
-  box-shadow: var(--shadow-sm);
-  transition: var(--input-transition, all 0.25s ease-out);
-}
 
 /* ===== Skip Link Styles ===== */
 .skip-link {
