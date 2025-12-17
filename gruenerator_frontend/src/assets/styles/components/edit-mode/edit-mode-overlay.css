@@ -307,27 +307,13 @@ body:has(.base-container.edit-mode-active) .container.with-header {
    Mobile Edit Chat - Full Takeover Styles
    ======================================== */
 
-/* Mobile chat container - full screen takeover */
+/* Mobile chat container - simple wrapper, ChatWorkbenchLayout handles layout */
 .universal-edit-form.mobile-chat {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 60px);
+  min-height: calc(100dvh - 60px);
   background: var(--background-color);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Ensure ChatWorkbenchLayout fills the container */
-.universal-edit-form.mobile-chat .qa-chat-container {
-  height: 100%;
-  flex: 1;
-}
-
-.universal-edit-form.mobile-chat .qa-chat-main {
-  height: 100%;
 }
 
 /* Edit result message styling */
@@ -394,10 +380,6 @@ body:has(.base-container.edit-mode-active) .container.with-header {
 
 /* Mobile-specific adjustments for edit chat */
 @media (max-width: 768px) {
-  .universal-edit-form.mobile-chat {
-    top: 60px;
-  }
-
   .edit-result-message {
     margin: var(--spacing-xxsmall);
   }
@@ -411,12 +393,6 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   .chat-message.edit-result-message > .edit-message-actions button {
     font-size: var(--font-size-small);
     padding: var(--spacing-xxsmall) var(--spacing-xsmall);
-  }
-
-  /* Ensure input stays above keyboard */
-  .universal-edit-form.mobile-chat .floating-input,
-  .universal-edit-form.mobile-chat .chat-input-area-fullscreen {
-    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
 
