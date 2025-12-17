@@ -1,13 +1,30 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { HiChip } from 'react-icons/hi';
 import ActionButtons from '../../../components/common/ActionButtons';
 import ImageDisplay from '../../../components/common/ImageDisplay';
+import { AssistantIcon } from '../../../config/icons';
+import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useProfile } from '../../../features/auth/hooks/useProfileData';
+import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import '../../../assets/styles/components/chat/gruenerator-message.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, activeResultId }) => {
+  const { user } = useOptimizedAuth();
+  const { data: profile } = useProfile(user?.id);
+
+  const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  const displayName = profile?.display_name || '';
+
+  const userAvatarProps = useMemo(() => {
+    return getAvatarDisplayProps({
+      avatar_robot_id: avatarRobotId,
+      display_name: displayName,
+      email: user?.email
+    });
+  }, [avatarRobotId, displayName, user?.email]);
+
   const hasResultData = msg.type === 'assistant' && msg.resultData;
   const isActive = hasResultData && msg.resultData?.componentId === activeResultId;
 
@@ -23,7 +40,19 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
       {msg.type === 'user' && msg.userName && (
         <div className="chat-message-user-name">{msg.userName}</div>
       )}
-      {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
+      {msg.type === 'assistant' && (
+        userAvatarProps.type === 'robot' ? (
+          <div className="assistant-icon-wrapper">
+            <img
+              src={userAvatarProps.src}
+              alt={userAvatarProps.alt}
+              className="assistant-icon assistant-robot-image"
+            />
+          </div>
+        ) : (
+          <AssistantIcon className="assistant-icon" />
+        )
+      )}
 
       {hasResultData ? (
         <div className="gruenerator-result-content">
