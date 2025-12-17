@@ -303,4 +303,121 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   min-height: 0;
 }
 
+/* ========================================
+   Mobile Edit Chat - Full Takeover Styles
+   ======================================== */
+
+/* Mobile chat container - full screen takeover */
+.universal-edit-form.mobile-chat {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--background-color);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure ChatWorkbenchLayout fills the container */
+.universal-edit-form.mobile-chat .qa-chat-container {
+  height: 100%;
+  flex: 1;
+}
+
+.universal-edit-form.mobile-chat .qa-chat-main {
+  height: 100%;
+}
+
+/* Edit result message styling */
+.chat-message.edit-result-message {
+  max-width: 95%;
+  background: var(--chat-assistant-background, var(--background-color-subtle));
+  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-medium);
+  position: relative;
+}
+
+.edit-result-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  padding-top: var(--spacing-large);
+}
+
+.edit-result-summary {
+  font-size: 0.85rem;
+  color: var(--klee);
+  font-weight: 500;
+  padding-bottom: var(--spacing-xsmall);
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  margin-bottom: var(--spacing-xsmall);
+}
+
+[data-theme="dark"] .edit-result-summary {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.edit-result-text {
+  font-size: var(--font-size-md, 1rem);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar styling for edit result text */
+.edit-result-text::-webkit-scrollbar {
+  width: 4px;
+}
+
+.edit-result-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.edit-result-text::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+/* ActionButtons - positioned top-right like gruenerator-message-actions */
+.chat-message.edit-result-message > .edit-message-actions {
+  position: absolute;
+  top: var(--spacing-small);
+  right: var(--spacing-small);
+  display: flex;
+  gap: var(--spacing-xxsmall);
+  z-index: 10;
+}
+
+/* Mobile-specific adjustments for edit chat */
+@media (max-width: 768px) {
+  .universal-edit-form.mobile-chat {
+    top: 60px;
+  }
+
+  .edit-result-message {
+    margin: var(--spacing-xxsmall);
+  }
+
+  .edit-result-text {
+    font-size: 0.95rem;
+    max-height: 50vh;
+  }
+
+  /* Mobile button sizing for edit actions */
+  .chat-message.edit-result-message > .edit-message-actions button {
+    font-size: var(--font-size-small);
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  }
+
+  /* Ensure input stays above keyboard */
+  .universal-edit-form.mobile-chat .floating-input,
+  .universal-edit-form.mobile-chat .chat-input-area-fullscreen {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
 
