@@ -78,6 +78,9 @@
   margin-bottom: var(--spacing-small);
   color: var(--font-color);
   line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .question-number {
@@ -178,6 +181,9 @@
   display: block;
   font-size: 0.9rem;
   line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 /* Multi-select checkbox indicator */
@@ -264,14 +270,14 @@
   font-style: italic;
 }
 
-/* Close button for custom input */
+/* Close button for custom input - 44px minimum for touch targets */
 .custom-input-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
 
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
 
   background: transparent;
   border: none;
@@ -384,6 +390,11 @@
     padding: var(--spacing-medium);
   }
 
+  /* Larger progress bar for better visibility on mobile */
+  .quiz-progress-bar-container {
+    height: 10px;
+  }
+
   .question-item {
     margin-bottom: var(--spacing-medium);
   }
@@ -417,16 +428,17 @@
   .quiz-option-custom-textarea {
     min-height: 60px;
     padding: var(--spacing-small);
-    padding-right: 40px;
-    font-size: 0.9rem;
+    padding-right: 52px; /* Space for 44px close button */
+    font-size: 16px; /* Prevents iOS auto-zoom on focus */
   }
 
   .custom-input-close {
-    width: 28px;
-    height: 28px;
+    /* Keep 44px minimum touch target on mobile */
+    width: 44px;
+    height: 44px;
     font-size: 1.3rem;
-    top: 6px;
-    right: 6px;
+    top: 4px;
+    right: 4px;
   }
 
   .question-textarea {
@@ -442,8 +454,11 @@
     gap: var(--spacing-small);
   }
 
+  .quiz-navigation button,
   .quiz-navigation .btn-primary {
     width: 100%;
+    min-height: 48px; /* Comfortable touch target */
+    font-size: 16px; /* Prevents iOS auto-zoom */
   }
 
   .quiz-completion-hint {
@@ -468,6 +483,14 @@
 
   .option-emoji {
     font-size: 1.3rem;
+  }
+
+  /* Stack clarification badge below question text on very small screens */
+  .question-clarification-badge {
+    display: block;
+    margin-left: 0;
+    margin-top: var(--spacing-xxsmall);
+    width: fit-content;
   }
 }
 

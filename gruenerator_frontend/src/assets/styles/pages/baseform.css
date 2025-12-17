@@ -7,7 +7,32 @@
     position: relative;
     align-items: stretch;
     box-sizing: border-box;
-    transition: all 0.3s ease-in-out;
+    transition: all 0.4s ease-out;
+}
+
+/* Start Mode: ChatGPT-like centered layout before generation */
+.base-container--start-mode {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 8vh;
+    gap: var(--spacing-xlarge);
+    max-width: 100%;
+    margin: 0;
+}
+
+.base-container--start-mode .form-section-motion-wrapper {
+    max-width: 720px;
+    width: 100%;
+    flex: none;
+    transition: all 0.4s ease-out;
+}
+
+.base-container--start-mode .display-section-motion-wrapper {
+    max-width: 800px;
+    width: 100%;
+    flex: none;
+    transition: all 0.4s ease-out;
 }
 
 /* FormSection - 2/3 layout with DisplaySection */
@@ -136,6 +161,21 @@
     /* Regular mobile responsive layouts for non-edit mode */
     .base-container:not(.edit-mode-active).has-generated-content {
         flex-direction: column;
+    }
+
+    /* Start mode mobile adjustments */
+    .base-container--start-mode {
+        padding: var(--spacing-medium);
+        padding-top: 4vh;
+        gap: var(--spacing-large);
+    }
+
+    .base-container--start-mode .form-section-motion-wrapper {
+        max-width: 100%;
+    }
+
+    .base-container--start-mode .display-section-motion-wrapper {
+        max-width: 100%;
     }
 }
 

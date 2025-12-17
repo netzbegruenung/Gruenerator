@@ -214,6 +214,7 @@ body {
 
 /* Gradient Title Classes - Reusable gradient text styling */
 .gradient-title {
+    font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
     background: linear-gradient(135deg, var(--primary) 0%, var(--klee) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
