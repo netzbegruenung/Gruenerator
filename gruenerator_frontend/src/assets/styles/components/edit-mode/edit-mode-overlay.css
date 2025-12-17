@@ -38,6 +38,7 @@
   align-items: flex-start;
   justify-content: center;
   overflow-y: auto;
+  overflow-anchor: none;
 }
 
 
@@ -124,8 +125,20 @@
 }
 
   .base-container.edit-mode-active .floating-input input {
-    font-size: 0.9rem;
+    font-size: 16px; /* Prevent iOS zoom on focus */
     padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+    -webkit-appearance: none;
+  }
+
+  /* Ensure floating input accounts for safe area on notched devices */
+  .edit-mode-floating-input,
+  .floating-input {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Better touch scrolling for chat messages */
+  .universal-edit-form.enhanced {
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Ensure chat messages are readable in narrow space */
@@ -272,5 +285,20 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   color: var(--font-color);
 }
 
+/* Finetune loading state */
+.finetune-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--font-color-secondary);
+  font-size: 0.9rem;
+}
+
+/* Ensure finetune editor takes remaining height */
+.universal-edit-form.enhanced .finetune-editor {
+  flex: 1;
+  min-height: 0;
+}
 
 

@@ -7,6 +7,7 @@ import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useProfile } from '../../../../features/auth/hooks/useProfileData';
+import useHeaderStore from '../../../../stores/headerStore';
 
 const UniversalEditForm = ({ componentName }) => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
@@ -15,6 +16,12 @@ const UniversalEditForm = ({ componentName }) => {
   const { user } = useOptimizedAuth();
   const { data: profile } = useProfile(user?.id);
   const displayName = profile?.display_name || '';
+  const setForceShrunk = useHeaderStore((state) => state.setForceShrunk);
+
+  useEffect(() => {
+    setForceShrunk(true);
+    return () => setForceShrunk(false);
+  }, [setForceShrunk]);
 
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -30,10 +37,9 @@ const UniversalEditForm = ({ componentName }) => {
     if (isSharepicOnly) {
       return;
     }
-    // Only initialize once per component
     if (!initializedRef.current) {
       const existingMessages = useGeneratedTextStore.getState().getEditChat(componentName);
-      
+
       if (existingMessages.length > 0) {
         setMessages(existingMessages);
       } else {
@@ -51,7 +57,6 @@ const UniversalEditForm = ({ componentName }) => {
     }
   }, [componentName, isSharepicOnly, displayName]);
 
-  // Save messages to store whenever they change (but skip initial load)
   useEffect(() => {
     if (isSharepicOnly) {
       return;
@@ -68,33 +73,28 @@ const UniversalEditForm = ({ componentName }) => {
     const trimmed = (instruction || '').trim();
     if (!trimmed) return;
 
-    // Add user message
     const userMsg = { type: 'user', content: trimmed, timestamp: Date.now() };
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
 
-    // Get current text
     const currentText = getEditableText();
     if (!currentText) {
       setMessages(prev => [...prev, { type: 'error', content: 'Kein Text vorhanden, den ich verbessern kann.', timestamp: Date.now() }]);
       return;
     }
 
-    // Helper: Frontend fallback parsing for malformed JSON
     const attemptFrontendParsing = (rawData) => {
       if (!rawData?.raw) return null;
 
       try {
-        // Clean markdown and parse
         let cleaned = rawData.raw
-          .replace(/```json\s*|\s*```/g, '')  // Remove code fences
-          .replace(/(\*\*|__|~~)\s*"/g, '"')   // Remove markdown before quotes
-          .replace(/"\s*(\*\*|__|~~)/g, '"')   // Remove markdown after quotes
+          .replace(/```json\s*|\s*```/g, '')
+          .replace(/(\*\*|__|~~)\s*"/g, '"')
+          .replace(/"\s*(\*\*|__|~~)/g, '"')
           .trim();
 
         const parsed = JSON.parse(cleaned);
         if (parsed.changes && Array.isArray(parsed.changes)) {
-          console.log('[UniversalEditForm] Frontend parsing succeeded');
           return parsed;
         }
       } catch (e) {
@@ -111,7 +111,6 @@ const UniversalEditForm = ({ componentName }) => {
         componentName
       });
 
-      // Try frontend parsing if backend indicates it's needed
       let data = response?.data;
       if (data?.needsFrontendParsing) {
         const frontendParsed = attemptFrontendParsing(data);
@@ -125,44 +124,34 @@ const UniversalEditForm = ({ componentName }) => {
       if (!Array.isArray(changes) || changes.length === 0) {
         setMessages(prev => [...prev, { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() }]);
       } else {
-        // Apply edits and get validation result
         const result = applyEdits(changes);
 
-        // Check if edits were actually applied
         if (result.appliedCount === 0) {
-          // Error: No changes applied
           setMessages(prev => [...prev, {
             type: 'error',
             content: 'Die Änderungen konnten nicht angewendet werden. Der Text wurde möglicherweise bereits verändert. Bitte versuche es erneut oder formuliere die Änderung anders.',
             timestamp: Date.now()
           }]);
         } else if (result.appliedCount < result.totalCount) {
-          // Warning: Partial success
           setMessages(prev => [...prev, {
             type: 'assistant',
             content: `⚠️ Nur ${result.appliedCount} von ${result.totalCount} Änderungen konnten angewendet werden. Einige Textpassagen wurden möglicherweise bereits verändert.`,
             timestamp: Date.now()
           }]);
         } else {
-          // Success: All changes applied
-          // Use AI's summary if available, otherwise generate one
           let summary = response?.data?.summary;
 
           if (!summary) {
-            // Check if this is a full replace
             const isFullReplace = changes.length === 1 && changes[0].full_replace === true;
 
             if (isFullReplace) {
               summary = '✅ Text komplett umgeschrieben!';
             } else {
-              // Fallback to smart detection
               const describeChange = (change) => {
-                // Deletion: empty or whitespace-only replacement
                 if (!change.replacement_text || change.replacement_text.trim() === '') {
                   return `🗑️ Entfernt: „${change.text_to_find.substring(0, 60)}${change.text_to_find.length > 60 ? '...' : ''}"`;
                 }
 
-                // Addition: replacement contains original text plus more
                 if (change.replacement_text.includes(change.text_to_find)) {
                   const addedPart = change.replacement_text.replace(change.text_to_find, '').trim();
                   if (addedPart) {
@@ -170,16 +159,13 @@ const UniversalEditForm = ({ componentName }) => {
                   }
                 }
 
-                // Shortening: original contains replacement
                 if (change.text_to_find.includes(change.replacement_text) && change.replacement_text) {
                   return `✂️ Gekürzt: „${change.text_to_find.substring(0, 30)}..." → „${change.replacement_text.substring(0, 30)}..."`;
                 }
 
-                // Regular replacement
                 return `✏️ Geändert: „${change.text_to_find.substring(0, 30)}${change.text_to_find.length > 30 ? '...' : ''}" → „${change.replacement_text.substring(0, 30)}${change.replacement_text.length > 30 ? '...' : ''}"`;
               };
 
-              // Generate fallback summary
               summary = [
                 `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet:`,
                 ...changes.slice(0, 5).map(describeChange),
@@ -220,7 +206,8 @@ const UniversalEditForm = ({ componentName }) => {
               <input
                 type="text"
                 className="form-input"
-                style={{ flex: 1, minWidth: 0, margin: 0 }}
+                style={{ flex: 1, minWidth: 0, margin: 0, fontSize: '16px' }}
+                inputMode="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Was möchtest du verbessern?"
