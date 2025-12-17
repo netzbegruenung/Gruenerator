@@ -941,6 +941,162 @@ router.post('/saved-texts/:id/metadata', ensureAuthenticated, async (req, res) =
   }
 });
 
+// Update saved text content
+router.put('/saved-texts/:id/content', ensureAuthenticated, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { content, title } = req.body;
+
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Content is required'
+      });
+    }
+
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+
+    // Verify the document belongs to the user
+    const existingDoc = await postgres.query(
+      'SELECT id, title, document_type FROM user_documents WHERE id = $1 AND user_id = $2 AND is_active = true',
+      [id, userId],
+      { table: 'user_documents' }
+    );
+
+    if (!existingDoc.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found or access denied'
+      });
+    }
+
+    const doc = existingDoc[0];
+
+    // Update document content
+    const updateData = {
+      content: content.trim(),
+      updated_at: new Date()
+    };
+
+    // Optionally update title if provided
+    if (title) {
+      updateData.title = title.trim();
+    }
+
+    await postgres.update('user_documents', updateData, { id, user_id: userId });
+
+    // Calculate new word and character counts
+    const plainTextContent = content.replace(/<[^>]*>/g, '').trim();
+    const wordCount = plainTextContent.split(/\s+/).filter(word => word.length > 0).length;
+    const characterCount = plainTextContent.length;
+
+    log.debug(`[User Content /saved-texts/${id}/content PUT] Updated content for user ${userId}`);
+
+    // Re-vectorize in Qdrant (async, don't block response)
+    setImmediate(async () => {
+      try {
+        const qdrant = getQdrantInstance();
+        await fastEmbedService.init();
+
+        if (qdrant.isAvailable()) {
+          // First delete existing vectors
+          await qdrant.deleteDocument(id, 'user_texts');
+
+          // Remove HTML tags for embedding
+          const textForEmbedding = content.replace(/<[^>]*>/g, '').trim();
+
+          if (textForEmbedding.length === 0) {
+            log.debug(`[Vectorization] Skipping empty text for document ${id}`);
+            return;
+          }
+
+          // Smart chunking based on text length
+          let chunks;
+          if (textForEmbedding.length < 2000) {
+            chunks = [{
+              text: textForEmbedding,
+              index: 0,
+              tokens: Math.ceil(textForEmbedding.length / 4),
+              metadata: {}
+            }];
+          } else {
+            chunks = await smartChunkDocument(textForEmbedding, {
+              maxTokens: 600,
+              overlapTokens: 150,
+              preserveStructure: true
+            });
+          }
+
+          if (chunks.length === 0) {
+            log.debug(`[Vectorization] No chunks generated for document ${id}`);
+            return;
+          }
+
+          // Generate embeddings in batches
+          const batchSize = 10;
+          const allChunksWithEmbeddings = [];
+
+          for (let i = 0; i < chunks.length; i += batchSize) {
+            const batch = chunks.slice(i, i + batchSize);
+            const texts = batch.map(chunk => chunk.text);
+            const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+
+            const chunksWithEmbeddings = batch.map((chunk, idx) => ({
+              text: chunk.text,
+              embedding: embeddings[idx],
+              token_count: chunk.tokens,
+              metadata: {
+                title: title || doc.title,
+                document_type: doc.document_type,
+                word_count: wordCount,
+                character_count: characterCount,
+                chunk_of_total: `${chunk.index + 1}/${chunks.length}`,
+                ...(chunk.metadata || {})
+              }
+            }));
+
+            allChunksWithEmbeddings.push(...chunksWithEmbeddings);
+          }
+
+          // Index in Qdrant
+          await qdrant.indexDocumentChunks(
+            id,
+            allChunksWithEmbeddings,
+            userId,
+            'user_texts'
+          );
+
+          log.debug(`[Vectorization] Re-vectorized ${chunks.length} chunks for document ${id}`);
+        }
+      } catch (vectorError) {
+        log.error('[Vectorization] Re-vectorization failed (non-critical):', vectorError.message);
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Content updated successfully',
+      data: {
+        id,
+        title: title || doc.title,
+        word_count: wordCount,
+        character_count: characterCount,
+        updated_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    log.error(`[User Content /saved-texts/${req.params.id}/content PUT] Error:`, error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update content',
+      details: error.message
+    });
+  }
+});
+
 // Bulk delete saved texts from library
 router.delete('/saved-texts/bulk', ensureAuthenticated, async (req, res) => {
   try {

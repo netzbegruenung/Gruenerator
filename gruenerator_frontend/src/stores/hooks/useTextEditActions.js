@@ -13,6 +13,7 @@ export const extractEditableText = (content) => {
   if (typeof content === 'object') {
     if (content?.social?.content && typeof content.social.content === 'string') return content.social.content;
     if (typeof content.content === 'string') return content.content;
+    if (typeof content.text === 'string') return content.text;
   }
   return '';
 };
