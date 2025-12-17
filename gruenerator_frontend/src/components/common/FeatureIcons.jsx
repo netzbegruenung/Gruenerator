@@ -60,7 +60,9 @@ const FeatureIcons = ({
   onPrivacyInfoClick,
   showWebSearchInfoLink = false,
   onWebSearchInfoClick,
-  instructionType = null
+  instructionType = null,
+  noBorder = false,
+  hideLoginPrompt = false
 }) => {
   // Use store for feature toggles with selective subscriptions
   const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
@@ -319,11 +321,14 @@ const FeatureIcons = ({
   }, [isValidatingFiles, processFiles]);
 
 
-  // Show login prompt for non-authenticated users
+  // Show login prompt for non-authenticated users (unless hidden)
   if (!user) {
+    if (hideLoginPrompt) {
+      return null;
+    }
     return (
       <>
-        <div className={`feature-icons ${className}`} ref={featureIconsRef}>
+        <div className={`feature-icons ${noBorder ? 'feature-icons--no-border' : ''} ${className}`} ref={featureIconsRef}>
           <div className="feature-icons__login-prompt">
             Für alle Features logge dich mit deinem Parteiaccount ein.{' '}
             <button
@@ -349,7 +354,7 @@ const FeatureIcons = ({
   }
 
   return (
-    <div className={`feature-icons ${className}`} ref={featureIconsRef}>
+    <div className={`feature-icons ${noBorder ? 'feature-icons--no-border' : ''} ${className}`} ref={featureIconsRef}>
       <div className="feature-icons-row">
         <button
           className={`feature-icon-button ${useWebSearch ? 'active' : ''} ${clickedIcon === 'webSearch' ? 'clicked' : ''}`}
@@ -694,7 +699,9 @@ FeatureIcons.propTypes = {
   onPrivacyInfoClick: PropTypes.func,
   showWebSearchInfoLink: PropTypes.bool,
   onWebSearchInfoClick: PropTypes.func,
-  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
+  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend']),
+  noBorder: PropTypes.bool,
+  hideLoginPrompt: PropTypes.bool
 };
 
 export default FeatureIcons;

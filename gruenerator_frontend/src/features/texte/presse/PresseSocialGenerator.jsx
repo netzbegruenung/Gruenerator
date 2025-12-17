@@ -27,6 +27,8 @@ import SmartInput from '../../../components/common/Form/SmartInput';
 import { getIcon } from '../../../config/icons';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import usePlatformAutoDetect from '../../../hooks/usePlatformAutoDetect';
+import useFormTips from '../../../hooks/useFormTips';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
@@ -111,9 +113,18 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
   const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
   const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
+  const watchInhalt = useWatch({ control, name: 'inhalt', defaultValue: '' });
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
   const watchSharepic = canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
+
+  // Auto-detect platforms from content text (respects user removals)
+  usePlatformAutoDetect({
+    content: watchInhalt,
+    currentPlatforms: watchPlatforms,
+    validPlatformIds: platformOptions.map(p => p.id),
+    onPlatformsDetected: (newPlatforms) => setValue('platforms', newPlatforms)
+  });
 
   // Ensure sharepic is not selected when user cannot use it
   useEffect(() => {
@@ -173,6 +184,20 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { generateSharepic, loading: sharepicLoading } = useSharepicGeneration();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+
+  const hasGeneratedContent = !!(storeGeneratedText || socialMediaContent);
+  const isStartMode = !hasGeneratedContent;
+
+  // Contextual tips based on form state
+  const { activeTip } = useFormTips(
+    { hasPressemitteilung: watchPressemitteilung },
+    {
+      hasPressemitteilung: {
+        icon: '💡',
+        text: 'Tipp: Nenne im Text, wer zitiert werden soll (z.B. "Laut Maria Müller...")'
+      }
+    }
+  );
 
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
@@ -442,14 +467,56 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, []);
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
+    content: "Erstelle professionelle Pressemitteilungen und Social Media Inhalte",
     tips: [
       "Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld",
       "Wähle die gewünschten Formate aus",
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
       "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics. Weitere Formate: 3-Zeilen Slogan, Zitat mit/ohne Bild, Infopost"
+    ],
+    features: [
+      {
+        title: "Multi-Format",
+        description: "Erstelle gleichzeitig Pressemitteilungen, Social Posts und Sharepics"
+      },
+      {
+        title: "Plattform-optimiert",
+        description: "Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr"
+      },
+      {
+        title: "Sharepics inklusive",
+        description: "Professionelle Grafiken mit passenden Headlines direkt zum Download"
+      }
     ]
   };
+
+  const examplePrompts = [
+    {
+      icon: "🎉",
+      label: "Erfolg im Gemeinderat",
+      prompt: "Unser Antrag für mehr Stadtbäume wurde heute im Gemeinderat mit großer Mehrheit angenommen! 50 neue Bäume werden noch dieses Jahr in der Innenstadt gepflanzt. Danke an alle, die unterschrieben und sich eingesetzt haben. Grüne Politik wirkt - auch vor Ort.",
+      platforms: ["instagram", "facebook"]
+    },
+    {
+      icon: "🚨",
+      label: "Gegen Flächenversiegelung",
+      prompt: "Der geplante Parkplatz am Stadtpark würde 2000m² Grünfläche zerstören. Wir fordern stattdessen: Ausbau des P+R-Parkplatzes am Bahnhof und bessere Busanbindung. Die Innenstadt braucht mehr Grün, nicht mehr Beton. Kommt zur Infoveranstaltung am Donnerstag!",
+      platforms: ["twitter", "facebook"]
+    },
+    {
+      icon: "✊",
+      label: "Tempo 30 vor Schulen",
+      prompt: "Vor der Grundschule Waldstraße rasen täglich Autos mit 50 km/h vorbei. Wir sammeln Unterschriften für Tempo 30 in allen Schulzonen. Schon 847 Bürger*innen haben unterschrieben. Unterschreibt auch: [Link]. Nächste Woche bringen wir den Antrag ein.",
+      platforms: ["instagram", "twitter"]
+    }
+  ];
+
+  const handleExamplePromptClick = useCallback((example) => {
+    setValue('inhalt', example.prompt || example.text);
+    if (example.platforms) {
+      setValue('platforms', example.platforms);
+    }
+  }, [setValue]);
 
   const renderPlatformSection = () => (
     <PlatformSelector
@@ -457,9 +524,10 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       control={control}
       platformOptions={platformOptions}
       label=""
-      placeholder="Formate auswählen..."
+      placeholder="Formate"
       required={true}
       tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
+      enableAutoSelect={true}
     />
   );
 
@@ -476,6 +544,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         tabIndex={form.generator?.tabIndex?.inhalt}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
+        enableTextAutocomplete={true}
+        autocompleteAddHashtag={false}
       />
 
       <AnimatePresence>
@@ -583,17 +653,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {watchPressemitteilung && (
-          <motion.div 
+        {watchPressemitteilung && !isStartMode && (
+          <motion.div
             className={`press-release-fields ${watchSharepic ? 'has-preceding-section' : ''}`.trim()}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 400, 
+            transition={{
+              type: "spring",
+              stiffness: 400,
               damping: 25,
-              duration: 0.25 
+              duration: 0.25
             }}
           >
             <h4>Pressemitteilung:</h4>
@@ -607,7 +677,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               label={FORM_LABELS.WHO_QUOTE}
               subtext="Mehrere Personen können genannt werden."
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
-              rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
+              rules={{}}
               tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.zitatgeber, watchPressemitteilung)}
               onSubmitSuccess={success ? getValues('zitatgeber') : null}
               shouldSave={success}
@@ -663,6 +733,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           documentSelectorTabIndex={form.generator?.baseFormTabIndex?.documentSelectorTabIndex}
           submitButtonTabIndex={form.generator?.baseFormTabIndex?.submitButtonTabIndex}
           firstExtrasChildren={renderPlatformSection()}
+          examplePrompts={examplePrompts}
+          onExamplePromptClick={handleExamplePromptClick}
+          contextualTip={activeTip}
         >
           {renderFormInputs()}
         </BaseForm>

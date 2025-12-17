@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { HiDocumentText, HiInformationCircle } from 'react-icons/hi';
 import { CitationModal } from '../../../components/common/Citation';
@@ -79,6 +79,10 @@ const NotebookChat = () => {
 
   const effectiveMode = 'chat';
 
+  const renderMessage = useCallback((msg, i) => (
+    <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg} index={i} />
+  ), []);
+
   return (
     <>
       <CitationModal />
@@ -93,7 +97,7 @@ const NotebookChat = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={submitLoading}
-        renderMessage={(msg, i) => <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg} index={i} />}
+        renderMessage={renderMessage}
         infoPanelContent={isMobileView ? null : renderInfoPanel()}
         enableVoiceInput={true}
         hideHeader={true}

@@ -164,18 +164,23 @@ const GrueneratorChat = () => {
       return;
     }
 
+    // Find the result reference in multiResults
     const target = multiResults.find(result => result.componentId === componentId);
     if (!target) return;
 
-    const resolved = resolveTextContent(target.content);
+    // Get content from generatedTextStore (single source of truth)
+    const textStore = useGeneratedTextStore.getState();
+    const storedContent = textStore.generatedTexts?.[componentId];
+    const resolved = resolveTextContent(storedContent);
     if (!resolved.trim()) return;
 
+    const storedMetadata = textStore.generatedTextMetadata?.[componentId] || {};
     const metadata = {
       agent: target.agent,
-      ...(target.content?.metadata || target.metadata || {})
+      ...storedMetadata,
+      ...target.metadata
     };
 
-    const textStore = useGeneratedTextStore.getState();
     if (typeof textStore.pushToHistory === 'function') {
       textStore.pushToHistory('grueneratorChat');
     }

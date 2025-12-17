@@ -1,8 +1,9 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, memo } from 'react';
 import { motion } from 'motion/react';
 import { HiChip } from 'react-icons/hi';
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import ActionButtons from '../../../components/common/ActionButtons';
+import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../../components/common/Chat/utils/chatMessageUtils';
 import '../../../assets/styles/features/notebook/notebook-mobile-message.css';
 import '../../../assets/styles/common/markdown-styles.css';
 
@@ -20,10 +21,7 @@ const NotebookChatMessage = ({ msg, index }) => {
     <motion.div
       key={msg.timestamp || index}
       className={`chat-message ${msg.type}${hasResultData ? ' chat-message-with-result' : ''}`}
-      initial={{ opacity: 0, y: 2, scale: 0.995 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: "easeOut" } }}
-      transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
+      {...MESSAGE_MOTION_PROPS}
     >
       {msg.type === 'user' && msg.userName && (
         <div className="chat-message-user-name">{msg.userName}</div>
@@ -59,11 +57,7 @@ const NotebookChatMessage = ({ msg, index }) => {
       ) : (
         <div className="chat-message-content">
           <Suspense fallback={<span>{msg.content}</span>}>
-            <ReactMarkdown
-              components={{
-                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
-              }}
-            >
+            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
               {msg.content}
             </ReactMarkdown>
           </Suspense>
@@ -73,4 +67,4 @@ const NotebookChatMessage = ({ msg, index }) => {
   );
 };
 
-export default NotebookChatMessage;
+export default memo(NotebookChatMessage);

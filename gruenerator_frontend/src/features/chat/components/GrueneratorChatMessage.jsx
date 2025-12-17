@@ -1,11 +1,12 @@
-import React, { lazy, Suspense, useMemo } from 'react';
+import React, { lazy, Suspense, useMemo, memo } from 'react';
 import { motion } from 'motion/react';
 import ActionButtons from '../../../components/common/ActionButtons';
 import ImageDisplay from '../../../components/common/ImageDisplay';
-import { AssistantIcon } from '../../../config/icons';
+import AssistantAvatar from '../../../components/common/Chat/AssistantAvatar';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
+import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../../components/common/Chat/utils/chatMessageUtils';
 import '../../../assets/styles/components/chat/gruenerator-message.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
@@ -32,26 +33,13 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
     <motion.div
       key={msg.timestamp || index}
       className={`chat-message ${msg.type}${hasResultData ? ' chat-message-with-result' : ''}${isActive ? ' editing' : ''}`}
-      initial={{ opacity: 0, y: 2, scale: 0.995 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: "easeOut" } }}
-      transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
+      {...MESSAGE_MOTION_PROPS}
     >
       {msg.type === 'user' && msg.userName && (
         <div className="chat-message-user-name">{msg.userName}</div>
       )}
       {msg.type === 'assistant' && (
-        userAvatarProps.type === 'robot' ? (
-          <div className="assistant-icon-wrapper">
-            <img
-              src={userAvatarProps.src}
-              alt={userAvatarProps.alt}
-              className="assistant-icon assistant-robot-image"
-            />
-          </div>
-        ) : (
-          <AssistantIcon className="assistant-icon" />
-        )
+        <AssistantAvatar avatarProps={userAvatarProps} />
       )}
 
       {hasResultData ? (
@@ -64,11 +52,7 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
             />
           )}
           <Suspense fallback={<span>{msg.resultData.text}</span>}>
-            <ReactMarkdown
-              components={{
-                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
-              }}
-            >
+            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
               {msg.resultData.text}
             </ReactMarkdown>
           </Suspense>
@@ -86,11 +70,7 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
       ) : (
         <div className="chat-message-content">
           <Suspense fallback={<span>{msg.content}</span>}>
-            <ReactMarkdown
-              components={{
-                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
-              }}
-            >
+            <ReactMarkdown components={MARKDOWN_COMPONENTS}>
               {msg.content}
             </ReactMarkdown>
           </Suspense>
@@ -100,4 +80,4 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
   );
 };
 
-export default GrueneratorChatMessage;
+export default memo(GrueneratorChatMessage);
