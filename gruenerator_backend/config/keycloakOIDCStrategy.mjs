@@ -93,10 +93,10 @@ class KeycloakOIDCStrategy extends passport.Strategy {
 
       let redirectUri;
       if (originDomain && isAllowedDomain(originDomain)) {
-        redirectUri = buildDomainUrl(originDomain, '/auth/callback', isSecure);
+        redirectUri = buildDomainUrl(originDomain, '/api/auth/callback', isSecure);
         console.log(`[KeycloakOIDC:${correlationId}] Using origin domain for redirect_uri: ${redirectUri}`);
       } else {
-        redirectUri = `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/auth/callback`;
+        redirectUri = `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/api/auth/callback`;
         console.log(`[KeycloakOIDC:${correlationId}] Using fallback redirect_uri: ${redirectUri}`);
       }
 
