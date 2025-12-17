@@ -199,8 +199,8 @@ const FormSection = forwardRef(({
           onSubmit();
         }} className="form-section__form">
           
-          {/* Mobile: firstExtrasChildren above everything */}
-          {isMobileView && firstExtrasChildren && (
+          {/* Mobile: firstExtrasChildren above everything (except in start mode where it goes in extras section) */}
+          {isMobileView && firstExtrasChildren && !isStartMode && (
             <div className="form-section__mobile-first-extras">
               {firstExtrasChildren}
             </div>
@@ -255,7 +255,7 @@ const FormSection = forwardRef(({
                 nextButtonText={nextButtonText}
                 submitButtonProps={submitButtonProps}
                 showSubmitButton={(useEditMode ? false : (showSubmitButton && !showSubmitButtonInInputSection))}
-                firstExtrasChildren={!isMobileView && !useEditMode ? firstExtrasChildren : null}
+                firstExtrasChildren={(!isMobileView || isStartMode) && !useEditMode ? firstExtrasChildren : null}
                 featureIconsTabIndex={featureIconsTabIndex}
                 knowledgeSelectorTabIndex={knowledgeSelectorTabIndex}
                 knowledgeSourceSelectorTabIndex={knowledgeSourceSelectorTabIndex}

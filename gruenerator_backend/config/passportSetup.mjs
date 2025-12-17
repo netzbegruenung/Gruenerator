@@ -1,9 +1,33 @@
 import passport from 'passport';
+import { randomUUID } from 'crypto';
 import { initializeKeycloakOIDCStrategy } from './keycloakOIDCStrategy.mjs';
 import { getProfileService } from '../services/ProfileService.mjs';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('Passport');
+
+function createFallbackUser(profile, req) {
+  const keycloakId = profile.id;
+  const email = profile.emails?.[0]?.value;
+  const name = profile.displayName || '';
+  const username = profile.username || profile.preferred_username || keycloakId;
+  const authSource = req?.session?.preferredSource || 'gruenerator-login';
+  let locale = 'de-DE';
+  if (authSource === 'gruene-oesterreich-login') {
+    locale = 'de-AT';
+  }
+
+  return {
+    keycloak_id: keycloakId,
+    email: email || null,
+    display_name: name,
+    username,
+    locale,
+    _profileSyncPending: true,
+    _profileSyncError: null,
+    beta_features: {},
+  };
+}
 
 // Initialize the new OpenID Connect strategy
 try {
@@ -69,7 +93,6 @@ passport.deserializeUser(async (userData, done) => {
 
 // Helper function to handle user profile from Keycloak
 export async function handleUserProfile(profile, req = null) {
-
   const keycloakId = profile.id;
   const email = profile.emails?.[0]?.value;
   const name = profile.displayName || '';
@@ -83,74 +106,77 @@ export async function handleUserProfile(profile, req = null) {
   let authSource = req?.session?.preferredSource || 'gruenerator-login';
 
   // Determine locale based on auth source
-  let locale = 'de-DE'; // Default to German
+  let locale = 'de-DE';
   if (authSource === 'gruene-oesterreich-login') {
-    locale = 'de-AT'; // Austrian German
+    locale = 'de-AT';
   }
 
-  // Allow users without email (use username or keycloak ID as fallback)
-  const userIdentifier = email || username || keycloakId;
+  try {
+    // Check for existing user by keycloak_id
+    let existingUser = await getUserByKeycloakId(keycloakId);
 
-  // Check for existing user by keycloak_id
-  let existingUser = await getUserByKeycloakId(keycloakId);
-  
-  if (existingUser) {
-    
-    // Check if email change would cause conflict
-    if (existingUser.email !== email) {
-      const emailConflictUser = await getUserByEmail(email);
-      if (emailConflictUser && emailConflictUser.id !== existingUser.id) {
-        console.error('[handleUserProfile] Email conflict detected:', {
-          existingUserId: existingUser.id,
-          existingUserEmail: existingUser.email,
-          conflictUserId: emailConflictUser.id,
-          newEmail: email
-        });
-        
-        console.warn('[handleUserProfile] Keeping existing email to avoid conflict');
-        return await updateUser(existingUser.id, {
+    if (existingUser) {
+      // Check if email change would cause conflict
+      if (existingUser.email !== email) {
+        const emailConflictUser = await getUserByEmail(email);
+        if (emailConflictUser && emailConflictUser.id !== existingUser.id) {
+          log.warn('[handleUserProfile] Email conflict detected, keeping existing email');
+          return await updateUser(existingUser.id, {
+            display_name: name,
+            username,
+            email: existingUser.email || null,
+            locale: existingUser.locale || locale,
+            last_login: new Date().toISOString(),
+          }, authSource);
+        }
+      }
+
+      return await updateUser(existingUser.id, {
+        display_name: name,
+        username,
+        email: email || existingUser.email || null,
+        locale: existingUser.locale || locale,
+        last_login: new Date().toISOString(),
+      }, authSource);
+    }
+
+    // Check for existing user by email (only if email exists)
+    if (email) {
+      const userByEmail = await getUserByEmail(email);
+
+      if (userByEmail) {
+        return await linkUser(userByEmail.id, {
+          keycloak_id: keycloakId,
           display_name: name,
           username,
-          email: existingUser.email || null, // Keep existing email to avoid conflict
-          locale: existingUser.locale || locale, // Preserve existing locale or set new one
+          locale: userByEmail.locale || locale,
           last_login: new Date().toISOString(),
         }, authSource);
       }
     }
-    
-    return await updateUser(existingUser.id, {
-      display_name: name,
+
+    return await createProfileUser({
+      keycloak_id: keycloakId,
+      email: email || null,
+      name,
       username,
-      email: email || existingUser.email || null, // Sync email from auth, preserve existing if no new email
-      locale: existingUser.locale || locale, // Preserve existing locale or set new one
+      locale,
       last_login: new Date().toISOString(),
-    }, authSource);
-  }
+      auth_source: authSource,
+    });
+  } catch (error) {
+    const correlationId = randomUUID().slice(0, 8);
+    log.error(`[handleUserProfile] Database error (${correlationId}): ${error.message}`);
 
-  // Check for existing user by email (only if email exists)
-  if (email) {
-    const userByEmail = await getUserByEmail(email);
-    
-    if (userByEmail) {
-      return await linkUser(userByEmail.id, {
-        keycloak_id: keycloakId,
-        display_name: name,
-        username,
-        locale: userByEmail.locale || locale, // Preserve existing locale or set new one
-        last_login: new Date().toISOString(),
-      }, authSource);
-    }
-  }
+    const fallbackUser = createFallbackUser(profile, req);
+    fallbackUser._profileSyncError = {
+      message: error.message,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    };
 
-  return await createProfileUser({
-    keycloak_id: keycloakId,
-    email: email || null,
-    name,
-    username,
-    locale,
-    last_login: new Date().toISOString(),
-    auth_source: authSource,
-  });
+    return fallbackUser;
+  }
 }
 
 // Get user by Keycloak ID
@@ -193,8 +219,6 @@ async function getUserById(id) {
 // Create new user (profiles-only, no Supabase Auth)
 async function createProfileUser(profileData) {
   try {
-    // Generate UUID for new user (using built-in crypto)
-    const { randomUUID } = await import('crypto');
     const newUserId = randomUUID();
     
     const newProfileData = {
