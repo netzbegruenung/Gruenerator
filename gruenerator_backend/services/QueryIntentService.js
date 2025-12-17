@@ -3,6 +3,7 @@
  */
 
 const { vectorConfig } = require('../config/vectorConfig.js');
+const { getDefaultMultiCollectionIds } = require('../config/systemCollectionsConfig.js');
 
 class QueryIntentService {
   /**
@@ -98,6 +99,59 @@ class QueryIntentService {
     }
 
     return filter;
+  }
+
+  /**
+   * Detect document scope from query - determines which collection(s) and document(s) to search
+   * @param {string} query
+   * @returns {{collections: string[], documentTitleFilter: string|null, detectedPhrase: string|null}}
+   */
+  detectDocumentScope(query) {
+    const q = (query || '').trim();
+    if (!q) {
+      return { collections: getDefaultMultiCollectionIds(), documentTitleFilter: null, detectedPhrase: null };
+    }
+
+    const docPatterns = [
+      {
+        re: /\b(im\s+)?Grundsatzprogramm(\s+2020)?\b/i,
+        collections: ['grundsatz-system'],
+        titleFilter: 'Grundsatzprogramm 2020'
+      },
+      {
+        re: /\b(im\s+)?(EU[\s-]?Wahlprogramm|Europawahlprogramm)(\s+2024)?\b/i,
+        collections: ['grundsatz-system'],
+        titleFilter: 'EU-Wahlprogramm 2024'
+      },
+      {
+        re: /\b(im\s+)?Regierungsprogramm(\s+2025)?\b/i,
+        collections: ['grundsatz-system'],
+        titleFilter: 'Regierungsprogramm 2025'
+      },
+      {
+        re: /\b((in\s+den\s+)?(Grundsatz)?programmen|Grundsatzprogramme)\b/i,
+        collections: ['grundsatz-system'],
+        titleFilter: null
+      },
+      {
+        re: /\b(Bundestags?fraktion|gruene-?bundestag|grüne-?bundestag)\b/i,
+        collections: ['bundestagsfraktion-system'],
+        titleFilter: null
+      }
+    ];
+
+    for (const pattern of docPatterns) {
+      const match = q.match(pattern.re);
+      if (match) {
+        return {
+          collections: pattern.collections,
+          documentTitleFilter: pattern.titleFilter,
+          detectedPhrase: match[0]
+        };
+      }
+    }
+
+    return { collections: getDefaultMultiCollectionIds(), documentTitleFilter: null, detectedPhrase: null };
   }
 
   // ----- helpers -----

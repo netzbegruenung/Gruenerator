@@ -60,6 +60,10 @@ const DisplaySection = forwardRef(({
   onReset,
   renderEmptyState = null,
   customEditContent = null,
+  customRenderer = null,
+  customExportOptions = [],
+  hideDefaultExportOptions = false,
+  isStartMode = false,
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -167,6 +171,8 @@ const DisplaySection = forwardRef(({
       onRequestEdit={onRequestEdit}
       showReset={showResetButton}
       onReset={onReset}
+      customExportOptions={customExportOptions}
+      hideDefaultExportOptions={hideDefaultExportOptions}
     />
   );
 
@@ -174,21 +180,27 @@ const DisplaySection = forwardRef(({
     ? (renderActions
         ? renderActions(actionButtons)
         : (
-            <div className="display-header">
+            <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
               {actionButtons}
             </div>
           ))
     : null;
 
   return (
-    <div className="display-container" id="display-section-container" ref={ref}>
+    <div className={`display-container ${isStartMode ? 'display-container--start-mode' : ''} ${helpContent?.isNewFeature && helpContent?.featureId && localStorage.getItem(`feature-seen-${helpContent.featureId}`) !== 'true' ? 'display-container--new-feature' : ''}`} id="display-section-container" ref={ref}>
       {actionsNode}
       {!hasRenderableContent && helpContent && (
-        <div className="help-section">
+        <div className={`help-section ${isStartMode ? 'help-section--start-mode' : ''}`}>
           <HelpDisplay
             content={helpContent.content}
             tips={helpContent.tips}
             hasGeneratedContent={!!activeContent}
+            isNewFeature={helpContent.isNewFeature}
+            featureId={helpContent.featureId}
+            fallbackContent={helpContent.fallbackContent}
+            fallbackTips={helpContent.fallbackTips}
+            layout={isStartMode ? 'cards' : 'default'}
+            features={helpContent.features}
           />
         </div>
       )}
@@ -196,14 +208,25 @@ const DisplaySection = forwardRef(({
         {hasRenderableContent ? (
           <>
             <ErrorDisplay error={error} onDismiss={onErrorDismiss} />
-            <ContentRenderer
-              value={activeContent}
-              generatedContent={storeGeneratedText || generatedContent || activeContent}
-              useMarkdown={useMarkdown}
-              componentName={componentName}
-              helpContent={helpContent}
-              onEditModeToggle={onEditModeToggle}
-            />
+            {customRenderer ? (
+              customRenderer({
+                content: activeContent,
+                generatedContent: storeGeneratedText || generatedContent || activeContent,
+                componentName,
+                helpContent,
+                onEditModeToggle
+              })
+            ) : (
+              <ContentRenderer
+                value={activeContent}
+                generatedContent={storeGeneratedText || generatedContent || activeContent}
+                useMarkdown={useMarkdown}
+                componentName={componentName}
+                helpContent={helpContent}
+                onEditModeToggle={onEditModeToggle}
+                isEditModeActive={isEditModeActive}
+              />
+            )}
           </>
         ) : (
           renderEmptyState ? renderEmptyState() : null
@@ -239,7 +262,11 @@ DisplaySection.propTypes = {
 
   helpContent: PropTypes.shape({
     content: PropTypes.string,
-    tips: PropTypes.arrayOf(PropTypes.string)
+    tips: PropTypes.arrayOf(PropTypes.string),
+    isNewFeature: PropTypes.bool,
+    featureId: PropTypes.string,
+    fallbackContent: PropTypes.string,
+    fallbackTips: PropTypes.arrayOf(PropTypes.string)
   }),
   generatedPost: PropTypes.string,
   onGeneratePost: PropTypes.func,
@@ -260,6 +287,17 @@ DisplaySection.propTypes = {
   onReset: PropTypes.func,
   renderEmptyState: PropTypes.func,
   customEditContent: PropTypes.node,
+  customRenderer: PropTypes.func,
+  customExportOptions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    subtitle: PropTypes.string,
+    icon: PropTypes.node,
+    onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool
+  })),
+  hideDefaultExportOptions: PropTypes.bool,
+  isStartMode: PropTypes.bool,
 };
 
 DisplaySection.defaultProps = {
@@ -270,7 +308,8 @@ DisplaySection.defaultProps = {
   renderActions: null,
   showResetButton: false,
   onReset: undefined,
-  renderEmptyState: null
+  renderEmptyState: null,
+  isStartMode: false
 };
 
 DisplaySection.displayName = 'DisplaySection';

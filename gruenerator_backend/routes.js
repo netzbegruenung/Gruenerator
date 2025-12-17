@@ -29,6 +29,7 @@ const processTextRouter = require('./routes/sharepic/sharepic_canvas/processText
 const editSessionRouter = require('./routes/sharepic/editSession');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const claudeSuggestEditsRoute = require('./routes/claude_suggest_edits');
+const claudeTextImproverRoute = require('./routes/claude_text_improver');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const searchRouter = require('./routes/search/searchRoutes');
@@ -114,8 +115,8 @@ async function setupRoutes(app) {
   // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
 
-  const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
-  
+  const { default: oparlRouter } = await import('./routes/oparl.mjs');
+
   // Import claude_social as ES6 module
   const { default: claudeSocialRoute } = await import('./routes/claude_social.js');
   // Import claude_alttext as ES6 module
@@ -124,12 +125,14 @@ async function setupRoutes(app) {
   const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
   // Import claude_gruenerator_ask as ES6 module
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
+  // Import claude_website as ES6 module
+  const { default: claudeWebsiteRoute } = await import('./routes/claude_website.js');
   // Import custom generator routes as ES6 modules
   const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
   const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
   // Import Q&A routes as ES6 modules
-  const { default: qaCollectionsRouter } = await import('./routes/qaCollections.mjs');
-  const { default: qaInteractionRouter } = await import('./routes/qaInteraction.mjs');
+  const { default: notebookCollectionsRouter } = await import('./routes/notebookCollections.mjs');
+  const { default: notebookInteractionRouter } = await import('./routes/notebookInteraction.mjs');
   // Import Canva routes as ES6 modules
   const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.mjs');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.mjs');
@@ -152,10 +155,10 @@ async function setupRoutes(app) {
   app.use('/api/auth', userTemplates);
   // MOBILE AUTH DISABLED
   // app.use('/api/auth/mobile', mobileAuthRoutes);
-  app.use('/api/auth/qa-collections', qaCollectionsRouter);
-  app.use('/api/auth/qa', qaInteractionRouter);
+  app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
+  app.use('/api/auth/notebook', notebookInteractionRouter);
   app.use('/api/documents', documentsRouter);
-  app.use('/api/bundestag', bundestagRouter);
+  app.use('/api/oparl', oparlRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
 
@@ -170,11 +173,13 @@ async function setupRoutes(app) {
 
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_alttext', claudeAlttextRoute);
+  app.use('/api/claude_website', claudeWebsiteRoute);
   app.use('/api/leichte_sprache', leichteSpracheRoute);
   app.use('/api/claude_rede', redeRouter);
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
+  app.use('/api/claude_text_improver', claudeTextImproverRoute);
 
   // Grünerator Chat - Unified chat interface for all agents
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');

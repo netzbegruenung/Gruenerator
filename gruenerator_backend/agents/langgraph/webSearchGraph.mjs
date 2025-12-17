@@ -21,7 +21,7 @@ import {
   buildReferencesMap,
   validateAndInjectCitations,
   summarizeReferencesForPrompt
-} from './qaGraphCitations.mjs';
+} from './notebookGraphCitations.mjs';
 
 // State schema for the search graph
 const SearchState = Annotation.Root({
@@ -358,6 +358,8 @@ Respond with JSON:
 }`
       }],
       options: {
+        provider: 'litellm',
+        model: 'gpt-oss:120b',
         max_tokens: 600,
         temperature: 0.1
       }
@@ -790,6 +792,8 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledCount || 0} erfolgreich gecrawlt,
       systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
       options: {
+        provider: 'litellm',
+        model: 'gpt-oss:120b',
         max_tokens: 500,
         temperature: 0.2
       }
@@ -1012,6 +1016,8 @@ ANWEISUNG:
       systemPrompt: dossierSystemPrompt,
       messages: [{ role: "user", content: dossierPrompt }],
       options: {
+        provider: 'litellm',
+        model: 'gpt-oss:120b',
         max_tokens: 6000,
         temperature: 0.3
       }
@@ -1125,7 +1131,12 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
       type: 'text_adjustment',
       systemPrompt: researchSystemPrompt,
       messages: [{ role: "user", content: researchPrompt }],
-      options: { max_tokens: 300, temperature: 0.3 }
+      options: {
+        provider: 'litellm',
+        model: 'gpt-oss:120b',
+        max_tokens: 300,
+        temperature: 0.3
+      }
     }, req);
 
     if (result.success && result.content) {

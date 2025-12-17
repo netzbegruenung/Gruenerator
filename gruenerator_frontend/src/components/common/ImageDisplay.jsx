@@ -9,6 +9,7 @@ import useAltTextGeneration from '../hooks/useAltTextGeneration';
 import useSharepicStore from '../../stores/sharepicStore';
 import apiClient from '../utils/apiClient';
 import CanvaTemplateModal from './CanvaTemplateModal';
+import SharepicShareModal from './SharepicShareModal';
 
 /**
  * Component for displaying generated images with preview, lightbox, and download functionality
@@ -33,7 +34,9 @@ const ImageDisplay = ({
   onSharepicUpdate,
   minimal = false,
   onEditModeToggle,
-  editMode
+  editMode,
+  socialContent,
+  selectedPlatforms = []
 }) => {
   // Determine if we have multiple sharepics
   const isMultiple = Array.isArray(sharepicData);
@@ -47,6 +50,10 @@ const ImageDisplay = ({
   const [isKiLabelLoading, setIsKiLabelLoading] = useState(false);
   const [kiLabelError, setKiLabelError] = useState(null);
   const [isCanvaModalOpen, setIsCanvaModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  // Determine if share button should be shown (when social content and platforms are available)
+  const showShareButton = socialContent && selectedPlatforms && selectedPlatforms.length > 0;
 
   // Resolve Canva template URL (prop > sharepicData > null)
   const resolvedCanvaUrl = canvaTemplateUrl || currentSharepic?.canvaTemplateUrl || null;
@@ -364,6 +371,15 @@ const ImageDisplay = ({
                     title="Bild bearbeiten"
                   />
                 )}
+                {showShareButton && (
+                  <ProfileIconButton
+                    action="share"
+                    onClick={() => setIsShareModalOpen(true)}
+                    size="s"
+                    className="image-overlay-btn"
+                    title="Bild teilen"
+                  />
+                )}
                 <ProfileIconButton
                   action="download"
                   onClick={() => handleDownload()}
@@ -448,6 +464,15 @@ const ImageDisplay = ({
         />
       )}
 
+      {/* Share Modal */}
+      <SharepicShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        sharepicData={currentSharepic}
+        socialContent={socialContent}
+        selectedPlatforms={selectedPlatforms}
+      />
+
       {/* Lightbox */}
       {isLightboxOpen && (
         <div className="image-lightbox-overlay" onClick={handleLightboxOverlayClick}>
@@ -531,7 +556,9 @@ ImageDisplay.propTypes = {
   onSharepicUpdate: PropTypes.func,
   minimal: PropTypes.bool,
   onEditModeToggle: PropTypes.func,
-  editMode: PropTypes.string
+  editMode: PropTypes.string,
+  socialContent: PropTypes.string,
+  selectedPlatforms: PropTypes.arrayOf(PropTypes.string)
 };
 
 ImageDisplay.defaultProps = {

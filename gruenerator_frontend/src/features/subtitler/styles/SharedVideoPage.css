@@ -8,13 +8,43 @@
 }
 
 .shared-video-card {
+    position: relative;
     background: var(--background-color);
     border-radius: var(--card-border-radius-large);
     box-shadow: var(--shadow-lg);
     border: var(--border-subtle);
     display: flex;
     overflow: hidden;
-    max-width: 1000px;
+    max-width: 1400px;
+}
+
+.shared-video-qr {
+    position: absolute;
+    top: var(--spacing-medium);
+    right: var(--spacing-medium);
+    z-index: 10;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.shared-video-qr:hover {
+    transform: scale(1.05);
+}
+
+.shared-video-qr-copied {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--tanne);
+    color: white;
+    padding: var(--spacing-xxsmall) var(--spacing-small);
+    border-radius: var(--card-border-radius-small);
+    font-size: 0.75rem;
+    white-space: nowrap;
 }
 
 .shared-video-left {
@@ -49,18 +79,13 @@
     color: var(--font-color-h);
 }
 
-.video-duration {
-    display: inline-block;
-    background: var(--background-color);
-    padding: var(--spacing-xxsmall) var(--spacing-small);
-    border-radius: var(--card-border-radius-small);
-    font-size: 0.875rem;
-    color: var(--font-color-disabled);
-    border: var(--border-subtle);
-}
-
 .shared-video-download {
     margin-top: var(--spacing-xlarge);
+}
+
+.shared-video-buttons {
+    display: flex;
+    gap: var(--spacing-small);
 }
 
 .download-error {
@@ -110,6 +135,7 @@
 .shared-video-footer a:hover {
     text-decoration: underline;
 }
+
 
 .shared-video-container {
     background: var(--background-color);
@@ -199,7 +225,15 @@
         min-width: auto;
     }
 
-    .shared-video-download .btn-primary {
+    .shared-video-buttons {
+        flex-direction: column;
+    }
+
+    .shared-video-buttons button {
         width: 100%;
+    }
+
+    .shared-video-qr {
+        display: none;
     }
 }

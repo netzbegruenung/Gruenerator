@@ -353,10 +353,24 @@ const SubtitleEditor = ({
   };
 
   // Timeline handlers
+  const scrubTimeoutRef = useRef(null);
+
   const handleTimelineSeek = useCallback((timeInSeconds) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = timeInSeconds;
-    }
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    video.currentTime = timeInSeconds;
+    setCurrentTimeInSeconds(timeInSeconds);
+
+    // Debounce: only trigger frame refresh after scrubbing stops
+    clearTimeout(scrubTimeoutRef.current);
+    scrubTimeoutRef.current = setTimeout(() => {
+      if (video.paused) {
+        video.play()
+          .then(() => video.pause())
+          .catch(() => {});
+      }
+    }, 50);
   }, []);
 
   const scrollToSegment = useCallback((segmentId) => {
@@ -628,16 +642,17 @@ const SubtitleEditor = ({
         </div>
       )}
 
-      <div className="editor-layout">
+      <div className="subtitle-editor-layout">
         <div className="preview-and-styling">
-          <div className="video-section">
-            <div className="video-preview">
+          <div className="subtitle-editor-video-section">
+            <div className="subtitle-editor-video-preview">
               {videoUrl ? (
                 <div style={{ position: 'relative' }}>
                   <video
                     ref={videoRef}
-                    className="preview-video"
+                    className="subtitle-editor-preview-video"
                     controls
+                    crossOrigin="anonymous"
                     src={videoUrl}
                     onLoadedMetadata={handleVideoLoadedMetadata}
                     onTimeUpdate={handleVideoTimeUpdate}
@@ -663,7 +678,7 @@ const SubtitleEditor = ({
             <div className="subtitle-preview-notice">
               Nur eine Vorschau. Das finale Styling sieht besser aus!
             </div>
-            <div className="video-controls">
+            <div className="subtitle-editor-video-controls">
               <button
                 className="btn-icon btn-primary"
                 onClick={() => handleExport(localQuality === 'normal' ? 1080 : null)}

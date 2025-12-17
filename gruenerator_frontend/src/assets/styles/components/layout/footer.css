@@ -21,7 +21,7 @@
 
 .footer-sections {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     max-width: 1300px;
     margin: 0 auto;
     gap: 40px;

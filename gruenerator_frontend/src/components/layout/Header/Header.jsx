@@ -9,17 +9,22 @@ import Icon from '../../common/Icon';
 
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
+import { useAuthStore } from '../../../stores/authStore';
+import useHeaderStore from '../../../stores/headerStore';
 
 const Header = () => {
     useLazyAuth(); // Keep for other auth functionality
     const { user } = useOptimizedAuth();
     const location = useLocation();
     const { getBetaFeatureState } = useBetaFeatures();
+    const forceShrunk = useHeaderStore((state) => state.forceShrunk);
 
     const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
     const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
     const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
     const igelModeEnabled = useMemo(() => getBetaFeatureState('igel_modus'), [getBetaFeatureState]);
+    const locale = useAuthStore((state) => state.locale);
+    const isAustrian = locale === 'de-AT';
 
     const [menuActive, setMenuActive] = useState(false);
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -47,9 +52,9 @@ const Header = () => {
 
     // Memoize menu items to prevent unnecessary recalculations
     const menuItems = useMemo(() => getMenuItems(
-        { databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled }
-    ), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled]);
-    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled]);
+        { databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian }
+    ), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]);
+    const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian }), [databaseBetaEnabled, youBetaEnabled, chatBetaEnabled, igelModeEnabled, isAustrian]);
 
     // Close dropdown when location changes (navigation occurs)
     useEffect(() => {
@@ -276,7 +281,7 @@ const Header = () => {
 
 
     return (
-        <header className={`header ${scrolled ? 'scrolled' : ''}`} ref={headerRef} role="banner">
+        <header className={`header ${scrolled || forceShrunk ? 'scrolled' : ''}`} ref={headerRef} role="banner">
             <div className="header-container">
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">

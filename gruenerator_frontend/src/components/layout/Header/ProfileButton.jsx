@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { HiCog } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import { useProfile, useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
+import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useProfileStore } from '../../../stores/profileStore';
 import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
 
@@ -16,6 +18,9 @@ const ProfileButton = () => {
   // Fetch custom generators for authenticated users
   useCustomGeneratorsData({ isActive: !!user?.id });
   const customGenerators = useProfileStore(state => state.customGenerators) || [];
+
+  // Fetch user groups for authenticated users
+  const { userGroups = [] } = useGroups({ isActive: !!user?.id });
 
   // Avatar und Name mit intelligent fallbacks für instant rendering
   const displayName = profile?.display_name || '';
@@ -139,11 +144,15 @@ const ProfileButton = () => {
       {isDropdownOpen && (
         <div className="profile-dropdown">
           <div className="profile-dropdown-header">
-            <div className="profile-dropdown-avatar">
+            <Link
+              to="/profile"
+              className="profile-dropdown-avatar"
+              onClick={() => setIsDropdownOpen(false)}
+            >
               {avatarProps.type === 'robot' ? (
                 <div className="profile-dropdown-avatar-robot">
-                  <img 
-                    src={avatarProps.src} 
+                  <img
+                    src={avatarProps.src}
                     alt={avatarProps.alt}
                     className="profile-dropdown-robot-image"
                   />
@@ -151,7 +160,7 @@ const ProfileButton = () => {
               ) : (
                 <FaUserCircle className="profile-dropdown-avatar-icon" />
               )}
-            </div>
+            </Link>
             <div className="profile-dropdown-info">
               <div className="profile-dropdown-greeting">
                 {displayName ? getPossessiveForm(displayName.split(' ')[0]) : "Dein"} Grünerator
@@ -166,20 +175,32 @@ const ProfileButton = () => {
               variant="dropdown"
               onNavigate={() => setIsDropdownOpen(false)}
               customGenerators={customGenerators}
+              groups={userGroups}
             />
             <div className="profile-dropdown-divider" />
-            <button
-              className="profile-dropdown-link logout-link"
-              disabled={isLoggingOut}
-              onClick={() => {
-                if (!isLoggingOut) {
-                  logout();
-                }
-              }}
-            >
-              <FaSignOutAlt className="profile-dropdown-icon" />
-              <span>{isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}</span>
-            </button>
+            <div className="profile-dropdown-footer">
+              <Link
+                to="/profile"
+                className="profile-dropdown-link"
+                onClick={() => setIsDropdownOpen(false)}
+              >
+                <HiCog className="profile-dropdown-icon" />
+                <span>Einstellungen</span>
+              </Link>
+              <button
+                className="profile-dropdown-icon-button logout-icon-button"
+                disabled={isLoggingOut}
+                onClick={() => {
+                  if (!isLoggingOut) {
+                    logout();
+                  }
+                }}
+                aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+                title={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+              >
+                <FaSignOutAlt />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -213,6 +213,7 @@ export const IMAGE_MODIFICATION = {
 export const FORM_LABELS = {
   THEME: 'Thema',
   DETAILS: 'Details',
+  INHALT: 'Inhalt',
   QUOTE: 'Zitat',
   NAME: 'Name',
   LINE1: 'Zeile 1',
@@ -236,6 +237,7 @@ export const FORM_LABELS = {
 // Form Placeholders
 export const FORM_PLACEHOLDERS = {
   THEME: 'Gib das Thema ein...',
+  INHALT: 'Beschreibe dein Thema und alle relevanten Details...',
   QUOTE: 'Gib ein Zitat ein...',
   NAME: 'Gib den Namen ein...',
   LINE1: 'Gib die erste Zeile ein...',

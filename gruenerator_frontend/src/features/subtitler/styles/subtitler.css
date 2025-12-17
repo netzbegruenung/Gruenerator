@@ -97,17 +97,6 @@
 }
 
 
-.subtitle-editor-container {
-  width: 100%;
-}
-
-.editor-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
 .subtitles-editor {
   display: flex;
   flex-direction: column;
@@ -309,10 +298,6 @@
 
 
 @media (max-width: 1024px) {
-  .editor-layout {
-    grid-template-columns: 1fr;
-  }
-
   .subtitles-list {
     max-height: 50vh;
   }

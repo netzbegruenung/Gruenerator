@@ -5,7 +5,7 @@
   height: 48px;
   border-radius: 50%;
   border: none;
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: white;
   display: flex;
   align-items: center;

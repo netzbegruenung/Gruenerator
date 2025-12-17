@@ -122,7 +122,7 @@ const useGeneratedTextStore = create((set, get) => ({
         linkKey: 'document_id',
         titleKey: 'document_title'
       },
-      'qa': {
+      'notebook': {
         type: 'vectorDocument',
         basePath: '/documents',
         linkKey: 'document_id',

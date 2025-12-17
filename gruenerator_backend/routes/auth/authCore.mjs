@@ -3,6 +3,7 @@ import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createRequire } from 'module';
 import { createLogger } from '../../utils/logger.js';
+import { getOriginDomain, isAllowedDomain, buildDomainUrl, getLocaleFromDomain } from '../../utils/domainUtils.js';
 const log = createLogger('authCore');
 
 
@@ -111,6 +112,13 @@ async function checkSessionHealth(req, res, next) {
 router.get('/login', checkSessionHealth, async (req, res, next) => {
   const source = req.query.source;
   const { redirectTo, prompt } = req.query;
+
+  // Store origin domain before OAuth flow for multi-domain support
+  const originDomain = getOriginDomain(req);
+  if (isAllowedDomain(originDomain)) {
+    req.session.originDomain = originDomain;
+    log.debug(`[Auth Login] Stored origin domain: ${originDomain}`);
+  }
 
   // Store redirect URL in session for all login types
   if (redirectTo) {
@@ -234,25 +242,36 @@ router.get('/callback',
         }
       }
 
-      // Ensure all redirect URLs are absolute
-      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+      // Use stored origin domain for multi-domain support, fall back to BASE_URL
+      const originDomain = req.session.originDomain;
+      const isSecure = process.env.NODE_ENV === 'production' ||
+                       req.secure ||
+                       req.headers['x-forwarded-proto'] === 'https';
+
+      let baseUrl;
+      if (originDomain && isAllowedDomain(originDomain)) {
+        baseUrl = buildDomainUrl(originDomain, '', isSecure);
+        log.debug(`[AuthCallback] Using origin domain for redirect: ${baseUrl}`);
+      } else {
+        baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        log.debug(`[AuthCallback] Using fallback BASE_URL: ${baseUrl}`);
+      }
 
       let absoluteRedirect;
       if (intendedRedirect) {
         if (intendedRedirect.startsWith('http://') || intendedRedirect.startsWith('https://')) {
-          // Already absolute URL (including mobile deep-links)
           absoluteRedirect = intendedRedirect;
         } else if (intendedRedirect.includes('://')) {
-          // Mobile deep-link (app://, gruenerator://, etc.)
           absoluteRedirect = intendedRedirect;
         } else {
-          // Relative URL - convert to absolute
           absoluteRedirect = `${baseUrl}${intendedRedirect.startsWith('/') ? '' : '/'}${intendedRedirect}`;
         }
       } else {
-        // Default fallback
         absoluteRedirect = `${baseUrl}/profile`;
       }
+
+      // Clean up origin domain from session after use
+      delete req.session.originDomain;
 
       const redirectTo = absoluteRedirect;
 

@@ -7,6 +7,7 @@ import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInt
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useProfileStore } from '../../../stores/profileStore';
+import { useAuthStore } from '../../../stores/authStore';
 import { useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
 import Icon from '../../common/Icon';
 
@@ -48,6 +49,8 @@ const NavMenu = ({ open, onClose }) => {
 
   const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
   const chatBetaEnabled = useMemo(() => getBetaFeatureState('chat'), [getBetaFeatureState]);
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
 
   // Fetch custom generators for authenticated users
   useCustomGeneratorsData({ isActive: !!user?.id });
@@ -55,10 +58,10 @@ const NavMenu = ({ open, onClose }) => {
 
   // Memoize menu items to prevent unnecessary recalculations
   const menuItems = useMemo(() => getMenuItems(
-    { databaseBetaEnabled, chatBetaEnabled },
+    { databaseBetaEnabled, chatBetaEnabled, isAustrian },
     customGenerators
-  ), [databaseBetaEnabled, chatBetaEnabled, customGenerators]);
-  const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled }), [databaseBetaEnabled, chatBetaEnabled]);
+  ), [databaseBetaEnabled, chatBetaEnabled, isAustrian, customGenerators]);
+  const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }), [databaseBetaEnabled, chatBetaEnabled, isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const dynamicTopLevelItems = useMemo(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
 

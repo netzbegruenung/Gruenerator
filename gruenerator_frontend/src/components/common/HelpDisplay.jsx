@@ -1,34 +1,113 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import '../../assets/styles/components/popups/help.css';
 
-const HelpDisplay = ({ content, tips, forceHidden, hasGeneratedContent }) => {
+const HelpDisplay = ({
+  content,
+  tips,
+  forceHidden,
+  hasGeneratedContent,
+  isNewFeature,
+  featureId,
+  fallbackContent,
+  fallbackTips,
+  layout = 'default',
+  features = null
+}) => {
   const { generatedText } = useGeneratedTextStore();
-  
-  // Hide if there's generated content (from store OR prop), or force hidden
-  const isHidden = forceHidden || 
+
+  const hasSeenFeature = React.useMemo(() => {
+    if (!featureId || !isNewFeature) return false;
+    return localStorage.getItem(`feature-seen-${featureId}`) === 'true';
+  }, [featureId, isNewFeature]);
+
+  // Mark as seen AFTER first render (so border shows on first visit)
+  useEffect(() => {
+    if (isNewFeature && featureId && !hasSeenFeature) {
+      localStorage.setItem(`feature-seen-${featureId}`, 'true');
+    }
+  }, [isNewFeature, featureId, hasSeenFeature]);
+
+  const displayContent = (hasSeenFeature && fallbackContent) ? fallbackContent : content;
+  const displayTips = (hasSeenFeature && fallbackTips) ? fallbackTips : tips;
+  const showNewFeatureStyle = isNewFeature && !hasSeenFeature;
+
+  const isHidden = forceHidden ||
                    hasGeneratedContent ||
                    (generatedText && generatedText.length > 0);
 
-  if (!content || isHidden) {
+  if (!displayContent || isHidden) {
     return null;
   }
 
+  // Cards layout for start mode - one tip visible at a time with dots and auto-scroll
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const featureItems = layout === 'cards'
+    ? (features || displayTips?.map((tip, idx) => ({
+        title: `Tipp ${idx + 1}`,
+        description: typeof tip === 'string' ? tip : ''
+      })) || [])
+    : [];
+
+  useEffect(() => {
+    if (layout !== 'cards' || featureItems.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setActiveIndex(prev => (prev + 1) % featureItems.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [layout, featureItems.length, isPaused]);
+
+  if (layout === 'cards') {
+    if (featureItems.length === 0) return null;
+
+    const currentTip = featureItems[activeIndex] || featureItems[0];
+
+    return (
+      <div
+        className="help-display help-display--cards"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        {displayContent && (
+          <p className="help-display__cards-intro">{displayContent}</p>
+        )}
+        <div className="help-display__card">
+          <h3 className="help-display__card-title">{currentTip.title}</h3>
+          <p className="help-display__card-description">{currentTip.description}</p>
+        </div>
+        {featureItems.length > 1 && (
+          <div className="help-display__dots">
+            {featureItems.map((_, index) => (
+              <button
+                key={index}
+                className={`help-display__dot ${index === activeIndex ? 'active' : ''}`}
+                onClick={() => setActiveIndex(index)}
+                aria-label={`Tipp ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="help-display">
+    <div className={`help-display ${showNewFeatureStyle ? 'help-display--new-feature' : ''}`}>
       <div className="help-content">
+        {showNewFeatureStyle && <span className="help-display__badge">Neu</span>}
         <div className="help-content-text">
           {(() => {
-            // Check for content that should be formatted as a list
-            // Pattern: "Text: item1, item2, item3" or "Text. item1, item2, item3"
-            const colonOrPeriodMatch = content.match(/^([^:.]+[:.]\s*)(.+)$/);
+            const colonOrPeriodMatch = displayContent.match(/^([^:.]+[:.]\s*)(.+)$/);
 
             if (colonOrPeriodMatch && colonOrPeriodMatch[2].includes(',')) {
               const [, prefix, itemsText] = colonOrPeriodMatch;
               const items = itemsText.split(',').map(item => item.trim()).filter(item => item);
 
-              // Only create a list if we have multiple items
               if (items.length > 1) {
                 return (
                   <>
@@ -43,22 +122,19 @@ const HelpDisplay = ({ content, tips, forceHidden, hasGeneratedContent }) => {
               }
             }
 
-            // Otherwise preserve line breaks and render as paragraphs
-            return content.split('\n').filter(line => line.trim()).map((line, idx) => (
+            return displayContent.split('\n').filter(line => line.trim()).map((line, idx) => (
               <p key={idx}>{line}</p>
             ));
           })()}
         </div>
-        {tips && tips.length > 0 && (
+        {displayTips && displayTips.length > 0 && (
           <>
             <p><strong>Tipps:</strong></p>
             <ul>
-              {tips.map((tip, index) => (
+              {displayTips.map((tip, index) => (
                 <li key={index}>
                   {(() => {
-                    // Only attempt pattern matching if tip is a string
                     if (typeof tip === 'string') {
-                      // Check if tip contains "Bei X:" pattern with formats
                       const beiMatch = tip.match(/^(Bei [^:]+:\s*)(.+)$/);
                       if (beiMatch && beiMatch[2].includes(' - ')) {
                         const [, prefix, rest] = beiMatch;
@@ -66,7 +142,6 @@ const HelpDisplay = ({ content, tips, forceHidden, hasGeneratedContent }) => {
                         const description = parts[0];
                         const formats = parts[1];
 
-                        // Check if formats contain comma-separated items
                         if (formats && formats.includes(', ')) {
                           const formatItems = formats.split(', ').map(item => item.trim());
                           return (
@@ -84,7 +159,6 @@ const HelpDisplay = ({ content, tips, forceHidden, hasGeneratedContent }) => {
                       }
                     }
 
-                    // Otherwise return tip as-is (string or JSX element)
                     return tip;
                   })()}
                 </li>
@@ -101,13 +175,28 @@ HelpDisplay.propTypes = {
   content: PropTypes.string.isRequired,
   tips: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.node])),
   forceHidden: PropTypes.bool,
-  hasGeneratedContent: PropTypes.bool
+  hasGeneratedContent: PropTypes.bool,
+  isNewFeature: PropTypes.bool,
+  featureId: PropTypes.string,
+  fallbackContent: PropTypes.string,
+  fallbackTips: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.node])),
+  layout: PropTypes.oneOf(['default', 'cards']),
+  features: PropTypes.arrayOf(PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    description: PropTypes.string.isRequired
+  }))
 };
 
 HelpDisplay.defaultProps = {
   tips: [],
   forceHidden: false,
-  hasGeneratedContent: false
+  hasGeneratedContent: false,
+  isNewFeature: false,
+  featureId: null,
+  fallbackContent: null,
+  fallbackTips: null,
+  layout: 'default',
+  features: null
 };
 
-export default HelpDisplay; 
+export default HelpDisplay;

@@ -1,8 +1,11 @@
 /* FormCard Base Styles */
 .form-card {
-  background-color: var(--card-background);
-  border: var(--card-border);
+  background-color: var(--card-background, var(--background-color-alt));
+  border: 1px solid var(--card-border, var(--border-subtle));
   border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-large);
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition, all 0.25s ease-out);
   overflow: hidden;
 }
 
@@ -74,6 +77,166 @@
 
 .form-card--large {
   padding: var(--spacing-responsive-xlarge);
+}
+
+/* Start Mode: ChatGPT-like centered input with elevated styling */
+.form-card--start-mode {
+  background-color: var(--card-background);
+  border: var(--border-subtle);
+  border-radius: 24px;
+  padding: var(--spacing-medium);
+  box-shadow: var(--shadow-md);
+}
+
+.form-card--start-mode .form-card__content {
+  padding: 0;
+}
+
+.form-section--start-mode {
+  min-height: auto;
+}
+
+.form-section--start-mode .form-section__container {
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.form-section--start-mode .form-inputs__fields {
+  margin-bottom: 0;
+}
+
+.form-section--start-mode .form-section__inputs {
+  flex: none;
+}
+
+.form-section--start-mode .form-section__extras {
+  align-self: stretch;
+  flex: none;
+  width: 100%;
+}
+
+/* Start mode extras - split layout: FeatureIcons left, Platform selector + Submit right */
+.form-section__extras--start-mode {
+  padding: 0;
+  margin-top: var(--spacing-small);
+  width: 100%;
+  position: relative;
+  min-height: 44px;
+}
+
+.form-section__extras--start-mode .form-extras__content {
+  display: block;
+  width: 100%;
+}
+
+.form-section__extras--start-mode .form-extras__left {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+
+.form-section__extras--start-mode .form-extras__right {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  flex-direction: row;
+}
+
+/* Start mode: Position validation error to the left of the input */
+.form-section__extras--start-mode .form-extras__right .form-field-error {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: var(--spacing-small);
+  white-space: nowrap;
+  font-size: 0.85em;
+  color: var(--error-color, #e74c3c);
+}
+
+.form-section__extras--start-mode .form-extras__right .platform-selector {
+  position: relative;
+}
+
+.form-section__extras--start-mode .form-extras__right .form-field-wrapper {
+  position: relative;
+}
+
+.form-section__extras--start-mode .form-extras__item {
+  padding: 0;
+  margin: 0;
+}
+
+.form-section__extras--start-mode .form-extras__submit {
+  margin: 0;
+}
+
+.form-section__extras--start-mode .form-extras__submit-button {
+  width: auto;
+  min-width: 120px;
+}
+
+/* Start mode header - title and description outside the card */
+.form-section__start-header {
+  text-align: center;
+  margin-bottom: var(--spacing-medium);
+}
+
+.form-section__start-title {
+  text-align: center;
+  color: var(--tanne);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-small);
+}
+
+.form-section__start-description {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Start mode input styling - compact, ChatGPT-like textarea */
+.form-section--start-mode textarea {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  padding: 0 var(--spacing-medium);
+  overflow-y: hidden;
+  border: none;
+  background: transparent;
+}
+
+.form-section--start-mode textarea:focus {
+  outline: none;
+}
+
+/* Start mode mobile adjustments */
+@media (max-width: 768px) {
+  .form-card--start-mode {
+    border-radius: 20px;
+    padding: var(--spacing-small);
+    border: var(--border-subtle);
+    box-shadow: var(--shadow-md);
+  }
+
+  .form-section--start-mode textarea {
+    font-size: 1rem;
+    padding: var(--spacing-small);
+  }
+}
+
+@media (max-width: 480px) {
+  .form-card--start-mode {
+    border-radius: 16px;
+    border: var(--border-subtle);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 /* FormSection Modern Layout */
@@ -250,8 +413,16 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .form-card {
+    border: none;
+    box-shadow: none;
+    padding-top: 0;
+    border-radius: 0;
+  }
+
   .form-card--large {
     padding: var(--spacing-medium);
+    padding-top: 0;
   }
   
   .form-section {
@@ -436,6 +607,14 @@
   flex: 2; /* Display side gets 2 parts, like collab editor - 1/3 : 2/3 split */
   background: var(--background-color-pure);
   padding: var(--spacing-large);
+  position: relative;
+  z-index: 10; /* Above form section to prevent dropdown overlap */
+}
+
+/* Contain form section z-index in edit mode */
+.base-container.edit-mode-active .form-section {
+  position: relative;
+  z-index: 1; /* Lower than display section */
 }
 
 /* Edit Mode Focus: Full attention to editing */
@@ -474,11 +653,19 @@
   .form-card--large {
     padding: calc(var(--spacing-responsive-xlarge) * 1.1);
   }
-  
+
+  .form-card--start-mode.form-card--large {
+    padding: var(--spacing-medium);
+  }
+
   .form-section {
     min-height: 450px;
   }
-  
+
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
   .form-section__container {
     gap: calc(var(--spacing-responsive-large) * 1.2);
   }
@@ -501,6 +688,11 @@
     min-height: 120px;
     padding: 16px;
   }
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
 }
 
 @media (min-width: 1440px) {
@@ -511,7 +703,11 @@
   .form-section {
     min-height: 480px;
   }
-  
+
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
   .form-section input[type="text"],
   .form-section input[type="email"],
   .form-section textarea {
@@ -524,6 +720,11 @@
     min-height: 130px;
     padding: 18px;
   }
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
 }
 
 @media (min-width: 1920px) {
@@ -534,7 +735,11 @@
   .form-section {
     min-height: 520px;
   }
-  
+
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
   .form-section__container {
     gap: calc(var(--spacing-responsive-large) * 1.4);
   }
@@ -557,7 +762,12 @@
     min-height: 140px;
     padding: 20px;
   }
-  
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+
   /* Larger labels */
   .form-section label {
     font-size: 1.05rem;
@@ -573,7 +783,11 @@
   .form-section {
     min-height: 580px;
   }
-  
+
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
   .form-section input[type="text"],
   .form-section input[type="email"],
   .form-section textarea {
@@ -586,11 +800,17 @@
     min-height: 160px;
     padding: 22px;
   }
-  
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+
   .form-section label {
     font-size: 1.1rem;
   }
 }
+
 /* Edit Mode: maximize usable space in FormCard */
 .form-card.form-card--editmode {
   padding: 0 !important;

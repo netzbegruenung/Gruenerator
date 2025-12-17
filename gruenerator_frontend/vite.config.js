@@ -16,9 +16,8 @@ export default defineConfig(({ command }) => ({
     include: [
       'react', 'react-dom', 'react-router-dom',
       '@tanstack/react-query', 'zustand',
-      '@supabase/supabase-js',
       'axios', 'uuid', 'dompurify', 'file-saver',
-      'prop-types'
+      'prop-types', '@mdxeditor/editor'
     ],
     exclude: [
       'motion', 'lodash', 'browser-image-compression'
@@ -55,11 +54,11 @@ export default defineConfig(({ command }) => ({
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',
         assetFileNames(assetInfo) {
-          // Force .js extension for any remaining jsx files
-          if (assetInfo.name.endsWith('.jsx')) {
-            return `assets/js/${assetInfo.name.replace('.jsx', '')}.[hash].js`;
+          const name = assetInfo.names?.[0] || '';
+          if (name.endsWith('.jsx')) {
+            return `assets/js/${name.replace('.jsx', '')}.[hash].js`;
           }
-          const ext = assetInfo.name.split('.').pop();
+          const ext = name.split('.').pop();
           if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
             return 'assets/images/[name].[hash][extname]';
           }

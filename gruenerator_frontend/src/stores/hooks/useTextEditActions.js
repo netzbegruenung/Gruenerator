@@ -13,6 +13,7 @@ export const extractEditableText = (content) => {
   if (typeof content === 'object') {
     if (content?.social?.content && typeof content.social.content === 'string') return content.social.content;
     if (typeof content.content === 'string') return content.content;
+    if (typeof content.text === 'string') return content.text;
   }
   return '';
 };
@@ -78,7 +79,11 @@ const useTextEditActions = (componentName) => {
   const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
 
-  const getEditableText = () => extractEditableText(storeContent);
+  const getEditableText = () => {
+    // Read directly from store to get latest value after applyEdits
+    const currentContent = useGeneratedTextStore.getState().generatedTexts[componentName] || '';
+    return extractEditableText(currentContent);
+  };
 
   const applyEdits = (changes) => {
     // Push current state to history before applying changes

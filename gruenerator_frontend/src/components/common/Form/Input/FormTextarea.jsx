@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Controller } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -6,10 +6,14 @@ import FormFieldWrapper from './FormFieldWrapper';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 import { detectUrls } from '../../../../utils/urlDetection';
 import useDebounce from '../../../../components/hooks/useDebounce';
+import { useFormStateSelector } from '../FormStateProvider';
+import { COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
+import TextareaWithAutocomplete from './TextareaWithAutocomplete';
+import '../../../../assets/styles/components/form/form-inputs.css';
 
 /**
  * FormTextarea - Modern textarea component with auto-resize and react-hook-form integration
- * Features: Auto-resize, Controller integration, character count, accessibility, URL detection
+ * Features: Auto-resize, Controller integration, character count, accessibility, URL detection, text autocomplete
  */
 const FormTextarea = ({
   name,
@@ -22,7 +26,7 @@ const FormTextarea = ({
   control,
   rules = {},
   defaultValue = '',
-  minRows = 3,
+  minRows: minRowsProp = 3,
   maxRows = 10,
   showCharacterCount = false,
   maxLength,
@@ -32,8 +36,22 @@ const FormTextarea = ({
   // URL detection (no UI rendering)
   enableUrlDetection = false,
   onUrlsDetected,
+  // Text autocomplete props
+  enableTextAutocomplete = false,
+  autocompleteDictionary = COMBINED_DICTIONARY,
+  autocompleteMinChars = 3,
+  autocompleteAddHashtag = true,
   ...rest
 }) => {
+  // Read isStartMode from store (set by BaseForm)
+  let storeIsStartMode = false;
+  try {
+    storeIsStartMode = useFormStateSelector(state => state.isStartMode);
+  } catch {
+    // Not inside FormStateProvider - use default
+  }
+  const minRows = storeIsStartMode ? 2 : minRowsProp;
+
   const textareaId = `form-textarea-${name}`;
   const textareaClassName = `form-textarea ${className}`.trim();
 
@@ -63,15 +81,15 @@ const FormTextarea = ({
   // Character count component
   const CharacterCount = ({ value }) => {
     if (!showCharacterCount && !maxLength) return null;
-    
+
     const currentLength = value ? value.length : 0;
     const isNearLimit = maxLength && currentLength > maxLength * 0.8;
     const isOverLimit = maxLength && currentLength > maxLength;
-    
+
     return (
-      <small 
+      <small
         className={`form-field-help character-count ${isNearLimit ? 'near-limit' : ''} ${isOverLimit ? 'over-limit' : ''}`}
-        style={{ 
+        style={{
           textAlign: 'right',
           color: isOverLimit ? 'var(--error-red)' : isNearLimit ? 'var(--warning-color, orange)' : undefined
         }}
@@ -98,34 +116,56 @@ const FormTextarea = ({
             htmlFor={textareaId}
             labelProps={labelProps}
           >
-            <div>
-              <TextareaAutosize
-                {...field}
-                id={textareaId}
+            {enableTextAutocomplete ? (
+              <TextareaWithAutocomplete
+                field={field}
+                error={error}
+                textareaId={textareaId}
                 placeholder={placeholder}
                 disabled={disabled}
                 minRows={minRows}
                 maxRows={maxRows}
                 maxLength={maxLength}
-                className={`${textareaClassName} ${error ? 'error-input' : ''}`.trim()}
+                className={textareaClassName}
                 tabIndex={tabIndex}
-                onChange={(e) => {
-                  field.onChange(e);
-
-                  // Update field value for URL detection
-                  if (enableUrlDetection) {
-                    setFieldValue(e.target.value);
-                  }
-
-                  // Call external onChange if provided
-                  if (rest.onChange) {
-                    rest.onChange(e.target.value);
-                  }
-                }}
-                {...textareaProps}
+                textareaProps={textareaProps}
+                enableUrlDetection={enableUrlDetection}
+                onFieldValueChange={setFieldValue}
+                onExternalChange={rest.onChange}
+                dictionary={autocompleteDictionary}
+                minChars={autocompleteMinChars}
+                addHashtagOnAccept={autocompleteAddHashtag}
+                showCharacterCount={showCharacterCount}
+                CharacterCount={CharacterCount}
               />
-              <CharacterCount value={field.value} />
-            </div>
+            ) : (
+              <div>
+                <TextareaAutosize
+                  {...field}
+                  id={textareaId}
+                  placeholder={placeholder}
+                  disabled={disabled}
+                  minRows={minRows}
+                  maxRows={maxRows}
+                  maxLength={maxLength}
+                  className={`${textareaClassName} ${error ? 'error-input' : ''}`.trim()}
+                  tabIndex={tabIndex}
+                  onChange={(e) => {
+                    field.onChange(e);
+
+                    if (enableUrlDetection) {
+                      setFieldValue(e.target.value);
+                    }
+
+                    if (rest.onChange) {
+                      rest.onChange(e.target.value);
+                    }
+                  }}
+                  {...textareaProps}
+                />
+                <CharacterCount value={field.value} />
+              </div>
+            )}
           </FormFieldWrapper>
         )}
       />
@@ -198,7 +238,12 @@ FormTextarea.propTypes = {
   tabIndex: PropTypes.number,
   // URL-aware props (callback only, no UI)
   enableUrlDetection: PropTypes.bool,
-  onUrlsDetected: PropTypes.func
+  onUrlsDetected: PropTypes.func,
+  // Text autocomplete props
+  enableTextAutocomplete: PropTypes.bool,
+  autocompleteDictionary: PropTypes.arrayOf(PropTypes.string),
+  autocompleteMinChars: PropTypes.number,
+  autocompleteAddHashtag: PropTypes.bool
 };
 
 export default FormTextarea; 

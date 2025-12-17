@@ -257,7 +257,7 @@ export const useGeneratorSelectionStore = create(immer((set, get) => {
         }
 
         // Reset features to the component's default
-        const modeToApply = state.defaultModes[componentName] || defaultMode || 'balanced';
+        const modeToApply = state.defaultModes[componentName] || defaultMode || 'privacy';
 
         // Reset all modes first
         state.useWebSearch = false;

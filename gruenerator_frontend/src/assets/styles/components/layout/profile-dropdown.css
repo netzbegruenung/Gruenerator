@@ -123,6 +123,13 @@
 
 .profile-dropdown-avatar {
   flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  border-radius: 50%;
+}
+
+.profile-dropdown-avatar:hover {
+  transform: scale(1.08);
 }
 
 .profile-dropdown-avatar-robot {
@@ -182,7 +189,7 @@
 .profile-dropdown-divider {
   height: 1px;
   background-color: var(--border-subtle);
-  margin: var(--spacing-xsmall) 0;
+  margin: 2px 0;
 }
 
 /* ProfileMenu in dropdown variant */
@@ -310,6 +317,52 @@
 
 .profile-dropdown-link.logout-link .profile-dropdown-icon {
   color: #e74c3c;
+}
+
+/* Footer with Einstellungen and logout icon */
+.profile-dropdown-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: var(--spacing-small);
+}
+
+.profile-dropdown-footer .profile-dropdown-link {
+  flex: 1;
+}
+
+.profile-dropdown-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: var(--font-color);
+  opacity: 0.7;
+}
+
+.profile-dropdown-icon-button:hover {
+  background-color: var(--background-color-alt);
+  opacity: 1;
+}
+
+.profile-dropdown-icon-button.logout-icon-button {
+  color: #e74c3c;
+  opacity: 1;
+}
+
+.profile-dropdown-icon-button.logout-icon-button:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.profile-dropdown-icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 

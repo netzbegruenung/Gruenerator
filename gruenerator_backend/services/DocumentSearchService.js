@@ -10,6 +10,7 @@ import { QdrantOperations } from '../database/services/QdrantOperations.js';
 import { BaseSearchService } from './BaseSearchService.js';
 import { InputValidator } from '../utils/inputValidation.js';
 import { vectorConfig } from '../config/vectorConfig.js';
+import { isSystemQdrantCollection } from '../config/systemCollectionsConfig.js';
 import { v4 as uuidv4 } from 'uuid';
 
 class DocumentSearchService extends BaseSearchService {
@@ -131,10 +132,9 @@ class DocumentSearchService extends BaseSearchService {
         // Nested shape (from performSimilarity/Hybrid invocations)
         if (params && (params.userId || params.filters || params.options)) {
             const query = InputValidator.validateSearchQuery(params.query);
-            const isGrundsatz = params.filters?.searchCollection === 'grundsatz_documents';
-            const isBundestagContent = params.filters?.searchCollection === 'bundestag_content';
-            // Allow null userId for system searches (grundsatz or bundestag_content)
-            const userId = (isGrundsatz || isBundestagContent) && (params.userId === null || params.userId === undefined)
+            const isSystemSearch = isSystemQdrantCollection(params.filters?.searchCollection);
+            // Allow null userId for system collection searches
+            const userId = isSystemSearch && (params.userId === null || params.userId === undefined)
                 ? null
                 : InputValidator.validateUserId(params.userId);
 
@@ -145,6 +145,7 @@ class DocumentSearchService extends BaseSearchService {
             const sourceType = params.filters?.sourceType;
             const group_id = params.filters?.group_id;
             const searchCollection = params.filters?.searchCollection;
+            const titleFilter = params.filters?.titleFilter;
 
             // Extract and validate options
             const limit = InputValidator.validateNumber(
@@ -172,14 +173,14 @@ class DocumentSearchService extends BaseSearchService {
             return {
                 query,
                 userId,
-                filters: { documentIds, sourceType, group_id, searchCollection },
+                filters: { documentIds, sourceType, group_id, searchCollection, titleFilter },
                 options
             };
         }
 
         // Flat shape (direct external calls)
-        // Special-case: allow null user_id when searching system collections (grundsatz or bundestag)
-        const isSystemCollection = params && (params.searchCollection === 'grundsatz_documents' || params.searchCollection === 'bundestag_content');
+        // Special-case: allow null user_id when searching system collections
+        const isSystemCollection = params && isSystemQdrantCollection(params.searchCollection);
         if (isSystemCollection && (params.user_id === null || params.user_id === undefined)) {
             const query = InputValidator.validateSearchQuery(params.query);
             // Optional fields
@@ -215,7 +216,8 @@ class DocumentSearchService extends BaseSearchService {
                     documentIds,
                     sourceType: params.sourceType,
                     group_id: params.group_id,
-                    searchCollection: params.searchCollection
+                    searchCollection: params.searchCollection,
+                    titleFilter: params.titleFilter
                 },
                 options: {
                     limit,
@@ -252,7 +254,8 @@ class DocumentSearchService extends BaseSearchService {
                 documentIds: validated.documentIds,
                 sourceType: validated.sourceType,
                 group_id: validated.group_id,
-                searchCollection: params.searchCollection
+                searchCollection: params.searchCollection,
+                titleFilter: params.titleFilter
             },
             options: {
                 limit: validated.limit,
@@ -604,6 +607,13 @@ class DocumentSearchService extends BaseSearchService {
                 match: { value: filters.sourceType }
             });
         }
+
+        if (filters.titleFilter) {
+            filter.must.push({
+                key: 'title',
+                match: { value: filters.titleFilter }
+            });
+        }
         // Optional quality_min range gating
         if (typeof qualityMin === 'number') {
             filter.must.push({ key: 'quality_score', range: { gte: qualityMin } });
@@ -686,7 +696,14 @@ class DocumentSearchService extends BaseSearchService {
                 match: { value: filters.sourceType }
             });
         }
-        
+
+        if (filters.titleFilter) {
+            filter.must.push({
+                key: 'title',
+                match: { value: filters.titleFilter }
+            });
+        }
+
         console.log('[DocumentSearchService] Calling Qdrant hybridSearch...');
         const hybridResult = await this.qdrantOps.hybridSearch(
             searchCollection,

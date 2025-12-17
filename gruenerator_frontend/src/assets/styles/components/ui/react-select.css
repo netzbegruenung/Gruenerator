@@ -583,4 +583,96 @@
 /* Selected option styling */
 .canva-select__option--is-selected .canva-option__date {
   color: rgba(255, 255, 255, 0.8);
-} 
+}
+
+/* =========================
+   START MODE VARIANT
+   Minimal, rounded styling for start page
+   ========================= */
+
+.form-section--start-mode .react-select__control {
+  border: none !important;
+  border-radius: 24px !important;
+  min-height: 36px !important;
+  background-color: transparent !important;
+}
+
+.form-section--start-mode .react-select__control:hover {
+  background-color: rgba(128, 128, 128, 0.1) !important;
+  box-shadow: none !important;
+}
+
+.form-section--start-mode .react-select__control--is-focused {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.form-section--start-mode .react-select__control:active {
+  opacity: 0.7;
+  transition: opacity 0.1s ease;
+}
+
+.form-section--start-mode .react-select__value-container {
+  padding: 4px 12px !important;
+  min-height: 32px !important;
+}
+
+.form-section--start-mode .react-select__placeholder {
+  font-size: 0.9rem !important;
+}
+
+.form-section--start-mode .react-select__multi-value {
+  border-radius: 12px !important;
+  margin: 2px 4px 2px 0 !important;
+}
+
+.form-section--start-mode .react-select__multi-value__label {
+  padding: 2px 6px !important;
+  font-size: 0.8rem !important;
+}
+
+.form-section--start-mode .react-select__multi-value__remove {
+  border-radius: 0 12px 12px 0 !important;
+}
+
+/* Start mode: show only icons in selected chips */
+.form-section--start-mode .react-select__multi-value__label-wrapper span {
+  display: none;
+}
+
+.form-section--start-mode .react-select__multi-value__label-wrapper {
+  padding: var(--spacing-xxsmall);
+  padding-left: var(--spacing-small);
+}
+
+.form-section--start-mode .react-select__multi-value__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.form-section--start-mode .react-select__dropdown-indicator,
+.form-section--start-mode .react-select__clear-indicator {
+  padding: 4px !important;
+}
+
+.form-section--start-mode .react-select__dropdown-indicator {
+  transition: transform 0.2s ease;
+}
+
+.form-section--start-mode .react-select__control--menu-is-open .react-select__dropdown-indicator {
+  transform: rotate(180deg);
+}
+
+.form-section--start-mode .react-select__indicator-separator {
+  display: none !important;
+}
+
+.form-section--start-mode .react-select__menu {
+  border-radius: 16px !important;
+}
+
+body > .react-select__menu-portal .react-select__menu {
+  min-width: 250px;
+  left: 50%;
+  transform: translateX(-50%);
+}

@@ -292,8 +292,9 @@ class AssSubtitleService {
    * @param {string} stylePreference - Style preset name
    * @param {string} locale - User locale (de-DE, de-AT) for automatic style mapping
    * @param {string} heightPreference - Vertical position ('standard' or 'tief')
+   * @param {Array} textOverlays - Optional text overlays from video editor
    */
-  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE', heightPreference = 'standard') {
+  generateAssContent(segments, videoMetadata, styleOptions = {}, subtitlePreference = 'manual', stylePreference = 'standard', locale = 'de-DE', heightPreference = 'standard', textOverlays = []) {
     // Map style to locale-specific variant if needed (e.g., Austrian users get Austria styles)
     const effectiveStyle = this.mapStyleForLocale(stylePreference, locale);
 
@@ -309,11 +310,18 @@ class AssSubtitleService {
 
 
     const header = this.generateAssHeader(videoMetadata);
-    const stylesSection = this.generateStylesSection(style);
+    const stylesSection = this.generateStylesSection(style, textOverlays && textOverlays.length > 0);
     const eventsSection = this.generateEventsSection(segments, subtitlePreference, effectiveStyle, videoMetadata, heightPreference);
 
+    // Add text overlay events if present
+    let overlayEvents = '';
+    if (textOverlays && textOverlays.length > 0) {
+      overlayEvents = this.generateTextOverlayEvents(textOverlays, videoMetadata);
+      log.debug(`Generated ${textOverlays.length} text overlay events`);
+    }
+
     return {
-      content: `${header}\n${stylesSection}\n${eventsSection}`,
+      content: `${header}\n${stylesSection}\n${eventsSection}${overlayEvents}`,
       effectiveStyle // Return the effective style so controller knows which font to use
     };
   }
@@ -407,8 +415,10 @@ Video Position: 0`;
 
   /**
    * Generate styles section with proper style preset implementation
+   * @param {Object} style - The main subtitle style
+   * @param {boolean} includeOverlayStyles - Whether to include text overlay styles
    */
-  generateStylesSection(style) {
+  generateStylesSection(style, includeOverlayStyles = false) {
     const formatLine = [
       'Name', 'Fontname', 'Fontsize', 'PrimaryColour', 'SecondaryColour',
       'OutlineColour', 'BackColour', 'Bold', 'Italic', 'Underline', 'StrikeOut',
@@ -427,9 +437,35 @@ Video Position: 0`;
       finalStyle.alignment, finalStyle.marginL, finalStyle.marginR, finalStyle.marginV
     ].join(',');
 
-    return `[V4+ Styles]
+    let styles = `[V4+ Styles]
 Format: ${formatLine}
 Style: ${styleLine}`;
+
+    // Add text overlay styles if needed
+    if (includeOverlayStyles) {
+      // OverlayHeader: Bold GrueneType with shadow, white text - matches frontend header style
+      const overlayHeaderStyle = [
+        'OverlayHeader', 'GrueneType Neue', finalStyle.fontSize, '&H00FFFFFF',
+        '&H00FFFFFF', '&H80000000', '&H00000000', -1,  // Bold (-1)
+        0, 0, 0, 100, 100,
+        0, 0, 0, 0, 2,  // BorderStyle 0, Outline 0, Shadow 2
+        5, 10, 10, 10   // Alignment 5 (center), margins
+      ].join(',');
+
+      // OverlaySub: Regular PT Sans with shadow - matches frontend subheader style
+      const overlaySubStyle = [
+        'OverlaySub', 'PT Sans', Math.round(finalStyle.fontSize * 0.67), '&H00FFFFFF',
+        '&H00FFFFFF', '&H80000000', '&H00000000', 0,
+        0, 0, 0, 100, 100,
+        0, 0, 0, 0, 2,  // BorderStyle 0, Outline 0, Shadow 2
+        5, 10, 10, 10   // Alignment 5 (center), margins
+      ].join(',');
+
+      styles += `\nStyle: ${overlayHeaderStyle}`;
+      styles += `\nStyle: ${overlaySubStyle}`;
+    }
+
+    return styles;
   }
 
   /**
@@ -529,6 +565,44 @@ Style: ${styleLine}`;
     return `[Events]
 Format: ${formatLine}
 ${dialogueLines}`;
+  }
+
+  /**
+   * Generate text overlay events from VideoEditor overlays
+   * @param {Array} textOverlays - Array of overlay objects from frontend
+   * @param {Object} videoMetadata - Video dimensions
+   * @returns {string} ASS dialogue lines for overlays
+   */
+  generateTextOverlayEvents(textOverlays, videoMetadata) {
+    if (!textOverlays || textOverlays.length === 0) {
+      return '';
+    }
+
+    const { width: videoWidth = 1920, height: videoHeight = 1080 } = videoMetadata;
+
+    const overlayLines = textOverlays.map((overlay) => {
+      const startTime = this.formatAssTime(overlay.startTime);
+      const endTime = this.formatAssTime(overlay.endTime);
+
+      // Determine style based on overlay type
+      const styleName = overlay.type === 'header' ? 'OverlayHeader' : 'OverlaySub';
+
+      // Convert percentage position to pixel position
+      // xPosition is percentage from left (50 = center)
+      // yPosition is percentage from top
+      const posX = Math.round((overlay.xPosition / 100) * videoWidth);
+      const posY = Math.round((overlay.yPosition / 100) * videoHeight);
+
+      const escapedText = this.escapeAssText(overlay.text);
+
+      // Use \an5 (center anchor) with \pos for absolute positioning
+      // This matches the frontend's transform: translate(-50%, -50%) centering
+      const positionedText = `{\\an5\\pos(${posX},${posY})}${escapedText}`;
+
+      return `Dialogue: 1,${startTime},${endTime},${styleName},,0,0,0,,${positionedText}`;
+    }).join('\n');
+
+    return `\n${overlayLines}`;
   }
 
   /**

@@ -160,6 +160,56 @@
   overflow: hidden;
 }
 
+/* ===== Ghost Text Autocomplete ===== */
+.textarea-autocomplete-wrapper--active {
+  position: relative;
+}
+
+.textarea-autocomplete-wrapper--active .form-textarea {
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.textarea-ghost-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--form-element-padding-y, var(--spacing-small)) var(--form-element-padding-x, var(--spacing-small));
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: var(--form-element-font-size, 14px);
+  line-height: var(--form-element-line-height, 1.5);
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  border: 0;
+  box-sizing: border-box;
+}
+
+.textarea-ghost-prefix {
+  visibility: hidden;
+}
+
+.textarea-ghost-suffix {
+  color: var(--grey-400, #9ca3af);
+  opacity: 0.8;
+}
+
+/* Hint text for accepting suggestions */
+.textarea-autocomplete-hint {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--font-color-disabled);
+  pointer-events: none;
+  opacity: 0.7;
+  z-index: 2;
+}
+
 /* ===== Select Specific ===== */
 .form-select {
   background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -236,15 +286,6 @@
   font-weight: bold;
 }
 
-/* ===== Card-based Form Container ===== */
-.form-card {
-  background-color: var(--card-background, var(--background-color-alt));
-  border: 1px solid var(--card-border, var(--border-subtle));
-  border-radius: var(--spacing-small);
-  padding: var(--spacing-large);
-  box-shadow: var(--shadow-sm);
-  transition: var(--input-transition, all 0.25s ease-out);
-}
 
 /* ===== Skip Link Styles ===== */
 .skip-link {

@@ -2,10 +2,10 @@ const axios = require('axios');
 
 /**
  * Canva Connect API Client Service
- * 
+ *
  * Provides access to Canva's Connect API for design creation, asset management,
- * and user operations. Follows the established pattern from bundestagApiClient.js
- * 
+ * and user operations.
+ *
  * API Documentation: https://www.canva.dev/docs/connect/api-reference/
  */
 class CanvaApiClient {

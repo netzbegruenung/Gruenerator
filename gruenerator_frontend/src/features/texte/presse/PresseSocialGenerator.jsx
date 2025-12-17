@@ -11,6 +11,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useSharedContent } from '../../../components/hooks/useSharedContent';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { HiInformationCircle } from 'react-icons/hi';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -26,11 +27,16 @@ import SmartInput from '../../../components/common/Form/SmartInput';
 import { getIcon } from '../../../config/icons';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
+import usePlatformAutoDetect from '../../../hooks/usePlatformAutoDetect';
+import useFormTips from '../../../hooks/useFormTips';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
   const { initialContent } = useSharedContent();
   const { isAuthenticated, user } = useOptimizedAuth();
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
+  const canUseSharepic = isAuthenticated && !isAustrian;
 
   const platformOptions = useMemo(() => {
     const options = [
@@ -43,8 +49,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       { id: 'actionIdeas', label: 'Aktionsideen', icon: <Icon category="platforms" name="actionIdeas" size={16} /> },
       { id: 'reelScript', label: 'Skript für Reels & Tiktoks', icon: <Icon category="platforms" name="reelScript" size={16} /> }
     ];
-    return isAuthenticated ? options : options.filter(opt => opt.id !== 'sharepic');
-  }, [isAuthenticated]);
+    return canUseSharepic ? options : options.filter(opt => opt.id !== 'sharepic');
+  }, [canUseSharepic]);
 
   const sharepicTypeOptions = [
     { value: 'default', label: 'Standard (3 Sharepics automatisch)' },
@@ -63,7 +69,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         key => initialContent.platforms[key]
       );
       if (selectedPlatforms.length > 0) {
-        return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
+        return canUseSharepic ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
       }
     }
 
@@ -72,14 +78,13 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       selectedPlatforms = ['instagram'];
     }
 
-    return isAuthenticated ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic'); // No default selection or filtered
-  }, [initialContent, isAuthenticated]);
+    return canUseSharepic ? selectedPlatforms : selectedPlatforms.filter(p => p !== 'sharepic');
+  }, [initialContent, canUseSharepic]);
 
   // Use useBaseForm to get automatic document/text fetching
   const form = useBaseForm({
     defaultValues: {
-      thema: initialContent?.thema || '',
-      details: initialContent?.details || '',
+      inhalt: initialContent?.inhalt || initialContent?.thema || '',
       zitatgeber: initialContent?.zitatgeber || '',
       presseabbinder: '',
       platforms: defaultPlatforms,
@@ -93,6 +98,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     instructionType: 'social',
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'PRESS_SOCIAL',
+    defaultMode: 'privacy',
     disableKnowledgeSystem: false  // Enable knowledge system for document/text fetching
   });
 
@@ -107,17 +113,26 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
   const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
   const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
+  const watchInhalt = useWatch({ control, name: 'inhalt', defaultValue: '' });
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
-  const watchSharepic = isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
+  const watchSharepic = canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
 
-  // Ensure sharepic is not selected when user is not authenticated
+  // Auto-detect platforms from content text (respects user removals)
+  usePlatformAutoDetect({
+    content: watchInhalt,
+    currentPlatforms: watchPlatforms,
+    validPlatformIds: platformOptions.map(p => p.id),
+    onPlatformsDetected: (newPlatforms) => setValue('platforms', newPlatforms)
+  });
+
+  // Ensure sharepic is not selected when user cannot use it
   useEffect(() => {
-    if (!isAuthenticated && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
+    if (!canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic')) {
       const filtered = watchPlatforms.filter(p => p !== 'sharepic');
       setValue('platforms', filtered);
     }
-  }, [isAuthenticated, watchPlatforms, setValue]);
+  }, [canUseSharepic, watchPlatforms, setValue]);
 
 
   const handleImageChange = useCallback((file) => {
@@ -170,6 +185,20 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
 
+  const hasGeneratedContent = !!(storeGeneratedText || socialMediaContent);
+  const isStartMode = !hasGeneratedContent;
+
+  // Contextual tips based on form state
+  const { activeTip } = useFormTips(
+    { hasPressemitteilung: watchPressemitteilung },
+    {
+      hasPressemitteilung: {
+        icon: '💡',
+        text: 'Tipp: Nenne im Text, wer zitiert werden soll (z.B. "Laut Maria Müller...")'
+      }
+    }
+  );
+
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
 
@@ -179,7 +208,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
       // Use platforms array directly from multi-select
       const selectedPlatforms = rhfData.platforms || [];
-      const hasSharepic = isAuthenticated && selectedPlatforms.includes('sharepic');
+      const hasSharepic = canUseSharepic && selectedPlatforms.includes('sharepic');
 
       // Combine file attachments with crawled URLs
       const allAttachments = [
@@ -188,19 +217,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       ];
 
       const formDataToSubmit = {
-        thema: rhfData.thema,
-        details: rhfData.details,
+        inhalt: rhfData.inhalt,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
         ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: allAttachments
       };
-      
+
       // Extract search query from form data for intelligent document content
       const extractQueryFromFormData = (data) => {
         const queryParts = [];
-        if (data.thema) queryParts.push(data.thema);
-        if (data.details) queryParts.push(data.details);
+        if (data.inhalt) queryParts.push(data.inhalt);
         if (data.zitatgeber) queryParts.push(data.zitatgeber);
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
@@ -223,8 +250,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       if (hasSharepic) {
         generationPromises.push(
           generateSharepic(
-            rhfData.thema,
-            rhfData.details,
+            rhfData.inhalt,
+            '', // details merged into inhalt
             uploadedImage,
             rhfData.sharepicType || 'default',
             rhfData.zitatAuthor,
@@ -305,6 +332,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           // For backward compatibility, also set the main content
           content: combinedResults.social?.content || '',
           metadata: combinedResults.social?.metadata || {},
+          // Add selected platforms for social sharing feature
+          selectedPlatforms: otherPlatforms,
           // Add edit handler for sharepics
           onEditSharepic: handleEditSharepic
         };
@@ -318,7 +347,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedDocumentIds, selectedTextIds, getFeatureState, isAuthenticated]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, generateSharepic, uploadedImage, processedAttachments, crawledUrls, socialMediaContent, selectedDocumentIds, selectedTextIds, getFeatureState, canUseSharepic]);
 
   const handleGeneratedContentChange = useCallback((content) => {
     setSocialMediaContent(content);
@@ -438,51 +467,85 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, []);
 
   const helpContent = {
-    content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
+    content: "Erstelle professionelle Pressemitteilungen und Social Media Inhalte",
     tips: [
-      "Gib ein klares, prägnantes Thema an",
-      "Füge wichtige Details und Fakten hinzu",
+      "Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld",
       "Wähle die gewünschten Formate aus",
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
       "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics. Weitere Formate: 3-Zeilen Slogan, Zitat mit/ohne Bild, Infopost"
+    ],
+    features: [
+      {
+        title: "Multi-Format",
+        description: "Erstelle gleichzeitig Pressemitteilungen, Social Posts und Sharepics"
+      },
+      {
+        title: "Plattform-optimiert",
+        description: "Automatisch angepasst für Instagram, Facebook, Twitter, LinkedIn & mehr"
+      },
+      {
+        title: "Sharepics inklusive",
+        description: "Professionelle Grafiken mit passenden Headlines direkt zum Download"
+      }
     ]
   };
+
+  const examplePrompts = [
+    {
+      icon: "🎉",
+      label: "Erfolg im Gemeinderat",
+      prompt: "Unser Antrag für mehr Stadtbäume wurde heute im Gemeinderat mit großer Mehrheit angenommen! 50 neue Bäume werden noch dieses Jahr in der Innenstadt gepflanzt. Danke an alle, die unterschrieben und sich eingesetzt haben. Grüne Politik wirkt - auch vor Ort.",
+      platforms: ["instagram", "facebook"]
+    },
+    {
+      icon: "🚨",
+      label: "Gegen Flächenversiegelung",
+      prompt: "Der geplante Parkplatz am Stadtpark würde 2000m² Grünfläche zerstören. Wir fordern stattdessen: Ausbau des P+R-Parkplatzes am Bahnhof und bessere Busanbindung. Die Innenstadt braucht mehr Grün, nicht mehr Beton. Kommt zur Infoveranstaltung am Donnerstag!",
+      platforms: ["twitter", "facebook"]
+    },
+    {
+      icon: "✊",
+      label: "Tempo 30 vor Schulen",
+      prompt: "Vor der Grundschule Waldstraße rasen täglich Autos mit 50 km/h vorbei. Wir sammeln Unterschriften für Tempo 30 in allen Schulzonen. Schon 847 Bürger*innen haben unterschrieben. Unterschreibt auch: [Link]. Nächste Woche bringen wir den Antrag ein.",
+      platforms: ["instagram", "twitter"]
+    }
+  ];
+
+  const handleExamplePromptClick = useCallback((example) => {
+    setValue('inhalt', example.prompt || example.text);
+    if (example.platforms) {
+      setValue('platforms', example.platforms);
+    }
+  }, [setValue]);
 
   const renderPlatformSection = () => (
     <PlatformSelector
       name="platforms"
       control={control}
       platformOptions={platformOptions}
-      label="Formate"
-      placeholder="Formate auswählen..."
+      label=""
+      placeholder="Formate"
       required={true}
       tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
+      enableAutoSelect={true}
     />
   );
 
   const renderFormInputs = () => (
     <>
-      <FormInput
-        name="thema"
-        control={control}
-        label={FORM_LABELS.THEME}
-        placeholder={FORM_PLACEHOLDERS.THEME}
-        rules={{ required: 'Thema ist ein Pflichtfeld' }}
-        tabIndex={form.generator?.tabIndex?.thema}
-      />
-
       <FormTextarea
-        name="details"
+        name="inhalt"
         control={control}
-        label={FORM_LABELS.DETAILS}
-        placeholder={FORM_PLACEHOLDERS.DETAILS}
-        rules={{ required: 'Details sind ein Pflichtfeld' }}
-        minRows={3}
-        maxRows={10}
+        placeholder={FORM_PLACEHOLDERS.INHALT}
+        rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
+        minRows={5}
+        maxRows={15}
         className="form-textarea-large"
-        tabIndex={form.generator?.tabIndex?.details}
+        tabIndex={form.generator?.tabIndex?.inhalt}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
+        enableTextAutocomplete={true}
+        autocompleteAddHashtag={false}
       />
 
       <AnimatePresence>
@@ -590,17 +653,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {watchPressemitteilung && (
-          <motion.div 
+        {watchPressemitteilung && !isStartMode && (
+          <motion.div
             className={`press-release-fields ${watchSharepic ? 'has-preceding-section' : ''}`.trim()}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 400, 
+            transition={{
+              type: "spring",
+              stiffness: 400,
               damping: 25,
-              duration: 0.25 
+              duration: 0.25
             }}
           >
             <h4>Pressemitteilung:</h4>
@@ -614,7 +677,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
               label={FORM_LABELS.WHO_QUOTE}
               subtext="Mehrere Personen können genannt werden."
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
-              rules={{ required: 'Zitatgeber ist ein Pflichtfeld für Pressemitteilungen' }}
+              rules={{}}
               tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.zitatgeber, watchPressemitteilung)}
               onSubmitSuccess={success ? getValues('zitatgeber') : null}
               shouldSave={success}
@@ -644,7 +707,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title={<span className="gradient-title">Presse- & Social Media Grünerator</span>}
+          useStartPageLayout={true}
+          startPageDescription="Erstelle professionelle Texte für Social Media und Presse. Wähle deine Plattformen und lass dich von KI unterstützen."
+          title={<span className="gradient-title">Welche Botschaft willst du heute grünerieren?</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || sharepicLoading}
           success={success}
@@ -670,6 +735,9 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           documentSelectorTabIndex={form.generator?.baseFormTabIndex?.documentSelectorTabIndex}
           submitButtonTabIndex={form.generator?.baseFormTabIndex?.submitButtonTabIndex}
           firstExtrasChildren={renderPlatformSection()}
+          examplePrompts={examplePrompts}
+          onExamplePromptClick={handleExamplePromptClick}
+          contextualTip={activeTip}
         >
           {renderFormInputs()}
         </BaseForm>

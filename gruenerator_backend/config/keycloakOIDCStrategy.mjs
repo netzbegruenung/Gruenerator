@@ -8,6 +8,7 @@ import {
   ClientSecretBasic
 } from 'openid-client';
 import passport from 'passport';
+import { isAllowedDomain, buildDomainUrl } from '../utils/domainUtils.js';
 
 /**
  * Custom Keycloak OIDC Strategy using openid-client v6
@@ -84,11 +85,26 @@ class KeycloakOIDCStrategy extends passport.Strategy {
         timestamp: Date.now()
       };
 
+      // Build dynamic redirect_uri based on origin domain for multi-domain support
+      const originDomain = req.session.originDomain;
+      const isSecure = process.env.NODE_ENV === 'production' ||
+                       req.secure ||
+                       req.headers['x-forwarded-proto'] === 'https';
+
+      let redirectUri;
+      if (originDomain && isAllowedDomain(originDomain)) {
+        redirectUri = buildDomainUrl(originDomain, '/api/auth/callback', isSecure);
+        console.log(`[KeycloakOIDC:${correlationId}] Using origin domain for redirect_uri: ${redirectUri}`);
+      } else {
+        redirectUri = `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/api/auth/callback`;
+        console.log(`[KeycloakOIDC:${correlationId}] Using fallback redirect_uri: ${redirectUri}`);
+      }
+
       // Build authorization parameters
       const authParams = {
         scope: 'openid profile email offline_access',
         state,
-        redirect_uri: `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/auth/callback`,
+        redirect_uri: redirectUri,
         response_type: 'code'
       };
 

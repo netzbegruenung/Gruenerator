@@ -223,12 +223,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'sharepic',
       'aiSharepic',
       'anweisungen',
-      'you',
-      'qa',
+      'notebook',
       'advanced_editor',
       'collaborative_editing',
-      'e_learning',
-      'memory',
       'contentManagement',
       'canva',
       'chat',
@@ -236,9 +233,9 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'sites',
       'interactiveAntrag',
       'autoSaveOnExport',
+      'website',
       // Profile settings treated as beta features for consistency
-      'igel_modus',
-      'bundestag_api_enabled'
+      'igel_modus'
     ];
     if (!allowedFeatures.includes(feature)) {
       return res.status(400).json({
@@ -319,33 +316,65 @@ router.patch('/profile/message-color', ensureAuthenticated, async (req, res) => 
   }
 });
 
-// Update user memory settings
-router.patch('/profile/memory-settings', ensureAuthenticated, async (req, res) => {
+// Get user defaults
+router.get('/profile/user-defaults', ensureAuthenticated, async (req, res) => {
   try {
     const profileService = getProfileService();
-    const { memory_enabled } = req.body;
-    
-    if (typeof memory_enabled !== 'boolean') {
-      return res.status(400).json({
+    const profile = await profileService.getProfileById(req.user.id);
+
+    if (!profile) {
+      return res.status(404).json({
         success: false,
-        message: 'Memory enabled status ist erforderlich.'
+        message: 'Profil nicht gefunden.'
       });
     }
-    
-    // Update memory_enabled using ProfileService
-    await profileService.updateMemorySettings(req.user.id, memory_enabled);
-    
-    res.json({ 
-      success: true, 
-      memoryEnabled: memory_enabled,
-      message: 'Memory-Einstellungen erfolgreich aktualisiert!'
+
+    const userDefaults = profileService.getUserDefaults(profile);
+
+    res.json({
+      success: true,
+      userDefaults
     });
-    
+
   } catch (error) {
-    log.error('[User Profile /profile/memory-settings PATCH] Error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Fehler beim Aktualisieren der Memory-Einstellungen.'
+    log.error('[User Profile /profile/user-defaults GET] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Laden der User Defaults.'
+    });
+  }
+});
+
+// Update user defaults
+router.patch('/profile/user-defaults', ensureAuthenticated, async (req, res) => {
+  try {
+    const profileService = getProfileService();
+    const { generator, key, value } = req.body;
+
+    if (!generator || !key) {
+      return res.status(400).json({
+        success: false,
+        message: 'Generator und Key sind erforderlich.'
+      });
+    }
+
+    // Update user default using ProfileService
+    const updatedProfile = await profileService.updateUserDefault(req.user.id, generator, key, value);
+    const userDefaults = profileService.getUserDefaults(updatedProfile);
+
+    log.debug(`[User Defaults Change] User ${req.user.id}: ${generator}.${key} = ${value}`);
+
+    res.json({
+      success: true,
+      userDefaults,
+      message: 'Einstellung erfolgreich gespeichert!'
+    });
+
+  } catch (error) {
+    log.error('[User Profile /profile/user-defaults PATCH] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Fehler beim Speichern der Einstellung.'
     });
   }
 });
@@ -396,56 +425,6 @@ router.patch('/profile/igel-modus', ensureAuthenticated, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Fehler beim Aktualisieren des Igel-Modus.'
-    });
-  }
-});
-
-// Update user Bundestag API setting
-router.patch('/profile/bundestag-api', ensureAuthenticated, async (req, res) => {
-  try {
-    const profileService = getProfileService();
-    const { bundestag_api_enabled } = req.body;
-    
-    if (typeof bundestag_api_enabled !== 'boolean') {
-      return res.status(400).json({
-        success: false,
-        message: 'Bundestag API Status ist erforderlich.'
-      });
-    }
-    
-    // Update bundestag_api_enabled using ProfileService (through beta features)
-    await profileService.updateBetaFeatures(req.user.id, 'bundestag_api_enabled', bundestag_api_enabled);
-    
-    // Log bundestag API change
-    log.debug(`[Bundestag API Change] User ${req.user.id}: bundestag_api_enabled ${bundestag_api_enabled ? 'ENABLED' : 'DISABLED'}`);
-    
-    // Get updated profile and update session using ProfileService
-    const updatedProfile = await profileService.getProfileById(req.user.id);
-    if (req.user) {
-      profileService.updateUserSession(req.user, updatedProfile, 'bundestag_api_enabled', bundestag_api_enabled);
-      
-      if (req.session.passport && req.session.passport.user) {
-        profileService.updateUserSession(req.session.passport.user, updatedProfile, 'bundestag_api_enabled', bundestag_api_enabled);
-      }
-      
-      req.session.save((err) => {
-        if (err) {
-          log.error('[User Profile /profile/bundestag-api PATCH] Session save error:', err);
-        }
-      });
-    }
-    
-    res.json({ 
-      success: true, 
-      bundestagApiEnabled: bundestag_api_enabled,
-      message: `Bundestag API ${bundestag_api_enabled ? 'aktiviert' : 'deaktiviert'}! ${bundestag_api_enabled ? 'Du kannst jetzt parlamentarische Dokumente in deine Anträge einbeziehen.' : 'Parlamentarische Dokumente werden nicht mehr einbezogen.'}`
-    });
-    
-  } catch (error) {
-    log.error('[User Profile /profile/bundestag-api PATCH] Error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Fehler beim Aktualisieren der Bundestag API Einstellung.'
     });
   }
 });

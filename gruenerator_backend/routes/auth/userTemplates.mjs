@@ -13,21 +13,38 @@ const router = express.Router();
 
 // Add debugging middleware to all user templates routes
 router.use((req, res, next) => {
-  log.debug(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
+  log.info(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
   next();
 });
 
 // === HELPER FUNCTIONS ===
 
 /**
+ * Extracts tags from description using #hashtag syntax
+ * @param {string} description - The description text
+ * @returns {string[]} Array of extracted tags (lowercase, unique)
+ */
+function extractTagsFromDescription(description) {
+  if (!description || typeof description !== 'string') return [];
+  const tagPattern = /#([\w-]+)/g;
+  const tags = [];
+  let match;
+  while ((match = tagPattern.exec(description)) !== null) {
+    const tag = match[1].toLowerCase();
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags;
+}
+
+/**
  * Validates and extracts information from Canva URLs
  * @param {string} url - The Canva URL to process
- * @returns {Promise<{isValid: boolean, designId?: string, cleanUrl?: string, error?: string}>}
+ * @returns {Promise<{isValid: boolean, designId?: string, viewKey?: string, cleanUrl?: string, thumbnailUrl?: string, error?: string}>}
  */
 async function validateCanvaUrl(url) {
   try {
     const urlObj = new URL(url);
-    
+
     // Check if it's a Canva domain
     if (!urlObj.hostname.includes('canva.com')) {
       return {
@@ -35,8 +52,8 @@ async function validateCanvaUrl(url) {
         error: 'URL muss von canva.com stammen.'
       };
     }
-    
-    // Extract design ID from various Canva URL patterns
+
+    // Extract design ID and view key from various Canva URL patterns
     // Examples:
     // https://www.canva.com/design/DAGgS9o-sfY/F09k8mRenceUpp1Ve2XN8g/view?...
     // https://www.canva.com/design/DAGgS9o-sfY/view
@@ -48,15 +65,33 @@ async function validateCanvaUrl(url) {
         error: 'Ungültige Canva URL. Bitte verwenden Sie eine gültige Design-URL.'
       };
     }
-    
+
     const designId = designMatch[1];
-    // Create a clean URL without tracking parameters
-    const cleanUrl = `https://www.canva.com/design/${designId}/view`;
-    
+
+    // Extract the view key (second path segment after design ID)
+    // This is needed to construct the thumbnail URL
+    // URL pattern: /design/{designId}/{viewKey}/view or /design/{designId}/{viewKey}/edit
+    const fullPathMatch = urlObj.pathname.match(/\/design\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)(?:\/|$)/);
+    const viewKey = fullPathMatch && fullPathMatch[2] && !['view', 'edit', 'watch'].includes(fullPathMatch[2])
+      ? fullPathMatch[2]
+      : null;
+
+    // Create a clean URL without tracking parameters - preserve /view or keep original for embedding
+    const cleanUrl = viewKey
+      ? `https://www.canva.com/design/${designId}/${viewKey}/view`
+      : `https://www.canva.com/design/${designId}/view`;
+
+    // Construct thumbnail URL - Canva uses /screen endpoint for preview images
+    const thumbnailUrl = viewKey
+      ? `https://www.canva.com/design/${designId}/${viewKey}/screen`
+      : null;
+
     return {
       isValid: true,
       designId,
-      cleanUrl
+      viewKey,
+      cleanUrl,
+      thumbnailUrl
     };
   } catch (error) {
     return {
@@ -82,53 +117,57 @@ async function processCanvaUrl(url, enhancedMetadata = false) {
         error: validation.error
       };
     }
-    
+
     // Try to extract title and enhanced metadata from Canva page
     let title = `Canva Design ${validation.designId}`;
     let description = '';
-    let previewImage = null;
+    let previewImage = validation.thumbnailUrl || null; // Use constructed thumbnail URL
     let dimensions = null;
     let categories = [];
-    
+
     try {
       // Use direct HTML fetching with optional enhanced metadata
       const { html } = await urlCrawlerService.fetchUrl(url);
       const extractedData = urlCrawlerService.extractContent(html, url, enhancedMetadata);
-      
+
       if (extractedData && extractedData.title) {
         title = extractedData.title;
         description = extractedData.description || '';
-        
+
         // Clean up Canva-specific title patterns
         title = title
           .replace(/\s*-\s*Canva$/, '') // Remove " - Canva" suffix
           .replace(/^Canva\s*-\s*/, '') // Remove "Canva - " prefix
           .trim();
-          
+
         if (!title || title.length < 2) {
           title = `Canva Design ${validation.designId}`;
         }
       }
-      
+
       // Extract enhanced metadata if requested
       if (enhancedMetadata && extractedData) {
-        previewImage = extractedData.previewImage || null;
+        // Only override previewImage if extracted one exists
+        if (extractedData.previewImage) {
+          previewImage = extractedData.previewImage;
+        }
         dimensions = extractedData.dimensions || null;
         categories = extractedData.categories || [];
-        
+
         log.debug('[processCanvaUrl] Enhanced metadata extracted:', {
           hasPreviewImage: !!previewImage,
           hasDimensions: !!dimensions,
           categoriesCount: categories.length
         });
       }
-      
+
       log.debug('[processCanvaUrl] Successfully extracted data from Canva page:', { title, enhancedMetadata });
     } catch (error) {
-      log.warn('[processCanvaUrl] Could not extract data from HTML, using fallback:', error.message);
+      log.warn('[processCanvaUrl] Could not extract data from HTML, using constructed thumbnail URL:', error.message);
+      // Keep the constructed thumbnail URL from validation
       title = `Canva Design ${validation.designId}`;
     }
-    
+
     const templateData = {
       title,
       description,
@@ -138,11 +177,13 @@ async function processCanvaUrl(url, enhancedMetadata = false) {
       originalUrl: url
     };
 
-    // Add enhanced metadata to template data if available
+    // Add preview image URL (either from extraction or constructed)
+    if (previewImage) {
+      templateData.preview_image_url = previewImage;
+    }
+
+    // Add other enhanced metadata if available
     if (enhancedMetadata) {
-      if (previewImage) {
-        templateData.preview_image_url = previewImage;
-      }
       if (dimensions) {
         templateData.dimensions = dimensions;
       }
@@ -150,7 +191,7 @@ async function processCanvaUrl(url, enhancedMetadata = false) {
         templateData.categories = categories;
       }
     }
-    
+
     return {
       success: true,
       templateData
@@ -229,7 +270,7 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       tags = [],
       content_data = {},
       metadata = {},
-      is_private = true
+      is_private = false
     } = req.body;
     
     // Validate required fields
@@ -240,6 +281,11 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       });
     }
     
+    // Extract tags from description and merge with provided tags
+    const descriptionTags = extractTagsFromDescription(description);
+    const providedTags = Array.isArray(tags) ? tags : [];
+    const mergedTags = [...new Set([...descriptionTags, ...providedTags])];
+
     // Prepare template data for user_templates table
     const templateData = {
       user_id: userId,
@@ -249,13 +295,13 @@ router.post('/user-templates', ensureAuthenticated, async (req, res) => {
       template_type,
       external_url: canva_url || null,
       thumbnail_url: preview_image_url || null,
-      images: Array.isArray(images) ? images : [],
-      categories: Array.isArray(categories) ? categories : [],
-      tags: Array.isArray(tags) ? tags : [],
-      content_data,
-      metadata: metadata || {},
-      is_private: is_private !== false, // Default to private
-      is_example: false, // User templates are not examples
+      images: JSON.stringify(Array.isArray(images) ? images : []),
+      categories: JSON.stringify(Array.isArray(categories) ? categories : []),
+      tags: JSON.stringify(mergedTags),
+      content_data: JSON.stringify(content_data || {}),
+      metadata: JSON.stringify(metadata || {}),
+      is_private: is_private !== false,
+      is_example: false,
       status: 'published'
     };
     
@@ -470,11 +516,12 @@ router.delete('/user-templates/:id', ensureAuthenticated, async (req, res) => {
 });
 
 // Create template from URL (specifically for Canva URLs)
+// Supports preview mode: { preview: true } returns scraped data without creating template
 router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { url, enhancedMetadata = false } = req.body;
-    
+    const { url, enhancedMetadata = false, preview = false, title: customTitle, description: customDescription, metadata: inputMetadata = {} } = req.body;
+
     // Validate required fields
     if (!url) {
       return res.status(400).json({
@@ -482,19 +529,43 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
         message: 'URL ist erforderlich.'
       });
     }
-    
-    log.debug('[User Templates /user-templates/from-url POST] Processing URL with enhanced metadata:', enhancedMetadata);
-    
+
+    log.debug('[User Templates /user-templates/from-url POST] Processing URL with enhanced metadata:', enhancedMetadata, 'preview:', preview);
+
     // Process the Canva URL with optional enhanced metadata
-    const processResult = await processCanvaUrl(url.trim(), enhancedMetadata);
+    const processResult = await processCanvaUrl(url.trim(), true); // Always fetch enhanced metadata for preview
     if (!processResult.success) {
       return res.status(400).json({
         success: false,
         message: processResult.error
       });
     }
-    
+
     const { templateData } = processResult;
+
+    // If preview mode, return the scraped data without creating the template
+    if (preview) {
+      return res.json({
+        success: true,
+        preview: {
+          title: templateData.title,
+          description: templateData.description || '',
+          thumbnail_url: templateData.preview_image_url || null,
+          external_url: templateData.canva_url,
+          template_type: templateData.template_type,
+          designId: templateData.designId,
+          dimensions: templateData.dimensions || null
+        }
+      });
+    }
+
+    // Apply custom title/description if provided (user may have edited the preview)
+    if (customTitle) {
+      templateData.title = customTitle.trim();
+    }
+    if (customDescription !== undefined) {
+      templateData.description = customDescription?.trim() || '';
+    }
     
     // Check if a template with this Canva URL already exists for this user
     const existingTemplate = await postgres.queryOne(
@@ -511,7 +582,32 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       });
     }
     
+    // Extract tags from description
+    const descriptionTags = extractTagsFromDescription(templateData.description);
+
     // Prepare template data for user_templates table
+    const categoriesArray = templateData.categories && templateData.categories.length > 0
+      ? [...new Set([...templateData.categories, 'canva'])]
+      : ['canva'];
+    const tagsArray = [...new Set([
+      ...descriptionTags,
+      ...(templateData.categories || []),
+      'imported'
+    ])];
+    const contentDataObj = {
+      originalUrl: templateData.originalUrl,
+      designId: templateData.designId,
+      ...(templateData.dimensions && { dimensions: templateData.dimensions })
+    };
+    const metadataObj = {
+      source: 'url_import',
+      designId: templateData.designId,
+      ...(templateData.dimensions && { dimensions: templateData.dimensions }),
+      enhanced_metadata: true,
+      ...(inputMetadata?.author_name && { author_name: inputMetadata.author_name }),
+      ...(inputMetadata?.contact_email && { contact_email: inputMetadata.contact_email })
+    };
+
     const newTemplateData = {
       user_id: userId,
       type: 'template',
@@ -520,48 +616,35 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
       template_type: templateData.template_type,
       external_url: templateData.canva_url,
       thumbnail_url: templateData.preview_image_url || null,
-      images: [],
-      categories: templateData.categories && templateData.categories.length > 0 
-        ? [...new Set([...templateData.categories, 'canva'])] // Merge extracted categories with 'canva'
-        : ['canva'], // Default category
-      tags: templateData.categories && templateData.categories.length > 0
-        ? [...new Set([...templateData.categories, 'imported'])] // Use categories as tags too
-        : ['imported'], // Default tag
-      content_data: {
-        originalUrl: templateData.originalUrl,
-        designId: templateData.designId,
-        ...(templateData.dimensions && { dimensions: templateData.dimensions })
-      },
-      metadata: {
-        source: 'url_import',
-        designId: templateData.designId,
-        ...(templateData.dimensions && { dimensions: templateData.dimensions }),
-        enhanced_metadata: enhancedMetadata
-      },
-      is_private: true,      // Default to private
-      is_example: false,     // User templates are not examples
+      images: JSON.stringify([]),
+      categories: JSON.stringify(categoriesArray),
+      tags: JSON.stringify(tagsArray),
+      content_data: JSON.stringify(contentDataObj),
+      metadata: JSON.stringify(metadataObj),
+      is_private: false,
+      is_example: false,
       status: 'published'
     };
-    
+
     // Insert template with retry logic for status constraint issues
     let newTemplate;
     let error;
     const statusFallbacks = ['published', 'private', 'public', 'enabled', 'active'];
-    
+
     for (const statusValue of statusFallbacks) {
       try {
         const templateDataWithStatus = { ...newTemplateData, status: statusValue };
         newTemplate = await postgres.insert('user_templates', templateDataWithStatus);
-        
+
         // Success! Break out of the loop
         error = null;
         log.debug(`[User Templates] Successfully created template with status: ${statusValue}`);
         break;
-        
+
       } catch (insertError) {
         error = insertError;
         log.debug(`[User Templates] Failed with status '${statusValue}':`, insertError.message);
-        
+
         // If this is a status constraint error, try next status value
         if (insertError.message.includes('valid_template_status') || insertError.message.includes('status')) {
           log.debug(`[User Templates] Status '${statusValue}' not allowed, trying next...`);
@@ -571,7 +654,7 @@ router.post('/user-templates/from-url', ensureAuthenticated, async (req, res) =>
         throw insertError;
       }
     }
-    
+
     if (error) {
       log.error('[User Templates /user-templates/from-url POST] All status values failed:', error);
       throw new Error('Template konnte nicht erstellt werden. Datenbankkonflikt bei Status-Feld.');
@@ -905,12 +988,125 @@ router.post('/examples/similar', ensureAuthenticated, async (req, res) => {
       search_method: 'vector_search',
       count: formattedResults.length
     });
-    
+
   } catch (error) {
     log.error('[User Templates /examples/similar POST] Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Fehler bei der Ähnlichkeitssuche.'
+    });
+  }
+});
+
+// === VORLAGEN-DATENBANK GALLERY ENDPOINTS ===
+
+// Get dynamic template type categories for Vorlagen gallery
+router.get('/vorlagen-categories', ensureAuthenticated, async (req, res) => {
+  try {
+    const data = await postgres.query(
+      `SELECT DISTINCT template_type
+       FROM user_templates
+       WHERE is_private = $1 AND status = $2 AND template_type IS NOT NULL
+       ORDER BY template_type ASC`,
+      [false, 'published'],
+      { table: 'user_templates' }
+    );
+
+    const categories = (data || [])
+      .map(row => row.template_type)
+      .filter(Boolean)
+      .map(type => ({
+        id: type,
+        label: type.charAt(0).toUpperCase() + type.slice(1)
+      }));
+
+    res.json({ success: true, categories });
+  } catch (err) {
+    log.error('[Vorlagen Gallery] /vorlagen-categories error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden der Kategorien',
+      categories: []
+    });
+  }
+});
+
+// List all published templates for Vorlagen gallery
+router.get('/vorlagen', ensureAuthenticated, async (req, res) => {
+  console.log('>>> /vorlagen endpoint HIT <<<');
+  try {
+    const { searchTerm = '', searchMode = 'title', templateType, tags } = req.query;
+
+    const conditions = ['is_private = $1', 'status = $2'];
+    const params = [false, 'published'];
+    let paramIndex = 3;
+
+    if (templateType && templateType !== 'all') {
+      conditions.push(`template_type = $${paramIndex++}`);
+      params.push(templateType);
+    }
+
+    // Filter by tags using JSONB containment
+    if (tags) {
+      try {
+        const tagsArray = JSON.parse(tags);
+        if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+          conditions.push(`tags @> $${paramIndex++}::jsonb`);
+          params.push(JSON.stringify(tagsArray));
+        }
+      } catch (e) {
+        log.warn('[Vorlagen Gallery] Invalid tags JSON:', tags);
+      }
+    }
+
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const term = `%${searchTerm.trim()}%`;
+      if (searchMode === 'fulltext') {
+        conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+        params.push(term);
+      } else {
+        conditions.push(`title ILIKE $${paramIndex}`);
+        params.push(term);
+      }
+    }
+
+    const query = `
+      SELECT id, title, description, template_type, thumbnail_url, external_url,
+             images, categories, tags, content_data, metadata, created_at, updated_at
+      FROM user_templates
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+
+    const data = await postgres.query(query, params, { table: 'user_templates' });
+
+    const vorlagen = (data || []).map(item => {
+      log.info(`[Vorlagen DEBUG] Item: id=${item.id}, title=${item.title}, external_url=${item.external_url}, content_data=${JSON.stringify(item.content_data)}, originalUrl=${item.content_data?.originalUrl}`);
+      return {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        template_type: item.template_type,
+        thumbnail_url: item.thumbnail_url,
+        external_url: item.external_url,
+        images: item.images || [],
+        categories: item.categories || [],
+        tags: item.tags || [],
+        content_data: item.content_data || {},
+        metadata: item.metadata || {},
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      };
+    });
+
+    res.json({ success: true, vorlagen });
+  } catch (err) {
+    log.error('[Vorlagen Gallery] /vorlagen GET error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Fehler beim Laden der Vorlagen',
+      vorlagen: []
     });
   }
 });

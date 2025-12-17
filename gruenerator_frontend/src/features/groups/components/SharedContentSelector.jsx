@@ -1,30 +1,33 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from "motion/react";
 const ReactMarkdown = lazy(() => import('react-markdown'));
-import { 
-  HiDocumentText, 
-  HiCollection, 
-  HiOutlineEye, 
+import {
+  HiDocumentText,
+  HiCollection,
+  HiOutlineEye,
   HiOutlinePencil,
   HiOutlineTrash,
   HiOutlineSearch,
   HiOutlineViewGrid,
-  HiOutlineViewList
+  HiOutlineViewList,
+  HiOutlinePlus
 } from 'react-icons/hi';
 import { NotebookIcon } from '../../../config/icons';
 import Spinner from '../../../components/common/Spinner';
+import '../../../assets/styles/features/groups/shared-content-selector.css';
+import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
 /**
  * SharedContentSelector - Enhanced component for displaying and interacting with shared group content
  * Includes search, filtering, and clickable content with proper navigation
  * Now supports configurable layouts and filtering for different content types
  */
-const SharedContentSelector = ({ 
-  groupContent, 
-  isLoading, 
-  isAdmin, 
-  onUnshare, 
+const SharedContentSelector = ({
+  groupContent,
+  isLoading,
+  isAdmin,
+  onUnshare,
   isUnsharing,
   config = {
     title: "Geteilte Inhalte",
@@ -32,6 +35,7 @@ const SharedContentSelector = ({
     contentFilter: null, // null = show all, 'database' = templates only, etc.
     excludeTypes: [], // ['database'] = exclude templates, etc.
     hideFilters: [], // ['contentType', 'permissions', 'sortBy']
+    hideHeader: false, // hide title/description when wrapped in profile-card
     cardStyle: 'default', // 'default' | 'template-square'
     gridConfig: {
       minCardWidth: '320px', // default: '320px', templates: '280px'
@@ -124,13 +128,13 @@ const SharedContentSelector = ({
       })));
     }
     
-    // Add Q&As
-    if (groupContent.qas &&
-        (!config.contentFilter || config.contentFilter === 'qa_collections') &&
-        !(config.excludeTypes && config.excludeTypes.includes('qa_collections'))) {
-      content.push(...groupContent.qas.map(item => ({
+    // Add Notebooks
+    if (groupContent.notebooks &&
+        (!config.contentFilter || config.contentFilter === 'notebook_collections') &&
+        !(config.excludeTypes && config.excludeTypes.includes('notebook_collections'))) {
+      content.push(...groupContent.notebooks.map(item => ({
         ...item,
-        contentType: 'qa_collections',
+        contentType: 'notebook_collections',
         icon: NotebookIcon,
         typeLabel: 'Notebook'
       })));
@@ -316,9 +320,9 @@ const SharedContentSelector = ({
         // Navigate to collaborative editor
         navigate(`/editor/collab/${item.id}`);
         break;
-      case 'qa_collections':
+      case 'notebook_collections':
         // Navigate to Q&A interface
-        navigate(`/qa/${item.id}`);
+        navigate(`/notebook/${item.id}`);
         break;
       case 'custom_generators':
         // Navigate to custom generator
@@ -329,9 +333,10 @@ const SharedContentSelector = ({
         handleEnhancedPreview(item);
         break;
       case 'database':
-        // Open template (Canva URL) in new tab
-        if (item.canva_url || item.external_url) {
-          window.open(item.canva_url || item.external_url, '_blank', 'noopener,noreferrer');
+        // Open template (Canva URL) in new tab - prefer original URL
+        const templateUrl = item.content_data?.originalUrl || item.canva_url || item.external_url;
+        if (templateUrl) {
+          window.open(templateUrl, '_blank', 'noopener,noreferrer');
         } else {
           console.warn('Template has no URL to open:', item);
         }
@@ -587,15 +592,17 @@ const SharedContentSelector = ({
     <div className="shared-content-selector">
       {/* Header with title and description */}
       <div className="shared-content-header">
-        <div className="shared-content-title-section">
-          <h3>{config.title} ({filteredContent.length})</h3>
-          <p className="shared-content-description">
-            {config.description}
-          </p>
-        </div>
+        {!config.hideHeader && (
+          <div className="shared-content-title-section">
+            <h3>{config.title} ({filteredContent.length})</h3>
+            <p className="shared-content-description">
+              {config.description}
+            </p>
+          </div>
+        )}
 
         {/* Search and filter controls */}
-        
+
         {allContent.length > 0 && (
           <div className="shared-content-controls">
             {/* Search */}
@@ -685,12 +692,12 @@ const SharedContentSelector = ({
         <div className="shared-content-empty">
           {allContent.length === 0 ? (
             <div className="shared-content-empty-state">
-              <HiCollection size={48} className="empty-state-icon" />
-              <h4>Noch keine Inhalte geteilt</h4>
-              <p>
-                Gruppenmitglieder können ihre Dokumente, Texte, Q&A-Sammlungen und Custom Generatoren 
-                über die "Mit Gruppe teilen" Option mit der Gruppe teilen.
-              </p>
+              <HiCollection className="shared-content-empty-icon" />
+              <p className="shared-content-empty-text">Noch keine Inhalte</p>
+              <Link to="/profile/inhalte" className="pabtn pabtn--m pabtn--secondary">
+                <HiOutlinePlus className="pabtn__icon" />
+                <span className="pabtn__label">Inhalte hinzufügen</span>
+              </Link>
             </div>
           ) : (
             <div className="shared-content-no-results">

@@ -46,6 +46,9 @@ const createFormStateStore = (initialState = {}) => {
       // Form visibility state
       isFormVisible: true,
 
+      // Start mode (centered layout before content generation)
+      isStartMode: false,
+
       // Configuration sections (new, optional)
       tabIndexConfig: {},
       platformConfig: {},
@@ -188,6 +191,9 @@ const createFormStateStore = (initialState = {}) => {
       setFormVisible: (isFormVisible) => set({ isFormVisible }),
       toggleFormVisibility: () => set((state) => ({ isFormVisible: !state.isFormVisible })),
 
+      // Actions for start mode
+      setIsStartMode: (isStartMode) => set({ isStartMode }),
+
       // Actions for configuration sections
       setTabIndexConfig: (tabIndexConfig) => set({ tabIndexConfig }),
       setPlatformConfig: (platformConfig) => set({ platformConfig }),
@@ -242,6 +248,7 @@ const createFormStateStore = (initialState = {}) => {
         attachedFiles: [],
         uploadedImage: null,
         isFormVisible: true,
+        isStartMode: false,
         // Configuration sections reset to empty (preserve initial state if provided)
         tabIndexConfig: initialState.tabIndexConfig || {},
         platformConfig: initialState.platformConfig || {},

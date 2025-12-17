@@ -6,8 +6,6 @@ const redisClient = require('../../../utils/redisClient');
 
 const log = createLogger('assemblyAI');
 
-// AssemblyAI EU endpoint configuration
-const ASSEMBLYAI_EU_BASE_URL = 'https://api.eu.assemblyai.com/v2';
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 
 // Zero Data Retention configuration (hardcoded as requested)

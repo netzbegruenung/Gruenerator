@@ -128,12 +128,12 @@
 }
 
 .newsletter-button {
-  background-color: var(--dunkelgruen);
+  background-color: var(--secondary);
   color: var(--weiß);
 }
 
 .newsletter-button:hover {
-  background-color: var(--font-color-h);
+  background-color: var(--secondary-700);
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
@@ -144,7 +144,7 @@
 }
 
 .later-button:hover {
-  background-color: var(--dunkelgruen);
+  background-color: var(--secondary);
   color: var(--weiß);
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
@@ -239,8 +239,8 @@
 }
 
 .button-terms:hover {
-  background-color: var(--dunkelgruen); 
-  color: var(--weiß); 
+  background-color: var(--secondary);
+  color: var(--weiß);
 }
 
 @media (max-width: 768px) {

@@ -68,9 +68,7 @@ const loadPersistedAuthState = () => {
           user: authState.user,
           isAuthenticated: authState.isAuthenticated,
           selectedMessageColor: authState.selectedMessageColor || '#008939',
-          memoryEnabled: authState.memoryEnabled || false,
           igelModus: authState.igelModus || false,
-          bundestagApiEnabled: authState.bundestagApiEnabled || false,
           locale: authState.locale || 'de-DE',
           isLoading: false, // Don't start in loading state if we have persisted data
         };
@@ -94,9 +92,7 @@ const persistAuthState = (authState) => {
         user: authState.user,
         isAuthenticated: authState.isAuthenticated,
         selectedMessageColor: authState.selectedMessageColor,
-        memoryEnabled: authState.memoryEnabled,
         igelModus: authState.igelModus,
-        bundestagApiEnabled: authState.bundestagApiEnabled,
         locale: authState.locale,
       },
       timestamp: Date.now(),
@@ -130,15 +126,9 @@ export const useAuthStore = create((set, get) => ({
   isLoggingOut: false, // New state to track logout in progress
   
   selectedMessageColor: persistedState?.selectedMessageColor || '#008939', // Default Klee
-  
-  // Memory preferences
-  memoryEnabled: persistedState?.memoryEnabled || false, // Default OFF
-  
+
   // Igel-Modus (Grüne Jugend membership)
   igelModus: persistedState?.igelModus || false, // Default OFF
-  
-  // Bundestag API integration
-  bundestagApiEnabled: persistedState?.bundestagApiEnabled || false, // Default OFF
 
   // Locale/language preference
   locale: persistedState?.locale || 'de-DE', // Default to German
@@ -162,9 +152,7 @@ export const useAuthStore = create((set, get) => ({
       supabaseSession: data.supabaseSession || null,
       // Extract color from user metadata if available
       selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
-      memoryEnabled: data.user?.user_metadata?.memory_enabled || false,
       igelModus: data.user?.igel_modus || false, // Read from profiles table instead of user_metadata
-      bundestagApiEnabled: data.user?.bundestag_api_enabled || false, // Read from profiles table
       locale: userLocale,
     });
   },
@@ -207,9 +195,7 @@ export const useAuthStore = create((set, get) => ({
       error: null,
       isLoggingOut: false,
       selectedMessageColor: '#008939',
-      memoryEnabled: false,
       igelModus: false,
-      bundestagApiEnabled: false,
       locale: 'de-DE',
       supabaseSession: null,
       _supabaseAuthCleanup: null,
@@ -231,7 +217,6 @@ export const useAuthStore = create((set, get) => ({
       const metadata = user.user_metadata;
       set((state) => ({
         selectedMessageColor: metadata.chat_color || state.selectedMessageColor,
-        memoryEnabled: metadata.memory_enabled ?? state.memoryEnabled,
         igelModus: metadata.igel_modus ?? state.igelModus,
       }));
     }
@@ -327,42 +312,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Memory preferences management via Backend API
-  setMemoryEnabled: async (enabled) => {
-    // Check if in development environment
-    const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
-    if (!isDevelopment) {
-      set({ memoryEnabled: false });
-      return false;
-    }
-
-    // Optimistic update
-    set({ memoryEnabled: enabled });
-
-    try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/memory-settings`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ memory_enabled: enabled })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Memory Settings Update fehlgeschlagen');
-      }
-      
-      return result.memoryEnabled;
-    } catch (error) {
-      // Revert optimistic update on failure
-      set({ memoryEnabled: !enabled });
-      throw error;
-    }
-  },
-
   // Igel-Modus (Grüne Jugend membership) management via Backend API
   setIgelModus: async (enabled) => {
     // Optimistic update
@@ -388,35 +337,6 @@ export const useAuthStore = create((set, get) => ({
     } catch (error) {
       // Revert optimistic update on failure
       set({ igelModus: !enabled });
-      throw error;
-    }
-  },
-
-  // Bundestag API management via Backend API
-  setBundestagApiEnabled: async (enabled) => {
-    // Optimistic update
-    set({ bundestagApiEnabled: enabled });
-
-    try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/bundestag-api`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ bundestag_api_enabled: enabled })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Bundestag API Update fehlgeschlagen');
-      }
-      
-      return result.bundestagApiEnabled;
-    } catch (error) {
-      // Revert optimistic update on failure
-      set({ bundestagApiEnabled: !enabled });
       throw error;
     }
   },
@@ -790,9 +710,7 @@ useAuthStore.subscribe(
     user: state.user,
     isAuthenticated: state.isAuthenticated,
     selectedMessageColor: state.selectedMessageColor,
-    memoryEnabled: state.memoryEnabled,
     igelModus: state.igelModus,
-    bundestagApiEnabled: state.bundestagApiEnabled,
     locale: state.locale,
   })
 );

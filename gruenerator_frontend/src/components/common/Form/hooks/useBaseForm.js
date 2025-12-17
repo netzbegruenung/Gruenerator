@@ -44,8 +44,8 @@ const useFeatureToggles = (control, defaultValues) => {
 
 const useBaseForm = ({
   defaultValues = {},
-  mode = 'onChange',
-  reValidateMode = 'onChange',
+  mode = 'onSubmit',
+  reValidateMode = 'onSubmit',
   criteriaMode = 'firstError',
   shouldFocusError = true,
   shouldUnregister = false,

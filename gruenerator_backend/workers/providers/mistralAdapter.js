@@ -3,6 +3,23 @@ const ToolHandler = require('../../services/toolHandler');
 const mistralClient = require('../mistralClient');
 const { connectionMetrics } = require('../mistralClient');
 
+/**
+ * Extract final answer from reasoning model response
+ * Filters out thinking chunks and returns only the final text
+ * Used for magistral models with prompt_mode: 'reasoning'
+ */
+function extractFinalAnswerFromReasoning(content) {
+  if (!Array.isArray(content)) {
+    return content; // Standard string response
+  }
+  // Filter for text chunks only, skip thinking chunks
+  return content
+    .filter(chunk => chunk.type === 'text')
+    .map(chunk => chunk.text || '')
+    .filter(text => text.trim().length > 0)
+    .join('\n');
+}
+
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
 
@@ -254,34 +271,55 @@ async function execute(requestId, data) {
             // If upload failed for all, fall through to text extraction
           }
 
-          const contentPromises = msg.content.map(async c => {
-            if (c.type === 'text') {
-              return c.text || '';
-            } else if (c.type === 'document' && c.source) {
-              if (c.source.data && c.source.media_type === 'application/pdf') {
-                try {
-                  const { ocrService } = await import('../../services/ocrService.js');
-                  const result = await ocrService.extractTextFromBase64PDF(c.source.data, c.source.name || 'unknown.pdf');
-                  return `[PDF-Inhalt: ${c.source.name || 'Unbekannt'}]\n\n${result.text}`;
-                } catch (error) {
-                  return `[PDF-Dokument: ${c.source.name || 'Unbekannt'} - Text-Extraktion fehlgeschlagen: ${error.message}]`;
-                }
-              } else if (c.source.data && c.source.media_type) {
-                return `[Dokument: ${c.source.name || 'Unbekannt'} (${c.source.media_type})]`;
-              } else if (c.source.text) {
-                return c.source.text;
-              } else {
-                return `[Dokument: ${c.source.name || 'Unbekannt'}]`;
+          const hasImages = msg.content.some(c => c.type === 'image' && c.source?.data);
+
+          if (hasImages) {
+            const multimodalContent = [];
+            for (const c of msg.content) {
+              if (c.type === 'text') {
+                multimodalContent.push({ type: 'text', text: c.text || '' });
+              } else if (c.type === 'image' && c.source?.data) {
+                const mediaType = c.source.media_type || 'image/png';
+                const base64Data = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
+                multimodalContent.push({
+                  type: 'image_url',
+                  imageUrl: {
+                    url: `data:${mediaType};base64,${base64Data}`
+                  }
+                });
               }
-            } else if (c.type === 'image' && c.source) {
-              return `[Bild: ${c.source.name || 'Unbekannt'}]`;
-            } else {
-              return c.content || '';
             }
-          });
-          const processedContent = await Promise.all(contentPromises);
-          const text = processedContent.join('\n');
-          mistralMessages.push({ role: 'user', content: text });
+            mistralMessages.push({ role: 'user', content: multimodalContent });
+          } else {
+            const contentPromises = msg.content.map(async c => {
+              if (c.type === 'text') {
+                return c.text || '';
+              } else if (c.type === 'document' && c.source) {
+                if (c.source.data && c.source.media_type === 'application/pdf') {
+                  try {
+                    const { ocrService } = await import('../../services/ocrService.js');
+                    const result = await ocrService.extractTextFromBase64PDF(c.source.data, c.source.name || 'unknown.pdf');
+                    return `[PDF-Inhalt: ${c.source.name || 'Unbekannt'}]\n\n${result.text}`;
+                  } catch (error) {
+                    return `[PDF-Dokument: ${c.source.name || 'Unbekannt'} - Text-Extraktion fehlgeschlagen: ${error.message}]`;
+                  }
+                } else if (c.source.data && c.source.media_type) {
+                  return `[Dokument: ${c.source.name || 'Unbekannt'} (${c.source.media_type})]`;
+                } else if (c.source.text) {
+                  return c.source.text;
+                } else {
+                  return `[Dokument: ${c.source.name || 'Unbekannt'}]`;
+                }
+              } else if (c.type === 'image' && c.source) {
+                return `[Bild: ${c.source.name || 'Unbekannt'}]`;
+              } else {
+                return c.content || '';
+              }
+            });
+            const processedContent = await Promise.all(contentPromises);
+            const text = processedContent.join('\n');
+            mistralMessages.push({ role: 'user', content: text });
+          }
         }
       } else {
         // Skip system messages if we already have a systemPrompt to avoid duplication
@@ -303,6 +341,14 @@ async function execute(requestId, data) {
     presence_penalty: options.presence_penalty || 0,
     frequency_penalty: options.frequency_penalty || 0
   };
+
+  // Enable reasoning mode for Pro Mode with magistral models
+  if (options.useProMode && model.includes('magistral')) {
+    mistralConfig.prompt_mode = 'reasoning';
+    // Increase max_tokens to accommodate thinking + final answer
+    mistralConfig.max_tokens = Math.max(max_tokens, 6000);
+    console.log(`[mistralAdapter ${requestId}] Reasoning mode enabled for Pro Mode (model=${model})`);
+  }
 
   // Enable JSON mode for types that require structured JSON output
   if (type === 'image_picker' || type === 'text_adjustment') {
@@ -398,10 +444,11 @@ async function execute(requestId, data) {
     }
   }
 
+  // Extract final answer (handles both standard and reasoning responses)
+  const finalContent = extractFinalAnswerFromReasoning(messageContent);
+
   return {
-    content: Array.isArray(messageContent)
-      ? messageContent.filter(b => b.type === 'text').map(b => b.text || '').join('')
-      : messageContent,
+    content: finalContent,
     stop_reason: normalizedStopReason,
     tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
     raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : (messageContent ? [{ type: 'text', text: messageContent }] : []),

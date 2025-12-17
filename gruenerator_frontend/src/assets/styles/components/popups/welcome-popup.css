@@ -161,12 +161,12 @@
 }
 
 .welcome-2025-button-primary {
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: white;
 }
 
 .welcome-2025-button-primary:hover {
-  background-color: var(--klee);
+  background-color: var(--secondary-700);
 }
 
 .welcome-2025-button-secondary {

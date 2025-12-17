@@ -1,10 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { HiChip, HiChat } from 'react-icons/hi';
 import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
-import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
-import FormStateProvider from '../../../components/common/Form/FormStateProvider';
-import ResultsDeck from './ResultsDeck';
+import GrueneratorChatMessage from './GrueneratorChatMessage';
 import { useChatStore } from '../../../stores/chatStore';
 import { shallow } from 'zustand/shallow';
 import { useChatApi } from '../hooks/useChatApi';
@@ -21,7 +18,6 @@ const EXAMPLE_QUESTIONS = [
 
 const GrueneratorChat = () => {
   const [inputValue, setInputValue] = useState('');
-  const [viewMode, setViewMode] = useState('dossier');
   const [isEditModeActive, setIsEditModeActive] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
 
@@ -65,6 +61,33 @@ const GrueneratorChat = () => {
 
     if (!message?.trim() || isLoading) return;
 
+    // Check for reset keywords
+    const resetKeywords = ['neustart', 'reset', 'neu starten', 'neustarten', 'von vorne', 'clear'];
+    const normalizedMessage = message.trim().toLowerCase();
+
+    if (resetKeywords.includes(normalizedMessage)) {
+      clearMessages();
+      clearMultiResults();
+      setActiveResultId(null);
+      setInputValue('');
+      setIsEditModeActive(false);
+      setError(null);
+      setAttachedFiles([]);
+
+      try {
+        await fetch('/api/chat/clear', {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.warn('Failed to clear backend session:', error);
+      }
+
+      setTimeout(() => initializeChat(), 100);
+      return;
+    }
+
     try {
       setInputValue('');
 
@@ -101,7 +124,7 @@ const GrueneratorChat = () => {
       console.error('[GrueneratorChat] Error sending message:', error);
       // Error is already handled in useChatApi
     }
-  }, [sendMessage, sendEditInstruction, isLoading, isEditModeActive, attachedFiles, setError]);
+  }, [sendMessage, sendEditInstruction, isLoading, isEditModeActive, attachedFiles, setError, clearMessages, clearMultiResults, setActiveResultId, initializeChat]);
 
   const lastAssistantMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -131,94 +154,7 @@ const GrueneratorChat = () => {
     currentAgent
   ]);
 
-  // Disabled: Duplicate content - StartPage already shows welcome information
-  // const introHelpContent = useMemo(() => {
-  //   if (isEditModeActive) {
-  //     return null;
-  //   }
-  //
-  //   if (!currentAgent && messages.length <= 1) {
-  //     return {
-  //       content: 'Willkommen beim Grünerator Chat! Ich kann Ihnen bei verschiedenen Textarten helfen:',
-  //       tips: [
-  //         'Social Media Posts – Facebook, Instagram, Twitter',
-  //         'Pressemitteilungen – Professionelle Medientexte',
-  //         'Anträge – Kommunalpolitische Vorlagen',
-  //         'Zitate – Kurze, prägnante Aussagen',
-  //         'Leichte Sprache – Barrierefreie Texte',
-  //         'Jugendsprache – Aktivistische Inhalte'
-  //       ]
-  //     };
-  //   }
-  //   return null;
-  // }, [currentAgent, messages.length, isEditModeActive]);
-  const introHelpContent = null;
-
-  const getChatExportableContent = useCallback(() => {
-    if (typeof generatedContent === 'string' && generatedContent) {
-      return generatedContent;
-    }
-
-    if (generatedContent && typeof generatedContent === 'object') {
-      if (typeof generatedContent.content === 'string') {
-        return generatedContent.content;
-      }
-      if (generatedContent.social?.content) {
-        return generatedContent.social.content;
-      }
-    }
-
-    return lastAssistantMessage?.content || '';
-  }, [generatedContent, lastAssistantMessage]);
-
-  const handleToggleEditMode = useCallback(() => {
-    const textStore = useGeneratedTextStore.getState();
-
-    if (isEditModeActive) {
-      setError(null);
-      setIsEditModeActive(false);
-      setActiveResultId(null);
-      return;
-    }
-
-    if (activeResultId) {
-      const target = multiResults.find(result => result.componentId === activeResultId);
-      if (target) {
-        const resolved = resolveTextContent(target.content);
-        if (!resolved.trim()) {
-          return;
-        }
-        const metadata = {
-          agent: target.agent,
-          ...(target.content?.metadata || target.metadata || {})
-        };
-        if (typeof textStore.pushToHistory === 'function') {
-          textStore.pushToHistory('grueneratorChat');
-        }
-        setGeneratedText('grueneratorChat', resolved, metadata);
-      }
-    } else if (!generatedContent && lastAssistantMessage?.content) {
-      if (typeof textStore.pushToHistory === 'function') {
-        textStore.pushToHistory('grueneratorChat');
-      }
-      setGeneratedText('grueneratorChat', lastAssistantMessage.content, currentAgent ? { agent: currentAgent } : undefined);
-    }
-
-    setError(null);
-    setIsEditModeActive(true);
-  }, [
-    isEditModeActive,
-    activeResultId,
-    multiResults,
-    generatedContent,
-    lastAssistantMessage,
-    setGeneratedText,
-    currentAgent,
-    setError,
-    setActiveResultId
-  ]);
-
-  const handleDeckEditRequest = useCallback((componentId) => {
+  const handleEditRequest = useCallback((componentId) => {
     if (!componentId) return;
 
     if (isEditModeActive && activeResultId === componentId) {
@@ -228,18 +164,23 @@ const GrueneratorChat = () => {
       return;
     }
 
+    // Find the result reference in multiResults
     const target = multiResults.find(result => result.componentId === componentId);
     if (!target) return;
 
-    const resolved = resolveTextContent(target.content);
+    // Get content from generatedTextStore (single source of truth)
+    const textStore = useGeneratedTextStore.getState();
+    const storedContent = textStore.generatedTexts?.[componentId];
+    const resolved = resolveTextContent(storedContent);
     if (!resolved.trim()) return;
 
+    const storedMetadata = textStore.generatedTextMetadata?.[componentId] || {};
     const metadata = {
       agent: target.agent,
-      ...(target.content?.metadata || target.metadata || {})
+      ...storedMetadata,
+      ...target.metadata
     };
 
-    const textStore = useGeneratedTextStore.getState();
     if (typeof textStore.pushToHistory === 'function') {
       textStore.pushToHistory('grueneratorChat');
     }
@@ -320,61 +261,18 @@ const GrueneratorChat = () => {
     }
   }, [clearMessages, setError, initializeChat, setActiveResultId]);
 
-  const displayValue = useMemo(() => {
-    if (typeof generatedContent === 'string' && generatedContent) {
-      return generatedContent;
-    }
-
-    if (generatedContent && typeof generatedContent === 'object') {
-      if (typeof generatedContent.content === 'string') {
-        return generatedContent.content;
-      }
-      if (generatedContent.social?.content) {
-        return generatedContent.social.content;
-      }
-    }
-
-    return lastAssistantMessage?.content || '';
-  }, [generatedContent, lastAssistantMessage]);
-
-  const effectiveDisplayValue = displayValue;
-  const effectiveGeneratedContent = generatedContent || effectiveDisplayValue;
-
-  const renderRightPanelContent = () => {
-    if (multiResults.length > 0) {
-      return (
-        <ResultsDeck
-          results={multiResults}
-          onClear={clearMultiResults}
-          introHelpContent={introHelpContent}
-          onEditRequest={handleDeckEditRequest}
-          onReset={handleReset}
-          activeResultId={activeResultId}
-          isEditModeActive={isEditModeActive}
-        />
-      );
-    }
-
+  const renderMessage = useCallback((msg, index) => {
     return (
-      <FormStateProvider formId="grueneratorChatDisplay">
-        <DisplaySection
-          title="Generierter Text"
-          error={error || undefined}
-          value={effectiveDisplayValue}
-          generatedContent={effectiveGeneratedContent}
-          useMarkdown={true}
-          helpContent={introHelpContent}
-          getExportableContent={getChatExportableContent}
-          componentName="grueneratorChat"
-          onErrorDismiss={() => setError(null)}
-          onEditModeToggle={handleToggleEditMode}
-          isEditModeActive={isEditModeActive}
-          showResetButton={true}
-          onReset={handleReset}
-        />
-      </FormStateProvider>
+      <GrueneratorChatMessage
+        key={msg.timestamp || `msg-${index}`}
+        msg={msg}
+        index={index}
+        onEditRequest={handleEditRequest}
+        isEditModeActive={isEditModeActive}
+        activeResultId={activeResultId}
+      />
     );
-  };
+  }, [handleEditRequest, isEditModeActive, activeResultId]);
 
   const placeholder = useMemo(() => {
     if (isEditModeActive) {
@@ -396,11 +294,6 @@ const GrueneratorChat = () => {
     return 'Sag mir, was du brauchst - z.B. "Schreib einen Facebook-Post über Klimaschutz"';
   }, [isEditModeActive, currentAgent]);
 
-  const modes = useMemo(() => ({
-    dossier: { label: 'Dossier', icon: HiChat },
-    chat: { label: 'Chat', icon: HiChip }
-  }), []);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -409,9 +302,9 @@ const GrueneratorChat = () => {
       className="gruenerator-chat-container"
     >
       <ChatWorkbenchLayout
-        mode={viewMode}
-        modes={modes}
-        onModeChange={setViewMode}
+        mode="chat"
+        modes={{ chat: { label: 'Chat' } }}
+        onModeChange={() => {}}
         messages={messages}
         onSubmit={handleSubmit}
         isProcessing={isLoading}
@@ -419,13 +312,12 @@ const GrueneratorChat = () => {
         inputValue={inputValue}
         onInputChange={setInputValue}
         disabled={isLoading}
-        rightPanelContent={renderRightPanelContent()}
+        renderMessage={renderMessage}
         className="gruenerator-chat-layout"
-        enableVoiceInput={false}
         isEditModeActive={isEditModeActive}
         onReset={handleReset}
         hideModeSelector={true}
-        enableVoiceRecorder={true}
+        hideHeader={true}
         enableFileUpload={true}
         onFileSelect={handleFileSelect}
         attachedFiles={attachedFiles}

@@ -13,29 +13,26 @@
     "webSearch": true,
     "docQnA": true,
     "urlCrawl": true,
-    "examples": false,
-    "bundestagApi": true,
-    "bundestagApiInstructions": "Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum."
+    "examples": false
   },
-  "requestFields": ["requestType", "idee", "details", "gliederung"],
+  "requestFields": ["requestType", "inhalt", "gliederung"],
   "validation": {
-    "required": ["idee"],
-    "errorMessage": "Idee oder ein benutzerdefinierter Prompt ist erforderlich"
+    "required": ["inhalt"],
+    "errorMessage": "Inhalt oder ein benutzerdefinierter Prompt ist erforderlich"
   },
   "requestTypeMapping": {
     "kleine_anfrage": "eine kleine Anfrage",
     "grosse_anfrage": "eine große Anfrage",
     "default": "einen kommunalpolitischen Antrag"
   },
-  "requestTemplate": "Erstelle {{requestTypeText}} zum Thema: {{idee}}\n\n{{#if details}}\nDetails: {{details}}\n{{/if}}\n\n{{#if gliederung}}\nFür die Gliederung: {{gliederung}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Erstelle {{requestTypeText}}:\n\n{{inhalt}}\n\n{{#if gliederung}}\nFür die Gliederung: {{gliederung}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG: Antworte ausschließlich auf Deutsch. Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen.\n\n{{TITLE_GENERATION_INSTRUCTION}}",
   "customPromptTemplate": {
     "requestType": "{{requestTypeText}}",
-    "idee": "{{idee|default:'Nicht angegeben'}}",
-    "details": "{{details|default:''}}",
+    "inhalt": "{{inhalt|default:'Nicht angegeben'}}",
     "gliederung": "{{gliederung|default:''}}",
     "currentDate": "{{currentDate}}"
   },
-  "webSearchQuery": "{{idee}} {{details}} Bündnis 90 Die Grünen Politik",
+  "webSearchQuery": "{{inhalt}} Bündnis 90 Die Grünen Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {

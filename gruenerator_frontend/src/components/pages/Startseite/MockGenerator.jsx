@@ -109,7 +109,7 @@ const MockGenerator = () => {
   return (
     <div className="mock-generator-interface" ref={containerRef}>
       <div className="mock-form-container">
-        <h3 className="mock-form-title">Presse- & Social Media Grünerator</h3>
+        <h3 className="mock-form-title">Welche Botschaft willst du heute grünerieren?</h3>
         
         {!showResult && (
           <div className="mock-form-fields">

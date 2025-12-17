@@ -72,6 +72,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }) => {
     instructionType: 'gruenejugend',
     features: ['webSearch', 'privacyMode'],
     tabIndexKey: 'GRUENE_JUGEND',
+    defaultMode: 'privacy',
     helpContent: {
       content: "Der Grünerator für die Grüne Jugend erstellt jugendgerechte Social-Media-Inhalte für verschiedene Plattformen.",
       tips: [

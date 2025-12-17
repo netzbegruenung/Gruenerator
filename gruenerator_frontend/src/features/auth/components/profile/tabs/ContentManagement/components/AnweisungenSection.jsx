@@ -1,50 +1,37 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
-
-// Common components
-import ProfileCard from '../../../../../../../components/common/ProfileCard';
-
-// Hooks
 import { useAutosave } from '../../../../../../../hooks/useAutosave';
-import { useFormFields } from '../../../../../../../components/common/Form/hooks';
 import { useMessageHandling } from '../../../../../../../hooks/useMessageHandling';
 import { useAnweisungenWissen } from '../../../../../hooks/useProfileData';
+import { InstructionsGrid, INSTRUCTION_FIELDS } from '../../../../../../../components/common/InstructionFields';
 
 const AnweisungenSection = ({
     isActive,
     onSuccessMessage,
     onErrorMessage
 }) => {
-    // Ref to track initialization
     const isInitialized = useRef(false);
+    const [enabledFields, setEnabledFields] = useState([]);
 
-    // Message handling
     const { clearMessages, showSuccess, showError } = useMessageHandling(onSuccessMessage, onErrorMessage);
 
-    // React Query hook for data fetching and mutations
     const { query, saveChanges, isSaving } = useAnweisungenWissen({ isActive });
     const { data, isError: isErrorQuery, error: errorQuery } = query;
 
-    // React Hook Form setup
+    const defaultValues = INSTRUCTION_FIELDS.reduce((acc, field) => {
+        acc[field.name] = '';
+        return acc;
+    }, {});
+
     const formMethods = useForm({
-        defaultValues: {
-            customAntragPrompt: '',
-            customSocialPrompt: '',
-            customUniversalPrompt: '',
-            customGruenejugendPrompt: '',
-            customRedePrompt: '',
-            customBuergeranfragenPrompt: '',
-        },
+        defaultValues,
         mode: 'onChange'
     });
 
-    const { control, getValues, reset, watch } = formMethods;
-    const { Textarea } = useFormFields();
+    const { control, getValues, reset, watch, setValue } = formMethods;
 
-    // Track autosave enabled state
     const [autosaveEnabled, setAutosaveEnabled] = useState(false);
 
-    // Auto-save using shared hook
     const { resetTracking } = useAutosave({
         saveFunction: useCallback(async (changedFields) => {
             const currentValues = getValues();
@@ -52,9 +39,9 @@ const AnweisungenSection = ({
                 customAntragPrompt: changedFields.customAntragPrompt !== undefined ? changedFields.customAntragPrompt : currentValues.customAntragPrompt || '',
                 customSocialPrompt: changedFields.customSocialPrompt !== undefined ? changedFields.customSocialPrompt : currentValues.customSocialPrompt || '',
                 customUniversalPrompt: changedFields.customUniversalPrompt !== undefined ? changedFields.customUniversalPrompt : currentValues.customUniversalPrompt || '',
-                customGruenejugendPrompt: changedFields.customGruenejugendPrompt !== undefined ? changedFields.customGruenejugendPrompt : currentValues.customGruenejugendPrompt || '',
                 customRedePrompt: changedFields.customRedePrompt !== undefined ? changedFields.customRedePrompt : currentValues.customRedePrompt || '',
                 customBuergeranfragenPrompt: changedFields.customBuergeranfragenPrompt !== undefined ? changedFields.customBuergeranfragenPrompt : currentValues.customBuergeranfragenPrompt || '',
+                customGruenejugendPrompt: changedFields.customGruenejugendPrompt !== undefined ? changedFields.customGruenejugendPrompt : currentValues.customGruenejugendPrompt || '',
                 knowledge: currentValues.knowledge || []
             };
 
@@ -70,20 +57,12 @@ const AnweisungenSection = ({
         formRef: { getValues, watch },
         enabled: autosaveEnabled,
         debounceMs: 2000,
-        getFieldsToTrack: () => [
-            'customAntragPrompt',
-            'customSocialPrompt',
-            'customUniversalPrompt',
-            'customGruenejugendPrompt',
-            'customRedePrompt',
-            'customBuergeranfragenPrompt'
-        ],
+        getFieldsToTrack: () => INSTRUCTION_FIELDS.map(f => f.name),
         onError: () => {
             showError('Fehler beim automatischen Speichern');
         }
     });
 
-    // Initialize form when data loads (only once)
     useEffect(() => {
         if (!data || isInitialized.current) return;
 
@@ -91,25 +70,32 @@ const AnweisungenSection = ({
             customAntragPrompt: data.antragPrompt || '',
             customSocialPrompt: data.socialPrompt || '',
             customUniversalPrompt: data.universalPrompt || '',
-            customGruenejugendPrompt: data.gruenejugendPrompt || '',
             customRedePrompt: data.redePrompt || '',
             customBuergeranfragenPrompt: data.buergeranfragenPrompt || '',
+            customGruenejugendPrompt: data.gruenejugendPrompt || '',
         };
 
         reset(formData);
         isInitialized.current = true;
 
-        // Enable autosave and reset tracking after initial form setup
         setTimeout(() => {
             setAutosaveEnabled(true);
             resetTracking();
         }, 100);
     }, [data, reset, resetTracking]);
 
-    // Effect to clear messages when component becomes inactive
     useEffect(() => {
         clearMessages();
     }, [isActive, clearMessages]);
+
+    const handleAddField = useCallback((fieldName) => {
+        setEnabledFields(prev => [...prev, fieldName]);
+    }, []);
+
+    const handleRemoveField = useCallback((fieldName) => {
+        setValue(fieldName, '');
+        setEnabledFields(prev => prev.filter(f => f !== fieldName));
+    }, [setValue]);
 
     if (isErrorQuery) {
         return (
@@ -126,74 +112,16 @@ const AnweisungenSection = ({
                 id="anweisungen-panel"
                 aria-labelledby="anweisungen-tab"
                 tabIndex={-1}
-                className="profile-cards-grid"
             >
-                <ProfileCard title="Anweisungen für Anträge">
-                    <Textarea
-                        name="customAntragPrompt"
-                        label="Persönliche Anweisungen:"
-                        placeholder="Gib hier deine Anweisungen für die Erstellung von Anträgen ein..."
-                        helpText="z.B. bevorzugter Stil, spezielle Formulierungen, politische Schwerpunkte"
-                        minRows={2}
-                        maxRows={8}
-                        control={control}
-                    />
-                </ProfileCard>
-                <ProfileCard title="Anweisungen für Presse & Social Media">
-                    <Textarea
-                        name="customSocialPrompt"
-                        label="Persönliche Anweisungen:"
-                        placeholder="Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein..."
-                        helpText="z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache"
-                        minRows={2}
-                        maxRows={8}
-                        control={control}
-                    />
-                </ProfileCard>
-                <ProfileCard title="Anweisungen für Universelle Texte">
-                    <Textarea
-                        name="customUniversalPrompt"
-                        label="Persönliche Anweisungen:"
-                        placeholder="Gib hier deine Anweisungen für die Erstellung von universellen Texten ein..."
-                        helpText="z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen"
-                        minRows={2}
-                        maxRows={8}
-                        control={control}
-                    />
-                </ProfileCard>
-                <ProfileCard title="Anweisungen für Reden">
-                    <Textarea
-                        name="customRedePrompt"
-                        label="Persönliche Anweisungen:"
-                        placeholder="Gib hier deine Anweisungen für die Erstellung von Reden ein..."
-                        helpText="z.B. bevorzugter Redestil, rhetorische Mittel, Ansprache der Zielgruppe"
-                        minRows={2}
-                        maxRows={8}
-                        control={control}
-                    />
-                </ProfileCard>
-                <ProfileCard title="Anweisungen für Bürger*innenanfragen">
-                    <Textarea
-                        name="customBuergeranfragenPrompt"
-                        label="Persönliche Anweisungen:"
-                        placeholder="Gib hier deine Anweisungen für die Beantwortung von Bürger*innenanfragen ein..."
-                        helpText="z.B. bevorzugte Tonalität, Detailgrad, Ansprechpartner-Informationen"
-                        minRows={2}
-                        maxRows={8}
-                        control={control}
-                    />
-                </ProfileCard>
-                <ProfileCard title="Anweisungen für Grüne Jugend">
-                    <Textarea
-                        name="customGruenejugendPrompt"
-                        label="Persönliche Anweisungen:"
-                        placeholder="Gib hier deine Anweisungen für die Erstellung von Grüne Jugend-Inhalten ein..."
-                        helpText="z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus"
-                        minRows={2}
-                        maxRows={8}
-                        control={control}
-                    />
-                </ProfileCard>
+                <InstructionsGrid
+                    control={control}
+                    data={data}
+                    isReadOnly={false}
+                    labelPrefix="Persönliche"
+                    enabledFields={enabledFields}
+                    onAddField={handleAddField}
+                    onRemoveField={handleRemoveField}
+                />
 
                 <div className="form-help-text">
                     Änderungen werden automatisch gespeichert

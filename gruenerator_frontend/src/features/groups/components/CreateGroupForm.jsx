@@ -13,7 +13,7 @@ const CreateGroupForm = ({ onCancel, onSuccess }) => {
     isCreateGroupError,
     createGroupError,
     isCreateGroupSuccess
-  } = useGroups();
+  } = useGroups({ isActive: true });
 
   // Handle form submission
   const handleSubmit = (e) => {

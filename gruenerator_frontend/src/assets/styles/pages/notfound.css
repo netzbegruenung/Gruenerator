@@ -42,7 +42,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem 2rem;
-    background-color: var(--primary);
+    background-color: var(--secondary);
     color: white;
     text-decoration: none;
     border-radius: 10px;

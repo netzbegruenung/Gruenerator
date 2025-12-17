@@ -8,7 +8,7 @@ import ShareToGroupModal from '../../../../../../components/common/ShareToGroupM
 // Content sections
 import DocumentsSection from './components/DocumentsSection';
 import AnweisungenSection from './components/AnweisungenSection';
-import SettingsSection from './components/SettingsSection';
+import VorlagenSection from './components/VorlagenSection';
 
 // Integration sections
 import CanvaSection from './components/CanvaSection';
@@ -28,12 +28,7 @@ const ContentManagementView = ({
     onErrorMessage,
     initialTab = 'inhalte',
     canvaSubsection = 'overview',
-    onTabChange,
-    igelActive,
-    onToggleIgelModus,
-    laborActive,
-    onToggleLaborModus,
-    isBetaFeaturesUpdating
+    onTabChange
 }) => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
@@ -44,10 +39,10 @@ const ContentManagementView = ({
     // Available tabs - content plus integrations
     const availableTabs = [
         { key: 'inhalte', label: 'Inhalte' },
+        { key: 'vorlagen', label: 'Meine Vorlagen' },
         // { key: 'wolke', label: 'Wolke' }, // Temporarily hidden
         ...(canAccessBetaFeature('canva') ? [{ key: 'canva', label: 'Canva' }] : []),
-        { key: 'anweisungen', label: 'Anweisungen' },
-        { key: 'einstellungen', label: 'Weitere Einstellungen' }
+        { key: 'anweisungen', label: 'Anweisungen' }
     ];
 
     // Simple tab navigation
@@ -143,6 +138,16 @@ const ContentManagementView = ({
             );
         }
 
+        if (currentTab === 'vorlagen') {
+            return (
+                <VorlagenSection
+                    isActive={isActive}
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                />
+            );
+        }
+
         if (currentTab === 'anweisungen') {
             return (
                 <AnweisungenSection
@@ -172,21 +177,6 @@ const ContentManagementView = ({
                     isActive={isActive}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
-                />
-            );
-        }
-
-        if (currentTab === 'einstellungen') {
-            return (
-                <SettingsSection
-                    isActive={isActive}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                    igelActive={igelActive}
-                    onToggleIgelModus={onToggleIgelModus}
-                    laborActive={laborActive}
-                    onToggleLaborModus={onToggleLaborModus}
-                    isBetaFeaturesUpdating={isBetaFeaturesUpdating}
                 />
             );
         }

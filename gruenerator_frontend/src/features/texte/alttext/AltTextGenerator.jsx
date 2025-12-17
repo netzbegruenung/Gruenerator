@@ -248,7 +248,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title="Alt-Text Grünerator"
+          title={<span className="gradient-title">Welches Bild willst du heute beschreiben?</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}

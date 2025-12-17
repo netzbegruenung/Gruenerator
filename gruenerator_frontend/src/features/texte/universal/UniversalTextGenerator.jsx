@@ -30,10 +30,10 @@ export const TEXT_TYPE_LABELS = {
 };
 
 export const TEXT_TYPE_TITLES = {
-  [TEXT_TYPES.REDE]: 'Grünerator für Reden',
-  [TEXT_TYPES.WAHLPROGRAMM]: 'Grünerator für Wahlprogramm-Kapitel',
-  [TEXT_TYPES.BUERGERANFRAGEN]: 'Grünerator für Bürger*innenanfragen',
-  [TEXT_TYPES.UNIVERSAL]: 'Universal Grünerator'
+  [TEXT_TYPES.REDE]: 'Welche Rede willst du heute grünerieren?',
+  [TEXT_TYPES.WAHLPROGRAMM]: 'Welches Wahlprogramm-Kapitel willst du heute grünerieren?',
+  [TEXT_TYPES.BUERGERANFRAGEN]: 'Welche Bürger*innenanfrage willst du heute grünerieren?',
+  [TEXT_TYPES.UNIVERSAL]: 'Welchen Text willst du heute grünerieren?'
 };
 
 const TEXT_TYPE_ICONS = {
@@ -165,6 +165,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
     disableKnowledgeSystem: false, // Enable knowledge system for fetching documents/texts
     features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'UNIVERSAL',
+    defaultMode: 'privacy',
     helpContent: helpContent
   });
 

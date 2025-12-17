@@ -45,6 +45,25 @@ export const getMenuItems = (betaFeatures = {}) => {
     icon: getIcon('navigation', 'barrierefreiheit')
   });
 
+  toolsItems.push({
+    id: 'texteditor',
+    path: '/texteditor',
+    title: 'Text Editor',
+    description: 'Texte bearbeiten und verbessern',
+    icon: getIcon('actions', 'edit')
+  });
+
+  // Add website generator if beta feature is enabled
+  if (betaFeatures.websiteBetaEnabled) {
+    toolsItems.push({
+      id: 'website',
+      path: '/website',
+      title: 'Website',
+      description: 'Landing Page JSON für WordPress',
+      icon: getIcon('navigation', 'website')
+    });
+  }
+
   // Build texte items, conditionally including gruene-jugend based on igel mode
   const texteItems = [
     {
@@ -95,20 +114,29 @@ export const getMenuItems = (betaFeatures = {}) => {
           description: 'Untertitel Reels für Social Media',
           icon: getIcon('navigation', 'reel')
         },
-        {
+        ...(!betaFeatures.isAustrian ? [{
           id: 'sharepic',
           path: '/sharepic',
           title: 'Sharepics',
           description: 'Erstelle Sharepics für Social Media',
           icon: getIcon('navigation', 'sharepic')
-        },
+        }] : []),
         {
           id: 'imagine',
           path: '/imagine',
           title: 'Imagine',
-          description: 'Begrüne deine Straße mit magischer KI-Bildbearbeitung',
+          description: 'Magische KI-Bildbearbeitung',
           icon: getIcon('navigation', 'imagine')
+        },
+        /* Temporarily disabled - Vorlagen
+        {
+          id: 'vorlagen',
+          path: '/datenbank/vorlagen',
+          title: 'Vorlagen',
+          description: 'Design-Vorlagen für Canva und mehr',
+          icon: getIcon('navigation', 'vorlagen')
         }
+        */
       ]
     },
     tools: {
@@ -146,12 +174,12 @@ export const getMenuItems = (betaFeatures = {}) => {
 
 
 
-  // Build result with labor items if any
+  // Build result with optional sections
   let result = staticMenuItems;
 
   if (laborItems.length > 0) {
     result = {
-      ...staticMenuItems,
+      ...result,
       labor: {
         title: 'Labor',
         items: laborItems

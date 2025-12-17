@@ -1,10 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import apiClient from '../../../components/utils/apiClient';
-import VideoUploader from './VideoUploader';
+import ProcessingIndicator from './ProcessingIndicator';
+import { VideoEditor } from './videoEditor';
 import SubtitleEditor from './SubtitleEditor';
-import SuccessScreen from './SuccessScreen';
+import VideoSuccessScreen from './VideoSuccessScreen';
 import ProjectSelector from './ProjectSelector';
+import ModeSelector from './ModeSelector';
+import AutoProcessingScreen from './AutoProcessingScreen';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { useSubtitlerProjects } from '../hooks/useSubtitlerProjects';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
@@ -17,10 +20,12 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 
 import '../styles/subtitler.css';
 import '../styles/SubtitleEditor.css';
-import '../styles/SuccessScreen.css';
-import '../styles/VideoUploader.css';
+import '../styles/VideoSuccessScreen.css';
+import '../styles/ProcessingIndicator.css';
 import '../styles/live-subtitle-preview.css';
 import '../styles/ProjectSelector.css';
+import '../styles/ModeSelector.css';
+import '../styles/AutoProcessingScreen.css';
 
 // --- Maintenance Flag ---
 // Set to true to enable maintenance mode for this page
@@ -31,6 +36,7 @@ const SubtitlerPage = () => {
   const [step, setStep] = useState('select');
   const [originalVideoFile, setOriginalVideoFile] = useState(null); // Original File-Objekt
   const [uploadInfo, setUploadInfo] = useState(null); // Upload-ID, Metadaten und Präferenz
+  const [cutSegments, setCutSegments] = useState(null); // Segments from VideoEditor for cutting
   const [subtitles, setSubtitles] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -43,6 +49,9 @@ const SubtitlerPage = () => {
   const [isProModeActive, setIsProModeActive] = useState(false);
   const [loadedProject, setLoadedProject] = useState(null); // Track loaded project for editing
   const [loadingProjectId, setLoadingProjectId] = useState(null); // Track which project is loading
+  const [isPreviewMode, setIsPreviewMode] = useState(false); // Track if generating subtitles for preview only (stay in cut step)
+  const [selectedEditMode, setSelectedEditMode] = useState(null); // 'subtitle' | 'full-edit' - tracks which editing mode user selected
+  const [autoSavedProjectId, setAutoSavedProjectId] = useState(null); // Track project ID from auto processing
 
   // Use centralized export store
   const exportStore = useSubtitlerExportStore();
@@ -57,18 +66,13 @@ const SubtitlerPage = () => {
     saveProject,
     updateProject,
     deleteProject,
-    isReady: isAuthReady
+    isReady: isAuthReady,
+    initialFetchComplete
   } = useSubtitlerProjects();
 
-  // Get Igel mode status from auth store
-  const { igelModus } = useAuthStore();
+  // Get user and Igel mode status from auth store
+  const { user, igelModus } = useAuthStore();
 
-  // Skip to upload if no projects exist (auto-triggered by useSubtitlerProjects when auth ready)
-  useEffect(() => {
-    if (step === 'select' && isAuthReady && !isProjectsLoading && projects.length === 0) {
-      setStep('upload');
-    }
-  }, [step, isAuthReady, isProjectsLoading, projects.length]);
 
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);
@@ -86,7 +90,7 @@ const SubtitlerPage = () => {
   useEffect(() => {
     const handlePopState = (event) => {
       if (event.state?.step) {
-        const validSteps = ['select', 'upload', 'edit', 'success'];
+        const validSteps = ['select', 'mode-select', 'cut', 'edit', 'auto-processing', 'success'];
         if (validSteps.includes(event.state.step)) {
           setStep(event.state.step);
         }
@@ -141,24 +145,35 @@ const SubtitlerPage = () => {
       type: uploadData.type,
     };
     setUploadInfo(newUploadInfo);
-
-    // Auto-start processing immediately after upload
     setError(null);
+
+    // Go to mode selection step after upload
+    setStep('mode-select');
+  };
+
+  // Start video processing (called after cut step)
+  const handleProcessVideo = useCallback(async (segments = null) => {
+    if (!uploadInfo?.uploadId) {
+      setError('Keine Upload-ID vorhanden.');
+      return;
+    }
+
     setIsProcessing(true);
+    setError(null);
 
     try {
       const response = await axios.post(`${baseURL}/subtitler/process`, {
-        uploadId: uploadData.uploadId,
+        uploadId: uploadInfo.uploadId,
         subtitlePreference: modePreference,
         stylePreference: stylePreference,
-        heightPreference: heightPreference
+        heightPreference: heightPreference,
+        segments: segments // Include cut segments if any
       }, {
         timeout: 900000
       });
 
       if (response.status === 202 && response.data?.status === 'processing') {
-        // Processing started successfully, polling will be handled by useEffect
-        console.log('[SubtitlerPage] Processing started for:', uploadData.uploadId);
+        console.log('[SubtitlerPage] Processing started for:', uploadInfo.uploadId);
       } else {
         throw new Error(response.data?.message || 'Unerwartete Antwort vom Server beim Start der Verarbeitung.');
       }
@@ -167,7 +182,29 @@ const SubtitlerPage = () => {
       setError(error.response?.data?.error || error.message || 'Fehler beim Starten der Videoverarbeitung.');
       setIsProcessing(false);
     }
-  };
+  }, [uploadInfo?.uploadId, modePreference, stylePreference, heightPreference, baseURL]);
+
+  // Handler for generating subtitles preview (stay in cut step)
+  const handleGenerateSubtitlesPreview = useCallback(() => {
+    console.log('[SubtitlerPage] Generating subtitles preview');
+    setIsPreviewMode(true); // Set preview mode so polling won't navigate away
+    handleProcessVideo(cutSegments);
+  }, [handleProcessVideo, cutSegments]);
+
+  // Handler for updating a single subtitle in the cut step
+  const handleSubtitleUpdate = useCallback((index, newText) => {
+    if (!subtitles) return;
+
+    const blocks = subtitles.split('\n\n');
+    if (index >= 0 && index < blocks.length) {
+      const lines = blocks[index].split('\n');
+      if (lines.length >= 2) {
+        // Keep the time line, replace the text
+        blocks[index] = lines[0] + '\n' + newText;
+        setSubtitles(blocks.join('\n\n'));
+      }
+    }
+  }, [subtitles]);
 
   // Cancel handler for upload and processing
   const handleCancel = useCallback(() => {
@@ -216,7 +253,11 @@ const SubtitlerPage = () => {
             clearInterval(pollingIntervalRef.current);
             setSubtitles(fetchedSubtitles);
             setIsProcessing(false);
-            setStep('edit'); // Go directly to editor with inline styling
+            // Only navigate to edit step if not in preview mode
+            if (!isPreviewMode) {
+              setStep('edit');
+            }
+            setIsPreviewMode(false); // Reset preview mode flag
           } else if (status === 'error') {
             console.error(`[SubtitlerPage] Processing error for ${currentUploadId}:`, jobError);
             clearInterval(pollingIntervalRef.current);
@@ -250,15 +291,38 @@ const SubtitlerPage = () => {
        clearInterval(pollingIntervalRef.current);
     }
 
-  }, [isProcessing, uploadInfo?.uploadId, modePreference, stylePreference]); // Dependencies: run effect when isProcessing or uploadId changes
+  }, [isProcessing, uploadInfo?.uploadId, modePreference, stylePreference, isPreviewMode]); // Dependencies: run effect when isProcessing or uploadId changes
 
   const handleExport = useCallback(async (receivedExportToken) => {
-    // The export token is now managed by the store
     console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
 
-    // Move to success screen immediately when export starts
+    // Auto-create project if one doesn't exist (for share functionality)
+    if (!loadedProject?.id && !autoSavedProjectId && uploadInfo?.uploadId) {
+      try {
+        const projectData = {
+          uploadId: uploadInfo.uploadId,
+          subtitles: subtitles || '',
+          title: uploadInfo.name?.replace(/\.[^/.]+$/, '') || `Projekt ${new Date().toLocaleDateString('de-DE')}`,
+          stylePreference,
+          heightPreference,
+          modePreference,
+          videoMetadata: uploadInfo.metadata || {},
+          videoFilename: uploadInfo.name || 'video.mp4',
+          videoSize: uploadInfo.size || 0
+        };
+
+        const savedProject = await saveProject(projectData);
+        if (savedProject?.id) {
+          setAutoSavedProjectId(savedProject.id);
+          console.log('[SubtitlerPage] Auto-created project for sharing:', savedProject.id);
+        }
+      } catch (err) {
+        console.warn('[SubtitlerPage] Failed to auto-create project:', err);
+      }
+    }
+
     setStep('success');
-  }, []);
+  }, [loadedProject?.id, autoSavedProjectId, uploadInfo, subtitles, stylePreference, heightPreference, modePreference, saveProject]);
 
   const handleExportComplete = useCallback(() => {
     // Export completion is now handled by the store
@@ -289,11 +353,14 @@ const SubtitlerPage = () => {
       setStep('select');
       setOriginalVideoFile(null);
       setUploadInfo(null);
+      setCutSegments(null);
       setSubtitles(null);
       setError(null);
       setIsExiting(false);
       setIsProcessing(false);
       setLoadedProject(null);
+      setSelectedEditMode(null);
+      setAutoSavedProjectId(null);
       resetSocialText();
     }, 300);
   }, [resetSocialText, uploadInfo?.uploadId, baseURL, resetExport]);
@@ -320,6 +387,70 @@ const SubtitlerPage = () => {
   const handleStyleConfirm = useCallback(() => {
     setStep('edit');
   }, []);
+
+  // Handler for starting automatic processing
+  const handleStartAutoProcessing = useCallback(async () => {
+    if (!uploadInfo?.uploadId) {
+      setError('Keine Upload-ID vorhanden.');
+      return;
+    }
+
+    try {
+      const response = await apiClient.post('/subtitler/process-auto', {
+        uploadId: uploadInfo.uploadId,
+        locale: 'de-DE',
+        userId: user?.id || null
+      });
+
+      if (response.status === 202) {
+        console.log('[SubtitlerPage] Auto processing started for:', uploadInfo.uploadId);
+      }
+    } catch (error) {
+      console.error('[SubtitlerPage] Error starting auto processing:', error);
+      setError(error.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.');
+      setStep('mode-select');
+    }
+  }, [uploadInfo?.uploadId, user?.id]);
+
+  // Handler for automatic processing completion
+  const handleAutoProcessingComplete = useCallback((result) => {
+    console.log('[SubtitlerPage] Auto processing complete:', result);
+    // Store the auto-saved project ID if available
+    if (result.projectId) {
+      setAutoSavedProjectId(result.projectId);
+    }
+    // Store subtitles from auto processing for editing
+    if (result.subtitles) {
+      setSubtitles(result.subtitles);
+    }
+    // Move to success screen - the video is ready for download
+    setStep('success');
+  }, []);
+
+  // Handler for automatic processing error
+  const handleAutoProcessingError = useCallback((errorMsg) => {
+    console.error('[SubtitlerPage] Auto processing error:', errorMsg);
+    setError(errorMsg);
+    setStep('mode-select');
+  }, []);
+
+  // Handler for selecting editing mode (subtitle-only vs full video editing vs auto)
+  const handleEditModeSelect = useCallback((mode) => {
+    setSelectedEditMode(mode);
+
+    if (mode === 'subtitle') {
+      // Skip VideoEditor - directly trigger processing and go to SubtitleEditor
+      handleProcessVideo(null); // null segments = use full video
+      setStep('edit');
+    } else if (mode === 'full-edit') {
+      // Go to VideoEditor for full editing
+      setStep('cut');
+    } else if (mode === 'auto') {
+      // Go to automatic processing screen
+      handleStartAutoProcessing();
+      setStep('auto-processing');
+    }
+  }, [handleProcessVideo, handleStartAutoProcessing]);
 
   // Handler for selecting a saved project from ProjectSelector
   const handleSelectProject = useCallback(async (projectId) => {
@@ -359,22 +490,6 @@ const SubtitlerPage = () => {
     }
   }, [loadProject]);
 
-  // Handler for starting a new project
-  const handleNewProject = useCallback(() => {
-    setLoadedProject(null);
-    setOriginalVideoFile(null);
-    setUploadInfo(null);
-    setSubtitles(null);
-    setStylePreference('shadow'); // Default to Empfohlen
-    setHeightPreference('standard');
-    setModePreference('manual');
-    setStep('upload');
-  }, []);
-
-  // Handler to go back to project selection
-  const handleBackToSelect = useCallback(() => {
-    setStep('select');
-  }, []);
 
   // Funktion zum Umschalten des Profi-Modus (erwartet jetzt den neuen Wert)
   const toggleProMode = useCallback((newIsActive) => {
@@ -389,7 +504,7 @@ const SubtitlerPage = () => {
           <MaintenanceNotice featureName="Grünerator Reel-Studio" />
         ) : (
           <>
-            {step === 'upload' && !isProcessing && (
+            {step === 'mode-select' && !isProcessing && (
               <h1 className="subtitler-title">Grünerator Reel-Studio</h1>
             )}
             
@@ -406,7 +521,7 @@ const SubtitlerPage = () => {
               {step === 'select' && (
                 <ProjectSelector
                   onSelectProject={handleSelectProject}
-                  onNewProject={handleNewProject}
+                  onUpload={handleUploadComplete}
                   loadingProjectId={loadingProjectId}
                   projects={projects}
                   isLoading={isProjectsLoading}
@@ -414,30 +529,52 @@ const SubtitlerPage = () => {
                 />
               )}
 
-              {step === 'upload' && (
-                <VideoUploader
-                  onUpload={handleUploadComplete}
-                  onBack={projects.length > 0 ? handleBackToSelect : null}
-                  isProcessing={isProcessing}
-                  onCancel={handleCancel}
-                  processingError={error}
+              {step === 'mode-select' && (
+                <ModeSelector
+                  onSelect={handleEditModeSelect}
+                  videoFile={originalVideoFile}
                 />
               )}
 
+              {step === 'auto-processing' && (
+                <AutoProcessingScreen
+                  uploadId={uploadInfo?.uploadId}
+                  onComplete={handleAutoProcessingComplete}
+                  onError={handleAutoProcessingError}
+                />
+              )}
 
-              {step === 'edit' && (
+              {step === 'cut' && (!isProcessing || isPreviewMode) && (
+                <VideoEditor
+                  videoUrl={originalVideoFile ? URL.createObjectURL(originalVideoFile) : null}
+                  videoFile={originalVideoFile}
+                  videoMetadata={uploadInfo?.metadata}
+                  uploadId={uploadInfo?.uploadId}
+                  onGenerateSubtitles={handleGenerateSubtitlesPreview}
+                  subtitles={subtitles}
+                  isGeneratingSubtitles={isProcessing && isPreviewMode}
+                  stylePreference={stylePreference}
+                  heightPreference={heightPreference}
+                  onSubtitleUpdate={handleSubtitleUpdate}
+                />
+              )}
+
+              {step === 'cut' && isProcessing && !isPreviewMode && (
+                <ProcessingIndicator
+                  onCancel={handleCancel}
+                  error={error}
+                />
+              )}
+
+              {step === 'edit' && isProcessing && selectedEditMode === 'subtitle' && (
+                <ProcessingIndicator
+                  onCancel={handleCancel}
+                  error={error}
+                />
+              )}
+
+              {step === 'edit' && (!isProcessing || selectedEditMode !== 'subtitle') && (
                 <>
-                  {/* Profi-Modus Schalter */}
-                  {/* <FeatureToggle
-                    isActive={isProModeActive}
-                    onToggle={toggleProMode} // Übergibt direkt den neuen booleschen Wert
-                    label="Profi-Modus"
-                    icon={FaUserCog} // Passendes Icon für Einstellungen/Profi
-                    description="Zeiten bearbeiten und Segmente löschen (auf eigene Gefahr)."
-                    className="subtitler-pro-toggle" // Eigene Klasse für spezifisches Styling falls nötig
-                  /> */}
-                   {/* {isProModeActive && <p className="pro-mode-warning">Achtung: Änderungen an Zeiten oder das Löschen von Segmenten kann die Synchronisation beeinträchtigen.</p>} */}
-
                   <SubtitleEditor
                     videoFile={originalVideoFile}
                     videoUrl={uploadInfo?.videoUrl}
@@ -460,7 +597,7 @@ const SubtitlerPage = () => {
               )}
 
               {step === 'success' && (
-                <SuccessScreen
+                <VideoSuccessScreen
                   onReset={handleReset}
                   onEditAgain={handleEditAgain}
                   isLoading={exportStatus === 'starting' || exportStatus === 'exporting'}
@@ -468,8 +605,15 @@ const SubtitlerPage = () => {
                   uploadId={exportToken || uploadInfo?.uploadId}
                   isGeneratingSocialText={isGenerating}
                   onGenerateSocialText={() => generateSocialText(subtitles)}
-                  projectId={loadedProject?.id}
-                  projectTitle={loadedProject?.title}
+                  projectId={loadedProject?.id || autoSavedProjectId}
+                  projectTitle={loadedProject?.title || (autoSavedProjectId ? 'Auto-Video' : null)}
+                  videoUrl={
+                    selectedEditMode === 'auto'
+                      ? `${baseURL}/subtitler/auto-download/${uploadInfo?.uploadId}`
+                      : exportToken
+                        ? `${baseURL}/subtitler/export-download/${exportToken}`
+                        : null
+                  }
                 />
               )}
             </div>

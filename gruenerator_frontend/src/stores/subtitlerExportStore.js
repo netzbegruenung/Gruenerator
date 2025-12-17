@@ -164,6 +164,70 @@ export const useSubtitlerExportStore = create((set, get) => ({
     }
   },
 
+  // Start Remotion export process (VideoEditor pixel-perfect rendering)
+  startRemotionExport: async (params = {}) => {
+    console.log('[SubtitlerExportStore] Starting Remotion export with params:', params);
+
+    const state = get();
+
+    if (state.status === EXPORT_STATUS.STARTING || state.status === EXPORT_STATUS.EXPORTING) {
+      console.warn('[SubtitlerExportStore] Export already in progress, ignoring duplicate request');
+      return;
+    }
+
+    const exportParams = {
+      ...params
+    };
+
+    set({
+      status: EXPORT_STATUS.STARTING,
+      progress: 0,
+      error: null,
+      exportParams,
+      retryCount: 0,
+      pollingStartTime: Date.now(),
+    });
+
+    try {
+      const response = await fetch(`${baseURL}/subtitler/export-remotion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(exportParams),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Remotion export request failed');
+      }
+
+      const jsonData = await response.json();
+      const exportToken = jsonData.exportToken;
+
+      console.log('[SubtitlerExportStore] Remotion export started:', jsonData);
+
+      if (!exportToken) {
+        throw new Error('No export token in Remotion response');
+      }
+
+      set({
+        status: EXPORT_STATUS.EXPORTING,
+        exportToken,
+      });
+
+      get().startPolling();
+
+    } catch (error) {
+      console.error('[SubtitlerExportStore] Remotion export start failed:', error);
+      set({
+        status: EXPORT_STATUS.ERROR,
+        error: error.message || 'Failed to start Remotion export',
+      });
+    }
+  },
+
   // Start polling for progress updates
   startPolling: () => {
     const state = get();
@@ -220,20 +284,6 @@ export const useSubtitlerExportStore = create((set, get) => ({
             projectId: progressData.projectId || null,
           });
           get().stopPolling();
-          
-          // Automatically trigger download when export is complete
-          setTimeout(async () => {
-            try {
-              console.log('[SubtitlerExportStore] Export complete, triggering download');
-              await get().downloadCompletedExport();
-            } catch (downloadError) {
-              console.error('[SubtitlerExportStore] Download failed:', downloadError);
-              set({
-                status: EXPORT_STATUS.ERROR,
-                error: 'Download failed: ' + (downloadError.message || 'Unknown error')
-              });
-            }
-          }, 500); // Small delay to ensure UI updates
         } else if (progressData.status === 'error') {
           set({
             status: EXPORT_STATUS.ERROR,

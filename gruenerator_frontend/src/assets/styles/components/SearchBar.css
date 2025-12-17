@@ -133,9 +133,9 @@
 }
 
 .radio-label.active {
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: white;
-  border-color: var(--primary);
+  border-color: var(--secondary);
 }
 
 .radio-label input {

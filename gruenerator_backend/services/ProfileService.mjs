@@ -81,17 +81,13 @@ class ProfileService {
                 ...profileData,
                 beta_features: profileData.beta_features || {},
                 igel_modus: profileData.igel_modus || false,
-                bundestag_api_enabled: profileData.bundestag_api_enabled || false,
                 groups_enabled: profileData.groups_enabled || false,
                 custom_generators: profileData.custom_generators || false,
                 database_access: profileData.database_access || false,
-                you_generator: profileData.you_generator || false,
                 collab: profileData.collab || false,
-                qa: profileData.qa || false,
+                notebook: profileData.notebook || false,
                 sharepic: profileData.sharepic || false,
                 anweisungen: profileData.anweisungen || false,
-                memory: profileData.memory || false,
-                memory_enabled: profileData.memory_enabled || false,
                 canva: profileData.canva || false,
                 avatar_robot_id: profileData.avatar_robot_id || 1,
                 interactive_antrag_enabled: profileData.interactive_antrag_enabled ?? true
@@ -170,16 +166,13 @@ class ProfileService {
             // Update individual feature columns as well for backward compatibility
             const featureColumnMap = {
                 'igel_modus': 'igel_modus',
-                'bundestag_api_enabled': 'bundestag_api_enabled',
                 'groups': 'groups_enabled',
                 'customGenerators': 'custom_generators',
                 'database': 'database_access',
-                'you': 'you_generator',
                 'collab': 'collab',
-                'qa': 'qa',
+                'notebook': 'notebook',
                 'sharepic': 'sharepic',
                 'anweisungen': 'anweisungen',
-                'memory': 'memory',
                 'canva': 'canva',
                 'labor': 'labor_enabled',
                 'sites': 'sites_enabled',
@@ -250,21 +243,46 @@ class ProfileService {
     }
 
     /**
-     * Update memory settings for a user
+     * Update a user default setting for a specific generator
      */
-    async updateMemorySettings(userId, memoryEnabled) {
+    async updateUserDefault(userId, generator, key, value) {
         try {
-            if (typeof memoryEnabled !== 'boolean') {
-                throw new Error('Memory enabled must be a boolean');
+            if (!generator || !key) {
+                throw new Error('Generator and key are required');
             }
 
-            const result = await this.updateProfile(userId, { memory_enabled: memoryEnabled });
-            console.log(`[ProfileService] Memory settings updated for user ${userId}: ${memoryEnabled}`);
+            const currentProfile = await this.getProfileById(userId);
+            if (!currentProfile) {
+                throw new Error('Profile not found');
+            }
+
+            const defaults = currentProfile.user_defaults || {};
+            if (!defaults[generator]) {
+                defaults[generator] = {};
+            }
+            defaults[generator][key] = value;
+
+            const result = await this.updateProfile(userId, { user_defaults: defaults });
+            console.log(`[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`);
             return result;
         } catch (error) {
-            console.error('[ProfileService] Error updating memory settings:', error);
+            console.error('[ProfileService] Error updating user default:', error);
             throw error;
         }
+    }
+
+    /**
+     * Get user defaults from profile
+     */
+    getUserDefaults(profile) {
+        return profile?.user_defaults || {};
+    }
+
+    /**
+     * Get a specific user default value
+     */
+    getUserDefault(profile, generator, key, defaultValue = null) {
+        return profile?.user_defaults?.[generator]?.[key] ?? defaultValue;
     }
 
     /**
@@ -357,16 +375,13 @@ class ProfileService {
         const profileBetaFeatures = profile.beta_features || {};
         const profileSettingsAsBetaFeatures = {
             igel_modus: profile.igel_modus || false,
-            bundestag_api_enabled: profile.bundestag_api_enabled || false,
             groups: profile.groups_enabled || false,
             customGenerators: profile.custom_generators || false,
             database: profile.database_access || false,
-            you: profile.you_generator || false,
             collab: profile.collab || false,
-            qa: profile.qa || false,
+            notebook: profile.notebook || false,
             sharepic: profile.sharepic || false,
             anweisungen: profile.anweisungen || false,
-            memory: profile.memory || false,
             canva: profile.canva || false,
             labor: profile.labor_enabled || false,
             sites: profile.sites || false,
@@ -391,16 +406,13 @@ class ProfileService {
         // Update individual profile settings for compatibility
         const featureMap = {
             'igel_modus': 'igel_modus',
-            'bundestag_api_enabled': 'bundestag_api_enabled',
             'groups': 'groups_enabled',
             'customGenerators': 'custom_generators',
             'database': 'database_access',
-            'you': 'you_generator',
             'collab': 'collab',
-            'qa': 'qa',
+            'notebook': 'notebook',
             'sharepic': 'sharepic',
             'anweisungen': 'anweisungen',
-            'memory': 'memory',
             'canva': 'canva',
             'sites': 'sites',
             'chat': 'chat',

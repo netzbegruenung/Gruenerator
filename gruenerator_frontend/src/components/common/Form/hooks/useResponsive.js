@@ -13,14 +13,21 @@ const useResponsive = (mobileBreakpoint = 768) => {
     setIsMobileView(window.innerWidth <= mobileBreakpoint);
   }, [mobileBreakpoint]);
 
-  // Event-Listener für Fenstergrößenänderungen
+  // Event-Listener für Fenstergrößenänderungen mit Debouncing
   useEffect(() => {
+    let timeoutId;
     const handleResize = () => {
-      updateMobileState();
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        updateMobileState();
+      }, 150);
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [updateMobileState]);
 
   /**

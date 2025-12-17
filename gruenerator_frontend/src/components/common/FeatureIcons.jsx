@@ -1,8 +1,9 @@
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt, HiEye, HiPaperClip, HiAdjustments, HiLightningBolt, HiPlusCircle, HiClipboardList, HiUpload, HiChatAlt2, HiDocument, HiX } from 'react-icons/hi';
-import { HiRocketLaunch } from 'react-icons/hi2';
+import { HiGlobeAlt, HiEye, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
+import { HiRocketLaunch, HiSparkles } from 'react-icons/hi2';
+import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import AttachedFilesList from './AttachedFilesList';
 import ContentSelector from './ContentSelector';
 import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
@@ -44,7 +45,7 @@ const FeatureIcons = ({
   onAnweisungenClick,
   onInteractiveModeClick,
   anweisungenActive = false,
-  interactiveModeActive = false,
+  interactiveModeActive = true,
   attachedFiles = [],
   attachmentActive = false,
   className = '',
@@ -59,7 +60,9 @@ const FeatureIcons = ({
   onPrivacyInfoClick,
   showWebSearchInfoLink = false,
   onWebSearchInfoClick,
-  instructionType = null
+  instructionType = null,
+  noBorder = false,
+  hideLoginPrompt = false
 }) => {
   // Use store for feature toggles with selective subscriptions
   const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
@@ -318,11 +321,14 @@ const FeatureIcons = ({
   }, [isValidatingFiles, processFiles]);
 
 
-  // Show login prompt for non-authenticated users
+  // Show login prompt for non-authenticated users (unless hidden)
   if (!user) {
+    if (hideLoginPrompt) {
+      return null;
+    }
     return (
       <>
-        <div className={`feature-icons ${className}`} ref={featureIconsRef}>
+        <div className={`feature-icons ${noBorder ? 'feature-icons--no-border' : ''} ${className}`} ref={featureIconsRef}>
           <div className="feature-icons__login-prompt">
             Für alle Features logge dich mit deinem Parteiaccount ein.{' '}
             <button
@@ -348,7 +354,7 @@ const FeatureIcons = ({
   }
 
   return (
-    <div className={`feature-icons ${className}`} ref={featureIconsRef}>
+    <div className={`feature-icons ${noBorder ? 'feature-icons--no-border' : ''} ${className}`} ref={featureIconsRef}>
       <div className="feature-icons-row">
         <button
           className={`feature-icon-button ${useWebSearch ? 'active' : ''} ${clickedIcon === 'webSearch' ? 'clicked' : ''}`}
@@ -367,7 +373,7 @@ const FeatureIcons = ({
         >
           <button
             className={`feature-icon-button ${(usePrivacyMode || useProMode || useUltraMode) ? 'active' : ''} ${clickedIcon === 'balanced' ? 'clicked' : ''}`}
-            aria-label={useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Privacy' : (useProMode ? 'Pro' : 'Ausbalanciert'))}
+            aria-label={useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ'))}
             tabIndex={tabIndex.balancedMode}
             type="button"
             onClick={(event) => {
@@ -376,11 +382,11 @@ const FeatureIcons = ({
             }}
           >
             {(useUltraMode && <HiRocketLaunch className="feature-icons__icon" />) ||
-             (usePrivacyMode && <HiEye className="feature-icons__icon" />) ||
+             (usePrivacyMode && <GrueneratorGPTIcon className="feature-icons__icon" />) ||
              (useProMode && <HiPlusCircle className="feature-icons__icon" />) ||
-             (<HiAdjustments className="feature-icons__icon" />)}
+             (<HiSparkles className="feature-icons__icon" />)}
             <span className="feature-icons-button__label">
-              {useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Privacy' : (useProMode ? 'Pro' : 'Ausbalanciert'))}
+              {useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ'))}
             </span>
           </button>
         </div>
@@ -438,7 +444,7 @@ const FeatureIcons = ({
               tabIndex={tabIndex.interactiveMode}
               type="button"
             >
-              <HiChatAlt2 className="feature-icons__icon" />
+              <HiAnnotation className="feature-icons__icon" />
               <span className="feature-icons-button__label">
                 {interactiveModeActive ? 'Interaktiv aktiv' : 'Interaktiv'}
               </span>
@@ -541,10 +547,10 @@ const FeatureIcons = ({
           })}
           type="button"
         >
-          <HiAdjustments className="balanced-dropdown-icon" />
+          <HiSparkles className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
-            <span className="balanced-dropdown-title">Ausbalanciert</span>
-            <span className="balanced-dropdown-desc">Ausgewogen. Läuft auf EU-Servern.</span>
+            <span className="balanced-dropdown-title">Kreativ</span>
+            <span className="balanced-dropdown-desc">Kreative Texte mit Mistral Medium.</span>
           </div>
         </button>
 
@@ -559,10 +565,10 @@ const FeatureIcons = ({
           }}
           type="button"
         >
-          <HiEye className="balanced-dropdown-icon" />
+          <GrueneratorGPTIcon className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
-            <span className="balanced-dropdown-title">Privacy</span>
-            <span className="balanced-dropdown-desc">Netzbegrünung-Server (Deutschland).</span>
+            <span className="balanced-dropdown-title">Gruenerator-GPT</span>
+            <span className="balanced-dropdown-desc">Selbstgehostete, sichere KI.</span>
           </div>
         </button>
 
@@ -693,7 +699,9 @@ FeatureIcons.propTypes = {
   onPrivacyInfoClick: PropTypes.func,
   showWebSearchInfoLink: PropTypes.bool,
   onWebSearchInfoClick: PropTypes.func,
-  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend'])
+  instructionType: PropTypes.oneOf(['antrag', 'social', 'universal', 'gruenejugend']),
+  noBorder: PropTypes.bool,
+  hideLoginPrompt: PropTypes.bool
 };
 
 export default FeatureIcons;

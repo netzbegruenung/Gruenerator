@@ -167,14 +167,15 @@ function getVaapiOutputOptions(qp, encoder) {
 function getSubtitleFilterChain(assFilePath, fontDir, scaleFilter = null) {
   const cpuFilters = [];
 
-  if (scaleFilter) {
-    cpuFilters.push(scaleFilter);
-  }
-
+  // Subtitles FIRST (render at full resolution), then scale
   if (assFilePath && fontDir) {
     const escapedAssPath = assFilePath.replace(/:/g, '\\:').replace(/'/g, "\\'");
     const escapedFontDir = fontDir.replace(/:/g, '\\:').replace(/'/g, "\\'");
     cpuFilters.push(`subtitles='${escapedAssPath}':fontsdir='${escapedFontDir}'`);
+  }
+
+  if (scaleFilter) {
+    cpuFilters.push(scaleFilter);
   }
 
   cpuFilters.push('format=nv12');

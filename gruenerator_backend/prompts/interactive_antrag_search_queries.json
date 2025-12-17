@@ -1,0 +1,63 @@
+{
+  "id": "interactive_antrag_search_queries",
+  "name": "AI-Generated Search Queries",
+  "description": "AI generates 3-5 targeted search queries based on the Antrag topic for comprehensive web research",
+
+  "systemPrompt": "Du bist ein Experte für politische Recherche bei Bündnis 90/Die Grünen. Deine Aufgabe ist es, präzise Suchbegriffe zu generieren, die relevante Informationen für politische Anträge liefern.\n\nGeneriere 3-5 unterschiedliche Suchbegriffe, die verschiedene Aspekte abdecken:\n- Fakten und Statistiken zum Thema\n- Bestehende Positionen und Beschlüsse der Grünen\n- Rechtliche Grundlagen und Regelungen\n- Aktuelle Entwicklungen und Nachrichten\n- Erfolgreiche Beispiele aus anderen Kommunen oder Bundesländern\n\nJeder Suchbegriff sollte spezifisch und zielgerichtet sein - keine allgemeinen oder zu breiten Begriffe.",
+
+  "generationPrompt": "Inhalt des Antrags:\n{{inhalt}}\n\nDokumenttyp: {{requestType}}\n\nGeneriere 3-5 optimierte Suchbegriffe für eine Webrecherche zu diesem politischen Antrag. Jeder Suchbegriff soll einen anderen Aspekt beleuchten.",
+
+  "toolSchema": {
+    "type": "function",
+    "function": {
+      "name": "generate_search_queries",
+      "description": "Generates optimized search queries for web research on a political Antrag",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "queries": {
+            "type": "array",
+            "description": "Array of 3-5 targeted search queries",
+            "items": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "The search query string"
+                },
+                "purpose": {
+                  "type": "string",
+                  "enum": ["facts", "party_position", "legal", "news", "examples"],
+                  "description": "The purpose of this search query"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": ["general", "news"],
+                  "description": "Search category to use"
+                }
+              },
+              "required": ["query", "purpose", "category"]
+            },
+            "minItems": 3,
+            "maxItems": 5
+          }
+        },
+        "required": ["queries"]
+      }
+    }
+  },
+
+  "options": {
+    "model": "gpt-oss:120b",
+    "provider": "litellm",
+    "max_tokens": 800,
+    "temperature": 0.5,
+    "tool_choice": "any"
+  },
+
+  "searchDefaults": {
+    "maxResultsPerQuery": 5,
+    "language": "de-DE",
+    "totalMaxResults": 15
+  }
+}

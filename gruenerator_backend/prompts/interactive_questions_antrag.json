@@ -1,0 +1,85 @@
+{
+  "id": "interactive_antrag_questions",
+  "name": "AI-Driven Clarifying Questions",
+  "description": "AI decides IF clarification is needed, then generates targeted questions only when uncertain",
+
+  "systemPrompt": "Du bist ein erfahrener Kommunalpolitiker bei Bündnis 90/Die Grünen. Du entscheidest, ob du genug Informationen hast, um einen guten Antrag zu schreiben, oder ob du Rückfragen brauchst.",
+
+  "generationPrompt": "Ein Mitglied möchte einen Antrag erstellen:\n\nInhalt:\n{{inhalt}}\n\nRecherche-Ergebnisse:\n{{searchSummary}}\n\n---\n\nENTSCHEIDE: Kannst du mit diesen Informationen einen GUTEN Antrag schreiben?\n\nEin guter Antrag braucht NUR:\n- Ein klares Ziel (was soll erreicht werden?)\n- Einen erkennbaren Kontext (warum ist das wichtig?)\n\nSETZE needsClarification auf FALSE wenn:\n- Das Ziel klar ist (auch wenn Details fehlen - die kannst du ergänzen)\n- Du verstehst, worum es geht\n- Du einen sinnvollen Antrag formulieren könntest\n\nSETZE needsClarification auf TRUE NUR wenn:\n- Du nicht verstehst, was die Person eigentlich will\n- Das Thema so vage ist, dass du in völlig falsche Richtungen gehen könntest\n- Kritische Entscheidungen nötig sind (z.B. Zielgruppe völlig unklar)\n\nWICHTIG: Frage NICHT nach:\n- Umsetzungsdetails (Wartung, Genehmigungen, rechtliche Fragen)\n- Budget oder Finanzierung (das kann im Antrag offen bleiben)\n- Nice-to-have Informationen\n- Dingen, die du selbst recherchieren oder sinnvoll ergänzen kannst\n\nSei MUTIG - wenn du das Kernziel verstehst, schreib den Antrag!",
+
+  "toolSchema": {
+    "type": "function",
+    "function": {
+      "name": "assess_and_clarify",
+      "description": "Assesses if clarification is needed and generates questions only when truly uncertain",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "needsClarification": {
+            "type": "boolean",
+            "description": "true only if there are genuine ambiguities that would significantly affect the output quality"
+          },
+          "confidenceReason": {
+            "type": "string",
+            "description": "Brief explanation of why clarification is/isn't needed (1 sentence)"
+          },
+          "questions": {
+            "type": "array",
+            "description": "Array of 0-3 clarifying questions (empty if needsClarification is false)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Unique question ID (q1, q2, etc.)"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "The question text - should address a REAL uncertainty"
+                },
+                "uncertainty": {
+                  "type": "string",
+                  "description": "What specific aspect is unclear that this question resolves"
+                },
+                "options": {
+                  "type": "array",
+                  "description": "3 short answer options (max 8 words each)",
+                  "items": { "type": "string" },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "emojis": {
+                  "type": "array",
+                  "description": "Emoji for each option",
+                  "items": { "type": "string" },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              },
+              "required": ["id", "text", "uncertainty", "options", "emojis"]
+            },
+            "minItems": 0,
+            "maxItems": 3
+          }
+        },
+        "required": ["needsClarification", "confidenceReason", "questions"]
+      }
+    }
+  },
+
+  "options": {
+    "max_tokens": 1500,
+    "temperature": 0.4,
+    "tool_choice": "any"
+  },
+
+  "questionDefaults": {
+    "questionFormat": "multiple_choice",
+    "allowCustom": true,
+    "allowMultiSelect": false,
+    "skipOption": {
+      "text": "Überspringen",
+      "emoji": "⏭️"
+    }
+  }
+}

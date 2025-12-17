@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ANTRAEGE_TYPES,
@@ -8,6 +8,7 @@ import {
   ORDERED_CONTENT_TYPE_IDS,
   PR_TYPES
 } from './config';
+import { parseSearchQuery, addTagToSearch } from './searchUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const DEBOUNCE_DELAY = 500;
@@ -134,6 +135,24 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
   return { items: list, sections };
 };
 
+const fetchVorlagen = async ({ searchTerm, searchMode, selectedCategory, tags, signal }) => {
+  const params = new URLSearchParams();
+  if (searchTerm) {
+    params.append('searchTerm', searchTerm);
+    if (searchMode) params.append('searchMode', searchMode);
+  }
+  if (selectedCategory && selectedCategory !== 'all') {
+    params.append('templateType', selectedCategory);
+  }
+  if (Array.isArray(tags) && tags.length > 0) {
+    params.append('tags', JSON.stringify(tags));
+  }
+
+  const url = buildUrl(`/auth/vorlagen${params.toString() ? `?${params.toString()}` : ''}`);
+  const data = await fetchJson(url, { method: 'GET', signal });
+  return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
+};
+
 const categoryQueryOptions = {
   antraege: {
     queryKey: ['antraegeCategories'],
@@ -143,13 +162,23 @@ const categoryQueryOptions = {
       const categories = Array.isArray(data?.categories) ? data.categories : [];
       return [{ id: 'all', label: 'Alle Kategorien' }, ...categories];
     }
+  },
+  vorlagen: {
+    queryKey: ['vorlagenCategories'],
+    queryFn: async () => {
+      const url = buildUrl('/auth/vorlagen-categories');
+      const data = await fetchJson(url, { method: 'GET' });
+      const categories = Array.isArray(data?.categories) ? data.categories : [];
+      return [{ id: 'all', label: 'Alle Typen' }, ...categories];
+    }
   }
 };
 
 const fetcherMap = {
   fetchAntraege: fetchAntraege,
   fetchGenerators: fetchGenerators,
-  fetchUnified: fetchUnified
+  fetchUnified: fetchUnified,
+  fetchVorlagen: fetchVorlagen
 };
 
 export const useGalleryController = ({
@@ -181,7 +210,7 @@ export const useGalleryController = ({
   }, [inputValue]);
 
   const categoriesQuery = useQuery({
-    ...categoryQueryOptions.antraege,
+    ...(categoryQueryOptions[resolvedType] || categoryQueryOptions.antraege),
     enabled: config.categorySource?.type === 'api'
   });
 
@@ -193,6 +222,9 @@ export const useGalleryController = ({
       searchMode,
       selectedCategory
     ],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
     queryFn: async ({ signal }) => {
       const fetcherName = config.fetcher;
       const fetcher = fetcherMap[fetcherName];
@@ -211,11 +243,21 @@ export const useGalleryController = ({
         });
       }
 
+      // For vorlagen, parse hashtags from search term
+      let effectiveSearchTerm = searchTerm;
+      let tags = [];
+      if (fetcherName === 'fetchVorlagen') {
+        const parsed = parseSearchQuery(searchTerm);
+        effectiveSearchTerm = parsed.textQuery;
+        tags = parsed.tags;
+      }
+
       const items = await fetcher({
-        searchTerm,
+        searchTerm: effectiveSearchTerm,
         searchMode,
         selectedCategory,
         contentType: resolvedType,
+        tags,
         signal
       });
 
@@ -265,6 +307,10 @@ export const useGalleryController = ({
       .filter(Boolean)
   ), [availableContentTypeIds]);
 
+  const handleTagClick = useCallback((tag) => {
+    setInputValue(addTagToSearch(inputValue, tag));
+  }, [inputValue]);
+
   return {
     config,
     items: dataQuery.data?.items || [],
@@ -281,6 +327,8 @@ export const useGalleryController = ({
     categories: baseCategories,
     contentType: resolvedType,
     typeOptions,
-    isFetching: dataQuery.isFetching
+    isFetching: dataQuery.isFetching,
+    refetch: dataQuery.refetch,
+    handleTagClick
   };
 };

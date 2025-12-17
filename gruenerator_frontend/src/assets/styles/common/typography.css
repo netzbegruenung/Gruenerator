@@ -36,6 +36,15 @@
 }
 
 @font-face {
+    font-family: 'GrueneTypeNeue';
+    src: url('../../fonts/GrueneTypeNeue-Regular.woff2') format('woff2'),
+         url('../../fonts/GrueneTypeNeue-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
     font-family: 'Raleway';
     src: url('../../fonts/Raleway-Thin.woff') format('woff');
     font-weight: 100;
@@ -205,6 +214,7 @@ body {
 
 /* Gradient Title Classes - Reusable gradient text styling */
 .gradient-title {
+    font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
     background: linear-gradient(135deg, var(--primary) 0%, var(--klee) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -214,15 +224,15 @@ body {
 
 [data-theme="dark"] .gradient-title {
     background: none;
-    -webkit-text-fill-color: var(--secondary);
-    color: var(--secondary);
+    -webkit-text-fill-color: var(--white);
+    color: var(--white);
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) .gradient-title {
         background: none;
-        -webkit-text-fill-color: var(--secondary);
-        color: var(--secondary);
+        -webkit-text-fill-color: var(--white);
+        color: var(--white);
     }
 }
 

@@ -9,7 +9,7 @@
   height: 40px;
   border: none;
   border-radius: 50%;
-  background-color: var(--dunkelgruen);
+  background-color: var(--secondary);
   color: var(--weiß);
   cursor: pointer;
   display: flex;
@@ -21,7 +21,7 @@
 }
 
 .form-collapse-button:hover {
-  background-color: var(--klee);
+  background-color: var(--secondary-700);
 }
 
 .form-collapse-icon {

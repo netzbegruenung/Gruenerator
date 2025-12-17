@@ -148,7 +148,7 @@ class SubtitlerProjectService {
     async createProject(userId, projectData) {
         await this.ensureInitialized();
 
-        const { uploadId, subtitles, title, stylePreference, heightPreference, modePreference, videoMetadata, videoFilename, videoSize } = projectData;
+        const { uploadId, subtitles, title, stylePreference, heightPreference, modePreference, videoMetadata, videoFilename, videoSize, videoSourcePath } = projectData;
 
         try {
             await this.enforceProjectLimit(userId);
@@ -158,18 +158,19 @@ class SubtitlerProjectService {
             await fs.mkdir(projectDir, { recursive: true });
 
             const tusVideoPath = path.join(__dirname, '../uploads/tus-temp', uploadId);
+            const sourceVideoPath = videoSourcePath || tusVideoPath;
             const targetVideoPath = path.join(projectDir, 'video.mp4');
             const thumbnailPath = path.join(projectDir, 'thumbnail.jpg');
             const relativeVideoPath = `${userId}/${projectId}/video.mp4`;
             const relativeThumbnailPath = `${userId}/${projectId}/thumbnail.jpg`;
 
             try {
-                await fs.access(tusVideoPath);
+                await fs.access(sourceVideoPath);
             } catch {
-                throw new Error('Video file not found in upload directory');
+                throw new Error(`Video file not found at ${sourceVideoPath}`);
             }
 
-            await fs.copyFile(tusVideoPath, targetVideoPath);
+            await fs.copyFile(sourceVideoPath, targetVideoPath);
             console.log(`[SubtitlerProjectService] Copied video to ${targetVideoPath}`);
 
             // Mark upload as promoted to prevent cleanup

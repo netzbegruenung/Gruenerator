@@ -1,0 +1,28 @@
+.input-tip {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  margin-top: var(--spacing-xsmall);
+  font-size: var(--font-size-small);
+  color: var(--font-color-muted);
+  background: var(--background-secondary);
+  border-radius: var(--border-radius-small);
+  border-left: 3px solid var(--klee);
+}
+
+.input-tip__icon {
+  flex-shrink: 0;
+  font-size: 1em;
+}
+
+.input-tip__text {
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .input-tip {
+    font-size: var(--font-size-xsmall);
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  }
+}

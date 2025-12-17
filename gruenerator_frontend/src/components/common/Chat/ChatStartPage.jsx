@@ -1,10 +1,12 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
-import { BsArrowUpCircleFill } from 'react-icons/bs';
-import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
+import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
+import ChatSubmitButton from './ChatSubmitButton';
+import ChatFileUploadButton from './ChatFileUploadButton';
+import { handleEnterKeySubmit } from './utils/chatMessageUtils';
 import './ChatStartPage.css';
 
 const DEFAULT_FEATURES = [
@@ -45,10 +47,10 @@ const ChatStartPage = ({
   isVoiceProcessing: externalIsVoiceProcessing,
   startRecording: externalStartRecording,
   stopRecording: externalStopRecording,
-  fileInputRef: externalFileInputRef,
-  handleFileUploadClick: externalHandleFileUploadClick,
-  handleFileChange: externalHandleFileChange
+  sources = [],
+  onSourceToggle
 }) => {
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const isGruenerator = variant === "gruenerator";
   // Use internal hook only if voice props not provided from parent
   const hasExternalVoice = externalStartRecording !== undefined;
@@ -68,30 +70,6 @@ const ChatStartPage = ({
   const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
   const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
-  // File input - use external if provided
-  const internalFileInputRef = useRef(null);
-  const fileInputRef = externalFileInputRef || internalFileInputRef;
-
-  const handleFileUploadClick = useCallback(() => {
-    if (externalHandleFileUploadClick) {
-      externalHandleFileUploadClick();
-    } else if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  }, [externalHandleFileUploadClick, fileInputRef]);
-
-  const handleFileChange = useCallback((event) => {
-    if (externalHandleFileChange) {
-      externalHandleFileChange(event);
-    } else {
-      const files = Array.from(event.target.files);
-      if (files.length > 0 && onFileSelect) {
-        onFileSelect(files);
-      }
-      event.target.value = '';
-    }
-  }, [externalHandleFileChange, onFileSelect]);
-
   const handleSubmit = (event) => {
     event.preventDefault();
     const trimmedValue = (inputValue || '').trim();
@@ -99,27 +77,7 @@ const ChatStartPage = ({
     onSubmit(trimmedValue);
   };
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSubmit(event);
-    }
-  };
-
-  const hasText = (inputValue || '').trim();
-  const effectiveSubmitLabel = hasText
-    ? <BsArrowUpCircleFill size={20} />
-    : (isVoiceRecording ? <FaStop size={18} /> : <FaMicrophone size={18} />);
-
-  const handleButtonClick = () => {
-    if (hasText) {
-      handleSubmit({ preventDefault: () => {} });
-    } else if (isVoiceRecording) {
-      stopRecording();
-    } else {
-      startRecording();
-    }
-  };
+  const handleKeyDown = (event) => handleEnterKeySubmit(event, handleSubmit);
 
   const handleExampleClick = (text) => {
     onInputChange && onInputChange(text);
@@ -178,35 +136,23 @@ const ChatStartPage = ({
               className="chat-start-page-input"
             />
             <div className="chat-start-page-buttons">
-              {enableFileUpload && (
-                <>
-                  <button
-                    type="button"
-                    className="chat-start-page-file-button"
-                    onClick={handleFileUploadClick}
-                    disabled={disabled}
-                    aria-label="Datei hinzufügen"
-                  >
-                    <FaPlus />
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png,.webp"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
-                </>
-              )}
-              <button
-                type={hasText ? "submit" : "button"}
-                onClick={!hasText ? handleButtonClick : undefined}
-                disabled={disabled || isVoiceProcessing}
-                className={`chat-start-page-submit-button ${isVoiceRecording ? 'voice-recording' : ''}`}
-              >
-                {effectiveSubmitLabel}
-              </button>
+              <ChatFileUploadButton
+                enabled={enableFileUpload}
+                disabled={disabled}
+                onFileSelect={onFileSelect}
+                className="chat-start-page-file-button"
+              />
+              <ChatSubmitButton
+                inputValue={inputValue}
+                isVoiceRecording={isVoiceRecording}
+                isVoiceProcessing={isVoiceProcessing}
+                onSubmit={handleSubmit}
+                startRecording={startRecording}
+                stopRecording={stopRecording}
+                disabled={disabled}
+                iconSize={20}
+                className="chat-start-page-submit-button"
+              />
             </div>
           </div>
         </motion.form>
@@ -229,6 +175,51 @@ const ChatStartPage = ({
                 <span>{question.text}</span>
               </button>
             ))}
+          </motion.div>
+        )}
+
+        {sources.length > 0 && (
+          <motion.div
+            className="chat-start-page-sources"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.35 }}
+          >
+            <button
+              type="button"
+              className="chat-start-page-sources-toggle"
+              onClick={() => setSourcesExpanded(!sourcesExpanded)}
+            >
+              {sourcesExpanded ? <HiChevronDown /> : <HiChevronRight />}
+              <span>Welche Notebooks werden durchsucht?</span>
+            </button>
+            {sourcesExpanded && (
+              <div className="chat-start-page-sources-list">
+                {sources.map((source, index) => {
+                  const isSelected = source.selected !== false;
+                  const selectedCount = sources.filter(s => s.selected !== false).length;
+                  const canToggle = onSourceToggle && (selectedCount > 1 || !isSelected);
+
+                  return (
+                    <button
+                      key={source.id || index}
+                      type="button"
+                      className={`chat-start-page-source-item ${onSourceToggle ? 'chat-start-page-source-item--selectable' : ''} ${isSelected ? 'chat-start-page-source-item--selected' : ''}`}
+                      onClick={() => canToggle && onSourceToggle(source.id)}
+                      disabled={!canToggle && onSourceToggle}
+                    >
+                      {onSourceToggle && (
+                        <span className={`chat-start-page-source-checkbox ${isSelected ? 'chat-start-page-source-checkbox--checked' : ''}`}>
+                          {isSelected && '✓'}
+                        </span>
+                      )}
+                      <span className="chat-start-page-source-name">{source.name}</span>
+                      <span className="chat-start-page-source-count">{source.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         )}
       </div>
@@ -291,9 +282,13 @@ ChatStartPage.propTypes = {
   isVoiceProcessing: PropTypes.bool,
   startRecording: PropTypes.func,
   stopRecording: PropTypes.func,
-  fileInputRef: PropTypes.object,
-  handleFileUploadClick: PropTypes.func,
-  handleFileChange: PropTypes.func
+  sources: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    count: PropTypes.string.isRequired,
+    id: PropTypes.string,
+    selected: PropTypes.bool
+  })),
+  onSourceToggle: PropTypes.func
 };
 
 export default ChatStartPage;

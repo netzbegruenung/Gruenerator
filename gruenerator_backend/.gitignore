@@ -109,3 +109,5 @@ SECURITY_FIXES.md
 
 mem0_service/
 services/mem0Service.js
+# Analysis and test data
+data/

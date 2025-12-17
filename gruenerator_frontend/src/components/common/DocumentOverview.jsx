@@ -39,7 +39,7 @@ const DocumentOverview = ({
     onRefreshDocument, // for document-specific refresh functionality
     onShare, // for Q&A sharing functionality
     documentTypes = {},
-    itemType = 'document', // 'document' (default) or 'qa'
+    itemType = 'document', // 'document' (default) or 'notebook'
     searchFields = DEFAULT_SEARCH_FIELDS, // configurable search fields
     sortOptions = DEFAULT_SORT_OPTIONS, // configurable sort options
     cardRenderer, // optional custom card content renderer
@@ -197,8 +197,8 @@ const DocumentOverview = ({
 
     // Handle item deletion
     const handleDelete = async (item) => {
-        const itemName = itemType === 'qa' ? item.name : item.title;
-        const confirmMessage = itemType === 'qa'
+        const itemName = itemType === 'notebook' ? item.name : item.title;
+        const confirmMessage = itemType === 'notebook'
             ? `Möchten Sie das Notebook "${itemName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
             : 'Möchtest du dieses Dokument wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
 
@@ -225,13 +225,13 @@ const DocumentOverview = ({
     // Handle title editing
     const handleTitleEdit = (item) => {
         setEditingTitle(item.id);
-        const currentTitle = itemType === 'qa' ? item.name : item.title;
+        const currentTitle = itemType === 'notebook' ? item.name : item.title;
         setNewTitle(currentTitle);
     };
 
     const handleTitleSave = async (itemId) => {
         const originalItem = allItems.find(item => item.id === itemId);
-        const originalTitle = itemType === 'qa' ? originalItem?.name : originalItem?.title;
+        const originalTitle = itemType === 'notebook' ? originalItem?.name : originalItem?.title;
         
         if (newTitle.trim() && newTitle.trim() !== originalTitle) {
             try {
@@ -350,7 +350,7 @@ const DocumentOverview = ({
 
     // Enhanced preview with API content fetch (document-specific)
     const handleEnhancedPreview = async (item) => {
-        if (itemType === 'qa' || item.full_content) {
+        if (itemType === 'notebook' || item.full_content) {
             setSelectedItem(item);
             setShowPreview(true);
             return;
@@ -397,7 +397,7 @@ const DocumentOverview = ({
 
     // Render default card
     const renderDefaultCard = (item) => {
-        const itemTitle = itemType === 'qa' ? item.name : item.title;
+        const itemTitle = itemType === 'notebook' ? item.name : item.title;
         const isDocument = itemType === 'document';
         
         return (
@@ -517,7 +517,7 @@ const DocumentOverview = ({
 
                 {/* Content */}
                 <div className="document-card-content">
-                    {itemType === 'qa' ? (
+                    {itemType === 'notebook' ? (
                         <>
                             {item.description && (
                                 <p className="qa-description">
@@ -552,7 +552,7 @@ const DocumentOverview = ({
 
     // Render default metadata
     const renderDefaultMeta = (item) => {
-        if (itemType === 'qa') {
+        if (itemType === 'notebook') {
             return (
                 <>
                     {item.document_count !== undefined && (
@@ -685,9 +685,9 @@ const DocumentOverview = ({
 
     // Render empty state
     const renderEmptyState = () => {
-        const defaultIcon = itemType === 'qa' ? NotebookIcon : HiOutlineDocumentText;
+        const defaultIcon = itemType === 'notebook' ? NotebookIcon : HiOutlineDocumentText;
         const DefaultIcon = defaultIcon;
-        const defaultMessage = itemType === 'qa' ? 'Keine Notebooks vorhanden.' : 'Keine Dokumente vorhanden.';
+        const defaultMessage = itemType === 'notebook' ? 'Keine Notebooks vorhanden.' : 'Keine Dokumente vorhanden.';
 
         return (
             <div className="document-overview-empty-state">
@@ -894,7 +894,7 @@ const DocumentOverview = ({
                 onClose={() => setShowBulkDeleteModal(false)}
                 onConfirm={handleBulkDelete}
                 itemCount={selectedItemIds.size}
-                itemType={itemType === 'qa' ? 'qas' : itemType === 'document' ? 'documents' : 'texts'}
+                itemType={itemType === 'notebook' ? 'qas' : itemType === 'document' ? 'documents' : 'texts'}
                 isDeleting={isBulkDeleting}
             />
         </div>

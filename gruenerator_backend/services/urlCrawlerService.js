@@ -797,6 +797,21 @@ class URLCrawlerService {
   }
 
   /**
+   * Simple fetch method to get HTML content from a URL
+   * @param {string} url - The URL to fetch
+   * @param {Object} options - Fetch options
+   * @returns {Promise<{html: string, finalUrl: string, statusCode: number}>}
+   */
+  async fetchUrl(url, options = {}) {
+    const sanitizedUrl = this.sanitizeUrl(url);
+    const validation = await this.validateUrl(sanitizedUrl);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+    return await this._crawlWithFetch(sanitizedUrl, options);
+  }
+
+  /**
    * Gets a preview of content without full crawling (for validation)
    * @param {string} url - The URL to preview
    * @returns {Promise<{success: boolean, data?: Object, error?: string}>}

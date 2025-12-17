@@ -11,7 +11,6 @@ const isVerboseMode = ['debug', 'verbose'].includes(LOG_LEVEL);
 // Tool Registry - centralized tool definitions
 const TOOL_REGISTRY = {
   webSearch: WEB_SEARCH_TOOL
-  // Future tools can be added here (bundestagApi, vectorSearch, etc.)
 };
 
 /**

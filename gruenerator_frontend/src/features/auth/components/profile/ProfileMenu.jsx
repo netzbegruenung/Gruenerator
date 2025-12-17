@@ -1,34 +1,24 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaUser, FaCog, FaFolder, FaUsers, FaCogs, FaChevronDown, FaChevronUp, FaClipboardList, FaCloud, FaSlidersH } from 'react-icons/fa';
+import { FaFolder, FaUsers, FaCogs, FaChevronDown, FaChevronUp, FaClipboardList, FaLayerGroup } from 'react-icons/fa';
 import { SiCanva } from 'react-icons/si';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
 const PROFILE_MENU_ITEMS = [
-  { key: 'profile', label: 'Profil', path: '/profile', icon: FaUser },
-  {
-    key: 'inhalte',
-    label: 'Einstellungen',
-    path: '/profile/inhalte',
-    icon: FaCog,
-    hasSubmenu: true,
-    submenuItems: [
-      { key: 'inhalte', label: 'Dateien und Inhalte', path: '/profile/inhalte', icon: FaFolder },
-      { key: 'anweisungen', label: 'Anweisungen', path: '/profile/inhalte/anweisungen', icon: FaClipboardList },
-      { key: 'canva', label: 'Canva', path: '/profile/inhalte/canva', betaFeature: 'canva', icon: SiCanva },
-      { key: 'wolke', label: 'Wolke', path: '/profile/inhalte/wolke', icon: FaCloud },
-      { key: 'einstellungen', label: 'Weitere Einstellungen', path: '/profile/inhalte/einstellungen', icon: FaSlidersH }
-    ]
-  },
-  { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers },
-  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/grueneratoren', icon: FaCogs, hasSubmenu: true }
+  { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers, hasSubmenu: true },
+  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/grueneratoren', icon: FaCogs, hasSubmenu: true },
+  { key: 'inhalte', label: 'Dateien und Inhalte', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'vorlagen', label: 'Meine Vorlagen', path: '/profile/inhalte/vorlagen', icon: FaLayerGroup },
+  { key: 'anweisungen', label: 'Anweisungen', path: '/profile/inhalte/anweisungen', icon: FaClipboardList },
+  { key: 'canva', label: 'Canva', path: '/profile/inhalte/canva', betaFeature: 'canva', icon: SiCanva }
 ];
 
 const ProfileMenu = ({
   onNavigate,
   variant = 'dropdown',
   className = '',
-  customGenerators = []
+  customGenerators = [],
+  groups = []
 }) => {
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
@@ -64,14 +54,10 @@ const ProfileMenu = ({
     <div className={`profile-menu profile-menu--${variant} ${className}`}>
       {filteredItems.map(item => {
         const hasGenerators = item.key === 'custom_generators' && item.hasSubmenu && variant === 'dropdown' && customGenerators.length > 0;
-        const hasStaticSubmenu = item.submenuItems && variant === 'dropdown';
+        const hasGroups = item.key === 'gruppen' && item.hasSubmenu && variant === 'dropdown' && groups.length > 0;
         const isExpanded = expandedSubmenu === item.key;
 
-        if (hasGenerators || hasStaticSubmenu) {
-          const filteredSubmenuItems = hasStaticSubmenu
-            ? item.submenuItems.filter(subItem => !subItem.betaFeature || shouldShowTab(subItem.betaFeature))
-            : [];
-
+        if (hasGenerators || hasGroups) {
           return (
             <div key={item.key} className="profile-menu-item-with-submenu">
               <button
@@ -108,17 +94,27 @@ const ProfileMenu = ({
                       ))}
                     </>
                   )}
-                  {hasStaticSubmenu && filteredSubmenuItems.map(subItem => (
-                    <Link
-                      key={subItem.key}
-                      to={subItem.path}
-                      className="profile-menu-submenu-item"
-                      onClick={handleClick}
-                    >
-                      {subItem.icon && <subItem.icon className="profile-menu-icon" />}
-                      {subItem.label}
-                    </Link>
-                  ))}
+                  {hasGroups && (
+                    <>
+                      <Link
+                        to={item.path}
+                        className="profile-menu-submenu-item"
+                        onClick={handleClick}
+                      >
+                        Übersicht
+                      </Link>
+                      {groups.map(group => (
+                        <Link
+                          key={group.id}
+                          to={`/profile/gruppen?group=${group.id}`}
+                          className="profile-menu-submenu-item"
+                          onClick={handleClick}
+                        >
+                          {group.name}
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>

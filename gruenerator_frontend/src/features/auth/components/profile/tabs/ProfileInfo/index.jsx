@@ -5,6 +5,7 @@ import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useProfile } from '../../../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
 import { useProfileStore } from '../../../../../../stores/profileStore';
+import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import ProfileView from './ProfileView';
 
 const AvatarSelectionModal = lazy(() => import('../../AvatarSelectionModal'));
@@ -18,6 +19,19 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
   const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
   const syncProfile = useProfileStore((s) => s.syncProfile);
+
+  const {
+    getBetaFeatureState,
+    updateUserBetaFeatures,
+    isUpdating: isBetaFeaturesUpdating
+  } = useBetaFeatures();
+
+  const igelActive = getBetaFeatureState('igel');
+
+  const handleToggleIgelModus = async (checked) => {
+    await updateUserBetaFeatures('igel', checked);
+    onSuccessMessage(`Igel-Modus ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+  };
 
   if (!user) {
     return (
@@ -252,6 +266,10 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
         deleteAccountError={deleteAccountError}
         isDeletingAccount={isDeletingAccount}
         onDeleteAccountSubmit={handleDeleteAccountSubmit}
+        igelActive={igelActive}
+        onToggleIgelModus={handleToggleIgelModus}
+        isBetaFeaturesUpdating={isBetaFeaturesUpdating}
+        onSuccessMessage={onSuccessMessage}
       />
 
       {showAvatarModal && (

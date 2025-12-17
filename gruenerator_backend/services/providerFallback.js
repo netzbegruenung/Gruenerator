@@ -7,7 +7,7 @@
  * @param {object} data
  * @param {Array<string>} chain
  */
-async function tryPrivacyModeProviders(execForProvider, requestId, data, chain = ['litellm', 'ionos']) {
+async function tryPrivacyModeProviders(execForProvider, requestId, data, chain = ['ionos']) {
   let lastError;
   for (const provider of chain) {
     try {
@@ -16,7 +16,7 @@ async function tryPrivacyModeProviders(execForProvider, requestId, data, chain =
         options: {
           ...(data.options || {}),
           provider,
-          model: provider === 'litellm' ? 'llama3.3' : 'meta-llama/Llama-3.3-70B-Instruct'
+          model: 'openai/gpt-oss-120b'
         }
       };
       return await execForProvider(provider, privacyData);

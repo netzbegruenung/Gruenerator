@@ -4,6 +4,14 @@ import http from 'http';
 import https from 'https';
 import dotenv from 'dotenv';
 import { createLogger } from '../../utils/logger.js';
+import { stringToNumericId, chunkToNumericId } from '../../utils/idHasher.js';
+import {
+    COLLECTION_SCHEMAS,
+    TEXT_SEARCH_COLLECTIONS,
+    TEXT_SEARCH_INDEXES,
+    getCollectionConfig,
+    getIndexSchema
+} from '../../config/qdrantCollectionsSchema.js';
 
 const log = createLogger('Qdrant');
 
@@ -23,15 +31,16 @@ class QdrantService {
         this.collections = {
             documents: 'documents',
             grundsatz_documents: 'grundsatz_documents',
+            oesterreich_gruene_documents: 'oesterreich_gruene_documents',
             user_knowledge: 'user_knowledge',
             content_examples: 'content_examples',
             social_media_examples: 'social_media_examples',
             user_texts: 'user_texts',
-            qa_collections: 'qa_collections',
-            qa_collection_documents: 'qa_collection_documents',
-            qa_usage_logs: 'qa_usage_logs',
-            qa_public_access: 'qa_public_access',
-            bundestag_content: 'bundestag_content'
+            notebook_collections: 'notebook_collections',
+            notebook_collection_documents: 'notebook_collection_documents',
+            notebook_usage_logs: 'notebook_usage_logs',
+            notebook_public_access: 'notebook_public_access',
+            oparl_papers: 'oparl_papers'
         };
         this.lastHealthCheck = 0;
         this.healthCheckInterval = 30000; // 30 seconds
@@ -251,360 +260,40 @@ class QdrantService {
     }
 
     /**
-     * Create all required collections
+     * Create all required collections using schema configuration
      */
     async createCollections() {
         try {
             const collections = await this.client.getCollections();
-            const existingCollections = collections.collections.map(c => c.name);
+            const existingNames = new Set(collections.collections.map(c => c.name));
 
-            // Document chunks collection
-            if (!existingCollections.includes(this.collections.documents)) {
-                await this.client.createCollection(this.collections.documents, {
-                    vectors: {
-                        size: this.vectorSize, // FastEmbed embedding dimension
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000,
-                        memmap_threshold: 10000,
-                        indexing_threshold: 20000
-                    },
-                    hnsw_config: {
-                        m: 16,
-                        ef_construct: 100,
-                        full_scan_threshold: 10000,
-                        max_indexing_threads: 0
-                    }
-                });
-                console.log(`[QdrantService] Created documents collection with ${this.vectorSize} dimensions`);
-            }
+            for (const [key, schema] of Object.entries(COLLECTION_SCHEMAS)) {
+                if (existingNames.has(schema.name)) continue;
 
-            // Grundsatz documents collection
-            if (!existingCollections.includes(this.collections.grundsatz_documents)) {
-                await this.client.createCollection(this.collections.grundsatz_documents, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000
-                    }
-                });
-                console.log(`[QdrantService] Created grundsatz_documents collection with ${this.vectorSize} dimensions`);
-            }
-
-            // User knowledge collection
-            if (!existingCollections.includes(this.collections.user_knowledge)) {
-                await this.client.createCollection(this.collections.user_knowledge, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 10000
-                    }
-                });
-                console.log(`[QdrantService] Created user_knowledge collection with ${this.vectorSize} dimensions`);
-            }
-
-            // Content examples collection
-            if (!existingCollections.includes(this.collections.content_examples)) {
-                await this.client.createCollection(this.collections.content_examples, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 5000
-                    },
-                    hnsw_config: {
-                        m: 16,
-                        ef_construct: 100
-                    }
-                });
-                console.log(`[QdrantService] Created content_examples collection with ${this.vectorSize} dimensions`);
-            }
-
-            // Social media examples collection (Facebook + Instagram with multitenancy)
-            if (!existingCollections.includes(this.collections.social_media_examples)) {
                 try {
-                    await this.client.createCollection(this.collections.social_media_examples, {
-                        vectors: {
-                            size: this.vectorSize,
-                            distance: 'Cosine'
-                        },
-                        optimizers_config: {
-                            default_segment_number: 2,     // Better performance per Qdrant best practices
-                            max_segment_size: 20000,       // Larger segments for efficiency
-                            memmap_threshold: 10000,
-                            indexing_threshold: 20000
-                        },
-                        hnsw_config: {
-                            payload_m: 16,                 // Enable payload-based indexing for multitenancy
-                            m: 16,                         // Enable HNSW index for fast vector search
-                            ef_construct: 200,             // Better index quality
-                            full_scan_threshold: 10000,
-                            max_indexing_threads: 0
-                        }
-                    });
-                    console.log(`[QdrantService] Created social_media_examples collection with ${this.vectorSize} dimensions (multitenancy optimized)`);
+                    const config = getCollectionConfig(this.vectorSize, schema);
+                    await this.client.createCollection(schema.name, config);
+                    log.debug(`Created ${schema.name} collection (${this.vectorSize} dims)`);
 
-                    // Create keyword index for platform field with tenant optimization
-                    await this.client.createPayloadIndex(this.collections.social_media_examples, {
-                        field_name: 'platform',
-                        field_schema: {
-                            type: 'keyword',
-                            is_tenant: true  // Optimize storage for tenant-based access patterns
-                        }
-                    });
-                    console.log(`[QdrantService] Created tenant-optimized index for platform field`);
+                    // Create indexes for this collection
+                    for (const index of schema.indexes || []) {
+                        await this.client.createPayloadIndex(schema.name, {
+                            field_name: index.field,
+                            field_schema: getIndexSchema(index.type)
+                        });
+                    }
                 } catch (error) {
-                    // Handle race condition - collection might have been created by another instance
-                    if (error.message && error.message.includes('already exists')) {
-                        console.log(`[QdrantService] Collection ${this.collections.social_media_examples} already exists (race condition handled)`);
+                    if (schema.handleRaceCondition && error.message?.includes('already exists')) {
+                        log.debug(`Collection ${schema.name} already exists (race condition)`);
                     } else {
-                        throw error; // Re-throw if it's a different error
+                        throw error;
                     }
                 }
             }
 
-            // User texts collection (for saved library texts)
-            if (!existingCollections.includes(this.collections.user_texts)) {
-                await this.client.createCollection(this.collections.user_texts, {
-                    vectors: {
-                        size: this.vectorSize, // 1024 for FastEmbed
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000,
-                        memmap_threshold: 10000,
-                        indexing_threshold: 20000
-                    },
-                    hnsw_config: {
-                        payload_m: 16,                 // Enable payload-based indexing for multitenancy
-                        m: 16,                         // Enable HNSW index for fast vector search
-                        ef_construct: 200,             // Better index quality
-                        full_scan_threshold: 10000,
-                        max_indexing_threads: 0
-                    }
-                });
-                console.log(`[QdrantService] Created user_texts collection with ${this.vectorSize} dimensions (user-scoped)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.user_texts, {
-                    field_name: 'user_id',
-                    field_schema: {
-                        type: 'keyword',
-                        is_tenant: true  // Optimize for user-based filtering
-                    }
-                });
-                console.log(`[QdrantService] Created user_id tenant index for user_texts`);
-
-                await this.client.createPayloadIndex(this.collections.user_texts, {
-                    field_name: 'document_type',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-                console.log(`[QdrantService] Created document_type index for user_texts`);
-                
-                await this.client.createPayloadIndex(this.collections.user_texts, {
-                    field_name: 'title',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-                console.log(`[QdrantService] Created title index for user_texts`);
-            }
-
-            // Q&A collections collection (metadata storage)
-            if (!existingCollections.includes(this.collections.qa_collections)) {
-                await this.client.createCollection(this.collections.qa_collections, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 5000
-                    }
-                });
-                console.log(`[QdrantService] Created qa_collections collection with ${this.vectorSize} dimensions`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_collections, {
-                    field_name: 'user_id',
-                    field_schema: {
-                        type: 'keyword',
-                        is_tenant: true
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.qa_collections, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Q&A collection documents junction collection
-            if (!existingCollections.includes(this.collections.qa_collection_documents)) {
-                await this.client.createCollection(this.collections.qa_collection_documents, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 5000
-                    }
-                });
-                console.log(`[QdrantService] Created qa_collection_documents collection with ${this.vectorSize} dimensions`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_collection_documents, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.qa_collection_documents, {
-                    field_name: 'document_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Q&A usage logs collection
-            if (!existingCollections.includes(this.collections.qa_usage_logs)) {
-                await this.client.createCollection(this.collections.qa_usage_logs, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 10000
-                    }
-                });
-                console.log(`[QdrantService] Created qa_usage_logs collection with ${this.vectorSize} dimensions`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_usage_logs, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.qa_usage_logs, {
-                    field_name: 'user_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Q&A public access collection
-            if (!existingCollections.includes(this.collections.qa_public_access)) {
-                await this.client.createCollection(this.collections.qa_public_access, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 1000
-                    }
-                });
-                console.log(`[QdrantService] Created qa_public_access collection with ${this.vectorSize} dimensions`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.qa_public_access, {
-                    field_name: 'access_token',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.qa_public_access, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Bundestag content collection (crawled web content)
-            if (!existingCollections.includes(this.collections.bundestag_content)) {
-                await this.client.createCollection(this.collections.bundestag_content, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000,
-                        memmap_threshold: 10000,
-                        indexing_threshold: 20000
-                    },
-                    hnsw_config: {
-                        m: 16,
-                        ef_construct: 100,
-                        full_scan_threshold: 10000,
-                        max_indexing_threads: 0
-                    }
-                });
-                console.log(`[QdrantService] Created bundestag_content collection with ${this.vectorSize} dimensions`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.bundestag_content, {
-                    field_name: 'url',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.bundestag_content, {
-                    field_name: 'section',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.bundestag_content, {
-                    field_name: 'content_hash',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.bundestag_content, {
-                    field_name: 'chunk_text',
-                    field_schema: {
-                        type: 'text',
-                        tokenizer: 'word',
-                        min_token_len: 2,
-                        max_token_len: 50,
-                        lowercase: true
-                    }
-                });
-            }
-
-            // Create text search indexes for hybrid search
             await this.createTextSearchIndexes();
-
         } catch (error) {
-            console.error('[QdrantService] Failed to create collections:', error);
+            log.error(`Failed to create collections: ${error.message}`);
             throw error;
         }
     }
@@ -613,46 +302,25 @@ class QdrantService {
      * Create text search indexes for hybrid search
      */
     async createTextSearchIndexes() {
-        try {
-            const collectionsToIndex = [
-                this.collections.documents,
-                this.collections.grundsatz_documents,
-                this.collections.user_knowledge
-            ];
-
-            let indexedCount = 0;
-            for (const collectionName of collectionsToIndex) {
+        let indexedCount = 0;
+        for (const collectionName of TEXT_SEARCH_COLLECTIONS) {
+            const fullName = this.collections[collectionName];
+            for (const index of TEXT_SEARCH_INDEXES) {
                 try {
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'chunk_text',
-                        field_schema: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true }
+                    await this.client.createPayloadIndex(fullName, {
+                        field_name: index.field,
+                        field_schema: getIndexSchema(index.type)
                     });
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'title',
-                        field_schema: { type: 'keyword' }
-                    });
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'filename',
-                        field_schema: { type: 'keyword' }
-                    });
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'user_id',
-                        field_schema: { type: 'keyword', is_tenant: true }
-                    });
-                    indexedCount++;
                 } catch (indexError) {
-                    if (!indexError.message?.includes('already exists') && !indexError.message?.includes('index already created')) {
-                        log.debug(`Index creation failed for ${collectionName}: ${indexError.message}`);
+                    if (!indexError.message?.includes('already exists')) {
+                        log.debug(`Index creation failed for ${fullName}.${index.field}: ${indexError.message}`);
                     }
                 }
             }
-
-            if (indexedCount > 0) {
-                log.debug(`Created indexes for ${indexedCount} collections`);
-            }
-
-        } catch (error) {
-            log.debug(`Text search indexes error: ${error.message}`);
+            indexedCount++;
+        }
+        if (indexedCount > 0) {
+            log.debug(`Created text search indexes for ${indexedCount} collections`);
         }
     }
 
@@ -663,19 +331,8 @@ class QdrantService {
         this.ensureConnected();
         try {
             const points = chunks.map((chunk, index) => {
-                // Generate numeric ID: hash of documentId + index to ensure uniqueness
-                const combinedString = `${documentId}_${index}`;
-                let hash = 0;
-                for (let i = 0; i < combinedString.length; i++) {
-                    const char = combinedString.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash; // Convert to 32-bit integer
-                }
-                // Ensure positive integer
-                const numericId = Math.abs(hash);
-                
                 return {
-                    id: numericId,
+                    id: chunkToNumericId(documentId, index),
                     vector: chunk.embedding,
                     payload: {
                         document_id: documentId,
@@ -694,11 +351,11 @@ class QdrantService {
                 points: points
             });
 
-            console.log(`[QdrantService] Indexed ${chunks.length} chunks for document ${documentId} in collection ${targetCollection}`);
+            log.debug(`Indexed ${chunks.length} chunks for document ${documentId}`);
             return { success: true, chunks: chunks.length };
 
         } catch (error) {
-            console.error('[QdrantService] Failed to index document chunks:', error);
+            log.error(`Failed to index document chunks: ${error.message}`);
             throw new Error(`Vector indexing failed: ${error.message}`);
         }
     }
@@ -710,27 +367,15 @@ class QdrantService {
         this.ensureConnected();
         try {
             const points = chunks.map((chunk, index) => {
-                // Generate numeric ID (deterministic) based on documentId and chunk index
-                const combinedString = `${documentId}_${index}`;
-                let hash = 0;
-                for (let i = 0; i < combinedString.length; i++) {
-                    const char = combinedString.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash; // Convert to 32-bit integer
-                }
-                const numericId = Math.abs(hash);
-
                 return {
-                    id: numericId,
+                    id: chunkToNumericId(documentId, index),
                     vector: chunk.embedding,
                     payload: {
                         document_id: documentId,
                         chunk_index: index,
                         chunk_text: chunk.text || chunk.chunk_text,
                         token_count: chunk.token_count || chunk.tokens,
-                        // include commonly used metadata directly in payload for easier retrieval
                         content_type: chunk.metadata?.content_type,
-                        // fallback to sequential page if not detected
                         page_number: (typeof chunk.metadata?.page_number === 'number') ? chunk.metadata.page_number : (index + 1),
                         title: chunk.metadata?.title || 'Grundsatzprogramm',
                         filename: chunk.metadata?.filename || '',
@@ -745,11 +390,11 @@ class QdrantService {
                 points: points
             });
 
-            console.log(`[QdrantService] Indexed ${chunks.length} grundsatz chunks for document ${documentId}`);
+            log.debug(`Indexed ${chunks.length} grundsatz chunks for document ${documentId}`);
             return { success: true, chunks: chunks.length };
 
         } catch (error) {
-            console.error('[QdrantService] Failed to index grundsatz chunks:', error);
+            log.error(`Failed to index grundsatz chunks: ${error.message}`);
             throw new Error(`Grundsatz vector indexing failed: ${error.message}`);
         }
     }
@@ -807,7 +452,7 @@ class QdrantService {
             };
 
         } catch (error) {
-            console.error('[QdrantService] Vector search failed:', error);
+            log.error(`Vector search failed: ${error.message}`);
             throw new Error(`Vector search failed: ${error.message}`);
         }
     }
@@ -822,36 +467,7 @@ class QdrantService {
         });
     }
 
-    /**
-     * Hybrid search combining vector and keyword search with Reciprocal Rank Fusion
-     * @deprecated Use QdrantOperations.hybridSearch() instead
-     */
-    async hybridSearch(queryVector, query, options = {}) {
-        console.warn('[QdrantService] hybridSearch is deprecated. Use QdrantOperations.hybridSearch() instead');
-        
-        // Import QdrantOperations for delegation
-        const { QdrantOperations } = await import('./QdrantOperations.js');
-        const operations = new QdrantOperations(this.client);
-        
-        // Build filter from options
-        const filter = { must: [] };
-        if (options.userId) {
-            filter.must.push({ key: 'user_id', match: { value: options.userId } });
-        }
-        if (options.documentIds && options.documentIds.length > 0) {
-            filter.must.push({ key: 'document_id', match: { any: options.documentIds } });
-        }
-        
-        return await operations.hybridSearch(
-            options.collection || this.collections.documents,
-            queryVector,
-            query,
-            filter,
-            options
-        );
-    }
-
-    // NOTE: Text search operations moved to QdrantOperations.js
+    // NOTE: hybridSearch and text search operations moved to QdrantOperations.js
 
     /**
      * Delete document vectors
@@ -865,11 +481,11 @@ class QdrantService {
                 }
             });
 
-            console.log(`[QdrantService] Deleted vectors for document ${documentId}`);
+            log.debug(`Deleted vectors for document ${documentId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QdrantService] Failed to delete document vectors:', error);
+            log.error(`Failed to delete document vectors: ${error.message}`);
             throw new Error(`Vector deletion failed: ${error.message}`);
         }
     }
@@ -894,11 +510,11 @@ class QdrantService {
                 }
             });
 
-            console.log(`[QdrantService] Deleted all vectors for user ${userId}`);
+            log.debug(`Deleted all vectors for user ${userId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QdrantService] Failed to delete user vectors:', error);
+            log.error(`Failed to delete user vectors: ${error.message}`);
             throw new Error(`User vector deletion failed: ${error.message}`);
         }
     }
@@ -920,7 +536,7 @@ class QdrantService {
                 optimizer_status: info.optimizer_status
             };
         } catch (error) {
-            console.error('[QdrantService] Failed to get collection stats:', error);
+            log.error(`Failed to get collection stats: ${error.message}`);
             return { error: error.message };
         }
     }
@@ -937,7 +553,7 @@ class QdrantService {
             }
             return stats;
         } catch (error) {
-            console.error('[QdrantService] Failed to get all stats:', error);
+            log.error(`Failed to get all stats: ${error.message}`);
             return { error: error.message };
         }
     }
@@ -949,10 +565,10 @@ class QdrantService {
         this.ensureConnected();
         try {
             const snapshot = await this.client.createSnapshot();
-            console.log('[QdrantService] Snapshot created:', snapshot);
+            log.debug(`Snapshot created: ${JSON.stringify(snapshot)}`);
             return snapshot;
         } catch (error) {
-            console.error('[QdrantService] Failed to create snapshot:', error);
+            log.error(`Failed to create snapshot: ${error.message}`);
             throw new Error(`Snapshot creation failed: ${error.message}`);
         }
     }
@@ -973,7 +589,7 @@ class QdrantService {
                 await this.initPromise;
                 return this.isConnected && this.client !== null;
             } catch (error) {
-                console.warn('[QdrantService] Initialization failed:', error.message);
+                log.warn(`Initialization failed: ${error.message}`);
                 return false;
             }
         }
@@ -981,13 +597,13 @@ class QdrantService {
         // If no initialization promise exists and we're not connected, 
         // try to start initialization
         if (!this.isInitializing) {
-            console.log('[QdrantService] Starting deferred initialization...');
+            log.debug('Starting deferred initialization...');
             this.initPromise = this._performInit();
             try {
                 await this.initPromise;
                 return this.isConnected && this.client !== null;
             } catch (error) {
-                console.warn('[QdrantService] Initialization failed:', error.message);
+                log.warn(`Initialization failed: ${error.message}`);
                 return false;
             }
         }
@@ -1025,22 +641,76 @@ class QdrantService {
     }
 
     /**
+     * Extract content from multiple possible payload fields (legacy data support)
+     * @private
+     */
+    _extractMultiFieldContent(payload) {
+        let content = payload.content;
+        if (!content && payload.content_data?.content) content = payload.content_data.content;
+        if (!content && payload.content_data?.caption) content = payload.content_data.caption;
+        if (!content && payload.text) content = payload.text;
+        if (!content && payload.caption) content = payload.caption;
+        return content;
+    }
+
+    /**
+     * Calculate random offset for scroll-based random sampling
+     * @private
+     */
+    _calculateRandomOffset(totalPoints, limit) {
+        const maxOffset = Math.max(0, totalPoints - limit);
+        return Math.floor(Math.random() * (maxOffset + 1));
+    }
+
+    /**
+     * Shuffle array and limit to specified count
+     * @private
+     */
+    _shuffleAndLimit(points, limit) {
+        return points.sort(() => Math.random() - 0.5).slice(0, limit);
+    }
+
+    /**
+     * Build filter for content example queries
+     * @private
+     */
+    _buildContentExampleFilter(options) {
+        const filter = { must: [] };
+        if (options.contentType) {
+            filter.must.push({ key: 'type', match: { value: options.contentType } });
+        }
+        if (options.categories?.length) {
+            filter.must.push({ key: 'categories', match: { any: options.categories } });
+        }
+        if (options.tags?.length) {
+            filter.must.push({ key: 'tags', match: { any: options.tags } });
+        }
+        return filter.must.length > 0 ? filter : undefined;
+    }
+
+    /**
+     * Build filter for social media example queries
+     * @private
+     */
+    _buildSocialMediaFilter(options) {
+        const must = [];
+        if (options.platform) {
+            must.push({ key: 'platform', match: { value: options.platform } });
+        }
+        if (options.country) {
+            must.push({ key: 'country', match: { value: options.country } });
+        }
+        return must.length > 0 ? { must } : undefined;
+    }
+
+    /**
      * Index content examples
      */
     async indexContentExample(exampleId, embedding, metadata) {
         this.ensureConnected();
         try {
-            // Generate numeric ID from UUID
-            let hash = 0;
-            for (let i = 0; i < exampleId.length; i++) {
-                const char = exampleId.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            const numericId = Math.abs(hash);
-
             const point = {
-                id: numericId,
+                id: stringToNumericId(exampleId),
                 vector: embedding,
                 payload: {
                     example_id: exampleId,
@@ -1060,11 +730,11 @@ class QdrantService {
                 points: [point]
             });
 
-            console.log(`[QdrantService] Indexed content example ${exampleId}`);
+            log.debug(`Indexed content example ${exampleId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QdrantService] Failed to index content example:', error);
+            log.error(`Failed to index content example: ${error.message}`);
             throw new Error(`Content example indexing failed: ${error.message}`);
         }
     }
@@ -1075,38 +745,12 @@ class QdrantService {
     async searchContentExamples(queryVector, options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                contentType = null,
-                limit = 10,
-                threshold = 0.3,
-                categories = null,
-                tags = null
-            } = options;
-
-            // Build filter
-            const filter = { must: [] };
-            
-            if (contentType) {
-                filter.must.push({ key: 'type', match: { value: contentType } });
-            }
-            
-            if (categories && categories.length > 0) {
-                filter.must.push({
-                    key: 'categories',
-                    match: { any: categories }
-                });
-            }
-
-            if (tags && tags.length > 0) {
-                filter.must.push({
-                    key: 'tags',
-                    match: { any: tags }
-                });
-            }
+            const { limit = 10, threshold = 0.3 } = options;
+            const filter = this._buildContentExampleFilter(options);
 
             const searchResult = await this.client.search(this.collections.content_examples, {
                 vector: queryVector,
-                filter: filter.must.length > 0 ? filter : undefined,
+                filter: filter,
                 limit: limit,
                 score_threshold: threshold,
                 with_payload: true,
@@ -1137,7 +781,7 @@ class QdrantService {
             };
 
         } catch (error) {
-            console.error('[QdrantService] Content examples search failed:', error);
+            log.error(`Content examples search failed: ${error.message}`);
             throw new Error(`Content examples search failed: ${error.message}`);
         }
     }
@@ -1148,66 +792,34 @@ class QdrantService {
     async getRandomContentExamples(options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                contentType = null,
-                limit = 10,
-                categories = null,
-                tags = null
-            } = options;
+            const { limit = 10 } = options;
+            const filter = this._buildContentExampleFilter(options);
 
-            // Build filter for random sampling
-            const filter = { must: [] };
-            
-            if (contentType) {
-                filter.must.push({ key: 'type', match: { value: contentType } });
-            }
-            
-            if (categories && categories.length > 0) {
-                filter.must.push({
-                    key: 'categories',
-                    match: { any: categories }
-                });
-            }
-
-            if (tags && tags.length > 0) {
-                filter.must.push({
-                    key: 'tags',
-                    match: { any: tags }
-                });
-            }
-
-            // Get total count of points matching the filter
             const countResult = await this.client.count(this.collections.content_examples, {
-                filter: filter.must.length > 0 ? filter : undefined,
+                filter: filter,
                 exact: true
             });
 
             const totalPoints = countResult.count;
-            
             if (totalPoints === 0) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Calculate random offset for proper sampling
-            const maxOffset = Math.max(0, totalPoints - limit);
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+            const randomOffset = this._calculateRandomOffset(totalPoints, limit);
 
-            // Use scroll API for true random sampling
             const scrollResult = await this.client.scroll(this.collections.content_examples, {
-                filter: filter.must.length > 0 ? filter : undefined,
-                limit: Math.min(limit * 2, totalPoints), // Get extra for shuffling
+                filter: filter,
+                limit: Math.min(limit * 2, totalPoints),
                 offset: randomOffset,
                 with_payload: true,
-                with_vector: false // Don't need vectors for display
+                with_vector: false
             });
 
-            if (!scrollResult.points || scrollResult.points.length === 0) {
+            if (!scrollResult.points?.length) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Shuffle results for additional randomness and limit to requested amount
-            const shuffled = scrollResult.points.sort(() => Math.random() - 0.5);
-            const finalResults = shuffled.slice(0, limit);
+            const finalResults = this._shuffleAndLimit(scrollResult.points, limit);
 
             const results = finalResults.map(point => ({
                 id: point.payload.example_id,
@@ -1229,7 +841,7 @@ class QdrantService {
             };
 
         } catch (error) {
-            console.error('[QdrantService] Random content examples failed:', error);
+            log.error(`Random content examples failed: ${error.message}`);
             throw new Error(`Random content examples failed: ${error.message}`);
         }
     }
@@ -1246,64 +858,72 @@ class QdrantService {
                 }
             });
 
-            console.log(`[QdrantService] Deleted content example ${exampleId}`);
+            log.debug(`Deleted content example ${exampleId}`);
             return { success: true };
 
         } catch (error) {
-            console.error('[QdrantService] Failed to delete content example:', error);
+            log.error(`Failed to delete content example: ${error.message}`);
             throw new Error(`Content example deletion failed: ${error.message}`);
         }
     }
 
     /**
      * Index social media example (Facebook or Instagram) with multitenancy
+     * @param {string} exampleId - Unique example identifier
+     * @param {Array<number>} embedding - 1024-dim embedding vector
+     * @param {string} content - Post content/caption
+     * @param {string} platform - 'facebook' or 'instagram'
+     * @param {Object} metadata - Optional metadata (country, source_account, engagement)
      */
-    async indexSocialMediaExample(exampleId, embedding, content, platform) {
+    async indexSocialMediaExample(exampleId, embedding, content, platform, metadata = {}) {
         this.ensureConnected();
         try {
-            const numericId = Math.abs(exampleId.split('').reduce((hash, char) => 
-                ((hash << 5) - hash) + char.charCodeAt(0), 0));
+            const payload = {
+                example_id: exampleId,
+                platform: platform,
+                content: content,
+                created_at: new Date().toISOString()
+            };
+
+            // Add optional metadata fields if provided
+            if (metadata.country) {
+                payload.country = metadata.country; // 'DE' or 'AT'
+            }
+            if (metadata.source_account) {
+                payload.source_account = metadata.source_account;
+            }
+            if (metadata.engagement) {
+                payload.engagement = metadata.engagement;
+            }
 
             const point = {
-                id: numericId,
+                id: stringToNumericId(exampleId),
                 vector: embedding,
-                payload: {
-                    example_id: exampleId,
-                    platform: platform,  // 'facebook' or 'instagram'
-                    content: content,
-                    created_at: new Date().toISOString()
-                }
+                payload: payload
             };
 
             await this.client.upsert(this.collections.social_media_examples, {
                 points: [point]
             });
 
-            console.log(`[QdrantService] Indexed ${platform} example ${exampleId}`);
+            const countryInfo = metadata.country ? ` (${metadata.country})` : '';
+            log.debug(`Indexed ${platform} example ${exampleId}${countryInfo}`);
             return { success: true };
 
         } catch (error) {
-            console.error(`[QdrantService] Failed to index ${platform} example:`, error);
+            log.error(`Failed to index ${platform} example: ${error.message}`);
             throw new Error(`${platform} example indexing failed: ${error.message}`);
         }
     }
 
     /**
-     * Search social media examples with platform filtering (multitenancy)
+     * Search social media examples with platform and country filtering (multitenancy)
      */
     async searchSocialMediaExamples(queryVector, options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                platform = null,  // 'facebook', 'instagram', or null for all platforms
-                limit = 10,
-                threshold = 0.3
-            } = options;
-
-            // Build filter for platform (tenant) filtering
-            const filter = platform ? {
-                must: [{ key: 'platform', match: { value: platform } }]
-            } : undefined;
+            const { limit = 10, threshold = 0.3 } = options;
+            const filter = this._buildSocialMediaFilter(options);
 
             const searchResult = await this.client.search(this.collections.social_media_examples, {
                 vector: queryVector,
@@ -1312,39 +932,20 @@ class QdrantService {
                 score_threshold: threshold,
                 with_payload: true,
                 params: {
-                    ef: Math.max(100, limit * 2)  // Better search quality per Qdrant best practices
+                    ef: Math.max(100, limit * 2)
                 }
             });
 
-            const results = searchResult.map(hit => {
-                // Debug: Log the actual payload structure for troubleshooting
-                console.log(`[QdrantService] Search result payload keys: ${Object.keys(hit.payload || {}).join(', ')}`);
-                
-                // Try different possible content fields
-                let content = hit.payload.content;
-                if (!content && hit.payload.content_data?.content) {
-                    content = hit.payload.content_data.content;
-                }
-                if (!content && hit.payload.content_data?.caption) {
-                    content = hit.payload.content_data.caption;
-                }
-                if (!content && hit.payload.text) {
-                    content = hit.payload.text;
-                }
-                if (!content && hit.payload.caption) {
-                    content = hit.payload.caption;
-                }
-                
-                return {
-                    id: hit.payload.example_id || hit.id,
-                    score: hit.score,
-                    content: content,
-                    platform: hit.payload.platform,
-                    created_at: hit.payload.created_at,
-                    // Include raw payload for debugging
-                    _debug_payload: hit.payload
-                };
-            });
+            const results = searchResult.map(hit => ({
+                id: hit.payload.example_id || hit.id,
+                score: hit.score,
+                content: this._extractMultiFieldContent(hit.payload),
+                platform: hit.payload.platform,
+                country: hit.payload.country || null,
+                source_account: hit.payload.source_account || null,
+                created_at: hit.payload.created_at,
+                _debug_payload: hit.payload
+            }));
 
             return {
                 success: true,
@@ -1353,13 +954,15 @@ class QdrantService {
             };
 
         } catch (error) {
-            console.error('[QdrantService] Social media search failed:', error);
+            log.error(`Social media search failed: ${error.message}`);
             throw new Error(`Social media search failed: ${error.message}`);
         }
     }
 
     /**
      * Search Facebook examples (convenience method)
+     * @param {Array<number>} queryVector - Query embedding
+     * @param {Object} options - Options including country filter
      */
     async searchFacebookExamples(queryVector, options = {}) {
         return await this.searchSocialMediaExamples(queryVector, { ...options, platform: 'facebook' });
@@ -1373,294 +976,48 @@ class QdrantService {
     }
 
     /**
-     * Get random social media examples with platform filtering
-     * Uses proper random sampling with scroll API for true randomness
+     * Get random social media examples with platform and country filtering
      */
     async getRandomSocialMediaExamples(options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                platform = null,
-                limit = 10
-            } = options;
+            const { limit = 10 } = options;
+            const filter = this._buildSocialMediaFilter(options);
 
-            // Build filter for platform if specified
-            const filter = platform ? {
-                must: [{ key: 'platform', match: { value: platform } }]
-            } : undefined;
-
-            // Get total count of points matching the filter
             const countResult = await this.client.count(this.collections.social_media_examples, {
                 filter: filter,
                 exact: true
             });
 
             const totalPoints = countResult.count;
-            
             if (totalPoints === 0) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Calculate random offset for proper sampling
-            const maxOffset = Math.max(0, totalPoints - limit);
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+            const randomOffset = this._calculateRandomOffset(totalPoints, limit);
 
-            // Use scroll API for true random sampling
             const scrollResult = await this.client.scroll(this.collections.social_media_examples, {
                 filter: filter,
-                limit: Math.min(limit * 2, totalPoints), // Get extra for shuffling
+                limit: Math.min(limit * 2, totalPoints),
                 offset: randomOffset,
                 with_payload: true,
-                with_vector: false // Don't need vectors for display
-            });
-
-            if (!scrollResult.points || scrollResult.points.length === 0) {
-                return { success: true, results: [], total: 0 };
-            }
-
-            // Shuffle results for additional randomness and limit to requested amount
-            const shuffled = scrollResult.points.sort(() => Math.random() - 0.5);
-            const finalResults = shuffled.slice(0, limit);
-
-            const results = finalResults.map(point => {
-                // Debug: Log the actual payload structure for troubleshooting
-                console.log(`[QdrantService] Random result payload keys: ${Object.keys(point.payload || {}).join(', ')}`);
-                
-                // Try different possible content fields
-                let content = point.payload.content;
-                if (!content && point.payload.content_data?.content) {
-                    content = point.payload.content_data.content;
-                }
-                if (!content && point.payload.content_data?.caption) {
-                    content = point.payload.content_data.caption;
-                }
-                if (!content && point.payload.text) {
-                    content = point.payload.text;
-                }
-                if (!content && point.payload.caption) {
-                    content = point.payload.caption;
-                }
-                
-                return {
-                    id: point.payload.example_id || point.id,
-                    content: content,
-                    platform: point.payload.platform,
-                    created_at: point.payload.created_at,
-                    // Include raw payload for debugging
-                    _debug_payload: point.payload
-                };
-            });
-
-            return {
-                success: true,
-                results: results,
-                total: results.length
-            };
-
-        } catch (error) {
-            console.error('[QdrantService] Random social media examples failed:', error);
-            throw new Error(`Random social media examples failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Check if points exist in collection
-     * @param {Array<string>} pointIds - Array of point IDs to check
-     * @param {string} collection - Collection name
-     * @returns {Promise<Object>} Object with existing and missing point IDs
-     */
-    async checkExistingPoints(pointIds, collection = this.collections.social_media_examples) {
-        this.ensureConnected();
-        try {
-            if (!pointIds || pointIds.length === 0) {
-                return { existing: [], missing: pointIds || [] };
-            }
-
-            // Convert string IDs to numeric IDs using same hash function
-            const numericIds = pointIds.map(id => {
-                const hash = Math.abs(id.split('').reduce((hash, char) => 
-                    ((hash << 5) - hash) + char.charCodeAt(0), 0));
-                return hash;
-            });
-
-            const result = await this.client.retrieve(collection, {
-                ids: numericIds,
-                with_payload: false,
                 with_vector: false
             });
 
-            const existingNumericIds = new Set(result.map(point => point.id));
-            const existing = [];
-            const missing = [];
-
-            pointIds.forEach((pointId, index) => {
-                const numericId = numericIds[index];
-                if (existingNumericIds.has(numericId)) {
-                    existing.push(pointId);
-                } else {
-                    missing.push(pointId);
-                }
-            });
-
-            return { existing, missing };
-
-        } catch (error) {
-            console.error('[QdrantService] Failed to check existing points:', error);
-            // If check fails, assume all are missing to avoid duplicates
-            return { existing: [], missing: pointIds };
-        }
-    }
-
-    /**
-     * Batch upsert social media examples
-     * @param {Array} examples - Array of example objects with id, embedding, content, platform
-     * @returns {Promise<Object>} Result with success count and errors
-     * @deprecated Use QdrantOperations.batchUpsert() instead
-     */
-    async batchUpsertSocialMediaExamples(examples) {
-        console.warn('[QdrantService] batchUpsertSocialMediaExamples is deprecated. Use QdrantOperations.batchUpsert() instead');
-
-        if (!examples || examples.length === 0) {
-            return { success: true, indexed: 0, errors: [] };
-        }
-
-        const { QdrantOperations } = await import('./QdrantOperations.js');
-        const operations = new QdrantOperations(this.client);
-
-        const points = examples.map(example => {
-            const numericId = Math.abs(example.id.split('').reduce((hash, char) =>
-                ((hash << 5) - hash) + char.charCodeAt(0), 0));
-
-            return {
-                id: numericId,
-                vector: example.embedding,
-                payload: {
-                    example_id: example.id,
-                    platform: example.platform,
-                    content: example.content,
-                    created_at: new Date().toISOString()
-                }
-            };
-        });
-
-        try {
-            const BATCH_SIZE = 20;
-            let totalIndexed = 0;
-
-            for (let i = 0; i < points.length; i += BATCH_SIZE) {
-                const batch = points.slice(i, i + BATCH_SIZE);
-                await operations.batchUpsert(this.collections.social_media_examples, batch, { maxRetries: 3 });
-                totalIndexed += batch.length;
+            if (!scrollResult.points?.length) {
+                return { success: true, results: [], total: 0 };
             }
 
-            return {
-                success: true,
-                indexed: totalIndexed,
-                errors: []
-            };
-        } catch (error) {
-            console.error('[QdrantService] Batch upsert failed:', error);
-            return {
-                success: false,
-                indexed: 0,
-                errors: [{ message: error.message, count: examples.length }]
-            };
-        }
-    }
+            const finalResults = this._shuffleAndLimit(scrollResult.points, limit);
 
-    /**
-     * Index Bundestag content chunks
-     * @param {string} url - Source URL of the page
-     * @param {Array} chunks - Array of chunks with embeddings
-     * @param {Object} metadata - Page metadata (title, section, published_at, etc.)
-     */
-    async indexBundestagContent(url, chunks, metadata = {}) {
-        await this.ensureConnected();
-        try {
-            const points = chunks.map((chunk, index) => {
-                const combinedString = `${url}_${index}`;
-                let hash = 0;
-                for (let i = 0; i < combinedString.length; i++) {
-                    const char = combinedString.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash;
-                }
-                const numericId = Math.abs(hash);
-
-                return {
-                    id: numericId,
-                    vector: chunk.embedding,
-                    payload: {
-                        url: url,
-                        chunk_index: index,
-                        chunk_text: chunk.text || chunk.chunk_text,
-                        token_count: chunk.token_count || chunk.tokens,
-                        title: metadata.title || '',
-                        section: metadata.section || '',
-                        published_at: metadata.published_at || null,
-                        content_hash: metadata.content_hash || '',
-                        last_synced: new Date().toISOString(),
-                        created_at: new Date().toISOString()
-                    }
-                };
-            });
-
-            const BATCH_SIZE = 50;
-            for (let i = 0; i < points.length; i += BATCH_SIZE) {
-                const batch = points.slice(i, i + BATCH_SIZE);
-                await this.client.upsert(this.collections.bundestag_content, {
-                    points: batch
-                });
-            }
-
-            log.info(`Indexed ${chunks.length} chunks for ${url}`);
-            return { success: true, chunks: chunks.length };
-
-        } catch (error) {
-            log.error(`Failed to index Bundestag content: ${error.message}`);
-            throw new Error(`Bundestag content indexing failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Search Bundestag content
-     * @param {Array} queryVector - Query embedding vector
-     * @param {Object} options - Search options (section, limit, threshold)
-     */
-    async searchBundestagContent(queryVector, options = {}) {
-        await this.ensureConnected();
-        try {
-            const {
-                section = null,
-                limit = 10,
-                threshold = 0.3
-            } = options;
-
-            const filter = { must: [] };
-            if (section) {
-                filter.must.push({ key: 'section', match: { value: section } });
-            }
-
-            const searchResult = await this.client.search(this.collections.bundestag_content, {
-                vector: queryVector,
-                filter: filter.must.length > 0 ? filter : undefined,
-                limit: limit,
-                score_threshold: threshold,
-                with_payload: true,
-                params: {
-                    ef: Math.max(100, limit * 2)
-                }
-            });
-
-            const results = searchResult.map(hit => ({
-                id: hit.id,
-                score: hit.score,
-                url: hit.payload.url,
-                chunk_text: hit.payload.chunk_text,
-                chunk_index: hit.payload.chunk_index,
-                title: hit.payload.title,
-                section: hit.payload.section,
-                published_at: hit.payload.published_at
+            const results = finalResults.map(point => ({
+                id: point.payload.example_id || point.id,
+                content: this._extractMultiFieldContent(point.payload),
+                platform: point.payload.platform,
+                country: point.payload.country || null,
+                source_account: point.payload.source_account || null,
+                created_at: point.payload.created_at,
+                _debug_payload: point.payload
             }));
 
             return {
@@ -1670,110 +1027,11 @@ class QdrantService {
             };
 
         } catch (error) {
-            log.error(`Bundestag content search failed: ${error.message}`);
-            throw new Error(`Bundestag content search failed: ${error.message}`);
+            log.error(`Random social media examples failed: ${error.message}`);
+            throw new Error(`Random social media examples failed: ${error.message}`);
         }
     }
 
-    /**
-     * Get Bundestag content by URL (for deduplication)
-     * @param {string} url - URL to check
-     */
-    async getBundestagContentByUrl(url) {
-        await this.ensureConnected();
-        try {
-            const scrollResult = await this.client.scroll(this.collections.bundestag_content, {
-                filter: {
-                    must: [{ key: 'url', match: { value: url } }]
-                },
-                limit: 1,
-                with_payload: true,
-                with_vector: false
-            });
-
-            if (scrollResult.points && scrollResult.points.length > 0) {
-                return {
-                    exists: true,
-                    content_hash: scrollResult.points[0].payload.content_hash,
-                    last_synced: scrollResult.points[0].payload.last_synced
-                };
-            }
-
-            return { exists: false };
-
-        } catch (error) {
-            log.error(`Failed to check Bundestag content by URL: ${error.message}`);
-            return { exists: false };
-        }
-    }
-
-    /**
-     * Delete Bundestag content by URL
-     * @param {string} url - URL to delete
-     */
-    async deleteBundestagContentByUrl(url) {
-        await this.ensureConnected();
-        try {
-            await this.client.delete(this.collections.bundestag_content, {
-                filter: {
-                    must: [{ key: 'url', match: { value: url } }]
-                }
-            });
-
-            log.info(`Deleted Bundestag content for ${url}`);
-            return { success: true };
-
-        } catch (error) {
-            log.error(`Failed to delete Bundestag content: ${error.message}`);
-            throw new Error(`Bundestag content deletion failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Get all indexed Bundestag URLs
-     */
-    async getAllBundestagUrls() {
-        await this.ensureConnected();
-        try {
-            const urls = new Set();
-            let offset = null;
-
-            do {
-                const scrollResult = await this.client.scroll(this.collections.bundestag_content, {
-                    limit: 100,
-                    offset: offset,
-                    with_payload: ['url', 'content_hash', 'last_synced'],
-                    with_vector: false
-                });
-
-                for (const point of scrollResult.points) {
-                    urls.add(JSON.stringify({
-                        url: point.payload.url,
-                        content_hash: point.payload.content_hash,
-                        last_synced: point.payload.last_synced
-                    }));
-                }
-
-                offset = scrollResult.next_page_offset;
-            } while (offset);
-
-            return Array.from(urls).map(u => JSON.parse(u));
-
-        } catch (error) {
-            log.error(`Failed to get Bundestag URLs: ${error.message}`);
-            return [];
-        }
-    }
-
-    /**
-     * Graceful shutdown
-     */
-    async close() {
-        // Qdrant client doesn't need explicit closing
-        this.isConnected = false;
-        this.client = null;
-        console.log('[QdrantService] Connection closed');
-    }
 }
 
 // Export singleton instance

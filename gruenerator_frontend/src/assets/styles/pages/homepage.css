@@ -127,7 +127,7 @@
 }
 
 .newsletter-button {
-    background-color: var(--primary) !important;
+    background-color: var(--secondary) !important;
     color: white !important;
 }
 
@@ -138,7 +138,7 @@
 
 .newsletter-button:hover {
     opacity: 0.9;
-    background-color: var(--primary) !important;
+    background-color: var(--secondary-700) !important;
 }
 
 .newsletter-button:hover svg {

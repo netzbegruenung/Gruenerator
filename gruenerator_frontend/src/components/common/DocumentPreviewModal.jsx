@@ -11,11 +11,11 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {}, onClose }) => {
   if (!item) return null;
 
-  const itemTitle = itemType === 'qa' ? item.name : item.title;
+  const itemTitle = itemType === 'notebook' ? item.name : item.title;
   
   // Enhanced content priority for optimal markdown rendering from Mistral OCR
   const getDocumentContent = () => {
-    if (itemType === 'qa') {
+    if (itemType === 'notebook') {
       return item.description || item.custom_prompt || 'Keine Beschreibung verfügbar';
     }
     
@@ -24,7 +24,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
   };
   
   const previewContent = getDocumentContent();
-  const isMarkdownContent = itemType !== 'qa'; // All documents use markdown renderer
+  const isMarkdownContent = itemType !== 'notebook'; // All documents use markdown renderer
 
   return (
     <motion.div
@@ -49,7 +49,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
         </div>
         <div className="document-preview-content">
           <div className="document-preview-meta">
-            {itemType === 'qa' ? (
+            {itemType === 'notebook' ? (
               <>
                 {item.document_count && <span>Dokumente: {item.document_count}</span>}
                 {item.is_public && <span>Öffentlich</span>}

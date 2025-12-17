@@ -70,7 +70,7 @@ class VectorConfig {
       content: {
         maxExcerptLength: parseInt(process.env.CONTENT_MAX_EXCERPT_LENGTH || '300'),
         excerptSentenceBoundary: parseFloat(process.env.CONTENT_EXCERPT_SENTENCE_BOUNDARY || '0.7'),
-        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '3'),
+        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '10'),
         // Dossier mode settings (no env vars needed)
         maxChunksPerDocumentDossier: 10,
         enableFullContentExtraction: true

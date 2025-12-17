@@ -146,12 +146,12 @@
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: var(--primary);
+  background-color: var(--secondary);
   color: var(--weiß);
 }
 
 .verify-button:hover {
-  background-color: var(--klee);
+  background-color: var(--secondary-700);
   transform: translateY(-1px);
 }
 

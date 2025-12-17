@@ -17,6 +17,7 @@ export const useSubtitlerProjects = () => {
     isSaving,
     error,
     saveSuccess,
+    initialFetchComplete,
     fetchProjects: storeFetchProjects,
     loadProject: storeLoadProject,
     saveProject: storeSaveProject,
@@ -76,6 +77,7 @@ export const useSubtitlerProjects = () => {
     error,
     saveSuccess,
     isReady,
+    initialFetchComplete,
 
     // Actions (all auth-guarded)
     fetchProjects,

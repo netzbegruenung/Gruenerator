@@ -57,7 +57,8 @@ const FormExtrasSection = ({
   componentName,
   hide = false,
   attachedFiles = [],
-  usePrivacyMode = false
+  usePrivacyMode = false,
+  isStartMode = false
 }) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -111,74 +112,116 @@ const FormExtrasSection = ({
   }
 
   return (
-    <div className="form-section__extras">
+    <div className={`form-section__extras ${isStartMode ? 'form-section__extras--start-mode' : ''}`}>
       <div className="form-extras__content">
-        
-        {/* First extras - rendered as first element */}
-        {firstExtrasChildren && (
-          <div className="form-extras__item form-extras__first">
-            {firstExtrasChildren}
-          </div>
+
+        {isStartMode ? (
+          <>
+            {/* Start Mode: Left - FeatureIcons (hidden when not logged in) */}
+            {useFeatureIcons && (
+              <div className="form-extras__left">
+                <FeatureIcons
+                  onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
+                  onAttachmentClick={onAttachmentClick}
+                  onRemoveFile={onRemoveFile}
+                  onAnweisungenClick={handleAnweisungenClick}
+                  onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
+                  anweisungenActive={anweisungenActive}
+                  interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
+                  attachedFiles={finalAttachedFiles}
+                  className="form-extras__feature-icons"
+                  tabIndex={featureIconsTabIndex}
+                  onPrivacyInfoClick={onPrivacyInfoClick}
+                  onWebSearchInfoClick={onWebSearchInfoClick}
+                  noBorder={true}
+                  hideLoginPrompt={true}
+                />
+              </div>
+            )}
+
+            {/* Start Mode: Right - Platform selector + Submit */}
+            <div className="form-extras__right">
+              {firstExtrasChildren}
+              {showSubmitButton && (
+                <SubmitButton
+                  onClick={onSubmit}
+                  loading={loading}
+                  success={success}
+                  text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
+                  className="form-extras__submit-button button-primary"
+                  ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
+                  type="submit"
+                  tabIndex={submitButtonTabIndex}
+                  {...submitButtonProps}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Normal Mode: Original order */}
+            {firstExtrasChildren && (
+              <div className="form-extras__item form-extras__first">
+                {firstExtrasChildren}
+              </div>
+            )}
+
+            {useFeatureIcons && (
+              <div className="form-extras__item">
+                <FeatureIcons
+                  onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
+                  onAttachmentClick={onAttachmentClick}
+                  onRemoveFile={onRemoveFile}
+                  onAnweisungenClick={handleAnweisungenClick}
+                  onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
+                  anweisungenActive={anweisungenActive}
+                  interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
+                  attachedFiles={finalAttachedFiles}
+                  className="form-extras__feature-icons"
+                  tabIndex={featureIconsTabIndex}
+                  onPrivacyInfoClick={onPrivacyInfoClick}
+                  onWebSearchInfoClick={onWebSearchInfoClick}
+                  noBorder={false}
+                />
+              </div>
+            )}
+
+            {formNotice && (
+              <div className="form-extras__item form-extras__notice">
+                {formNotice}
+              </div>
+            )}
+
+            {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
+              <div className="form-extras__item">
+                <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
+              </div>
+            )}
+
+            {children && (
+              <div className="form-extras__item form-extras__custom">
+                {children}
+              </div>
+            )}
+
+            {showSubmitButton && (
+              <div className="form-extras__item form-extras__submit">
+                <SubmitButton
+                  onClick={onSubmit}
+                  loading={loading}
+                  success={success}
+                  text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
+                  className="form-extras__submit-button button-primary"
+                  ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
+                  type="submit"
+                  tabIndex={submitButtonTabIndex}
+                  {...submitButtonProps}
+                />
+              </div>
+            )}
+          </>
         )}
 
-        {/* Feature Icons */}
-        {useFeatureIcons && (
-          <div className="form-extras__item">
-            <FeatureIcons
-              onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
-              onAttachmentClick={onAttachmentClick}
-              onRemoveFile={onRemoveFile}
-              onAnweisungenClick={handleAnweisungenClick}
-              onInteractiveModeClick={interactiveModeToggle && useInteractiveModeToggleStore ? handleInteractiveModeClick : undefined}
-              anweisungenActive={anweisungenActive}
-              interactiveModeActive={interactiveModeToggle ? interactiveModeToggle.isActive : false}
-              attachedFiles={finalAttachedFiles}
-              className="form-extras__feature-icons"
-              tabIndex={featureIconsTabIndex}
-              onPrivacyInfoClick={onPrivacyInfoClick}
-              onWebSearchInfoClick={onWebSearchInfoClick}
-            />
-          </div>
-        )}
-
-        {/* Form Notice */}
-        {formNotice && (
-          <div className="form-extras__item form-extras__notice">
-            {formNotice}
-          </div>
-        )}
-
-        {/* Interactive-Mode Feature Toggle - only if not using feature icons */}
-        {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
-          <div className="form-extras__item">
-            <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
-          </div>
-        )}
-
-        {/* Additional custom extras */}
-        {children && (
-          <div className="form-extras__item form-extras__custom">
-            {children}
-          </div>
-        )}
-
-        {/* Submit Button - using existing optimized component */}
-        {showSubmitButton && (
-          <div className="form-extras__item form-extras__submit">
-            <SubmitButton
-              onClick={onSubmit}
-              loading={loading}
-              success={success}
-              text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
-              className="form-extras__submit-button button-primary"
-              ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
-              type="submit"
-              tabIndex={submitButtonTabIndex}
-              {...submitButtonProps}
-            />
-          </div>
-        )}
-        
       </div>
     </div>
   );
@@ -230,7 +273,8 @@ FormExtrasSection.propTypes = {
   componentName: PropTypes.string,
   hide: PropTypes.bool,
   attachedFiles: PropTypes.array,
-  usePrivacyMode: PropTypes.bool
+  usePrivacyMode: PropTypes.bool,
+  isStartMode: PropTypes.bool
 };
 
 FormExtrasSection.defaultProps = {
@@ -249,7 +293,8 @@ FormExtrasSection.defaultProps = {
   submitButtonTabIndex: 17,
   onPrivacyInfoClick: undefined,
   componentName: 'default',
-  hide: false
+  hide: false,
+  isStartMode: false
 };
 
 FormExtrasSection.displayName = 'FormExtrasSection';

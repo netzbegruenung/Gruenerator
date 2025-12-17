@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
-import { IoDownloadOutline, IoShareSocialSharp, IoCloudUploadOutline, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
+import { IoDownloadOutline, IoShareSocialSharp, IoEllipsisVertical, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
 import { FaCloud } from "react-icons/fa";
 import { FaFileWord } from "react-icons/fa6";
 import { CiMemoPad } from "react-icons/ci";
@@ -12,6 +12,7 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
+import { canShare, shareContent } from '../../utils/shareUtils';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
@@ -20,7 +21,17 @@ import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { hashContent } from '../../utils/contentHash';
 import '../../assets/styles/components/actions/exportToDocument.css';
 
-const ExportDropdown = ({ content, title, className = 'action-button', onSaveToLibrary, saveToLibraryLoading }) => {
+const ExportDropdown = ({
+  content,
+  title,
+  className = 'action-button',
+  onSaveToLibrary,
+  saveToLibraryLoading,
+  customExportOptions = [],
+  hideDefaultOptions = false,
+  showShareButton = true,
+  showMoreMenu = true
+}) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [shareLinks, setShareLinks] = useState([]);
   const [selectedShareLinkId, setSelectedShareLinkId] = useState('');
@@ -30,6 +41,7 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
   const [showWolkeSubDropdown, setShowWolkeSubDropdown] = useState(false);
   const [exportIcon, setExportIcon] = useState('share');
   const [showWolkeSetupModal, setShowWolkeSetupModal] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
   
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
@@ -143,6 +155,11 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showDropdown, showWolkeSubDropdown]);
+
+  // Check native share capability on mount
+  useEffect(() => {
+    setCanNativeShare(canShare());
+  }, []);
 
   // Helper functions for document type and component name detection
   const getDocumentType = () => {
@@ -265,6 +282,28 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
     console.log('[DEBUG] handleCopyText called');
     await handleExportWithAutoSave(handleCopyTextInner, 'Kopieren');
   };
+
+  const handleNativeShareInner = async () => {
+    setShowDropdown(false);
+    try {
+      const plainContent = await extractPlainText(content);
+      if (!plainContent || plainContent.trim().length === 0) {
+        alert('Kein Text zum Teilen verfügbar.');
+        return;
+      }
+
+      await shareContent({
+        title: title || 'Grünerator Text',
+        text: plainContent,
+      });
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Share failed:', error);
+      }
+    }
+  };
+
+  const handleNativeShare = async () => await handleExportWithAutoSave(handleNativeShareInner, 'Teilen');
 
   const handleDOCXDownloadInner = useCallback(async () => {
     setShowDropdown(false);
@@ -391,106 +430,148 @@ const ExportDropdown = ({ content, title, className = 'action-button', onSaveToL
 
   return (
     <div className="export-dropdown download-export">
-      <button
-        className={className}
-        onClick={handleDropdownClick}
-        disabled={isLoading}
-        aria-label="Teilen"
-        {...(!isMobileView && {
-          'data-tooltip-id': "action-tooltip",
-          'data-tooltip-content': "Teilen"
-        })}
-      >
-        {isLoading ? (
-          <HiRefresh className="spinning" size={16} />
-        ) : exportIcon === 'checkmark' ? (
-          <IoCheckmarkOutline size={16} />
-        ) : (
+      {/* Share button - Direct native share */}
+      {showShareButton && canNativeShare && (
+        <button
+          className={className}
+          onClick={handleNativeShare}
+          disabled={isLoading}
+          aria-label="Teilen"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Direkt teilen"
+          })}
+        >
           <IoShareSocialSharp size={16} />
-        )}
-      </button>
+        </button>
+      )}
 
-      {showDropdown && (
+      {/* More options button (3-dot menu) */}
+      {showMoreMenu && (
+        <button
+          className={className}
+          onClick={handleDropdownClick}
+          disabled={isLoading}
+          aria-label="Weitere Optionen"
+          {...(!isMobileView && {
+            'data-tooltip-id': "action-tooltip",
+            'data-tooltip-content': "Weitere Optionen"
+          })}
+        >
+          {isLoading ? (
+            <HiRefresh className="spinning" size={16} />
+          ) : exportIcon === 'checkmark' ? (
+            <IoCheckmarkOutline size={16} />
+          ) : (
+            <IoEllipsisVertical size={16} />
+          )}
+        </button>
+      )}
+
+      {showDropdown && showMoreMenu && (
         <div className="format-dropdown">
-          <button
-            className="format-option"
-            onClick={handleDocsExport}
-            disabled={docsLoading}
-          >
-            <CiMemoPad size={16} />
-            <div className="format-option-content">
-              <div className="format-option-title">
-                {docsLoading ? 'Exportiere...' : 'Textbegrünung Export'}
+          {/* Custom export options rendered first */}
+          {customExportOptions.map(option => (
+            <button
+              key={option.id}
+              className="format-option"
+              onClick={() => {
+                option.onClick();
+                setShowDropdown(false);
+              }}
+              disabled={option.disabled}
+            >
+              {option.icon}
+              <div className="format-option-content">
+                <div className="format-option-title">{option.label}</div>
+                {option.subtitle && (
+                  <div className="format-option-subtitle">{option.subtitle}</div>
+                )}
               </div>
-              <div className="format-option-subtitle">
-                Öffentlich verfügbar, als Link teilbar
-              </div>
-            </div>
-          </button>
-          
-          <button
-            className="format-option"
-            onClick={handleDOCXDownload}
-            disabled={isGenerating}
-          >
-            <FaFileWord size={16} />
-            <div className="format-option-content">
-              <div className="format-option-title">
-            {isGenerating ? (
-              <>
-                <HiRefresh className="spinning" size={14} style={{ marginRight: '6px' }} />
-                Wird erstellt...
-              </>
-            ) : 'Datei herunterladen'}
-              </div>
-              <div className="format-option-subtitle">
-                Für Word und LibreOffice
-              </div>
-            </div>
-          </button>
-          
-          {isAuthenticated && onSaveToLibrary && (
+            </button>
+          ))}
+
+          {/* Divider if both custom and default options exist */}
+          {customExportOptions.length > 0 && !hideDefaultOptions && (
+            <div className="format-divider"></div>
+          )}
+
+          {/* Default options - conditionally rendered */}
+          {!hideDefaultOptions && (
             <>
-              <div className="format-divider"></div>
               <button
                 className="format-option"
-                onClick={handleSaveToLibrary}
-                disabled={saveToLibraryLoading}
+                onClick={handleDOCXDownload}
+                disabled={isGenerating}
               >
-                {saveIcon === 'checkmark' ? (
-                  <IoCheckmarkOutline size={12} />
-                ) : (
-                  <HiCog size={12} />
-                )}
+                <FaFileWord size={16} />
                 <div className="format-option-content">
                   <div className="format-option-title">
-                    {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
+                    {isGenerating ? 'Wird erstellt...' : 'Word-Datei herunterladen'}
                   </div>
                   <div className="format-option-subtitle">
-                    Für später wiederverwenden
+                    Für Word und LibreOffice
                   </div>
                 </div>
               </button>
+
+              <button
+                className="format-option"
+                onClick={handleDocsExport}
+                disabled={docsLoading}
+              >
+                <CiMemoPad size={16} />
+                <div className="format-option-content">
+                  <div className="format-option-title">
+                    {docsLoading ? 'Exportiere...' : 'Textbegrünung Export'}
+                  </div>
+                  <div className="format-option-subtitle">
+                    Öffentlich verfügbar, als Link teilbar
+                  </div>
+                </div>
+              </button>
+
+              {isAuthenticated && onSaveToLibrary && (
+                <button
+                  className="format-option"
+                  onClick={handleSaveToLibrary}
+                  disabled={saveToLibraryLoading}
+                >
+                  {saveIcon === 'checkmark' ? (
+                    <IoCheckmarkOutline size={12} />
+                  ) : (
+                    <HiSave size={12} />
+                  )}
+                  <div className="format-option-content">
+                    <div className="format-option-title">
+                      {saveToLibraryLoading ? 'Speichere...' : 'Im Grünerator speichern'}
+                    </div>
+                    <div className="format-option-subtitle">
+                      Für später wiederverwenden
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  className="format-option wolke-trigger"
+                  onClick={handleWolkeClick}
+                  disabled={uploadingToWolke || loadingShareLinks}
+                >
+                  <FaCloud size={16} />
+                  <div className="format-option-content">
+                    <div className="format-option-title">
+                      {uploadingToWolke ? 'Uploade...' : loadingShareLinks ? 'Lade...' : 'Wolke Export'}
+                    </div>
+                    <div className="format-option-subtitle">
+                      In der Grünen Wolke speichern
+                    </div>
+                  </div>
+                  {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
+                </button>
+              )}
             </>
-          )}
-          
-          {isAuthenticated && (
-            <button
-              className="format-option wolke-trigger"
-              onClick={handleWolkeClick}
-              disabled={uploadingToWolke || loadingShareLinks}
-            >
-              <FaCloud size={16} />
-              <div className="format-option-content">
-                <div className="format-option-title">
-                  {uploadingToWolke ? 'Uploade...' : loadingShareLinks ? 'Lade...' : 'Wolke Export'}
-                </div>
-                <div className="format-option-subtitle">
-                  In der Grünen Wolke speichern
-                </div>
-              </div>
-              {uploadingToWolke && <HiRefresh className="spinning" size={14} />}
-            </button>
           )}
         </div>
       )}
@@ -589,7 +670,18 @@ ExportDropdown.propTypes = {
   title: PropTypes.string,
   className: PropTypes.string,
   onSaveToLibrary: PropTypes.func,
-  saveToLibraryLoading: PropTypes.bool
+  saveToLibraryLoading: PropTypes.bool,
+  customExportOptions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+    subtitle: PropTypes.string,
+    icon: PropTypes.node,
+    onClick: PropTypes.func.isRequired,
+    disabled: PropTypes.bool
+  })),
+  hideDefaultOptions: PropTypes.bool,
+  showShareButton: PropTypes.bool,
+  showMoreMenu: PropTypes.bool
 };
 
 export default ExportDropdown;

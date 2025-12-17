@@ -18,7 +18,9 @@ import {
   PiCaretUp,
   PiArrowRight,
   PiBrain,
-  PiTextAlignLeftFill
+  PiTextAlignLeftFill,
+  PiGlobe,
+  PiPaintBrush
 } from 'react-icons/pi';
 
 import {
@@ -40,7 +42,6 @@ import { GiHedgehog } from 'react-icons/gi';
 import {
   HiInformationCircle,
   HiOutlineTrash,
-  HiCog,
   HiRefresh,
   HiArrowLeft,
   HiLockClosed,
@@ -53,7 +54,8 @@ import {
   HiClipboardList,
   HiQuestionMarkCircle,
   HiSpeakerphone,
-  HiDownload
+  HiDownload,
+  HiLink
 } from 'react-icons/hi';
 
 import {
@@ -75,6 +77,8 @@ import {
 import { RiMagicLine, RiRobot3Line } from 'react-icons/ri';
 
 import { FaMagic } from 'react-icons/fa';
+
+import GrueneratorGPTIcon from '../components/common/GrueneratorGPTIcon';
 
 /**
  * Comprehensive icon registry organized by usage category
@@ -116,10 +120,12 @@ export const ICONS = {
     reel: PiVideoCamera,
     sharepic: PiImageSquare,
     datenbank: PiArchive,
+    vorlagen: PiPaintBrush,
     you: PiUser,
     tools: PiWrench,
     barrierefreiheit: IoAccessibilityOutline,
-    imagine: RiMagicLine
+    imagine: RiMagicLine,
+    website: PiGlobe
   },
 
   // Action icons for buttons and interactive elements
@@ -130,7 +136,7 @@ export const ICONS = {
     docs: CiMemoPad,
     cloud: FaCloud,
     word: FaFileWord,
-    gruenerator: HiCog,
+    gruenerator: GrueneratorGPTIcon,
     notebook: FaBook,
     delete: HiOutlineTrash,
     edit: PiPencilSimple,
@@ -145,7 +151,8 @@ export const ICONS = {
     lock: HiLockClosed,
     labor: HiBeaker,
     altText: IoAccessibility,
-    kiLabel: PiTextAlignLeftFill
+    kiLabel: PiTextAlignLeftFill,
+    link: HiLink
   },
 
   // UI/Form icons for form elements and components

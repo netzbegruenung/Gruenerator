@@ -14,7 +14,9 @@ const DEFAULTS = {
   altText: { label: 'Alt-Text', variant: 'secondary' },
   kiLabel: { label: 'KI-Label', variant: 'primary' },
   download: { label: 'Herunterladen', variant: 'primary' },
-  canva: { label: 'In Canva bearbeiten', variant: 'secondary' }
+  canva: { label: 'In Canva bearbeiten', variant: 'secondary' },
+  link: { label: 'Link kopieren', variant: 'ghost' },
+  share: { label: 'Teilen', variant: 'primary' }
 };
 
 const variantToClass = (variant) => {
@@ -86,7 +88,7 @@ export const ProfileActionButton = ({
 };
 
 ProfileActionButton.propTypes = {
-  action: PropTypes.oneOf(['edit','delete','back','refresh','open','add','info','altText','kiLabel','download','canva']).isRequired,
+  action: PropTypes.oneOf(['edit','delete','back','refresh','open','add','info','altText','kiLabel','download','canva','link','share']).isRequired,
   label: PropTypes.string,
   ariaLabel: PropTypes.string,
   title: PropTypes.string,

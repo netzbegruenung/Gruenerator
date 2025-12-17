@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import { HiChevronDown, HiCog, HiGlobe } from 'react-icons/hi';
+import { HiChevronDown, HiGlobe } from 'react-icons/hi';
 import { NotebookIcon } from '../../config/icons';
+import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import '../../assets/styles/components/ui/dropdown-button.css';
 
 const DropdownButton = ({
@@ -187,7 +188,7 @@ const DropdownButton = ({
             aria-label="Neuen Custom Grünerator erstellen"
             role="menuitem"
           >
-            <HiCog />
+            <GrueneratorGPTIcon />
             <span>Custom Grünerator</span>
           </button>
 

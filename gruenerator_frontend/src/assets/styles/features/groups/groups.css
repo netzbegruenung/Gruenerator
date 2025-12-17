@@ -19,7 +19,7 @@
   text-align: center;
   padding: var(--spacing-large);
   background-color: var(--background-color-alt);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   margin: var(--spacing-large) 0;
 }
 
@@ -37,7 +37,7 @@
   width: 100%;
   background-color: var(--background-color-alt);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   padding: var(--spacing-medium);
   text-align: left;
   transition: all 0.2s ease;
@@ -64,7 +64,7 @@
   display: flex;
   gap: var(--spacing-medium);
   font-size: 0.9rem;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
 }
 
 .group-role {
@@ -76,76 +76,15 @@
   padding: var(--spacing-medium);
 }
 
-
-.groups-management-layout {
-  display: grid;
-  gap: var(--spacing-large);
-  align-items: flex-start;
+/* Left-border accent pattern for group role indicators */
+.profile-vertical-tab.admin-group {
+  border-left: 3px solid var(--klee);
+  padding-left: calc(var(--spacing-large) - 3px);
 }
 
-
-.groups-navigation-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-large);
-  padding-right: var(--spacing-medium);
-  align-items: center;
-}
-
-
-
-
-.groups-vertical-navigation {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  align-items: center;
-}
-
-
-.groups-vertical-tab {
-  width: 100%;
-  max-width: 220px;
-  padding: var(--spacing-xsmall) var(--spacing-large);
-  background: var(--background-color);
-  border: var(--border-subtle);
-  border-radius: 20px;
-  color: var(--font-color);
-  cursor: pointer;
-  white-space: normal;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
-  font-weight: 500;
-  line-height: 1.3;
-  word-break: break-word;
-  hyphens: auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  text-align: left;
-  gap: var(--spacing-small);
-  margin-bottom: var(--spacing-small);
-}
-
-.groups-vertical-tab.active {
-  background: var(--background-color-alt);
-  border-color: var(--interactive-accent-color);
-  color: var(--interactive-accent-color);
-  font-weight: 600;
-}
-
-.groups-vertical-tab:hover:not(.active) {
-  background: var(--background-color-alt);
-  border-color: var(--interactive-accent-color);
-  color: var(--interactive-accent-color);
-}
-
-.groups-vertical-tab:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: var(--background-color-alt);
-    border-color: var(--border-color-disabled);
-    color: var(--font-color-disabled);
+.profile-vertical-tab.member-group {
+  border-left: 3px solid var(--secondary-600);
+  padding-left: calc(var(--spacing-large) - 3px);
 }
 
 /* Group Tab Content Structure */
@@ -209,7 +148,7 @@
   padding: var(--spacing-medium);
   background: var(--background-color-alt);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -253,13 +192,8 @@
 
 .group-card-meta {
   font-size: 0.9rem;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   font-style: italic;
-}
-
-
-.groups-content-panel {
-  min-width: 0;
 }
 
 
@@ -300,48 +234,14 @@
 */
 
 
+/* Mobile styles for groups-specific elements */
 @media (max-width: 768px) {
-  .groups-management-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .groups-navigation-panel {
-    display: flex;
-    padding-right: 0;
-    margin-bottom: var(--spacing-large);
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: var(--spacing-xsmall);
-  }
-
-  
-  .groups-vertical-navigation {
-    display: flex;
-    flex-direction: row; 
-    flex-wrap: wrap; 
-    justify-content: flex-start; 
-    align-items: center; 
-    gap: var(--spacing-xsmall) var(--spacing-small); 
-    width: 100%; 
-  }
-
-  .groups-vertical-tabs {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: auto;
-    align-items: flex-start;
-  }
-
-  .create-new-group-button,
-  .groups-vertical-tab {
+  .create-new-group-button {
     width: fit-content;
     text-align: center;
     padding-left: var(--spacing-medium);
     padding-right: var(--spacing-medium);
-    margin: calc(var(--spacing-xxxsmall) / 2) var(--spacing-xsmall); 
+    margin: calc(var(--spacing-xxxsmall) / 2) var(--spacing-xsmall);
     max-width: 200px;
     flex-grow: 0;
     flex-shrink: 0;
@@ -406,7 +306,7 @@
   color: var(--weiß);
   font-size: 0.8rem;
   padding: var(--spacing-xsmall) var(--spacing-small);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   margin-top: var(--spacing-xsmall);
 }
 
@@ -426,7 +326,7 @@
   margin-bottom: var(--spacing-xlarge);
   padding: var(--spacing-medium);
   background-color: var(--background-color-alt);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
 }
 
 .group-admin-section h3 {
@@ -449,7 +349,7 @@
   min-width: 250px;
   padding: var(--spacing-small);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   background-color: var(--background-color-alt);
   font-family: monospace;
 }
@@ -465,8 +365,14 @@
 }
 
 .group-content-section .help-text {
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   margin-bottom: var(--spacing-medium);
+}
+
+.group-content-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-small);
 }
 
 .anweisungen-header {
@@ -490,7 +396,7 @@
 
 .save-feedback {
   padding: var(--spacing-small) var(--spacing-medium);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
 }
 
 .save-feedback.success {
@@ -499,8 +405,8 @@
 }
 
 .save-feedback.error {
-  background-color: var(--sonne);
-  color: var(--primary);
+  background-color: var(--error-red);
+  color: var(--white);
 }
 
 
@@ -514,7 +420,7 @@
 
 .join-group-card {
   background-color: var(--background-color-alt);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   padding: var(--spacing-large);
   max-width: 500px;
   width: 100%;
@@ -549,7 +455,7 @@
 
 .modal-content {
   background-color: var(--background-color);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   max-width: 500px;
   width: 100%;
   max-height: 90vh;
@@ -573,7 +479,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   line-height: 1;
   padding: 0;
 }
@@ -624,7 +530,7 @@
 }
 
 .help-text {
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   margin-bottom: var(--spacing-medium);
 }
 
@@ -650,7 +556,7 @@
 
 .group-admin-status {
   font-size: 0.9rem;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   margin-bottom: var(--spacing-medium);
 }
 
@@ -683,6 +589,13 @@
   margin-bottom: var(--spacing-large);
 }
 
+.group-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  flex-shrink: 0;
+}
+
 .group-title-area {
   flex-grow: 1;
 }
@@ -704,7 +617,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   padding: 3px var(--spacing-xsmall);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   text-transform: uppercase;
   line-height: 1.1;
   align-self: center;
@@ -712,9 +625,35 @@
 
 .group-membership-status {
   font-size: 0.9rem;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   margin-top: var(--spacing-xsmall);
   margin-bottom: 0;
+}
+
+/* Group Description - directly under title */
+.group-description-area {
+  margin-top: var(--spacing-small);
+  width: 100%;
+}
+
+.group-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.group-description-display {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xsmall);
+  font-size: 0.95rem;
+  color: var(--grey-500);
+  line-height: 1.5;
+}
+
+.group-description-display .group-name-edit-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 
@@ -837,7 +776,7 @@
   padding: var(--spacing-medium);
   background-color: var(--background-color-alt);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   border-left: 4px solid var(--interactive-accent-color);
 }
 
@@ -868,8 +807,8 @@
   padding: var(--spacing-small);
   background-color: var(--background-color);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-small);
-  color: var(--font-color-subtle);
+  border-radius: var(--card-border-radius-small);
+  color: var(--grey-500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -900,7 +839,7 @@
   display: inline-flex; 
   border: var(--border-subtle);
   transition: all 0.2s ease;
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   padding: var(--spacing-xsmall) var(--spacing-small); 
   justify-content: center; 
   align-items: center; 
@@ -944,9 +883,9 @@
 }
 
 .group-members-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-small);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--spacing-medium);
   margin: var(--spacing-medium) 0;
 }
 
@@ -957,7 +896,7 @@
   padding: var(--spacing-small);
   background-color: var(--background-color-alt);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-medium);
 }
 
 .member-avatar {
@@ -1016,7 +955,7 @@
 
 .member-name.anonymous {
   font-style: italic;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
 }
 
 .member-admin-badge {
@@ -1028,7 +967,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   padding: 2px var(--spacing-xsmall);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   text-transform: uppercase;
   line-height: 1.1;
   flex-shrink: 0;
@@ -1043,7 +982,7 @@
   align-items: center;
   gap: var(--spacing-medium);
   font-size: 0.8rem;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
 }
 
 .member-join-date {
@@ -1056,14 +995,14 @@
 .members-privacy-note {
   text-align: center;
   padding: var(--spacing-medium);
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
 }
 
 .members-privacy-note {
   margin-top: var(--spacing-medium);
   padding: var(--spacing-small);
   background-color: var(--background-color-alt);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   border-left: 3px solid var(--interactive-accent-color);
 }
 
@@ -1099,6 +1038,11 @@
 /* Responsive adjustments for members list
 ========================================================================== */
 @media (max-width: 768px) {
+  .group-members-list {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: var(--spacing-small);
+  }
+
   .group-member-item {
     padding: var(--spacing-xsmall);
     gap: var(--spacing-small);
@@ -1137,7 +1081,7 @@
   flex-wrap: wrap;
 }
 
-.groups-horizontal-navigation .groups-vertical-tab {
+.groups-horizontal-navigation .profile-vertical-tab {
   max-width: none;
   width: auto;
   flex-shrink: 0;
@@ -1163,7 +1107,7 @@
   color: var(--font-color-h);
   background: var(--background-color);
   border: 2px solid var(--interactive-accent-color);
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   padding: var(--spacing-xsmall) var(--spacing-small);
   margin: 0;
   font-family: inherit;
@@ -1190,7 +1134,7 @@
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.2s ease;
@@ -1202,7 +1146,7 @@
 }
 
 .group-name-edit-button.save:hover:not(:disabled) {
-  background-color: var(--primary);
+  background-color: var(--secondary-700);
 }
 
 .group-name-edit-button.cancel {
@@ -1232,7 +1176,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  border-radius: var(--border-radius-small);
+  border-radius: var(--card-border-radius-small);
   transition: all 0.2s ease;
   opacity: 0.7;
 }
@@ -1253,7 +1197,7 @@
   background-color: var(--background-color-alt);
   border: 1px solid var(--border-subtle);
   border-left: 4px solid var(--interactive-accent-color);
-  border-radius: var(--border-radius-medium);
+  border-radius: var(--card-border-radius-medium);
   padding: var(--spacing-medium);
   margin-bottom: var(--spacing-medium);
   display: flex;
@@ -1280,7 +1224,7 @@
 
 .group-readonly-notice-text {
   font-size: 0.9em;
-  color: var(--font-color-subtle);
+  color: var(--grey-500);
   margin: 0;
   line-height: 1.4;
   opacity: 0.8;

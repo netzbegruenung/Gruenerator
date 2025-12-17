@@ -1,13 +1,14 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
-import { BsArrowUpCircleFill } from 'react-icons/bs';
-import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
 import ChatUI from './ChatUI';
 import ChatStartPage from './ChatStartPage';
 import ModeSelector from './ModeSelector';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
+import ChatSubmitButton from './ChatSubmitButton';
+import ChatFileUploadButton from './ChatFileUploadButton';
+import { handleEnterKeySubmit } from './utils/chatMessageUtils';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
 const ChatWorkbenchLayout = ({
@@ -41,17 +42,16 @@ const ChatWorkbenchLayout = ({
   singleLine = false,
   showStartPage = false,
   startPageTitle = "Was möchtest du wissen?",
-  exampleQuestions = []
+  exampleQuestions = [],
+  sources = [],
+  onSourceToggle
 }) => {
-  // Consolidated voice recording and file upload via useChatInput hook
+  // Consolidated voice recording via useChatInput hook
   const {
     isVoiceRecording,
     isVoiceProcessing,
     startRecording,
-    stopRecording,
-    fileInputRef,
-    handleFileUploadClick,
-    handleFileChange
+    stopRecording
   } = useChatInput({
     inputValue,
     onInputChange,
@@ -69,12 +69,7 @@ const ChatWorkbenchLayout = ({
     onSubmit(trimmedValue);
   };
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSubmit(event);
-    }
-  };
+  const handleKeyDown = (event) => handleEnterKeySubmit(event, handleSubmit);
 
   const renderModeSelector = () => (
     <ModeSelector
@@ -87,28 +82,11 @@ const ChatWorkbenchLayout = ({
 
 
   const renderInputWrapper = () => {
-    const hasText = (inputValue || '').trim();
-    const effectiveSubmitLabel = hasText ?
-      (submitLabel ?? <BsArrowUpCircleFill size={18} />) :
-      (isVoiceRecording ? <FaStop size={18} /> : <FaMicrophone size={18} />);
-
-    const handleButtonClick = () => {
-      if (hasText) {
-        handleSubmit({ preventDefault: () => {} });
-      } else if (isVoiceRecording) {
-        stopRecording();
-      } else {
-        startRecording();
-      }
-    };
-
     return (
       <form
         className="qa-chat-dossier-input-wrapper"
         onSubmit={handleSubmit}
       >
-        {/* Temporarily hidden until chat mode CSS is complete */}
-        {/* {!hideModeSelector && renderModeSelector()} */}
         <div className="textarea-wrapper">
           {enableFileUpload && attachedFiles.length > 0 && (
             <AttachedFilesList
@@ -125,35 +103,22 @@ const ChatWorkbenchLayout = ({
             disabled={disabled}
             rows={1}
           />
-          {enableFileUpload && (
-            <>
-              <button
-                type="button"
-                className="chat-file-upload-button chat-file-upload-button-workbench"
-                onClick={handleFileUploadClick}
-                disabled={disabled}
-                aria-label="Datei hinzufügen"
-              >
-                <FaPlus />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
-            </>
-          )}
-          <button
-            type={hasText ? "submit" : "button"}
-            onClick={!hasText ? handleButtonClick : undefined}
-            disabled={disabled || isVoiceProcessing}
-            className={isVoiceRecording ? 'voice-recording' : ''}
-          >
-            {effectiveSubmitLabel}
-          </button>
+          <ChatFileUploadButton
+            enabled={enableFileUpload}
+            disabled={disabled}
+            onFileSelect={onFileSelect}
+            className="chat-file-upload-button chat-file-upload-button-workbench"
+          />
+          <ChatSubmitButton
+            inputValue={inputValue}
+            isVoiceRecording={isVoiceRecording}
+            isVoiceProcessing={isVoiceProcessing}
+            onSubmit={handleSubmit}
+            startRecording={startRecording}
+            stopRecording={stopRecording}
+            disabled={disabled}
+            submitIcon={submitLabel}
+          />
         </div>
       </form>
     );
@@ -194,13 +159,12 @@ const ChatWorkbenchLayout = ({
             attachedFiles={attachedFiles}
             onRemoveFile={onRemoveFile}
             exampleQuestions={exampleQuestions}
+            sources={sources}
+            onSourceToggle={onSourceToggle}
             isVoiceRecording={isVoiceRecording}
             isVoiceProcessing={isVoiceProcessing}
             startRecording={startRecording}
             stopRecording={stopRecording}
-            fileInputRef={fileInputRef}
-            handleFileUploadClick={handleFileUploadClick}
-            handleFileChange={handleFileChange}
           />
         </div>
       );
@@ -261,13 +225,12 @@ const ChatWorkbenchLayout = ({
             attachedFiles={attachedFiles}
             onRemoveFile={onRemoveFile}
             exampleQuestions={exampleQuestions}
+            sources={sources}
+            onSourceToggle={onSourceToggle}
             isVoiceRecording={isVoiceRecording}
             isVoiceProcessing={isVoiceProcessing}
             startRecording={startRecording}
             stopRecording={stopRecording}
-            fileInputRef={fileInputRef}
-            handleFileUploadClick={handleFileUploadClick}
-            handleFileChange={handleFileChange}
           />
         </div>
       );
@@ -355,7 +318,14 @@ ChatWorkbenchLayout.propTypes = {
   exampleQuestions: PropTypes.arrayOf(PropTypes.shape({
     icon: PropTypes.string.isRequired,
     text: PropTypes.string.isRequired
-  }))
+  })),
+  sources: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    count: PropTypes.string.isRequired,
+    id: PropTypes.string,
+    selected: PropTypes.bool
+  })),
+  onSourceToggle: PropTypes.func
 };
 
 export default ChatWorkbenchLayout;

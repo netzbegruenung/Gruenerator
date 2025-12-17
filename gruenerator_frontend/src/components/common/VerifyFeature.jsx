@@ -157,10 +157,10 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
           {renderAttemptDots()}
           {error && <div className="verify-error">{error}</div>}
           <div className="verify-buttons">
-            <button type="button" onClick={handleBack} className="verify-button verify-button-secondary">
+            <button type="button" onClick={handleBack} className="btn-secondary">
               {onCancel ? 'Abbrechen' : 'Zurück'}
             </button>
-            <button type="submit" className="verify-button" disabled={isLocked}>
+            <button type="submit" className="btn-primary" disabled={isLocked}>
               Verifizieren
             </button>
           </div>
