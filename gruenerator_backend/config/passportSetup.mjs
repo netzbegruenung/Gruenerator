@@ -44,9 +44,6 @@ passport.deserializeUser(async (userData, done) => {
           userToReturn.supabaseSession = userData.supabaseSession;
         }
         // CRITICAL: Preserve profile settings that may have been updated in session
-        if (userData.hasOwnProperty('bundestag_api_enabled')) {
-          userToReturn.bundestag_api_enabled = userData.bundestag_api_enabled;
-        }
         if (userData.hasOwnProperty('igel_modus')) {
           userToReturn.igel_modus = userData.igel_modus;
         }
@@ -209,9 +206,7 @@ async function createProfileUser(profileData) {
       locale: profileData.locale || 'de-DE',
       last_login: profileData.last_login,
       // Default values
-      beta_features: {
-        memory_enabled: false // Default memory disabled for new users
-      }
+      beta_features: {}
     };
 
     const profileService = getProfileService();

@@ -6,13 +6,9 @@ import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
 const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
   { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
-  // { key: 'you', label: 'You Generator', isAdminOnly: false },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false },
-  // { key: 'e_learning', label: 'E-Learning', isAdminOnly: false },
-  // { key: 'bundestag_api_enabled', label: 'Bundestag API', isAdminOnly: false },
-  // { key: 'memory', label: 'Memory (Mem0ry)', isAdminOnly: false },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
   { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true },
