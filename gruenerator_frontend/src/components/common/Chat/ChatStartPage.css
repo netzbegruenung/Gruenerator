@@ -12,6 +12,13 @@
   gap: var(--spacing-xlarge);
   padding: var(--spacing-xlarge);
   box-sizing: border-box;
+  justify-content: flex-start;
+  padding-top: 10vh;
+  min-height: calc(100vh - 60px);
+}
+
+.chat-start-page--gruenerator .chat-start-page-input-wrapper {
+  margin-top: auto;
 }
 
 .chat-start-page-content {
