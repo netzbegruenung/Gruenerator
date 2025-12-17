@@ -107,6 +107,7 @@ const FormSection = forwardRef(({
   customEditContent = null,
   // Start mode props
   isStartMode = false,
+  startPageDescription = null,
   examplePrompts = [],
   onExamplePromptClick = null,
   contextualTip = null
@@ -162,9 +163,14 @@ const FormSection = forwardRef(({
 
   return (
     <div className={`form-section ${formContainerClasses} ${isStartMode ? 'form-section--start-mode' : ''}`} ref={ref}>
-      {/* Title outside card in start mode for more compact layout */}
-      {isStartMode && title && (
-        <h2 className="form-section__start-title">{title}</h2>
+      {/* Title and description outside card in start mode */}
+      {isStartMode && (title || startPageDescription) && (
+        <div className="form-section__start-header">
+          {title && <h2 className="form-section__start-title">{title}</h2>}
+          {startPageDescription && (
+            <p className="form-section__start-description">{startPageDescription}</p>
+          )}
+        </div>
       )}
       <FormCard
         className={useEditMode ? 'form-card--editmode' : ''}
@@ -347,6 +353,7 @@ FormSection.propTypes = {
   submitButtonTabIndex: PropTypes.number,
   useEditMode: PropTypes.bool,
   isStartMode: PropTypes.bool,
+  startPageDescription: PropTypes.string,
   examplePrompts: PropTypes.arrayOf(PropTypes.shape({
     icon: PropTypes.string,
     text: PropTypes.string.isRequired

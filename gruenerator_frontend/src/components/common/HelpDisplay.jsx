@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import '../../assets/styles/components/popups/help.css';
@@ -41,25 +41,54 @@ const HelpDisplay = ({
     return null;
   }
 
-  // Cards layout for start mode (ChatStartPage-like feature cards)
+  // Cards layout for start mode - one tip visible at a time with dots and auto-scroll
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const featureItems = layout === 'cards'
+    ? (features || displayTips?.map((tip, idx) => ({
+        title: `Tipp ${idx + 1}`,
+        description: typeof tip === 'string' ? tip : ''
+      })) || [])
+    : [];
+
+  useEffect(() => {
+    if (layout !== 'cards' || featureItems.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setActiveIndex(prev => (prev + 1) % featureItems.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [layout, featureItems.length, isPaused]);
+
   if (layout === 'cards') {
-    const featureItems = features || displayTips?.map((tip, idx) => ({
-      title: `Tipp ${idx + 1}`,
-      description: typeof tip === 'string' ? tip : ''
-    })) || [];
+    if (featureItems.length === 0) return null;
+
+    const currentTip = featureItems[activeIndex] || featureItems[0];
 
     return (
-      <div className="help-display help-display--cards">
+      <div
+        className="help-display help-display--cards"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
         {displayContent && (
           <p className="help-display__cards-intro">{displayContent}</p>
         )}
-        {featureItems.length > 0 && (
-          <div className="help-display__cards-grid">
-            {featureItems.map((feature, index) => (
-              <div key={index} className="help-display__card">
-                <h3 className="help-display__card-title">{feature.title}</h3>
-                <p className="help-display__card-description">{feature.description}</p>
-              </div>
+        <div className="help-display__card">
+          <h3 className="help-display__card-title">{currentTip.title}</h3>
+          <p className="help-display__card-description">{currentTip.description}</p>
+        </div>
+        {featureItems.length > 1 && (
+          <div className="help-display__dots">
+            {featureItems.map((_, index) => (
+              <button
+                key={index}
+                className={`help-display__dot ${index === activeIndex ? 'active' : ''}`}
+                onClick={() => setActiveIndex(index)}
+                aria-label={`Tipp ${index + 1}`}
+              />
             ))}
           </div>
         )}
