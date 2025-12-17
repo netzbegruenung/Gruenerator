@@ -169,10 +169,12 @@
     padding-right: var(--spacing-small) !important;
   }
 
-  /* Remove padding top/bottom from display-container on mobile */
+  /* Adjust display-container spacing on mobile */
   .base-container.edit-mode-active .display-container {
-    padding-top: 0 !important;
+    padding-top: var(--spacing-medium) !important;
     padding-bottom: 0 !important;
+    padding-left: var(--spacing-xsmall) !important;
+    padding-right: var(--spacing-xsmall) !important;
   }
 }
 

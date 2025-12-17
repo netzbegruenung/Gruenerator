@@ -213,16 +213,18 @@
   .content-actions,
   .platform-actions,
   .display-actions {
-    gap: 5px;
+    gap: 6px;
   }
 
   .action-button {
-    padding: 6px;
+    padding: 10px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .action-button svg {
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
   }
 
   .download-export .format-selector {
@@ -232,23 +234,25 @@
   }
 
   .download-export .format-dropdown {
-    position: fixed;
-    top: auto;
-    bottom: 80px;
-    left: var(--spacing-small);
-    right: var(--spacing-small);
-    min-width: auto;
-    max-width: calc(100vw - var(--spacing-small) * 2);
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: auto;
+    bottom: auto;
+    min-width: 220px;
+    max-width: calc(100vw - var(--spacing-medium) * 2);
+    margin-top: 8px;
   }
 
   .wolke-subdropdown {
-    position: fixed;
-    top: auto;
-    bottom: 80px;
-    left: var(--spacing-small);
-    right: var(--spacing-small);
-    min-width: auto;
-    max-width: calc(100vw - var(--spacing-small) * 2);
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: auto;
+    bottom: auto;
+    min-width: 200px;
+    max-width: calc(100vw - var(--spacing-medium) * 2);
+    margin-top: 8px;
     margin-left: 0;
   }
 }

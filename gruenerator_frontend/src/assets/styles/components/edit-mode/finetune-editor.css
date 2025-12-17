@@ -315,22 +315,34 @@
   }
 
   .finetune-editor [class*="_toolbarRoot_"] {
-    padding: var(--spacing-xxsmall);
+    position: static;
+    top: auto;
+    left: auto;
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+    background: var(--background-color);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 2px;
+    height: auto;
   }
 
-  /* Increase touch targets for toolbar buttons - minimum 44px for accessibility */
+  .finetune-editor [class*="_toolbarGroupOfGroups_"],
+  .finetune-editor [class*="_toolbarToggleGroup_"] {
+    gap: 0;
+  }
+
   .finetune-editor [class*="_toolbarButton_"],
   .finetune-editor button[class*="_iconButton_"],
   .finetune-editor .mdxeditor button {
-    min-width: 44px;
-    min-height: 44px;
-    padding: var(--spacing-small);
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px;
+    flex-shrink: 0;
   }
 
-  .finetune-editor [class*="_selectTrigger_"] {
-    min-height: 44px;
-    padding: var(--spacing-small);
-  }
 
   .finetune-editor [class*="_contentEditable_"],
   .finetune-editor .finetune-editor-content {
