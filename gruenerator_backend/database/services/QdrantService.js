@@ -260,381 +260,38 @@ class QdrantService {
     }
 
     /**
-     * Create all required collections
+     * Create all required collections using schema configuration
      */
     async createCollections() {
         try {
             const collections = await this.client.getCollections();
-            const existingCollections = collections.collections.map(c => c.name);
+            const existingNames = new Set(collections.collections.map(c => c.name));
 
-            // Document chunks collection
-            if (!existingCollections.includes(this.collections.documents)) {
-                await this.client.createCollection(this.collections.documents, {
-                    vectors: {
-                        size: this.vectorSize, // FastEmbed embedding dimension
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000,
-                        memmap_threshold: 10000,
-                        indexing_threshold: 20000
-                    },
-                    hnsw_config: {
-                        m: 16,
-                        ef_construct: 100,
-                        full_scan_threshold: 10000,
-                        max_indexing_threads: 0
-                    }
-                });
-                log.debug(`Created documents collection (${this.vectorSize} dims)`);
-            }
+            for (const [key, schema] of Object.entries(COLLECTION_SCHEMAS)) {
+                if (existingNames.has(schema.name)) continue;
 
-            // Grundsatz documents collection
-            if (!existingCollections.includes(this.collections.grundsatz_documents)) {
-                await this.client.createCollection(this.collections.grundsatz_documents, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000
-                    }
-                });
-                log.debug(`Created grundsatz_documents collection (${this.vectorSize} dims)`);
-            }
-
-            // Austrian Greens documents collection
-            if (!existingCollections.includes(this.collections.oesterreich_gruene_documents)) {
-                await this.client.createCollection(this.collections.oesterreich_gruene_documents, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000
-                    }
-                });
-                log.debug(`Created oesterreich_gruene_documents collection (${this.vectorSize} dims)`);
-            }
-
-            // User knowledge collection
-            if (!existingCollections.includes(this.collections.user_knowledge)) {
-                await this.client.createCollection(this.collections.user_knowledge, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 10000
-                    }
-                });
-                log.debug(`Created user_knowledge collection (${this.vectorSize} dims)`);
-            }
-
-            // Content examples collection
-            if (!existingCollections.includes(this.collections.content_examples)) {
-                await this.client.createCollection(this.collections.content_examples, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 5000
-                    },
-                    hnsw_config: {
-                        m: 16,
-                        ef_construct: 100
-                    }
-                });
-                log.debug(`Created content_examples collection (${this.vectorSize} dims)`);
-            }
-
-            // Social media examples collection (Facebook + Instagram with multitenancy)
-            if (!existingCollections.includes(this.collections.social_media_examples)) {
                 try {
-                    await this.client.createCollection(this.collections.social_media_examples, {
-                        vectors: {
-                            size: this.vectorSize,
-                            distance: 'Cosine'
-                        },
-                        optimizers_config: {
-                            default_segment_number: 2,     // Better performance per Qdrant best practices
-                            max_segment_size: 20000,       // Larger segments for efficiency
-                            memmap_threshold: 10000,
-                            indexing_threshold: 20000
-                        },
-                        hnsw_config: {
-                            payload_m: 16,                 // Enable payload-based indexing for multitenancy
-                            m: 16,                         // Enable HNSW index for fast vector search
-                            ef_construct: 200,             // Better index quality
-                            full_scan_threshold: 10000,
-                            max_indexing_threads: 0
-                        }
-                    });
-                    log.debug(`Created social_media_examples collection (${this.vectorSize} dims, multitenancy)`);
+                    const config = getCollectionConfig(this.vectorSize, schema);
+                    await this.client.createCollection(schema.name, config);
+                    log.debug(`Created ${schema.name} collection (${this.vectorSize} dims)`);
 
-                    // Create keyword index for platform field with tenant optimization
-                    await this.client.createPayloadIndex(this.collections.social_media_examples, {
-                        field_name: 'platform',
-                        field_schema: {
-                            type: 'keyword',
-                            is_tenant: true  // Optimize storage for tenant-based access patterns
-                        }
-                    });
-                    log.debug(`Created tenant-optimized index for platform field`);
+                    // Create indexes for this collection
+                    for (const index of schema.indexes || []) {
+                        await this.client.createPayloadIndex(schema.name, {
+                            field_name: index.field,
+                            field_schema: getIndexSchema(index.type)
+                        });
+                    }
                 } catch (error) {
-                    // Handle race condition - collection might have been created by another instance
-                    if (error.message && error.message.includes('already exists')) {
-                        log.debug(`Collection ${this.collections.social_media_examples} already exists (race condition)`);
+                    if (schema.handleRaceCondition && error.message?.includes('already exists')) {
+                        log.debug(`Collection ${schema.name} already exists (race condition)`);
                     } else {
-                        throw error; // Re-throw if it's a different error
+                        throw error;
                     }
                 }
             }
 
-            // User texts collection (for saved library texts)
-            if (!existingCollections.includes(this.collections.user_texts)) {
-                await this.client.createCollection(this.collections.user_texts, {
-                    vectors: {
-                        size: this.vectorSize, // 1024 for FastEmbed
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000,
-                        memmap_threshold: 10000,
-                        indexing_threshold: 20000
-                    },
-                    hnsw_config: {
-                        payload_m: 16,                 // Enable payload-based indexing for multitenancy
-                        m: 16,                         // Enable HNSW index for fast vector search
-                        ef_construct: 200,             // Better index quality
-                        full_scan_threshold: 10000,
-                        max_indexing_threads: 0
-                    }
-                });
-                log.debug(`Created user_texts collection (${this.vectorSize} dims, user-scoped)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.user_texts, {
-                    field_name: 'user_id',
-                    field_schema: {
-                        type: 'keyword',
-                        is_tenant: true  // Optimize for user-based filtering
-                    }
-                });
-                log.debug(`Created user_id tenant index for user_texts`);
-
-                await this.client.createPayloadIndex(this.collections.user_texts, {
-                    field_name: 'document_type',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-                log.debug(`Created document_type index for user_texts`);
-                
-                await this.client.createPayloadIndex(this.collections.user_texts, {
-                    field_name: 'title',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-                log.debug(`Created title index for user_texts`);
-            }
-
-            // Notebook collections collection (metadata storage)
-            if (!existingCollections.includes(this.collections.notebook_collections)) {
-                await this.client.createCollection(this.collections.notebook_collections, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 5000
-                    }
-                });
-                log.debug(`Created notebook_collections collection (${this.vectorSize} dims)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.notebook_collections, {
-                    field_name: 'user_id',
-                    field_schema: {
-                        type: 'keyword',
-                        is_tenant: true
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.notebook_collections, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Notebook collection documents junction collection
-            if (!existingCollections.includes(this.collections.notebook_collection_documents)) {
-                await this.client.createCollection(this.collections.notebook_collection_documents, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 5000
-                    }
-                });
-                log.debug(`Created notebook_collection_documents collection (${this.vectorSize} dims)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.notebook_collection_documents, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.notebook_collection_documents, {
-                    field_name: 'document_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Notebook usage logs collection
-            if (!existingCollections.includes(this.collections.notebook_usage_logs)) {
-                await this.client.createCollection(this.collections.notebook_usage_logs, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 10000
-                    }
-                });
-                log.debug(`Created notebook_usage_logs collection (${this.vectorSize} dims)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.notebook_usage_logs, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.notebook_usage_logs, {
-                    field_name: 'user_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // Notebook public access collection
-            if (!existingCollections.includes(this.collections.notebook_public_access)) {
-                await this.client.createCollection(this.collections.notebook_public_access, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 1,
-                        max_segment_size: 1000
-                    }
-                });
-                log.debug(`Created notebook_public_access collection (${this.vectorSize} dims)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.notebook_public_access, {
-                    field_name: 'access_token',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.notebook_public_access, {
-                    field_name: 'collection_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-            }
-
-            // OParl papers collection (municipal green party motions)
-            if (!existingCollections.includes(this.collections.oparl_papers)) {
-                await this.client.createCollection(this.collections.oparl_papers, {
-                    vectors: {
-                        size: this.vectorSize,
-                        distance: 'Cosine'
-                    },
-                    optimizers_config: {
-                        default_segment_number: 2,
-                        max_segment_size: 20000,
-                        memmap_threshold: 10000,
-                        indexing_threshold: 20000
-                    },
-                    hnsw_config: {
-                        m: 16,
-                        ef_construct: 100,
-                        full_scan_threshold: 10000,
-                        max_indexing_threads: 0
-                    }
-                });
-                log.debug(`Created oparl_papers collection (${this.vectorSize} dims)`);
-
-                // Create indexes for efficient filtering
-                await this.client.createPayloadIndex(this.collections.oparl_papers, {
-                    field_name: 'city',
-                    field_schema: {
-                        type: 'keyword',
-                        is_tenant: true
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.oparl_papers, {
-                    field_name: 'paper_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.oparl_papers, {
-                    field_name: 'oparl_id',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.oparl_papers, {
-                    field_name: 'paper_type',
-                    field_schema: {
-                        type: 'keyword'
-                    }
-                });
-
-                await this.client.createPayloadIndex(this.collections.oparl_papers, {
-                    field_name: 'chunk_text',
-                    field_schema: {
-                        type: 'text',
-                        tokenizer: 'word',
-                        min_token_len: 2,
-                        max_token_len: 50,
-                        lowercase: true
-                    }
-                });
-            }
-
-            // Create text search indexes for hybrid search
             await this.createTextSearchIndexes();
-
         } catch (error) {
             log.error(`Failed to create collections: ${error.message}`);
             throw error;
@@ -645,46 +302,25 @@ class QdrantService {
      * Create text search indexes for hybrid search
      */
     async createTextSearchIndexes() {
-        try {
-            const collectionsToIndex = [
-                this.collections.documents,
-                this.collections.grundsatz_documents,
-                this.collections.user_knowledge
-            ];
-
-            let indexedCount = 0;
-            for (const collectionName of collectionsToIndex) {
+        let indexedCount = 0;
+        for (const collectionName of TEXT_SEARCH_COLLECTIONS) {
+            const fullName = this.collections[collectionName];
+            for (const index of TEXT_SEARCH_INDEXES) {
                 try {
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'chunk_text',
-                        field_schema: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true }
+                    await this.client.createPayloadIndex(fullName, {
+                        field_name: index.field,
+                        field_schema: getIndexSchema(index.type)
                     });
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'title',
-                        field_schema: { type: 'keyword' }
-                    });
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'filename',
-                        field_schema: { type: 'keyword' }
-                    });
-                    await this.client.createPayloadIndex(collectionName, {
-                        field_name: 'user_id',
-                        field_schema: { type: 'keyword', is_tenant: true }
-                    });
-                    indexedCount++;
                 } catch (indexError) {
-                    if (!indexError.message?.includes('already exists') && !indexError.message?.includes('index already created')) {
-                        log.debug(`Index creation failed for ${collectionName}: ${indexError.message}`);
+                    if (!indexError.message?.includes('already exists')) {
+                        log.debug(`Index creation failed for ${fullName}.${index.field}: ${indexError.message}`);
                     }
                 }
             }
-
-            if (indexedCount > 0) {
-                log.debug(`Created indexes for ${indexedCount} collections`);
-            }
-
-        } catch (error) {
-            log.debug(`Text search indexes error: ${error.message}`);
+            indexedCount++;
+        }
+        if (indexedCount > 0) {
+            log.debug(`Created text search indexes for ${indexedCount} collections`);
         }
     }
 
@@ -1005,6 +641,69 @@ class QdrantService {
     }
 
     /**
+     * Extract content from multiple possible payload fields (legacy data support)
+     * @private
+     */
+    _extractMultiFieldContent(payload) {
+        let content = payload.content;
+        if (!content && payload.content_data?.content) content = payload.content_data.content;
+        if (!content && payload.content_data?.caption) content = payload.content_data.caption;
+        if (!content && payload.text) content = payload.text;
+        if (!content && payload.caption) content = payload.caption;
+        return content;
+    }
+
+    /**
+     * Calculate random offset for scroll-based random sampling
+     * @private
+     */
+    _calculateRandomOffset(totalPoints, limit) {
+        const maxOffset = Math.max(0, totalPoints - limit);
+        return Math.floor(Math.random() * (maxOffset + 1));
+    }
+
+    /**
+     * Shuffle array and limit to specified count
+     * @private
+     */
+    _shuffleAndLimit(points, limit) {
+        return points.sort(() => Math.random() - 0.5).slice(0, limit);
+    }
+
+    /**
+     * Build filter for content example queries
+     * @private
+     */
+    _buildContentExampleFilter(options) {
+        const filter = { must: [] };
+        if (options.contentType) {
+            filter.must.push({ key: 'type', match: { value: options.contentType } });
+        }
+        if (options.categories?.length) {
+            filter.must.push({ key: 'categories', match: { any: options.categories } });
+        }
+        if (options.tags?.length) {
+            filter.must.push({ key: 'tags', match: { any: options.tags } });
+        }
+        return filter.must.length > 0 ? filter : undefined;
+    }
+
+    /**
+     * Build filter for social media example queries
+     * @private
+     */
+    _buildSocialMediaFilter(options) {
+        const must = [];
+        if (options.platform) {
+            must.push({ key: 'platform', match: { value: options.platform } });
+        }
+        if (options.country) {
+            must.push({ key: 'country', match: { value: options.country } });
+        }
+        return must.length > 0 ? { must } : undefined;
+    }
+
+    /**
      * Index content examples
      */
     async indexContentExample(exampleId, embedding, metadata) {
@@ -1046,38 +745,12 @@ class QdrantService {
     async searchContentExamples(queryVector, options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                contentType = null,
-                limit = 10,
-                threshold = 0.3,
-                categories = null,
-                tags = null
-            } = options;
-
-            // Build filter
-            const filter = { must: [] };
-            
-            if (contentType) {
-                filter.must.push({ key: 'type', match: { value: contentType } });
-            }
-            
-            if (categories && categories.length > 0) {
-                filter.must.push({
-                    key: 'categories',
-                    match: { any: categories }
-                });
-            }
-
-            if (tags && tags.length > 0) {
-                filter.must.push({
-                    key: 'tags',
-                    match: { any: tags }
-                });
-            }
+            const { limit = 10, threshold = 0.3 } = options;
+            const filter = this._buildContentExampleFilter(options);
 
             const searchResult = await this.client.search(this.collections.content_examples, {
                 vector: queryVector,
-                filter: filter.must.length > 0 ? filter : undefined,
+                filter: filter,
                 limit: limit,
                 score_threshold: threshold,
                 with_payload: true,
@@ -1119,66 +792,34 @@ class QdrantService {
     async getRandomContentExamples(options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                contentType = null,
-                limit = 10,
-                categories = null,
-                tags = null
-            } = options;
+            const { limit = 10 } = options;
+            const filter = this._buildContentExampleFilter(options);
 
-            // Build filter for random sampling
-            const filter = { must: [] };
-            
-            if (contentType) {
-                filter.must.push({ key: 'type', match: { value: contentType } });
-            }
-            
-            if (categories && categories.length > 0) {
-                filter.must.push({
-                    key: 'categories',
-                    match: { any: categories }
-                });
-            }
-
-            if (tags && tags.length > 0) {
-                filter.must.push({
-                    key: 'tags',
-                    match: { any: tags }
-                });
-            }
-
-            // Get total count of points matching the filter
             const countResult = await this.client.count(this.collections.content_examples, {
-                filter: filter.must.length > 0 ? filter : undefined,
+                filter: filter,
                 exact: true
             });
 
             const totalPoints = countResult.count;
-            
             if (totalPoints === 0) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Calculate random offset for proper sampling
-            const maxOffset = Math.max(0, totalPoints - limit);
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+            const randomOffset = this._calculateRandomOffset(totalPoints, limit);
 
-            // Use scroll API for true random sampling
             const scrollResult = await this.client.scroll(this.collections.content_examples, {
-                filter: filter.must.length > 0 ? filter : undefined,
-                limit: Math.min(limit * 2, totalPoints), // Get extra for shuffling
+                filter: filter,
+                limit: Math.min(limit * 2, totalPoints),
                 offset: randomOffset,
                 with_payload: true,
-                with_vector: false // Don't need vectors for display
+                with_vector: false
             });
 
-            if (!scrollResult.points || scrollResult.points.length === 0) {
+            if (!scrollResult.points?.length) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Shuffle results for additional randomness and limit to requested amount
-            const shuffled = scrollResult.points.sort(() => Math.random() - 0.5);
-            const finalResults = shuffled.slice(0, limit);
+            const finalResults = this._shuffleAndLimit(scrollResult.points, limit);
 
             const results = finalResults.map(point => ({
                 id: point.payload.example_id,
@@ -1277,32 +918,12 @@ class QdrantService {
 
     /**
      * Search social media examples with platform and country filtering (multitenancy)
-     * @param {Array<number>} queryVector - Query embedding vector
-     * @param {Object} options - Search options
-     * @param {string} options.platform - 'facebook', 'instagram', or null for all
-     * @param {string} options.country - 'DE', 'AT', or null for all countries
-     * @param {number} options.limit - Max results to return
-     * @param {number} options.threshold - Minimum similarity score
      */
     async searchSocialMediaExamples(queryVector, options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                platform = null,
-                country = null,
-                limit = 10,
-                threshold = 0.3
-            } = options;
-
-            // Build filter for platform and country filtering
-            const mustConditions = [];
-            if (platform) {
-                mustConditions.push({ key: 'platform', match: { value: platform } });
-            }
-            if (country) {
-                mustConditions.push({ key: 'country', match: { value: country } });
-            }
-            const filter = mustConditions.length > 0 ? { must: mustConditions } : undefined;
+            const { limit = 10, threshold = 0.3 } = options;
+            const filter = this._buildSocialMediaFilter(options);
 
             const searchResult = await this.client.search(this.collections.social_media_examples, {
                 vector: queryVector,
@@ -1311,37 +932,20 @@ class QdrantService {
                 score_threshold: threshold,
                 with_payload: true,
                 params: {
-                    ef: Math.max(100, limit * 2)  // Better search quality per Qdrant best practices
+                    ef: Math.max(100, limit * 2)
                 }
             });
 
-            const results = searchResult.map(hit => {
-                // Try different possible content fields
-                let content = hit.payload.content;
-                if (!content && hit.payload.content_data?.content) {
-                    content = hit.payload.content_data.content;
-                }
-                if (!content && hit.payload.content_data?.caption) {
-                    content = hit.payload.content_data.caption;
-                }
-                if (!content && hit.payload.text) {
-                    content = hit.payload.text;
-                }
-                if (!content && hit.payload.caption) {
-                    content = hit.payload.caption;
-                }
-                
-                return {
-                    id: hit.payload.example_id || hit.id,
-                    score: hit.score,
-                    content: content,
-                    platform: hit.payload.platform,
-                    country: hit.payload.country || null,
-                    source_account: hit.payload.source_account || null,
-                    created_at: hit.payload.created_at,
-                    _debug_payload: hit.payload
-                };
-            });
+            const results = searchResult.map(hit => ({
+                id: hit.payload.example_id || hit.id,
+                score: hit.score,
+                content: this._extractMultiFieldContent(hit.payload),
+                platform: hit.payload.platform,
+                country: hit.payload.country || null,
+                source_account: hit.payload.source_account || null,
+                created_at: hit.payload.created_at,
+                _debug_payload: hit.payload
+            }));
 
             return {
                 success: true,
@@ -1373,90 +977,48 @@ class QdrantService {
 
     /**
      * Get random social media examples with platform and country filtering
-     * Uses proper random sampling with scroll API for true randomness
-     * @param {Object} options - Filter options
-     * @param {string} options.platform - 'facebook', 'instagram', or null for all
-     * @param {string} options.country - 'DE', 'AT', or null for all countries
-     * @param {number} options.limit - Max results to return
      */
     async getRandomSocialMediaExamples(options = {}) {
         await this.ensureConnected();
         try {
-            const {
-                platform = null,
-                country = null,
-                limit = 10
-            } = options;
+            const { limit = 10 } = options;
+            const filter = this._buildSocialMediaFilter(options);
 
-            // Build filter for platform and country if specified
-            const mustConditions = [];
-            if (platform) {
-                mustConditions.push({ key: 'platform', match: { value: platform } });
-            }
-            if (country) {
-                mustConditions.push({ key: 'country', match: { value: country } });
-            }
-            const filter = mustConditions.length > 0 ? { must: mustConditions } : undefined;
-
-            // Get total count of points matching the filter
             const countResult = await this.client.count(this.collections.social_media_examples, {
                 filter: filter,
                 exact: true
             });
 
             const totalPoints = countResult.count;
-            
             if (totalPoints === 0) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Calculate random offset for proper sampling
-            const maxOffset = Math.max(0, totalPoints - limit);
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+            const randomOffset = this._calculateRandomOffset(totalPoints, limit);
 
-            // Use scroll API for true random sampling
             const scrollResult = await this.client.scroll(this.collections.social_media_examples, {
                 filter: filter,
-                limit: Math.min(limit * 2, totalPoints), // Get extra for shuffling
+                limit: Math.min(limit * 2, totalPoints),
                 offset: randomOffset,
                 with_payload: true,
-                with_vector: false // Don't need vectors for display
+                with_vector: false
             });
 
-            if (!scrollResult.points || scrollResult.points.length === 0) {
+            if (!scrollResult.points?.length) {
                 return { success: true, results: [], total: 0 };
             }
 
-            // Shuffle results for additional randomness and limit to requested amount
-            const shuffled = scrollResult.points.sort(() => Math.random() - 0.5);
-            const finalResults = shuffled.slice(0, limit);
+            const finalResults = this._shuffleAndLimit(scrollResult.points, limit);
 
-            const results = finalResults.map(point => {
-                // Try different possible content fields
-                let content = point.payload.content;
-                if (!content && point.payload.content_data?.content) {
-                    content = point.payload.content_data.content;
-                }
-                if (!content && point.payload.content_data?.caption) {
-                    content = point.payload.content_data.caption;
-                }
-                if (!content && point.payload.text) {
-                    content = point.payload.text;
-                }
-                if (!content && point.payload.caption) {
-                    content = point.payload.caption;
-                }
-                
-                return {
-                    id: point.payload.example_id || point.id,
-                    content: content,
-                    platform: point.payload.platform,
-                    country: point.payload.country || null,
-                    source_account: point.payload.source_account || null,
-                    created_at: point.payload.created_at,
-                    _debug_payload: point.payload
-                };
-            });
+            const results = finalResults.map(point => ({
+                id: point.payload.example_id || point.id,
+                content: this._extractMultiFieldContent(point.payload),
+                platform: point.payload.platform,
+                country: point.payload.country || null,
+                source_account: point.payload.source_account || null,
+                created_at: point.payload.created_at,
+                _debug_payload: point.payload
+            }));
 
             return {
                 success: true,
