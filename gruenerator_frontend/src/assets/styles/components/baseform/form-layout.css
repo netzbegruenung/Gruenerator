@@ -221,6 +221,8 @@
   .form-card--start-mode {
     border-radius: 20px;
     padding: var(--spacing-small);
+    border: var(--border-subtle);
+    box-shadow: var(--shadow-md);
   }
 
   .form-section--start-mode textarea {
@@ -232,6 +234,8 @@
 @media (max-width: 480px) {
   .form-card--start-mode {
     border-radius: 16px;
+    border: var(--border-subtle);
+    box-shadow: var(--shadow-md);
   }
 }
 

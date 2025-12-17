@@ -83,24 +83,21 @@
   padding: var(--spacing-small);
 }
 
-/* Cards Layout for Start Mode */
+/* Single Tip Card Layout for Start Mode */
 .help-display--cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  max-width: 280px;
   padding: 0;
   margin-bottom: 0;
 }
 
 .help-display__cards-intro {
-  text-align: center;
+  text-align: left;
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-medium);
-  font-size: 1rem;
-}
-
-.help-display__cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-medium);
-  width: 100%;
+  margin-bottom: var(--spacing-small);
+  font-size: 0.9rem;
 }
 
 .help-display__card {
@@ -108,51 +105,85 @@
   border: var(--border-subtle);
   border-radius: 16px;
   padding: var(--spacing-medium);
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .help-display__card:hover {
   border-color: var(--klee);
-  transform: translateY(-2px);
 }
 
 .help-display__card-title {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-color);
   margin: 0 0 var(--spacing-xsmall) 0;
 }
 
 .help-display__card-description {
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
   margin: 0;
   line-height: 1.5;
 }
 
+/* Dot indicators */
+.help-display__dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-xsmall);
+  padding-top: var(--spacing-xsmall);
+}
+
+.help-display__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--font-color);
+  opacity: 0.3;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.help-display__dot:hover {
+  opacity: 0.5;
+}
+
+.help-display__dot.active {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
 /* Start mode help section styling */
 .help-section--start-mode {
-  max-width: 800px;
-  width: 100%;
-  margin: 0 auto;
+  max-width: 320px;
+  width: auto;
+  margin: 0;
 }
 
 /* Display container start mode */
 .display-container--start-mode {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   padding: var(--spacing-medium);
-  width: 100%;
+  width: auto;
   box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
-  .help-display__cards-grid {
-    grid-template-columns: 1fr;
+  .help-display--cards {
+    max-width: 100%;
   }
 
   .help-display__card {
+    width: 240px;
     padding: var(--spacing-small);
+  }
+
+  .help-section--start-mode {
+    max-width: 100%;
+    width: 100%;
   }
 } 

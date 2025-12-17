@@ -635,6 +635,21 @@
   border-radius: 0 12px 12px 0 !important;
 }
 
+/* Start mode: show only icons in selected chips */
+.form-section--start-mode .react-select__multi-value__label-wrapper span {
+  display: none;
+}
+
+.form-section--start-mode .react-select__multi-value__label-wrapper {
+  padding: var(--spacing-xxsmall);
+  padding-left: var(--spacing-small);
+}
+
+.form-section--start-mode .react-select__multi-value__icon {
+  width: 18px;
+  height: 18px;
+}
+
 .form-section--start-mode .react-select__dropdown-indicator,
 .form-section--start-mode .react-select__clear-indicator {
   padding: 4px !important;

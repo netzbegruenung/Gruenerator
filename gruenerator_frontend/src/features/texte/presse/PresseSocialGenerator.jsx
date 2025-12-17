@@ -707,6 +707,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
+          useStartPageLayout={true}
+          startPageDescription="Erstelle professionelle Texte für Social Media und Presse. Wähle deine Plattformen und lass dich von KI unterstützen."
           title={<span className="gradient-title">Welche Botschaft willst du heute grünerieren?</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || sharepicLoading}

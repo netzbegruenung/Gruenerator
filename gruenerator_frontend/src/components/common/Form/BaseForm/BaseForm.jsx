@@ -166,7 +166,8 @@ const BaseFormInternal = ({
   customExportOptions = [],
   hideDefaultExportOptions = false,
   // Start page layout props
-  useStartPageLayout = true, // Default to true - shows ChatGPT-like centered layout before generation
+  useStartPageLayout = false, // Default to false - only PresseSocialGenerator uses start page layout
+  startPageDescription = null, // 1-2 sentence description shown below title in start mode
   examplePrompts = [], // Array of { icon, text } for clickable example prompts
   onExamplePromptClick = null, // Callback when example prompt is clicked
   contextualTip = null // Tip shown below example prompts { icon, text }
@@ -806,6 +807,7 @@ const BaseFormInternal = ({
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
                 hideExtrasSection={hideFormExtras}
                 isStartMode={isStartMode}
+                startPageDescription={startPageDescription}
                 examplePrompts={examplePrompts}
                 onExamplePromptClick={handleExamplePromptClick}
                 contextualTip={contextualTip}
@@ -816,8 +818,8 @@ const BaseFormInternal = ({
           )}
         </AnimatePresence>
 
-        {/* In desktop mode or non-edit mode, show DisplaySection after FormSection */}
-        {(!isEditModeActive || !isMobileView) && (
+        {/* In desktop mode or non-edit mode, show DisplaySection after FormSection (hidden in start mode) */}
+        {(!isEditModeActive || !isMobileView) && !isStartMode && (
           <motion.div
             /* layout */
             transition={{ duration: 0.25, ease: "easeOut" }}
