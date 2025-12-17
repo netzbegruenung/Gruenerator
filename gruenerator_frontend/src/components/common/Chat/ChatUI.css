@@ -793,7 +793,7 @@
   }
 
   .chat-message.assistant {
-    margin-left: 32px;
+    margin-left: 0px;
   }
 
   .assistant-icon {

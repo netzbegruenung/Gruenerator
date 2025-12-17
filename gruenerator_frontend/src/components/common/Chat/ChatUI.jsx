@@ -1,14 +1,15 @@
-import React, { lazy, Suspense, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { lazy, Suspense, useRef, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
-import { FaMicrophone, FaStop, FaPlus } from 'react-icons/fa';
-import { AssistantIcon } from '../../../config/icons';
 import './ChatUI.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import TypingIndicator from '../UI/TypingIndicator';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import ChatActionButtons from './ChatActionButtons';
+import ChatSubmitButton from './ChatSubmitButton';
+import ChatFileUploadButton from './ChatFileUploadButton';
+import AssistantAvatar from './AssistantAvatar';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
@@ -45,7 +46,6 @@ const ChatUI = ({
   const chatContainerRef = useRef(null);
   const lastMessageIndexRef = useRef(0);
   const scrollTimeoutRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   const { user } = useOptimizedAuth();
   const { data: profile } = useProfile(user?.id);
@@ -141,17 +141,7 @@ const ChatUI = ({
           <div className="chat-message-user-name">{msg.userName}</div>
         )}
         {msg.type === 'assistant' && (
-          userAvatarProps.type === 'robot' ? (
-            <div className="assistant-icon-wrapper">
-              <img
-                src={userAvatarProps.src}
-                alt={userAvatarProps.alt}
-                className="assistant-icon assistant-robot-image"
-              />
-            </div>
-          ) : (
-            <AssistantIcon className="assistant-icon" />
-          )
+          <AssistantAvatar avatarProps={userAvatarProps} />
         )}
 
         {msg.quotedText && (
@@ -189,22 +179,6 @@ const ChatUI = ({
       </motion.div>
     );
   };
-
-
-  const handleFileUploadClick = useCallback(() => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  }, []);
-
-  const handleFileChange = useCallback((event) => {
-    const files = Array.from(event.target.files);
-    if (files.length > 0 && onFileSelect) {
-      onFileSelect(files);
-    }
-    event.target.value = '';
-  }, [onFileSelect]);
-
 
   const defaultRenderInput = () => (
     <>
@@ -248,41 +222,22 @@ const ChatUI = ({
             />
           )}
           <div className="chat-input-buttons">
-            {enableFileUpload && (
-              <>
-                <button
-                  type="button"
-                  className="chat-file-upload-button"
-                  onClick={handleFileUploadClick}
-                  disabled={disabled}
-                  aria-label="Datei hinzufügen"
-                >
-                  <FaPlus />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.webp"
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
-              </>
-            )}
-            <button
-              type="button"
-              className={`chat-send-button ${isVoiceRecording ? 'voice-recording' : ''}`}
-              onClick={inputValue.trim() ? handleSubmit : (isVoiceRecording ? stopRecording : startRecording)}
-              disabled={disabled || isVoiceProcessing}
-            >
-              {isVoiceRecording ? (
-                <FaStop />
-              ) : inputValue.trim() ? (
-                '➤'
-              ) : (
-                <FaMicrophone />
-              )}
-            </button>
+            <ChatFileUploadButton
+              enabled={enableFileUpload}
+              disabled={disabled}
+              onFileSelect={onFileSelect}
+            />
+            <ChatSubmitButton
+              inputValue={inputValue}
+              isVoiceRecording={isVoiceRecording}
+              isVoiceProcessing={isVoiceProcessing}
+              onSubmit={handleSubmit}
+              startRecording={startRecording}
+              stopRecording={stopRecording}
+              disabled={disabled}
+              submitIcon="➤"
+              className="chat-send-button"
+            />
           </div>
         </div>
       </div>
@@ -319,17 +274,7 @@ const ChatUI = ({
               exit={{ opacity: 0, scale: 0.99, transition: { duration: 0.15, ease: "easeOut" } }}
               transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
             >
-              {userAvatarProps.type === 'robot' ? (
-                <div className="assistant-icon-wrapper">
-                  <img
-                    src={userAvatarProps.src}
-                    alt={userAvatarProps.alt}
-                    className="assistant-icon assistant-robot-image"
-                  />
-                </div>
-              ) : (
-                <AssistantIcon className="assistant-icon" />
-              )}
+              <AssistantAvatar avatarProps={userAvatarProps} />
               <TypingIndicator />
             </motion.div>
           )}
