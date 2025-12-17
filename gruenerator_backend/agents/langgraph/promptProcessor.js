@@ -330,11 +330,6 @@ function getTaskInstructions(config, requestData) {
     }));
   }
 
-  // Add bundestagApi instructions if applicable
-  if (config.features?.bundestagApi && requestData.useBundestagApi && config.features.bundestagApiInstructions) {
-    parts.push(config.features.bundestagApiInstructions);
-  }
-
   // Add platform-specific guidelines
   const platformGuidelines = buildPlatformGuidelines(config, requestData);
   if (platformGuidelines) {

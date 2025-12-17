@@ -1,8 +1,8 @@
 /**
  * Simplified Content Examples Service
- * 
+ *
  * Provides relevant examples for any content type using only Qdrant vector search.
- * No Supabase dependencies, no complex AI agents - just direct vector similarity.
+ * Supports locale-aware retrieval (de-DE for German, de-AT for Austrian content).
  */
 
 import { getQdrantInstance } from '../database/services/QdrantService.js';
@@ -12,18 +12,33 @@ class ContentExamplesService {
   constructor() {
     this.defaultLimit = 3;
     this.qdrant = getQdrantInstance();
-    
+
     // Default similarity thresholds for different content types
-    // Increased thresholds for better result diversity following Qdrant best practices
     this.defaultThresholds = {
-      'instagram': 0.25,        // Increased from 0.15 for more diverse results
-      'facebook': 0.25,         // Increased from 0.15 for more diverse results
-      'twitter': 0.20,          // Increased from 0.15
-      'antrag': 0.20,           // Kept same - good for formal documents
-      'rede': 0.20,             // Kept same - good for formal documents
-      'pressemitteilung': 0.20, // Increased from 0.15
-      'default': 0.25           // Kept same
+      'instagram': 0.25,
+      'facebook': 0.25,
+      'twitter': 0.20,
+      'antrag': 0.20,
+      'rede': 0.20,
+      'pressemitteilung': 0.20,
+      'default': 0.25
     };
+
+    // Locale to country code mapping
+    this.localeToCountry = {
+      'de-DE': 'DE',
+      'de-AT': 'AT'
+    };
+  }
+
+  /**
+   * Convert locale string to country code
+   * @param {string} locale - Locale string (e.g., 'de-DE', 'de-AT')
+   * @returns {string|null} Country code ('DE', 'AT') or null
+   */
+  getCountryFromLocale(locale) {
+    if (!locale) return null;
+    return this.localeToCountry[locale] || null;
   }
 
   /**
@@ -31,6 +46,8 @@ class ContentExamplesService {
    * @param {string} contentType - Type of content ('instagram', 'facebook', 'antrag', etc.)
    * @param {string} userQuery - User's input/topic for finding similar examples
    * @param {Object} options - Additional options
+   * @param {string} options.locale - User locale for country-specific examples (e.g., 'de-AT')
+   * @param {string} options.country - Direct country filter ('DE', 'AT')
    * @returns {Promise<Array>} Array of relevant examples
    */
   async getExamples(contentType, userQuery = '', options = {}) {
@@ -39,11 +56,17 @@ class ContentExamplesService {
       threshold = this.defaultThresholds[contentType] || this.defaultThresholds.default,
       fallbackToRandom = true,
       categories = null,
-      tags = null
+      tags = null,
+      locale = null,
+      country = null
     } = options;
 
+    // Resolve country from locale if not directly specified
+    const resolvedCountry = country || this.getCountryFromLocale(locale);
+
     try {
-      console.log(`[ContentExamplesService] Fetching ${limit} ${contentType} examples`);
+      const countryInfo = resolvedCountry ? ` (country: ${resolvedCountry})` : '';
+      console.log(`[ContentExamplesService] Fetching ${limit} ${contentType} examples${countryInfo}`);
 
       let examples = [];
 
@@ -53,12 +76,23 @@ class ContentExamplesService {
           limit,
           threshold,
           categories,
-          tags
+          tags,
+          country: resolvedCountry
         });
       }
 
       // Fallback to random examples if no results or no query
       if (examples.length === 0 && fallbackToRandom) {
+        examples = await this.getRandomExamples(contentType, limit, {
+          categories,
+          tags,
+          country: resolvedCountry
+        });
+      }
+
+      // If still no results with country filter, try without country filter
+      if (examples.length === 0 && resolvedCountry && fallbackToRandom) {
+        console.log(`[ContentExamplesService] No ${resolvedCountry} examples, falling back to all countries`);
         examples = await this.getRandomExamples(contentType, limit, { categories, tags });
       }
 
@@ -76,23 +110,22 @@ class ContentExamplesService {
    * @param {string} contentType - Type of content to search
    * @param {string} query - Search query
    * @param {Object} options - Search options
+   * @param {string} options.country - Country filter ('DE', 'AT')
    * @returns {Promise<Array>} Array of matching examples
    */
   async searchExamples(contentType, query, options = {}) {
     try {
-      // Check service availability with detailed logging
-      console.log(`[ContentExamplesService] Searching for "${query}" in ${contentType}`);
-      
+      const countryInfo = options.country ? ` (country: ${options.country})` : '';
+      console.log(`[ContentExamplesService] Searching for "${query}" in ${contentType}${countryInfo}`);
+
       await fastEmbedService.init();
       if (!fastEmbedService.isReady()) {
         console.warn('[ContentExamplesService] FastEmbed service not ready - vector search disabled');
-        console.warn('[ContentExamplesService] This usually indicates missing MISTRAL_API_KEY environment variable');
         return [];
       }
 
       if (!(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Qdrant not available - vector search disabled');
-        console.warn('[ContentExamplesService] This usually indicates missing QDRANT_API_KEY environment variable or connection issues');
         return [];
       }
 
@@ -100,20 +133,16 @@ class ContentExamplesService {
         limit = this.defaultLimit,
         threshold = 0.25,
         categories = null,
-        tags = null
+        tags = null,
+        country = null
       } = options;
 
       // Generate embedding for search query
-      console.log(`[ContentExamplesService] Generating embedding for query: "${query}"`);
       let queryEmbedding;
       try {
         queryEmbedding = await fastEmbedService.generateEmbedding(query);
-        console.log(`[ContentExamplesService] Successfully generated embedding (${queryEmbedding.length} dimensions)`);
       } catch (embeddingError) {
         console.error('[ContentExamplesService] Failed to generate embedding:', embeddingError.message);
-        if (embeddingError.message.includes('MISTRAL_API_KEY')) {
-          console.error('[ContentExamplesService] MISTRAL_API_KEY environment variable is required for embedding generation');
-        }
         return [];
       }
 
@@ -121,16 +150,15 @@ class ContentExamplesService {
       let searchResult;
       try {
         if (contentType === 'facebook' || contentType === 'instagram') {
-          // Search social media collection with platform filtering
-          console.log(`[ContentExamplesService] Searching social media collection for platform: ${contentType}`);
+          // Search social media collection with platform and country filtering
           searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
             platform: contentType,
+            country,
             limit,
             threshold
           });
         } else {
           // Search regular content examples collection
-          console.log(`[ContentExamplesService] Searching content examples collection for type: ${contentType}`);
           searchResult = await this.qdrant.searchContentExamples(queryEmbedding, {
             contentType,
             limit,
@@ -141,9 +169,6 @@ class ContentExamplesService {
         }
       } catch (searchError) {
         console.error('[ContentExamplesService] Qdrant search failed:', searchError.message);
-        if (searchError.message.includes('Unauthorized')) {
-          console.error('[ContentExamplesService] QDRANT_API_KEY environment variable is required for vector search');
-        }
         return [];
       }
 
@@ -174,28 +199,28 @@ class ContentExamplesService {
    * Get random examples from Qdrant
    * @param {string} contentType - Type of content
    * @param {number} limit - Number of examples to return
-   * @param {Object} filters - Additional filters
+   * @param {Object} filters - Additional filters including country
    * @returns {Promise<Array>} Array of random examples
    */
   async getRandomExamples(contentType, limit = 3, filters = {}) {
     try {
       if (!(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Qdrant not available for random examples');
-        console.warn('[ContentExamplesService] This usually indicates missing QDRANT_API_KEY environment variable or connection issues');
         return this._getMockExamples(contentType, limit);
       }
 
-      console.log(`[ContentExamplesService] Getting ${limit} random ${contentType} examples`);
-
-      const { categories = null, tags = null } = filters;
+      const { categories = null, tags = null, country = null } = filters;
+      const countryInfo = country ? ` (country: ${country})` : '';
+      console.log(`[ContentExamplesService] Getting ${limit} random ${contentType} examples${countryInfo}`);
 
       // Route to appropriate collection based on content type
       let result;
       try {
         if (contentType === 'facebook' || contentType === 'instagram') {
-          // Get random social media examples with platform filtering
+          // Get random social media examples with platform and country filtering
           result = await this.qdrant.getRandomSocialMediaExamples({
             platform: contentType,
+            country,
             limit
           });
         } else {
@@ -209,9 +234,6 @@ class ContentExamplesService {
         }
       } catch (qdrantError) {
         console.error(`[ContentExamplesService] Qdrant random examples failed:`, qdrantError.message);
-        if (qdrantError.message.includes('Unauthorized')) {
-          console.error('[ContentExamplesService] QDRANT_API_KEY environment variable is required for vector search');
-        }
         return this._getMockExamples(contentType, limit);
       }
 
@@ -404,37 +426,41 @@ class ContentExamplesService {
    * Search social media examples directly (convenience method)
    * @param {string} query - Search query
    * @param {Object} options - Search options
+   * @param {string} options.locale - User locale for country filtering (e.g., 'de-AT')
+   * @param {string} options.country - Direct country filter ('DE', 'AT')
    * @returns {Promise<Array>} Array of social media examples
    */
   async searchSocialMediaExamples(query, options = {}) {
     const {
-      platform = null, // 'facebook', 'instagram', or null for all
+      platform = null,
       limit = this.defaultLimit,
-      threshold = 0.15
+      threshold = 0.15,
+      locale = null,
+      country = null
     } = options;
 
-    try {
-      console.log(`[ContentExamplesService] Social media search: "${query}" (platform: ${platform || 'all'})`);
+    const resolvedCountry = country || this.getCountryFromLocale(locale);
 
-      // Ensure services are ready
+    try {
+      const countryInfo = resolvedCountry ? `, country: ${resolvedCountry}` : '';
+      console.log(`[ContentExamplesService] Social media search: "${query}" (platform: ${platform || 'all'}${countryInfo})`);
+
       await fastEmbedService.init();
       if (!fastEmbedService.isReady() || !(await this.qdrant.isAvailable())) {
         console.warn('[ContentExamplesService] Services not ready for social media search');
         return [];
       }
 
-      // Generate embedding for search query
       const queryEmbedding = await fastEmbedService.generateEmbedding(query);
 
-      // Search social media collection
       const searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
         platform,
+        country: resolvedCountry,
         limit,
         threshold
       });
 
       if (!searchResult.success || !searchResult.results) {
-        console.log(`[ContentExamplesService] Social media search returned no results`);
         return [];
       }
 
@@ -450,13 +476,19 @@ class ContentExamplesService {
   /**
    * Get random social media examples (convenience method)
    * @param {Object} options - Options for random selection
+   * @param {string} options.locale - User locale for country filtering
+   * @param {string} options.country - Direct country filter ('DE', 'AT')
    * @returns {Promise<Array>} Array of random social media examples
    */
   async getRandomSocialMediaExamples(options = {}) {
     const {
       platform = null,
-      limit = this.defaultLimit
+      limit = this.defaultLimit,
+      locale = null,
+      country = null
     } = options;
+
+    const resolvedCountry = country || this.getCountryFromLocale(locale);
 
     try {
       if (!(await this.qdrant.isAvailable())) {
@@ -464,10 +496,12 @@ class ContentExamplesService {
         return [];
       }
 
-      console.log(`[ContentExamplesService] Getting ${limit} random social media examples (platform: ${platform || 'all'})`);
+      const countryInfo = resolvedCountry ? `, country: ${resolvedCountry}` : '';
+      console.log(`[ContentExamplesService] Getting ${limit} random social media examples (platform: ${platform || 'all'}${countryInfo})`);
 
       const result = await this.qdrant.getRandomSocialMediaExamples({
         platform,
+        country: resolvedCountry,
         limit
       });
 

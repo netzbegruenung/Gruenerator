@@ -29,6 +29,7 @@ const processTextRouter = require('./routes/sharepic/sharepic_canvas/processText
 const editSessionRouter = require('./routes/sharepic/editSession');
 const claudeTextAdjustmentRoute = require('./routes/claude_text_adjustment');
 const claudeSuggestEditsRoute = require('./routes/claude_suggest_edits');
+const claudeTextImproverRoute = require('./routes/claude_text_improver');
 const etherpadRoute = require('./routes/etherpad/etherpadController');
 const claudeGrueneJugendRoute = require('./routes/claude_gruene_jugend');
 const searchRouter = require('./routes/search/searchRoutes');
@@ -114,7 +115,6 @@ async function setupRoutes(app) {
   // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
 
-  const { default: bundestagRouter } = await import('./routes/bundestag.mjs');
   const { default: oparlRouter } = await import('./routes/oparl.mjs');
 
   // Import claude_social as ES6 module
@@ -158,7 +158,6 @@ async function setupRoutes(app) {
   app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
   app.use('/api/auth/notebook', notebookInteractionRouter);
   app.use('/api/documents', documentsRouter);
-  app.use('/api/bundestag', bundestagRouter);
   app.use('/api/oparl', oparlRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
@@ -180,6 +179,7 @@ async function setupRoutes(app) {
   app.use('/api/claude_buergeranfragen', buergeranfragenRouter);
   app.use('/api/claude_chat', claudeChatRoute);
   app.use('/api/claude_suggest_edits', claudeSuggestEditsRoute);
+  app.use('/api/claude_text_improver', claudeTextImproverRoute);
 
   // Grünerator Chat - Unified chat interface for all agents
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
