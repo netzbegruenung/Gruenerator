@@ -255,7 +255,6 @@ const QuestionAnswerSection = ({
                                   e.target.style.height = Math.max(70, e.target.scrollHeight) + 'px';
                                 }}
                                 placeholder={question.placeholder || 'Deine Antwort...'}
-                                autoFocus
                               />
                               <button
                                 type="button"

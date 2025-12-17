@@ -63,6 +63,7 @@ const DisplaySection = forwardRef(({
   customRenderer = null,
   customExportOptions = [],
   hideDefaultExportOptions = false,
+  isStartMode = false,
 }, ref) => {
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
@@ -186,10 +187,10 @@ const DisplaySection = forwardRef(({
     : null;
 
   return (
-    <div className={`display-container ${helpContent?.isNewFeature && helpContent?.featureId && localStorage.getItem(`feature-seen-${helpContent.featureId}`) !== 'true' ? 'display-container--new-feature' : ''}`} id="display-section-container" ref={ref}>
+    <div className={`display-container ${isStartMode ? 'display-container--start-mode' : ''} ${helpContent?.isNewFeature && helpContent?.featureId && localStorage.getItem(`feature-seen-${helpContent.featureId}`) !== 'true' ? 'display-container--new-feature' : ''}`} id="display-section-container" ref={ref}>
       {actionsNode}
       {!hasRenderableContent && helpContent && (
-        <div className="help-section">
+        <div className={`help-section ${isStartMode ? 'help-section--start-mode' : ''}`}>
           <HelpDisplay
             content={helpContent.content}
             tips={helpContent.tips}
@@ -198,6 +199,8 @@ const DisplaySection = forwardRef(({
             featureId={helpContent.featureId}
             fallbackContent={helpContent.fallbackContent}
             fallbackTips={helpContent.fallbackTips}
+            layout={isStartMode ? 'cards' : 'default'}
+            features={helpContent.features}
           />
         </div>
       )}
@@ -294,6 +297,7 @@ DisplaySection.propTypes = {
     disabled: PropTypes.bool
   })),
   hideDefaultExportOptions: PropTypes.bool,
+  isStartMode: PropTypes.bool,
 };
 
 DisplaySection.defaultProps = {
@@ -304,7 +308,8 @@ DisplaySection.defaultProps = {
   renderActions: null,
   showResetButton: false,
   onReset: undefined,
-  renderEmptyState: null
+  renderEmptyState: null,
+  isStartMode: false
 };
 
 DisplaySection.displayName = 'DisplaySection';

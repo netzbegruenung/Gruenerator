@@ -4,6 +4,7 @@ import { Controller } from 'react-hook-form';
 import TextareaAutosize from 'react-textarea-autosize';
 import FormFieldWrapper from './FormFieldWrapper';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
+import { useFormStateSelector } from '../FormStateProvider';
 
 /**
  * FormAutoInput - Large input component with auto-resize for extensive text input
@@ -20,7 +21,7 @@ const FormAutoInput = ({
   control,
   rules = {},
   defaultValue = '',
-  minRows = 5,
+  minRows: minRowsProp = 5,
   maxRows = 20,
   showCharacterCount = true,
   maxLength = 5000,
@@ -30,6 +31,14 @@ const FormAutoInput = ({
   labelProps = {},
   ...rest
 }) => {
+  // Read isStartMode from store (set by BaseForm)
+  let storeIsStartMode = false;
+  try {
+    storeIsStartMode = useFormStateSelector(state => state.isStartMode);
+  } catch {
+    // Not inside FormStateProvider - use default
+  }
+  const minRows = storeIsStartMode ? 2 : minRowsProp;
   const autoInputId = `form-auto-input-${name}`;
   const autoInputClassName = `form-textarea form-auto-input ${className}`.trim();
 

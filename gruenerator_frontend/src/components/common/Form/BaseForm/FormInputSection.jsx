@@ -58,7 +58,8 @@ const FormInputSection = forwardRef(({
   formControl = null,
   showImageUpload = false,
   uploadedImage = null,
-  onImageChange = null
+  onImageChange = null,
+  isStartMode = false
 }, ref) => {
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
@@ -102,7 +103,7 @@ const FormInputSection = forwardRef(({
   };
 
   return (
-    <div className="form-section__inputs" ref={ref}>
+    <div className={`form-section__inputs ${isStartMode ? 'form-section__inputs--start-mode' : ''}`} ref={ref}>
       <div className="form-inputs__content">
         <div className={`form-inputs__fields ${formContentClasses}`}>
           {/* Platform Selector - First Item */}
@@ -201,7 +202,8 @@ FormInputSection.propTypes = {
   formControl: PropTypes.object,
   showImageUpload: PropTypes.bool,
   uploadedImage: PropTypes.object,
-  onImageChange: PropTypes.func
+  onImageChange: PropTypes.func,
+  isStartMode: PropTypes.bool
 };
 
 FormInputSection.defaultProps = {
@@ -222,7 +224,8 @@ FormInputSection.defaultProps = {
   formControl: null,
   showImageUpload: false,
   uploadedImage: null,
-  onImageChange: null
+  onImageChange: null,
+  isStartMode: false
 };
 
 FormInputSection.displayName = 'FormInputSection';
