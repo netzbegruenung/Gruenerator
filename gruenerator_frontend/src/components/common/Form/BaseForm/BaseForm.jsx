@@ -747,7 +747,7 @@ const BaseFormInternal = ({
         )}
 
         <AnimatePresence initial={false}>
-          {isFormVisible && (
+          {isFormVisible && !(isEditModeActive && isMobileView) && (
             <motion.div
               key="form-section"
               /* layout="position" */

@@ -240,12 +240,13 @@ const ActionButtons = ({
           showMoreMenu={false}
         />
       ),
-      undo: showUndo && canUndoState && (
+      undo: showUndo && (canUndoState || isEditModeActive) && (
         <button
           key="undo"
           onClick={handleUndo}
           className="action-button"
           aria-label="Rückgängig (Strg+Z)"
+          disabled={!canUndoState}
           {...(!isMobileView && {
             'data-tooltip-id': "action-tooltip",
             'data-tooltip-content': "Rückgängig (Strg+Z)"
@@ -254,12 +255,13 @@ const ActionButtons = ({
           <IoArrowUndoOutline size={16} />
         </button>
       ),
-      redo: showRedo && canRedoState && (
+      redo: showRedo && (canRedoState || isEditModeActive) && (
         <button
           key="redo"
           onClick={handleRedo}
           className="action-button"
           aria-label="Wiederholen (Strg+Y)"
+          disabled={!canRedoState}
           {...(!isMobileView && {
             'data-tooltip-id': "action-tooltip",
             'data-tooltip-content': "Wiederholen (Strg+Y)"
@@ -322,7 +324,7 @@ const ActionButtons = ({
               onEditModeToggle();
             }
           }}
-          className={`action-button ${isEditModeActive ? 'active' : ''} hidden-mobile`}
+          className={`action-button ${isEditModeActive ? 'active' : ''}`}
           aria-label={isEditModeActive ? "Edit Mode schließen" : "Edit Mode umschalten"}
           {...(!isMobileView && {
             'data-tooltip-id': "action-tooltip",
@@ -345,8 +347,8 @@ const ActionButtons = ({
     return buttons[type];
   };
 
-  // Button order: copy, share, edit, more (3-dot menu)
-  const buttonOrder = ['copy', 'share', 'edit', 'more'];
+  // Button order: copy, share, undo, redo, edit, more (3-dot menu)
+  const buttonOrder = ['copy', 'share', 'undo', 'redo', 'edit', 'more'];
 
   return (
     <div className={className}>
