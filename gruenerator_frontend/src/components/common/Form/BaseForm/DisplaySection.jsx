@@ -179,7 +179,7 @@ const DisplaySection = forwardRef(({
     ? (renderActions
         ? renderActions(actionButtons)
         : (
-            <div className="display-header">
+            <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
               {actionButtons}
             </div>
           ))
@@ -221,6 +221,7 @@ const DisplaySection = forwardRef(({
                 componentName={componentName}
                 helpContent={helpContent}
                 onEditModeToggle={onEditModeToggle}
+                isEditModeActive={isEditModeActive}
               />
             )}
           </>

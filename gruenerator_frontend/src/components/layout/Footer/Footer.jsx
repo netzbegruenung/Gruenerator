@@ -41,7 +41,9 @@ const Footer = () => {
                                     <li><Link to="/reel">Reel</Link></li>
                                     <li><Link to="/sharepic">Sharepics</Link></li>
                                     <li><Link to="/imagine">Imagine</Link></li>
+                                    {/* Temporarily disabled - Vorlagen
                                     <li><Link to="/datenbank/vorlagen">Vorlagen</Link></li>
+                                    */}
                                 </ul>
                             </section>
 

@@ -10,12 +10,14 @@ import Icon from '../../common/Icon';
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
+import useHeaderStore from '../../../stores/headerStore';
 
 const Header = () => {
     useLazyAuth(); // Keep for other auth functionality
     const { user } = useOptimizedAuth();
     const location = useLocation();
     const { getBetaFeatureState } = useBetaFeatures();
+    const forceShrunk = useHeaderStore((state) => state.forceShrunk);
 
     const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
     const youBetaEnabled = useMemo(() => getBetaFeatureState('you'), [getBetaFeatureState]);
@@ -279,7 +281,7 @@ const Header = () => {
 
 
     return (
-        <header className={`header ${scrolled ? 'scrolled' : ''}`} ref={headerRef} role="banner">
+        <header className={`header ${scrolled || forceShrunk ? 'scrolled' : ''}`} ref={headerRef} role="banner">
             <div className="header-container">
                 <div className="header-logo">
                     <Link to="/" aria-label="Zur Startseite">

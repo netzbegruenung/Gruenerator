@@ -7,8 +7,12 @@ import {
   canShareFiles,
   shareImageFile,
   copyToClipboard,
+  copyImageToClipboard,
   parsePlatformSections,
-  getPlatformDisplayName
+  getPlatformDisplayName,
+  isMobileDevice,
+  openPlatformShare,
+  hasPlatformShareUrl
 } from '../../utils/shareUtils';
 import '../../assets/styles/components/ui/button.css';
 import '../../assets/styles/components/common/sharepic-share-modal.css';
@@ -111,18 +115,40 @@ const SharepicShareModal = ({
     setIsSharing(true);
     setShareError(null);
 
+    const text = platformTexts[platformId] || socialContent || '';
+
     try {
-      const success = await shareImageFile(sharepicData.image, `Grünerator ${getPlatformDisplayName(platformId)}`);
-      if (success) {
+      // Mobile: use native share (best UX)
+      if (isMobileDevice() && canShare) {
+        const success = await shareImageFile(sharepicData.image, `Grünerator ${getPlatformDisplayName(platformId)}`);
+        if (success) {
+          setCopySuccess(`shared-${platformId}`);
+          setTimeout(() => setCopySuccess(null), 2000);
+        }
+        return;
+      }
+
+      // Desktop with platform URL (Twitter, Facebook, LinkedIn)
+      if (hasPlatformShareUrl(platformId)) {
+        openPlatformShare(platformId, text);
         setCopySuccess(`shared-${platformId}`);
         setTimeout(() => setCopySuccess(null), 2000);
+        return;
+      }
+
+      // Instagram desktop: copy image to clipboard
+      if (platformId === 'instagram') {
+        await copyImageToClipboard(sharepicData.image);
+        setCopySuccess(`shared-${platformId}`);
+        setTimeout(() => setCopySuccess(null), 3000);
+        return;
       }
     } catch (error) {
       setShareError(error.message || 'Fehler beim Teilen');
     } finally {
       setIsSharing(false);
     }
-  }, [sharepicData?.image, isSharing]);
+  }, [sharepicData?.image, isSharing, platformTexts, socialContent, canShare]);
 
   const handleDownloadImage = useCallback((platformId) => {
     if (!sharepicData?.image) return;
@@ -234,22 +260,27 @@ const SharepicShareModal = ({
                           </button>
                         </div>
                       )}
-                      {canShare && (
-                        <div className="button-wrapper">
-                          <button
-                            className="copy-button"
-                            onClick={() => handleShareToPlatform(platformId)}
-                            disabled={isSharing}
-                          >
-                            {Icon && <Icon />}
-                            {copySuccess === `shared-${platformId}` ? (
-                              <span>Geteilt!</span>
-                            ) : (
-                              <span>Teilen</span>
-                            )}
-                          </button>
-                        </div>
-                      )}
+                      <div className="button-wrapper">
+                        <button
+                          className="copy-button"
+                          onClick={() => handleShareToPlatform(platformId)}
+                          disabled={isSharing}
+                        >
+                          {Icon && <Icon />}
+                          {copySuccess === `shared-${platformId}` ? (
+                            <span>{platformId === 'instagram' && !isMobileDevice() ? 'Bild kopiert!' : 'Geöffnet!'}</span>
+                          ) : (
+                            <span>
+                              {platformId === 'instagram' && !isMobileDevice()
+                                ? 'Bild kopieren'
+                                : isMobileDevice()
+                                  ? 'Teilen'
+                                  : `Auf ${getPlatformDisplayName(platformId)} posten`
+                              }
+                            </span>
+                          )}
+                        </button>
+                      </div>
                       <div className="button-wrapper">
                         <button
                           className="download-button"
@@ -286,17 +317,19 @@ const SharepicShareModal = ({
                     </button>
                   </div>
                 )}
-                {canShare && (
-                  <div className="button-wrapper">
-                    <button
-                      className="btn-primary"
-                      onClick={() => handleShareToPlatform('instagram')}
-                      disabled={isSharing}
-                    >
-                      <IoShareOutline /> Bild teilen
-                    </button>
-                  </div>
-                )}
+                <div className="button-wrapper">
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleShareToPlatform('instagram')}
+                    disabled={isSharing}
+                  >
+                    {isMobileDevice() ? (
+                      <><IoShareOutline /> Bild teilen</>
+                    ) : (
+                      <><FaInstagram /> Bild kopieren</>
+                    )}
+                  </button>
+                </div>
                 <div className="button-wrapper">
                   <button
                     className="download-button"
@@ -310,11 +343,12 @@ const SharepicShareModal = ({
             </div>
           )}
 
-            {canShare && (
-              <p className="sharepic-share-hint">
-                Tipp: Nach dem Teilen den kopierten Text in die Bildunterschrift einfügen.
-              </p>
-            )}
+            <p className="sharepic-share-hint">
+              {isMobileDevice()
+                ? 'Tipp: Nach dem Teilen den kopierten Text in die Bildunterschrift einfügen.'
+                : 'Tipp: Kopiere zuerst den Text, dann klicke auf die Plattform. Das Bild kannst du separat herunterladen und hochladen.'
+              }
+            </p>
           </div>
         </div>
       </div>

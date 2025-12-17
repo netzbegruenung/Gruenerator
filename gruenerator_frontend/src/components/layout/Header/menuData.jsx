@@ -45,6 +45,14 @@ export const getMenuItems = (betaFeatures = {}) => {
     icon: getIcon('navigation', 'barrierefreiheit')
   });
 
+  toolsItems.push({
+    id: 'texteditor',
+    path: '/texteditor',
+    title: 'Text Editor',
+    description: 'Texte bearbeiten und verbessern',
+    icon: getIcon('actions', 'edit')
+  });
+
   // Add website generator if beta feature is enabled
   if (betaFeatures.websiteBetaEnabled) {
     toolsItems.push({
@@ -120,6 +128,7 @@ export const getMenuItems = (betaFeatures = {}) => {
           description: 'Magische KI-Bildbearbeitung',
           icon: getIcon('navigation', 'imagine')
         },
+        /* Temporarily disabled - Vorlagen
         {
           id: 'vorlagen',
           path: '/datenbank/vorlagen',
@@ -127,6 +136,7 @@ export const getMenuItems = (betaFeatures = {}) => {
           description: 'Design-Vorlagen für Canva und mehr',
           icon: getIcon('navigation', 'vorlagen')
         }
+        */
       ]
     },
     tools: {

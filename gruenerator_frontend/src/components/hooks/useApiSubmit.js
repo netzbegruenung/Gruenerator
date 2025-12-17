@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { processText } from '../utils/apiClient';
-import { useAuthStore } from '../../stores/authStore';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 
 // Helper function to determine generator type from endpoint
@@ -23,50 +22,7 @@ const getGeneratorTypeFromEndpoint = (endpoint) => {
   return endpointMap[endpoint];
 };
 
-// Helper function to add memory in background (non-blocking)
-const addMemoryInBackground = async (endpoint, formData, response, memoryEnabled) => {
-  // Skip memory addition if not in development environment
-  const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
-  if (!isDevelopment) {
-    console.log('[useApiSubmit] Skipping memory - not in development environment');
-    return;
-  }
-
-  // Skip memory addition if memory is disabled
-  if (!memoryEnabled) {
-    console.log('[useApiSubmit] Skipping memory - memory functionality is disabled');
-    return;
-  }
-
-  try {
-    const generatorType = getGeneratorTypeFromEndpoint(endpoint);
-    if (!generatorType) {
-      console.log('[useApiSubmit] Skipping memory - not a generator endpoint:', endpoint);
-      return;
-    }
-
-    // Prepare memory data
-    const memoryData = {
-      generatorType,
-      ...formData
-    };
-
-    console.log('[useApiSubmit] Adding memory in background for:', generatorType);
-    
-    // Non-blocking call - don't await to avoid blocking user experience
-    processText('/mem0/add-generator', memoryData).catch(error => {
-      console.warn('[useApiSubmit] Background memory addition failed:', error.message);
-      // Silently fail - memory errors shouldn't affect user experience
-    });
-
-  } catch (error) {
-    console.warn('[useApiSubmit] Memory background process error:', error.message);
-    // Don't throw - memory failure shouldn't affect generation
-  }
-};
-
 const useApiSubmit = (endpoint) => {
-  const { memoryEnabled } = useAuthStore();
   const { generatedText } = useGeneratedTextStore();
 
   const [loading, setLoading] = useState(false);
@@ -227,18 +183,12 @@ const useApiSubmit = (endpoint) => {
           // Prüfe auf verschiedene mögliche Antwortstrukturen
           if (response.content) {
             setSuccess(true);
-            // Add memory for successful antrag generation
-            addMemoryInBackground(endpoint, formData, response, memoryEnabled);
             return response; // Return full response with metadata for title extraction
           } else if (response.metadata && response.metadata.content) {
             setSuccess(true);
-            // Add memory for successful antrag generation
-            addMemoryInBackground(endpoint, formData, response, memoryEnabled);
             return { content: response.metadata.content, metadata: response.metadata }; // Return structured response
           } else if (typeof response === 'string') {
             setSuccess(true);
-            // Add memory for successful antrag generation
-            addMemoryInBackground(endpoint, formData, response, memoryEnabled);
             return { content: response, metadata: {} }; // Wrap string response for consistency
           }
         }
@@ -303,28 +253,20 @@ const useApiSubmit = (endpoint) => {
         
         if (response && response.content) {
           setSuccess(true);
-          // Add memory for successful social media generation
-          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response; // Return full response with metadata for title extraction
         } else if (response && typeof response === 'string') {
           // Fallback if response is already a string
           setSuccess(true);
-          // Add memory for successful social media generation
-          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return { content: response, metadata: {} }; // Wrap string response for consistency
         }
       } else if (endpoint === '/claude_gruene_jugend') {
         console.log('[useApiSubmit] Processing claude_gruene_jugend response:', response);
         if (response && response.content) {
           setSuccess(true);
-          // Add memory for successful gruene jugend generation
-          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return response; // Return full response with metadata for title extraction
         } else if (response && typeof response === 'string') {
           // Fallback if response is already a string
           setSuccess(true);
-          // Add memory for successful gruene jugend generation
-          addMemoryInBackground(endpoint, formData, response, memoryEnabled);
           return { content: response, metadata: {} }; // Wrap string response for consistency
         }
       } else if (endpoint === '/claude_gruenerator_ask') {
@@ -342,30 +284,6 @@ const useApiSubmit = (endpoint) => {
           // Fallback if response is already a string
           setSuccess(true);
           return { content: response };
-        }
-      } else if (endpoint === '/bundestag/search' || endpoint === 'bundestag/search') {
-        console.log('[useApiSubmit] Processing bundestag/search response:', response);
-        console.log('[useApiSubmit] Response structure check:', {
-          hasResponse: !!response,
-          hasSuccess: !!response?.success,
-          hasResults: response?.results !== undefined,
-          resultsType: typeof response?.results,
-          isResultsArray: Array.isArray(response?.results),
-          resultsLength: response?.results?.length
-        });
-        
-        if (response && response.success && Array.isArray(response.results)) {
-          setSuccess(true);
-          console.log('[useApiSubmit] Bundestag search successful, returning response with', response.results.length, 'results');
-          return response; // Return full response with success, query, and results
-        } else {
-          console.error('[useApiSubmit] Invalid bundestag response structure:', {
-            response: response,
-            hasSuccess: response?.success,
-            resultsType: typeof response?.results,
-            isArray: Array.isArray(response?.results)
-          });
-          throw new Error('Invalid response format from Bundestag API');
         }
       } else if (endpoint === 'info_claude') {
         console.log('[useApiSubmit] Processing info_claude response:', response);
@@ -442,8 +360,6 @@ const useApiSubmit = (endpoint) => {
       console.log('[useApiSubmit] Fallback handling for endpoint:', endpoint);
       if (response) {
         setSuccess(true);
-        // Add memory for successful generation (fallback)
-        addMemoryInBackground(endpoint, formData, response, memoryEnabled);
         // If response has content and metadata structure, preserve it; otherwise return as-is
         if (response.content && response.metadata) {
           return response; // Already structured response

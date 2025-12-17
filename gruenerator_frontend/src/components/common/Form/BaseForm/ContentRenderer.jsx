@@ -1,11 +1,11 @@
 import React, { lazy, Suspense } from 'react';
 import PropTypes from 'prop-types';
 const ReactMarkdown = lazy(() => import('react-markdown'));
+const FinetuneEditor = lazy(() => import('../EditMode/FinetuneEditor'));
 import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags, stripWrappingCodeFence } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
 import ImageDisplay from '../../ImageDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import useTextEditActions from '../../../../stores/hooks/useTextEditActions';
 
 
 /**
@@ -61,17 +61,14 @@ const enhanceTextWithCitations = (text, citations) => {
 const ContentRenderer = ({
   value,
   generatedContent,
-  useMarkdown = null, // null = auto-detect, true = force markdown, false = force HTML
+  useMarkdown = null,
   componentName = 'default',
   helpContent,
   onEditModeToggle,
+  isEditModeActive = false,
 }) => {
-  // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL - BEFORE ANY EARLY RETURNS
   const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
-  const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
-  const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
-  const { getEditableText } = useTextEditActions(componentName);
-  
+
   // Handle API response object structure {success, content, metadata}
   let processedGeneratedContent = generatedContent;
   if (generatedContent && typeof generatedContent === 'object' &&
@@ -111,26 +108,20 @@ const ContentRenderer = ({
 
     return (
       <div className="generated-content-wrapper mixed-content">
-        {/* Render social content if available */}
-        {contentToRender && (
+        {/* Render social content - always use FinetuneEditor with readOnly toggle */}
+        {contentToRender && typeof contentToRender === 'string' && (
           <div className="social-content-section">
-            <div className="content-display">
-              {typeof contentToRender === 'string' ? (
-                // Honor explicit markdown override if provided
-                ((useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender))) ? (
-                  <Suspense fallback={<div>Loading...</div>}><ReactMarkdown>{contentToRender}</ReactMarkdown></Suspense>
-                ) : (
-                  <div dangerouslySetInnerHTML={{ __html: contentToRender }} />
-                )
-              ) : (
-                contentToRender
-              )}
-            </div>
+            <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
+              <FinetuneEditor
+                componentName={componentName}
+                readOnly={!isEditModeActive}
+              />
+            </Suspense>
           </div>
         )}
         
-        {/* Render sharepic if available */}
-        {sharepicItems.length > 0 && (
+        {/* Render sharepic if available (hidden in text edit mode) */}
+        {sharepicItems.length > 0 && !isEditModeActive && (
           <div className="sharepic-content-section">
             {sharepicItems.length > 1 ? (
               // Multiple sharepics - pass as array to single ImageDisplay
@@ -212,6 +203,20 @@ const ContentRenderer = ({
   // Wenn processedGeneratedContent ein React-Element ist, direkt anzeigen
   if (isReactElement(processedGeneratedContent)) {
     return processedGeneratedContent;
+  }
+
+  // Always use FinetuneEditor for string content - toggle readOnly based on edit mode
+  if (typeof contentToRender === 'string') {
+    return (
+      <div className={`generated-content-wrapper ${isEditModeActive ? 'editable' : ''}`}>
+        <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
+          <FinetuneEditor
+            componentName={componentName}
+            readOnly={!isEditModeActive}
+          />
+        </Suspense>
+      </div>
+    );
   }
 
   // Determine if we should render as markdown
@@ -351,13 +356,14 @@ ContentRenderer.propTypes = {
     PropTypes.object,
     PropTypes.element
   ]),
-  useMarkdown: PropTypes.bool, // null = auto-detect, true = force markdown, false = force HTML
+  useMarkdown: PropTypes.bool,
   componentName: PropTypes.string,
   helpContent: PropTypes.shape({
     content: PropTypes.string,
     tips: PropTypes.arrayOf(PropTypes.string)
   }),
   onEditModeToggle: PropTypes.func,
+  isEditModeActive: PropTypes.bool,
 };
 
 export default ContentRenderer; 

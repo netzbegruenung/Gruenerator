@@ -9,12 +9,7 @@ import {
     HiOutlineExternalLink,
     HiOutlineDatabase,
     HiOutlinePhotograph,
-    HiOutlineAcademicCap,
-    HiOutlineUser,
     HiOutlineUsers,
-    HiOutlineOfficeBuilding,
-    HiChip,
-    HiOutlineDocumentText,
     HiSave,
     HiSparkles,
     HiOutlineChat
@@ -49,14 +44,9 @@ const LocaleSelector = () => {
 
 const BETA_VIEWS = {
     DATABASE: 'database',
-    YOU: 'you',
     COLLAB: 'collab',
     NOTEBOOK: 'notebook',
-    ELEARNING: 'e_learning',
-    BUNDESTAG_API: 'bundestag_api_enabled',
-    MEMORY: 'memory',
     CANVA: 'canva',
-    INTERACTIVE_ANTRAG: 'interactiveAntrag',
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
     AI_SHAREPIC: 'aiSharepic',
     CHAT: 'chat',
@@ -93,18 +83,6 @@ const SettingsSection = ({
                     linkText: 'Zur Datenbank',
                     icon: HiOutlineDatabase
                 };
-            case BETA_VIEWS.YOU:
-                return {
-                    title: 'You Grünerator',
-                    description: 'Personalisierte Inhalte basierend auf deinem Profil und deinen Vorlieben.',
-                    checked: getBetaFeatureState('you'),
-                    setter: (value) => updateUserBetaFeatures('you', value),
-                    featureName: 'You Generator',
-                    checkboxLabel: 'You Grünerator aktivieren',
-                    linkTo: '/you',
-                    linkText: 'Zum You Grünerator',
-                    icon: HiOutlineUser
-                };
             case BETA_VIEWS.COLLAB:
                 return {
                     title: 'Kollaborative Bearbeitung',
@@ -125,40 +103,6 @@ const SettingsSection = ({
                     checkboxLabel: 'Notebooks aktivieren',
                     icon: NotebookIcon
                 };
-            case BETA_VIEWS.ELEARNING:
-                return {
-                    title: 'E-Learning',
-                    description: 'Interaktive E-Learning Module über grüne Politik, Klimaschutz und nachhaltiges Engagement. Erweitere dein Wissen mit strukturierten Lernpfaden.',
-                    checked: getBetaFeatureState('e_learning'),
-                    setter: (value) => updateUserBetaFeatures('e_learning', value),
-                    featureName: 'E-Learning',
-                    checkboxLabel: 'E-Learning Module aktivieren',
-                    linkTo: '/e-learning',
-                    linkText: 'Zu den Lernmodulen',
-                    icon: HiOutlineAcademicCap
-                };
-            case BETA_VIEWS.BUNDESTAG_API:
-                return {
-                    title: 'Bundestag API',
-                    description: 'Integration mit der Bundestag API (DIP - Dokumentations- und Informationssystem für Parlamentsmaterialien) um parlamentarische Dokumente, Drucksachen und Plenarprotokolle in deine Anträge einzubeziehen.',
-                    checked: getBetaFeatureState('bundestag_api_enabled'),
-                    setter: (value) => updateUserBetaFeatures('bundestag_api_enabled', value),
-                    featureName: 'Bundestag API',
-                    checkboxLabel: 'Bundestag API für parlamentarische Dokumente aktivieren',
-                    linkTo: '/bundestag',
-                    linkText: 'Zum Bundestag-Suchportal',
-                    icon: HiOutlineOfficeBuilding
-                };
-            case BETA_VIEWS.MEMORY:
-                return {
-                    title: 'Memory (Mem0ry)',
-                    description: 'Personalisierte KI-Memories, die sich wichtige Informationen über dich merken und bei der Texterstellung berücksichtigen. Aktiviere diese Funktion, um individualisierte Inhalte zu erhalten.',
-                    checked: getBetaFeatureState('memory'),
-                    setter: (value) => updateUserBetaFeatures('memory', value),
-                    featureName: 'Memory',
-                    checkboxLabel: 'Memory-Tab in der Intelligenz-Sektion aktivieren',
-                    icon: HiChip
-                };
             case BETA_VIEWS.CANVA:
                 return {
                     title: 'Canva Integration',
@@ -168,16 +112,6 @@ const SettingsSection = ({
                     featureName: 'Canva Integration',
                     checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
                     icon: HiOutlinePhotograph
-                };
-            case BETA_VIEWS.INTERACTIVE_ANTRAG:
-                return {
-                    title: 'Interaktiver Antrag',
-                    description: 'KI-gestützte Antragserstellung mit intelligenten Rückfragen. Der Assistent stellt dir gezielte Fragen zu deinem Anliegen und erstellt einen maßgeschneiderten Antrag basierend auf deinen Antworten.',
-                    checked: getBetaFeatureState('interactiveAntrag'),
-                    setter: (value) => updateUserBetaFeatures('interactiveAntrag', value),
-                    featureName: 'Interaktiver Antrag',
-                    checkboxLabel: 'Interaktiven Antrag-Modus in Anträgen aktivieren',
-                    icon: HiOutlineDocumentText
                 };
             case BETA_VIEWS.AUTO_SAVE_EXPORT:
                 return {
