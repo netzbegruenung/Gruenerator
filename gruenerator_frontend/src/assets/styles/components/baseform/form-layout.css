@@ -86,12 +86,6 @@
   border-radius: 24px;
   padding: var(--spacing-medium);
   box-shadow: var(--shadow-md);
-  transition: var(--input-transition);
-}
-
-.form-card--start-mode:focus-within {
-  border-color: var(--klee);
-  box-shadow: var(--input-shadow-focus);
 }
 
 .form-card--start-mode .form-card__content {
@@ -185,13 +179,26 @@
   min-width: 120px;
 }
 
-/* Start mode title - outside the card for compact layout */
+/* Start mode header - title and description outside the card */
+.form-section__start-header {
+  text-align: center;
+  margin-bottom: var(--spacing-medium);
+}
+
 .form-section__start-title {
   text-align: center;
   color: var(--tanne);
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: var(--spacing-medium);
+  margin-bottom: var(--spacing-small);
+}
+
+.form-section__start-description {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 /* Start mode input styling - compact, ChatGPT-like textarea */
@@ -596,6 +603,14 @@
   flex: 2; /* Display side gets 2 parts, like collab editor - 1/3 : 2/3 split */
   background: var(--background-color-pure);
   padding: var(--spacing-large);
+  position: relative;
+  z-index: 10; /* Above form section to prevent dropdown overlap */
+}
+
+/* Contain form section z-index in edit mode */
+.base-container.edit-mode-active .form-section {
+  position: relative;
+  z-index: 1; /* Lower than display section */
 }
 
 /* Edit Mode Focus: Full attention to editing */
