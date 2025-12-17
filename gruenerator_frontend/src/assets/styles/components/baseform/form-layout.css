@@ -423,8 +423,10 @@
   .form-card--large {
     padding: var(--spacing-medium);
     padding-top: 0;
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-medium);
   }
-  
+
   .form-section {
     min-height: 300px;
     margin-top: var(--spacing-medium);
@@ -472,9 +474,9 @@
 @media (max-width: 480px) {
   .form-card--large {
     padding: var(--spacing-small);
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-medium);
   }
-  
-
 }
 
 /* Focus and accessibility improvements */
