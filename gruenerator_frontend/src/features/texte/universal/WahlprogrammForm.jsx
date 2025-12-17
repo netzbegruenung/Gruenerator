@@ -10,8 +10,7 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
     reset
   } = useForm({
     defaultValues: {
-      thema: '',
-      details: '',
+      inhalt: '',
       zeichenanzahl: ''
     }
   });
@@ -23,23 +22,15 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
 
   return (
     <>
-      <FormInput
-        name="thema"
-        control={control}
-        label={FORM_LABELS.THEME}
-        placeholder={FORM_PLACEHOLDERS.THEME}
-        rules={{ required: 'Thema ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.formType || 10}
-      />
-
       <FormTextarea
-        name="details"
+        name="inhalt"
         control={control}
-        label={FORM_LABELS.DETAILS}
-        placeholder={FORM_PLACEHOLDERS.DETAILS}
-        rules={{ required: 'Details sind ein Pflichtfeld' }}
-        minRows={3}
-        tabIndex={tabIndex.hauptfeld || 11}
+        placeholder={FORM_PLACEHOLDERS.INHALT}
+        rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
+        minRows={5}
+        maxRows={15}
+        className="form-textarea-large"
+        tabIndex={tabIndex.formType || 10}
       />
 
       <FormInput

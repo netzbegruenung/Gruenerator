@@ -183,3 +183,20 @@ export const getPlatformDisplayName = (platformId) => {
   };
   return names[platformId] || platformId;
 };
+
+export const PLATFORM_SHARE_URLS = {
+  twitter: (text) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+  facebook: (text) => `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}`,
+  linkedin: (text) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}&summary=${encodeURIComponent(text)}`,
+};
+
+export const openPlatformShare = (platformId, text) => {
+  const urlGenerator = PLATFORM_SHARE_URLS[platformId];
+  if (urlGenerator) {
+    window.open(urlGenerator(text), '_blank', 'width=600,height=400,noopener,noreferrer');
+    return true;
+  }
+  return false;
+};
+
+export const hasPlatformShareUrl = (platformId) => !!PLATFORM_SHARE_URLS[platformId];

@@ -65,6 +65,33 @@ const GrueneratorChat = () => {
 
     if (!message?.trim() || isLoading) return;
 
+    // Check for reset keywords
+    const resetKeywords = ['neustart', 'reset', 'neu starten', 'neustarten', 'von vorne', 'clear'];
+    const normalizedMessage = message.trim().toLowerCase();
+
+    if (resetKeywords.includes(normalizedMessage)) {
+      clearMessages();
+      clearMultiResults();
+      setActiveResultId(null);
+      setInputValue('');
+      setIsEditModeActive(false);
+      setError(null);
+      setAttachedFiles([]);
+
+      try {
+        await fetch('/api/chat/clear', {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.warn('Failed to clear backend session:', error);
+      }
+
+      setTimeout(() => initializeChat(), 100);
+      return;
+    }
+
     try {
       setInputValue('');
 
@@ -101,7 +128,7 @@ const GrueneratorChat = () => {
       console.error('[GrueneratorChat] Error sending message:', error);
       // Error is already handled in useChatApi
     }
-  }, [sendMessage, sendEditInstruction, isLoading, isEditModeActive, attachedFiles, setError]);
+  }, [sendMessage, sendEditInstruction, isLoading, isEditModeActive, attachedFiles, setError, clearMessages, clearMultiResults, setActiveResultId, initializeChat]);
 
   const lastAssistantMessage = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -280,6 +307,21 @@ const GrueneratorChat = () => {
     setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
   }, []);
 
+  const handleDeleteResult = useCallback((componentId) => {
+    const currentResults = useChatStore.getState().multiResults;
+    const filteredResults = currentResults.filter(r => r.componentId !== componentId);
+    useChatStore.setState({ multiResults: filteredResults });
+
+    const textStore = useGeneratedTextStore.getState();
+    textStore.clearGeneratedText(componentId);
+    textStore.clearGeneratedText(`${componentId}_text`);
+
+    if (activeResultId === componentId) {
+      setActiveResultId(null);
+      setIsEditModeActive(false);
+    }
+  }, [activeResultId, setActiveResultId]);
+
   const handleReset = useCallback(async () => {
     if (window.confirm('Möchten Sie wirklich den gesamten Chat zurücksetzen? Alle Nachrichten und generierte Texte gehen verloren.')) {
       try {
@@ -349,6 +391,7 @@ const GrueneratorChat = () => {
           introHelpContent={introHelpContent}
           onEditRequest={handleDeckEditRequest}
           onReset={handleReset}
+          onDeleteResult={handleDeleteResult}
           activeResultId={activeResultId}
           isEditModeActive={isEditModeActive}
         />

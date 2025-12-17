@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import PropTypes from 'prop-types';
+import { IoTrashOutline } from 'react-icons/io5';
 import FormStateProvider from '../../../components/common/Form/FormStateProvider';
 import DisplaySection from '../../../components/common/Form/BaseForm/DisplaySection';
 import ImageDisplay from '../../../components/common/ImageDisplay';
@@ -34,6 +35,7 @@ const ResultCard = React.memo(({
   introHelpContent,
   onEditRequest,
   onReset,
+  onDelete,
   displayActions
 }) => {
   const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
@@ -80,6 +82,14 @@ const ResultCard = React.memo(({
   } : content;
   const textGeneratedContent = isCombinedContent ? resolvedText : result.content;
   const exportGetter = createExportGetter(getGeneratedText, effectiveComponentId, exportSource);
+
+  const deleteExportOption = useMemo(() => onDelete ? [{
+    id: 'delete',
+    label: 'Löschen',
+    subtitle: 'Dieses Ergebnis entfernen',
+    icon: <IoTrashOutline size={16} />,
+    onClick: () => onDelete(componentId)
+  }] : [], [onDelete, componentId]);
 
   const canEdit = resolvedText.trim().length > 0;
 
@@ -157,6 +167,7 @@ const ResultCard = React.memo(({
                         showRedoControls={false}
                         showResetButton={!!onReset}
                         onReset={onReset}
+                        customExportOptions={deleteExportOption}
                         renderActions={(actions) => (
                           actions ? (
                             <div className="results-deck-card-actions">
@@ -231,6 +242,7 @@ const ResultCard = React.memo(({
                         showRedoControls={false}
                         showResetButton={!!onReset}
                         onReset={onReset}
+                        customExportOptions={deleteExportOption}
                         renderActions={(actions) => (
                           actions ? (
                             <div className="results-deck-card-actions">
@@ -264,6 +276,7 @@ const ResultCard = React.memo(({
             showRedoControls={false}
             showResetButton={!!onReset}
             onReset={onReset}
+            customExportOptions={deleteExportOption}
             displayActions={displayActions || result.displayActions}
             renderActions={(actions) => (
               actions ? (
@@ -312,6 +325,7 @@ ResultCard.propTypes = {
   }),
   onEditRequest: PropTypes.func,
   onReset: PropTypes.func,
+  onDelete: PropTypes.func,
   displayActions: PropTypes.node
 };
 
@@ -321,6 +335,7 @@ ResultCard.defaultProps = {
   introHelpContent: undefined,
   onEditRequest: undefined,
   onReset: undefined,
+  onDelete: undefined,
   displayActions: undefined
 };
 

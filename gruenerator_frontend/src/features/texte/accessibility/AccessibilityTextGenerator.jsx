@@ -32,8 +32,8 @@ export const ACCESSIBILITY_TYPE_LABELS = {
 };
 
 export const ACCESSIBILITY_TYPE_TITLES = {
-  [ACCESSIBILITY_TYPES.ALT_TEXT]: 'Barrierefreiheit - Alt-Text',
-  [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: 'Barrierefreiheit - Leichte Sprache'
+  [ACCESSIBILITY_TYPES.ALT_TEXT]: 'Welches Bild willst du heute beschreiben?',
+  [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: 'Welchen Text willst du heute vereinfachen?'
 };
 
 const ACCESSIBILITY_TYPE_ICONS = {

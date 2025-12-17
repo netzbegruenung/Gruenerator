@@ -24,6 +24,8 @@
     background-color: var(--background-color-pure);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     transition: padding 0.3s ease-in-out;
+    position: relative;
+    overflow-anchor: none;
 }
 
 .base-container.has-generated-content {
@@ -43,6 +45,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-anchor: none;
 }
 
 .content-display {
@@ -77,6 +80,16 @@
     margin-bottom: 0;
     transition: all 0.3s ease-in-out;
     min-height: 40px;
+}
+
+.display-header--edit-mode {
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.editor-toolbar-container {
+    display: flex;
+    align-items: flex-start;
 }
 
 /* Hide empty display header when no generated content */

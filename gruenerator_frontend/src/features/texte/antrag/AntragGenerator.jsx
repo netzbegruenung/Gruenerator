@@ -5,17 +5,17 @@ import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/consta
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import SmartInput from '../../../components/common/Form/SmartInput';
-import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
+import { FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { useUserInstructions } from '../../../hooks/useUserInstructions';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
-import useInteractiveAntrag from '../../../hooks/useInteractiveAntrag';
+import useInteractiveGenerator from '../../../hooks/useInteractiveGenerator';
 import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
 import { HiAnnotation } from 'react-icons/hi';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import { useUserDefaults } from '../../../hooks/useUserDefaults';
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -36,31 +36,43 @@ const REQUEST_TYPE_ICONS = {
 };
 
 const REQUEST_TYPE_TITLES = {
-  [REQUEST_TYPES.ANTRAG]: 'Grünerator für Anträge',
-  [REQUEST_TYPES.KLEINE_ANFRAGE]: 'Grünerator für Kleine Anfragen',
-  [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Grünerator für Große Anfragen'
+  [REQUEST_TYPES.ANTRAG]: 'Welchen Antrag willst du heute grünerieren?',
+  [REQUEST_TYPES.KLEINE_ANFRAGE]: 'Welche Kleine Anfrage willst du heute grünerieren?',
+  [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Welche Große Anfrage willst du heute grünerieren?'
 };
 
 const AntragGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'antrag-generator';
 
-  // Beta features check
-  const { canAccessBetaFeature } = useBetaFeatures();
-  const interactiveAntragEnabled = canAccessBetaFeature('interactiveAntrag');
+  // User defaults for persistent preferences
+  const userDefaults = useUserDefaults('antrag');
 
   // State for request type - moved outside of form control
   const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
 
-  // Interactive mode state - enabled by default
-  const [useInteractiveMode, setUseInteractiveMode] = useState(true);
-  const [interactiveState, setInteractiveState] = useState('initial'); // 'initial' | 'questions' | 'generating' | 'completed'
+  // Interactive mode state - initialized from user defaults
+  const [useInteractiveMode, setUseInteractiveMode] = useState(
+    () => userDefaults.get('interactiveMode', true)
+  );
+
+  // Sync state when user defaults hydrate from backend
+  useEffect(() => {
+    if (userDefaults.isHydrated) {
+      const stored = userDefaults.get('interactiveMode', true);
+      setUseInteractiveMode(stored);
+    }
+  }, [userDefaults.isHydrated]);
+
+  const [interactiveState, setInteractiveState] = useState('initial'); // 'initial' | 'questions' | 'generating'
   const [sessionId, setSessionId] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [currentAnswers, setCurrentAnswers] = useState({});
   const [questionRound, setQuestionRound] = useState(0);
 
   // Interactive API hook
-  const { initiateSession, continueSession, loading: interactiveLoading, error: interactiveError } = useInteractiveAntrag();
+  const { initiateSession, continueSession, loading: interactiveLoading, error: interactiveError } = useInteractiveGenerator({
+    generatorType: 'antrag'
+  });
 
   // Custom content state for interactive mode
   const [antragContent, setAntragContent] = useState('');
@@ -81,8 +93,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   // Initialize useBaseForm with knowledge system enabled
   const form = useBaseForm({
     defaultValues: {
-      idee: '',
-      details: '',
+      inhalt: '',
       gliederung: ''
     },
     generatorType: 'antrag',
@@ -114,18 +125,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
   const { control, handleSubmit, getValues, setValue } = form;
 
-  // Disable interactive mode if beta feature is disabled
-  useEffect(() => {
-    if (!interactiveAntragEnabled && useInteractiveMode) {
-      setUseInteractiveMode(false);
-      setInteractiveState('initial');
-      setSessionId(null);
-      setQuestions([]);
-      setCurrentAnswers({});
-      setQuestionRound(0);
-    }
-  }, [interactiveAntragEnabled, useInteractiveMode]);
-
   const onSubmitRHF = useCallback(async (rhfData) => {
     setStoreIsLoading(true);
 
@@ -135,19 +134,35 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
       // INTERACTIVE MODE
       if (useInteractiveMode) {
-        // Phase 1: Initial submission → Get questions
+        // Phase 1: Initial submission → Get questions OR direct result
         if (interactiveState === 'initial') {
           const result = await initiateSession({
-            thema: rhfData.idee,
-            details: rhfData.details,
+            inhalt: rhfData.inhalt,
             requestType: selectedRequestType,
             locale: 'de-DE'
           });
 
-          setSessionId(result.sessionId);
-          setQuestions(result.questions);
-          setQuestionRound(result.questionRound);
-          setInteractiveState('questions');
+          // AI decided no clarification needed - result ready immediately
+          if (result.status === 'completed' && result.finalResult) {
+            const content = result.finalResult;
+            setAntragContent(content);
+            setGeneratedText(componentName, content, result.metadata);
+            setStoreIsLoading(false);
+            return;
+          }
+
+          // AI needs clarification - show questions
+          if (result.questions && result.questions.length > 0) {
+            setSessionId(result.sessionId);
+            setQuestions(result.questions);
+            setQuestionRound(result.questionRound);
+            setInteractiveState('questions');
+            setStoreIsLoading(false);
+            return;
+          }
+
+          // Fallback: no questions and no result - shouldn't happen
+          console.warn('[AntragGenerator] Unexpected state - no questions and no result');
           setStoreIsLoading(false);
           return;
         }
@@ -183,12 +198,14 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             setCurrentAnswers({});
             setInteractiveState('questions');
           } else if (result.status === 'completed') {
-            // Final result ready
             const content = result.finalResult;
             setAntragContent(content);
             setGeneratedText(componentName, content, result.metadata);
-            setInteractiveState('completed');
-            setTimeout(resetSuccess, 3000);
+            setInteractiveState('initial');
+            setSessionId(null);
+            setQuestions([]);
+            setCurrentAnswers({});
+            setQuestionRound(0);
           }
 
           setStoreIsLoading(false);
@@ -199,8 +216,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       // SIMPLE MODE
       const formDataToSubmit = {
         requestType: selectedRequestType,
-        idee: rhfData.idee,
-        details: rhfData.details,
+        inhalt: rhfData.inhalt,
         gliederung: rhfData.gliederung,
         ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: form.generator.attachedFiles
@@ -208,8 +224,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
       const extractQueryFromFormData = (data) => {
         const queryParts = [];
-        if (data.idee) queryParts.push(data.idee);
-        if (data.details) queryParts.push(data.details);
+        if (data.inhalt) queryParts.push(data.inhalt);
         if (data.gliederung) queryParts.push(data.gliederung);
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
@@ -291,27 +306,17 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
 
   const renderFormInputs = () => (
     <>
-      {(interactiveState === 'initial' || interactiveState === 'completed' || !useInteractiveMode) && (
+      {(interactiveState === 'initial' || !useInteractiveMode) && (
         <>
-          <FormInput
-            name="idee"
-            control={control}
-            label={FORM_LABELS.IDEE}
-            placeholder={FORM_PLACEHOLDERS.IDEE}
-            rules={{ required: 'Idee ist ein Pflichtfeld' }}
-            tabIndex={form.generator.tabIndex.idee}
-          />
-
           <FormTextarea
-            name="details"
+            name="inhalt"
             control={control}
-            label={FORM_LABELS.DETAILS}
-            placeholder={FORM_PLACEHOLDERS.DETAILS}
-            rules={{ required: 'Details sind ein Pflichtfeld' }}
-            minRows={3}
-            maxRows={10}
+            placeholder={FORM_PLACEHOLDERS.INHALT}
+            rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
+            minRows={5}
+            maxRows={15}
             className="form-textarea-large"
-            tabIndex={form.generator.tabIndex.details}
+            tabIndex={form.generator.tabIndex.inhalt}
           />
 
           <SmartInput
@@ -330,7 +335,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         </>
       )}
 
-      {interactiveAntragEnabled && useInteractiveMode && interactiveState === 'questions' && (
+      {useInteractiveMode && interactiveState === 'questions' && (
         <QuestionAnswerSection
           questions={questions}
           answers={currentAnswers}
@@ -347,28 +352,26 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     </>
   );
 
-  // Interactive mode toggle - only available if beta feature is enabled
-  const interactiveModeToggle = useMemo(() => {
-    if (!interactiveAntragEnabled) return null;
-
-    return {
-      isActive: useInteractiveMode,
-      onToggle: (checked) => {
-        setUseInteractiveMode(checked);
-        // Reset state when toggling
-        if (!checked) {
-          setInteractiveState('initial');
-          setSessionId(null);
-          setQuestions([]);
-          setCurrentAnswers({});
-          setQuestionRound(0);
-        }
-      },
-      label: "Interaktiver Modus",
-      icon: HiAnnotation,
-      description: "KI stellt Verständnisfragen vor der Generierung"
-    };
-  }, [interactiveAntragEnabled, useInteractiveMode]);
+  // Interactive mode toggle
+  const interactiveModeToggle = useMemo(() => ({
+    isActive: useInteractiveMode,
+    onToggle: (checked) => {
+      setUseInteractiveMode(checked);
+      // Save preference to database
+      userDefaults.set('interactiveMode', checked);
+      // Reset state when toggling off
+      if (!checked) {
+        setInteractiveState('initial');
+        setSessionId(null);
+        setQuestions([]);
+        setCurrentAnswers({});
+        setQuestionRound(0);
+      }
+    },
+    label: "Interaktiver Modus",
+    icon: HiAnnotation,
+    description: "KI stellt Verständnisfragen vor der Generierung"
+  }), [useInteractiveMode, userDefaults]);
 
   // Compute submit button text based on interactive state
   const computedSubmitButtonProps = useMemo(() => {
@@ -390,8 +393,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           statusMessage: 'Grüneriere Antrag...',
           showStatus: true
         };
-      case 'completed':
-        return { defaultText: 'Grünerieren' };
       default:
         return {};
     }
@@ -411,7 +412,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
           generatedContent={storeGeneratedText || antragContent}
           onGeneratedContentChange={handleGeneratedContentChange}
           interactiveModeToggle={interactiveModeToggle}
-          useInteractiveModeToggle={interactiveAntragEnabled}
+          useInteractiveModeToggle={true}
           submitButtonProps={computedSubmitButtonProps}
           firstExtrasChildren={renderRequestTypeSection()}
           hideFormExtras={useInteractiveMode && interactiveState === 'questions'}
