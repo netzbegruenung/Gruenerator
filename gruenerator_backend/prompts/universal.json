@@ -10,20 +10,19 @@
     "urlCrawl": true,
     "examples": false
   },
-  "requestFields": ["textForm", "sprache", "thema", "details"],
+  "requestFields": ["textForm", "sprache", "inhalt"],
   "validation": {
-    "required": ["textForm", "sprache", "thema"],
-    "errorMessage": "Alle Pflichtfelder (Textform, Sprache, Thema) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden."
+    "required": ["textForm", "sprache", "inhalt"],
+    "errorMessage": "Alle Pflichtfelder (Textform, Sprache, Inhalt) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden."
   },
-  "requestTemplate": "Erstelle einen Text mit folgenden Anforderungen:\n\n<textform>\n{{textForm}}\n</textform>\n\n<stil>\n{{sprache}}\n</stil>\n\n<thema>\n{{thema}}\n</thema>\n\n{{#if details}}\n<details>\n{{details}}\n</details>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Erstelle einen Text mit folgenden Anforderungen:\n\n<textform>\n{{textForm}}\n</textform>\n\n<stil>\n{{sprache}}\n</stil>\n\n<inhalt>\n{{inhalt}}\n</inhalt>\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
   "customPromptTemplate": {
     "textForm": "{{textForm|default:'Nicht angegeben'}}",
     "sprache": "{{sprache|default:'Nicht angegeben'}}",
-    "thema": "{{thema|default:'Nicht angegeben'}}",
-    "details": "{{details|default:''}}",
+    "inhalt": "{{inhalt|default:'Nicht angegeben'}}",
     "currentDate": "{{currentDate}}"
   },
-  "webSearchQuery": "{{thema}} {{details}} {{partyName}} Politik",
+  "webSearchQuery": "{{inhalt}} {{partyName}} Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {

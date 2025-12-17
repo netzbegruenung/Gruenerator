@@ -14,8 +14,6 @@
     "docQnA": true,
     "urlCrawl": true,
     "examples": false,
-    "bundestagApi": true,
-    "bundestagApiInstructions": "Du hast Zugang zu relevanten parlamentarischen Dokumenten (Drucksachen und Plenarprotokolle) aus dem Bundestag. Nutze diese Informationen, um den Antrag zu fundieren und auf bereits diskutierte oder beschlossene Themen zu verweisen. Zitiere spezifische Dokumente mit ihrer Nummer und dem Datum. Beachte dabei die vom Benutzer gewünschten Fakten und Schwerpunkte.",
     "interactiveMode": true,
     "clarificationQuestions": {
       "enabled": true,
