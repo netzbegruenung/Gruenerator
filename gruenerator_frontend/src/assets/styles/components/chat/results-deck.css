@@ -74,12 +74,10 @@
 }
 
 .results-deck-card-actions {
-  position: absolute;
-  top: var(--spacing-small, 12px);
-  right: var(--spacing-small, 12px);
   display: flex;
   align-items: center;
   gap: var(--spacing-xsmall, 8px);
+  margin-left: auto;
 }
 
 .results-deck-card-actions .display-actions {
@@ -168,7 +166,6 @@
   }
 
   .results-deck-card-actions {
-    position: static;
     margin-bottom: var(--spacing-small, 12px);
   }
 }

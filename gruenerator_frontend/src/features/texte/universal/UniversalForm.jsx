@@ -12,8 +12,7 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
     defaultValues: {
       textForm: '',
       sprache: '',
-      thema: '',
-      details: '',
+      inhalt: '',
       usePrivacyMode: false
     }
   });
@@ -43,22 +42,14 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
         tabIndex={tabIndex.hauptfeld || 11}
       />
 
-      <FormInput
-        name="thema"
-        control={control}
-        label={FORM_LABELS.THEME}
-        placeholder={FORM_PLACEHOLDERS.THEME}
-        rules={{ required: 'Thema ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.hauptfeld || 12}
-      />
-
       <FormTextarea
-        name="details"
+        name="inhalt"
         control={control}
-        label={FORM_LABELS.DETAILS}
-        placeholder={FORM_PLACEHOLDERS.DETAILS}
-        rules={{ required: 'Details sind ein Pflichtfeld' }}
-        minRows={3}
+        placeholder={FORM_PLACEHOLDERS.INHALT}
+        rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
+        minRows={5}
+        maxRows={15}
+        className="form-textarea-large"
         tabIndex={tabIndex.hauptfeld || 12}
       />
     </>

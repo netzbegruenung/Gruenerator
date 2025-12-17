@@ -36,7 +36,6 @@ const LeichteSpracheForm = forwardRef(({ tabIndex = {}, onUrlsDetected }, ref) =
       <Textarea
         name="originalText"
         control={control}
-        label="Text für Leichte Sprache"
         placeholder="Gib hier den Text ein, der in Leichte Sprache übersetzt werden soll..."
         rules={{ required: 'Text ist ein Pflichtfeld' }}
         minRows={5}

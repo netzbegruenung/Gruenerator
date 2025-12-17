@@ -146,7 +146,6 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
       <FormTextarea
         name="originalText"
         control={control}
-        label="Text für Leichte Sprache"
         placeholder="Gib hier den Text ein, der in Leichte Sprache übersetzt werden soll..."
         rules={{ required: 'Text ist ein Pflichtfeld' }}
         minRows={5}
@@ -164,7 +163,7 @@ const LeichteSpracheGenerator = ({ showHeaderFooter = true }) => {
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           {...form.generator.baseFormProps}
-          title="Leichte Sprache Grünerator"
+          title={<span className="gradient-title">Welchen Text willst du heute vereinfachen?</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading}
           success={success}

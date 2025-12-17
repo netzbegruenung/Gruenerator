@@ -82,8 +82,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   // Use useBaseForm to get automatic document/text fetching
   const form = useBaseForm({
     defaultValues: {
-      thema: initialContent?.thema || '',
-      details: initialContent?.details || '',
+      inhalt: initialContent?.inhalt || initialContent?.thema || '',
       zitatgeber: initialContent?.zitatgeber || '',
       presseabbinder: '',
       platforms: defaultPlatforms,
@@ -193,19 +192,17 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       ];
 
       const formDataToSubmit = {
-        thema: rhfData.thema,
-        details: rhfData.details,
+        inhalt: rhfData.inhalt,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
         ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
         attachments: allAttachments
       };
-      
+
       // Extract search query from form data for intelligent document content
       const extractQueryFromFormData = (data) => {
         const queryParts = [];
-        if (data.thema) queryParts.push(data.thema);
-        if (data.details) queryParts.push(data.details);
+        if (data.inhalt) queryParts.push(data.inhalt);
         if (data.zitatgeber) queryParts.push(data.zitatgeber);
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
@@ -228,8 +225,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       if (hasSharepic) {
         generationPromises.push(
           generateSharepic(
-            rhfData.thema,
-            rhfData.details,
+            rhfData.inhalt,
+            '', // details merged into inhalt
             uploadedImage,
             rhfData.sharepicType || 'default',
             rhfData.zitatAuthor,
@@ -447,8 +444,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const helpContent = {
     content: "Dieser Grünerator erstellt professionelle Pressemitteilungen und Social Media Inhalte basierend auf deinen Angaben.",
     tips: [
-      "Gib ein klares, prägnantes Thema an",
-      "Füge wichtige Details und Fakten hinzu",
+      "Beschreibe dein Thema und alle relevanten Details im Inhalt-Feld",
       "Wähle die gewünschten Formate aus",
       "Bei Pressemitteilungen: Angabe von Zitatgeber erforderlich",
       "Bei Sharepics: Standard erstellt automatisch 3 verschiedene Sharepics. Weitere Formate: 3-Zeilen Slogan, Zitat mit/ohne Bild, Infopost"
@@ -460,7 +456,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       name="platforms"
       control={control}
       platformOptions={platformOptions}
-      label="Formate"
+      label=""
       placeholder="Formate auswählen..."
       required={true}
       tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
@@ -469,25 +465,15 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
 
   const renderFormInputs = () => (
     <>
-      <FormInput
-        name="thema"
-        control={control}
-        label={FORM_LABELS.THEME}
-        placeholder={FORM_PLACEHOLDERS.THEME}
-        rules={{ required: 'Thema ist ein Pflichtfeld' }}
-        tabIndex={form.generator?.tabIndex?.thema}
-      />
-
       <FormTextarea
-        name="details"
+        name="inhalt"
         control={control}
-        label={FORM_LABELS.DETAILS}
-        placeholder={FORM_PLACEHOLDERS.DETAILS}
-        rules={{ required: 'Details sind ein Pflichtfeld' }}
-        minRows={3}
-        maxRows={10}
+        placeholder={FORM_PLACEHOLDERS.INHALT}
+        rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
+        minRows={5}
+        maxRows={15}
         className="form-textarea-large"
-        tabIndex={form.generator?.tabIndex?.details}
+        tabIndex={form.generator?.tabIndex?.inhalt}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
       />
@@ -651,7 +637,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          title={<span className="gradient-title">Presse- & Social Media Grünerator</span>}
+          title={<span className="gradient-title">Welche Botschaft willst du heute grünerieren?</span>}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || sharepicLoading}
           success={success}

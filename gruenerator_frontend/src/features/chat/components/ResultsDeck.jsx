@@ -9,6 +9,7 @@ const ResultsDeck = ({
   introHelpContent,
   onEditRequest,
   onReset,
+  onDeleteResult,
   activeResultId,
   isEditModeActive
 }) => {
@@ -25,6 +26,7 @@ const ResultsDeck = ({
             introHelpContent={introHelpContent}
             onEditRequest={onEditRequest}
             onReset={onReset}
+            onDelete={onDeleteResult}
           />
         ))}
       </div>
@@ -61,6 +63,7 @@ ResultsDeck.propTypes = {
   }),
   onEditRequest: PropTypes.func,
   onReset: PropTypes.func,
+  onDeleteResult: PropTypes.func,
   activeResultId: PropTypes.string,
   isEditModeActive: PropTypes.bool
 };
@@ -71,6 +74,7 @@ ResultsDeck.defaultProps = {
   introHelpContent: undefined,
   onEditRequest: undefined,
   onReset: undefined,
+  onDeleteResult: undefined,
   activeResultId: null,
   isEditModeActive: false
 };
