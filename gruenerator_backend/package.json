@@ -26,7 +26,10 @@
     "backfill:previews": "node scripts/backfillContentPreviews.mjs",
     "load:bundestag": "node scripts/loadBundestagContent.js",
     "load:bundestag:force": "FORCE_REINDEX=true node scripts/loadBundestagContent.js",
-    "sync:bundestag": "node -e \"import('./services/bundestagSyncService.js').then(m => m.getBundestagSyncService().incrementalSync().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.success ? 0 : 1); }))\""
+    "sync:bundestag": "node -e \"import('./services/bundestagSyncService.js').then(m => m.getBundestagSyncService().incrementalSync().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.success ? 0 : 1); }))\"",
+    "sync:austria": "node scripts/syncAustrianSocialMedia.js",
+    "sync:austria:dry-run": "node scripts/syncAustrianSocialMedia.js --dry-run",
+    "sync:austria:full": "node scripts/syncAustrianSocialMedia.js --limit 100"
   },
   "keywords": [],
   "author": "",

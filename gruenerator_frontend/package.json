@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@mdxeditor/editor": "^3.52.1",
     "@radix-ui/react-checkbox": "^1.3.2",
     "@radix-ui/react-switch": "^1.2.5",
     "@remotion/media-utils": "^4.0.390",
