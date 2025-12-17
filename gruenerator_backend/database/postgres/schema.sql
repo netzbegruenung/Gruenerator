@@ -26,14 +26,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     custom_gruenejugend_prompt TEXT,
     custom_rede_prompt TEXT,
     custom_buergeranfragen_prompt TEXT,
-    memory_enabled BOOLEAN DEFAULT FALSE,
     igel_modus BOOLEAN DEFAULT FALSE,
     beta_features JSONB DEFAULT '{}',
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
     auth_source TEXT,
     locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
-    bundestag_api_enabled BOOLEAN DEFAULT FALSE,
     canva_access_token TEXT,
     canva_refresh_token TEXT,
     canva_token_expires_at TIMESTAMPTZ,
@@ -46,13 +44,11 @@ CREATE TABLE IF NOT EXISTS profiles (
     groups BOOLEAN DEFAULT FALSE,
     custom_generators BOOLEAN DEFAULT FALSE,
     database_access BOOLEAN DEFAULT FALSE,
-    you_generator BOOLEAN DEFAULT FALSE,
     collab BOOLEAN DEFAULT FALSE,
     notebook BOOLEAN DEFAULT FALSE,
     sharepic BOOLEAN DEFAULT FALSE,
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
-    memory BOOLEAN DEFAULT FALSE,
     content_management BOOLEAN DEFAULT FALSE,
     canva BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
@@ -65,7 +61,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     -- Document mode preference
     document_mode TEXT DEFAULT 'manual', -- 'manual' or 'wolke'
     -- Export auto-save preference
-    auto_save_on_export BOOLEAN DEFAULT FALSE
+    auto_save_on_export BOOLEAN DEFAULT FALSE,
+    -- User defaults for generator-specific preferences
+    user_defaults JSONB DEFAULT '{}'
 );
 
 -- Groups table (moved before documents to fix foreign key constraint)
@@ -347,18 +345,6 @@ CREATE TABLE IF NOT EXISTS saved_generators (
 
 CREATE INDEX IF NOT EXISTS idx_saved_generators_user_id ON saved_generators(user_id);
 CREATE INDEX IF NOT EXISTS idx_saved_generators_generator_id ON saved_generators(generator_id);
-
--- Memories (for AI memory feature)
-CREATE TABLE IF NOT EXISTS memories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    memory_content TEXT NOT NULL,
-    memory_type TEXT DEFAULT 'conversation',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    importance_score DECIMAL(3,2) DEFAULT 0.5,
-    tags JSONB,
-    metadata JSONB DEFAULT '{}'
-);
 
 -- User Templates (Canva templates and other user templates)
 CREATE TABLE IF NOT EXISTS user_templates (
