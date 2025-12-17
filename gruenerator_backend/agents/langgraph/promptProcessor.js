@@ -168,6 +168,29 @@ function validateRequest(requestBody, config) {
   return null;
 }
 
+async function applyProfileDefaults(requestData, req, type) {
+  if (type === 'social' &&
+      requestData.platforms?.includes('pressemitteilung') &&
+      !requestData.zitatgeber) {
+
+    if (req?.user?.id) {
+      try {
+        const { getProfileService } = await import('../../services/ProfileService.mjs');
+        const profileService = getProfileService();
+        const profile = await profileService.getProfileById(req.user.id);
+
+        if (profile?.display_name) {
+          requestData.zitatgeber = profile.display_name;
+          console.log('[promptProcessor] Applied default zitatgeber from profile:', profile.display_name);
+        }
+      } catch (error) {
+        console.warn('[promptProcessor] Could not fetch profile for default zitatgeber:', error.message);
+      }
+    }
+  }
+  return requestData;
+}
+
 // Build system role with extensions
 function buildSystemRole(config, requestData, generatorData = null) {
   // Handle sharepic multi-type case
@@ -459,6 +482,9 @@ async function processGraphRequest(routeType, req, res) {
     if (validationError) {
       return handleValidationError(res, `/${routeType}`, validationError);
     }
+
+    // Apply profile defaults for optional fields (e.g., zitatgeber from display_name)
+    await applyProfileDefaults(requestData, req, routeType);
 
     // Handle custom_generator special case
     let generatorData = null;
