@@ -9,7 +9,6 @@ const VorlagenGallery = lazy(() =>
   }))
 );
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
-const YouPage = lazy(() => import('../features/you'));
 // EmptyEditor removed - deprecated component
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
 const CampaignPage = lazy(() => import('../features/campaigns'));
@@ -30,7 +29,6 @@ const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_T
 const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
-const BundestagSearch = lazy(() => import('../features/bundestag/components/BundestagSearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
 const NotebookSearchPage = lazy(() => import('../features/notebook/NotebookSearchPage'));
 const GrueneNotebookPage = lazy(() => import('../features/notebook/GrueneNotebookPage'));
@@ -48,6 +46,7 @@ const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGen
 const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
 const SurveyIndex = lazy(() => import('../features/umfragen'));
 const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ default: module.SurveyPage })));
+const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 
 
 // NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
@@ -79,9 +78,6 @@ const WrappedGrueneratorChat = lazy(() =>
   }))
 );
 
-// E-Learning Komponente importieren
-const ELearningPage = lazy(() => import('../features/elearning'));
-// ELearningTutorial component doesn't exist - using ELearningPage instead
 
 // Test-Komponenten importieren (disabled - component not found)
 // const ButtonTest = lazy(() => import('../components/test/ButtonTest'));
@@ -107,7 +103,6 @@ export const GrueneratorenBundle = {
   Rede: UniversalTextGenerator,
   Wahlprogramm: UniversalTextGenerator,
   Search: Search,
-  BundestagSearch: BundestagSearch,
   Oparl: OparlPage,
   Ask: NotebookSearchPage,
   GrueneNotebook: GrueneNotebookPage,
@@ -119,20 +114,18 @@ export const GrueneratorenBundle = {
   AntragDetail: AntragDetailPage,
   VorlagenListe: VorlagenGallery,
   Reel: Reel,
-  You: YouPage,
   Campaign: CampaignPage,
   Webinar: WebinarCampaign,
   // EmptyEditor: EmptyEditor, // Removed - deprecated
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
   Chat: WrappedGrueneratorChat,
-  ELearning: ELearningPage,
-  ELearningTutorial: ELearningPage,
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
   SurveyIndex: SurveyIndex,
-  SurveyPage: SurveyPage
+  SurveyPage: SurveyPage,
+  TextEditor: TextEditorPage
 };
 
 // Route Konfigurationen
@@ -156,7 +149,6 @@ const standardRoutes = [
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
-  { path: '/bundestag', component: GrueneratorenBundle.BundestagSearch, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   { path: '/ask', component: GrueneratorenBundle.Ask, withForm: true },
   { path: '/gruene-notebook', component: GrueneratorenBundle.GrueneNotebook, withForm: true },
@@ -166,7 +158,6 @@ const standardRoutes = [
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
-  { path: '/you', component: GrueneratorenBundle.You, withForm: true },
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
   // { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true }, // Removed - deprecated
@@ -193,10 +184,10 @@ const standardRoutes = [
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   // Grünerator Chat Route
   { path: '/chat', component: GrueneratorenBundle.Chat },
-  // E-Learning Routes
-  { path: '/e-learning', component: GrueneratorenBundle.ELearning },
   // Survey Routes
   { path: '/umfragen', component: GrueneratorenBundle.SurveyIndex },
+  // Text Editor
+  { path: '/texteditor', component: GrueneratorenBundle.TextEditor },
   // Pages Feature Routes
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },

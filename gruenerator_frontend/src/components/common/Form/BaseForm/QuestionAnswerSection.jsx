@@ -179,6 +179,12 @@ const QuestionAnswerSection = ({
                     gridClass = 'quiz-grid-4';
                   }
 
+                  // Include skip option in count for grid layout
+                  const totalOptions = question.skipOption ? optionCount + 1 : optionCount;
+                  if (totalOptions === 4) {
+                    gridClass = 'quiz-grid-4';
+                  }
+
                   return (
                     <>
                       <div className={`question-options-grid ${gridClass}`}>
@@ -206,6 +212,18 @@ const QuestionAnswerSection = ({
                             </button>
                           );
                         })}
+
+                        {/* Skip option */}
+                        {question.skipOption && (
+                          <button
+                            type="button"
+                            className={`quiz-option-button ${currentAnswer === question.skipOption.text ? 'selected' : ''}`}
+                            onClick={() => handleOptionChange(question.skipOption.text)}
+                          >
+                            <span className="option-emoji">{question.skipOption.emoji}</span>
+                            <span className="option-text">{question.skipOption.text}</span>
+                          </button>
+                        )}
                       </div>
 
                       {/* Custom input option - transforms into textarea when clicked */}
@@ -311,7 +329,11 @@ QuestionAnswerSection.propTypes = {
     allowCustom: PropTypes.bool,
     allowMultiSelect: PropTypes.bool,
     placeholder: PropTypes.string,
-    refersTo: PropTypes.string
+    refersTo: PropTypes.string,
+    skipOption: PropTypes.shape({
+      text: PropTypes.string,
+      emoji: PropTypes.string
+    })
   })).isRequired,
   answers: PropTypes.object.isRequired,
   onAnswerChange: PropTypes.func.isRequired,
