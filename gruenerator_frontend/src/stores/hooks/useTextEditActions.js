@@ -79,7 +79,11 @@ const useTextEditActions = (componentName) => {
   const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
 
-  const getEditableText = () => extractEditableText(storeContent);
+  const getEditableText = () => {
+    // Read directly from store to get latest value after applyEdits
+    const currentContent = useGeneratedTextStore.getState().generatedTexts[componentName] || '';
+    return extractEditableText(currentContent);
+  };
 
   const applyEdits = (changes) => {
     // Push current state to history before applying changes
