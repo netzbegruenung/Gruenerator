@@ -44,14 +44,15 @@ import { getExportableContent } from '../utils/contentUtils';
 import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
 
 // Inline utility function (moved from classNameUtils)
-const getBaseContainerClasses = ({ title, generatedContent, isFormVisible, isEditModeActive }) => {
+const getBaseContainerClasses = ({ title, generatedContent, isFormVisible, isEditModeActive, isStartMode }) => {
   const classes = [
     'base-container',
     title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
     generatedContent && (
       typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
     ) ? 'has-generated-content' : '',
-    isEditModeActive ? 'edit-mode-active' : ''
+    isEditModeActive ? 'edit-mode-active' : '',
+    isStartMode ? 'base-container--start-mode' : ''
   ];
   return classes.filter(Boolean).join(' ');
 };
@@ -163,7 +164,12 @@ const BaseFormInternal = ({
   hideFormExtras = false,
   onImageEditModeChange = null, // Callback when image edit mode changes (true = active, false = inactive)
   customExportOptions = [],
-  hideDefaultExportOptions = false
+  hideDefaultExportOptions = false,
+  // Start page layout props
+  useStartPageLayout = true, // Default to true - shows ChatGPT-like centered layout before generation
+  examplePrompts = [], // Array of { icon, text } for clickable example prompts
+  onExamplePromptClick = null, // Callback when example prompt is clicked
+  contextualTip = null // Tip shown below example prompts { icon, text }
 }) => {
 
   const baseFormRef = useRef(null);
@@ -185,6 +191,7 @@ const BaseFormInternal = ({
   const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
   const storeUploadedImage = useFormStateSelector(state => state.uploadedImage);
   const storeIsFormVisible = useFormStateSelector(state => state.isFormVisible);
+  const setIsStartMode = useFormStateSelector(state => state.setIsStartMode);
 
   // Configuration selectors (new, safe with fallbacks)
   const storeTabIndexConfig = useFormStateSelector(state => state.tabIndexConfig);
@@ -303,6 +310,14 @@ const BaseFormInternal = ({
   const hasEditableContent = isStreaming || editableText.length > 0;
   const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
   const isEditModeActive = isEditModeToggled && enableEditMode && hasEditableContent;
+
+  // Start mode: Show centered ChatGPT-like layout when no content has been generated yet
+  const isStartMode = useStartPageLayout && !hasEditableContent;
+
+  // Sync isStartMode to store for child components (e.g., FormAutoInput)
+  React.useEffect(() => {
+    setIsStartMode(isStartMode);
+  }, [isStartMode, setIsStartMode]);
 
   // Separate state for image edit (e.g., campaign sharepic inline editor)
   const [isImageEditActive, setIsImageEditActive] = React.useState(false);
@@ -639,8 +654,16 @@ const BaseFormInternal = ({
     title,
     generatedContent,
     isFormVisible,
-    isEditModeActive
-  }), [title, generatedContent, isFormVisible, isEditModeActive]);
+    isEditModeActive,
+    isStartMode
+  }), [title, generatedContent, isFormVisible, isEditModeActive, isStartMode]);
+
+  // Handler for example prompt clicks
+  const handleExamplePromptClick = useCallback((text) => {
+    if (onExamplePromptClick) {
+      onExamplePromptClick(text);
+    }
+  }, [onExamplePromptClick]);
 
   // Enhanced form submission with accessibility announcements
   const handleEnhancedSubmit = async (formData) => {
@@ -713,41 +736,14 @@ const BaseFormInternal = ({
           )}
         </AnimatePresence>
 
-        {/* In mobile edit mode, show DisplaySection first (top 50%) */}
-        {isEditModeActive && isMobileView && (
-          <motion.div
-            /* layout */
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className={`display-section-motion-wrapper ${isFormVisible ? 'form-visible' : 'form-hidden'}`}
-          >
-            <DisplaySection
-              ref={displaySectionRef}
-              title={displayTitle}
-              error={error || propError}
-              value={value}
-              generatedContent={generatedContent}
-              useMarkdown={resolvedUIConfig.useMarkdown}
-              helpContent={inlineHelpContentOverride || helpContent}
-              generatedPost={generatedPost}
-              onGeneratePost={onGeneratePost}
-              getExportableContent={getExportableContentCallback}
-              displayActions={displayActions}
-              onSave={onSave}
-              componentName={componentName}
-              onErrorDismiss={handleErrorDismiss}
-              onEditModeToggle={customEditContent ? handleToggleImageEdit : handleToggleEditMode}
-              isEditModeActive={isEditModeActive}
-              showEditModeToggle={resolvedUIConfig.enableEditMode}
-              customEditContent={customEditContent}
-              customRenderer={customRenderer}
-              customExportOptions={customExportOptions}
-              hideDefaultExportOptions={hideDefaultExportOptions}
-            />
-          </motion.div>
-        )}
+        {/*
+          Mobile edit mode: UniversalEditForm now handles full-screen chat takeover.
+          DisplaySection is hidden on mobile edit mode since the chat shows the full text.
+        */}
 
         <AnimatePresence initial={false}>
-          {isFormVisible && !(isEditModeActive && isMobileView) && (
+          {/* On mobile edit mode, UniversalEditForm handles its own full-screen takeover via position:fixed */}
+          {(isFormVisible || (isEditModeActive && isMobileView)) && (
             <motion.div
               key="form-section"
               /* layout="position" */
@@ -809,6 +805,10 @@ const BaseFormInternal = ({
                 registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}
                 enableKnowledgeSelector={resolvedUIConfig.enableKnowledgeSelector}
                 hideExtrasSection={hideFormExtras}
+                isStartMode={isStartMode}
+                examplePrompts={examplePrompts}
+                onExamplePromptClick={handleExamplePromptClick}
+                contextualTip={contextualTip}
               >
                 {children}
               </FormSection>
@@ -845,6 +845,7 @@ const BaseFormInternal = ({
               customRenderer={customRenderer}
               customExportOptions={customExportOptions}
               hideDefaultExportOptions={hideDefaultExportOptions}
+              isStartMode={isStartMode}
             />
           </motion.div>
         )}
@@ -1051,7 +1052,18 @@ BaseFormInternal.propTypes = {
     onClick: PropTypes.func.isRequired,
     disabled: PropTypes.bool
   })),
-  hideDefaultExportOptions: PropTypes.bool
+  hideDefaultExportOptions: PropTypes.bool,
+  // Start page layout props
+  useStartPageLayout: PropTypes.bool,
+  examplePrompts: PropTypes.arrayOf(PropTypes.shape({
+    icon: PropTypes.string,
+    text: PropTypes.string.isRequired
+  })),
+  onExamplePromptClick: PropTypes.func,
+  contextualTip: PropTypes.shape({
+    icon: PropTypes.string,
+    text: PropTypes.string.isRequired
+  })
 };
 
 BaseFormInternal.defaultProps = {
@@ -1090,7 +1102,11 @@ BaseFormInternal.defaultProps = {
   showImageUpload: false,
   uploadedImage: null,
   onImageChange: null,
-  hideFormExtras: false
+  hideFormExtras: false,
+  // Start page layout defaults
+  useStartPageLayout: true,
+  examplePrompts: [],
+  onExamplePromptClick: null
 };
 
 // Wrapper BaseForm PropTypes - same as BaseFormInternal

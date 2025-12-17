@@ -15,22 +15,24 @@ import { HiX } from 'react-icons/hi';
  * @param {node} props.children - Kindelemente
  * @returns {JSX.Element} Form-Karte
  */
-const FormCard = ({ 
-  className = '', 
-  variant = 'elevated', 
-  size = 'medium', 
+const FormCard = ({
+  className = '',
+  variant = 'elevated',
+  size = 'medium',
   hover = true,
   title,
   showHideButton = false,
   onHide,
   children,
-  ...rest 
+  isStartMode = false,
+  ...rest
 }) => {
   const cardClasses = [
     'form-card',
     `form-card--${variant}`,
     `form-card--${size}`,
     hover ? 'form-card--hover' : '',
+    isStartMode ? 'form-card--start-mode' : '',
     className
   ].filter(Boolean).join(' ');
 
@@ -67,7 +69,8 @@ FormCard.propTypes = {
   title: PropTypes.string,
   showHideButton: PropTypes.bool,
   onHide: PropTypes.func,
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
+  isStartMode: PropTypes.bool
 };
 
 FormCard.displayName = 'FormCard';

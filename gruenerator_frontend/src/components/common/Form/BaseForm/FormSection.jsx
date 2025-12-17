@@ -4,6 +4,8 @@ import { useShallow } from 'zustand/react/shallow';
 import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
+import ExamplePrompts from './ExamplePrompts';
+import InputTip from '../Input/InputTip';
 import useResponsive from '../hooks/useResponsive';
 import UniversalEditForm from '../EditMode/UniversalEditForm';
 import { useFormStateSelector } from '../FormStateProvider';
@@ -102,7 +104,12 @@ const FormSection = forwardRef(({
   isImageEditActive = false,
   registerEditHandler = null,
   enableKnowledgeSelector = false,
-  customEditContent = null
+  customEditContent = null,
+  // Start mode props
+  isStartMode = false,
+  examplePrompts = [],
+  onExamplePromptClick = null,
+  contextualTip = null
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -154,15 +161,20 @@ const FormSection = forwardRef(({
   }, [setStoreAttachedFiles, onRemoveFile]);
 
   return (
-    <div className={`form-section ${formContainerClasses}`} ref={ref}>
+    <div className={`form-section ${formContainerClasses} ${isStartMode ? 'form-section--start-mode' : ''}`} ref={ref}>
+      {/* Title outside card in start mode for more compact layout */}
+      {isStartMode && title && (
+        <h2 className="form-section__start-title">{title}</h2>
+      )}
       <FormCard
         className={useEditMode ? 'form-card--editmode' : ''}
         variant="elevated"
         size="large"
         hover={false}
-        title={useEditMode ? null : title}
+        title={useEditMode || isStartMode ? null : title}
         showHideButton={showHideButton}
         onHide={onHide}
+        isStartMode={isStartMode}
       >
         <form onSubmit={(e) => {
           e.preventDefault();
@@ -212,6 +224,7 @@ const FormSection = forwardRef(({
               formControl={formControl}
               showImageUpload={showImageUpload}
               onImageChange={onImageChange}
+              isStartMode={isStartMode}
             >
               {isImageEditActive ? (
                 customEditContent
@@ -249,6 +262,7 @@ const FormSection = forwardRef(({
                 enableKnowledgeSelector={enableKnowledgeSelector}
                 attachedFiles={attachedFiles}
                 usePrivacyMode={usePrivacyMode}
+                isStartMode={isStartMode}
               >
                 {extrasChildren}
               </FormExtrasSection>
@@ -262,6 +276,17 @@ const FormSection = forwardRef(({
           )}
         </form>
       </FormCard>
+
+      {/* Example Prompts - shown in start mode */}
+      {isStartMode && examplePrompts.length > 0 && (
+        <ExamplePrompts
+          prompts={examplePrompts}
+          onPromptClick={onExamplePromptClick}
+        />
+      )}
+
+      {/* Contextual tip - shown below example prompts */}
+      {contextualTip && <InputTip tip={contextualTip} />}
     </div>
   );
 });
@@ -320,7 +345,17 @@ FormSection.propTypes = {
   knowledgeSourceSelectorTabIndex: PropTypes.number,
   documentSelectorTabIndex: PropTypes.number,
   submitButtonTabIndex: PropTypes.number,
-  useEditMode: PropTypes.bool
+  useEditMode: PropTypes.bool,
+  isStartMode: PropTypes.bool,
+  examplePrompts: PropTypes.arrayOf(PropTypes.shape({
+    icon: PropTypes.string,
+    text: PropTypes.string.isRequired
+  })),
+  onExamplePromptClick: PropTypes.func,
+  contextualTip: PropTypes.shape({
+    icon: PropTypes.string,
+    text: PropTypes.string.isRequired
+  })
 };
 
 FormSection.defaultProps = {
@@ -350,7 +385,11 @@ FormSection.defaultProps = {
   platformSelectorTabIndex: 12,
   knowledgeSelectorTabIndex: 14,
   submitButtonTabIndex: 17,
-  useEditMode: false
+  useEditMode: false,
+  isStartMode: false,
+  examplePrompts: [],
+  onExamplePromptClick: null,
+  contextualTip: null
 };
 
 FormSection.propTypes.onPrivacyInfoClick = PropTypes.func;
