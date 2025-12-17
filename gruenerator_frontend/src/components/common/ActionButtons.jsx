@@ -314,7 +314,7 @@ const ActionButtons = ({
           {getIcon('actions', 'refresh')({ size: 16 })}
         </button>
       ),
-      edit: showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
+      edit: !isMobileView && showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
         <button
           key="edit"
           onClick={() => {
