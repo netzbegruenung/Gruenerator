@@ -5,12 +5,10 @@ import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { applyChangesToContent, extractEditableText } from '../../../stores/hooks/useTextEditActions';
 import {
-  getSingleResultMessage,
   getEditSuccessMessage,
   getErrorMessage,
   getNoChangesMessage
 } from '../utils/chatMessages';
-import { generateMultiResultMessage } from '../utils/assistantPhrases';
 
 const SHAREPIC_AGENT_SET = new Set(['dreizeilen', 'headline', 'info', 'zitat', 'quote', 'zitat_pure']);
 
@@ -431,12 +429,26 @@ export const useChatApi = () => {
         const mergedResponses = mergeRelatedResults(successfulResponses);
         handleMultiAgentResponses(mergedResponses);
 
-        addMessage({
-          type: 'assistant',
-          content: generateMultiResultMessage(mergedResponses),
-          timestamp: Date.now(),
-          agent: 'multi_intent_summary'
-        });
+        // Add individual messages with resultData for inline rendering
+        const currentStore = useChatStore.getState();
+        const updatedResults = currentStore.multiResults || [];
+
+        for (const result of updatedResults) {
+          const resultText = result.content?.text || '';
+          addMessage({
+            type: 'assistant',
+            content: resultText,
+            timestamp: Date.now(),
+            agent: result.agent,
+            resultData: {
+              text: resultText,
+              sharepic: result.content?.sharepic || null,
+              componentId: result.componentId,
+              metadata: result.content?.metadata || result.metadata || {},
+              title: result.title
+            }
+          });
+        }
 
         return mergedResponses;
       }
@@ -493,11 +505,19 @@ export const useChatApi = () => {
       const allResults = [...existingResults, newResult];
       handleMultiAgentResponses(allResults);
 
+      const resultText = parsedResponse.content?.text || '';
       addMessage({
         type: 'assistant',
-        content: getSingleResultMessage(parsedResponse.agent, newResult.title),
+        content: resultText,
         timestamp: Date.now(),
-        agent: parsedResponse.agent
+        agent: parsedResponse.agent,
+        resultData: {
+          text: resultText,
+          sharepic: parsedResponse.content?.sharepic || null,
+          componentId: newResult.componentId,
+          metadata: parsedResponse.content?.metadata || parsedResponse.metadata || {},
+          title: newResult.title
+        }
       });
 
       return parsedResponse;
