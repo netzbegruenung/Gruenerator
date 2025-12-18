@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     chat BOOLEAN DEFAULT FALSE,
     website BOOLEAN DEFAULT FALSE,
     ai_sharepic BOOLEAN DEFAULT FALSE,
+    vorlagen BOOLEAN DEFAULT FALSE,
+    video_editor BOOLEAN DEFAULT FALSE,
     interactive_antrag_enabled BOOLEAN DEFAULT TRUE,
     nextcloud_share_links JSONB DEFAULT '[]',
     -- Document mode preference

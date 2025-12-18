@@ -7,6 +7,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
   { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
+  { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
@@ -15,6 +16,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false, defaultEnabled: true },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
+  { key: 'videoEditor', label: 'Video Editor', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },

@@ -178,7 +178,9 @@ class ProfileService {
                 'sites': 'sites_enabled',
                 'chat': 'chat',
                 'interactiveAntrag': 'interactive_antrag_enabled',
-                'autoSaveOnExport': 'auto_save_on_export'
+                'autoSaveOnExport': 'auto_save_on_export',
+                'vorlagen': 'vorlagen',
+                'videoEditor': 'video_editor'
             };
 
             if (featureColumnMap[feature]) {
@@ -387,7 +389,9 @@ class ProfileService {
             sites: profile.sites || false,
             chat: profile.chat || false,
             interactiveAntrag: profile.interactive_antrag_enabled ?? true,
-            autoSaveOnExport: profile.auto_save_on_export || false
+            autoSaveOnExport: profile.auto_save_on_export || false,
+            vorlagen: profile.vorlagen || false,
+            videoEditor: profile.video_editor || false
         };
 
         return {
