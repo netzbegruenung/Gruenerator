@@ -79,215 +79,6 @@
   padding: var(--spacing-responsive-xlarge);
 }
 
-/* Start Mode: ChatGPT-like centered input with elevated styling */
-.form-card--start-mode {
-  background-color: var(--card-background);
-  border: var(--border-subtle);
-  border-radius: 24px;
-  padding: var(--spacing-medium);
-  box-shadow: var(--shadow-md);
-}
-
-.form-card--start-mode .form-card__content {
-  padding: 0;
-}
-
-.form-section--start-mode {
-  min-height: auto;
-}
-
-.form-section--start-mode .form-section__container {
-  flex-direction: column;
-  gap: var(--spacing-xsmall);
-}
-
-.form-section--start-mode .form-inputs__fields {
-  margin-bottom: 0;
-}
-
-.form-section--start-mode .form-section__inputs {
-  flex: none;
-}
-
-.form-section--start-mode .form-section__extras {
-  align-self: stretch;
-  flex: none;
-  width: 100%;
-}
-
-/* Start mode extras - split layout: Row (platform + icons) left, Submit right */
-.form-section__extras--start-mode {
-  padding: 0;
-  margin-top: var(--spacing-small);
-  width: 100%;
-  position: relative;
-  min-height: 44px;
-}
-
-.form-section__extras--start-mode .form-extras__content {
-  display: block;
-  width: 100%;
-}
-
-/* Desktop: Row with platform selector + icons on the left */
-.form-section__extras--start-mode .form-extras__row {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-small);
-}
-
-.form-section__extras--start-mode .form-extras__left {
-  position: static;
-}
-
-.form-section__extras--start-mode .form-extras__right {
-  position: static;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-small);
-  flex-direction: row;
-}
-
-/* Desktop: Submit button on the right */
-.form-section__extras--start-mode .form-extras__submit {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-}
-
-/* Start mode: Position validation error to the left of the input */
-.form-section__extras--start-mode .form-extras__right .form-field-error {
-  position: absolute;
-  right: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-right: var(--spacing-small);
-  white-space: nowrap;
-  font-size: 0.85em;
-  color: var(--error-color, #e74c3c);
-}
-
-.form-section__extras--start-mode .form-extras__right .platform-selector {
-  position: relative;
-}
-
-.form-section__extras--start-mode .form-extras__right .form-field-wrapper {
-  position: relative;
-}
-
-.form-section__extras--start-mode .form-extras__item {
-  padding: 0;
-  margin: 0;
-}
-
-.form-section__extras--start-mode .form-extras__submit-button {
-  width: auto;
-  min-width: 120px;
-}
-
-/* Start mode header - title and description outside the card */
-.form-section__start-header {
-  text-align: center;
-  margin-bottom: var(--spacing-medium);
-}
-
-.form-section__start-title {
-  text-align: center;
-  color: var(--tanne);
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: var(--spacing-small);
-}
-
-.form-section__start-description {
-  color: var(--text-secondary);
-  font-size: 1rem;
-  line-height: 1.5;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-/* Start mode input styling - compact, ChatGPT-like textarea */
-.form-section--start-mode textarea {
-  display: block;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  padding: 0 var(--spacing-medium);
-  overflow-y: hidden;
-  border: none;
-  background: transparent;
-}
-
-.form-section--start-mode textarea:focus {
-  outline: none;
-}
-
-/* Start mode mobile adjustments */
-@media (max-width: 768px) {
-  .form-card--start-mode {
-    border-radius: 20px;
-    padding: var(--spacing-small);
-    border: var(--border-subtle);
-    box-shadow: var(--shadow-md);
-  }
-
-  .form-section--start-mode textarea {
-    font-size: 1rem;
-    padding: var(--spacing-small);
-  }
-
-  /* Mobile start mode extras: Platform selector left, icons right, submit below */
-  .form-section__extras--start-mode {
-    min-height: auto;
-  }
-
-  .form-section__extras--start-mode .form-extras__content {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-small);
-  }
-
-  .form-section__extras--start-mode .form-extras__row {
-    position: static;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: var(--spacing-small);
-  }
-
-  .form-section__extras--start-mode .form-extras__left {
-    position: static;
-  }
-
-  .form-section__extras--start-mode .form-extras__right {
-    position: static;
-    margin-left: auto;
-  }
-
-  .form-section__extras--start-mode .form-extras__submit {
-    position: static;
-    width: 100%;
-  }
-
-  .form-section__extras--start-mode .form-extras__submit-button {
-    width: 100%;
-    min-height: 52px;
-    font-size: 1.1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .form-card--start-mode {
-    border-radius: 16px;
-    border: var(--border-subtle);
-    box-shadow: var(--shadow-md);
-  }
-}
-
 /* FormSection Modern Layout */
 .form-section {
   display: flex;
@@ -705,16 +496,8 @@
     padding: calc(var(--spacing-responsive-xlarge) * 1.1);
   }
 
-  .form-card--start-mode.form-card--large {
-    padding: var(--spacing-medium);
-  }
-
   .form-section {
     min-height: 450px;
-  }
-
-  .form-section--start-mode {
-    min-height: auto;
   }
 
   .form-section__container {
@@ -739,11 +522,6 @@
     min-height: 120px;
     padding: 16px;
   }
-
-  .form-section--start-mode textarea {
-    min-height: auto;
-    padding: 0 var(--spacing-medium);
-  }
 }
 
 @media (min-width: 1440px) {
@@ -753,10 +531,6 @@
   
   .form-section {
     min-height: 480px;
-  }
-
-  .form-section--start-mode {
-    min-height: auto;
   }
 
   .form-section input[type="text"],
@@ -771,11 +545,6 @@
     min-height: 130px;
     padding: 18px;
   }
-
-  .form-section--start-mode textarea {
-    min-height: auto;
-    padding: 0 var(--spacing-medium);
-  }
 }
 
 @media (min-width: 1920px) {
@@ -785,10 +554,6 @@
   
   .form-section {
     min-height: 520px;
-  }
-
-  .form-section--start-mode {
-    min-height: auto;
   }
 
   .form-section__container {
@@ -814,11 +579,6 @@
     padding: 20px;
   }
 
-  .form-section--start-mode textarea {
-    min-height: auto;
-    padding: 0 var(--spacing-medium);
-  }
-
   /* Larger labels */
   .form-section label {
     font-size: 1.05rem;
@@ -835,10 +595,6 @@
     min-height: 580px;
   }
 
-  .form-section--start-mode {
-    min-height: auto;
-  }
-
   .form-section input[type="text"],
   .form-section input[type="email"],
   .form-section textarea {
@@ -846,15 +602,10 @@
     padding: 18px 22px;
     font-size: 1.15rem;
   }
-  
+
   .form-section textarea {
     min-height: 160px;
     padding: 22px;
-  }
-
-  .form-section--start-mode textarea {
-    min-height: auto;
-    padding: 0 var(--spacing-medium);
   }
 
   .form-section label {

@@ -1,8 +1,10 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { FiSend } from 'react-icons/fi';
 import FeatureToggle from '../../FeatureToggle';
 import FeatureIcons from '../../FeatureIcons';
 import SubmitButton from '../../SubmitButton';
+import useResponsive from '../hooks/useResponsive';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useFormStateSelector } from '../FormStateProvider';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
@@ -60,6 +62,9 @@ const FormExtrasSection = ({
   usePrivacyMode = false,
   isStartMode = false
 }) => {
+  // Responsive hook
+  const { isMobileView } = useResponsive();
+
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
   const success = useFormStateSelector(state => state.success);
@@ -117,13 +122,10 @@ const FormExtrasSection = ({
 
         {isStartMode ? (
           <>
-            {/* Start Mode: Row with Platform selector (left) and FeatureIcons (right) */}
+            {/* Start Mode: Unified row - Icons (left), Platform + Submit (right) */}
             <div className="form-extras__row">
               <div className="form-extras__left">
-                {firstExtrasChildren}
-              </div>
-              {useFeatureIcons && (
-                <div className="form-extras__right">
+                {useFeatureIcons && (
                   <FeatureIcons
                     onBalancedModeClick={balancedModeToggle ? () => balancedModeToggle.onToggle(!balancedModeToggle.isActive) : undefined}
                     onAttachmentClick={onAttachmentClick}
@@ -140,26 +142,27 @@ const FormExtrasSection = ({
                     noBorder={true}
                     hideLoginPrompt={true}
                   />
-                </div>
-              )}
-            </div>
-
-            {/* Start Mode: Submit button on its own row */}
-            {showSubmitButton && (
-              <div className="form-extras__submit">
-                <SubmitButton
-                  onClick={onSubmit}
-                  loading={loading}
-                  success={success}
-                  text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
-                  className="form-extras__submit-button button-primary"
-                  ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
-                  type="submit"
-                  tabIndex={submitButtonTabIndex}
-                  {...submitButtonProps}
-                />
+                )}
               </div>
-            )}
+              <div className="form-extras__right">
+                {firstExtrasChildren}
+                {showSubmitButton && (
+                  <SubmitButton
+                    onClick={onSubmit}
+                    loading={loading}
+                    success={success}
+                    text={isMultiStep ? (nextButtonText || 'Weiter') : (submitButtonProps.defaultText || "Grünerieren")}
+                    icon={isMobileView ? <FiSend /> : null}
+                    iconOnly={isMobileView}
+                    className={`form-extras__submit-button ${isMobileView ? 'btn-icon btn-primary' : 'button-primary'}`}
+                    ariaLabel={isMultiStep ? (nextButtonText || 'Weiter') : "Generieren"}
+                    type="submit"
+                    tabIndex={submitButtonTabIndex}
+                    {...submitButtonProps}
+                  />
+                )}
+              </div>
+            </div>
           </>
         ) : (
           <>
