@@ -7,6 +7,7 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../../components/common/Chat/utils/chatMessageUtils';
+import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import '../../../assets/styles/components/chat/gruenerator-message.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
@@ -28,6 +29,22 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
 
   const hasResultData = msg.type === 'assistant' && msg.resultData;
   const isActive = hasResultData && msg.resultData?.componentId === activeResultId;
+
+  const componentId = msg.resultData?.componentId;
+  const storeContent = useGeneratedTextStore(
+    state => componentId ? state.generatedTexts?.[componentId] : null
+  );
+
+  const displayText = useMemo(() => {
+    if (!hasResultData) return '';
+    if (!storeContent) return msg.resultData?.text || '';
+
+    if (typeof storeContent === 'string') return storeContent;
+    if (typeof storeContent === 'object') {
+      return storeContent.content || storeContent.text || msg.resultData?.text || '';
+    }
+    return msg.resultData?.text || '';
+  }, [hasResultData, storeContent, msg.resultData?.text]);
 
   return (
     <motion.div
@@ -51,13 +68,13 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
               className="gruenerator-result-sharepic"
             />
           )}
-          <Suspense fallback={<span>{msg.resultData.text}</span>}>
+          <Suspense fallback={<span>{displayText}</span>}>
             <ReactMarkdown components={MARKDOWN_COMPONENTS}>
-              {msg.resultData.text}
+              {displayText}
             </ReactMarkdown>
           </Suspense>
           <ActionButtons
-            generatedContent={msg.resultData.text}
+            generatedContent={displayText}
             showEditMode={true}
             onRequestEdit={() => onEditRequest?.(msg.resultData.componentId)}
             isEditModeActive={isActive && isEditModeActive}
