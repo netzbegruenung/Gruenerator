@@ -502,6 +502,13 @@ const BaseFormInternal = ({
     getDisplayTitle
   } = useResponsive();
 
+  // Scroll to top when edit mode is activated on mobile
+  React.useEffect(() => {
+    if (isEditModeActive && isMobileView) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isEditModeActive, isMobileView]);
+
   // Enhanced accessibility hook with Phase 5 features
   const { 
     setupKeyboardNav, 
