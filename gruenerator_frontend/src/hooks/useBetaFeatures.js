@@ -4,7 +4,7 @@ import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
 
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG = [
-  { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
+  { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
@@ -12,7 +12,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
   { key: 'chat', label: 'Grünerator Chat', isAdminOnly: false, devOnly: true },
-  { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true },
+  // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false, defaultEnabled: true },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
