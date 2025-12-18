@@ -8,7 +8,7 @@ const PROFILE_MENU_ITEMS = [
   { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers, hasSubmenu: true },
   { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/grueneratoren', icon: FaCogs, hasSubmenu: true },
   { key: 'inhalte', label: 'Dateien und Inhalte', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'vorlagen', label: 'Meine Vorlagen', path: '/profile/inhalte/vorlagen', icon: FaLayerGroup },
+  { key: 'vorlagen', label: 'Meine Vorlagen', path: '/profile/inhalte/vorlagen', betaFeature: 'vorlagen', icon: FaLayerGroup },
   { key: 'anweisungen', label: 'Anweisungen', path: '/profile/inhalte/anweisungen', icon: FaClipboardList },
   { key: 'canva', label: 'Canva', path: '/profile/inhalte/canva', betaFeature: 'canva', icon: SiCanva }
 ];

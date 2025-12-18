@@ -7,6 +7,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false },
   { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
+  { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },
   { key: 'notebook', label: 'Notebooks', isAdminOnly: false },
   // { key: 'canva', label: 'Canva Integration', isAdminOnly: false },
