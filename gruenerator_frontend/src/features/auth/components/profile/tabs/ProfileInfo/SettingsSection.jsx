@@ -52,6 +52,8 @@ const BETA_VIEWS = {
     CHAT: 'chat',
     GROUPS: 'groups',
     WEBSITE: 'website',
+    VORLAGEN: 'vorlagen',
+    VIDEO_EDITOR: 'videoEditor',
 };
 
 const SettingsSection = ({
@@ -170,6 +172,30 @@ const SettingsSection = ({
                     linkTo: '/website',
                     linkText: 'Zum Website Generator',
                     icon: getIcon('navigation', 'website')
+                };
+            case BETA_VIEWS.VORLAGEN:
+                return {
+                    title: 'Vorlagen & Galerie',
+                    description: 'Zugang zu deinen persönlichen Vorlagen und der öffentlichen Vorlagen-Galerie.',
+                    checked: getBetaFeatureState('vorlagen'),
+                    setter: (value) => updateUserBetaFeatures('vorlagen', value),
+                    featureName: 'Vorlagen & Galerie',
+                    checkboxLabel: 'Meine Vorlagen und Vorlagen-Galerie aktivieren',
+                    linkTo: '/profile/inhalte/vorlagen',
+                    linkText: 'Zu Meine Vorlagen',
+                    icon: HiOutlineDatabase
+                };
+            case BETA_VIEWS.VIDEO_EDITOR:
+                return {
+                    title: 'Video Editor',
+                    description: 'Volle Video-Bearbeitung im Reel-Studio: Video schneiden, Text-Overlays und Untertitel.',
+                    checked: getBetaFeatureState('videoEditor'),
+                    setter: (value) => updateUserBetaFeatures('videoEditor', value),
+                    featureName: 'Video Editor',
+                    checkboxLabel: 'Volle Video-Bearbeitung im Reel-Studio aktivieren',
+                    linkTo: '/reel',
+                    linkText: 'Zum Reel-Studio',
+                    icon: getIcon('navigation', 'reel')
                 };
             default:
                 return null;
