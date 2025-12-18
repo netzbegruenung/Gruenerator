@@ -457,3 +457,262 @@ body:has(.base-container.edit-mode-active) .container.with-header {
 [data-theme="dark"] .mobile-edit-close-button:hover {
   background-color: var(--mittelgrau);
 }
+
+/* ===== MOBILE EDIT SCROLL FIX ===== */
+/* Phase 1: Fix scrolling - The key issue is .chat-messages-fullscreen has overflow:visible */
+
+/* Fix 1: ChatWorkbenchLayout fills container */
+.universal-edit-form.mobile-chat .qa-chat-container {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 2: Main content area fills remaining space */
+.universal-edit-form.mobile-chat .qa-chat-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 3: Fullscreen content wrapper fills space */
+.universal-edit-form.mobile-chat .qa-chat-fullscreen-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 4: THE KEY FIX - Override fullscreen's overflow:visible */
+.universal-edit-form.mobile-chat .chat-messages-fullscreen {
+  overflow-y: auto !important;
+  height: auto !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
+
+/* Fix 5: ChatUI container needs proper flex setup */
+.universal-edit-form.mobile-chat .qa-chat-ui {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 6: Ensure input area stays at bottom and doesn't break scroll */
+.universal-edit-form.mobile-chat .chat-input-area-fullscreen {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(to top, var(--background-color) 80%, transparent);
+}
+
+/* ===== SCROLL SYNC HIGHLIGHT ===== */
+/* Phase 2: Highlight animation when scrolling to text sections */
+
+.scroll-sync-highlight {
+  animation: scroll-sync-pulse 0.6s ease-out;
+  border-radius: var(--border-radius-small);
+}
+
+@keyframes scroll-sync-pulse {
+  0% {
+    background-color: var(--klee);
+    opacity: 0.4;
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: var(--klee);
+    opacity: 0.2;
+  }
+  100% {
+    background-color: transparent;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-theme="dark"] .scroll-sync-highlight {
+  animation: scroll-sync-pulse-dark 0.6s ease-out;
+}
+
+@keyframes scroll-sync-pulse-dark {
+  0% {
+    background-color: var(--klee);
+    opacity: 0.3;
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: var(--klee);
+    opacity: 0.15;
+  }
+  100% {
+    background-color: transparent;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===== VOICE RECORDING STYLES ===== */
+/* Phase 3: Enhanced voice recording visual feedback for mobile edit */
+
+.universal-edit-form.mobile-chat button.voice-recording {
+  background-color: var(--error-red) !important;
+  color: var(--white) !important;
+  animation: voice-pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
+}
+
+@keyframes voice-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(211, 47, 47, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+    transform: scale(1);
+  }
+}
+
+.universal-edit-form.mobile-chat .voice-recording-indicator {
+  position: fixed;
+  top: calc(60px + env(safe-area-inset-top, 0px) + var(--spacing-medium));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--error-red);
+  color: var(--white);
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  border-radius: var(--card-border-radius-large);
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  z-index: 9999;
+  animation: voice-indicator-fade-in 0.2s ease-out;
+}
+
+.voice-recording-indicator::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--white);
+  border-radius: 50%;
+  animation: voice-dot-blink 1s ease-in-out infinite;
+}
+
+@keyframes voice-indicator-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes voice-dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ===== FOCUS MODE STYLES ===== */
+/* Phase 4: Minimal UI when keyboard is active */
+
+.universal-edit-form.mobile-chat.focus-mode .chat-messages-fullscreen {
+  display: none;
+}
+
+.universal-edit-form.mobile-chat.focus-mode .qa-chat-fullscreen-content {
+  justify-content: flex-end;
+}
+
+.mobile-edit-stats-pill {
+  position: fixed;
+  top: calc(60px + env(safe-area-inset-top, 0px) + var(--spacing-medium));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--background-color-alt);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  border-radius: var(--card-border-radius-large);
+  font-size: 0.75rem;
+  color: var(--font-color);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  z-index: 9998;
+  box-shadow: var(--shadow-md);
+  animation: stats-pill-fade-in 0.2s ease-out;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.mobile-edit-stats-pill:active {
+  transform: translateX(-50%) scale(0.98);
+}
+
+.mobile-edit-stats-pill .pill-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+.mobile-edit-stats-pill .pill-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--grey-300);
+}
+
+[data-theme="dark"] .mobile-edit-stats-pill {
+  background: var(--grey-800);
+}
+
+[data-theme="dark"] .mobile-edit-stats-pill .pill-divider {
+  background: var(--grey-600);
+}
+
+@keyframes stats-pill-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Peek mode - temporarily show messages */
+.universal-edit-form.mobile-chat.focus-mode.peek-mode .chat-messages-fullscreen {
+  display: flex;
+  animation: peek-slide-up 0.2s ease-out;
+}
+
+@keyframes peek-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus mode input enhancement */
+.universal-edit-form.mobile-chat.focus-mode .chat-input-area-fullscreen {
+  padding-top: var(--spacing-large);
+}
