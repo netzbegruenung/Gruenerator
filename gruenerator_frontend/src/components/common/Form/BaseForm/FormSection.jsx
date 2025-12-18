@@ -216,8 +216,8 @@ const FormSection = forwardRef(({
           onSubmit();
         }} className="form-section__form">
           
-          {/* Mobile: firstExtrasChildren above everything (except in start mode where it goes in extras section) */}
-          {isMobileView && firstExtrasChildren && !isStartMode && (
+          {/* Mobile: firstExtrasChildren above everything (except in start mode or edit mode) */}
+          {isMobileView && firstExtrasChildren && !isStartMode && !useEditMode && (
             <div className="form-section__mobile-first-extras">
               {firstExtrasChildren}
             </div>

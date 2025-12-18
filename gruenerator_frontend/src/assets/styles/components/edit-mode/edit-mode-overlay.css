@@ -8,7 +8,7 @@
   width: 100vw;
   height: calc(100vh - 60px);
   background-color: var(--background-color-pure);
-  z-index: 1500;
+  z-index: 9990;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -52,7 +52,7 @@
   border-radius: var(--card-border-radius-large);
   box-shadow: var(--shadow-lg);
   padding: var(--spacing-small);
-  z-index: 1600;
+  z-index: 9995;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   display: flex;
@@ -384,15 +384,25 @@ body:has(.base-container.edit-mode-active) .container.with-header {
     margin: var(--spacing-xxsmall);
   }
 
+  .edit-result-content {
+    padding-top: var(--spacing-xlarge);
+  }
+
   .edit-result-text {
     font-size: 0.95rem;
     max-height: 50vh;
   }
 
   /* Mobile button sizing for edit actions */
+  .chat-message.edit-result-message > .edit-message-actions {
+    top: var(--spacing-xsmall);
+    right: var(--spacing-xsmall);
+    gap: var(--spacing-xsmall);
+  }
+
   .chat-message.edit-result-message > .edit-message-actions button {
     font-size: var(--font-size-small);
-    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+    padding: var(--spacing-xsmall);
   }
 }
 
