@@ -3,8 +3,14 @@
 .subtitler-container {
   display: flex;
   flex-direction: column;
-  padding-top: 1rem;
+  padding-top: 2rem;
   background-color: var(--background-color);
+  color: var(--font-color);
+}
+
+.subtitler-container svg {
+  stroke: var(--font-color);
+  fill: var(--font-color);
 }
 
 .subtitler-title {
