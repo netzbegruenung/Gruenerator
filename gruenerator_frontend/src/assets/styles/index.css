@@ -27,9 +27,6 @@
 @import url('./components/form/form-inputs.css');
 @import url('./components/form/file-upload.css');
 @import url('./components/form/form-image-select.css');
-@import url('./components/baseform/base.css');
-@import url('./components/baseform/form-layout.css');
-@import url('./components/baseform/form-toggle-fab.css');
 @import url('./components/edit-mode/edit-mode-overlay.css');
 /* @import url('../../components/common/KnowledgeSelector/style.css'); */
 

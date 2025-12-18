@@ -544,7 +544,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         tabIndex={form.generator?.tabIndex?.inhalt}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
-        enableTextAutocomplete={true}
+        enableTextAutocomplete={false}
         autocompleteAddHashtag={false}
       />
 

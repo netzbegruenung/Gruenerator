@@ -15,7 +15,8 @@ const SubmitButton = ({
   statusMessage,
   showStatus = false,
   tabIndex,
-  imageLimitInfo
+  imageLimitInfo,
+  iconOnly = false
 }) => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef(null);
@@ -70,15 +71,15 @@ const SubmitButton = ({
     <button
       type={type}
       onClick={handleClick}
-      className={`btn-primary ${className} ${loading ? 'btn-loading' : ''} ${internalSuccess ? 'btn-success' : ''}`}
+      className={`btn-primary ${className} ${loading ? 'btn-loading' : ''} ${internalSuccess ? 'btn-success' : ''} ${iconOnly ? 'btn-icon-only' : ''}`}
       aria-busy={loading}
-      aria-label={ariaLabel}
+      aria-label={ariaLabel || text}
       disabled={loading}
       tabIndex={tabIndex}
     >
       {loading && <Spinner size="small" white />}
       {icon && !loading && <span className="btn-icon">{icon}</span>}
-      <span>{getDisplayText()}</span>
+      {!iconOnly && <span>{getDisplayText()}</span>}
     </button>
   );
 };
@@ -98,7 +99,8 @@ SubmitButton.propTypes = {
   imageLimitInfo: PropTypes.shape({
     count: PropTypes.number,
     limit: PropTypes.number
-  })
+  }),
+  iconOnly: PropTypes.bool
 };
 
 export default SubmitButton;

@@ -51,8 +51,13 @@ async function execute(requestId, data) {
   const toolCalls = choice?.message?.tool_calls || [];
   const stopReason = choice?.finish_reason || 'stop';
 
-  if (!responseContent && stopReason !== 'tool_use') {
-    console.warn(`[LiteLLM ${requestId}] Empty response from model=${response.model || model}`);
+  // Throw error on empty response to trigger fallback
+  // Tool use responses don't require content
+  const isToolUseResponse = stopReason === 'tool_use' || (toolCalls && toolCalls.length > 0);
+  if (!responseContent && !isToolUseResponse) {
+    const errorMsg = `Empty response from LiteLLM model=${response.model || model}`;
+    console.error(`[LiteLLM ${requestId}] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   return {

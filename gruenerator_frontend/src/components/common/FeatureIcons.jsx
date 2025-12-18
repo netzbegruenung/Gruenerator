@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
 import PropTypes from 'prop-types';
-import { HiGlobeAlt, HiEye, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
+import { HiGlobeAlt, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
 import { HiRocketLaunch, HiSparkles } from 'react-icons/hi2';
 import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import AttachedFilesList from './AttachedFilesList';
@@ -13,29 +13,6 @@ import { useAuth } from '../../hooks/useAuth';
 import DropdownPortal from './DropdownPortal';
 import LoginPage from '../../features/auth/pages/LoginPage';
 
-/**
- * ValidationBanner - Shows file upload limits only when Privacy Mode is active
- */
-const ValidationBanner = ({ usePrivacyMode }) => {
-  // Only show banner when Privacy Mode is active (has restrictions)
-  if (!usePrivacyMode) {
-    return null;
-  }
-
-  return (
-    <div className="content-dropdown__validation-banner content-dropdown__validation-banner--privacy">
-      <HiEye className="validation-banner__icon" />
-      <div className="validation-banner__content">
-        <span className="validation-banner__title">Privacy Mode aktiv</span>
-        <span className="validation-banner__text">PDFs max. 10 Seiten, keine Bilder</span>
-      </div>
-    </div>
-  );
-};
-
-ValidationBanner.propTypes = {
-  usePrivacyMode: PropTypes.bool
-};
 
 const FeatureIcons = ({
   // Feature toggle props removed - now using store
@@ -78,7 +55,6 @@ const FeatureIcons = ({
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [fileMetadata, setFileMetadata] = useState({});
-  const [isDragging, setIsDragging] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Unified dropdown state - only ONE dropdown can be open at a time
@@ -134,52 +110,6 @@ const FeatureIcons = ({
     });
   }, []);
 
-  // Re-validate files when privacy mode changes
-  const revalidateFilesForPrivacyMode = useCallback(() => {
-    if (!attachedFiles || attachedFiles.length === 0) return;
-
-    const updatedMetadata = { ...fileMetadata };
-    let hasConflicts = false;
-
-    attachedFiles.forEach((file, index) => {
-      if (updatedMetadata[index]) {
-        const metadata = updatedMetadata[index];
-
-        metadata.hasPrivacyConflict = false;
-        metadata.conflictReason = null;
-
-        if (usePrivacyMode) {
-          if (file.type === 'application/pdf' && metadata.pageCount > 10) {
-            metadata.hasPrivacyConflict = true;
-            metadata.conflictReason = `PDF hat ${metadata.pageCount} Seiten, maximal 10 erlaubt`;
-            hasConflicts = true;
-          }
-          else if (file.type.startsWith('image/')) {
-            metadata.hasPrivacyConflict = true;
-            metadata.conflictReason = 'Bilder werden im Privacy Mode ignoriert';
-            hasConflicts = true;
-          }
-        }
-      }
-    });
-
-    setFileMetadata(updatedMetadata);
-
-    if (hasConflicts) {
-      const conflictFiles = Object.entries(updatedMetadata)
-        .filter(([, meta]) => meta.hasPrivacyConflict)
-        .map(([index, meta]) => `${attachedFiles[index].name}: ${meta.conflictReason}`)
-        .join(', ');
-      setValidationError(`Privacy Mode Konflikt: ${conflictFiles}`);
-    } else {
-      setValidationError(null);
-    }
-  }, [attachedFiles, fileMetadata, usePrivacyMode]);
-
-  useEffect(() => {
-    revalidateFilesForPrivacyMode();
-  }, [usePrivacyMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleIconClick = (event, type, callback) => {
     event.preventDefault();
     event.stopPropagation();
@@ -195,7 +125,7 @@ const FeatureIcons = ({
     setActiveDropdown(null);
   };
 
-  // Shared file processing logic for both file input and drag-drop
+  // File processing logic
   const processFiles = useCallback(async (files) => {
     if (files.length === 0) {
       return;
@@ -211,45 +141,20 @@ const FeatureIcons = ({
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         metadata[i] = {
-          pageCount: null,
-          hasPrivacyConflict: false,
-          conflictReason: null
+          pageCount: null
         };
 
         if (file.type === 'application/pdf') {
           try {
             const pageCount = await getPDFPageCount(file);
             metadata[i].pageCount = pageCount;
-
-            if (usePrivacyMode && pageCount > 10) {
-              metadata[i].hasPrivacyConflict = true;
-              metadata[i].conflictReason = `PDF hat ${pageCount} Seiten, maximal 10 erlaubt`;
-            }
           } catch (error) {
             metadata[i].pageCount = null;
           }
         }
-        else if (file.type.startsWith('image/') && usePrivacyMode) {
-          metadata[i].hasPrivacyConflict = true;
-          metadata[i].conflictReason = 'Bilder werden im Privacy Mode ignoriert';
-        }
       }
 
       setFileMetadata(metadata);
-
-      if (usePrivacyMode) {
-        const hasConflicts = Object.values(metadata).some(m => m.hasPrivacyConflict);
-        if (hasConflicts) {
-          const conflictFiles = Object.entries(metadata)
-            .filter(([, meta]) => meta.hasPrivacyConflict)
-            .map(([index, meta]) => `${files[index].name}: ${meta.conflictReason}`)
-            .join(', ');
-
-          setValidationError(`Privacy Mode Konflikt: ${conflictFiles}`);
-          setIsValidatingFiles(false);
-          return;
-        }
-      }
 
       if (onAttachmentClick) {
         onAttachmentClick(files);
@@ -260,7 +165,7 @@ const FeatureIcons = ({
     } finally {
       setIsValidatingFiles(false);
     }
-  }, [usePrivacyMode, onAttachmentClick]);
+  }, [onAttachmentClick]);
 
   const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files);
@@ -268,61 +173,11 @@ const FeatureIcons = ({
     event.target.value = '';
   };
 
-  // Drag-and-drop handlers
-  const handleDragEnter = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDragLeave = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Only set isDragging to false if leaving the content container entirely
-    if (e.currentTarget === e.target) {
-      setIsDragging(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback(async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (isValidatingFiles) return;
-
-    const droppedFiles = Array.from(e.dataTransfer.files);
-
-    // Filter for accepted file types
-    const acceptedTypes = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-    const validFiles = droppedFiles.filter(file => {
-      const extension = '.' + file.name.split('.').pop().toLowerCase();
-      return acceptedTypes.includes(extension) ||
-             file.type === 'application/pdf' ||
-             file.type.startsWith('image/');
-    });
-
-    if (validFiles.length === 0) {
-      setValidationError('Nur PDF und Bilder (.jpg, .jpeg, .png, .webp) sind erlaubt.');
-      return;
-    }
-
-    if (validFiles.length < droppedFiles.length) {
-      setValidationError(`${droppedFiles.length - validFiles.length} Datei(en) übersprungen (ungültiger Typ).`);
-    }
-
-    await processFiles(validFiles);
-  }, [isValidatingFiles, processFiles]);
 
 
-  // Show login prompt for non-authenticated users (unless hidden)
-  if (!user) {
+  // Show login prompt for non-authenticated users (unless hidden or on localhost for debugging)
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (!user && !isLocalhost) {
     if (hideLoginPrompt) {
       return null;
     }
@@ -392,15 +247,11 @@ const FeatureIcons = ({
         </div>
 
         <div
-          className={`content-mode-container ${isDragging ? 'dragging' : ''}`}
+          className="content-mode-container"
           ref={contentContainerRef}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
         >
           <button
-            className={`feature-icon-button ${(totalContentCount > 0 || useAutomaticSearch) ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''} ${isDragging ? 'dragging' : ''}`}
+            className={`feature-icon-button ${(totalContentCount > 0 || useAutomaticSearch) ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''}`}
             onClick={(event) => {
               handleIconClick(event, 'content');
               handleDropdownToggle('content');
@@ -468,15 +319,15 @@ const FeatureIcons = ({
             </button>
           </div>
         )}
-      </div>
 
-      {/* Attached Files List */}
-      <AttachedFilesList
-        files={attachedFiles}
-        onRemoveFile={onRemoveFile}
-        fileMetadata={fileMetadata}
-        privacyModeActive={usePrivacyMode}
-      />
+        {/* Attached Files List - inside the row for inline display */}
+        <AttachedFilesList
+          files={attachedFiles}
+          onRemoveFile={onRemoveFile}
+          fileMetadata={fileMetadata}
+          compact={true}
+        />
+      </div>
 
       {/* Selected Documents and Texts */}
       {(selectedDocumentIds.length > 0 || selectedTextIds.length > 0) && (
@@ -550,7 +401,7 @@ const FeatureIcons = ({
           <HiSparkles className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Kreativ</span>
-            <span className="balanced-dropdown-desc">Kreative Texte mit Mistral Medium.</span>
+            <span className="balanced-dropdown-desc">Mistral Medium.</span>
           </div>
         </button>
 
@@ -585,8 +436,8 @@ const FeatureIcons = ({
         >
           <HiPlusCircle className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
-            <span className="balanced-dropdown-title">Pro</span>
-            <span className="balanced-dropdown-desc">Erweiterte KI für komplexe Aufgaben.</span>
+            <span className="balanced-dropdown-title">Reasoning</span>
+            <span className="balanced-dropdown-desc">Kann nachdenken. Dauert länger.</span>
           </div>
         </button>
 
@@ -604,7 +455,7 @@ const FeatureIcons = ({
           <HiRocketLaunch className="balanced-dropdown-icon" />
           <div className="balanced-dropdown-content">
             <span className="balanced-dropdown-title">Ultra</span>
-            <span className="balanced-dropdown-desc">Maximale KI-Leistung für komplexe Aufgaben.</span>
+            <span className="balanced-dropdown-desc">Weltweit führendes Modell.</span>
           </div>
         </button>
       </DropdownPortal>
@@ -619,11 +470,9 @@ const FeatureIcons = ({
         gap={8}
       >
         <ContentSelector
-          mode="compact"
           onAttachmentClick={onAttachmentClick}
           onRemoveFile={onRemoveFile}
           attachedFiles={attachedFiles}
-          usePrivacyMode={usePrivacyMode}
           onDropdownClose={() => setActiveDropdown(null)}
         />
       </DropdownPortal>
@@ -656,20 +505,8 @@ const FeatureIcons = ({
       {validationError && (
         <div className="feature-icons__validation-error" role="alert" aria-live="assertive">
           <span style={{ color: 'var(--error-color, #e74c3c)', fontSize: '0.9em' }}>
-            ⚠️ {validationError}
+            {validationError}
           </span>
-          {validationError.includes('Privacy Mode') && (
-            <button
-              type="button"
-              className="feature-icons__error-action"
-              onClick={() => {
-                togglePrivacyMode();
-                setValidationError(null);
-              }}
-            >
-              Privacy Mode deaktivieren
-            </button>
-          )}
         </div>
       )}
     </div>

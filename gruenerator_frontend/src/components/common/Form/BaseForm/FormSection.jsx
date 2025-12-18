@@ -1,6 +1,7 @@
 import React, { forwardRef, useRef, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { useShallow } from 'zustand/react/shallow';
+import { HiUpload } from 'react-icons/hi';
 import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
 import FormExtrasSection from './FormExtrasSection';
@@ -10,6 +11,8 @@ import useResponsive from '../hooks/useResponsive';
 import UniversalEditForm from '../EditMode/UniversalEditForm';
 import { useFormStateSelector } from '../FormStateProvider';
 import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSelectionStore';
+import useDragDropFiles from '../../../../hooks/useDragDropFiles';
+import '../../../../assets/styles/components/baseform/drag-drop.css';
 
 /**
  * Hauptkomponente für den Formular-Container (Inputs + Extras)
@@ -161,11 +164,25 @@ const FormSection = forwardRef(({
     }
   }, [setStoreAttachedFiles, onRemoveFile]);
 
+  // Drag-and-drop file handling
+  const { getRootProps, isDragActive } = useDragDropFiles({
+    onFilesAccepted: handleAttachmentClick,
+    disabled: !onAttachmentClick
+  });
+
   return (
-    <div className={`form-section ${formContainerClasses} ${isStartMode ? 'form-section--start-mode' : ''}`} ref={ref}>
-      {/* Title and description outside card in start mode */}
-      {isStartMode && (title || startPageDescription) && (
-        <div className="form-section__start-header">
+    <div {...getRootProps()} className="form-section-wrapper">
+      {isDragActive && (
+        <div className="form-section__drag-overlay">
+          <HiUpload className="form-section__drag-overlay-icon" />
+          <span className="form-section__drag-overlay-text">Dateien hier ablegen</span>
+          <span className="form-section__drag-overlay-hint">PDF, JPG, PNG, WebP</span>
+        </div>
+      )}
+      <div className={`form-section ${formContainerClasses} ${isStartMode ? 'form-section--start-mode' : ''}`} ref={ref}>
+        {/* Title and description outside card in start mode */}
+        {isStartMode && (title || startPageDescription) && (
+          <div className="form-section__start-header">
           {title && <h2 className="form-section__start-title">{title}</h2>}
           {startPageDescription && (
             <p className="form-section__start-description">{startPageDescription}</p>
@@ -293,6 +310,7 @@ const FormSection = forwardRef(({
 
       {/* Contextual tip - shown below example prompts */}
       {contextualTip && <InputTip tip={contextualTip} />}
+      </div>
     </div>
   );
 });
