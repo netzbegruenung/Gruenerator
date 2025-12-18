@@ -16,6 +16,7 @@ const BETA_FEATURES_CONFIG = [
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false, defaultEnabled: true },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
+  { key: 'videoEditor', label: 'Video Editor', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)
   { key: 'igel_modus', label: 'Igel-Modus', isAdminOnly: false, isProfileSetting: true },
   { key: 'labor', label: 'Labor', isAdminOnly: false, isProfileSetting: true },

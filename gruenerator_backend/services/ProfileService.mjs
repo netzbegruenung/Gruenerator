@@ -179,7 +179,8 @@ class ProfileService {
                 'chat': 'chat',
                 'interactiveAntrag': 'interactive_antrag_enabled',
                 'autoSaveOnExport': 'auto_save_on_export',
-                'vorlagen': 'vorlagen'
+                'vorlagen': 'vorlagen',
+                'videoEditor': 'video_editor'
             };
 
             if (featureColumnMap[feature]) {
@@ -389,7 +390,8 @@ class ProfileService {
             chat: profile.chat || false,
             interactiveAntrag: profile.interactive_antrag_enabled ?? true,
             autoSaveOnExport: profile.auto_save_on_export || false,
-            vorlagen: profile.vorlagen || false
+            vorlagen: profile.vorlagen || false,
+            videoEditor: profile.video_editor || false
         };
 
         return {
