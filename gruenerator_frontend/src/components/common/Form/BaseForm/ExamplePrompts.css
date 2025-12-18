@@ -36,6 +36,9 @@
 
 .example-prompts__icon {
   font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .example-prompts__text {
