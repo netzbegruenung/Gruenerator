@@ -130,6 +130,7 @@
 .chat-messages-fullscreen .chat-message.assistant {
   background: var(--white);
   color: var(--font-color);
+  border-radius: var(--card-border-radius-medium);
 }
 
 .chat-messages-fullscreen .chat-message.assistant p,
@@ -812,7 +813,13 @@
 
 @media (max-width: 768px) {
   .chat-messages {
-    padding: 16px 16px 120px 16px;
+    padding: var(--spacing-small) var(--spacing-medium) var(--spacing-large) var(--spacing-medium);
+  }
+
+  /* Better readability on mobile - 16px minimum, 1.6 line-height */
+  .chat-message.assistant p {
+    font-size: 1rem;
+    line-height: 1.6;
   }
 
   /* Fullscreen mode mobile adjustments - remove excessive left space */
