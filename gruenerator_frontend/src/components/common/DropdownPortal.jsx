@@ -25,7 +25,20 @@ const DropdownPortal = ({
     const windowHeight = window.innerHeight;
     const space = 8;
 
-    let top = triggerRect.bottom + window.scrollY + gap;
+    // Calculate available space above and below
+    const spaceBelow = windowHeight - triggerRect.bottom;
+    const spaceAbove = triggerRect.top;
+    const dropdownHeight = dropdownRect.height || 200; // fallback for initial render
+
+    // Open upward if not enough space below and more space above
+    const openUpward = spaceBelow < dropdownHeight + gap && spaceAbove > spaceBelow;
+
+    let top;
+    if (openUpward) {
+      top = triggerRect.top + window.scrollY - dropdownHeight - gap;
+    } else {
+      top = triggerRect.bottom + window.scrollY + gap;
+    }
 
     // Calculate width based on widthRef if provided, otherwise use trigger
     let dropdownWidth;

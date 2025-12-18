@@ -240,6 +240,7 @@ const PlatformSelector = ({
           noOptionsMessage={() => 'Keine Optionen verfügbar'}
           menuPortalTarget={document.body}
           menuPosition="fixed"
+          menuPlacement="auto"
           filterOption={filterOption}
           styles={autoSelectStyles}
           {...rest}
@@ -328,6 +329,7 @@ const PlatformSelector = ({
             noOptionsMessage={() => 'Keine Optionen verfügbar'}
             menuPortalTarget={document.body}
             menuPosition="fixed"
+            menuPlacement="auto"
             filterOption={filterOption}
             styles={autoSelectStyles}
             {...rest}
