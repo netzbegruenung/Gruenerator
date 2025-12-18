@@ -41,9 +41,9 @@
 
 
 .error-message {
-  background-color: #fde8e8;
-  border: 1px solid #f8b4b4;
-  color: #c81e1e;
+  background-color: var(--background-red-light);
+  border: 1px solid var(--error-red);
+  color: var(--error-red);
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -54,9 +54,9 @@
 }
 
 [data-theme="dark"] .error-message {
-  background-color: #3b1818;
-  border-color: #c81e1e;
-  color: #f8b4b4;
+  background-color: var(--grey-800);
+  border-color: var(--error-red);
+  color: var(--error-red);
 }
 
 
@@ -131,7 +131,7 @@
 .segment-text:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(0, 85, 56, 0.1);
+  box-shadow: var(--input-shadow-focus);
 }
 
 .editor-controls {
@@ -203,8 +203,8 @@
 }
 
 .btn-primary:disabled {
-  background-color: #cccccc;
-  color: #666666;
+  background-color: var(--grey-300);
+  color: var(--grey-600);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;

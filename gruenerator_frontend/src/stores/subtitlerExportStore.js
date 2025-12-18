@@ -360,11 +360,7 @@ export const useSubtitlerExportStore = create((set, get) => ({
       const newCount = Math.max(0, currentState.subscriberCount - 1);
       console.log(`[SubtitlerExportStore] Subscriber removed (${newCount})`);
       set({ subscriberCount: newCount });
-
-      // Stop polling if no more subscribers
-      if (newCount === 0) {
-        get().stopPolling();
-      }
+      // Polling stops naturally when export completes/errors, or via beforeunload handler
     };
   },
 

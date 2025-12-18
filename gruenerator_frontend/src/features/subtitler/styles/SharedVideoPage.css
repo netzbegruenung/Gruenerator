@@ -39,8 +39,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--tanne);
-    color: white;
+    background: var(--primary-600);
+    color: var(--white);
     padding: var(--spacing-xxsmall) var(--spacing-small);
     border-radius: var(--card-border-radius-small);
     font-size: 0.75rem;

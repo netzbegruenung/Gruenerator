@@ -13,25 +13,25 @@
 /* Tab Navigation */
 .editor-tabs {
   display: flex;
-  gap: var(--spacing-xsmall, 8px);
-  background: var(--background-color-secondary);
-  padding: var(--spacing-xsmall, 6px);
-  border-radius: var(--border-radius-medium, 8px);
+  gap: var(--spacing-xsmall);
+  background: var(--background-color-alt);
+  padding: var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
   width: fit-content;
 }
 
 .editor-tab {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xxsmall, 6px);
-  padding: var(--spacing-small, 10px) var(--spacing-medium, 16px);
+  gap: var(--spacing-xxsmall);
+  padding: var(--spacing-small) var(--spacing-medium);
   border: none;
   background: transparent;
-  border-radius: var(--border-radius-small, 6px);
+  border-radius: var(--card-border-radius-small);
   cursor: pointer;
-  font-size: var(--font-size-small, 0.875rem);
+  font-size: 0.875rem;
   font-weight: 500;
-  color: var(--font-color-secondary);
+  color: var(--font-color-disabled);
   transition: all 0.2s ease;
 }
 
@@ -41,13 +41,13 @@
 }
 
 .editor-tab--active {
-  background: var(--klee, #46962b);
-  color: white;
+  background: var(--primary-500);
+  color: var(--white);
 }
 
 .editor-tab--active:hover {
-  background: var(--klee-dark, #357820);
-  color: white;
+  background: var(--primary-600);
+  color: var(--white);
 }
 
 .editor-tab svg {
@@ -132,7 +132,7 @@
 .subtitle-editor-video-controls .btn-secondary {
   background-color: transparent;
   color: var(--font-color);
-  border: 1px solid var(--border-color);
+  border: var(--border-subtle);
 }
 
 .subtitle-editor-video-controls .btn-primary:hover:not(:disabled) {
@@ -498,7 +498,7 @@
   flex: 1;
   min-height: 50px;
   padding: 0.5rem;
-  border: 1px solid var(--border-color);
+  border: var(--border-subtle);
   border-radius: 4px;
   background: var(--background-color);
   color: var(--font-color);
@@ -599,7 +599,7 @@
     justify-content: center;
     padding: var(--spacing-small);
     background-color: var(--background-color);
-    border-top: 1px solid var(--border-color);
+    border-top: var(--border-subtle);
     z-index: 101;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   }
@@ -677,7 +677,7 @@
 }
 
 [data-theme="dark"] .subtitle-editor-video-controls .btn-secondary {
-  border-color: var(--border-color);
+  border-color: var(--grey-600);
   color: var(--font-color);
 }
 

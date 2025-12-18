@@ -28,22 +28,29 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: var(--klee);
+  background: var(--primary-500);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 40px;
-  color: white;
+  color: var(--white);
   margin: 0 auto 20px;
   transition: all 0.3s ease-in-out;
 }
 
 .video-success-icon.loading {
-  background: var(--klee);
+  background: var(--primary-500);
 }
 
 .video-success-icon:not(.loading) {
   animation: videoScaleIn 0.3s ease-out;
+}
+
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .video-success-spinner {
@@ -58,8 +65,11 @@
   animation: videoSpin 1s ease-in-out infinite;
 }
 
-.video-success-icon .video-spinner-percentage {
+.video-spinner-percentage {
   color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes videoSpin {
@@ -213,8 +223,8 @@
 }
 
 .video-error-message {
-  background-color: var(--error-light);
-  color: var(--error);
+  background-color: var(--background-red-light);
+  color: var(--error-red);
   padding: 1rem;
   border-radius: 4px;
   margin: 1rem 0;
@@ -259,12 +269,12 @@
 
 @media (max-width: 768px) {
   .video-success-screen .copy-button {
-    font-size: 0.6rem;
+    font-size: 0.75rem;
   }
 }
 
 .video-success-screen .copy-button:hover {
-  background-color: var(--klee-light);
+  background-color: var(--hover-color-alt);
 }
 
 [data-theme="dark"] .video-success-screen .copy-button {
@@ -300,7 +310,7 @@
 .video-progress-bar {
   width: 100%;
   height: 8px;
-  background-color: var(--grau-hell, #f0f0f0);
+  background-color: var(--grey-200);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 8px;
@@ -308,14 +318,14 @@
 
 .video-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--klee, #4CAF50), var(--gruen, #2E7D32));
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .video-progress-text {
   font-size: 14px;
-  color: var(--grau-dunkel, #666);
+  color: var(--font-color-disabled);
   text-align: center;
   display: block;
 }
@@ -338,5 +348,61 @@
 @media (max-width: 768px) {
   .video-preview {
     max-height: 40vh;
+  }
+
+  .video-success-content {
+    padding: 1.5rem 1rem;
+  }
+
+  .video-success-info .action-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .video-success-info .action-buttons button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .video-success-info h2 {
+    font-size: 1.3rem;
+  }
+
+  .video-success-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .video-success-content {
+    padding: 1rem 0.75rem;
+  }
+
+  .video-preview {
+    max-height: 35vh;
+  }
+
+  .video-success-info h2 {
+    font-size: 1.2rem;
+  }
+
+  .video-success-content p {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .video-success-buttons {
+    gap: 0.5rem;
+  }
+
+  .video-social-text-result {
+    padding: 1rem 0 0 0;
+  }
+
+  .video-social-text-result h3 {
+    font-size: 1rem;
   }
 }
