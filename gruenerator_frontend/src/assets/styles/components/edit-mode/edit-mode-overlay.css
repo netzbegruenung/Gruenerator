@@ -309,11 +309,20 @@ body:has(.base-container.edit-mode-active) .container.with-header {
 
 /* Mobile chat container - simple wrapper, ChatWorkbenchLayout handles layout */
 .universal-edit-form.mobile-chat {
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
+  z-index: 9990;
+  padding-top: var(--spacing-xlarge);
   background: var(--background-color);
+}
+
+/* Override form-section stacking context to allow mobile edit mode to appear above header */
+.form-section:has(.universal-edit-form.mobile-chat) {
+  z-index: 9980;
 }
 
 /* Edit result message styling */
@@ -406,4 +415,40 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   }
 }
 
+/* Mobile Edit Close Button */
+.mobile-edit-close-button {
+  position: fixed;
+  top: var(--spacing-medium);
+  right: var(--spacing-medium);
+  z-index: 9995;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--font-color);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
 
+.mobile-edit-close-button:hover {
+  background-color: var(--background-color-hover);
+  transform: scale(1.05);
+}
+
+.mobile-edit-close-button:active {
+  transform: scale(0.95);
+}
+
+[data-theme="dark"] .mobile-edit-close-button {
+  background-color: var(--dunkelgrau);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .mobile-edit-close-button:hover {
+  background-color: var(--mittelgrau);
+}
