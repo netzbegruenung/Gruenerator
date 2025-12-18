@@ -7,6 +7,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Reusable drag-drop hook (`useDragDropFiles`) with overlay styles
+- ChatGPT-like start page layout with centered input experience
+- Mobile chat experience with full text messages in edit mode
+- Interactive generator and text improver
+- Autocomplete and platform detection hooks
+- Qdrant collections schema configuration
+- Edit mode pencil on mobile with simplified MDX editor
+- Sharepic sharing modal component with file sharing and clipboard utilities
+- Enhanced sharing features for SharedVideoPage (QR code, native Instagram share)
+- Multi-domain support for .de, .at, .eu domains
+- Export buttons restructured with native share and 3-dot menu
+- Video editor with auto-processing and Remotion integration
+- Inline ghost text tag autocomplete for template modals
+- OParl API integration and Website generator
+- Gladia transcription service
+- GrueneratorGPTIcon and mode icons
+- Interactive antrag enabled by default
+- Mistral reasoning mode for Pro Mode
+- Alttext migration to Mistral Large 3 vision
+- Auto-save exports as projects
+- Christmas campaign popup and /weihnachten route
+- Background video rendering for share links
+- Loading overlay when selecting subtitler project
+- Floating play/pause button for mobile subtitle editor
+- Video sharing with on-demand social text generation
+- New subtitler editor with project management
+- Two download buttons for subtitler (Instagram/Full quality)
+- FFmpeg process pool for concurrent video processing
+
+### Changed
+- ContentSelector simplified to popup-based selection (~450 lines removed)
+- FeatureIcons: Remove ValidationBanner and simplify (~160 lines removed)
+- BaseForm components: Update and simplify layout styles
+- Chat: Extract shared components, display results as inline messages
+- Form: Add start mode, example prompts, and input tips
+- Rename QA feature to Notebook
+- Simplify profile settings UI and merge sections
+- Sharepic generation switched from Mistral to GPT-OSS (LiteLLM)
+- Privacy mode always uses litellm (gpt-oss) provider
+- Markdown heading instructions improved for AI text generation
+- Sharepic text generation migrated from AWS Bedrock to Mistral
+- Centralize domain configuration in domainUtils.js
+- Centralize subtitler API calls with auth guards
+- Rename Reel-Grünerator to Grünerator Reel-Studio
+- Replace fluent-ffmpeg with custom wrapper
+- Convert console.log to Winston logger in routes/
+- Default subtitle height changed from standard to tief
+
+### Fixed
+- Backend: Remove privacy mode check from enableDocQnA
+- AI: Reorder fallback chain to prioritize Mistral after LiteLLM
+- Auth: Add graceful fallback for database errors during login
+- Mobile: Improve start page layout, hide edit button, fix touch targets
+- Edit mode: Fix z-index stacking, platform selector overlap
+- Form: Change validation mode to onSubmit to prevent errors during editing
+- Store: Read latest store value in getEditableText
+- Chat: Use proper assistant avatar in GrueneratorChatMessage
+- Mobile styling for ActionButtons, MDXEditor toolbar, and forms
+- Restore chatMemoryService.js accidentally deleted in refactor
+- Dark mode: Make gradient title white
+- CSP: Add Matomo domain to connectSrc, imgSrc, scriptSrc
+- AI worker: Add fallback for empty AI responses
+- Spinner sizing for primary buttons
+- CSS secondary color variable mapping
+- Subtitler: CSS naming conflicts, pixelated subtitles, race condition
+- Canva domains added to CSP img-src directive
+- Missing fetchUrl method in urlCrawlerService
+- Auth redirect loop in Reel Studio for unauthenticated users
+- Login modal layout and mobile padding
+- Mobile popups full height like Instagram stories
+- Auto-reload on chunk load failures after deployment
+- Subtitle font sizes for HD+ resolutions
+- Subtitle line breaking (balanced 50/50 split, max 4 words)
+- Subtitle vertical centering with \an5\pos
+- Video bitrate matching input file size
+- Font family names in ASS subtitle generation
+- URL sanitization for unbalanced trailing punctuation
+- ES module imports in route files
+
+### Performance
+- Subtitler style optimizations
+- Form layout optimizations
+- FFmpeg encoding with VAAPI hardware acceleration
+- Video streaming URL instead of blob download
+- Deferred video loading for faster project selection
+- Subtitle export with faster preset and ASS caching
+
+### Removed
+- E-Learning feature
+- You feature
+- Bundestag feature
+- Chat memory service (old implementation)
+- Word highlight subtitle feature
+- Wolke upload option (temporarily hidden)
+
 ## [2.5.0] - 2025-12-03
 
 ### Added
