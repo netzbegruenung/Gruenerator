@@ -305,7 +305,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   white-space: normal;
 }
@@ -671,8 +670,36 @@
   border-radius: 16px !important;
 }
 
+@media (max-width: 768px) {
+  .form-section--start-mode .react-select__control {
+    border: 1px solid var(--border-color-disabled) !important;
+  }
+
+  .form-section--start-mode .react-select__value-container {
+    padding: 0 0 0 var(--spacing-small) !important;
+  }
+}
+
+body > .react-select__menu-portal {
+  z-index: 10000 !important;
+}
+
 body > .react-select__menu-portal .react-select__menu {
   min-width: 250px;
   left: 50%;
   transform: translateX(-50%);
+}
+
+@media (max-width: 768px) {
+  body > .react-select__menu-portal {
+    left: var(--spacing-small) !important;
+    right: var(--spacing-small) !important;
+    width: calc(100vw - var(--spacing-small) * 2) !important;
+  }
+
+  body > .react-select__menu-portal .react-select__menu {
+    left: 0;
+    transform: none;
+    width: 100%;
+  }
 }

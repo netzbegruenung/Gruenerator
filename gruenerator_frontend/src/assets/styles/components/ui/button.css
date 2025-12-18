@@ -733,19 +733,19 @@
   font-family: inherit;
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-primary.size-s {
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-primary.size-m {
   padding: var(--primary-button-padding-m);
   height: var(--primary-button-height-m);
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -797,6 +797,14 @@
 
 .btn-primary.btn-success {
   background-color: var(--success-green, #22c55e);
+}
+
+@media (max-width: 768px) {
+  .btn-primary {
+    min-height: 52px;
+    padding: 14px 28px;
+    font-size: 1rem;
+  }
 }
 
 /* Icon-only Button Styles */
@@ -893,19 +901,19 @@
   font-family: inherit;
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-secondary.size-s {
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-secondary.size-m {
   padding: var(--primary-button-padding-m);
   height: var(--primary-button-height-m);
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -947,19 +955,19 @@
   font-family: inherit;
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-danger.size-s {
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-danger.size-m {
   padding: var(--primary-button-padding-m);
   height: var(--primary-button-height-m);
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -1003,19 +1011,19 @@
   font-family: inherit;
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-ghost.size-s {
   padding: var(--primary-button-padding-s);
   height: var(--primary-button-height-s);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .btn-ghost.size-m {
   padding: var(--primary-button-padding-m);
   height: var(--primary-button-height-m);
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .btn-ghost:hover:not(:disabled) {
