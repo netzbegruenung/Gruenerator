@@ -348,7 +348,7 @@ class RequestEnricher {
     // Add metadata for final processing
     state.enrichmentMetadata = {
       totalDocuments: state.documents.length,
-      enableDocQnA: enableDocQnA && state.documents.length > 0 && !usePrivacyMode,
+      enableDocQnA: enableDocQnA && state.documents.length > 0,
       webSearchSources,
       usePrivacyMode,
       autoSearchUsed: useAutomaticSearch && autoSearchMetadata !== null,
