@@ -235,6 +235,7 @@ router.patch('/profile/beta-features', ensureAuthenticated, async (req, res) => 
       'autoSaveOnExport',
       'website',
       'vorlagen',
+      'videoEditor',
       // Profile settings treated as beta features for consistency
       'igel_modus'
     ];

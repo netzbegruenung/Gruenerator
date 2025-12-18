@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { MdSubtitles, MdVideoSettings, MdAutoAwesome } from 'react-icons/md';
+import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import '../styles/ModeSelector.css';
 
-const modes = [
+const allModes = [
   {
     id: 'auto',
     title: 'Automatisch',
@@ -28,6 +29,15 @@ const modes = [
 ];
 
 const ModeSelector = ({ onSelect, videoFile }) => {
+  const { canAccessBetaFeature } = useBetaFeatures();
+
+  const modes = useMemo(() => {
+    if (canAccessBetaFeature('videoEditor')) {
+      return allModes;
+    }
+    return allModes.filter(mode => mode.id !== 'full-edit');
+  }, [canAccessBetaFeature]);
+
   const handleCardClick = (mode) => {
     if (mode.enabled) {
       onSelect(mode.id);
