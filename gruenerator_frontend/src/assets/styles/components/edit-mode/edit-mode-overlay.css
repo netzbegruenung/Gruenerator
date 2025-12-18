@@ -716,3 +716,53 @@ body:has(.base-container.edit-mode-active) .container.with-header {
 .universal-edit-form.mobile-chat.focus-mode .chat-input-area-fullscreen {
   padding-top: var(--spacing-large);
 }
+
+/* =============================================
+   Stats Pill - Focus Mode Edit Counter
+   ============================================= */
+.focus-mode-stats-pill {
+  position: fixed;
+  top: env(safe-area-inset-top, 12px);
+  right: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  background: var(--tanne);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 1001;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.focus-mode-stats-pill:active {
+  transform: scale(0.95);
+}
+
+.stats-pill-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  font-size: 0.7rem;
+}
+
+.stats-pill-label {
+  font-weight: 500;
+}
+
+/* Hide stats pill when not in focus mode or in peek mode */
+.universal-edit-form.mobile-chat:not(.focus-mode) .focus-mode-stats-pill,
+.universal-edit-form.mobile-chat.peek-mode .focus-mode-stats-pill {
+  opacity: 0;
+  pointer-events: none;
+}
