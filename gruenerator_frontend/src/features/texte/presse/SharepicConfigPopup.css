@@ -1,0 +1,121 @@
+.sharepic-config-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xsmall);
+  background: var(--background-color-alt);
+  border: var(--border-subtle);
+  border-radius: var(--card-border-radius-small);
+  cursor: pointer;
+  color: var(--font-color-disabled);
+  transition: var(--input-transition);
+}
+
+.sharepic-config-button:hover {
+  background: var(--hover-color-alt);
+  color: var(--font-color);
+}
+
+.sharepic-config-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: var(--spacing-medium);
+}
+
+.sharepic-config-modal {
+  background: var(--card-background);
+  border-radius: var(--card-border-radius-large);
+  border: var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sharepic-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-medium);
+  border-bottom: var(--border-subtle);
+}
+
+.sharepic-config-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.sharepic-config-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--card-border-radius-small);
+  color: var(--font-color-disabled);
+  cursor: pointer;
+  transition: var(--input-transition);
+}
+
+.sharepic-config-close:hover {
+  background: var(--background-color-alt);
+  color: var(--font-color);
+}
+
+.sharepic-config-content {
+  padding: var(--spacing-medium);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.sharepic-config-footer {
+  padding: var(--spacing-medium);
+  border-top: var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sharepic-config-done {
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  background: var(--klee);
+  color: var(--white);
+  border: none;
+  border-radius: var(--card-border-radius-small);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--input-transition);
+}
+
+.sharepic-config-done:hover {
+  background: var(--primary-700);
+}
+
+@media (max-width: 480px) {
+  .sharepic-config-overlay {
+    padding: var(--spacing-small);
+    align-items: flex-end;
+  }
+
+  .sharepic-config-modal {
+    max-width: 100%;
+    border-radius: var(--card-border-radius-large) var(--card-border-radius-large) 0 0;
+    max-height: 80vh;
+  }
+}

@@ -122,14 +122,12 @@
 
 .form-section__start-title {
   text-align: left;
-  color: var(--tanne);
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: var(--spacing-small);
 }
 
 .form-section__start-description {
-  color: var(--text-secondary);
   font-size: 1rem;
   line-height: 1.5;
   max-width: 100%;
@@ -160,13 +158,13 @@
 
 @media (max-width: 768px) {
   /* Container mobile adjustments */
-  .base-container--start-mode {
+  .base-container.base-container--start-mode {
     padding: var(--spacing-small);
-    padding-top: 4vh;
-    gap: var(--spacing-large);
+    padding-top: 2vh;
+    gap: var(--spacing-medium);
   }
 
-  .base-container--start-mode .form-section-motion-wrapper {
+  .base-container.base-container--start-mode .form-section-motion-wrapper {
     max-width: 100%;
   }
 
@@ -196,9 +194,20 @@
    =========================================== */
 
 @media (max-width: 480px) {
+  /* Remove min-height on content wrapper for start mode on phones */
+  .content-wrapper:has(.base-container--start-mode) {
+    min-height: auto;
+  }
+
+  .base-container.base-container--start-mode {
+    padding-top: var(--spacing-small);
+    gap: var(--spacing-small);
+  }
+
   .form-card--start-mode {
-    border-radius: 16px;
+    border-radius: 16px 16px 0 0;
     border: var(--border-subtle);
+    border-bottom: none;
     box-shadow: var(--shadow-md);
   }
 }

@@ -77,13 +77,17 @@ class KeycloakOIDCStrategy extends passport.Strategy {
       // Generate state
       const state = randomState();
 
-      // Store state and redirect URL in session
+      // Store state, redirect URL, and origin domain in session
+      // originDomain must be preserved through session regeneration
+      const storedOriginDomain = req.session.originDomain || null;
       req.session['oidc:keycloak'] = {
         state,
         redirectTo: req.session.redirectTo || null,
+        originDomain: storedOriginDomain,
         correlationId,
         timestamp: Date.now()
       };
+      console.log(`[KeycloakOIDC:${correlationId}] Stored originDomain in OIDC session: ${storedOriginDomain}`);
 
       // Build dynamic redirect_uri based on origin domain for multi-domain support
       const originDomain = req.session.originDomain;
@@ -282,10 +286,14 @@ export async function initializeKeycloakOIDCStrategy() {
           const { handleUserProfile } = await import('./passportSetup.mjs');
           const user = await handleUserProfile(profile, req);
 
-          // Attach redirectTo to user object to survive session regeneration
+          // Attach redirectTo and originDomain to user object to survive session regeneration
           const sessionData = req.session['oidc:keycloak'];
           if (sessionData?.redirectTo) {
             user._redirectTo = sessionData.redirectTo;
+          }
+          if (sessionData?.originDomain) {
+            user._originDomain = sessionData.originDomain;
+            console.log(`[KeycloakOIDC] Attached _originDomain to user: ${sessionData.originDomain}`);
           }
 
           return done(null, user);
@@ -296,7 +304,10 @@ export async function initializeKeycloakOIDCStrategy() {
       }
     );
 
-    console.log('[KeycloakOIDC] Strategy initialized successfully');
+    // Pre-warm discovery to avoid cold start delays on first login
+    console.log('[KeycloakOIDC] Pre-warming Keycloak discovery...');
+    await strategy.initialize();
+    console.log('[KeycloakOIDC] Strategy initialized and discovery pre-warmed successfully');
     return strategy;
 
   } catch (error) {

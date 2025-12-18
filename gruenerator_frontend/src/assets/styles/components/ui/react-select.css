@@ -678,6 +678,100 @@
   .form-section--start-mode .react-select__value-container {
     padding: 0 0 0 var(--spacing-small) !important;
   }
+
+  .form-section--start-mode .react-select__multi-value {
+    border-radius: 10px !important;
+    margin: 1px 2px 1px 0 !important;
+  }
+
+  .form-section--start-mode .react-select__multi-value__label-wrapper {
+    padding: 2px;
+    padding-left: 6px;
+  }
+
+  .form-section--start-mode .react-select__multi-value__icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .form-section--start-mode .react-select__multi-value__remove {
+    position: relative;
+    padding: 0 4px !important;
+    min-width: 22px;
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Expanded touch target for tablet */
+  .form-section--start-mode .react-select__multi-value__remove::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Visual feedback on touch */
+  .form-section--start-mode .react-select__multi-value__remove:active {
+    background-color: var(--hover-color-alt) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-section--start-mode .react-select__multi-value {
+    border-radius: 8px !important;
+    margin: 1px 1px 1px 0 !important;
+    border-width: 0.5px !important;
+  }
+
+  .form-section--start-mode .react-select__multi-value__label-wrapper {
+    padding: 1px;
+    padding-left: 4px;
+  }
+
+  .form-section--start-mode .react-select__multi-value__icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .form-section--start-mode .react-select__multi-value__remove {
+    position: relative;
+    padding: 0 4px !important;
+    border-radius: 0 8px 8px 0 !important;
+    min-width: 20px;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Invisible expanded touch target (44x44px WCAG minimum) */
+  .form-section--start-mode .react-select__multi-value__remove::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Visual feedback on touch */
+  .form-section--start-mode .react-select__multi-value__remove:active {
+    background-color: var(--hover-color-alt) !important;
+    opacity: 0.8;
+  }
+
+  .form-section--start-mode .react-select__multi-value__remove svg {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 body > .react-select__menu-portal {
