@@ -29,6 +29,8 @@ import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import usePlatformAutoDetect from '../../../hooks/usePlatformAutoDetect';
 import useFormTips from '../../../hooks/useFormTips';
+import useIsMobile from '../../../hooks/useIsMobile';
+import SharepicConfigPopup from './SharepicConfigPopup';
 
 const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'presse-social';
@@ -37,6 +39,12 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
   const canUseSharepic = isAuthenticated && !isAustrian;
+  const isMobile = useIsMobile();
+
+  const firstName = useMemo(() => {
+    const displayName = user?.display_name || user?.name || '';
+    return displayName.split(' ')[0] || '';
+  }, [user]);
 
   const platformOptions = useMemo(() => {
     const options = [
@@ -143,6 +151,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [processedAttachments, setProcessedAttachments] = useState([]);
+  const [showSharepicConfig, setShowSharepicConfig] = useState(false);
 
   // Get selection store state (fetching is now handled by useBaseForm)
   // Use proper selectors for reactive subscriptions
@@ -511,6 +520,57 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
     }
   ];
 
+  const mobileExamplePrompts = [
+    {
+      icon: <Icon category="platforms" name="pressemitteilung" size={16} color="#005437" />,
+      label: "Pressemitteilung",
+      prompt: "Schreibe eine Pressemitteilung zu folgendem Thema:",
+      platforms: ["pressemitteilung"]
+    },
+    {
+      icon: <Icon category="platforms" name="instagram" size={16} color="#E4405F" />,
+      label: "Instagram",
+      prompt: "Erstelle einen Instagram Post für:",
+      platforms: ["instagram"]
+    },
+    {
+      icon: <Icon category="platforms" name="facebook" size={16} color="#1877F2" />,
+      label: "Facebook",
+      prompt: "Erstelle einen Facebook Post für:",
+      platforms: ["facebook"]
+    },
+    {
+      icon: <Icon category="platforms" name="twitter" size={16} color="#000000" />,
+      label: "Twitter/X",
+      prompt: "Erstelle einen Tweet zu:",
+      platforms: ["twitter"]
+    },
+    {
+      icon: <Icon category="platforms" name="linkedin" size={16} color="#0A66C2" />,
+      label: "LinkedIn",
+      prompt: "Erstelle einen LinkedIn Post zu:",
+      platforms: ["linkedin"]
+    },
+    {
+      icon: <Icon category="platforms" name="instagram" size={16} color="#E4405F" />,
+      label: "Instagram + Facebook",
+      prompt: "Erstelle Posts für Instagram und Facebook zu:",
+      platforms: ["instagram", "facebook"]
+    },
+    {
+      icon: <Icon category="platforms" name="pressemitteilung" size={16} color="#005437" />,
+      label: "Presse + Social",
+      prompt: "Schreibe eine Pressemitteilung und Social Media Posts zu:",
+      platforms: ["pressemitteilung", "instagram", "facebook"]
+    },
+    {
+      icon: <Icon category="platforms" name="sharepic" size={16} color="#005437" />,
+      label: "Sharepic",
+      prompt: "Erstelle ein Sharepic zu:",
+      platforms: ["sharepic"]
+    }
+  ];
+
   const handleExamplePromptClick = useCallback((example) => {
     setValue('inhalt', example.prompt || example.text);
     if (example.platforms) {
@@ -519,16 +579,28 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   }, [setValue]);
 
   const renderPlatformSection = () => (
-    <PlatformSelector
-      name="platforms"
-      control={control}
-      platformOptions={platformOptions}
-      label=""
-      placeholder="Formate"
-      required={true}
-      tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
-      enableAutoSelect={true}
-    />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xsmall)' }}>
+      <PlatformSelector
+        name="platforms"
+        control={control}
+        platformOptions={platformOptions}
+        label=""
+        placeholder="Formate"
+        required={true}
+        tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
+        enableAutoSelect={true}
+      />
+      {watchSharepic && (
+        <button
+          type="button"
+          onClick={() => setShowSharepicConfig(true)}
+          className="sharepic-config-button"
+          title="Sharepic konfigurieren"
+        >
+          <Icon category="platforms" name="sharepic" size={18} />
+        </button>
+      )}
+    </div>
   );
 
   const renderFormInputs = () => (
@@ -547,110 +619,6 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         enableTextAutocomplete={false}
         autocompleteAddHashtag={false}
       />
-
-      <AnimatePresence>
-        {watchSharepic && (
-          <motion.div 
-            className="sharepic-upload-fields"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 400, 
-              damping: 25,
-              duration: 0.25 
-            }}
-          >
-            <h4>Sharepic:</h4>
-            <Controller
-              name="sharepicType"
-              control={control}
-              rules={{}}
-              defaultValue="default"
-              render={({ field, fieldState: { error } }) => (
-                <FormFieldWrapper
-                  label="Sharepic Art"
-                  required={false}
-                  error={error?.message}
-                  htmlFor="sharepicType-select"
-                >
-                  <div className="sharepic-type-selector">
-                    <ReactSelect
-                      {...field}
-                      inputId="sharepicType-select"
-                      className={`react-select ${error ? 'error' : ''}`.trim()}
-                      classNamePrefix="react-select"
-                      options={sharepicTypeOptions}
-                      value={sharepicTypeOptions.find(option => option.value === field.value)}
-                      onChange={(selectedOption) => {
-                        field.onChange(selectedOption ? selectedOption.value : '');
-                      }}
-                      onBlur={field.onBlur}
-                      placeholder="Sharepic Art auswählen..."
-                      isClearable={false}
-                      isSearchable={false}
-                      openMenuOnFocus={false}
-                      blurInputOnSelect={true}
-                      autoFocus={false}
-                      tabSelectsValue={true}
-                      backspaceRemovesValue={true}
-                      captureMenuScroll={false}
-                      menuShouldBlockScroll={false}
-                      menuShouldScrollIntoView={false}
-                      tabIndex={form.generator?.tabIndex?.sharepicType}
-                      noOptionsMessage={() => 'Keine Optionen verfügbar'}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                    />
-                  </div>
-                </FormFieldWrapper>
-              )}
-            />
-
-            <AnimatePresence>
-              {(watchSharepicType === 'quote' || watchSharepicType === 'quote_pure') && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ 
-                    type: "spring", 
-                    stiffness: 400, 
-                    damping: 25,
-                    duration: 0.25 
-                  }}
-                >
-                  <SmartInput
-                    fieldType="zitatAuthor"
-                    formName="presseSocial"
-                    name="zitatAuthor"
-                    control={control}
-                    setValue={setValue}
-                    getValues={getValues}
-                    label="Autor/Urheber des Zitats"
-                    placeholder="z.B. Anton Hofreiter"
-                    rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
-                    tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.zitatAuthor, watchSharepicType === 'quote' || watchSharepicType === 'quote_pure')}
-                    onSubmitSuccess={success ? getValues('zitatAuthor') : null}
-                    shouldSave={success}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {(watchSharepicType === 'dreizeilen' || watchSharepicType === 'quote') && (
-              <FileUpload
-                handleChange={handleImageChange}
-                allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
-                file={uploadedImage}
-                loading={loading || sharepicLoading}
-                label="Bild für Sharepic (optional)"
-              />
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {watchPressemitteilung && !isStartMode && (
@@ -709,7 +677,7 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
         <BaseForm
           useStartPageLayout={true}
           startPageDescription="Erstelle professionelle Texte für Social Media und Presse. Wähle deine Plattformen und lass dich von KI unterstützen."
-          title={<span className="gradient-title">Welche Botschaft willst du heute grünerieren?</span>}
+          title={firstName ? `Hallo ${firstName}! Welche Botschaft willst du heute grünerieren?` : "Welche Botschaft willst du heute grünerieren?"}
           onSubmit={handleSubmit(onSubmitRHF)}
           loading={loading || sharepicLoading}
           success={success}
@@ -735,12 +703,26 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
           documentSelectorTabIndex={form.generator?.baseFormTabIndex?.documentSelectorTabIndex}
           submitButtonTabIndex={form.generator?.baseFormTabIndex?.submitButtonTabIndex}
           firstExtrasChildren={renderPlatformSection()}
-          examplePrompts={examplePrompts}
+          examplePrompts={isMobile ? mobileExamplePrompts : examplePrompts}
           onExamplePromptClick={handleExamplePromptClick}
           contextualTip={activeTip}
         >
           {renderFormInputs()}
         </BaseForm>
+
+        <SharepicConfigPopup
+          isOpen={showSharepicConfig}
+          onClose={() => setShowSharepicConfig(false)}
+          control={control}
+          setValue={setValue}
+          getValues={getValues}
+          sharepicTypeOptions={sharepicTypeOptions}
+          watchSharepicType={watchSharepicType}
+          uploadedImage={uploadedImage}
+          handleImageChange={handleImageChange}
+          loading={loading || sharepicLoading}
+          success={success}
+        />
       </div>
     </ErrorBoundary>
   );
