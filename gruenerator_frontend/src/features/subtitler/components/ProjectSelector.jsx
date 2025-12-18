@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
 import * as tus from 'tus-js-client';
+import useDragDropFiles, { VIDEO_ACCEPT } from '../../../hooks/useDragDropFiles';
 import { FaPlus, FaTrash, FaClock, FaVideo, FaShare, FaUpload } from 'react-icons/fa';
 import ShareVideoModal from './ShareVideoModal';
 import Spinner from '../../../components/common/Spinner';
@@ -333,15 +333,11 @@ const ProjectSelector = ({
         }
     }, [startTusUpload]);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        accept: {
-            'video/*': ['.mp4', '.mov', '.avi', '.mkv']
-        },
+    const { getRootProps, getInputProps, isDragActive } = useDragDropFiles({
+        onFilesAccepted: onDrop,
+        accept: VIDEO_ACCEPT,
         multiple: false,
-        disabled: isUploading,
-        noClick: true,
-        noKeyboard: true
+        disabled: isUploading
     });
 
     const handleNewProjectClick = useCallback(() => {

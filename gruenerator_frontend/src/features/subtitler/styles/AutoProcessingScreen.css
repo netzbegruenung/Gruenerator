@@ -86,7 +86,6 @@
 
 .stage-item.active {
   border-color: var(--primary-500);
-  background: var(--primary-50);
 }
 
 .stage-item.completed {
