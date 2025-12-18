@@ -243,10 +243,19 @@ router.get('/callback',
       }
 
       // Use stored origin domain for multi-domain support, fall back to BASE_URL
-      const originDomain = req.session.originDomain;
+      // Check user object first (survives session regeneration), then session
+      const originDomain = req.user?._originDomain || req.session.originDomain;
+      const originSource = req.user?._originDomain ? 'user._originDomain' : (req.session.originDomain ? 'session' : 'none');
+      log.debug(`[AuthCallback] originDomain=${originDomain} (source: ${originSource})`);
+
       const isSecure = process.env.NODE_ENV === 'production' ||
                        req.secure ||
                        req.headers['x-forwarded-proto'] === 'https';
+
+      // Clean up user object
+      if (req.user && req.user._originDomain) {
+        delete req.user._originDomain;
+      }
 
       let baseUrl;
       if (originDomain && isAllowedDomain(originDomain)) {
