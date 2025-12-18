@@ -241,6 +241,57 @@ async function clearPendingRequest(userId) {
   }
 }
 
+// Lock configuration for race condition prevention
+const PENDING_LOCK_TTL = 5; // 5 seconds lock TTL
+
+/**
+ * Acquire a lock for pending request operations
+ * Prevents race conditions when multiple requests check/modify pending state
+ * @param {string} userId - User ID
+ * @returns {boolean} True if lock was acquired, false otherwise
+ */
+async function acquirePendingLock(userId) {
+  if (!userId) return false;
+
+  try {
+    const lockKey = `pending_lock:${userId}`;
+    // SET with NX (only if not exists) and EX (expiry in seconds)
+    const result = await redisClient.set(lockKey, Date.now().toString(), {
+      NX: true,
+      EX: PENDING_LOCK_TTL
+    });
+    const acquired = result === 'OK';
+    if (acquired) {
+      console.log(`[ChatMemory] Acquired pending lock for ${userId}`);
+    } else {
+      console.log(`[ChatMemory] Could not acquire pending lock for ${userId} (already locked)`);
+    }
+    return acquired;
+  } catch (error) {
+    console.error('[ChatMemory] Error acquiring pending lock:', error);
+    return false;
+  }
+}
+
+/**
+ * Release the pending request lock
+ * @param {string} userId - User ID
+ * @returns {boolean} True if lock was released
+ */
+async function releasePendingLock(userId) {
+  if (!userId) return false;
+
+  try {
+    const lockKey = `pending_lock:${userId}`;
+    await redisClient.del(lockKey);
+    console.log(`[ChatMemory] Released pending lock for ${userId}`);
+    return true;
+  } catch (error) {
+    console.error('[ChatMemory] Error releasing pending lock:', error);
+    return false;
+  }
+}
+
 /**
  * Check if a pending request exists and is still valid (not expired)
  * @param {string} userId - User ID
@@ -538,6 +589,9 @@ module.exports = {
   getPendingRequest,
   clearPendingRequest,
   hasPendingRequest,
+  // Race condition prevention locks
+  acquirePendingLock,
+  releasePendingLock,
   // Experimental Antrag session management
   setExperimentalSession,
   getExperimentalSession,

@@ -8,7 +8,7 @@ const AGENT_MAPPINGS = {
   // Platform-specific social media agents
   'twitter': {
     route: 'social',
-    keywords: ['tweet', 'twitter', 'x post', 'x.com', 'x-post'],
+    keywords: ['tweet', 'twitter', 'x post', 'x.com', 'x-post', 'x-beitrag', 'x beitrag', 'twet', 'xpost'],
     description: 'Twitter/X posts with character limit (280 chars)',
     params: { platforms: ['twitter'] }
   },
@@ -39,7 +39,7 @@ const AGENT_MAPPINGS = {
   },
   'pressemitteilung': {
     route: 'social',
-    keywords: ['pressemitteilung', 'presse', 'medien', 'presseverteiler', 'journalisten'],
+    keywords: ['pressemitteilung', 'presse', 'medien', 'presseverteiler', 'journalisten', 'presseartikel', 'pm'],
     description: 'Press releases for media distribution',
     params: { platforms: ['pressemitteilung'] }
   },
@@ -69,7 +69,7 @@ const AGENT_MAPPINGS = {
   },
   'leichte_sprache': {
     route: 'leichte_sprache',
-    keywords: ['leichte sprache', 'einfach', 'verständlich', 'barrierefrei', 'übersetzen'],
+    keywords: ['leichte sprache', 'einfach', 'verständlich', 'barrierefrei', 'übersetzen', 'vereinfachen', 'simpel'],
     description: 'Simple language translation',
     params: {}
   },
@@ -83,7 +83,7 @@ const AGENT_MAPPINGS = {
   // Sharepic text generation agents
   'sharepic_auto': {
     route: 'sharepic',
-    keywords: ['sharepic', 'share-pic', 'bild erstellen', 'grafik erstellen'],
+    keywords: ['sharepic', 'share-pic', 'bild erstellen', 'grafik erstellen', 'grafik', 'bildpost', 'socialmedia-bild'],
     description: 'AI-powered sharepic generation with default dreizeilen format',
     params: { type: 'dreizeilen' }
   },
@@ -113,7 +113,7 @@ const AGENT_MAPPINGS = {
   },
   'dreizeilen': {
     route: 'sharepic',
-    keywords: ['dreizeilen', 'slogan', 'drei zeilen', 'dreizeilen sharepic'],
+    keywords: ['dreizeilen', 'slogan', 'drei zeilen', 'dreizeilen sharepic', '3-zeilen', '3 zeilen', '3zeilen'],
     description: 'Three-line slogans for sharepics (requires image)',
     params: { type: 'dreizeilen' }
   },
@@ -122,6 +122,14 @@ const AGENT_MAPPINGS = {
     keywords: ['dreizeilen', 'slogan', 'drei zeilen'],
     description: 'Three-line slogans for sharepics (no image provided)',
     params: { type: 'dreizeilen' }
+  },
+
+  // FLUX/Imagine AI image generation
+  'imagine': {
+    route: 'imagine',
+    keywords: ['bild mit titel', 'bild mit dem titel', 'bild erstellen', 'generiere bild', 'bild erzeugen', 'imagine', 'erstelle ein bild', 'erstelle ein foto', 'erstelle eine illustration', 'erstelle eine grafik', 'transformiere', 'begrüne', 'ki-bild', 'flux', 'illustriere', 'visualisiere', 'realistisches bild', 'realistisches foto', 'fotorealistisch', 'mache grün', 'ki-sharepic'],
+    description: 'AI image generation with FLUX - pure images, sharepics with titles, or image transformation',
+    params: {}
   }
 };
 
@@ -234,18 +242,27 @@ async function classifyIntent(message, context = {}, aiWorkerPool = null) {
  * @returns {object|null} Match result or null
  */
 function findKeywordMatch(normalizedMessage) {
+  // Collect all matches and prefer longer keywords for more specific matching
+  const matches = [];
+
   for (const [agentName, mapping] of Object.entries(AGENT_MAPPINGS)) {
     for (const keyword of mapping.keywords) {
       if (normalizedMessage.includes(keyword)) {
-        return {
+        matches.push({
           agent: agentName,
           mapping: mapping,
-          keyword: keyword
-        };
+          keyword: keyword,
+          length: keyword.length
+        });
       }
     }
   }
-  return null;
+
+  if (matches.length === 0) return null;
+
+  // Sort by keyword length descending - longer matches are more specific
+  matches.sort((a, b) => b.length - a.length);
+  return matches[0];
 }
 
 /**
@@ -313,9 +330,11 @@ ${agentDescriptions}
 REGELN:
 - Bei "conversation" → NUR {"agent": "universal"}, NIEMALS mehrere Intents!
 - Bei "document_query" → NUR {"agent": "universal"}
-- Bei "content_creation" → passende Agents (social, sharepic, antrag, etc.)
+- Bei "content_creation" → passende Agents (social, sharepic, antrag, imagine, etc.)
 - Mit Bild + zitat → zitat_with_image
 - Ohne Bild + zitat → zitat
+- "bild erstellen", "generiere bild", "visualisiere", "illustriere", "flux", "ki-bild" → imagine
+- Mit Bild + "transformiere"/"begrüne"/"bearbeite" → imagine (für Bildbearbeitung)
 - Im Zweifel: "conversation" mit "universal" (weniger ist mehr!)
 
 SCHRITT 3 - BEI CONVERSATION: SUB-INTENT BESTIMMEN
