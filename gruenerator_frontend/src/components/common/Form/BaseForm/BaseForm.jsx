@@ -810,6 +810,7 @@ const BaseFormInternal = ({
                 componentName={componentName}
                 onWebSearchInfoClick={handleWebSearchInfoClick}
                 useEditMode={isEditModeActive}
+                onCloseEditMode={handleToggleEditMode}
                 isImageEditActive={isImageEditActive}
                 customEditContent={customEditContent}
                 registerEditHandler={(fn) => { editSubmitHandlerRef.current = fn; }}

@@ -104,6 +104,7 @@ const FormSection = forwardRef(({
   onWebSearchInfoClick,
   componentName,
   useEditMode = false,
+  onCloseEditMode = null,
   isImageEditActive = false,
   registerEditHandler = null,
   enableKnowledgeSelector = false,
@@ -252,7 +253,7 @@ const FormSection = forwardRef(({
               {isImageEditActive ? (
                 customEditContent
               ) : useEditMode ? (
-                <UniversalEditForm componentName={componentName} />
+                <UniversalEditForm componentName={componentName} onClose={onCloseEditMode} />
               ) : (
                 children
               )}
@@ -370,6 +371,7 @@ FormSection.propTypes = {
   documentSelectorTabIndex: PropTypes.number,
   submitButtonTabIndex: PropTypes.number,
   useEditMode: PropTypes.bool,
+  onCloseEditMode: PropTypes.func,
   isStartMode: PropTypes.bool,
   startPageDescription: PropTypes.string,
   examplePrompts: PropTypes.arrayOf(PropTypes.shape({

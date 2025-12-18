@@ -14,9 +14,10 @@ import useHeaderStore from '../../../../stores/headerStore';
 import useResponsive from '../hooks/useResponsive';
 import ActionButtons from '../../ActionButtons';
 import ReactMarkdown from 'react-markdown';
+import { IoClose } from 'react-icons/io5';
 import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 
-const UniversalEditForm = ({ componentName }) => {
+const UniversalEditForm = ({ componentName, onClose }) => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
   const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || null);
 
@@ -342,6 +343,15 @@ const UniversalEditForm = ({ componentName }) => {
   if (stableIsMobileView) {
     return (
       <div className="universal-edit-form mobile-chat">
+        {onClose && (
+          <button
+            className="mobile-edit-close-button"
+            onClick={onClose}
+            aria-label="Edit Mode schließen"
+          >
+            <IoClose size={24} />
+          </button>
+        )}
         <ChatWorkbenchLayout
           mode="chat"
           modes={{ chat: { label: 'Edit' } }}
@@ -403,7 +413,8 @@ const UniversalEditForm = ({ componentName }) => {
 };
 
 UniversalEditForm.propTypes = {
-  componentName: PropTypes.string.isRequired
+  componentName: PropTypes.string.isRequired,
+  onClose: PropTypes.func
 };
 
 export default UniversalEditForm;
