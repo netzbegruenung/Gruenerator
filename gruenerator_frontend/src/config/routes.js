@@ -43,6 +43,7 @@ const GrueneNotebookPage = lazy(() => import('../features/notebook/GrueneNoteboo
 const BundestagsfraktionNotebookPage = lazy(() => import('../features/notebook/BundestagsfraktionNotebookPage'));
 const GrueneratorNotebookPage = lazy(() => import('../features/notebook/GrueneratorNotebookPage'));
 const OesterreichGrueneNotebookPage = lazy(() => import('../features/notebook/OesterreichGrueneNotebookPage'));
+const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
@@ -117,6 +118,7 @@ export const GrueneratorenBundle = {
   BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
   GrueneratorNotebook: GrueneratorNotebookPage,
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
+  NotebooksGallery: NotebooksGalleryPage,
   DocumentView: DocumentViewPage,
   AntraegeListe: GalleryPage,
   AntragDetail: AntragDetailPage,
@@ -163,6 +165,8 @@ const standardRoutes = [
   { path: '/gruene-bundestag', component: GrueneratorenBundle.BundestagsfraktionNotebook, withForm: true },
   { path: '/gruenerator-notebook', component: GrueneratorenBundle.GrueneratorNotebook, withForm: true },
   { path: '/gruene-oesterreich', component: GrueneratorenBundle.OesterreichGrueneNotebook, withForm: true },
+  { path: '/notebook', component: GrueneratorenBundle.NotebooksGallery },
+  { path: '/notebooks', component: GrueneratorenBundle.NotebooksGallery },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
