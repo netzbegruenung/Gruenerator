@@ -29,7 +29,7 @@
 
 .auto-processing-subtitle {
   font-size: 0.9375rem;
-  color: var(--grey-500);
+  color: var(--font-color-disabled);
   margin-bottom: var(--spacing-large);
 }
 
@@ -77,7 +77,7 @@
   gap: var(--spacing-small);
   padding: var(--spacing-small) var(--spacing-medium);
   background: var(--card-background);
-  border: 1px solid var(--grey-200);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-medium);
   position: relative;
   overflow: hidden;
@@ -136,7 +136,7 @@
 }
 
 .stage-item.completed .stage-name {
-  color: var(--grey-500);
+  color: var(--font-color-disabled);
 }
 
 .stage-progress {
@@ -186,7 +186,7 @@
 
 .error-message {
   font-size: 0.875rem;
-  color: var(--grey-600);
+  color: var(--font-color-disabled);
   margin-top: var(--spacing-small);
 }
 
@@ -213,4 +213,26 @@
   .stage-name {
     font-size: 0.8125rem;
   }
+}
+
+[data-theme="dark"] .progress-bar-wrapper {
+  background: var(--grey-700);
+}
+
+[data-theme="dark"] .stage-item {
+  background: var(--background-color-alt);
+}
+
+[data-theme="dark"] .stage-icon.pending {
+  background: var(--grey-700);
+  color: var(--grey-400);
+}
+
+[data-theme="dark"] .completion-message {
+  background: var(--grey-800);
+  color: var(--primary-400);
+}
+
+[data-theme="dark"] .error-icon {
+  background: var(--grey-800);
 }

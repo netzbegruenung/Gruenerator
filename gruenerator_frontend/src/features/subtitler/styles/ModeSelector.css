@@ -96,7 +96,7 @@
 
 .mode-card-description {
   font-size: 0.8125rem;
-  color: var(--grey-500);
+  color: var(--font-color-disabled);
   line-height: 1.4;
   margin: 0;
 }
@@ -136,4 +136,26 @@
     right: var(--spacing-xxsmall);
     font-size: 0.625rem;
   }
+}
+
+[data-theme="dark"] .mode-card {
+  background: var(--background-color-alt);
+  border-color: var(--grey-700);
+}
+
+[data-theme="dark"] .mode-card:hover:not(.mode-card-disabled) {
+  border-color: var(--primary-500);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme="dark"] .mode-card-icon {
+  background: var(--grey-800);
+}
+
+[data-theme="dark"] .mode-card:hover:not(.mode-card-disabled) .mode-card-icon {
+  background: var(--grey-700);
+}
+
+[data-theme="dark"] .mode-card-disabled {
+  border-color: var(--grey-700);
 }

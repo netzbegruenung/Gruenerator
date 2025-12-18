@@ -1011,7 +1011,7 @@
     justify-content: center;
     width: 60px;
     height: 60px;
-    background-color: var(--primary);
+    background-color: var(--secondary);
     border-radius: 16px;
     color: white;
     margin: 0 auto var(--spacing-responsive-medium);
