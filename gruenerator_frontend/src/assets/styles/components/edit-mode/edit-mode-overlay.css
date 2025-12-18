@@ -104,6 +104,9 @@
     top: var(--spacing-medium);
     right: var(--spacing-medium);
     left: auto;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: var(--background-color);
   }
 
   .edit-mode-floating-input {
@@ -315,6 +318,11 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   right: 0;
   bottom: 0;
   width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   z-index: 9990;
   padding-top: var(--spacing-xlarge);
   background: var(--background-color);
@@ -358,9 +366,6 @@ body:has(.base-container.edit-mode-active) .container.with-header {
   font-size: var(--font-size-md, 1rem);
   line-height: 1.6;
   white-space: pre-wrap;
-  max-height: 60vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Scrollbar styling for edit result text */
