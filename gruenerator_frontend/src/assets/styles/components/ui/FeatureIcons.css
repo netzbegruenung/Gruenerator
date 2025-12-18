@@ -57,9 +57,6 @@
   flex: 0 0 auto;
 }
 
-.feature-icon-button:hover {
-}
-
 .feature-icon-button:focus-visible {
   outline: 2px solid var(--interactive-accent-color);
   outline-offset: 2px;
@@ -412,22 +409,13 @@
 .content-dropdown-inline {
   display: flex;
   flex-direction: column;
-  max-height: 600px;
-  overflow-y: auto;
-  transition: max-height 0.3s ease, opacity 0.2s ease;
   background-color: var(--card-background);
   border: 1px solid var(--font-color);
-  border-top: none;
-  border-radius: 0 0 var(--card-border-radius-small) var(--card-border-radius-small);
-  padding: var(--spacing-xsmall);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--spacing-xxsmall);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   position: relative;
   z-index: 100;
-}
-
-.content-dropdown-inline.open {
-  max-height: 600px;
-  padding: var(--spacing-medium) var(--spacing-small) var(--spacing-xxsmall) var(--spacing-small);
 }
 
 /* ContentSelector fills dropdown width (same pattern as balanced-dropdown-item) */
@@ -697,7 +685,7 @@
 
 @media (max-width: 480px) {
   .feature-icons-row {
-    gap: 4px;
+    gap: 0px;
   }
   /* Sizes are controlled via clamp and container width; no overrides needed */
   
@@ -828,4 +816,28 @@
   border: none;
   padding: 0;
   margin-bottom: 0;
+}
+
+/* Start mode: auto width instead of 100% to allow proper flex sizing */
+.form-section__extras--start-mode .feature-icons {
+  width: auto;
+}
+
+/* AttachedFilesList inside feature-icons-row */
+.feature-icons-row .attached-files-list {
+  width: auto;
+  margin: 0;
+  margin-left: var(--spacing-xsmall);
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 200px;
+}
+
+.feature-icons-row .attached-files-list--compact {
+  max-height: none;
+  overflow: visible;
+}
+
+.feature-icons-row .attached-files-list--compact .file-tag {
+  max-width: 150px;
 }
