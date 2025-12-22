@@ -12,6 +12,8 @@ import { useOptimizedAuth } from '../../../../hooks/useAuth';
 import { useProfile } from '../../../../features/auth/hooks/useProfileData';
 import useHeaderStore from '../../../../stores/headerStore';
 import useResponsive from '../hooks/useResponsive';
+import useKeyboardFocus from '../../../../hooks/useKeyboardFocus';
+import useScrollSync from '../../../../hooks/useScrollSync';
 import ActionButtons from '../../ActionButtons';
 import ReactMarkdown from 'react-markdown';
 import { IoClose } from 'react-icons/io5';
@@ -29,6 +31,20 @@ const UniversalEditForm = ({ componentName, onClose }) => {
   // Mobile detection with stabilization to prevent flicker during keyboard events
   const { isMobileView } = useResponsive(768);
   const [stableIsMobileView, setStableIsMobileView] = useState(isMobileView);
+  const [isPeekMode, setIsPeekMode] = useState(false);
+  const [changeCount, setChangeCount] = useState(0);
+  const textContainerRef = useRef(null);
+
+  // Keyboard focus detection for focus mode
+  const { isFocusMode, isKeyboardOpen, toggleFocusMode } = useKeyboardFocus({
+    enabled: stableIsMobileView,
+    mobileOnly: true
+  });
+
+  // Scroll sync for highlighting text sections
+  const { syncToInstruction, highlightChangedArea } = useScrollSync(textContainerRef, {
+    announceChanges: true
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -41,6 +57,20 @@ const UniversalEditForm = ({ componentName, onClose }) => {
     setForceShrunk(true);
     return () => setForceShrunk(false);
   }, [setForceShrunk]);
+
+  // Exit peek mode after 3 seconds
+  useEffect(() => {
+    if (isPeekMode) {
+      const timer = setTimeout(() => setIsPeekMode(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isPeekMode]);
+
+  const handleStatsPillClick = useCallback(() => {
+    if (isFocusMode) {
+      setIsPeekMode(true);
+    }
+  }, [isFocusMode]);
 
   // Desktop messages (summaries)
   const [messages, setMessages] = useState([]);
@@ -172,6 +202,11 @@ const UniversalEditForm = ({ componentName, onClose }) => {
     }
     const trimmed = (instruction || '').trim();
     if (!trimmed) return;
+
+    // Sync scroll to relevant section based on instruction keywords
+    if (stableIsMobileView) {
+      syncToInstruction(trimmed);
+    }
 
     const userMsg = { type: 'user', content: trimmed, timestamp: Date.now() };
     // Add user message to appropriate message list
@@ -317,6 +352,9 @@ const UniversalEditForm = ({ componentName, onClose }) => {
               isEditResult: true,
               editSummary
             }]);
+            // Highlight the changed area and update stats
+            highlightChangedArea(currentText, updatedText);
+            setChangeCount(prev => prev + changes.length);
           } else {
             setMessages(prev => [...prev, { type: 'assistant', content: summary, timestamp: Date.now() }]);
           }
@@ -333,7 +371,7 @@ const UniversalEditForm = ({ componentName, onClose }) => {
     } finally {
       setIsProcessing(false);
     }
-  }, [getEditableText, applyEdits, hasEditableText, isSharepicOnly, stableIsMobileView]);
+  }, [getEditableText, applyEdits, hasEditableText, isSharepicOnly, stableIsMobileView, syncToInstruction, highlightChangedArea]);
 
   if (isSharepicOnly) {
     return null;
@@ -341,8 +379,15 @@ const UniversalEditForm = ({ componentName, onClose }) => {
 
   // Mobile: full chat takeover with ChatWorkbenchLayout
   if (stableIsMobileView) {
+    const mobileClasses = [
+      'universal-edit-form',
+      'mobile-chat',
+      isFocusMode && 'focus-mode',
+      isPeekMode && 'peek-mode'
+    ].filter(Boolean).join(' ');
+
     return (
-      <div className="universal-edit-form mobile-chat">
+      <div className={mobileClasses}>
         {onClose && (
           <button
             className="mobile-edit-close-button"
@@ -350,6 +395,17 @@ const UniversalEditForm = ({ componentName, onClose }) => {
             aria-label="Edit Mode schließen"
           >
             <IoClose size={24} />
+          </button>
+        )}
+        {/* Stats pill - shows edit count, tappable in focus mode to peek */}
+        {isFocusMode && changeCount > 0 && (
+          <button
+            className="focus-mode-stats-pill"
+            onClick={handleStatsPillClick}
+            aria-label={`${changeCount} Änderungen. Tippen zum Vorschau.`}
+          >
+            <span className="stats-pill-count">{changeCount}</span>
+            <span className="stats-pill-label">Änderungen</span>
           </button>
         )}
         <ChatWorkbenchLayout
