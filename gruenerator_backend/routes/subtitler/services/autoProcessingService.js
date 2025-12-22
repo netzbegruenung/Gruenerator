@@ -93,6 +93,43 @@ async function getVideoMetadata(inputPath) {
   });
 }
 
+const TARGET_RESOLUTION = 1080;
+
+/**
+ * Pre-scale video to target resolution (1080p for reels)
+ * Runs in parallel with transcription to avoid added latency
+ */
+async function preScaleVideo(inputPath, metadata, targetResolution) {
+  const isVertical = metadata.width < metadata.height;
+
+  let targetWidth, targetHeight;
+  if (isVertical) {
+    targetWidth = targetResolution;
+    targetHeight = Math.round(targetWidth * (metadata.height / metadata.width));
+  } else {
+    targetHeight = targetResolution;
+    targetWidth = Math.round(targetHeight * (metadata.width / metadata.height));
+  }
+
+  targetWidth = targetWidth % 2 === 0 ? targetWidth : targetWidth - 1;
+  targetHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight - 1;
+
+  const tempPath = path.join(path.dirname(inputPath), `prescaled_${Date.now()}.mp4`);
+
+  log.info(`Pre-scaling video: ${metadata.width}x${metadata.height} → ${targetWidth}x${targetHeight}`);
+
+  await new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .videoFilters(`scale=${targetWidth}:${targetHeight}`)
+      .outputOptions(['-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-c:a', 'copy'])
+      .on('end', resolve)
+      .on('error', reject)
+      .save(tempPath);
+  });
+
+  return tempPath;
+}
+
 /**
  * Main automatic video processing function
  *
@@ -112,6 +149,8 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
 
   log.info(`Starting automatic processing for: ${uploadId}, token: ${autoProcessToken}`);
 
+  let preScaledTempPath = null;
+
   try {
     await updateProgress(uploadId, {
       stage: STAGES.ANALYZING.id,
@@ -120,7 +159,7 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
       overallProgress: 0
     });
 
-    const metadata = await getVideoMetadata(inputPath);
+    let metadata = await getVideoMetadata(inputPath);
     const fileStats = await fs.stat(inputPath);
     log.debug(`Video metadata: ${metadata.width}x${metadata.height}, duration: ${metadata.duration}s, size: ${(fileStats.size / 1024 / 1024).toFixed(2)}MB`);
 
@@ -176,12 +215,39 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
       overallProgress: calculateOverallProgress(STAGES.SUBTITLES.id, 0)
     });
 
+    // Check if video needs pre-scaling (larger than 1080p)
+    const needsPreScale = metadata.width > TARGET_RESOLUTION ||
+                          (metadata.height > TARGET_RESOLUTION && metadata.width >= metadata.height);
+
     let subtitles;
+
     try {
-      subtitles = await transcribeVideo(inputPath, 'manual', null, 'de');
+      // Run transcription and pre-scaling in PARALLEL
+      // Gladia only needs audio, so original video is fine for transcription
+      // Pre-scaling happens during Gladia API wait time = zero added latency
+      const [transcriptionResult, scaledPath] = await Promise.all([
+        transcribeVideo(inputPath, 'manual', null, 'de'),
+        needsPreScale
+          ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
+          : Promise.resolve(null)
+      ]);
+
+      subtitles = transcriptionResult;
       log.info(`Transcription complete: ${subtitles.split('\n\n').length} segments`);
+
+      // Use scaled video for export if it was created
+      if (scaledPath) {
+        workingVideoPath = scaledPath;
+        preScaledTempPath = scaledPath;
+        metadata = await getVideoMetadata(workingVideoPath);
+        log.info(`Pre-scaled video ready: ${metadata.width}x${metadata.height}`);
+      }
     } catch (transcriptionError) {
-      log.error(`Transcription failed: ${transcriptionError.message}`);
+      log.error(`Transcription/scaling failed: ${transcriptionError.message}`);
+      // Cleanup pre-scaled file if it exists
+      if (preScaledTempPath) {
+        await fs.unlink(preScaledTempPath).catch(() => {});
+      }
       await updateProgress(uploadId, {
         status: 'error',
         stage: STAGES.SUBTITLES.id,
@@ -206,7 +272,7 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
     });
 
     const outputPath = await exportWithEnhancements(
-      inputPath,
+      workingVideoPath,
       subtitles,
       trimPoints,
       metadata,
@@ -215,7 +281,7 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
         stylePreference,
         heightPreference,
         locale,
-        maxResolution,
+        maxResolution: null, // Already scaled, no further scaling needed
         autoProcessToken,
         uploadId
       }
@@ -240,6 +306,12 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
 
     log.info(`Automatic processing complete: ${outputPath}`);
 
+    // Cleanup pre-scaled temp file
+    if (preScaledTempPath) {
+      await fs.unlink(preScaledTempPath).catch(() => {});
+      log.debug(`Cleaned up pre-scaled temp file: ${preScaledTempPath}`);
+    }
+
     const subtitleSegments = parseSubtitlesToSegments(subtitles, trimPoints);
 
     return {
@@ -253,6 +325,11 @@ async function processVideoAutomatically(inputPath, uploadId, options = {}) {
 
   } catch (error) {
     log.error(`Automatic processing failed: ${error.message}`);
+
+    // Cleanup pre-scaled temp file on error
+    if (preScaledTempPath) {
+      await fs.unlink(preScaledTempPath).catch(() => {});
+    }
 
     await updateProgress(uploadId, {
       status: 'error',

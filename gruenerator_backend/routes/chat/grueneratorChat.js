@@ -21,6 +21,7 @@ const searxngWebSearchService = require('../../services/searxngWebSearchService'
 const { processGraphRequest } = require('../../agents/langgraph/promptProcessor');
 const { withErrorHandler } = require('../../utils/errorHandler');
 const { generateSharepicForChat } = require('./services/sharepicGenerationService');
+const { generateImagineForChat } = require('./services/imagineGenerationService');
 const chatMemory = require('../../services/chatMemoryService');
 const { trimMessagesToTokenLimit } = require('../../utils/tokenCounter');
 const DocumentQnAService = require('../../services/documentQnAService');
@@ -30,6 +31,47 @@ const mistralClient = require('../../workers/mistralClient');
 const crypto = require('crypto');
 const { localizePlaceholders } = require('../../utils/localizationHelper');
 const { detectSimpleMessage, generateSimpleResponse } = require('../../utils/simpleMessageDetector');
+
+// Configuration constants - centralized for easy maintenance
+const CONFIG = {
+  // Intent classification
+  LOW_CONFIDENCE_THRESHOLD: 0.3,
+
+  // Conversation limits
+  MAX_HISTORY_MESSAGES: 10,
+  TOKEN_LIMIT: 6000,
+
+  // Timeouts (ms)
+  MULTI_INTENT_TIMEOUT: 30000,
+  AI_REQUEST_TIMEOUT: 60000,
+
+  // Document limits
+  MAX_RECENT_DOCUMENTS: 10,
+
+  // Text validation
+  MIN_DETAILS_LENGTH: 10,
+  MAX_DETAILS_LENGTH: 200,
+  MAX_FALLBACK_LENGTH: 300
+};
+
+/**
+ * Create standardized error response
+ * @param {Object} res - Express response object
+ * @param {string} code - Error code (e.g., 'VALIDATION_ERROR')
+ * @param {string} message - User-friendly message
+ * @param {number} status - HTTP status code (default 500)
+ * @param {Object} details - Optional additional details
+ * @returns {Object} Express response
+ */
+function createErrorResponse(res, code, message, status = 500, details = null) {
+  log.error(`[GrueneratorChat] ${code}: ${message}`, details || '');
+  return res.status(status).json({
+    success: false,
+    error: message,
+    code,
+    ...(details && { details })
+  });
+}
 
 // Create authenticated router
 const router = createAuthenticatedRouter();
@@ -58,9 +100,9 @@ function loadConversationConfig() {
 function buildConversationMessages(history, currentMessage) {
   const messages = [];
 
-  // Add recent history (last 10 messages max)
+  // Add recent history (limited to prevent context overflow)
   if (history && history.length > 0) {
-    const recentHistory = history.slice(-10);
+    const recentHistory = history.slice(-CONFIG.MAX_HISTORY_MESSAGES);
     for (const msg of recentHistory) {
       messages.push({
         role: msg.role === 'user' ? 'user' : 'assistant',
@@ -159,12 +201,9 @@ async function processConversationRequest(intentResult, req, res, baseContext) {
       }
     });
   } catch (error) {
-    log.error('[GrueneratorChat] Conversation processing error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Conversation processing failed',
-      code: 'CONVERSATION_ERROR'
-    });
+    return createErrorResponse(res, 'CONVERSATION_ERROR',
+      'Konversationsverarbeitung fehlgeschlagen. Bitte versuche es erneut.',
+      500, { originalError: error.message });
   }
 }
 
@@ -219,7 +258,7 @@ router.post('/', withErrorHandler(async (req, res) => {
 
     // Retrieve conversation history for context
     const conversation = await chatMemory.getConversation(userId);
-    const trimmedHistory = trimMessagesToTokenLimit(conversation.messages, 6000);
+    const trimmedHistory = trimMessagesToTokenLimit(conversation.messages, CONFIG.TOKEN_LIMIT);
 
     // Check for simple conversational messages (bypass AI for instant response)
     const simpleCheck = detectSimpleMessage(message);
@@ -293,7 +332,7 @@ router.post('/', withErrorHandler(async (req, res) => {
     // Step 1.6: Retrieve recent documents from Redis (EXCLUDE IMAGES for context)
     let recentDocuments = [];
     try {
-      const recentDocIds = await documentQnAService.getRecentDocuments(userId, 10);
+      const recentDocIds = await documentQnAService.getRecentDocuments(userId, CONFIG.MAX_RECENT_DOCUMENTS);
       log.debug(`[GrueneratorChat] Found ${recentDocIds.length} recent documents for user ${userId}`);
 
       if (recentDocIds.length > 0) {
@@ -373,8 +412,21 @@ router.post('/', withErrorHandler(async (req, res) => {
       hasImageAttachment: hasImageAttachment
     });
 
-    // Step 1.8: Check for pending information requests first
-    const pendingRequest = await chatMemory.getPendingRequest(userId);
+    // Step 1.8: Check for pending information requests first (with race condition prevention)
+    const pendingLockAcquired = await chatMemory.acquirePendingLock(userId);
+    let pendingRequest = null;
+
+    if (pendingLockAcquired) {
+      try {
+        pendingRequest = await chatMemory.getPendingRequest(userId);
+      } catch (lockError) {
+        log.warn('[GrueneratorChat] Error while holding pending lock:', lockError.message);
+      } finally {
+        await chatMemory.releasePendingLock(userId);
+      }
+    } else {
+      log.warn('[GrueneratorChat] Could not acquire pending lock, skipping pending check for user:', userId);
+    }
 
     // Handle web search confirmation
     if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
@@ -524,12 +576,9 @@ router.post('/', withErrorHandler(async (req, res) => {
             res.json(sharepicResponse);
             return;
           } catch (error) {
-            log.error('[GrueneratorChat] Error processing completed request:', error);
-            res.status(500).json({
-              success: false,
-              error: 'Fehler beim Erstellen des Sharepics mit den bereitgestellten Informationen',
-              code: 'COMPLETION_ERROR'
-            });
+            createErrorResponse(res, 'COMPLETION_ERROR',
+              'Fehler beim Erstellen des Sharepics mit den bereitgestellten Informationen.',
+              500, { originalError: error.message });
             return;
           }
         }
@@ -542,19 +591,16 @@ router.post('/', withErrorHandler(async (req, res) => {
               ...req.body,
               ...completedRequestContext,
               count: 1,
-              preserveName: true  // Enable name preservation for chat requests
+              preserveName: true
             };
             const sharepicResponse = await generateSharepicForChat(req, 'dreizeilen', req.body);
 
             res.json(sharepicResponse);
             return;
           } catch (error) {
-            log.error('[GrueneratorChat] Error processing completed dreizeilen request:', error);
-            res.status(500).json({
-              success: false,
-              error: 'Fehler beim Erstellen des Dreizeilen-Sharepics mit den bereitgestellten Informationen',
-              code: 'COMPLETION_ERROR'
-            });
+            createErrorResponse(res, 'COMPLETION_ERROR',
+              'Fehler beim Erstellen des Dreizeilen-Sharepics.',
+              500, { originalError: error.message });
             return;
           }
         }
@@ -563,15 +609,10 @@ router.post('/', withErrorHandler(async (req, res) => {
         if (!finalAgent || finalAgent === 'undefined') {
           log.debug('[GrueneratorChat] No valid agent in completed request, clearing and treating as new request');
           await chatMemory.clearPendingRequest(userId);
-          // Continue with normal intent classification instead of returning error
         } else {
-          // For any other completed request, log and return to prevent further processing
-          log.debug('[GrueneratorChat] Completed pending request for agent:', finalAgent);
-          res.status(500).json({
-            success: false,
-            error: 'Handler for completed request not implemented for agent: ' + finalAgent,
-            code: 'UNHANDLED_AGENT_TYPE'
-          });
+          createErrorResponse(res, 'UNHANDLED_AGENT_TYPE',
+            `Handler für Agent "${finalAgent}" nicht implementiert.`,
+            500, { agent: finalAgent });
           return;
         }
         } else {
@@ -660,8 +701,8 @@ router.post('/', withErrorHandler(async (req, res) => {
         requestType: intentResult.requestType
       });
 
-      // Store single intent response in memory (skip sharepic responses to avoid text content conflicts)
-      if (responseContent && responseContent.content && !isSharepicIntent(intent.agent)) {
+      // Store single intent response in memory (skip sharepic and imagine responses to avoid text content conflicts)
+      if (responseContent && responseContent.content && !isSharepicIntent(intent.agent) && !isImagineIntent(intent.agent)) {
         const responseText = typeof responseContent.content === 'string'
           ? responseContent.content
           : responseContent.content.text || 'Response generated';
@@ -670,14 +711,9 @@ router.post('/', withErrorHandler(async (req, res) => {
     }
 
   } catch (error) {
-    log.error('[GrueneratorChat] Error processing chat request:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Internal server error during chat processing',
-      code: 'PROCESSING_ERROR',
-      agent: null
-    });
+    return createErrorResponse(res, 'PROCESSING_ERROR',
+      'Bei der Verarbeitung ist ein Fehler aufgetreten. Bitte versuche es erneut.',
+      500, { originalError: error.message });
   }
 }));
 
@@ -719,9 +755,14 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
   });
 
   try {
-    // Execute all intents in parallel
+    // Execute all intents in parallel with timeout protection
     log.debug('[GrueneratorChat] Executing', processingTasks.length, 'tasks in parallel');
-    const results = await Promise.all(processingTasks);
+    const results = await Promise.race([
+      Promise.all(processingTasks),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Multi-intent processing timeout after ${CONFIG.MULTI_INTENT_TIMEOUT / 1000}s`)), CONFIG.MULTI_INTENT_TIMEOUT)
+      )
+    ]);
 
     // Calculate success metrics
     const successful = results.filter(r => r.success);
@@ -744,12 +785,9 @@ async function processMultiIntentRequest(intents, req, res, baseContext) {
     });
 
   } catch (error) {
-    log.error('[GrueneratorChat] Multi-intent processing failed:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Multi-intent processing failed: ' + error.message,
-      code: 'MULTI_INTENT_PROCESSING_ERROR'
-    });
+    return createErrorResponse(res, 'MULTI_INTENT_PROCESSING_ERROR',
+      'Mehrfachverarbeitung fehlgeschlagen. Bitte versuche es erneut.',
+      500, { originalError: error.message });
   }
 }
 
@@ -775,8 +813,8 @@ function buildAutoSearchQuery(message, extractedParams, intent) {
 
   // Priority 3: Use details if focused
   if (extractedParams.details &&
-      extractedParams.details.length > 10 &&
-      extractedParams.details.length < 200) {
+      extractedParams.details.length > CONFIG.MIN_DETAILS_LENGTH &&
+      extractedParams.details.length < CONFIG.MAX_DETAILS_LENGTH) {
     return extractedParams.details;
   }
 
@@ -788,9 +826,9 @@ function buildAutoSearchQuery(message, extractedParams, intent) {
     .replace(/(?:für|über|zum thema|bezüglich)/gi, '')
     .trim();
 
-  return cleanedMessage.length > 10 && cleanedMessage.length < 300
+  return cleanedMessage.length > CONFIG.MIN_DETAILS_LENGTH && cleanedMessage.length < CONFIG.MAX_FALLBACK_LENGTH
     ? cleanedMessage
-    : cleanedMessage.substring(0, 300);
+    : cleanedMessage.substring(0, CONFIG.MAX_FALLBACK_LENGTH);
 }
 
 /**
@@ -808,7 +846,7 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
 
   // Check for low-confidence universal fallback with a question - offer web search
   if (intent.agent === 'universal' &&
-      intent.confidence <= 0.3 &&
+      intent.confidence <= CONFIG.LOW_CONFIDENCE_THRESHOLD &&
       isQuestionMessage(baseContext.originalMessage)) {
 
     log.debug('[GrueneratorChat] Low-confidence question detected, offering web search');
@@ -930,8 +968,12 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
     paramsCount: Object.keys(req.body).length
   });
 
+  // Handle imagine routing
+  if (routeType === 'imagine') {
+    await processImagineRequest(intent, req, res, baseContext.userId);
+  }
   // Handle sharepic routing differently
-  if (routeType === 'sharepic' || routeType.startsWith('sharepic_')) {
+  else if (routeType === 'sharepic' || routeType.startsWith('sharepic_')) {
     await processSharepicRequest(intent, req, res, baseContext.userId);
   } else {
     // Use existing processGraphRequest for all other agents
@@ -1041,6 +1083,66 @@ async function processIntentAsync(intent, req, baseContext) {
       reject(error);
     }
   });
+}
+
+/**
+ * Handle imagine-specific routing
+ * Routes to FLUX image generation service
+ */
+async function processImagineRequest(intentResult, req, res, userId = null) {
+  log.debug('[GrueneratorChat] Processing imagine request:', {
+    mode: req.body.mode,
+    hasVariant: !!req.body.variant,
+    needsVariantSelection: req.body._needsVariantSelection,
+    hasSubject: !!req.body.subject
+  });
+
+  const resolvedUserId = userId || req.user?.id || `anon_${req.ip}`;
+
+  // Check if variant selection is needed (user didn't specify style)
+  if (req.body._needsVariantSelection && !req.body.variant) {
+    log.debug('[GrueneratorChat] Imagine needs variant selection, checking for information request');
+
+    const informationResult = await handleInformationRequest(
+      resolvedUserId,
+      req.body.originalMessage || '',
+      'imagine',
+      req.body,
+      {
+        agent: 'imagine',
+        message: req.body.originalMessage || '',
+        chatContext: req.body.chatContext || {},
+        ...req.body
+      },
+      intentResult
+    );
+
+    if (informationResult?.type === 'request') {
+      log.debug('[GrueneratorChat] Returning variant selection question for imagine');
+      await chatMemory.addMessage(resolvedUserId, 'assistant', informationResult.data.content.text, 'imagine_variant_request');
+      return res.json(informationResult.data);
+    }
+
+    // If information was completed, update the request body
+    if (informationResult?.type === 'completion') {
+      req.body = { ...req.body, ...informationResult.data };
+    }
+  }
+
+  try {
+    const mode = req.body.mode || 'pure';
+    log.debug('[GrueneratorChat] Calling generateImagineForChat:', { mode });
+
+    const imagineResponse = await generateImagineForChat(req, mode, req.body);
+
+    // Don't store imagine responses in chat memory (per requirements)
+    return res.json(imagineResponse);
+
+  } catch (error) {
+    return createErrorResponse(res, 'IMAGINE_GENERATION_FAILED',
+      'Fehler bei der Bilderzeugung. Bitte versuche es erneut.',
+      500, { originalError: error.message });
+  }
 }
 
 /**
@@ -1165,12 +1267,9 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
       res.json(sharepicResponse);
       return;
     } catch (error) {
-      log.error('[GrueneratorChat] Sharepic generation error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Fehler bei der Sharepic-Erstellung',
-        code: 'SHAREPIC_GENERATION_FAILED'
-      });
+      createErrorResponse(res, 'SHAREPIC_GENERATION_FAILED',
+        'Fehler bei der Sharepic-Erstellung. Bitte versuche es erneut.',
+        500, { originalError: error.message });
       return;
     }
   }
@@ -1213,13 +1312,9 @@ router.delete('/clear', withErrorHandler(async (req, res) => {
     });
 
   } catch (error) {
-    log.error('[GrueneratorChat] Error clearing user data:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear user data',
-      code: 'CLEAR_DATA_ERROR',
-      details: error.message
-    });
+    createErrorResponse(res, 'CLEAR_DATA_ERROR',
+      'Benutzerdaten konnten nicht gelöscht werden.',
+      500, { originalError: error.message });
   }
 }));
 
@@ -1231,12 +1326,27 @@ router.delete('/clear', withErrorHandler(async (req, res) => {
 function isSharepicIntent(agent) {
   return agent === 'zitat' ||
          agent === 'zitat_pure' ||
+         agent === 'zitat_with_image' ||
          agent === 'quote' ||
          agent === 'info' ||
          agent === 'headline' ||
          agent === 'dreizeilen' ||
+         agent === 'dreizeilen_with_image' ||
+         agent === 'dreizeilen_text_only' ||
          agent === 'sharepic' ||
          agent?.startsWith('sharepic_');
+}
+
+/**
+ * Helper function to check if an intent is imagine-related
+ * @param {string} agent - The agent/intent name
+ * @returns {boolean} True if the intent is imagine-related
+ */
+function isImagineIntent(agent) {
+  return agent === 'imagine' ||
+         agent === 'imagine_pure' ||
+         agent === 'imagine_sharepic' ||
+         agent === 'imagine_edit';
 }
 
 /**
