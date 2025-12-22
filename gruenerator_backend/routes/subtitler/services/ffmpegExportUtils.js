@@ -131,7 +131,7 @@ function buildFFmpegOutputOptions(params) {
       '-c:v', videoCodec,
       '-preset', preset,
       ...bitrateOptions,
-      ...(includeTune ? ['-tune', 'film'] : []),
+      ...(includeTune && videoCodec === 'libx264' ? ['-tune', 'film'] : []),
       '-profile:v', isLargeFile ? 'main' : (videoCodec === 'libx264' ? 'high' : 'main'),
       '-level', videoCodec === 'libx264' ? '4.1' : '4.0',
       '-c:a', audioCodec,
