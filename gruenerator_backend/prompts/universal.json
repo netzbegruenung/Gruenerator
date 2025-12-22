@@ -11,10 +11,7 @@
     "examples": false
   },
   "requestFields": ["textForm", "sprache", "inhalt"],
-  "validation": {
-    "required": ["textForm", "sprache", "inhalt"],
-    "errorMessage": "Alle Pflichtfelder (Textform, Sprache, Inhalt) müssen ausgefüllt sein oder ein benutzerdefinierter Prompt muss angegeben werden."
-  },
+  "validation": {},
   "requestTemplate": "Erstelle einen Text mit folgenden Anforderungen:\n\n<textform>\n{{textForm}}\n</textform>\n\n<stil>\n{{sprache}}\n</stil>\n\n<inhalt>\n{{inhalt}}\n</inhalt>\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
   "customPromptTemplate": {
     "textForm": "{{textForm|default:'Nicht angegeben'}}",

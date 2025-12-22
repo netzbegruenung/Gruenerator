@@ -1,7 +1,8 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import GalleryControls from './GalleryControls';
-import { GalleryCard, GallerySkeleton, cardAdapters } from './cards.jsx';
+import IndexCard from '../IndexCard';
+import { GallerySkeleton, cardAdapters } from './cards.jsx';
 import {
   DEFAULT_GALLERY_TYPE,
   GALLERY_CONTENT_TYPES,
@@ -73,7 +74,7 @@ const GalleryContainer = ({
       const result = adapter(item, adapterOptions);
       if (!result || !result.key) return null;
       const { key, props } = result;
-      return <GalleryCard key={key} {...props} />;
+      return <IndexCard key={key} {...props} />;
     });
   };
 
