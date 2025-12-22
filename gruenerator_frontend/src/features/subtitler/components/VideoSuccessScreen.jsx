@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload, FaFileAlt } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import ShareVideoModal from './ShareVideoModal';
+import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import '../../../assets/styles/components/ui/button.css';
 import '../styles/VideoSuccessScreen.css';
 
@@ -271,10 +271,13 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
       </div>
 
       {showShareModal && (exportStore.projectId || projectId) && (
-        <ShareVideoModal
-          projectId={exportStore.projectId || projectId}
-          title={projectTitle}
+        <ShareMediaModal
+          isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}
+          mediaType="video"
+          projectId={exportStore.projectId || projectId}
+          exportToken={exportStore.exportToken}
+          defaultTitle={projectTitle}
         />
       )}
     </div>
