@@ -168,9 +168,10 @@ const SubtitleEditor = ({
   
   // Watch for export start and completion
   useEffect(() => {
-    if (exportStatus === 'starting' || exportStatus === 'exporting') {
-      // Move to success screen immediately when export starts
-      console.log('[SubtitleEditor] Export started, calling success callback with token:', exportToken);
+    // Only navigate to success when we have a valid NEW token (not null)
+    // This prevents race condition where old token is used before API response
+    if (exportStatus === 'exporting' && exportToken) {
+      console.log('[SubtitleEditor] Export started with new token:', exportToken);
       onExportSuccess && onExportSuccess(exportToken);
     } else if (exportStatus === 'complete') {
       console.log('[SubtitleEditor] Export completed');
