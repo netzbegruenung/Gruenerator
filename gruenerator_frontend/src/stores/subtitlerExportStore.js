@@ -73,6 +73,7 @@ export const useSubtitlerExportStore = create((set, get) => ({
       exportParams,
       retryCount: 0,
       pollingStartTime: Date.now(),
+      exportToken: null,
     });
 
     try {
@@ -186,6 +187,7 @@ export const useSubtitlerExportStore = create((set, get) => ({
       exportParams,
       retryCount: 0,
       pollingStartTime: Date.now(),
+      exportToken: null,
     });
 
     try {
