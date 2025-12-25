@@ -367,9 +367,11 @@ const SubtitlerPage = () => {
 
   // Function to go back to the editor without resetting everything
   const handleEditAgain = useCallback(() => {
+    // Reset export state so user must re-export after making changes
+    // This prevents downloading old video after editing
+    resetExport();
     setStep('edit');
-    // No reset of other states like videoFile, subtitles, etc.
-  }, []);
+  }, [resetExport]);
 
   // New handlers for styling step
   const handleStyleSelect = useCallback((style) => {
