@@ -5,7 +5,6 @@ export const SHAREPIC_TYPES = {
   QUOTE: 'Zitat',
   QUOTE_PURE: 'Zitat_Pure',
   THREE_LINES: 'Dreizeilen',
-  HEADLINE: 'Headline',
   INFO: 'Info',
   TEXT2SHAREPIC: 'Text2Sharepic'
 };
@@ -28,14 +27,21 @@ export const FONT_SIZES = {
   L: 105
 };
 
-export const MAX_FONT_SIZE = 120;
+// Quote-specific font sizes (smaller for longer text)
+export const ZITAT_FONT_SIZES = {
+  S: 50,
+  M: 60,
+  L: 75
+};
+
+export const MAX_FONT_SIZE = 110;
 export const MIN_FONT_SIZE = 75;
 
 // Default Colors
 export const DEFAULT_COLORS = [
-  { background: '#005538', text: '#F5F1E9' },
-  { background: '#F5F1E9', text: '#005538' },
-  { background: '#F5F1E9', text: '#005538' }
+  { background: '#005538' },
+  { background: '#F5F1E9' },
+  { background: '#F5F1E9' }
 ];
 
 // Validation Messages
@@ -150,6 +156,11 @@ export const IMAGE_MODIFICATION = {
       { label: 'S', value: FONT_SIZES.S },
       { label: 'M', value: FONT_SIZES.M },
       { label: 'L', value: FONT_SIZES.L }
+    ],
+    ZITAT_OPTIONS: [
+      { label: 'S', value: ZITAT_FONT_SIZES.S },
+      { label: 'M', value: ZITAT_FONT_SIZES.M },
+      { label: 'L', value: ZITAT_FONT_SIZES.L }
     ]
   },
 
@@ -157,36 +168,36 @@ export const IMAGE_MODIFICATION = {
     {
       name: 'Tanne Sand Sand',
       colors: [
-        { background: '#005538', text: '#F5F1E9' },
-        { background: '#F5F1E9', text: '#005538' },
-        { background: '#F5F1E9', text: '#005538' }
+        { background: '#005538' },
+        { background: '#F5F1E9' },
+        { background: '#F5F1E9' }
       ],
       imageSrc: '/images/Tanne_Sand_Sand.png'
     },
     {
       name: 'Sand-Tanne-Tanne',
       colors: [
-        { background: '#F5F1E9', text: '#005538' },
-        { background: '#005538', text: '#F5F1E9' },
-        { background: '#005538', text: '#F5F1E9' }
+        { background: '#F5F1E9' },
+        { background: '#005538' },
+        { background: '#005538' }
       ],
       imageSrc: '/images/Sand_Tanne_Tanne.png'
     },
     {
       name: 'Sand_Tanne_Sand',
       colors: [
-        { background: '#F5F1E9', text: '#005538' },
-        { background: '#005538', text: '#F5F1E9' },
-        { background: '#F5F1E9', text: '#005538' }
+        { background: '#F5F1E9' },
+        { background: '#005538' },
+        { background: '#F5F1E9' }
       ],
       imageSrc: '/images/Sand_Tanne_Sand.png'
     },
     {
       name: 'Sand_Sand_Tanne',
       colors: [
-        { background: '#F5F1E9', text: '#005538' },
-        { background: '#F5F1E9', text: '#005538' },
-        { background: '#005538', text: '#F5F1E9' }
+        { background: '#F5F1E9' },
+        { background: '#F5F1E9' },
+        { background: '#005538' }
       ],
       imageSrc: '/images/Sand_Sand_Tanne.png'
     }

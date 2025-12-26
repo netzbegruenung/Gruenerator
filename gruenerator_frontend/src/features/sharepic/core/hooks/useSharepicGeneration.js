@@ -10,7 +10,6 @@ export const useSharepicGeneration = () => {
   const quoteSubmit = useApiSubmit('zitat_claude');
   const dreizeilenSubmit = useApiSubmit('dreizeilen_claude');
   const infoSubmit = useApiSubmit('info_claude');
-  const headlineSubmit = useApiSubmit('headline_claude');
   const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
   const campaignSubmit = useApiSubmit('campaign_generate');
   const text2SharepicSubmit = useApiSubmit('sharepic/text2sharepic/generate-ai');
@@ -77,9 +76,6 @@ export const useSharepicGeneration = () => {
           submitFn = infoSubmit.submitForm;
           isInfoType = true;
           break;
-        case SHAREPIC_TYPES.HEADLINE:
-          submitFn = headlineSubmit.submitForm;
-          break;
         case SHAREPIC_TYPES.THREE_LINES:
         default:
           submitFn = dreizeilenSubmit.submitForm;
@@ -143,7 +139,7 @@ export const useSharepicGeneration = () => {
       console.error("Error generating text:", err);
       throw err;
     }
-  }, [quoteSubmit, dreizeilenSubmit, infoSubmit, headlineSubmit, zitatPureSubmit, campaignSubmit]);
+  }, [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, campaignSubmit]);
 
   const generateImage = useCallback(async (formData) => {
     setLoading(true);
@@ -240,7 +236,7 @@ export const useSharepicGeneration = () => {
 
         const fieldsToAdd = {
           type: formData.type,
-          fontSize: formData.fontSize || '85',
+          fontSize: formData.fontSize || '75',
           credit: formData.credit || '',
           balkenOffset_0: formData.balkenOffset?.[0] || '50',
           balkenOffset_1: formData.balkenOffset?.[1] || '-100',
@@ -295,9 +291,6 @@ export const useSharepicGeneration = () => {
           break;
         case SHAREPIC_TYPES.INFO:
           endpoint = 'info_canvas';
-          break;
-        case SHAREPIC_TYPES.HEADLINE:
-          endpoint = 'headline_canvas';
           break;
         case SHAREPIC_TYPES.THREE_LINES:
         default:

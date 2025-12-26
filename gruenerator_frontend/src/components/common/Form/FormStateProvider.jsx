@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 
 // Context for providing the form store instance
@@ -379,6 +380,27 @@ export const useFormStateSelector = (selector) => {
   const store = useFormState();
   return store(selector);
 };
+
+/**
+ * Hook to access multiple form state values with shallow comparison
+ * This prevents unnecessary re-renders when selecting multiple values
+ * @param {Function} selector - Function that returns an object of selected values
+ * @returns {Object} Selected state values
+ *
+ * @example
+ * const { loading, success, error } = useFormStateSelectors(state => ({
+ *   loading: state.loading,
+ *   success: state.success,
+ *   error: state.error
+ * }));
+ */
+export const useFormStateSelectors = (selector) => {
+  const store = useFormState();
+  return store(useShallow(selector));
+};
+
+// Re-export useShallow for convenience
+export { useShallow };
 
 FormStateProvider.propTypes = {
   children: PropTypes.node.isRequired,

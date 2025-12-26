@@ -1,5 +1,7 @@
 const express = require('express');
+const path = require('path');
 const imagePickerService = require('../services/imagePickerService');
+const { enhanceWithAttribution } = require('../utils/unsplashAttribution');
 const { createLogger } = require('../utils/logger.js');
 const log = createLogger('imagePicker');
 
@@ -48,7 +50,7 @@ router.post('/select', async (req, res) => {
         category: result.selectedImage.category,
         tags: result.selectedImage.tags,
         alt_text: result.selectedImage.alt_text,
-        path: `/public/sharepic_example_bg/${result.selectedImage.filename}`
+        path: `/api/image-picker/stock-image/${result.selectedImage.filename}`
       },
       confidence: result.confidence,
       reasoning: result.reasoning,
@@ -57,7 +59,7 @@ router.post('/select', async (req, res) => {
         category: alt.category,
         tags: alt.tags,
         alt_text: alt.alt_text,
-        path: `/public/sharepic_example_bg/${alt.filename}`
+        path: `/api/image-picker/stock-image/${alt.filename}`
       })),
       metadata: {
         totalImages: result.metadata.totalImages,
@@ -187,7 +189,7 @@ router.post('/validate', async (req, res) => {
       success: true,
       filename,
       exists,
-      path: exists ? `/public/sharepic_example_bg/${filename}` : null,
+      path: exists ? `/api/image-picker/stock-image/${filename}` : null,
       fullPath: imagePath,
       timestamp: new Date().toISOString()
     });
@@ -201,6 +203,81 @@ router.post('/validate', async (req, res) => {
       success: false
     });
   }
+});
+
+/**
+ * GET /api/image-picker/stock-catalog
+ * Get stock images with proper Unsplash attribution for frontend display
+ */
+router.get('/stock-catalog', async (req, res) => {
+  try {
+    const { category } = req.query;
+
+    await imagePickerService.initialize();
+    const catalog = imagePickerService.imageCatalog;
+
+    if (!catalog?.images) {
+      return res.status(404).json({
+        success: false,
+        error: 'Image catalog not found',
+        code: 'CATALOG_NOT_FOUND'
+      });
+    }
+
+    let images = catalog.images.map(enhanceWithAttribution);
+
+    if (category && category !== 'all') {
+      images = images.filter(img => img.category === category);
+    }
+
+    const categories = [...new Set(catalog.images.map(img => img.category))].sort();
+
+    res.json({
+      success: true,
+      images,
+      count: images.length,
+      totalCount: catalog.images.length,
+      categories,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    log.error('[ImagePicker API] Stock catalog error:', error);
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get stock image catalog',
+      code: 'STOCK_CATALOG_ERROR',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/image-picker/stock-image/:filename
+ * Serves a stock image file directly (used for dev proxy compatibility)
+ * Query params: ?size=thumb for 400px thumbnail
+ */
+router.get('/stock-image/:filename', (req, res) => {
+  const { filename } = req.params;
+  const { size } = req.query;
+  const sanitizedFilename = path.basename(filename);
+
+  let imagePath;
+  if (size === 'thumb') {
+    const thumbName = sanitizedFilename.replace(/\.\w+$/, '.jpg');
+    imagePath = path.join(__dirname, '../public/sharepic_example_bg/thumbs', thumbName);
+  } else {
+    imagePath = path.join(__dirname, '../public/sharepic_example_bg', sanitizedFilename);
+  }
+
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(imagePath, (err) => {
+    if (err) {
+      log.error('[ImagePicker API] Stock image serve error:', err);
+      res.status(404).json({ error: 'Image not found' });
+    }
+  });
 });
 
 module.exports = router;

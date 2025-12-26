@@ -44,7 +44,9 @@ const ChatWorkbenchLayout = ({
   startPageTitle = "Was möchtest du wissen?",
   exampleQuestions = [],
   sources = [],
-  onSourceToggle
+  onSourceToggle,
+  filterBar = null,
+  filterButton = null
 }) => {
   // Consolidated voice recording via useChatInput hook
   const {
@@ -161,6 +163,8 @@ const ChatWorkbenchLayout = ({
             exampleQuestions={exampleQuestions}
             sources={sources}
             onSourceToggle={onSourceToggle}
+            filterBar={filterBar}
+            filterButton={filterButton}
             isVoiceRecording={isVoiceRecording}
             isVoiceProcessing={isVoiceProcessing}
             startRecording={startRecording}
@@ -227,6 +231,8 @@ const ChatWorkbenchLayout = ({
             exampleQuestions={exampleQuestions}
             sources={sources}
             onSourceToggle={onSourceToggle}
+            filterBar={filterBar}
+            filterButton={filterButton}
             isVoiceRecording={isVoiceRecording}
             isVoiceProcessing={isVoiceProcessing}
             startRecording={startRecording}
@@ -325,7 +331,9 @@ ChatWorkbenchLayout.propTypes = {
     id: PropTypes.string,
     selected: PropTypes.bool
   })),
-  onSourceToggle: PropTypes.func
+  onSourceToggle: PropTypes.func,
+  filterBar: PropTypes.node,
+  filterButton: PropTypes.node
 };
 
 export default ChatWorkbenchLayout;

@@ -115,28 +115,12 @@ export const getMenuItems = (betaFeatures = {}) => {
           icon: getIcon('navigation', 'reel')
         },
         ...(!betaFeatures.isAustrian ? [{
-          id: 'sharepic',
-          path: '/sharepic',
-          title: 'Sharepics',
-          description: 'Erstelle Sharepics für Social Media',
+          id: 'image-studio',
+          path: '/image-studio',
+          title: 'Image Studio',
+          description: 'Sharepics & KI-Bildgenerierung',
           icon: getIcon('navigation', 'sharepic')
         }] : []),
-        {
-          id: 'imagine',
-          path: '/imagine',
-          title: 'Imagine',
-          description: 'Magische KI-Bildbearbeitung',
-          icon: getIcon('navigation', 'imagine')
-        },
-        /* Temporarily disabled - Vorlagen
-        {
-          id: 'vorlagen',
-          path: '/datenbank/vorlagen',
-          title: 'Vorlagen',
-          description: 'Design-Vorlagen für Canva und mehr',
-          icon: getIcon('navigation', 'vorlagen')
-        }
-        */
       ]
     },
     tools: {

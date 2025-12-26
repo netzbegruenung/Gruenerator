@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { markdownForExport, isMarkdownContent } = require('../utils/markdownService');
 const { sanitizeFilename: sanitizeFilenameCentral } = require('../utils/securityUtils');
+const { PRIMARY_DOMAIN } = require('../utils/domainUtils.js');
 const path = require('path');
 const fs = require('fs').promises;
 const { createLogger } = require('../utils/logger.js');
@@ -441,7 +442,7 @@ router.post('/docx', async (req, res) => {
     children.push(new Paragraph({
       children: [
         new TextRun({ text: `Erstellt mit dem Grünerator von Moritz Wächter • ${new Date().toLocaleDateString('de-DE')} • `, size: 18, italics: true, color: '666666', font: 'PT Sans' }),
-        new TextRun({ text: 'gruenerator.de', size: 18, italics: true, color: '0066cc', style: 'Hyperlink', font: 'PT Sans' })
+        new TextRun({ text: PRIMARY_DOMAIN, size: 18, italics: true, color: '0066cc', style: 'Hyperlink', font: 'PT Sans' })
       ],
       alignment: AlignmentType.CENTER,
       spacing: { before: 600 },

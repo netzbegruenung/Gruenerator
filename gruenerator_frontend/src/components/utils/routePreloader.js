@@ -19,7 +19,17 @@ export const ROUTE_RELATIONSHIPS = {
       delayed: ['Pressemitteilung'],
       styles: ['typography', 'baseform']
     },
-    '/sharepic': {
+    '/image-studio': {
+      immediate: ['SocialMedia'],
+      delayed: [],
+      styles: ['typography', 'imagemodificator']
+    },
+    '/image-studio/templates': {
+      immediate: ['SocialMedia'],
+      delayed: [],
+      styles: ['typography', 'imagemodificator']
+    },
+    '/image-studio/ki': {
       immediate: ['SocialMedia'],
       delayed: [],
       styles: ['typography', 'imagemodificator']

@@ -1,0 +1,85 @@
+@import '../../../assets/styles/common/variables.css';
+
+/* ========================================
+   Template Input Step
+   Input form for template types (ZITAT, SLOGAN, etc.)
+   ======================================== */
+
+.template-input-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  width: 100%;
+}
+
+.template-input-step__preview {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.template-input-step__image {
+  max-width: 100%;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: var(--card-border-radius-medium);
+  box-shadow: var(--shadow-lg);
+  object-fit: contain;
+}
+
+.template-input-step__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-large);
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.template-input-step__title {
+  margin: 0 0 var(--spacing-xsmall) 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.template-input-step__description {
+  margin: 0 0 var(--spacing-medium) 0;
+  font-size: var(--font-size-base);
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+.template-input-step__actions {
+  display: flex;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-medium);
+}
+
+.template-input-step__actions .submit-button,
+.template-input-step__actions .form-button {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .template-input-step__image {
+    max-height: 250px;
+  }
+
+  .template-input-step__form {
+    padding: var(--spacing-medium);
+  }
+
+  .template-input-step__actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .template-input-step__title {
+    font-size: var(--font-size-large);
+  }
+}

@@ -1,0 +1,904 @@
+@import '../../../assets/styles/common/variables.css';
+@import '../../../assets/styles/components/ui/button.css';
+
+/* ========================================
+   Template Result Step - Steve Jobs Redesign
+   Hero image first, progressive disclosure
+   ======================================== */
+
+.template-result-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 70vh;
+  padding: var(--spacing-medium);
+}
+
+.template-result-step--empty {
+  justify-content: center;
+  gap: var(--spacing-medium);
+  text-align: center;
+}
+
+/* ========================================
+   Minimal Layout (KI Types)
+   ======================================== */
+
+.template-result-step--minimal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-large);
+  width: 100%;
+  padding: var(--spacing-medium);
+}
+
+.ki-studio-result__actions {
+  display: flex;
+  gap: var(--spacing-medium);
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 600px;
+}
+
+.ki-studio-result__actions .submit-button,
+.ki-studio-result__actions .form-button {
+  flex: 1;
+  min-width: 120px;
+}
+
+.ki-result-generated-text {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+@media (max-width: 768px) {
+  .ki-studio-result__actions {
+    flex-direction: column;
+  }
+
+  .ki-studio-result__actions .submit-button,
+  .ki-studio-result__actions .form-button {
+    width: 100%;
+  }
+}
+
+/* Main Content Row - Image + Actions */
+.template-result-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .template-result-step {
+    padding: 0;
+  }
+
+  .template-result-main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xlarge);
+    padding: 0;
+  }
+}
+
+/* ========================================
+   Hero Image - The Star of the Show
+   ======================================== */
+
+.image-result-hero {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-medium);
+}
+
+.image-result-hero__img {
+  max-width: 100%;
+  max-height: 65vh;
+  width: auto;
+  height: auto;
+  border-radius: var(--card-border-radius-large);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.image-result-hero__img:hover {
+  transform: scale(1.01);
+}
+
+@media (min-width: 768px) {
+  .image-result-hero__img {
+    max-height: 70vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .image-result-hero {
+    flex-shrink: 0;
+    padding: 0;
+  }
+
+  .image-result-hero__img {
+    max-height: 75vh;
+    max-width: 100%;
+  }
+}
+
+/* ========================================
+   Action Bar - VideoSuccessScreen Pattern
+   ======================================== */
+
+.image-result-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  padding: var(--spacing-medium) 0;
+  gap: var(--spacing-medium);
+}
+
+.image-result-info--has-text {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.image-result-info__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+}
+
+.image-result-info--has-text .image-result-info__header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.image-result-info__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.image-result-info--has-text .image-result-info__text h2 {
+  font-size: var(--font-size-large);
+}
+
+.image-result-info--has-text .image-result-info__text p {
+  display: none;
+}
+
+.image-result-info__text h2 {
+  margin: 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.image-result-info__text p {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+.image-result-info .action-buttons {
+  display: flex;
+  gap: var(--spacing-small);
+  justify-content: center;
+}
+
+.image-result-info__generated {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .image-result-info {
+    align-items: flex-start;
+    text-align: left;
+    padding: 0;
+  }
+
+  .image-result-info__header {
+    align-items: flex-start;
+  }
+
+  .image-result-info__text {
+    align-items: flex-start;
+  }
+
+  .image-result-info .action-buttons {
+    justify-content: flex-start;
+  }
+}
+
+
+/* ========================================
+   Edit Panel - Responsive Overlay
+   ======================================== */
+
+.edit-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dark-sm);
+  z-index: 1100;
+}
+
+.edit-panel {
+  position: fixed;
+  background: var(--background-color);
+  padding: 0;
+  overflow: hidden;
+  z-index: 1101;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-large);
+  padding-bottom: var(--spacing-small);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+/* Mobile: Bottom sheet */
+.edit-panel {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Desktop: Side panel */
+@media (min-width: 1024px) {
+  .edit-panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: 480px;
+    max-height: 100vh;
+    border-radius: 16px 0 0 16px;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  }
+}
+
+@media (min-width: 1440px) {
+  .edit-panel {
+    width: 520px;
+  }
+}
+
+.edit-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-medium) var(--spacing-large);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--background-color);
+  flex-shrink: 0;
+}
+
+.edit-panel__title {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.edit-panel__close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xsmall);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--font-color);
+  transition: background-color 0.2s ease;
+}
+
+.edit-panel__close:hover {
+  background-color: var(--background-color-alt);
+}
+
+.edit-panel__close svg {
+  width: 24px;
+  height: 24px;
+}
+
+.edit-panel__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.edit-panel__section h4 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+/* Row layout for Credit + Font Size */
+.edit-panel__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+@media (min-width: 480px) {
+  .edit-panel__row {
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--spacing-medium);
+  }
+
+  .edit-panel__section--flex {
+    flex: 1;
+    min-width: 0;
+    padding-right: var(--spacing-medium);
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .edit-panel__section--auto {
+    flex: 0 0 auto;
+    padding-left: var(--spacing-small);
+  }
+}
+
+/* Credit Control in Edit Panel */
+.edit-panel .credit-control {
+  margin: 0;
+}
+
+.edit-panel .credit-control input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  font-size: 11px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edit-panel .credit-control input:focus {
+  outline: none;
+  border-color: var(--interactive-accent-color);
+  box-shadow: 0 0 0 2px rgba(0, 135, 62, 0.15);
+}
+
+.edit-panel .credit-control input::placeholder {
+  color: var(--font-color);
+  opacity: 0.5;
+}
+
+.edit-panel__actions {
+  display: flex;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium) var(--spacing-large);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--background-color);
+  flex-shrink: 0;
+}
+
+.edit-panel__actions .btn-primary,
+.edit-panel__actions .form-button {
+  flex: 1;
+}
+
+/* ========================================
+   Advanced Section Toggle
+   ======================================== */
+
+.edit-panel__advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-small) 0;
+  color: var(--font-color);
+  font-size: var(--font-size-small);
+  transition: color 0.2s ease;
+}
+
+.edit-panel__advanced-toggle:hover {
+  color: var(--interactive-accent-color);
+}
+
+
+/* ========================================
+   Lightbox (Fullscreen Image View)
+   ======================================== */
+
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  cursor: zoom-out;
+}
+
+.image-lightbox-content {
+  position: relative;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+.image-lightbox-image {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  border-radius: var(--card-border-radius-medium);
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  padding: var(--spacing-small);
+  line-height: 1;
+}
+
+/* ========================================
+   Loading State
+   ======================================== */
+
+.template-result-step--loading .image-result-hero__img {
+  opacity: 0.7;
+}
+
+.template-result-step--loading .action-buttons button {
+  pointer-events: none;
+}
+
+/* ========================================
+   Dark Theme Support
+   ======================================== */
+
+[data-theme="dark"] .edit-panel {
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .edit-panel-overlay {
+  background: var(--overlay-dark-md);
+}
+
+@media (min-width: 1024px) {
+  [data-theme="dark"] .edit-panel {
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* ========================================
+   Reduced Motion
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .image-result-hero__img {
+    transition: none;
+  }
+
+  .edit-panel__close,
+  .edit-panel__advanced-toggle,
+  .edit-panel__advanced-toggle svg {
+    transition: none;
+  }
+}
+
+/* ========================================
+   Social Text Result (Instagram Post)
+   ======================================== */
+.alt-text-result,
+.social-text-result {
+  background: var(--background-color-alt);
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--card-border-radius-small);
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--font-color);
+}
+
+.alt-text-result strong {
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.social-text-result h3 {
+  margin: 0 0 var(--spacing-xsmall) 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.social-text-result .markdown-content {
+  font-size: 12px;
+  color: var(--font-color);
+  margin-bottom: var(--spacing-xsmall);
+  line-height: 1.4;
+}
+
+.social-text-result .markdown-content p {
+  margin: 0 0 4px 0;
+}
+
+.social-text-result .markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ========================================
+   Advanced Editing in Edit Panel
+   Single column layout for narrow panel
+   ======================================== */
+
+.edit-panel .advanced-editing-section {
+  margin-top: 0;
+  padding: var(--spacing-medium);
+}
+
+.edit-panel .advanced-controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-small);
+}
+
+/* ========================================
+   Color Scheme Control - Compact Pills
+   ======================================== */
+
+.edit-panel .color-scheme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 6px;
+}
+
+.edit-panel .color-scheme-option {
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  border: 2px solid var(--border-subtle);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.edit-panel .color-scheme-option:hover {
+  border-color: var(--interactive-accent-color);
+  transform: scale(0.98);
+}
+
+.edit-panel .color-scheme-option.active {
+  border-color: var(--interactive-accent-color);
+  box-shadow: 0 0 0 2px var(--interactive-accent-color);
+}
+
+.edit-panel .color-scheme-image {
+  width: 100%;
+  height: auto;
+  max-height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+
+/* ========================================
+   Font Size Control - Round Buttons
+   ======================================== */
+
+.edit-panel .font-size-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  flex-wrap: wrap;
+}
+
+.edit-panel .font-size-buttons button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.edit-panel .font-size-buttons button:hover {
+  border-color: var(--interactive-accent-color);
+  transform: scale(1.05);
+}
+
+.edit-panel .font-size-buttons button.active {
+  background: var(--interactive-accent-color);
+  border-color: var(--interactive-accent-color);
+  color: var(--background-color);
+}
+
+/* ========================================
+   Advanced Controls Row - Compact 3-column
+   ======================================== */
+
+.advanced-controls-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.advanced-control-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  border: var(--card-border);
+  border-radius: var(--card-border-radius-small);
+  padding: var(--spacing-small);
+}
+
+.advanced-control-item h5 {
+  margin: 0;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--font-color);
+  text-align: center;
+}
+
+.advanced-control-item .cross-control h4,
+.advanced-control-item .cross-control p {
+  display: none;
+}
+
+.advanced-control-item .cross-grid {
+  gap: 4px;
+}
+
+.advanced-control-item .cross-button,
+.advanced-control-item .offset-display {
+  width: 28px;
+  height: 28px;
+}
+
+.advanced-control-item .offset-value {
+  font-size: 0.7em;
+}
+
+.advanced-control-item .balken-offset-control {
+  gap: 0.5rem;
+}
+
+.advanced-control-item .balken-offset-buttons {
+  gap: 0.5rem;
+}
+
+.advanced-control-item .balken-offset-buttons button {
+  width: 26px;
+  height: 26px;
+}
+
+.advanced-control-item .balken-offset-buttons span {
+  min-width: 45px;
+  font-size: 0.75em;
+}
+
+@media (min-width: 480px) {
+  .advanced-controls-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: stretch;
+  }
+
+  .advanced-control-item {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+}
+
+/* ========================================
+   Slogan Alternatives in Edit Panel
+   ======================================== */
+
+.edit-panel__section-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-small) 0;
+  color: var(--font-color);
+  font-size: var(--font-size-small);
+  transition: color 0.2s ease;
+}
+
+.edit-panel__section-toggle:hover {
+  color: var(--interactive-accent-color);
+}
+
+.edit-panel__section-toggle svg:last-child {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.edit-panel__section-toggle--open svg:last-child {
+  transform: rotate(180deg);
+}
+
+.edit-panel__alternatives {
+  overflow: hidden;
+}
+
+.alternatives-pills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-small) 0;
+}
+
+.alternative-pill {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+.alternative-pill:hover {
+  border-color: var(--interactive-accent-color);
+  background: var(--interactive-accent-color);
+  color: var(--button-primary-color);
+}
+
+.alternative-pill:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ========================================
+   Auto-Save Indicator
+   ======================================== */
+
+.auto-save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  font-size: var(--font-size-small);
+  color: var(--success-color, var(--klee));
+  margin-top: var(--spacing-xsmall);
+  opacity: 0.9;
+}
+
+.auto-save-indicator svg {
+  width: 14px;
+  height: 14px;
+}
+
+.auto-save-indicator--saving {
+  color: var(--font-color);
+  opacity: 0.7;
+}
+
+.auto-save-indicator--saving .spinner {
+  width: 12px;
+  height: 12px;
+}
+
+/* ========================================
+   Image Change Control
+   ======================================== */
+
+.image-change-control {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+}
+
+.image-change-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--card-border-radius-small);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.image-change-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-change-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  opacity: 0.5;
+}
+
+.image-change-placeholder svg {
+  width: 24px;
+  height: 24px;
+}
+
+.image-change-control .btn-secondary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-small) var(--spacing-medium);
+  border-radius: var(--button-border-radius);
+  border: 1px solid var(--border-color);
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.image-change-control .btn-secondary:hover {
+  border-color: var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+}
+
+.image-change-control .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.image-change-control .btn-secondary svg {
+  width: 14px;
+  height: 14px;
+}

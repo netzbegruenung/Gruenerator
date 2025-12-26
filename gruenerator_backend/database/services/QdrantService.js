@@ -40,7 +40,11 @@ class QdrantService {
             notebook_collection_documents: 'notebook_collection_documents',
             notebook_usage_logs: 'notebook_usage_logs',
             notebook_public_access: 'notebook_public_access',
-            oparl_papers: 'oparl_papers'
+            oparl_papers: 'oparl_papers',
+            kommunalwiki_documents: 'kommunalwiki_documents',
+            bundestag_content: 'bundestag_content',
+            gruene_de_documents: 'gruene_de_documents',
+            gruene_at_documents: 'gruene_at_documents'
         };
         this.lastHealthCheck = 0;
         this.healthCheckInterval = 30000; // 30 seconds
@@ -331,15 +335,18 @@ class QdrantService {
         this.ensureConnected();
         try {
             const points = chunks.map((chunk, index) => {
+                const chunkIdx = chunk.chunk_index ?? index;
                 return {
-                    id: chunkToNumericId(documentId, index),
+                    id: chunkToNumericId(documentId, chunkIdx),
                     vector: chunk.embedding,
                     payload: {
                         document_id: documentId,
-                        chunk_index: index,
+                        chunk_index: chunkIdx,
                         chunk_text: chunk.text || chunk.chunk_text,
                         token_count: chunk.token_count || chunk.tokens,
                         user_id: userId,
+                        title: chunk.title || chunk.metadata?.title || null,
+                        filename: chunk.filename || chunk.metadata?.filename || null,
                         metadata: chunk.metadata || {},
                         created_at: new Date().toISOString()
                     }
@@ -464,6 +471,355 @@ class QdrantService {
         return await this.searchDocuments(queryVector, {
             ...options,
             collection: this.collections.grundsatz_documents
+        });
+    }
+
+    /**
+     * Index bundestag content chunks
+     * @param {string} url - Source URL
+     * @param {Array} chunks - Processed chunks with embeddings
+     * @param {Object} metadata - Page metadata (title, primary_category, published_at, content_hash)
+     */
+    async indexBundestagContent(url, chunks, metadata = {}) {
+        this.ensureConnected();
+        try {
+            const points = chunks.map((chunk, index) => ({
+                id: chunkToNumericId(url, index),
+                vector: chunk.embedding,
+                payload: {
+                    source_url: url,
+                    chunk_index: index,
+                    chunk_text: chunk.text || chunk.chunk_text,
+                    token_count: chunk.token_count || chunk.tokens,
+                    title: metadata.title || null,
+                    primary_category: metadata.primary_category || metadata.section || null,
+                    published_at: metadata.published_at || null,
+                    content_hash: metadata.content_hash || null,
+                    country: 'DE',
+                    indexed_at: new Date().toISOString()
+                }
+            }));
+
+            await this.client.upsert(this.collections.bundestag_content, {
+                points: points
+            });
+
+            log.debug(`Indexed ${chunks.length} chunks for bundestag URL: ${url}`);
+            return { success: true, chunks: chunks.length };
+
+        } catch (error) {
+            log.error(`Failed to index bundestag content: ${error.message}`);
+            throw new Error(`Bundestag indexing failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get all indexed bundestag URLs for deduplication
+     * @returns {Array} Array of {source_url, content_hash} objects
+     */
+    async getAllBundestagUrls() {
+        this.ensureConnected();
+        try {
+            const urlMap = new Map();
+            let offset = null;
+
+            while (true) {
+                const scrollResult = await this.client.scroll(this.collections.bundestag_content, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: ['source_url', 'content_hash', 'chunk_index'],
+                    with_vector: false
+                });
+
+                if (!scrollResult.points || scrollResult.points.length === 0) {
+                    break;
+                }
+
+                for (const point of scrollResult.points) {
+                    if (point.payload.chunk_index === 0) {
+                        const url = point.payload.source_url || point.payload.url;
+                        urlMap.set(url, {
+                            source_url: url,
+                            content_hash: point.payload.content_hash
+                        });
+                    }
+                }
+
+                offset = scrollResult.next_page_offset;
+                if (!offset) break;
+            }
+
+            return Array.from(urlMap.values());
+        } catch (error) {
+            if (error.message?.includes('doesn\'t exist')) {
+                return [];
+            }
+            log.error(`Failed to get bundestag URLs: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete bundestag content by URL (for updates)
+     */
+    async deleteBundestagContentByUrl(url) {
+        this.ensureConnected();
+        try {
+            await this.client.delete(this.collections.bundestag_content, {
+                filter: {
+                    must: [{ key: 'source_url', match: { value: url } }]
+                }
+            });
+
+            log.debug(`Deleted bundestag content for URL: ${url}`);
+            return { success: true };
+
+        } catch (error) {
+            log.error(`Failed to delete bundestag content: ${error.message}`);
+            throw new Error(`Bundestag deletion failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Search bundestag documents
+     */
+    async searchBundestagDocuments(queryVector, options = {}) {
+        return await this.searchDocuments(queryVector, {
+            ...options,
+            collection: this.collections.bundestag_content
+        });
+    }
+
+    /**
+     * Index gruene.de content chunks
+     * @param {string} url - Source URL
+     * @param {Array} chunks - Processed chunks with embeddings
+     * @param {Object} metadata - Page metadata (title, primary_category, published_at, content_hash)
+     */
+    async indexGrueneDeContent(url, chunks, metadata = {}) {
+        this.ensureConnected();
+        try {
+            const urlId = stringToNumericId(url);
+            const points = chunks.map((chunk, index) => ({
+                id: chunkToNumericId(url, index),
+                vector: chunk.embedding,
+                payload: {
+                    source_url: url,
+                    chunk_index: index,
+                    chunk_text: chunk.text || chunk.chunk_text,
+                    token_count: chunk.token_count || chunk.tokens,
+                    title: metadata.title || null,
+                    primary_category: metadata.primary_category || metadata.section || null,
+                    published_at: metadata.published_at || null,
+                    content_hash: metadata.content_hash || null,
+                    country: 'DE',
+                    indexed_at: new Date().toISOString()
+                }
+            }));
+
+            await this.client.upsert(this.collections.gruene_de_documents, {
+                points: points
+            });
+
+            log.debug(`Indexed ${chunks.length} chunks for gruene.de URL: ${url}`);
+            return { success: true, chunks: chunks.length };
+
+        } catch (error) {
+            log.error(`Failed to index gruene.de content: ${error.message}`);
+            throw new Error(`gruene.de indexing failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get all indexed gruene.de URLs for deduplication
+     * @returns {Array} Array of {source_url, content_hash} objects
+     */
+    async getAllGrueneDeUrls() {
+        this.ensureConnected();
+        try {
+            const urlMap = new Map();
+            let offset = null;
+
+            while (true) {
+                const scrollResult = await this.client.scroll(this.collections.gruene_de_documents, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: ['source_url', 'content_hash', 'chunk_index'],
+                    with_vector: false
+                });
+
+                if (!scrollResult.points || scrollResult.points.length === 0) {
+                    break;
+                }
+
+                for (const point of scrollResult.points) {
+                    if (point.payload.chunk_index === 0) {
+                        const url = point.payload.source_url || point.payload.url;
+                        urlMap.set(url, {
+                            source_url: url,
+                            content_hash: point.payload.content_hash
+                        });
+                    }
+                }
+
+                offset = scrollResult.next_page_offset;
+                if (!offset) break;
+            }
+
+            return Array.from(urlMap.values());
+        } catch (error) {
+            if (error.message?.includes('doesn\'t exist')) {
+                return [];
+            }
+            log.error(`Failed to get gruene.de URLs: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete gruene.de content by URL (for updates)
+     */
+    async deleteGrueneDeContentByUrl(url) {
+        this.ensureConnected();
+        try {
+            await this.client.delete(this.collections.gruene_de_documents, {
+                filter: {
+                    must: [{ key: 'source_url', match: { value: url } }]
+                }
+            });
+
+            log.debug(`Deleted gruene.de content for URL: ${url}`);
+            return { success: true };
+
+        } catch (error) {
+            log.error(`Failed to delete gruene.de content: ${error.message}`);
+            throw new Error(`gruene.de deletion failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Search gruene.de documents
+     */
+    async searchGrueneDeDocuments(queryVector, options = {}) {
+        return await this.searchDocuments(queryVector, {
+            ...options,
+            collection: this.collections.gruene_de_documents
+        });
+    }
+
+    /**
+     * Index gruene.at content chunks
+     * @param {string} url - Source URL
+     * @param {Array} chunks - Processed chunks with embeddings
+     * @param {Object} metadata - Page metadata (title, primary_category, published_at, content_hash)
+     */
+    async indexGrueneAtContent(url, chunks, metadata = {}) {
+        this.ensureConnected();
+        try {
+            const points = chunks.map((chunk, index) => ({
+                id: chunkToNumericId(url, index),
+                vector: chunk.embedding,
+                payload: {
+                    source_url: url,
+                    chunk_index: index,
+                    chunk_text: chunk.text || chunk.chunk_text,
+                    token_count: chunk.token_count || chunk.tokens,
+                    title: metadata.title || null,
+                    primary_category: metadata.primary_category || metadata.section || null,
+                    published_at: metadata.published_at || null,
+                    content_hash: metadata.content_hash || null,
+                    country: 'AT',
+                    indexed_at: new Date().toISOString()
+                }
+            }));
+
+            await this.client.upsert(this.collections.gruene_at_documents, {
+                points: points
+            });
+
+            log.debug(`Indexed ${chunks.length} chunks for gruene.at URL: ${url}`);
+            return { success: true, chunks: chunks.length };
+
+        } catch (error) {
+            log.error(`Failed to index gruene.at content: ${error.message}`);
+            throw new Error(`gruene.at indexing failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get all indexed gruene.at URLs for deduplication
+     * @returns {Array} Array of {source_url, content_hash} objects
+     */
+    async getAllGrueneAtUrls() {
+        this.ensureConnected();
+        try {
+            const urlMap = new Map();
+            let offset = null;
+
+            while (true) {
+                const scrollResult = await this.client.scroll(this.collections.gruene_at_documents, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: ['source_url', 'content_hash', 'chunk_index'],
+                    with_vector: false
+                });
+
+                if (!scrollResult.points || scrollResult.points.length === 0) {
+                    break;
+                }
+
+                for (const point of scrollResult.points) {
+                    if (point.payload.chunk_index === 0) {
+                        const url = point.payload.source_url || point.payload.url;
+                        urlMap.set(url, {
+                            source_url: url,
+                            content_hash: point.payload.content_hash
+                        });
+                    }
+                }
+
+                offset = scrollResult.next_page_offset;
+                if (!offset) break;
+            }
+
+            return Array.from(urlMap.values());
+        } catch (error) {
+            if (error.message?.includes('doesn\'t exist')) {
+                return [];
+            }
+            log.error(`Failed to get gruene.at URLs: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete gruene.at content by URL (for updates)
+     */
+    async deleteGrueneAtContentByUrl(url) {
+        this.ensureConnected();
+        try {
+            await this.client.delete(this.collections.gruene_at_documents, {
+                filter: {
+                    must: [{ key: 'source_url', match: { value: url } }]
+                }
+            });
+
+            log.debug(`Deleted gruene.at content for URL: ${url}`);
+            return { success: true };
+
+        } catch (error) {
+            log.error(`Failed to delete gruene.at content: ${error.message}`);
+            throw new Error(`gruene.at deletion failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Search gruene.at documents
+     */
+    async searchGrueneAtDocuments(queryVector, options = {}) {
+        return await this.searchDocuments(queryVector, {
+            ...options,
+            collection: this.collections.gruene_at_documents
         });
     }
 
@@ -1029,6 +1385,184 @@ class QdrantService {
         } catch (error) {
             log.error(`Random social media examples failed: ${error.message}`);
             throw new Error(`Random social media examples failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get unique values for a field in a collection
+     * @param {string} collectionName - Name of the collection
+     * @param {string} fieldName - Field to extract unique values from
+     * @param {number} maxValues - Maximum number of unique values to return
+     * @returns {Promise<string[]>} Array of unique values
+     */
+    async getUniqueFieldValues(collectionName, fieldName, maxValues = 50) {
+        this.ensureConnected();
+        try {
+            const uniqueValues = new Set();
+            let offset = null;
+            let iterations = 0;
+            const maxIterations = 50;
+
+            while (iterations < maxIterations && uniqueValues.size < maxValues) {
+                const scrollResult = await this.client.scroll(collectionName, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: [fieldName],
+                    with_vector: false
+                });
+
+                if (!scrollResult.points || scrollResult.points.length === 0) {
+                    break;
+                }
+
+                for (const point of scrollResult.points) {
+                    const value = point.payload?.[fieldName];
+                    if (value !== undefined && value !== null && value !== '') {
+                        if (Array.isArray(value)) {
+                            for (const v of value) {
+                                if (v && uniqueValues.size < maxValues) {
+                                    uniqueValues.add(String(v));
+                                }
+                            }
+                        } else {
+                            uniqueValues.add(String(value));
+                        }
+                    }
+                    if (uniqueValues.size >= maxValues) break;
+                }
+
+                offset = scrollResult.next_page_offset;
+                if (!offset) break;
+                iterations++;
+            }
+
+            return Array.from(uniqueValues).sort();
+        } catch (error) {
+            if (error.message?.includes("doesn't exist")) {
+                return [];
+            }
+            log.error(`Failed to get unique values for ${fieldName} in ${collectionName}: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get unique field values with document counts for faceted search
+     * @param {string} collectionName - The collection to query
+     * @param {string} fieldName - The field to get values for
+     * @param {number} maxValues - Maximum number of values to return (default 50)
+     * @param {Object} baseFilter - Optional base filter to apply
+     * @returns {Promise<Array<{value: string, count: number}>>} Array of values with counts, sorted by count descending
+     */
+    async getFieldValueCounts(collectionName, fieldName, maxValues = 50, baseFilter = null) {
+        this.ensureConnected();
+        try {
+            const valueCounts = new Map();
+            let offset = null;
+            let iterations = 0;
+            const maxIterations = 100;
+
+            while (iterations < maxIterations) {
+                const scrollOptions = {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: [fieldName],
+                    with_vector: false
+                };
+
+                if (baseFilter) {
+                    scrollOptions.filter = baseFilter;
+                }
+
+                const scrollResult = await this.client.scroll(collectionName, scrollOptions);
+
+                if (!scrollResult.points || scrollResult.points.length === 0) {
+                    break;
+                }
+
+                for (const point of scrollResult.points) {
+                    const value = point.payload?.[fieldName];
+                    if (value !== undefined && value !== null && value !== '') {
+                        if (Array.isArray(value)) {
+                            for (const v of value) {
+                                if (v) {
+                                    const strValue = String(v);
+                                    valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
+                                }
+                            }
+                        } else {
+                            const strValue = String(value);
+                            valueCounts.set(strValue, (valueCounts.get(strValue) || 0) + 1);
+                        }
+                    }
+                }
+
+                offset = scrollResult.next_page_offset;
+                if (!offset) break;
+                iterations++;
+            }
+
+            return [...valueCounts.entries()]
+                .map(([value, count]) => ({ value, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, maxValues);
+        } catch (error) {
+            if (error.message?.includes("doesn't exist")) {
+                return [];
+            }
+            log.error(`Failed to get field value counts for ${fieldName} in ${collectionName}: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get date range (min/max) for a date field
+     * @param {string} collectionName - The collection to query
+     * @param {string} fieldName - The date field to analyze
+     * @returns {Promise<{min: string|null, max: string|null}>} Min and max date values
+     */
+    async getDateRange(collectionName, fieldName) {
+        this.ensureConnected();
+        try {
+            let minDate = null;
+            let maxDate = null;
+            let offset = null;
+            let iterations = 0;
+            const maxIterations = 50;
+
+            while (iterations < maxIterations) {
+                const scrollResult = await this.client.scroll(collectionName, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: [fieldName],
+                    with_vector: false
+                });
+
+                if (!scrollResult.points || scrollResult.points.length === 0) {
+                    break;
+                }
+
+                for (const point of scrollResult.points) {
+                    const value = point.payload?.[fieldName];
+                    if (value) {
+                        const dateStr = String(value);
+                        if (!minDate || dateStr < minDate) minDate = dateStr;
+                        if (!maxDate || dateStr > maxDate) maxDate = dateStr;
+                    }
+                }
+
+                offset = scrollResult.next_page_offset;
+                if (!offset) break;
+                iterations++;
+            }
+
+            return { min: minDate, max: maxDate };
+        } catch (error) {
+            if (error.message?.includes("doesn't exist")) {
+                return { min: null, max: null };
+            }
+            log.error(`Failed to get date range for ${fieldName} in ${collectionName}: ${error.message}`);
+            throw error;
         }
     }
 

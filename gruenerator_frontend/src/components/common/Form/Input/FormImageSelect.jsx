@@ -9,6 +9,8 @@ const FormImageSelect = ({
   label,
   options = [],
   control,
+  value,
+  onChange,
   required = false,
   disabled = false,
   helpText,
@@ -93,6 +95,10 @@ const FormImageSelect = ({
     );
   }
 
+  // Controlled mode: use value/onChange props
+  const selectedValue = value !== undefined ? value : defaultValue;
+  const handleChange = onChange || (() => {});
+
   return (
     <FormFieldWrapper
       label={label}
@@ -101,7 +107,7 @@ const FormImageSelect = ({
       htmlFor={name}
     >
       <div className={`form-image-select ${className}`.trim()}>
-        {renderImageGrid(defaultValue, () => {})}
+        {renderImageGrid(selectedValue, handleChange)}
       </div>
     </FormFieldWrapper>
   );
@@ -118,6 +124,8 @@ FormImageSelect.propTypes = {
     })
   ).isRequired,
   control: PropTypes.object,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onChange: PropTypes.func,
   required: PropTypes.bool,
   disabled: PropTypes.bool,
   helpText: PropTypes.string,

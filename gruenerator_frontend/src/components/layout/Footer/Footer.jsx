@@ -39,8 +39,8 @@ const Footer = () => {
                                 <h3 id="footer-media">Bild und Video</h3>
                                 <ul>
                                     <li><Link to="/reel">Reel</Link></li>
-                                    <li><Link to="/sharepic">Sharepics</Link></li>
-                                    <li><Link to="/imagine">Imagine</Link></li>
+                                    <li><Link to="/image-studio/templates">Sharepics</Link></li>
+                                    <li><Link to="/image-studio/ki">KI Bilder</Link></li>
                                     {/* Temporarily disabled - Vorlagen
                                     <li><Link to="/datenbank/vorlagen">Vorlagen</Link></li>
                                     */}

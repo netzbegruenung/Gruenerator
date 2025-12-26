@@ -624,8 +624,49 @@
     padding: 8px 16px;
     line-height: 1;
   }
-  
+
   .sharepic-download-button svg {
+    font-size: 1.2em;
+  }
+}
+
+.sharepic-save-button {
+  width: 100%;
+  height: 42px;
+  padding: var(--button-padding);
+  border: none;
+  border-radius: var(--button-border-radius);
+  font-size: var(--button-font-size);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--button-transition), transform var(--button-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary);
+  color: var(--weiß);
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.sharepic-save-button:hover {
+  background-color: var(--primary-700);
+  transform: scale(1.01);
+}
+
+.sharepic-save-button svg {
+  font-size: 1.2em;
+}
+
+@media (max-width: 768px) {
+  .sharepic-save-button {
+    height: 48px;
+    font-size: 0.95em;
+    padding: 8px 16px;
+    line-height: 1;
+  }
+
+  .sharepic-save-button svg {
     font-size: 1.2em;
   }
 }

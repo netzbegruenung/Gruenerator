@@ -1,8 +1,10 @@
 const path = require('path');
+const fs = require('fs').promises;
 
 class ImagePickerService {
   constructor() {
     this.imageGraph = null;
+    this.imageCatalog = null;
     this.basePath = path.join(__dirname, '../public/sharepic_example_bg/');
   }
 
@@ -12,6 +14,13 @@ class ImagePickerService {
       const { createImageSelectionGraph } = await import('../agents/langgraph/imageSelectionGraph.mjs');
       this.imageGraph = createImageSelectionGraph();
       console.log('[ImagePicker] LangGraph service initialized');
+    }
+
+    if (!this.imageCatalog) {
+      const catalogPath = path.join(this.basePath, 'image_alt_texts.json');
+      const catalogData = await fs.readFile(catalogPath, 'utf8');
+      this.imageCatalog = JSON.parse(catalogData);
+      console.log(`[ImagePicker] Loaded ${this.imageCatalog.images.length} images from catalog`);
     }
   }
 

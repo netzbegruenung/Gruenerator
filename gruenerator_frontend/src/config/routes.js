@@ -39,17 +39,19 @@ const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
 const NotebookSearchPage = lazy(() => import('../features/notebook/NotebookSearchPage'));
-const GrueneNotebookPage = lazy(() => import('../features/notebook/GrueneNotebookPage'));
-const BundestagsfraktionNotebookPage = lazy(() => import('../features/notebook/BundestagsfraktionNotebookPage'));
-const GrueneratorNotebookPage = lazy(() => import('../features/notebook/GrueneratorNotebookPage'));
-const OesterreichGrueneNotebookPage = lazy(() => import('../features/notebook/OesterreichGrueneNotebookPage'));
+const NotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('gruene') })));
+const BundestagsfraktionNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('bundestagsfraktion') })));
+const GrueneratorNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('gruenerator') })));
+const OesterreichGrueneNotebookPage = lazy(() => import('../features/notebook/components/NotebookPage').then(m => ({ default: m.createNotebookPage('oesterreich') })));
 const NotebooksGalleryPage = lazy(() => import('../features/notebook/pages/NotebooksGalleryPage'));
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
+const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
 const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/KampagnenGenerator'));
-const GrueneratorImagine = lazy(() => import('../features/imagine/GrueneratorImagine'));
+const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
+const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
 const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
@@ -105,16 +107,16 @@ export const GrueneratorenBundle = {
   Accessibility: AccessibilityTextGenerator,
   AltText: AltTextGenerator,
   Website: WebsiteGenerator,
-  Imagine: GrueneratorImagine,
+  ImageStudio: ImageStudioPage,
+  ImageGallery: ImageGallery,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
-  Sharepic: lazy(() => import('../components/pages/Grüneratoren/Sharepicgenerator')),
   Antragscheck: lazy(() => import('../components/pages/Grüneratoren/Antragsversteher')),
   Rede: UniversalTextGenerator,
   Wahlprogramm: UniversalTextGenerator,
   Search: Search,
   Oparl: OparlPage,
   Ask: NotebookSearchPage,
-  GrueneNotebook: GrueneNotebookPage,
+  GrueneNotebook: NotebookPage,
   BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
   GrueneratorNotebook: GrueneratorNotebookPage,
   OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
@@ -146,7 +148,6 @@ const standardRoutes = [
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
   { path: '/kampagnen', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/weihnachten', component: GrueneratorenBundle.Kampagnen, withForm: true },
-  { path: '/imagine', component: GrueneratorenBundle.Imagine, withForm: true },
   { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
   { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
@@ -170,6 +171,7 @@ const standardRoutes = [
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
+  { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
   { path: '/kampagne', component: GrueneratorenBundle.Campaign },
   { path: '/webinare', component: GrueneratorenBundle.Webinar },
   // { path: '/editor', component: GrueneratorenBundle.EmptyEditor, withForm: true }, // Removed - deprecated
@@ -201,6 +203,11 @@ const standardRoutes = [
   { path: '/umfragen', component: GrueneratorenBundle.SurveyIndex },
   // Text Editor
   { path: '/texteditor', component: GrueneratorenBundle.TextEditor },
+  // Image Studio Routes
+  { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
+  { path: '/image-studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  { path: '/image-studio/:category/:type', component: GrueneratorenBundle.ImageStudio, withForm: true },
   // Pages Feature Routes
   { path: '/pages/example-structured', component: GrueneratorenBundle.StructuredExamplePage },
   { path: '/pages/example-custom', component: GrueneratorenBundle.CustomExamplePage },
@@ -210,18 +217,7 @@ const standardRoutes = [
 ];
 
 const specialRoutes = [
-  {
-    path: '/sharepic',
-    component: GrueneratorenBundle.Sharepic,
-    withForm: true,
-    withSharepic: true
-  },
-  {
-    path: '/sharepic/:type',
-    component: GrueneratorenBundle.Sharepic,
-    withForm: true,
-    withSharepic: true
-  }
+  // Sharepic routes removed - now handled by Image Studio at /image-studio/templates
 ];
 
 // Hilfsfunktion zum Erstellen der No-Header-Footer-Variante

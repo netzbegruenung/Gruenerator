@@ -1,3 +1,14 @@
+/**
+ * Domain Utilities - Uses centralized config
+ * @see config/domains.js for domain configuration
+ */
+const {
+  PRIMARY_DOMAIN,
+  PRIMARY_URL,
+  BRAND,
+  URLS
+} = require('../config/domains.js');
+
 const ALLOWED_DOMAINS = [
   'gruenerator.de',
   'www.gruenerator.de',
@@ -63,6 +74,7 @@ function getOriginDomainWithoutPort(req) {
 }
 
 function isAllowedDomain(domain) {
+  if (!domain) return false;
   const domainWithoutPort = domain.split(':')[0];
   const allDomains = [...ALLOWED_DOMAINS, ...DEV_DOMAINS];
   return allDomains.some(allowed =>
@@ -86,6 +98,10 @@ function getLocaleFromDomain(domain) {
 }
 
 module.exports = {
+  PRIMARY_DOMAIN,
+  PRIMARY_URL,
+  BRAND,
+  URLS,
   ALLOWED_DOMAINS,
   DEV_DOMAINS,
   getAllowedDomains,

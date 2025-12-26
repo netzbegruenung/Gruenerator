@@ -132,9 +132,9 @@ const SettingsSection = ({
                     checked: getBetaFeatureState('aiSharepic'),
                     setter: (value) => updateUserBetaFeatures('aiSharepic', value),
                     featureName: 'KI-Sharepic',
-                    checkboxLabel: 'KI-Sharepic im Sharepic-Grünerator aktivieren',
-                    linkTo: '/sharepic',
-                    linkText: 'Zum Sharepic-Grünerator',
+                    checkboxLabel: 'KI-Sharepic im Image Studio aktivieren',
+                    linkTo: '/image-studio',
+                    linkText: 'Zum Image Studio',
                     icon: HiSparkles
                 };
             case BETA_VIEWS.CHAT:

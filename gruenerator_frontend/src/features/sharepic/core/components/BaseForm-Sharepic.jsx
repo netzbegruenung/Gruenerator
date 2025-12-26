@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
+import { FaSave } from 'react-icons/fa';
 import Button from '../../../../components/common/SubmitButton';
 import DownloadButton from './DownloadButton';
 import FileUpload from '../../../../components/utils/FileUpload';
@@ -13,6 +14,8 @@ import SharepicBackendResult from './SharepicBackendResult';
 import CopyButton from '../../../../components/common/CopyButton';
 import HelpTooltip from '../../../../components/common/HelpTooltip';
 import useAltTextGeneration from '../../../../components/hooks/useAltTextGeneration';
+import { ShareMediaModal } from '../../../../components/common/ShareMediaModal';
+import { useMediaShareStore } from '../../../../stores/mediaShareStore';
 
 // Sharepic Feature CSS - Loaded only when this feature is accessed
 import '../../../../assets/styles/components/sharepic/sharepic.css';
@@ -28,7 +31,7 @@ import {
   ARIA_LABELS, 
   FORM_STEPS,
 } from '../../../../components/utils/constants';
-import { SloganAlternativesButton, SloganAlternativesDisplay } from '../components/SloganAlternatives';
+import { SloganAlternativesDisplay } from '../components/SloganAlternatives';
 
 // Utility function to safely extract text from error objects
 const getErrorText = (error) => {
@@ -64,7 +67,9 @@ const BaseForm = ({
   sunflowerOffset,
   credit,
   helpContent,
-  hidePostTextButton = false
+  hidePostTextButton = false,
+  galleryEditMode = false,
+  editShareToken = null
 }) => {
   const {
     // State
@@ -89,6 +94,13 @@ const BaseForm = ({
   // Alt text state management
   const [showAltTextSection, setShowAltTextSection] = useState(false);
   const [generatedAltText, setGeneratedAltText] = useState('');
+
+  // Share modal state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareImageData, setShareImageData] = useState(null);
+
+  // Get updateImageShare for gallery edit mode
+  const { updateImageShare, isCreating: isSaving } = useMediaShareStore();
   
   // Alt text generation hook
   const { 
@@ -155,6 +167,118 @@ const BaseForm = ({
     }
   }, [generatedImageSrc, formData, generateAltTextForImage, resetAltTextState]);
 
+  // Helper to convert File to base64
+  const fileToBase64 = useCallback((file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  // Helper to fetch image URL and convert to base64
+  const urlToBase64 = useCallback(async (url) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to convert URL to base64:', error);
+      return null;
+    }
+  }, []);
+
+  // Get original image as base64 for sharing
+  const getOriginalImageBase64 = useCallback(async () => {
+    if (formData.uploadedImage) {
+      return await fileToBase64(formData.uploadedImage);
+    }
+    if (selectedImage?.urls?.regular) {
+      return await urlToBase64(selectedImage.urls.regular);
+    }
+    return null;
+  }, [formData.uploadedImage, selectedImage, fileToBase64, urlToBase64]);
+
+  // Build metadata for sharing/saving
+  const buildShareMetadata = useCallback(() => {
+    const metadata = {
+      sharepicType: formData.type,
+      content: {},
+      styling: {
+        fontSize: formData.fontSize,
+        colorScheme: formData.colorScheme,
+        balkenOffset: formData.balkenOffset,
+        balkenGruppenOffset: formData.balkenGruppenOffset,
+        sunflowerOffset: formData.sunflowerOffset,
+        credit: formData.credit,
+      },
+      searchTerms: formData.searchTerms,
+      sloganAlternatives: formData.sloganAlternatives,
+    };
+
+    // Add type-specific content
+    if (formData.type === 'Zitat' || formData.type === 'Zitat_Pure') {
+      metadata.content = {
+        quote: formData.quote,
+        name: formData.name,
+      };
+    } else if (formData.type === 'Info') {
+      metadata.content = {
+        header: formData.header,
+        subheader: formData.subheader,
+        body: formData.body,
+      };
+    } else {
+      metadata.content = {
+        line1: formData.line1,
+        line2: formData.line2,
+        line3: formData.line3,
+        line4: formData.line4,
+        line5: formData.line5,
+      };
+    }
+
+    return metadata;
+  }, [formData]);
+
+  // Handle save button click
+  const handleSaveClick = useCallback(async () => {
+    const originalImage = await getOriginalImageBase64();
+    const metadata = buildShareMetadata();
+
+    // If in gallery edit mode, update the existing share directly
+    if (galleryEditMode && editShareToken) {
+      try {
+        await updateImageShare(
+          editShareToken,
+          generatedImageSrc,
+          formData.thema || null,
+          metadata,
+          originalImage
+        );
+        alert('Sharepic erfolgreich aktualisiert!');
+      } catch (error) {
+        console.error('Failed to update sharepic:', error);
+        alert('Fehler beim Aktualisieren: ' + error.message);
+      }
+    } else {
+      // Normal flow: open modal to create new share
+      setShareImageData({
+        image: generatedImageSrc,
+        type: formData.type,
+        metadata,
+        originalImage,
+      });
+      setShowShareModal(true);
+    }
+  }, [generatedImageSrc, formData.type, formData.thema, getOriginalImageBase64, buildShareMetadata, galleryEditMode, editShareToken, updateImageShare]);
+
   const formButtons = useMemo(() => ({
     showBack: showBackButton,
     submitText: submitButtonText,
@@ -218,10 +342,7 @@ const BaseForm = ({
       <div className="input-fields-wrapper">
         {children}
       </div>
-      <div className="action-buttons three-buttons">
-        <div className="button-wrapper">
-          <SloganAlternativesButton {...fileUploadProps.alternativesButtonProps} buttonText={formData.type === 'Zitat' ? "Andere Zitate" : "Anderer Slogan"} />
-        </div>
+      <div className="action-buttons">
         {formData.type === 'Dreizeilen' && (
           <>
             <div className="button-wrapper">
@@ -328,9 +449,8 @@ const BaseForm = ({
                 />
               )}
             </div>
-            {fileUploadProps?.alternativesButtonProps?.isExpanded && formData.sloganAlternatives?.length > 0 && (
+            {formData.sloganAlternatives?.length > 0 && (
               <div className="alternatives-section">
-                <h4>Wähle einen passenden Text für dein Sharepic aus</h4>
                 <SloganAlternativesDisplay
                   currentSlogan={formData.type === 'Zitat' ? {
                     quote: formData.quote
@@ -344,7 +464,7 @@ const BaseForm = ({
                     line3: formData.line3
                   }}
                   alternatives={formData.sloganAlternatives}
-                  onSloganSelect={formData.type === 'Zitat' ? 
+                  onSloganSelect={formData.type === 'Zitat' ?
                     (selected) => {
                       handleChange({
                         target: {
@@ -372,9 +492,10 @@ const BaseForm = ({
                           value: selected.body
                         }
                       });
-                    } : 
-                    fileUploadProps.alternativesButtonProps.onSloganSelect
+                    } :
+                    fileUploadProps?.alternativesButtonProps?.onSloganSelect
                   }
+                  onAutoAdvance={onSubmit}
                 />
               </div>
             )}
@@ -386,6 +507,14 @@ const BaseForm = ({
               <img src={generatedImageSrc} alt="Generiertes Sharepic" className="sticky-sharepic" />
               <div className="button-container" style={{ fontSize: 'initial' }}>
                 {useDownloadButton && <DownloadButton imageUrl={generatedImageSrc} />}
+                <button
+                  type="button"
+                  className="sharepic-save-button"
+                  onClick={handleSaveClick}
+                  aria-label="Sharepic speichern"
+                >
+                  <FaSave style={{ marginRight: '10px' }} /> Speichern
+                </button>
               </div>
             </div>
             
@@ -442,40 +571,54 @@ const BaseForm = ({
       </div>
     );
   }, [
-    currentStep, 
+    currentStep,
     generatedImageSrc,
     generatedContent,
-    useDownloadButton, 
+    useDownloadButton,
     fontSize,
     formData,
     selectedImage,
     showAltTextSection,
     altTextLoading,
     altTextError,
-    generatedAltText
+    generatedAltText,
+    handleSaveClick
   ]);
 
   return (
-    <div className={`sharepic-base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
-      <div className={`form-container form-card form-card--elevated form-card--large`}>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}>
-          <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
-            {renderFormContent()}
-          </div>
-        </form>
+    <>
+      <div className={`sharepic-base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
+        <div className={`form-container form-card form-card--elevated form-card--large`}>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit();
+          }}>
+            <div className={`form-content ${generatedContent ? 'with-generated-content' : ''}`}>
+              {renderFormContent()}
+            </div>
+          </form>
+        </div>
+        <div className="display-container">
+          <h3>{helpContent?.title || title}</h3>
+          {error && (
+            <p role="alert" aria-live="assertive" className="error-message">{getErrorText(error)}</p>
+          )}
+          {Object.keys(formErrors).length > 0 && <FormErrors errors={formErrors} />}
+          {renderDisplayContent}
+        </div>
       </div>
-      <div className="display-container">
-        <h3>{helpContent?.title || title}</h3>
-        {error && (
-          <p role="alert" aria-live="assertive" className="error-message">{getErrorText(error)}</p>
-        )}
-        {Object.keys(formErrors).length > 0 && <FormErrors errors={formErrors} />}
-        {renderDisplayContent}
-      </div>
-    </div>
+
+      <ShareMediaModal
+        isOpen={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setShareImageData(null);
+        }}
+        mediaType="image"
+        imageData={shareImageData}
+        defaultTitle={formData.thema || ''}
+      />
+    </>
   );
 };
 

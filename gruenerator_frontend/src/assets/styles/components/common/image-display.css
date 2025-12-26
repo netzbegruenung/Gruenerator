@@ -7,6 +7,9 @@
     background-color: var(--background-color-alt);
     border-radius: 8px;
     border: 1px solid var(--border-subtle);
+    /* Reset font-size to prevent inheritance from parent containers
+       (e.g., Image Studio's display-content div which has large fontSize for sharepic preview) */
+    font-size: var(--font-size-base, 16px);
 }
 
 /* Multiple images layout */
@@ -24,9 +27,6 @@
 }
 
 .image-display__title {
-    color: var(--font-color);
-    font-size: var(--font-size-medium);
-    font-weight: 600;
     margin: 0;
 }
 
@@ -405,5 +405,110 @@
     to {
         opacity: 1;
         transform: scale(1);
+    }
+}
+
+/* ========================================
+   Fullscreen Mode Styles
+   ======================================== */
+.image-display--fullscreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-large);
+    background: transparent;
+    border: none;
+    min-height: 50vh;
+}
+
+.image-display--fullscreen .image-display__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.image-display--fullscreen .image-display__preview {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.image-display--fullscreen .image-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.image-preview-fullscreen {
+    max-width: 100%;
+    max-height: 65vh;
+    width: auto;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.image-preview-fullscreen:hover {
+    transform: scale(1.01);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.image-display--fullscreen .image-overlay-buttons {
+    position: static;
+    margin-top: var(--spacing-medium);
+    gap: var(--spacing-small);
+    background: var(--background-color-alt);
+    padding: var(--spacing-small) var(--spacing-medium);
+    border-radius: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.image-display--fullscreen .image-overlay-btn {
+    background: var(--background-color) !important;
+    color: var(--font-color) !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+}
+
+.image-display--fullscreen .image-overlay-btn:hover {
+    background: var(--klee) !important;
+    color: var(--weiß) !important;
+}
+
+/* Fullscreen mode responsive */
+@media (max-width: 768px) {
+    .image-display--fullscreen {
+        padding: var(--spacing-medium);
+        min-height: 40vh;
+    }
+
+    .image-preview-fullscreen {
+        max-height: 50vh;
+        border-radius: 8px;
+    }
+
+    .image-display--fullscreen .image-overlay-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .image-display--fullscreen {
+        padding: var(--spacing-small);
+    }
+
+    .image-preview-fullscreen {
+        max-height: 45vh;
+    }
+
+    .image-display--fullscreen .image-overlay-btn {
+        min-width: 36px !important;
+        min-height: 36px !important;
     }
 }

@@ -36,7 +36,8 @@ const ImageDisplay = ({
   onEditModeToggle,
   editMode,
   socialContent,
-  selectedPlatforms = []
+  selectedPlatforms = [],
+  fullscreenMode = false
 }) => {
   // Determine if we have multiple sharepics
   const isMultiple = Array.isArray(sharepicData);
@@ -204,8 +205,8 @@ const ImageDisplay = ({
       }));
     }
     
-    // Open Sharepicgenerator in new tab with editing session
-    const url = new URL(window.location.origin + '/sharepic');
+    // Open Image Studio in new tab with editing session
+    const url = new URL(window.location.origin + '/image-studio/templates');
     url.searchParams.append('editSession', editingSessionId);
     window.open(url.toString(), '_blank');
   };
@@ -297,7 +298,7 @@ const ImageDisplay = ({
 
   return (
     <>
-      <div className={`image-display ${isMultiple ? 'multiple-images' : ''}`}>
+      <div className={`image-display ${isMultiple ? 'multiple-images' : ''} ${fullscreenMode ? 'image-display--fullscreen' : ''}`}>
         {!minimal && (
           <div className="image-display__header">
             <h4 className="image-display__title">
@@ -328,7 +329,7 @@ const ImageDisplay = ({
               <img
                 src={currentSharepic.image}
                 alt="Generiertes Bild"
-                className="image-preview"
+                className={fullscreenMode ? 'image-preview-fullscreen' : 'image-preview'}
                 onClick={openLightbox}
                 style={{ cursor: 'pointer' }}
               />
@@ -558,7 +559,8 @@ ImageDisplay.propTypes = {
   onEditModeToggle: PropTypes.func,
   editMode: PropTypes.string,
   socialContent: PropTypes.string,
-  selectedPlatforms: PropTypes.arrayOf(PropTypes.string)
+  selectedPlatforms: PropTypes.arrayOf(PropTypes.string),
+  fullscreenMode: PropTypes.bool
 };
 
 ImageDisplay.defaultProps = {

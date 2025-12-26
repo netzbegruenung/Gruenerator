@@ -8,7 +8,7 @@ import {
   ClientSecretBasic
 } from 'openid-client';
 import passport from 'passport';
-import { isAllowedDomain, buildDomainUrl } from '../utils/domainUtils.js';
+import { isAllowedDomain, buildDomainUrl, URLS } from '../utils/domainUtils.js';
 
 /**
  * Custom Keycloak OIDC Strategy using openid-client v6
@@ -100,7 +100,7 @@ class KeycloakOIDCStrategy extends passport.Strategy {
         redirectUri = buildDomainUrl(originDomain, '/api/auth/callback', isSecure);
         console.log(`[KeycloakOIDC:${correlationId}] Using origin domain for redirect_uri: ${redirectUri}`);
       } else {
-        redirectUri = `${process.env.AUTH_BASE_URL || process.env.BASE_URL || 'https://beta.gruenerator.de'}/api/auth/callback`;
+        redirectUri = URLS.callback;
         console.log(`[KeycloakOIDC:${correlationId}] Using fallback redirect_uri: ${redirectUri}`);
       }
 

@@ -38,7 +38,8 @@ class FluxImageService {
   }
 
   async submit(prompt, options = {}) {
-    const url = `${this.baseUrl}${this.modelPath}`;
+    const modelPath = options.modelPathOverride || this.modelPath;
+    const url = `${this.baseUrl}${modelPath}`;
     const headers = {
       accept: 'application/json',
       'Content-Type': 'application/json',

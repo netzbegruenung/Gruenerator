@@ -105,12 +105,6 @@ const AGENT_MAPPINGS = {
     description: 'Information blocks for sharepics',
     params: { type: 'info' }
   },
-  'headline': {
-    route: 'sharepic',
-    keywords: ['headline', 'schlagzeile', 'titel', 'überschrift'],
-    description: 'Headlines for sharepics',
-    params: { type: 'headline' }
-  },
   'dreizeilen': {
     route: 'sharepic',
     keywords: ['dreizeilen', 'slogan', 'drei zeilen', 'dreizeilen sharepic', '3-zeilen', '3 zeilen', '3zeilen'],
@@ -505,14 +499,6 @@ function classifyFromContext(normalizedMessage, context) {
         agent: 'info',
         route: 'sharepic',
         params: { type: 'info' },
-        confidence: 0.8
-      };
-    }
-    if (normalizedMessage.includes('headline')) {
-      return {
-        agent: 'headline',
-        route: 'sharepic',
-        params: { type: 'headline' },
         confidence: 0.8
       };
     }

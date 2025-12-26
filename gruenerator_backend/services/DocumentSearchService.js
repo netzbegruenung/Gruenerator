@@ -71,8 +71,8 @@ class DocumentSearchService extends BaseSearchService {
                 originalTextScore: result.score || 0,
                 documents: {
                     id: result.payload?.document_id,
-                    title: result.payload?.title || 'Untitled',
-                    filename: result.payload?.filename || '',
+                    title: result.payload?.title || result.payload?.metadata?.title || 'Untitled',
+                    filename: result.payload?.filename || result.payload?.metadata?.filename || '',
                     created_at: result.payload?.created_at
                 }
             }));
@@ -217,7 +217,8 @@ class DocumentSearchService extends BaseSearchService {
                     sourceType: params.sourceType,
                     group_id: params.group_id,
                     searchCollection: params.searchCollection,
-                    titleFilter: params.titleFilter
+                    titleFilter: params.titleFilter,
+                    additionalFilter: params.additionalFilter
                 },
                 options: {
                     limit,
@@ -255,7 +256,8 @@ class DocumentSearchService extends BaseSearchService {
                 sourceType: validated.sourceType,
                 group_id: validated.group_id,
                 searchCollection: params.searchCollection,
-                titleFilter: params.titleFilter
+                titleFilter: params.titleFilter,
+                additionalFilter: params.additionalFilter
             },
             options: {
                 limit: validated.limit,
@@ -614,6 +616,12 @@ class DocumentSearchService extends BaseSearchService {
                 match: { value: filters.titleFilter }
             });
         }
+
+        // Merge additional filters (for subcategory filtering)
+        if (filters.additionalFilter?.must) {
+            filter.must.push(...filters.additionalFilter.must);
+        }
+
         // Optional quality_min range gating
         if (typeof qualityMin === 'number') {
             filter.must.push({ key: 'quality_score', range: { gte: qualityMin } });
@@ -653,8 +661,8 @@ class DocumentSearchService extends BaseSearchService {
             url: result.payload.url,
             documents: {
                 id: result.payload.document_id || result.payload.url,
-                title: result.payload.title || 'Untitled',
-                filename: result.payload.filename || '',
+                title: result.payload.title || result.payload.metadata?.title || 'Untitled',
+                filename: result.payload.filename || result.payload.metadata?.filename || '',
                 created_at: result.payload.created_at
             }
         }));
@@ -704,6 +712,11 @@ class DocumentSearchService extends BaseSearchService {
             });
         }
 
+        // Merge additional filters (for subcategory filtering)
+        if (filters.additionalFilter?.must) {
+            filter.must.push(...filters.additionalFilter.must);
+        }
+
         console.log('[DocumentSearchService] Calling Qdrant hybridSearch...');
         const hybridResult = await this.qdrantOps.hybridSearch(
             searchCollection,
@@ -737,8 +750,8 @@ class DocumentSearchService extends BaseSearchService {
             originalTextScore: result.originalTextScore,
             documents: {
                 id: result.payload.document_id || result.payload.url,
-                title: result.payload.title || 'Untitled',
-                filename: result.payload.filename || '',
+                title: result.payload.title || result.payload.metadata?.title || 'Untitled',
+                filename: result.payload.filename || result.payload.metadata?.filename || '',
                 created_at: result.payload.created_at
             }
         }));

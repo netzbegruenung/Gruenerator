@@ -76,8 +76,8 @@ const Home = () => {
           <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
             <Link to="/universal" aria-label="Zum Universal Grünerator"><UniversalIcon /> Universal</Link>
             <Link to="/reel" aria-label="Zum Reel Grünerator"><ReelIcon /> Reel</Link>
-            <Link to="/imagine" aria-label="Zum Imagine Grünerator"><ImagineIcon /> Imagine</Link>
-            <Link to="/sharepic" aria-label="Zum Sharepic Grünerator"><SharepicIcon /> Sharepic</Link>
+            <Link to="/image-studio/ki" aria-label="Zum KI Bilder Grünerator"><ImagineIcon /> KI Bilder</Link>
+            <Link to="/image-studio/templates" aria-label="Zum Sharepic Grünerator"><SharepicIcon /> Sharepic</Link>
             <Link to="/suche" aria-label="Zur Suche"><SucheIcon /> Suche</Link>
           </div>
           <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW" 

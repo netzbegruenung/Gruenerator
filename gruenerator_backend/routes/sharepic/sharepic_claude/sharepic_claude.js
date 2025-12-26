@@ -99,14 +99,14 @@ const replaceTemplate = (template, data) => {
     }
   }
 
-  // Handle {{#if (and thema details)}}...{{else}}...{{/if}} conditional
-  if (result.includes('{{#if (and thema details)}}')) {
-    const themaDetailsRegex = /\{\{#if \(and thema details\)\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/;
-    const match = result.match(themaDetailsRegex);
+  // Handle {{#if thema}}...{{else}}...{{/if}} conditional
+  if (result.includes('{{#if thema}}')) {
+    const themaRegex = /\{\{#if thema\}\}([\s\S]*?)\{\{else\}\}([\s\S]*?)\{\{\/if\}\}/;
+    const match = result.match(themaRegex);
     if (match) {
       const themaBranch = match[1];
-      const quoteBranch = match[2];
-      result = result.replace(match[0], (data.thema && data.details) ? themaBranch : quoteBranch);
+      const fallbackBranch = match[2];
+      result = result.replace(match[0], data.thema ? themaBranch : fallbackBranch);
     }
   }
 
@@ -235,7 +235,7 @@ const isInfoValid = (info) => {
 // Handler for dreizeilen type
 const handleDreizeilenRequest = async (req, res) => {
 
-  const { thema, details, line1, line2, line3, count = 1, source } = req.body;
+  const { thema, line1, line2, line3, count = 1, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
@@ -245,7 +245,7 @@ const handleDreizeilenRequest = async (req, res) => {
 
   const getRequestTemplate = () => {
     const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
-    const templateData = { thema, details, line1, line2, line3 };
+    const templateData = { thema, line1, line2, line3 };
 
     return replaceTemplate(template, templateData);
   };
@@ -443,7 +443,7 @@ const handleDreizeilenRequest = async (req, res) => {
 // Handler for zitat type
 const handleZitatRequest = async (req, res) => {
 
-  const { thema, details, quote, name, count = 1, source } = req.body;
+  const { thema, quote, name, count = 1, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
@@ -453,7 +453,7 @@ const handleZitatRequest = async (req, res) => {
 
   const requestTemplate = replaceTemplate(
     singleItem ? config.singleItemTemplate : config.requestTemplate,
-    { thema, details, quote, name }
+    { thema, quote, name }
   );
 
   try {
@@ -548,7 +548,7 @@ const handleZitatRequest = async (req, res) => {
 // Handler for zitat_pure type
 const handleZitatPureRequest = async (req, res) => {
 
-  const { thema, details, quote, name, count = 5, preserveName = false, source } = req.body;
+  const { thema, quote, name, count = 5, preserveName = false, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
@@ -558,7 +558,7 @@ const handleZitatPureRequest = async (req, res) => {
 
   const requestTemplate = replaceTemplate(
     singleItem ? config.singleItemTemplate : config.requestTemplate,
-    { thema, details, quote, name, preserveName }
+    { thema, quote, name, preserveName }
   );
 
   try {
@@ -647,7 +647,7 @@ const handleZitatPureRequest = async (req, res) => {
 // Handler for headline type
 const handleHeadlineRequest = async (req, res) => {
 
-  const { thema, details, line1, line2, line3, count = 1, source } = req.body;
+  const { thema, line1, line2, line3, count = 1, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
@@ -657,7 +657,7 @@ const handleHeadlineRequest = async (req, res) => {
 
   const requestTemplate = replaceTemplate(
     singleItem ? config.singleItemTemplate : config.requestTemplate,
-    { thema, details, line1, line2, line3 }
+    { thema, line1, line2, line3 }
   );
 
   try {
@@ -767,7 +767,7 @@ const handleHeadlineRequest = async (req, res) => {
 const handleInfoRequest = async (req, res) => {
   log.debug('[sharepic_info] handleInfoRequest called with body:', req.body);
 
-  const { thema, details, count = 5, source } = req.body;
+  const { thema, count = 5, source } = req.body;
   const singleItem = count === 1;
   const skipShortener = source === 'sharepicgenerator';
 
@@ -779,7 +779,7 @@ const handleInfoRequest = async (req, res) => {
 
   const getInfoRequestTemplate = () => {
     const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
-    return replaceTemplate(template, { thema, details });
+    return replaceTemplate(template, { thema });
   };
 
   try {
@@ -984,6 +984,183 @@ const handleInfoRequest = async (req, res) => {
   }
 };
 
+// Handler for Veranstaltung (event) type
+const handleVeranstaltungRequest = async (req, res) => {
+  log.debug('[sharepic_veranstaltung] handleVeranstaltungRequest called with body:', req.body);
+
+  const { thema, count = 5 } = req.body;
+  const singleItem = count === 1;
+
+  log.debug('[sharepic_veranstaltung] Config:', { singleItem, count });
+
+  const config = req.body._campaignPrompt || prompts.veranstaltung;
+  const systemRole = config.systemRole;
+
+  const getVeranstaltungRequestTemplate = () => {
+    const template = singleItem ? config.singleItemTemplate : config.requestTemplate;
+    return replaceTemplate(template, { thema, count });
+  };
+
+  try {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let responseData = null;
+
+    while (attempts < maxAttempts && !responseData) {
+      const currentRequestTemplate = getVeranstaltungRequestTemplate();
+
+      const result = await req.app.locals.aiWorkerPool.processRequest({
+        type: 'sharepic_veranstaltung',
+        systemPrompt: systemRole,
+        messages: [{ role: 'user', content: currentRequestTemplate }],
+        options: config.options
+      }, req);
+
+      if (!result.success) {
+        const isThrottling = isThrottlingError(result.error);
+        if (!isThrottling) {
+          attempts++;
+        }
+
+        log.error(`[sharepic_veranstaltung] AI Worker error ${isThrottling ? '(throttling)' : `on attempt ${attempts}`}:`, result.error);
+
+        if (attempts === maxAttempts) {
+          return res.status(500).json({ success: false, error: result.error });
+        }
+        continue;
+      }
+
+      attempts++;
+      const content = result.content;
+
+      if (singleItem) {
+        const eventData = extractCleanJSON(content);
+        log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - Parsed eventData:`, eventData);
+
+        if (eventData) {
+          const eventTitle = sanitizeInfoField(eventData.eventTitle);
+          const beschreibung = sanitizeInfoField(eventData.beschreibung);
+          const weekday = sanitizeInfoField(eventData.weekday);
+          const date = sanitizeInfoField(eventData.date);
+          const time = sanitizeInfoField(eventData.time);
+          const locationName = sanitizeInfoField(eventData.locationName);
+          const address = sanitizeInfoField(eventData.address);
+          const searchTerm = sanitizeInfoField(eventData.searchTerm);
+
+          if (!eventTitle || !weekday || !date || !time || !locationName) {
+            log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - Validation failed: missing required fields`);
+            if (attempts === maxAttempts) {
+              return res.status(500).json({
+                success: false,
+                error: 'Missing required fields in JSON response after all attempts'
+              });
+            }
+            continue;
+          }
+
+          responseData = {
+            success: true,
+            mainEvent: {
+              eventTitle: eventTitle.substring(0, 35),
+              beschreibung: (beschreibung || '').substring(0, 150),
+              weekday,
+              date,
+              time,
+              locationName: locationName.substring(0, 45),
+              address: (address || '').substring(0, 45)
+            },
+            alternatives: [],
+            searchTerms: searchTerm ? [searchTerm] : []
+          };
+        } else {
+          if (attempts === maxAttempts) {
+            const preview = content.replace(/\s+/g, ' ').slice(0, 200);
+            return res.status(500).json({
+              success: false,
+              error: `JSON extraction failed after ${maxAttempts} attempts. Snippet: ${preview}`
+            });
+          }
+          continue;
+        }
+      } else {
+        const eventArray = extractCleanJSONArray(content);
+        log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - Raw content preview:`, content.substring(0, 200));
+        log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - Parsed array:`, eventArray?.length || 0, 'items');
+
+        if (!eventArray || !Array.isArray(eventArray) || eventArray.length === 0) {
+          log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - Array extraction failed or empty`);
+          if (attempts === maxAttempts) {
+            return res.status(500).json({
+              success: false,
+              error: `Failed to extract event array after ${maxAttempts} attempts`
+            });
+          }
+          continue;
+        }
+
+        const validEvents = [];
+        for (const item of eventArray) {
+          const eventTitle = sanitizeInfoField(item.eventTitle);
+          const beschreibung = sanitizeInfoField(item.beschreibung);
+          const weekday = sanitizeInfoField(item.weekday);
+          const date = sanitizeInfoField(item.date);
+          const time = sanitizeInfoField(item.time);
+          const locationName = sanitizeInfoField(item.locationName);
+          const address = sanitizeInfoField(item.address);
+
+          if (eventTitle && weekday && date && time && locationName) {
+            validEvents.push({
+              eventTitle: eventTitle.substring(0, 35),
+              beschreibung: (beschreibung || '').substring(0, 150),
+              weekday,
+              date,
+              time,
+              locationName: locationName.substring(0, 45),
+              address: (address || '').substring(0, 45)
+            });
+          }
+        }
+
+        if (validEvents.length === 0) {
+          log.debug(`[sharepic_veranstaltung] Attempt ${attempts} - No valid items after validation`);
+          if (attempts === maxAttempts) {
+            return res.status(500).json({
+              success: false,
+              error: `No valid event items after ${maxAttempts} attempts`
+            });
+          }
+          continue;
+        }
+
+        const searchTerms = eventArray[0]?.searchTerm ? [eventArray[0].searchTerm] : [];
+
+        log.debug(`[sharepic_veranstaltung] Success: ${validEvents.length} valid items, searchTerms:`, searchTerms);
+
+        responseData = {
+          success: true,
+          mainEvent: validEvents[0],
+          alternatives: validEvents.slice(1),
+          searchTerms: searchTerms
+        };
+      }
+    }
+
+    if (responseData) {
+      res.json(responseData);
+    } else {
+      log.error(`[sharepic_veranstaltung] Failed to generate valid event after ${maxAttempts} attempts`);
+      res.status(500).json({
+        success: false,
+        error: `Failed to generate valid event after ${maxAttempts} attempts`
+      });
+    }
+  } catch (error) {
+    log.error('[sharepic_veranstaltung] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
 // Handler for default type (generates 3 sharepics)
 const handleDefaultRequest = async (req, res) => {
 
@@ -1023,6 +1200,8 @@ const handleClaudeRequest = async (req, res, type = 'dreizeilen') => {
       return await handleHeadlineRequest(req, res);
     case 'info':
       return await handleInfoRequest(req, res);
+    case 'veranstaltung':
+      return await handleVeranstaltungRequest(req, res);
     default:
       return await handleDreizeilenRequest(req, res);
   }

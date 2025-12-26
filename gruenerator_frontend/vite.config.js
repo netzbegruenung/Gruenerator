@@ -84,11 +84,11 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 3000,
     open: command === 'serve',
-    watch: { 
+    watch: {
       usePolling: true,
       ignored: [
         '**/node_modules/**',
-        '**/dist/**', 
+        '**/dist/**',
         '**/build/**',
         '**/.git/**',
         '**/coverage/**',

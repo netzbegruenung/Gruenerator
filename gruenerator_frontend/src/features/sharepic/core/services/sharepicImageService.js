@@ -4,7 +4,6 @@ import { prepareDataForCanvas } from '../../dreizeilen/utils/dataPreparation';
 
 const CANVAS_ENDPOINTS = {
   dreizeilen: '/dreizeilen_canvas',
-  headline: '/headline_canvas',
   info: '/info_canvas',
   quote: '/zitat_canvas',
   quote_pure: '/zitat_pure_canvas'

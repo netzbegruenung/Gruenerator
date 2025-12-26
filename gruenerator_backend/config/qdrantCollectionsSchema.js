@@ -51,8 +51,24 @@ export const HNSW_PRESETS = {
 export const INDEX_TYPES = {
     keyword: { type: 'keyword' },
     keywordTenant: { type: 'keyword', is_tenant: true },
-    text: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true }
+    text: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true },
+    datetime: { type: 'keyword' }
 };
+
+/**
+ * Standard indexes for all system collections (unified schema)
+ * These ensure consistent querying across all collections
+ */
+export const SYSTEM_COLLECTION_STANDARD_INDEXES = [
+    { field: 'source_url', type: 'keyword' },
+    { field: 'primary_category', type: 'keyword' },
+    { field: 'content_type', type: 'keyword' },
+    { field: 'subcategories', type: 'keyword' },
+    { field: 'country', type: 'keyword' },
+    { field: 'published_at', type: 'keyword' },
+    { field: 'indexed_at', type: 'keyword' },
+    { field: 'chunk_text', type: 'text' }
+];
 
 export const COLLECTION_SCHEMAS = {
     documents: {
@@ -64,14 +80,24 @@ export const COLLECTION_SCHEMAS = {
     grundsatz_documents: {
         name: 'grundsatz_documents',
         optimizer: 'medium',
-        hnsw: null,
-        indexes: []
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
     },
     oesterreich_gruene_documents: {
         name: 'oesterreich_gruene_documents',
         optimizer: 'medium',
-        hnsw: null,
-        indexes: []
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
     },
     user_knowledge: {
         name: 'user_knowledge',
@@ -151,6 +177,85 @@ export const COLLECTION_SCHEMAS = {
             { field: 'paper_type', type: 'keyword' },
             { field: 'chunk_text', type: 'text' }
         ]
+    },
+    kommunalwiki_documents: {
+        name: 'kommunalwiki_documents',
+        optimizer: 'medium',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'content_type', type: 'keyword' },
+            { field: 'subcategories', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
+    },
+    bundestag_content: {
+        name: 'bundestag_content',
+        optimizer: 'large',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'country', type: 'keyword' },
+            { field: 'published_at', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
+    },
+    gruene_de_documents: {
+        name: 'gruene_de_documents',
+        optimizer: 'large',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'country', type: 'keyword' },
+            { field: 'published_at', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
+    },
+    gruene_at_documents: {
+        name: 'gruene_at_documents',
+        optimizer: 'large',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'country', type: 'keyword' },
+            { field: 'published_at', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
+    },
+    boell_stiftung_documents: {
+        name: 'boell_stiftung_documents',
+        optimizer: 'large',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'primary_category', type: 'keyword' },
+            { field: 'content_type', type: 'keyword' },
+            { field: 'subcategories', type: 'keyword' },
+            { field: 'region', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
+    },
+    satzungen_documents: {
+        name: 'satzungen_documents',
+        optimizer: 'medium',
+        hnsw: 'standard',
+        indexes: [
+            { field: 'source_url', type: 'keyword' },
+            { field: 'landesverband', type: 'keyword' },
+            { field: 'gremium', type: 'keyword' },
+            { field: 'city', type: 'keyword' },
+            { field: 'indexed_at', type: 'keyword' },
+            { field: 'chunk_text', type: 'text' }
+        ]
     }
 };
 
@@ -195,6 +300,7 @@ export default {
     HNSW_PRESETS,
     INDEX_TYPES,
     COLLECTION_SCHEMAS,
+    SYSTEM_COLLECTION_STANDARD_INDEXES,
     TEXT_SEARCH_COLLECTIONS,
     TEXT_SEARCH_INDEXES,
     getCollectionConfig,

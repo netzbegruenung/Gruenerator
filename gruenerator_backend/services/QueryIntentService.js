@@ -102,15 +102,81 @@ class QueryIntentService {
   }
 
   /**
+   * Detect subcategory filters from natural language query
+   * @param {string} query
+   * @returns {{article_type?: string, category?: string, section?: string}}
+   */
+  detectSubcategoryFilters(query) {
+    const q = (query || '').trim();
+    if (!q) return {};
+
+    const filters = {};
+
+    // Article type patterns (KommunalWiki)
+    const articleTypePatterns = [
+      { re: /\b(nur\s+)?(Literatur|Bücher)\b/i, value: 'literatur' },
+      { re: /\b(nur\s+)?(Praxishilfe|Praxishilfen)\b/i, value: 'praxishilfe' },
+      { re: /\b(nur\s+)?(FAQ|Fragen)\b/i, value: 'faq' },
+      { re: /\b(nur\s+)?Personalien\b/i, value: 'personalien' },
+      { re: /\b(nur\s+)?Sachgebiet(e)?\b/i, value: 'sachgebiet' },
+      { re: /\b(nur\s+)?(Artikel|Beiträge)\b/i, value: 'artikel' }
+    ];
+
+    for (const p of articleTypePatterns) {
+      if (p.re.test(q)) {
+        filters.article_type = p.value;
+        break;
+      }
+    }
+
+    // Category patterns - extract from "im Bereich X", "zum Thema X", "Kategorie X"
+    const categoryPatterns = [
+      /\b(?:im\s+Bereich|zum\s+Thema|Kategorie|in\s+der\s+Kategorie)\s+([A-ZÄÖÜa-zäöüß][A-ZÄÖÜa-zäöüß-]+)\b/i,
+      /\b(?:über|zu|betreffend)\s+([A-ZÄÖÜa-zäöüß][A-ZÄÖÜa-zäöüß-]+politik)\b/i
+    ];
+
+    for (const re of categoryPatterns) {
+      const match = q.match(re);
+      if (match && match[1]) {
+        filters.category = match[1];
+        break;
+      }
+    }
+
+    // Section patterns (for bundestag, gruene-de, gruene-at)
+    const sectionPatterns = [
+      { re: /\b(?:im\s+Bereich|unter)\s+(Positionen|Themen|Aktuelles|Fraktion|Presse)\b/i, field: 'section' }
+    ];
+
+    for (const p of sectionPatterns) {
+      const match = q.match(p.re);
+      if (match && match[1]) {
+        filters.section = match[1].toLowerCase();
+        break;
+      }
+    }
+
+    return filters;
+  }
+
+  /**
    * Detect document scope from query - determines which collection(s) and document(s) to search
    * @param {string} query
-   * @returns {{collections: string[], documentTitleFilter: string|null, detectedPhrase: string|null}}
+   * @returns {{collections: string[], documentTitleFilter: string|null, detectedPhrase: string|null, subcategoryFilters: object}}
    */
   detectDocumentScope(query) {
     const q = (query || '').trim();
     if (!q) {
-      return { collections: getDefaultMultiCollectionIds(), documentTitleFilter: null, detectedPhrase: null };
+      return {
+        collections: getDefaultMultiCollectionIds(),
+        documentTitleFilter: null,
+        detectedPhrase: null,
+        subcategoryFilters: {}
+      };
     }
+
+    // Detect subcategory filters first
+    const subcategoryFilters = this.detectSubcategoryFilters(q);
 
     const docPatterns = [
       {
@@ -137,6 +203,26 @@ class QueryIntentService {
         re: /\b(Bundestags?fraktion|gruene-?bundestag|grüne-?bundestag)\b/i,
         collections: ['bundestagsfraktion-system'],
         titleFilter: null
+      },
+      {
+        re: /\b(KommunalWiki|Kommunalwiki|kommunalwiki)\b/i,
+        collections: ['kommunalwiki-system'],
+        titleFilter: null
+      },
+      {
+        re: /\b(gruene\.de|grüne\.de)\b/i,
+        collections: ['gruene-de-system'],
+        titleFilter: null
+      },
+      {
+        re: /\b(gruene\.at|grüne\.at|Grüne\s+Österreich)\b/i,
+        collections: ['gruene-at-system'],
+        titleFilter: null
+      },
+      {
+        re: /\b(satzung|satzungen|kreisverband|ortsverband)\b/i,
+        collections: ['satzungen-system'],
+        titleFilter: null
       }
     ];
 
@@ -146,12 +232,18 @@ class QueryIntentService {
         return {
           collections: pattern.collections,
           documentTitleFilter: pattern.titleFilter,
-          detectedPhrase: match[0]
+          detectedPhrase: match[0],
+          subcategoryFilters
         };
       }
     }
 
-    return { collections: getDefaultMultiCollectionIds(), documentTitleFilter: null, detectedPhrase: null };
+    return {
+      collections: getDefaultMultiCollectionIds(),
+      documentTitleFilter: null,
+      detectedPhrase: null,
+      subcategoryFilters
+    };
   }
 
   // ----- helpers -----

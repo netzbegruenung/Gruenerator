@@ -5,8 +5,10 @@ import { CitationModal } from '../../../components/common/Citation';
 import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
 import useNotebookStore from '../stores/notebookStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import useNotebookChatLogic from '../hooks/useNotebookChatLogic.jsx';
+import useNotebookChat from '../hooks/useNotebookChat';
 import NotebookChatMessage from './NotebookChatMessage';
+import FilterDropdownButton from './FilterDropdownButton';
+import ActiveFiltersDisplay from './ActiveFiltersDisplay';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 
@@ -34,9 +36,10 @@ const NotebookChat = () => {
   const {
     chatMessages, inputValue, submitLoading, isMobileView,
     setInputValue, handleSubmitQuestion
-  } = useNotebookChatLogic({
-    collectionId: id,
-    welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : null
+  } = useNotebookChat({
+    collections: collection ? [{ id, name: collection.name }] : [],
+    welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : null,
+    persistMessages: true
   });
 
   if (loading) return <div className="notebook-chat-error"><p>Notebook wird geladen...</p></div>;
@@ -88,6 +91,7 @@ const NotebookChat = () => {
       <CitationModal />
       <ChatWorkbenchLayout
         mode={effectiveMode}
+        modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
         title={collection.name}
         messages={chatMessages}
@@ -103,6 +107,10 @@ const NotebookChat = () => {
         hideHeader={true}
         hideModeSelector={true}
         singleLine={true}
+        showStartPage={true}
+        startPageTitle={`Fragen zu "${collection.name}"`}
+        filterButton={<FilterDropdownButton collectionId={id} />}
+        filterBar={<ActiveFiltersDisplay collectionId={id} />}
       />
     </>
   );

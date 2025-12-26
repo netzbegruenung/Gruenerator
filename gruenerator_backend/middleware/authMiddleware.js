@@ -4,6 +4,7 @@
  */
 
 const jwtAuthMiddleware = require('./jwtAuthMiddleware');
+const { BRAND } = require('../utils/domainUtils.js');
 
 // MOBILE AUTH DISABLED - Mobile token rate limiting
 // const mobileTokenRateLimiter = new Map();
@@ -69,7 +70,7 @@ function requireAuth(req, res, next) {
       console.warn('[Auth] DEV AUTH BYPASS USED - Development only!');
       req.user = {
         id: 'dev-user-123',
-        email: 'dev@gruenerator.de',
+        email: BRAND.devEmail,
         display_name: 'Development User'
       };
       return next();

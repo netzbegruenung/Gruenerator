@@ -20,8 +20,7 @@ const useSharepicModification = () => {
       'Dreizeilen': '/dreizeilen_canvas',
       'Zitat': '/zitat_canvas',
       'Zitat_Pure': '/zitat_pure_canvas',
-      'Info': '/info_canvas',
-      'Headline': '/headline_canvas'
+      'Info': '/info_canvas'
     };
     return endpoints[type] || '/dreizeilen_canvas';
   };
@@ -32,8 +31,7 @@ const useSharepicModification = () => {
       'Dreizeilen': 'dreizeilen',
       'Zitat': 'quote',
       'Zitat_Pure': 'quote_pure',
-      'Info': 'info',
-      'Headline': 'headline'
+      'Info': 'info'
     };
     return typeMap[type] || 'dreizeilen';
   };
@@ -56,7 +54,7 @@ const useSharepicModification = () => {
       if (dataPreparationType === 'info') {
         // Info sharepics have different data structure
         formDataToSend = prepareDataForInfoCanvas(formData, modificationData);
-      } else if (dataPreparationType === 'quote_pure' || dataPreparationType === 'headline') {
+      } else if (dataPreparationType === 'quote_pure') {
         // Text-only sharepics don't need image data
         formDataToSend = prepareDataForTextOnlyCanvas(formData, modificationData, dataPreparationType);
       } else {
@@ -116,21 +114,17 @@ const useSharepicModification = () => {
     return formDataToSend;
   };
 
-  // Helper function to prepare data for text-only sharepics (Zitat_Pure, Headline)
+  // Helper function to prepare data for text-only sharepics (Zitat_Pure)
   const prepareDataForTextOnlyCanvas = (formData, modificationData, type) => {
     const formDataToSend = new FormData();
-    
+
     if (type === 'quote_pure') {
       formDataToSend.append('quote', formData.quote || '');
       formDataToSend.append('name', formData.name || '');
-    } else if (type === 'headline') {
-      formDataToSend.append('line1', formData.line1 || '');
-      formDataToSend.append('line2', formData.line2 || '');
-      formDataToSend.append('line3', formData.line3 || '');
     }
-    
+
     formDataToSend.append('fontSize', modificationData.fontSize || formData.fontSize || '85');
-    
+
     return formDataToSend;
   };
 

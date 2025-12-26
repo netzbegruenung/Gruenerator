@@ -121,7 +121,15 @@ async function preScaleVideo(inputPath, metadata, targetResolution) {
   await new Promise((resolve, reject) => {
     ffmpeg(inputPath)
       .videoFilters(`scale=${targetWidth}:${targetHeight}`)
-      .outputOptions(['-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-c:a', 'copy'])
+      .outputOptions([
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', '17',
+        '-pix_fmt', 'yuv420p',
+        '-bf', '3',
+        '-refs', '4',
+        '-c:a', 'copy'
+      ])
       .on('end', resolve)
       .on('error', reject)
       .save(tempPath);

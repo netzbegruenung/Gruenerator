@@ -29,7 +29,7 @@ const { tusServer } = tusServiceModule;
 import session from 'express-session';
 import {RedisStore} from 'connect-redis';
 import passport from './config/passportSetup.mjs';
-import { getCorsOrigins } from './utils/domainUtils.js';
+import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 
 const require = createRequire(import.meta.url);
 
@@ -247,7 +247,7 @@ if (cluster.isMaster) {
   }
 
   try {
-    const { getProfileService } = await import('./services/ProfileService.js');
+    const { getProfileService } = await import('./services/ProfileService.mjs');
     const profileService = getProfileService();
     await profileService.init();
     log.debug('ProfileService initialized');
@@ -278,19 +278,25 @@ if (cluster.isMaster) {
           "blob:",
           "https://*.supabase.co",
           "https://piwik.gruenes-cms.de",
-          // Alle Subdomains von gruenerator.de (HTTP & HTTPS, falls lokal noch HTTP gebraucht wird)
+          // All gruenerator domains (HTTP & HTTPS for dev)
+          `http://*.${PRIMARY_DOMAIN}`,
+          `https://*.${PRIMARY_DOMAIN}`,
           "http://*.gruenerator.de",
           "https://*.gruenerator.de",
-          // Umlaut-Domain grüenerator.de + Subdomains (Punycode-kodiert)
+          "http://*.gruenerator.at",
+          "https://*.gruenerator.at",
+          "http://*.gruenerator.eu",
+          "https://*.gruenerator.eu",
+          // Punycode domains (grünerator)
           "http://*.xn--grnerator-z2a.de",
           "https://*.xn--grnerator-z2a.de",
-          // Weiterhin lokale Entwicklungs-URLs
+          // Local development
           "http://localhost:*",
           "http://127.0.0.1:*",
-          // Falls *.netzbegruenung* genutzt wird
+          // Netzbegruenung domains
           "http://*.netzbegruenung.verdigado.net",
           "https://*.netzbegruenung.verdigado.net",
-          // Zusätzliche erlaubte Domains
+          // Additional allowed domains from central config
           ...allowedOrigins,
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -545,7 +551,7 @@ if (cluster.isMaster) {
   }));
 
   // Statisches Verzeichnis für Sharepic-Hintergrundbilder
-  app.use('/public', express.static(path.join(__dirname, 'public'), {
+  app.use('/backend-static', express.static(path.join(__dirname, 'public'), {
     setHeaders: (res, path, stat) => {
       res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       res.set('Access-Control-Allow-Origin', '*');

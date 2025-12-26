@@ -4,7 +4,7 @@
 .form-image-select-grid {
   display: grid;
   grid-template-columns: repeat(var(--grid-cols-desktop, 3), 1fr);
-  gap: var(--spacing-large);
+  gap: var(--spacing-medium);
   margin-top: var(--spacing-small);
 }
 

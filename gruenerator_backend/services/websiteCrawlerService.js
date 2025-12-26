@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import { URL } from 'url';
 import crypto from 'crypto';
 import { createLogger } from '../utils/logger.js';
+import { BRAND } from '../utils/domainUtils.js';
 
 const log = createLogger('WebsiteCrawler');
 
@@ -17,7 +18,7 @@ class WebsiteCrawlerService {
         this.maxPages = options.maxPages || 10000;
         this.crawlDelay = options.crawlDelay || 1000; // 1 second between requests
         this.timeout = options.timeout || 30000;
-        this.userAgent = 'Gruenerator-Bot/1.0 (+https://gruenerator.de)';
+        this.userAgent = BRAND.botUserAgent;
 
         // Date filter: only include content from this date onwards
         this.minDate = options.minDate || null; // ISO date string or Date object
@@ -64,8 +65,8 @@ class WebsiteCrawlerService {
                 const pageData = await this.crawlPage(url);
 
                 if (pageData) {
-                    // Determine section from URL
-                    pageData.section = this.getSectionFromUrl(url);
+                    // Determine primary category from URL path
+                    pageData.primary_category = this.getSectionFromUrl(url);
                     pageData.depth = depth;
 
                     // Check date filter - skip content older than minDate
@@ -157,7 +158,7 @@ class WebsiteCrawlerService {
             }
 
             return {
-                url,
+                source_url: url,
                 html,
                 title: content.title,
                 text: content.text,
@@ -165,7 +166,7 @@ class WebsiteCrawlerService {
                 description: content.description,
                 published_at: content.publishedAt,
                 content_hash: this.generateContentHash(content.text),
-                crawled_at: new Date().toISOString()
+                indexed_at: new Date().toISOString()
             };
 
         } catch (error) {

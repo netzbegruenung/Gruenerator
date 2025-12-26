@@ -1,0 +1,32 @@
+@import '../../../assets/styles/common/variables.css';
+
+/* ========================================
+   Template Preview Step
+   Text alternative selection for template types
+   ======================================== */
+
+.template-preview-step {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.template-preview-step__title {
+  text-align: center;
+  margin: 0 0 var(--spacing-medium) 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.template-preview-step__actions {
+  margin-top: var(--spacing-large);
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-medium);
+}
+
+.template-preview-step__actions .submit-button,
+.template-preview-step__actions .form-button {
+  min-width: 140px;
+}

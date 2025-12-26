@@ -48,7 +48,9 @@ const ChatStartPage = ({
   startRecording: externalStartRecording,
   stopRecording: externalStopRecording,
   sources = [],
-  onSourceToggle
+  onSourceToggle,
+  filterBar = null,
+  filterButton = null
 }) => {
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const isGruenerator = variant === "gruenerator";
@@ -136,6 +138,7 @@ const ChatStartPage = ({
               className="chat-start-page-input"
             />
             <div className="chat-start-page-buttons">
+              {filterButton}
               <ChatFileUploadButton
                 enabled={enableFileUpload}
                 disabled={disabled}
@@ -156,6 +159,17 @@ const ChatStartPage = ({
             </div>
           </div>
         </motion.form>
+
+        {filterBar && (
+          <motion.div
+            className="chat-start-page-active-filters"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.25 }}
+          >
+            {filterBar}
+          </motion.div>
+        )}
 
         {exampleQuestions.length > 0 && (
           <motion.div
@@ -288,7 +302,9 @@ ChatStartPage.propTypes = {
     id: PropTypes.string,
     selected: PropTypes.bool
   })),
-  onSourceToggle: PropTypes.func
+  onSourceToggle: PropTypes.func,
+  filterBar: PropTypes.node,
+  filterButton: PropTypes.node
 };
 
 export default ChatStartPage;

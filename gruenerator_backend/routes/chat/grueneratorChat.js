@@ -1201,7 +1201,7 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
   });
 
   // Route all supported sharepic types to the generation service
-  if (sharepicType === 'info' || sharepicType === 'zitat_pure' || sharepicType === 'zitat' || sharepicType === 'dreizeilen' || sharepicType === 'headline') {
+  if (sharepicType === 'info' || sharepicType === 'zitat_pure' || sharepicType === 'zitat' || sharepicType === 'dreizeilen') {
     try {
       // Use parameters from the initial extraction (already in req.body)
       // Preserve all extracted params including name from Mistral/regex extraction

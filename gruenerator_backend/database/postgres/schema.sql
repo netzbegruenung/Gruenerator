@@ -823,3 +823,59 @@ CREATE TABLE IF NOT EXISTS subtitler_share_downloads (
 );
 
 CREATE INDEX IF NOT EXISTS idx_subtitler_share_downloads_video ON subtitler_share_downloads(shared_video_id);
+
+-- ============================================
+-- UNIFIED MEDIA SHARING SYSTEM
+-- Replaces separate video/image sharing tables
+-- ============================================
+
+-- Unified shared media table for both images and videos
+CREATE TABLE IF NOT EXISTS shared_media (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    share_token VARCHAR(32) UNIQUE NOT NULL,
+
+    -- Media type discrimination
+    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image')),
+
+    -- Common fields
+    title TEXT,
+    file_path TEXT,
+    file_name TEXT,
+    thumbnail_path TEXT,
+    file_size BIGINT,
+    mime_type TEXT,
+
+    -- Video-specific fields (NULL for images)
+    duration DECIMAL,
+    project_id UUID REFERENCES subtitler_projects(id) ON DELETE SET NULL,
+
+    -- Image-specific fields (NULL for videos)
+    image_type TEXT,
+    image_metadata JSONB DEFAULT '{}',
+
+    -- Processing status
+    status VARCHAR(20) DEFAULT 'ready' CHECK (status IN ('processing', 'ready', 'failed')),
+
+    -- Tracking
+    download_count INTEGER DEFAULT 0,
+    view_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Performance indexes for shared_media
+CREATE INDEX IF NOT EXISTS idx_shared_media_token ON shared_media(share_token);
+CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
+CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);
+CREATE INDEX IF NOT EXISTS idx_shared_media_user_created ON shared_media(user_id, created_at DESC);
+
+-- Download tracking table for shared media
+CREATE TABLE IF NOT EXISTS shared_media_downloads (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    shared_media_id UUID REFERENCES shared_media(id) ON DELETE CASCADE,
+    downloader_email TEXT NOT NULL,
+    downloaded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    ip_address TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_shared_media_downloads_media ON shared_media_downloads(shared_media_id);

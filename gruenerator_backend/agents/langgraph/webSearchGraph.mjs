@@ -14,14 +14,15 @@ import { urlCrawlerService } from '../../services/urlCrawlerService.js';
 // Initialize Mistral as fallback search service
 const mistralSearchService = new MistralWebSearchService();
 
-// Import citation functions
+// Import citation functions from shared processor
 import {
   normalizeSearchResult,
   dedupeAndDiversify,
   buildReferencesMap,
   validateAndInjectCitations,
-  summarizeReferencesForPrompt
-} from './notebookGraphCitations.mjs';
+  summarizeReferencesForPrompt,
+  parseAIJsonResponse
+} from '../../services/SearchResultProcessor.js';
 
 // State schema for the search graph
 const SearchState = Annotation.Root({
@@ -369,23 +370,17 @@ Respond with JSON:
       throw new Error(`AI crawler agent failed: ${crawlDecision.error}`);
     }
 
-    // Parse AI decision
-    let decision;
-    try {
-      decision = JSON.parse(crawlDecision.content);
-    } catch (parseError) {
-      console.warn('[IntelligentCrawler] Failed to parse AI decision, falling back to top results');
-      // Fallback: select top results by ranking
-      decision = {
-        selections: results.slice(0, maxCrawls).map((r, i) => ({
-          index: i + 1,
-          url: r.url,
-          reason: 'Fallback selection - top ranked result',
-          expectedValue: 'medium'
-        })),
-        reasoning: 'Fallback due to JSON parsing error'
-      };
-    }
+    // Parse AI decision with fallback
+    const fallbackDecision = {
+      selections: results.slice(0, maxCrawls).map((r, i) => ({
+        index: i + 1,
+        url: r.url,
+        reason: 'Fallback selection - top ranked result',
+        expectedValue: 'medium'
+      })),
+      reasoning: 'Fallback due to JSON parsing error'
+    };
+    const decision = parseAIJsonResponse(crawlDecision.content, fallbackDecision);
 
     console.log(`[IntelligentCrawler] Selected ${decision.selections.length} URLs to crawl: ${decision.reasoning}`);
 
@@ -1140,16 +1135,9 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
     }, req);
 
     if (result.success && result.content) {
-      try {
-        // Clean up potential code fences and markdown formatting
-        let cleanContent = result.content.replace(/```json\s*|\s*```/g, '').trim();
-        cleanContent = cleanContent.replace(/\*\*/g, ''); // Remove bold markdown
-        const parsed = JSON.parse(cleanContent);
-        if (parsed.research_questions && Array.isArray(parsed.research_questions)) {
-          return parsed.research_questions.slice(0, 5);
-        }
-      } catch (parseError) {
-        console.warn('[WebSearchGraph] Failed to parse AI research questions:', parseError);
+      const parsed = parseAIJsonResponse(result.content, {});
+      if (parsed.research_questions && Array.isArray(parsed.research_questions)) {
+        return parsed.research_questions.slice(0, 5);
       }
     }
   } catch (error) {

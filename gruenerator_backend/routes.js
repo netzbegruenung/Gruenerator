@@ -15,10 +15,10 @@ const antragsversteherRoute = require('./routes/claude_antragsversteher');
 const sharepicDreizeilenCanvasRoute = require('./routes/sharepic/sharepic_canvas/dreizeilen_canvas');
 const zitatSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_canvas');
 const zitatPureSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/zitat_pure_canvas');
-const headlineSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/headline_canvas');
 const infoSharepicCanvasRoute = require('./routes/sharepic/sharepic_canvas/info_canvas');
-const imagineLabelCanvasRoute = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
+const { router: imagineLabelCanvasRoute } = require('./routes/sharepic/sharepic_canvas/imagine_label_canvas');
 const campaignCanvasRoute = require('./routes/sharepic/sharepic_canvas/campaign_canvas');
+const veranstaltungCanvasRoute = require('./routes/sharepic/sharepic_canvas/veranstaltung_canvas');
 const campaignGenerateRoute = require('./routes/sharepic/sharepic_claude/campaign_generate');
 const sharepicClaudeRoute = require('./routes/sharepic/sharepic_claude/sharepic_claude');
 const text2SharepicRoute = require('./routes/sharepic/text2sharepic');
@@ -39,6 +39,7 @@ const subtitlerRouter = require('./routes/subtitler/subtitlerController');
 const subtitlerSocialRouter = require('./routes/subtitler/subtitlerSocialController');
 const subtitlerProjectRouter = require('./routes/subtitler/subtitlerProjectController');
 const subtitlerShareRouter = require('./routes/subtitler/subtitlerShareController');
+const shareRouter = require('./routes/share/shareController');
 // voiceRouter now imported and enabled below
 // customGeneratorRoute and generatorConfiguratorRoute will be imported as ES6 modules
 // const customGeneratorRoute = require('./routes/custom_generator');
@@ -188,10 +189,10 @@ async function setupRoutes(app) {
   app.use('/api/dreizeilen_canvas', sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', zitatSharepicCanvasRoute);
   app.use('/api/zitat_pure_canvas', zitatPureSharepicCanvasRoute);
-  app.use('/api/headline_canvas', headlineSharepicCanvasRoute);
   app.use('/api/info_canvas', infoSharepicCanvasRoute);
   app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
   app.use('/api/campaign_canvas', campaignCanvasRoute);
+  app.use('/api/veranstaltung_canvas', veranstaltungCanvasRoute);
   app.use('/api/campaign_generate', campaignGenerateRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
@@ -210,6 +211,10 @@ async function setupRoutes(app) {
 
   app.post('/api/info_claude', async (req, res) => {
     await sharepicClaudeRoute.handleClaudeRequest(req, res, 'info');
+  });
+
+  app.post('/api/veranstaltung_claude', async (req, res) => {
+    await sharepicClaudeRoute.handleClaudeRequest(req, res, 'veranstaltung');
   });
 
   app.post('/api/zitat_pure_claude', async (req, res) => {
@@ -272,6 +277,9 @@ async function setupRoutes(app) {
   app.use('/api/subtitler', subtitlerSocialRouter);
   app.use('/api/subtitler/projects', subtitlerProjectRouter);
   app.use('/api/subtitler/share', subtitlerShareRouter);
+
+  // Unified media sharing routes (images + videos)
+  app.use('/api/share', shareRouter);
 
   // Import and enable Mistral-based voice routes
   const voiceRouter = require('./routes/voice/voiceController');
@@ -339,6 +347,14 @@ async function setupRoutes(app) {
   // Add Flux greener edit prompt route (ES module)
   const { default: fluxGreenEditPrompt } = await import('./routes/flux/greenEditPrompt.js');
   app.use('/api/flux/green-edit', fluxGreenEditPrompt);
+
+  // Add Imagine Create route (FLUX + Canvas composition with title)
+  const imagineCreateRoute = require('./routes/flux/imagineCreate.js');
+  app.use('/api/imagine/create', imagineCreateRoute);
+
+  // Add Imagine Pure route (FLUX only, no title/composition)
+  const imaginePureRoute = require('./routes/flux/imaginePure.js');
+  app.use('/api/imagine/pure', imaginePureRoute);
 
   // Flush route stats to database every 60 seconds
   setInterval(async () => {

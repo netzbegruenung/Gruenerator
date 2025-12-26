@@ -8,7 +8,12 @@ const useNotebookStore = create((set, get) => ({
     loading: false,
     error: null,
     selectedCollection: null,
-    
+
+    // Filter state
+    filterValuesCache: {},  // { [collectionId]: { [field]: { label, values } } }
+    activeFilters: {},      // { [collectionId]: { [field]: [value1, value2, ...] } }
+    loadingFilters: {},     // { [collectionId]: boolean }
+
     // Actions
     setLoading: (loading) => set({ loading }),
     setError: (error) => set({ error }),
@@ -210,12 +215,190 @@ const useNotebookStore = create((set, get) => ({
         return stats;
     },
 
+    // ─── Filter Actions ────────────────────────────────────────────────────
+
+    fetchFilterValues: async (collectionId) => {
+        const { filterValuesCache, loadingFilters } = get();
+
+        if (filterValuesCache[collectionId] || loadingFilters[collectionId]) {
+            return filterValuesCache[collectionId];
+        }
+
+        set(state => ({
+            loadingFilters: { ...state.loadingFilters, [collectionId]: true }
+        }));
+
+        try {
+            const response = await apiClient.get(`/auth/notebook/collections/${collectionId}/filters`);
+            const data = response.data;
+
+            if (data.filters) {
+                set(state => ({
+                    filterValuesCache: {
+                        ...state.filterValuesCache,
+                        [collectionId]: data.filters
+                    },
+                    loadingFilters: { ...state.loadingFilters, [collectionId]: false }
+                }));
+                return data.filters;
+            }
+        } catch (error) {
+            console.error('[notebookStore] Error fetching filters:', collectionId, error);
+        }
+
+        set(state => ({
+            loadingFilters: { ...state.loadingFilters, [collectionId]: false }
+        }));
+        return null;
+    },
+
+    setActiveFilter: (collectionId, field, value) => {
+        set(state => {
+            // Handle date range objects (for date_range filter type)
+            if (value && typeof value === 'object' && ('date_from' in value || 'date_to' in value)) {
+                // Filter out empty date values
+                const hasDateFrom = value.date_from && value.date_from !== '';
+                const hasDateTo = value.date_to && value.date_to !== '';
+
+                if (!hasDateFrom && !hasDateTo) {
+                    // Remove the filter entirely if both dates are empty
+                    const { [field]: _, ...rest } = state.activeFilters[collectionId] || {};
+                    return {
+                        activeFilters: {
+                            ...state.activeFilters,
+                            [collectionId]: rest
+                        }
+                    };
+                }
+
+                return {
+                    activeFilters: {
+                        ...state.activeFilters,
+                        [collectionId]: {
+                            ...(state.activeFilters[collectionId] || {}),
+                            [field]: {
+                                date_from: hasDateFrom ? value.date_from : null,
+                                date_to: hasDateTo ? value.date_to : null
+                            }
+                        }
+                    }
+                };
+            }
+
+            // Handle null value (clear filter)
+            if (value === null) {
+                const { [field]: _, ...rest } = state.activeFilters[collectionId] || {};
+                return {
+                    activeFilters: {
+                        ...state.activeFilters,
+                        [collectionId]: rest
+                    }
+                };
+            }
+
+            // Handle regular multi-select values (strings)
+            const existing = state.activeFilters[collectionId]?.[field] || [];
+            const newValues = existing.includes(value)
+                ? existing.filter(v => v !== value)
+                : [...existing, value];
+
+            if (newValues.length === 0) {
+                const { [field]: _, ...rest } = state.activeFilters[collectionId] || {};
+                return {
+                    activeFilters: {
+                        ...state.activeFilters,
+                        [collectionId]: rest
+                    }
+                };
+            }
+
+            return {
+                activeFilters: {
+                    ...state.activeFilters,
+                    [collectionId]: {
+                        ...(state.activeFilters[collectionId] || {}),
+                        [field]: newValues
+                    }
+                }
+            };
+        });
+    },
+
+    removeActiveFilter: (collectionId, field, value) => {
+        set(state => {
+            const existing = state.activeFilters[collectionId]?.[field] || [];
+            if (value !== undefined) {
+                const newValues = existing.filter(v => v !== value);
+                if (newValues.length === 0) {
+                    const { [field]: _, ...rest } = state.activeFilters[collectionId] || {};
+                    return {
+                        activeFilters: {
+                            ...state.activeFilters,
+                            [collectionId]: rest
+                        }
+                    };
+                }
+                return {
+                    activeFilters: {
+                        ...state.activeFilters,
+                        [collectionId]: {
+                            ...(state.activeFilters[collectionId] || {}),
+                            [field]: newValues
+                        }
+                    }
+                };
+            }
+
+            const collectionFilters = { ...(state.activeFilters[collectionId] || {}) };
+            delete collectionFilters[field];
+            return {
+                activeFilters: {
+                    ...state.activeFilters,
+                    [collectionId]: collectionFilters
+                }
+            };
+        });
+    },
+
+    clearAllFilters: (collectionId) => {
+        set(state => ({
+            activeFilters: {
+                ...state.activeFilters,
+                [collectionId]: {}
+            }
+        }));
+    },
+
+    getFiltersForCollection: (collectionId) => {
+        const { activeFilters } = get();
+        return activeFilters[collectionId] || {};
+    },
+
+    getFilterValuesForCollection: (collectionId) => {
+        const { filterValuesCache } = get();
+        return filterValuesCache[collectionId] || null;
+    },
+
+    hasFiltersAvailable: (collectionId) => {
+        const { filterValuesCache } = get();
+        const filters = filterValuesCache[collectionId];
+        return filters && Object.keys(filters).length > 0;
+    },
+
+    isLoadingFilters: (collectionId) => {
+        const { loadingFilters } = get();
+        return loadingFilters[collectionId] || false;
+    },
+
     // Reset store
     reset: () => set({
         notebookCollections: [],
         loading: false,
         error: null,
-        selectedCollection: null
+        selectedCollection: null,
+        filterValuesCache: {},
+        activeFilters: {},
+        loadingFilters: {}
     })
 }));
 

@@ -1,4 +1,6 @@
 import React from 'react';
+import { PRIMARY_URL } from '../../../config/domains';
+
 const Datenschutz = () => {
   return (
     <div className="page-container">
@@ -7,7 +9,7 @@ const Datenschutz = () => {
       
       <h2>Kurzzusammenfassung</h2>
       <p>
-        <strong>Der <a href="https://gruenerator.de/">GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die Eingabefelder eingibst.
+        <strong>Der <a href={PRIMARY_URL}>GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die Eingabefelder eingibst.
         Diese werden zur AI-Bearbeitung an unseren europäischen Technologiepartner
         <a href="https://mistral.ai/">Mistral AI</a> weitergeleitet. Deine Daten werden dort nicht zum Training der KI verwendet. Bei Aktivierung des <strong>Pro-Modus</strong> werden Deine Eingaben alternativ an <strong>Amazon Web Services (AWS)</strong> in der EU weitergeleitet und dort durch Anthropic's Claude-Modell verarbeitet. AWS fungiert dabei als Auftragsverarbeiter. Deine Daten werden auch hier nicht zum Training der KI verwendet. Bei Nutzung des <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, 
         werden Deine Suchanfragen ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also darauf, dass Du keine

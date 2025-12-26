@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import * as tus from 'tus-js-client';
 import useDragDropFiles, { VIDEO_ACCEPT } from '../../../hooks/useDragDropFiles';
 import { FaPlus, FaTrash, FaClock, FaVideo, FaShare, FaUpload } from 'react-icons/fa';
-import ShareVideoModal from './ShareVideoModal';
+import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import '../styles/ProjectSelector.css';
@@ -451,10 +451,12 @@ const ProjectSelector = ({
             )}
 
             {shareProject && (
-                <ShareVideoModal
-                    projectId={shareProject.id}
-                    title={shareProject.title}
+                <ShareMediaModal
+                    isOpen={!!shareProject}
                     onClose={() => setShareProject(null)}
+                    mediaType="video"
+                    projectId={shareProject.id}
+                    defaultTitle={shareProject.title}
                 />
             )}
         </div>

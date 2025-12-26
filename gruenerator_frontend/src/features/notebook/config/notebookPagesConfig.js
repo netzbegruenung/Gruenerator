@@ -1,0 +1,184 @@
+import { HiDocumentText, HiInformationCircle, HiCollection } from 'react-icons/hi';
+
+const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+export const NOTEBOOK_CONFIGS = {
+    gruenerator: {
+        id: 'gruenerator',
+        title: 'Frag Grünerator',
+        authTitle: 'Frag Grünerator',
+        collectionType: 'multi',
+        collections: [
+            {
+                id: 'grundsatz-system',
+                name: 'Grundsatzprogramme',
+                icon: HiDocumentText,
+                description: 'Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025',
+                documentCount: '3 Programme',
+                linkType: 'vectorDocument'
+            },
+            {
+                id: 'bundestagsfraktion-system',
+                name: 'Bundestagsfraktion',
+                icon: HiDocumentText,
+                description: 'Fachtexte, Ziele und einfache Erklärungen',
+                documentCount: '542 Artikel',
+                externalUrl: 'https://www.gruene-bundestag.de',
+                linkType: 'url'
+            },
+            {
+                id: 'gruene-de-system',
+                name: 'gruene.de',
+                icon: HiDocumentText,
+                description: 'Positionen, Themen und Aktuelles von gruene.de',
+                documentCount: 'Webseite',
+                externalUrl: 'https://www.gruene.de',
+                linkType: 'url'
+            },
+            {
+                id: 'oesterreich-gruene-system',
+                name: 'Die Grünen Österreich',
+                icon: HiDocumentText,
+                description: 'Programme der Grünen – Die Grüne Alternative Österreich',
+                documentCount: '3 Programme',
+                linkType: 'vectorDocument'
+            },
+            {
+                id: 'gruene-at-system',
+                name: 'gruene.at',
+                icon: HiDocumentText,
+                description: 'Positionen, Themen und Aktuelles von gruene.at',
+                documentCount: 'Webseite',
+                externalUrl: 'https://www.gruene.at',
+                linkType: 'url'
+            },
+            {
+                id: 'kommunalwiki-system',
+                name: 'KommunalWiki',
+                icon: HiDocumentText,
+                description: 'Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)',
+                documentCount: 'Wiki',
+                externalUrl: 'https://kommunalwiki.boell.de',
+                linkType: 'url'
+            },
+            {
+                id: 'boell-stiftung-system',
+                name: 'Heinrich-Böll-Stiftung',
+                icon: HiDocumentText,
+                description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',
+                documentCount: 'Publikationen',
+                externalUrl: 'https://www.boell.de',
+                linkType: 'url'
+            }
+        ],
+        startPageTitle: 'Was möchtest du wissen?',
+        placeholder: 'Stell deine Frage zu grüner Politik...',
+        infoPanelDescription: 'Durchsucht automatisch mehrere Quellen parallel und kombiniert die Ergebnisse.',
+        headerIcon: HiCollection,
+        exampleQuestions: [
+            { icon: '🌍', text: 'Was sagen die Grünen zum Klimaschutz?' },
+            { icon: '🇪🇺', text: 'Wie ist die grüne Position zur EU?' },
+            { icon: '⚡', text: 'Was steht zur Energiewende in den Programmen?' }
+        ],
+        persistMessages: true,
+        useSystemUserId: false
+    },
+
+    gruene: {
+        id: 'gruene',
+        title: 'Frag Bündnis 90/Die Grünen',
+        authTitle: 'Frag Bündnis 90/Die Grünen',
+        collectionType: 'single',
+        collections: [
+            {
+                id: 'grundsatz-system',
+                name: 'Grundsatzprogramme'
+            }
+        ],
+        startPageTitle: 'Was möchtest du über die Grundsatzprogramme wissen?',
+        placeholder: 'Stell deine Frage zu den Grundsatzprogrammen...',
+        infoPanelDescription: 'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
+        headerIcon: HiInformationCircle,
+        exampleQuestions: [
+            { icon: '🌍', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
+            { icon: '🇪🇺', text: 'Wie positionieren sich die Grünen zur EU?' },
+            { icon: '🏛️', text: 'Was sagt das Regierungsprogramm zu Bildung?' }
+        ],
+        documents: [
+            { title: 'Grundsatzprogramm 2020', detail: '136 Seiten' },
+            { title: 'EU-Wahlprogramm 2024', detail: '114 Seiten' },
+            { title: 'Regierungsprogramm 2025', detail: '160 Seiten' }
+        ],
+        sources: [{ name: 'Grundsatzprogramme', count: '3 Programme' }],
+        persistMessages: true,
+        useSystemUserId: true,
+        systemUserId: SYSTEM_USER_ID
+    },
+
+    bundestagsfraktion: {
+        id: 'bundestagsfraktion',
+        title: 'Frag die Bundestagsfraktion',
+        authTitle: 'Frag die Bundestagsfraktion',
+        collectionType: 'single',
+        collections: [
+            {
+                id: 'bundestagsfraktion-system',
+                name: 'Bundestagsfraktion'
+            }
+        ],
+        startPageTitle: 'Was möchtest du über die Grüne Bundestagsfraktion wissen?',
+        placeholder: 'Stell deine Frage zur Grünen Bundestagsfraktion...',
+        infoPanelDescription: 'Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.',
+        headerIcon: HiInformationCircle,
+        exampleQuestions: [
+            { icon: '🌍', text: 'Was sind die Klimaziele der Fraktion?' },
+            { icon: '📋', text: 'Welche Positionen gibt es zur Migrationspolitik?' },
+            { icon: '💶', text: 'Wie positioniert sich die Fraktion zum Haushalt?' }
+        ],
+        documents: [
+            { title: 'Fachtexte', detail: '468 Artikel' },
+            { title: 'Unsere Ziele', detail: '50 Themengebiete' },
+            { title: 'Einfach erklärt', detail: '24 Artikel' }
+        ],
+        externalUrl: 'https://www.gruene-bundestag.de',
+        sources: [{ name: 'Bundestagsfraktion', count: '542 Artikel' }],
+        persistMessages: true,
+        useSystemUserId: true,
+        systemUserId: SYSTEM_USER_ID
+    },
+
+    oesterreich: {
+        id: 'oesterreich',
+        title: 'Frag Die Grünen Österreich',
+        authTitle: 'Frag Die Grünen Österreich',
+        collectionType: 'single',
+        collections: [
+            {
+                id: 'oesterreich-gruene-system',
+                name: 'Die Grünen Österreich'
+            }
+        ],
+        startPageTitle: 'Was möchtest du über Die Grünen Österreich wissen?',
+        placeholder: 'Stell deine Frage zu den Programmen der Grünen Österreich...',
+        infoPanelDescription: 'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
+        headerIcon: HiInformationCircle,
+        exampleQuestions: [
+            { icon: '🌍', text: 'Was steht im Grundsatzprogramm zu Klimaschutz?' },
+            { icon: '🇪🇺', text: 'Wie positionieren sich Die Grünen Österreich zur EU?' },
+            { icon: '🏛️', text: 'Was sagt das Wahlprogramm zur Nationalratswahl?' }
+        ],
+        documents: [
+            { title: 'Grundsatzprogramm', detail: '88 Seiten' },
+            { title: 'EU-Wahlprogramm 2024', detail: '108 Seiten' },
+            { title: 'Nationalratswahl-Programm', detail: '112 Seiten' }
+        ],
+        sources: [{ name: 'Die Grünen Österreich', count: '3 Programme' }],
+        persistMessages: true,
+        useSystemUserId: true,
+        systemUserId: SYSTEM_USER_ID
+    }
+};
+
+export const getNotebookConfig = (configId) => {
+    return NOTEBOOK_CONFIGS[configId] || NOTEBOOK_CONFIGS.gruenerator;
+};

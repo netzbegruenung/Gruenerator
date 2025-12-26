@@ -1,0 +1,76 @@
+@import '../../../assets/styles/common/variables.css';
+
+/* ========================================
+   KI Input Step
+   Form and preview for KI image generation
+   ======================================== */
+
+.ki-studio-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  width: 100%;
+}
+
+.ki-studio-input__preview {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.ki-studio-input__image {
+  max-width: 100%;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: var(--card-border-radius-medium);
+  box-shadow: var(--shadow-lg);
+  object-fit: contain;
+}
+
+.ki-studio-input__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-large);
+}
+
+.ki-studio-input__title {
+  margin: 0 0 var(--spacing-xsmall) 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.ki-studio-input__description {
+  margin: 0 0 var(--spacing-medium) 0;
+  font-size: var(--font-size-base);
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+.ki-studio-input__actions {
+  display: flex;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-medium);
+}
+
+.ki-studio-input__actions .submit-button,
+.ki-studio-input__actions .form-button {
+  flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .ki-studio-input__image {
+    max-height: 200px;
+  }
+
+  .ki-studio-input__form {
+    padding: var(--spacing-medium);
+  }
+
+  .ki-studio-input__actions {
+    flex-direction: column;
+  }
+}

@@ -90,6 +90,20 @@ const REQUIRED_FIELDS = {
       ],
       extractionPattern: /(?:thema|über|zum thema|bezüglich:?\s*)([a-züäöß\s-]+)/i
     }
+  },
+  // FLUX/Imagine image generation - variant selection
+  'imagine': {
+    'variant': {
+      field: 'variant',
+      displayName: 'Bildstil',
+      questions: [
+        'Welchen Bildstil möchtest du? Zur Auswahl stehen:\n• **Illustration** - Weiche, malerische Darstellung\n• **Realistisch** - Fotorealistischer Stil\n• **Pixel Art** - Retro-Gaming-Ästhetik\n• **Editorial** - Magazin-Qualität',
+        'In welchem Stil soll das Bild erstellt werden? (Illustration, Realistisch, Pixel Art, oder Editorial)',
+        'Welche Bildästhetik bevorzugst du? Illustration (weich/malerisch), Realistisch (Foto), Pixel Art (Retro), oder Editorial (Magazin)?'
+      ],
+      extractionPattern: /(?:illustration|realistisch|foto|pixel(?:\s*art)?|editorial|magazin|zeichnung|aquarell|malerisch)/i,
+      options: ['illustration', 'realistisch', 'pixel', 'editorial']
+    }
   }
   // Can be extended for other intents like 'pressemitteilung' requiring spokesman names, etc.
 };
@@ -263,6 +277,54 @@ function extractRequestedInformation(message, pendingRequest) {
       console.log(`[InformationRequestHandler] Extracted ${missingField} via heuristics:`, cleanedMessage);
       return {
         [missingField]: cleanedMessage
+      };
+    }
+  }
+
+  // Fallback: for variant fields (imagine image style), try keyword matching
+  if (missingField === 'variant') {
+    const lowerMessage = message.toLowerCase();
+
+    // Map common responses to variant values
+    const variantMappings = {
+      'illustration': 'illustration-pure',
+      'zeichnung': 'illustration-pure',
+      'aquarell': 'illustration-pure',
+      'malerisch': 'illustration-pure',
+      'realistisch': 'realistic-pure',
+      'foto': 'realistic-pure',
+      'fotorealistisch': 'realistic-pure',
+      'pixel': 'pixel-pure',
+      'pixel art': 'pixel-pure',
+      'pixelart': 'pixel-pure',
+      'retro': 'pixel-pure',
+      '16-bit': 'pixel-pure',
+      'editorial': 'editorial-pure',
+      'magazin': 'editorial-pure'
+    };
+
+    for (const [keyword, variantValue] of Object.entries(variantMappings)) {
+      if (lowerMessage.includes(keyword)) {
+        console.log(`[InformationRequestHandler] Extracted variant via keyword "${keyword}":`, variantValue);
+        return {
+          [missingField]: variantValue
+        };
+      }
+    }
+
+    // Check for numbered responses (1, 2, 3, 4)
+    const numberMatch = message.match(/^[1-4]$/);
+    if (numberMatch) {
+      const numberToVariant = {
+        '1': 'illustration-pure',
+        '2': 'realistic-pure',
+        '3': 'pixel-pure',
+        '4': 'editorial-pure'
+      };
+      const variantValue = numberToVariant[numberMatch[0]];
+      console.log(`[InformationRequestHandler] Extracted variant via number selection:`, variantValue);
+      return {
+        [missingField]: variantValue
       };
     }
   }

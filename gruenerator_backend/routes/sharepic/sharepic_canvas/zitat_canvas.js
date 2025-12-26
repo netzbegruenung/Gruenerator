@@ -14,7 +14,7 @@ const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
 
 // Pfade definieren
-const quotationMarkPath = path.resolve(__dirname, '../../../public/quote.svg');
+const quotationMarkPath = path.resolve(__dirname, '../../../public/quote-white.svg');
 
 // Initialize fonts using shared system
 try {
@@ -29,7 +29,7 @@ if (!fs.existsSync(quotationMarkPath)) {
   throw new Error(`Anführungszeichen-SVG nicht gefunden: ${quotationMarkPath}`);
 }
 
-async function addTextToImage(imagePath, outputImagePath, quote, name) {
+async function addTextToImage(imagePath, outputImagePath, quote, name, fontSize = 60) {
   try {
     log.debug('Lade Bild:', imagePath);
     const [image, quotationMark] = await Promise.all([
@@ -61,7 +61,7 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     }
 
     ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, 1080, 1350);
-    
+
     // Gradient Overlay hinzufügen
     const gradient = ctx.createLinearGradient(0, 0, 0, 1350);
     gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -69,14 +69,19 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 1080, 1350);
 
+    // Calculate dynamic sizes based on fontSize
+    const lineHeight = Math.round(fontSize * 1.17);
+    const nameFontSize = Math.round(fontSize * 0.67);
+    const quoteMarkSize = Math.round(fontSize * 1.67);
+    const nameOffset = Math.round(fontSize * 1.33);
+
     // Anführungszeichen hinzufügen
-    const quoteMarkSize = 100;
-    const quoteMarkY = 750; // Balanced position in lower half with proper margins (750/1350 = 56% down)
+    const quoteMarkY = 750;
     ctx.fillStyle = 'white';
     ctx.drawImage(quotationMark, 50, quoteMarkY, quoteMarkSize, quoteMarkSize);
 
     // Zitat hinzufügen
-    ctx.font = '60px GrueneTypeNeue';
+    ctx.font = `${fontSize}px GrueneTypeNeue`;
     ctx.fillStyle = 'white';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -95,7 +100,7 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
       if (testWidth > quoteWidth && i > 0) {
         ctx.fillText(line, quoteX, y);
         line = words[i] + ' ';
-        y += 70;
+        y += lineHeight;
       } else {
         line = testLine;
       }
@@ -103,9 +108,9 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
     ctx.fillText(line, quoteX, y);
 
     // Name hinzufügen
-    ctx.font = '40px GrueneTypeNeue';
+    ctx.font = `${nameFontSize}px GrueneTypeNeue`;
     ctx.fillStyle = 'white';
-    ctx.fillText(name, quoteX, y + 80);
+    ctx.fillText(name, quoteX, y + nameOffset);
 
     const buffer = canvas.toBuffer('image/png');
     fs.writeFileSync(outputImagePath, buffer);
@@ -119,8 +124,8 @@ async function addTextToImage(imagePath, outputImagePath, quote, name) {
 router.post('/', upload.single('image'), async (req, res) => {
   let outputImagePath;
   try {
-    const { quote, name } = req.body;
-    
+    const { quote, name, fontSize: fontSizeParam } = req.body;
+
     // Validierung hinzufügen
     if (!quote || typeof quote !== 'string') {
       throw new Error('Zitat ist erforderlich');
@@ -132,10 +137,13 @@ router.post('/', upload.single('image'), async (req, res) => {
       throw new Error('Bild ist erforderlich');
     }
 
+    // Validate and clamp fontSize (range: 45-80px, default: 60px)
+    const fontSize = Math.max(45, Math.min(80, parseInt(fontSizeParam, 10) || 60));
+
     const imagePath = req.file.path;
     outputImagePath = path.join('uploads', `output-${uuidv4()}.png`);
 
-    await addTextToImage(imagePath, outputImagePath, quote, name);
+    await addTextToImage(imagePath, outputImagePath, quote, name, fontSize);
     
     const imageBuffer = fs.readFileSync(outputImagePath);
     const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;

@@ -3,7 +3,6 @@ const infoCanvasRouter = require('../../sharepic/sharepic_canvas/info_canvas');
 const zitatPureCanvasRouter = require('../../sharepic/sharepic_canvas/zitat_pure_canvas');
 const zitatCanvasRouter = require('../../sharepic/sharepic_canvas/zitat_canvas');
 const dreizeilenCanvasRouter = require('../../sharepic/sharepic_canvas/dreizeilen_canvas');
-const headlineCanvasRouter = require('../../sharepic/sharepic_canvas/headline_canvas');
 const campaignCanvasRouter = require('../../sharepic/sharepic_canvas/campaign_canvas');
 
 const { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment } = require('../../../utils/attachmentToCanvasAdapter');
@@ -16,7 +15,7 @@ const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('sharepicGenerat');
 
 
-const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen', 'headline']);
+const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen']);
 const IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
 
 /**
@@ -354,42 +353,6 @@ const generateDreizeilenSharepic = async (expressReq, requestBody) => {
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
       sharepicDownloadFilename: `sharepic-dreizeilen-${Date.now()}.png`
-    }
-  };
-};
-
-const generateHeadlineSharepic = async (expressReq, requestBody) => {
-  const textResponse = await callSharepicClaude(expressReq, 'headline', requestBody);
-
-  if (!textResponse?.success) {
-    throw new Error(textResponse?.error || 'Headline Sharepic generation failed');
-  }
-
-  const { mainSlogan, alternatives = [] } = textResponse;
-
-  const { payload: canvasPayload } = await callCanvasRoute(headlineCanvasRouter, mainSlogan);
-
-  if (!canvasPayload?.image) {
-    throw new Error('Headline canvas did not return an image');
-  }
-
-  return {
-    success: true,
-    agent: 'headline',
-    content: {
-      metadata: {
-        sharepicType: 'headline'
-      },
-      sharepic: {
-        image: canvasPayload.image,
-        type: 'headline',
-        text: `${mainSlogan.line1 || ''}\n${mainSlogan.line2 || ''}\n${mainSlogan.line3 || ''}`.trim(),
-        mainSlogan,
-        alternatives
-      },
-      sharepicTitle: 'Sharepic Vorschau',
-      sharepicDownloadText: 'Sharepic herunterladen',
-      sharepicDownloadFilename: `sharepic-headline-${Date.now()}.png`
     }
   };
 };
@@ -736,13 +699,6 @@ const generateCampaignSharepic = async (expressReq, requestBody) => {
           name: textResponse.name || ''
         };
         break;
-      case 'headline':
-        textData = {
-          line1: textResponse.mainSlogan?.line1,
-          line2: textResponse.mainSlogan?.line2,
-          line3: textResponse.mainSlogan?.line3
-        };
-        break;
       case 'info':
         textData = {
           header: textResponse.mainInfo?.header,
@@ -840,8 +796,6 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
         log.debug('[SharepicGeneration] No image provided for dreizeilen, using AI selection');
         return generateDreizeilenWithAIImageSharepic(expressReq, requestBody);
       }
-    case 'headline':
-      return generateHeadlineSharepic(expressReq, requestBody);
     default:
       throw new Error(`Unsupported sharepic type: ${type}`);
   }

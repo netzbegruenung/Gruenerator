@@ -7,6 +7,7 @@ import LoginRequired from '../../../components/common/LoginRequired/LoginRequire
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
+import { buildUrl } from '../../../config/domains';
 import '../styles/SharedVideoPage.css';
 import '../../../assets/styles/components/ui/button.css';
 
@@ -354,7 +355,7 @@ const SharedVideoPage = () => {
 
             <div className="shared-video-footer">
               <p>
-                Willst du auch solche Videos erstellen? Mit dem <a href="https://gruenerator.de/subtitler" target="_blank" rel="noopener noreferrer">Grünerator</a> kannst du Reels mit automatischen Untertiteln und grünem Design erstellen!
+                Willst du auch solche Videos erstellen? Mit dem <a href={buildUrl('/subtitler')} target="_blank" rel="noopener noreferrer">Grünerator</a> kannst du Reels mit automatischen Untertiteln und grünem Design erstellen!
               </p>
             </div>
           </div>

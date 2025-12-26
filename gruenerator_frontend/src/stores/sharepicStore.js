@@ -26,7 +26,7 @@ const initialState = {
   // Text2Sharepic fields
   description: '',
   mood: '',
-  fontSize: FONT_SIZES.M,
+  fontSize: FONT_SIZES.S,
   balkenOffset: [50, -100, 50],
   colorScheme: DEFAULT_COLORS,
   balkenGruppenOffset: [0, 0],
@@ -259,10 +259,10 @@ const useSharepicStore = create((set, get) => ({
         newState.quote = quoteMatch[1];
         newState.name = quoteMatch[2];
       }
-    } else if (sharepicData.type === 'dreizeilen' || sharepicData.type === 'headline') {
+    } else if (sharepicData.type === 'dreizeilen') {
       // Parse three-line data
       const lines = sharepicData.text.split('\n').filter(line => line.trim());
-      newState.type = sharepicData.type === 'headline' ? 'Headline' : 'Dreizeilen';
+      newState.type = 'Dreizeilen';
       newState.line1 = lines[0] || '';
       newState.line2 = lines[1] || '';
       newState.line3 = lines[2] || '';

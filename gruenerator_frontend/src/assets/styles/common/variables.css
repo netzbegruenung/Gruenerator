@@ -90,6 +90,11 @@
     --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
     --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
     --border-subtle: 1px solid rgba(0, 0, 0, 0.1);
+
+    /* Overlay variables */
+    --overlay-dark-sm: rgba(0, 0, 0, 0.4);
+    --overlay-dark-md: rgba(0, 0, 0, 0.65);
+    --overlay-dark-lg: rgba(0, 0, 0, 0.85);
     
     --spacing-xxsmall: 4px;
     --spacing-xsmall: 8px;

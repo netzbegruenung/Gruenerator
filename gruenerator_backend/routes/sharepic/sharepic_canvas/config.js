@@ -11,9 +11,10 @@ module.exports = {
 
   COLORS: {
     TANNE: '#005538',
-    KLEE: '#008939', 
+    KLEE: '#008939',
     GRASHALM: '#8ABD24',
     SAND: '#F5F1E9',
+    HIMMEL: '#009EE3',
     ZITAT_BG: '#6ccd87'
   },
 
@@ -21,7 +22,7 @@ module.exports = {
     CANVAS_SIZE: 1080,
     MIN_FONT_SIZE: 75,
     MAX_FONT_SIZE: 110,
-    DEFAULT_FONT_SIZE: 85,
+    DEFAULT_FONT_SIZE: 75,
     DEFAULT_BALKEN_GRUPPEN_OFFSET: [30, 0],
     DEFAULT_BALKEN_OFFSET: [50, -100, 50],
     DEFAULT_SUNFLOWER_POSITION: 'bottomRight',

@@ -1,94 +1,39 @@
-import React, { useRef, forwardRef } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { LazyMotion, m, AnimatePresence } from 'motion/react';
 
-// Slogan Alternatives Feature CSS - Loaded only when this feature is accessed
 import '../../../../assets/styles/components/actions/slogan-alternatives.css';
 
-// Lazy load motion features
 const loadFeatures = () => import('motion/react').then(res => res.domAnimation);
 
-export const SloganAlternativesButton = forwardRef(({ isExpanded, onClick }, ref) => {
-  const handleClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onClick();
-  };
-
-  return (
-    <LazyMotion features={loadFeatures}>
-      <div className="alternatives-button-wrapper" ref={ref}>
-        <AnimatePresence>
-          {!isExpanded && (
-            <m.button
-              key="show-button"
-              type="button"
-              className="alternatives-button"
-              onClick={handleClick}
-              aria-expanded={isExpanded}
-              aria-label="Alternativen anzeigen"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-            >
-              Alternativen
-            </m.button>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {isExpanded && (
-            <m.button
-              key="hide-button"
-              type="button"
-              className="alternatives-button"
-              onClick={handleClick}
-              aria-expanded={isExpanded}
-              aria-label="Ausblenden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-            >
-              Ausblenden
-            </m.button>
-          )}
-        </AnimatePresence>
-      </div>
-    </LazyMotion>
-  );
-});
-
-SloganAlternativesButton.displayName = 'SloganAlternativesButton';
-
-SloganAlternativesButton.propTypes = {
-  isExpanded: PropTypes.bool.isRequired,
-  onClick: PropTypes.func.isRequired
-};
-
-export const SloganAlternativesDisplay = ({ currentSlogan, alternatives, onSloganSelect }) => {
+export const SloganAlternativesDisplay = ({
+  currentSlogan,
+  alternatives,
+  onSloganSelect
+}) => {
   if (!alternatives || alternatives.length === 0) return null;
 
-  const renderContent = (item) => {
+  const renderContent = (item, isHero = false) => {
+    const className = isHero ? 'slogan-content slogan-content--hero' : 'slogan-content';
+
     if (item.quote) {
       return (
-        <div className="slogan-item-content">
+        <div className={className}>
           <p>{item.quote}</p>
         </div>
       );
     }
     if (item.header || item.subheader || item.body) {
       return (
-        <div className="slogan-item-content info-content">
-          {item.header && <h5 className="info-header">{item.header}</h5>}
-          {item.subheader && <p className="info-subheader">{item.subheader}</p>}
-          {item.body && <p className="info-body">{item.body}</p>}
+        <div className={className}>
+          {item.header && <p className="slogan-content__header">{item.header}</p>}
+          {item.subheader && <p className="slogan-content__subheader">{item.subheader}</p>}
+          {item.body && <p className="slogan-content__body">{item.body}</p>}
         </div>
       );
     }
     return (
-      <div className="slogan-item-content">
+      <div className={className}>
         {item.line1 && <p>{item.line1}</p>}
         {item.line2 && <p>{item.line2}</p>}
         {item.line3 && <p>{item.line3}</p>}
@@ -97,29 +42,38 @@ export const SloganAlternativesDisplay = ({ currentSlogan, alternatives, onSloga
   };
 
   return (
-    <div className="slogan-alternatives">
-      <div className="slogan-alternatives-header">
-        <h4 className="slogan-alternatives-title">Alternative Vorschläge</h4>
-      </div>
-      <div className="slogan-list">
-        {alternatives.map((item, index) => (
-          <div 
-            key={index}
-            className="slogan-item"
-            onClick={() => onSloganSelect(item)}
+    <LazyMotion features={loadFeatures}>
+      <div className="slogan-selector">
+        <AnimatePresence mode="wait">
+          <m.div
+            key={JSON.stringify(currentSlogan)}
+            className="slogan-hero"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
           >
-            {renderContent(item)}
-          </div>
-        ))}
-      </div>
+            {renderContent(currentSlogan, true)}
+          </m.div>
+        </AnimatePresence>
 
-      <div className="slogan-alternatives-header">
-        <h4 className="slogan-alternatives-title">Aktuelle Auswahl</h4>
+        <div className="slogan-alternatives-row">
+          {alternatives.map((item, index) => (
+            <m.button
+              key={index}
+              type="button"
+              className="slogan-alternative"
+              onClick={() => onSloganSelect(item)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.15 }}
+            >
+              {renderContent(item)}
+            </m.button>
+          ))}
+        </div>
       </div>
-      <div className="slogan-item current">
-        {renderContent(currentSlogan)}
-      </div>
-    </div>
+    </LazyMotion>
   );
 };
 
@@ -157,4 +111,4 @@ SloganAlternativesDisplay.propTypes = {
     ])
   ).isRequired,
   onSloganSelect: PropTypes.func.isRequired
-}; 
+};

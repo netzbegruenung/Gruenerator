@@ -24,6 +24,15 @@
     transition: all 0.3s ease-in-out;
 }
 
+.form-category-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--primary-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 var(--spacing-small) 0;
+}
+
 
 .sharepic-base-container .display-container {
     flex: 1 1 50%;
@@ -33,8 +42,17 @@
     flex-direction: column;
     padding: 25px;
     border-radius: 8px;
-    background-color: var(--background-color-alt);
     transition: padding 0.3s ease-in-out;
+}
+
+.sharepic-base-container.display-hidden {
+    justify-content: center;
+}
+
+.sharepic-base-container.display-hidden .form-container {
+    flex: 0 1 600px;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 
@@ -106,9 +124,26 @@
 
 
 .color-scheme-control,
-.font-size-control,
-.credit-control {
+.font-size-control {
     margin-top: 0.5rem;
+}
+
+/* Credit control - separate section with visual divider */
+.credit-control-section {
+    margin-top: var(--spacing-medium);
+    padding-top: var(--spacing-small);
+    border-top: 1px solid var(--border-color);
+}
+
+.credit-control-section h4 {
+    margin: 0 0 var(--spacing-xsmall) 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--font-color-h);
+}
+
+.credit-control {
+    margin-top: var(--spacing-xsmall);
 }
 
 
@@ -155,6 +190,104 @@
     transform: scale(0.98);
 }
 
+/* Color scheme presets (small thumbnail buttons) */
+.color-scheme-presets {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.color-scheme-preset {
+    cursor: pointer;
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    padding: 2px;
+    transition: all 0.2s ease;
+}
+
+.color-scheme-preset img {
+    width: 50px;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+}
+
+.color-scheme-preset:hover {
+    border-color: var(--klee);
+}
+
+.color-scheme-preset.active {
+    border-color: var(--interactive-accent-color);
+}
+
+/* Color input fields */
+.color-scheme-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.color-scheme-line {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.color-scheme-line__label {
+    min-width: 55px;
+    font-size: 0.85em;
+    color: var(--font-color);
+    font-weight: 500;
+}
+
+.color-scheme-line__inputs {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+}
+
+.color-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.color-input {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+.color-input::-webkit-color-swatch {
+    border-radius: 3px;
+    border: none;
+}
+
+.color-input::-moz-color-swatch {
+    border-radius: 3px;
+    border: none;
+}
+
+.color-input:hover {
+    border-color: var(--interactive-accent-color);
+}
+
+.color-input-label {
+    font-size: 0.8em;
+    color: var(--font-color);
+    opacity: 0.8;
+}
 
 .font-size-control {
     margin: 0;
@@ -162,6 +295,7 @@
 
 .font-size-buttons {
     display: flex;
+    align-items: center;
     gap: 0.75rem;
 }
 
@@ -607,3 +741,48 @@
     min-width: 250px;
 }
 
+/* Minimalist INPUT step for KI Edit types */
+.sharepic-base-container.input-step .form-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.sharepic-base-container.input-step .input-fields-wrapper {
+    max-width: 100%;
+}
+
+.sharepic-base-container.input-step .display-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sharepic-base-container.input-step .display-container h3 {
+    display: none;
+}
+
+.sharepic-base-container.input-step .display-container .preview-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.sharepic-base-container.input-step .display-container .preview-image {
+    max-width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: var(--card-border-radius-medium);
+    box-shadow: var(--card-shadow-elevated);
+}
+
+@media (max-width: 768px) {
+    .sharepic-base-container.input-step .display-container {
+        order: -1;
+    }
+
+    .sharepic-base-container.input-step .display-container .preview-image {
+        max-height: 250px;
+    }
+}

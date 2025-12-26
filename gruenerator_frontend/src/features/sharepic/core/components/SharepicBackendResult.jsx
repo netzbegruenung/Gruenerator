@@ -77,7 +77,7 @@ const SharepicBackendResult = ({
                   {children}
                 </div>
               </div>
-              {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && formData.type !== 'Headline' && (
+              {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && (
                 <div className="absender-group">
                   <h3>Absender</h3>
                   <p>Du kannst hier optional einen Absender einfügen oder das Feld frei lassen.</p>
@@ -102,8 +102,8 @@ const SharepicBackendResult = ({
         <div className="right-column">
           {formData.type !== 'Zitat' && (
             <>
-              {/* Note: Color scheme and font size controls are not supported for Info, Zitat_Pure, and Headline types */}
-              {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && formData.type !== 'Headline' && (
+              {/* Note: Color scheme and font size controls are not supported for Info and Zitat_Pure types */}
+              {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && (
                 <div className="color-controls">
                   <h3>Farbschema</h3>
                   <p>Wähle eine von vier Farbkombinationen für dein Sharepic.</p>
@@ -113,7 +113,7 @@ const SharepicBackendResult = ({
                   />
                 </div>
               )}
-              {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && formData.type !== 'Headline' && (
+              {formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && (
                 <div className="font-size-group">
                   <h3>Schriftgröße</h3>
                   <p>Passe die Größe des Textes auf deinem Sharepic an.</p>
@@ -148,7 +148,7 @@ const SharepicBackendResult = ({
           </div>
         </div>
       </div>
-      {formData.type !== 'Zitat' && formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && formData.type !== 'Headline' && (
+      {formData.type !== 'Zitat' && formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && (
         <div className="advanced-editing-button-container">
           <Button
             type="button"
@@ -159,7 +159,7 @@ const SharepicBackendResult = ({
           />
         </div>
       )}
-      {isAdvancedEditingOpen && formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && formData.type !== 'Headline' && (
+      {isAdvancedEditingOpen && formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && (
         <AdvancedEditingSection
           balkenOffset={balkenOffset}
           balkenGruppenOffset={balkenGruppenOffset}

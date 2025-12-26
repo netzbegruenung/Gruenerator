@@ -1,31 +1,201 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { FaChevronLeft, FaChevronRight, FaChevronUp, FaChevronDown } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaChevronUp, FaChevronDown, FaCog } from 'react-icons/fa';
 
 import { 
   SHAREPIC_GENERATOR, 
   IMAGE_MODIFICATION,
 } from './constants';
 
-export const FontSizeControl = ({ fontSize, onControlChange }) => (
-  <div className="font-size-control">
-    <div className="font-size-buttons">
-      {IMAGE_MODIFICATION.FONT_SIZE.OPTIONS.map(option => (
-        <button 
-          key={option.label}
-          onClick={() => onControlChange('fontSize', option.value)} 
-          className={fontSize === option.value ? 'active' : ''}
+export const FontSizeControl = ({ fontSize, onControlChange, isQuoteType = false }) => {
+  const [showSlider, setShowSlider] = useState(false);
+
+  const options = isQuoteType
+    ? IMAGE_MODIFICATION.FONT_SIZE.ZITAT_OPTIONS
+    : IMAGE_MODIFICATION.FONT_SIZE.OPTIONS;
+
+  const effectiveMin = isQuoteType ? 45 : 75;
+  const effectiveMax = isQuoteType ? 80 : 110;
+
+  return (
+    <div className="font-size-control">
+      <div className="font-size-buttons">
+        {options.map(option => (
+          <button
+            key={option.label}
+            onClick={() => onControlChange('fontSize', option.value)}
+            className={fontSize === option.value ? 'active' : ''}
+          >
+            {option.label}
+          </button>
+        ))}
+        <button
+          className={showSlider ? 'active' : ''}
+          onClick={() => setShowSlider(!showSlider)}
+          title="Freie Schriftgröße"
+          type="button"
         >
-          {option.label}
+          <FaCog />
         </button>
-      ))}
+        <span className="font-size-value">{fontSize}px</span>
+        {showSlider && (
+          <input
+            type="range"
+            min={effectiveMin}
+            max={effectiveMax}
+            value={Math.max(effectiveMin, Math.min(effectiveMax, fontSize))}
+            onChange={(e) => onControlChange('fontSize', parseInt(e.target.value, 10))}
+            className="font-size-slider"
+          />
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 FontSizeControl.propTypes = {
   fontSize: PropTypes.number.isRequired,
   onControlChange: PropTypes.func.isRequired,
+  isQuoteType: PropTypes.bool,
+};
+
+export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max = 110, isQuoteType = false }) => {
+  const effectiveMin = isQuoteType ? 45 : min;
+  const effectiveMax = isQuoteType ? 80 : max;
+
+  return (
+    <div className="free-font-size-control">
+      <input
+        type="range"
+        min={effectiveMin}
+        max={effectiveMax}
+        value={Math.max(effectiveMin, Math.min(effectiveMax, fontSize))}
+        onChange={(e) => onControlChange('fontSize', parseInt(e.target.value, 10))}
+        className="font-size-slider"
+      />
+      <span className="font-size-value">{fontSize}px</span>
+    </div>
+  );
+};
+
+FreeFontSizeControl.propTypes = {
+  fontSize: PropTypes.number.isRequired,
+  onControlChange: PropTypes.func.isRequired,
+  min: PropTypes.number,
+  max: PropTypes.number,
+  isQuoteType: PropTypes.bool,
+};
+
+export const GroupedFontSizeControl = ({
+  fontSizes = { main: 100, circle: 100, footer: 100 },
+  onControlChange
+}) => {
+  const groups = [
+    { key: 'main', label: 'Haupttext' },
+    { key: 'circle', label: 'Datum-Kreis' },
+    { key: 'footer', label: 'Ort & Adresse' }
+  ];
+  const min = 70;
+  const max = 130;
+
+  return (
+    <div className="grouped-font-size-control">
+      {groups.map(({ key, label }) => (
+        <div key={key} className="grouped-font-size-control__group">
+          <label className="grouped-font-size-control__label">{label}</label>
+          <div className="grouped-font-size-control__slider-row">
+            <input
+              type="range"
+              min={min}
+              max={max}
+              value={fontSizes[key] || 100}
+              onChange={(e) => onControlChange(key, parseInt(e.target.value, 10))}
+              className="font-size-slider"
+            />
+            <span className="font-size-value">{fontSizes[key] || 100}%</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+GroupedFontSizeControl.propTypes = {
+  fontSizes: PropTypes.shape({
+    main: PropTypes.number,
+    circle: PropTypes.number,
+    footer: PropTypes.number
+  }),
+  onControlChange: PropTypes.func.isRequired
+};
+
+export const InputWithFontSize = ({
+  label,
+  name,
+  value,
+  onChange,
+  fontSizePx,
+  baseFontSize = 60,
+  onFontSizeChange,
+  placeholder = '',
+  type = 'text',
+  disabled = false
+}) => {
+  const minPx = Math.round(baseFontSize * 0.7);
+  const maxPx = Math.round(baseFontSize * 1.3);
+  const currentPx = fontSizePx ?? baseFontSize;
+
+  const handleTextChange = (e) => {
+    if (onChange) {
+      onChange({ target: { name, value: e.target.value } });
+    }
+  };
+
+  const handleSliderChange = (e) => {
+    if (onFontSizeChange) {
+      onFontSizeChange(name, parseInt(e.target.value, 10));
+    }
+  };
+
+  return (
+    <div className="input-with-fontsize">
+      <label className="input-with-fontsize__label">{label}</label>
+      <div className="input-with-fontsize__row">
+        <input
+          type={type}
+          name={name}
+          value={value || ''}
+          onChange={handleTextChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="input-with-fontsize__input"
+        />
+        <input
+          type="range"
+          min={minPx}
+          max={maxPx}
+          value={currentPx}
+          onChange={handleSliderChange}
+          disabled={disabled}
+          className="input-with-fontsize__slider"
+        />
+        <span className="input-with-fontsize__value">{currentPx}px</span>
+      </div>
+    </div>
+  );
+};
+
+InputWithFontSize.propTypes = {
+  label: PropTypes.string.isRequired,
+  name: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  fontSizePx: PropTypes.number,
+  baseFontSize: PropTypes.number,
+  onFontSizeChange: PropTypes.func.isRequired,
+  placeholder: PropTypes.string,
+  type: PropTypes.string,
+  disabled: PropTypes.bool
 };
 
 export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
@@ -82,18 +252,41 @@ BalkenOffsetControl.defaultProps = {
 };
 
 export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
+  const handleColorChange = (lineIndex, value) => {
+    const newScheme = colorScheme.map((line, idx) =>
+      idx === lineIndex ? { background: value } : line
+    );
+    onControlChange('colorScheme', newScheme);
+  };
+
   return (
     <div className="color-scheme-control">
-      <div className="color-scheme-grid">
+      <div className="color-scheme-presets">
         {IMAGE_MODIFICATION.COLOR_SCHEMES.map((scheme, index) => (
-          <button 
+          <button
             key={index}
-            className={`color-scheme-option ${JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) ? 'active' : ''}`}
+            className={`color-scheme-preset ${JSON.stringify(colorScheme) === JSON.stringify(scheme.colors) ? 'active' : ''}`}
             onClick={() => onControlChange('colorScheme', scheme.colors)}
-            aria-label={`Select ${scheme.name} color scheme`}
+            aria-label={`${scheme.name} auswählen`}
+            type="button"
           >
-            <img src={scheme.imageSrc} alt={scheme.name} className="color-scheme-image" />
+            <img src={scheme.imageSrc} alt={scheme.name} />
           </button>
+        ))}
+      </div>
+      <div className="color-scheme-inputs">
+        {colorScheme.map((line, idx) => (
+          <div key={idx} className="color-scheme-line">
+            <span className="color-scheme-line__label">Zeile {idx + 1}</span>
+            <label className="color-input-wrapper">
+              <input
+                type="color"
+                value={line.background}
+                onChange={(e) => handleColorChange(idx, e.target.value)}
+                className="color-input"
+              />
+            </label>
+          </div>
         ))}
       </div>
     </div>
@@ -102,8 +295,7 @@ export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
 
 ColorSchemeControl.propTypes = {
   colorScheme: PropTypes.arrayOf(PropTypes.shape({
-    background: PropTypes.string.isRequired,
-    text: PropTypes.string.isRequired
+    background: PropTypes.string.isRequired
   })).isRequired,
   onControlChange: PropTypes.func.isRequired,
 };
@@ -247,7 +439,10 @@ const ImageModificationForm = ({
           />
         </div>
       </div>
-      <CreditControl credit={credit} onControlChange={onControlChange} />
+      <div className="credit-control-section">
+        <h4>Bildnachweis / Credit</h4>
+        <CreditControl credit={credit} onControlChange={onControlChange} />
+      </div>
     </div>
   );
 };

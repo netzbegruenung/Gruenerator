@@ -16,6 +16,7 @@ import { HiInformationCircle } from 'react-icons/hi';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import { TabIndexHelpers } from '../../../utils/tabIndexConfig';
 import useSharepicGeneration from '../../../hooks/useSharepicGeneration';
@@ -153,13 +154,21 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
   const [processedAttachments, setProcessedAttachments] = useState([]);
   const [showSharepicConfig, setShowSharepicConfig] = useState(false);
 
-  // Get selection store state (fetching is now handled by useBaseForm)
-  // Use proper selectors for reactive subscriptions
-  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
-  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
-  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
-  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
-  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+  // Get selection store state (batched with useShallow for optimal performance)
+  // This reduces 5 subscriptions to 1, preventing cascade re-renders
+  const {
+    selectedDocumentIds,
+    selectedTextIds,
+    isInstructionsActive,
+    getFeatureState,
+    usePrivacyMode
+  } = useGeneratorSelectionStore(useShallow(state => ({
+    selectedDocumentIds: state.selectedDocumentIds,
+    selectedTextIds: state.selectedTextIds,
+    isInstructionsActive: state.isInstructionsActive,
+    getFeatureState: state.getFeatureState,
+    usePrivacyMode: state.usePrivacyMode
+  })));
 
   // Fetch user's custom instructions
   const customPrompt = useUserInstructions('social', isInstructionsActive);
@@ -469,8 +478,8 @@ const PresseSocialGenerator = ({ showHeaderFooter = true }) => {
       }));
     }
     
-    // Open Sharepicgenerator in new tab with editing session
-    const url = new URL(window.location.origin + '/sharepic');
+    // Open Image Studio in new tab with editing session
+    const url = new URL(window.location.origin + '/image-studio/templates');
     url.searchParams.append('editSession', editingSessionId);
     window.open(url.toString(), '_blank');
   }, []);

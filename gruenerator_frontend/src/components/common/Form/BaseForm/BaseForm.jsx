@@ -7,7 +7,8 @@ import { BUTTON_LABELS } from '../../../utils/constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiPencil } from 'react-icons/hi';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
-import FormStateProvider, { useFormState, useFormStateSelector } from '../FormStateProvider';
+import FormStateProvider, { useFormState, useFormStateSelector, useFormStateSelectors } from '../FormStateProvider';
+import isEqual from 'fast-deep-equal';
 
 // Import all form-related CSS
 import '../../../../assets/styles/components/ui/forms.css';
@@ -181,29 +182,53 @@ const BaseFormInternal = ({
   const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState(null);
   const editSubmitHandlerRef = useRef(null);
 
-  // Store selectors
-  const storeLoading = useFormStateSelector(state => state.loading);
-  const storeSuccess = useFormStateSelector(state => state.success);
-  const storeError = useFormStateSelector(state => state.error);
-  const storeFormErrors = useFormStateSelector(state => state.formErrors);
-  const storeSaveLoading = useFormStateSelector(state => state.saveLoading);
-  const storeWebSearchConfig = useFormStateSelector(state => state.webSearchConfig);
-  const storePrivacyModeConfig = useFormStateSelector(state => state.privacyModeConfig);
-  const storeProModeConfig = useFormStateSelector(state => state.proModeConfig);
-  const storeUseFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
-  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
-  const storeUploadedImage = useFormStateSelector(state => state.uploadedImage);
-  const storeIsFormVisible = useFormStateSelector(state => state.isFormVisible);
+  // Batched store selectors using useShallow for optimal performance
+  // This reduces subscriptions from 24 to 3, preventing cascade re-renders
+  const {
+    storeLoading,
+    storeSuccess,
+    storeError,
+    storeFormErrors,
+    storeSaveLoading,
+    storeWebSearchConfig,
+    storePrivacyModeConfig,
+    storeProModeConfig,
+    storeUseFeatureIcons,
+    storeAttachedFiles,
+    storeUploadedImage,
+    storeIsFormVisible
+  } = useFormStateSelectors(state => ({
+    storeLoading: state.loading,
+    storeSuccess: state.success,
+    storeError: state.error,
+    storeFormErrors: state.formErrors,
+    storeSaveLoading: state.saveLoading,
+    storeWebSearchConfig: state.webSearchConfig,
+    storePrivacyModeConfig: state.privacyModeConfig,
+    storeProModeConfig: state.proModeConfig,
+    storeUseFeatureIcons: state.useFeatureIcons,
+    storeAttachedFiles: state.attachedFiles,
+    storeUploadedImage: state.uploadedImage,
+    storeIsFormVisible: state.isFormVisible
+  }));
+
+  // Configuration selectors (batched with shallow comparison)
+  const {
+    storeTabIndexConfig,
+    storePlatformConfig,
+    storeSubmitConfig,
+    storeUIConfig,
+    storeHelpConfig
+  } = useFormStateSelectors(state => ({
+    storeTabIndexConfig: state.tabIndexConfig,
+    storePlatformConfig: state.platformConfig,
+    storeSubmitConfig: state.submitConfig,
+    storeUIConfig: state.uiConfig,
+    storeHelpConfig: state.helpConfig
+  }));
+
+  // Store helper functions (these are stable references, single selector is fine)
   const setIsStartMode = useFormStateSelector(state => state.setIsStartMode);
-
-  // Configuration selectors (new, safe with fallbacks)
-  const storeTabIndexConfig = useFormStateSelector(state => state.tabIndexConfig);
-  const storePlatformConfig = useFormStateSelector(state => state.platformConfig);
-  const storeSubmitConfig = useFormStateSelector(state => state.submitConfig);
-  const storeUIConfig = useFormStateSelector(state => state.uiConfig);
-  const storeHelpConfig = useFormStateSelector(state => state.helpConfig);
-
-  // Store helper functions
   const getFeatureState = useFormStateSelector(state => state.getFeatureState);
 
   // Configuration fallback helpers (store first, props second)
@@ -272,19 +297,34 @@ const BaseFormInternal = ({
     useMarkdown
   ]);
 
-  // Store actions
-  const setStoreLoading = useFormStateSelector(state => state.setLoading);
-  const setStoreSuccess = useFormStateSelector(state => state.setSuccess);
-  const setStoreError = useFormStateSelector(state => state.setError);
-  const setStoreFormErrors = useFormStateSelector(state => state.setFormErrors);
-  const setStoreSaveLoading = useFormStateSelector(state => state.setSaveLoading);
-  const clearStoreError = useFormStateSelector(state => state.clearError);
-  const setStoreWebSearchEnabled = useFormStateSelector(state => state.setWebSearchEnabled);
-  const setStorePrivacyModeEnabled = useFormStateSelector(state => state.setPrivacyModeEnabled);
-  const setStoreUseFeatureIcons = useFormStateSelector(state => state.setUseFeatureIcons);
-  const setStoreAttachedFiles = useFormStateSelector(state => state.setAttachedFiles);
-  const setStoreUploadedImage = useFormStateSelector(state => state.setUploadedImage);
-  const toggleStoreFormVisibility = useFormStateSelector(state => state.toggleFormVisibility);
+  // Store actions (batched - functions are stable references)
+  const {
+    setStoreLoading,
+    setStoreSuccess,
+    setStoreError,
+    setStoreFormErrors,
+    setStoreSaveLoading,
+    clearStoreError,
+    setStoreWebSearchEnabled,
+    setStorePrivacyModeEnabled,
+    setStoreUseFeatureIcons,
+    setStoreAttachedFiles,
+    setStoreUploadedImage,
+    toggleStoreFormVisibility
+  } = useFormStateSelectors(state => ({
+    setStoreLoading: state.setLoading,
+    setStoreSuccess: state.setSuccess,
+    setStoreError: state.setError,
+    setStoreFormErrors: state.setFormErrors,
+    setStoreSaveLoading: state.setSaveLoading,
+    clearStoreError: state.clearError,
+    setStoreWebSearchEnabled: state.setWebSearchEnabled,
+    setStorePrivacyModeEnabled: state.setPrivacyModeEnabled,
+    setStoreUseFeatureIcons: state.setUseFeatureIcons,
+    setStoreAttachedFiles: state.setAttachedFiles,
+    setStoreUploadedImage: state.setUploadedImage,
+    toggleStoreFormVisibility: state.toggleFormVisibility
+  }));
 
   const {
     error,
@@ -1148,12 +1188,9 @@ const areEqual = (prevProps, nextProps) => {
         return false;
       }
     } else if (key === 'generatedContent') {
-      // Deep comparison for generated content object
-      if (typeof prevProps[key] === 'object' && typeof value === 'object') {
-        if (JSON.stringify(prevProps[key]) !== JSON.stringify(value)) {
-          return false;
-        }
-      } else if (prevProps[key] !== value) {
+      // Deep comparison for generated content object using fast-deep-equal
+      // isEqual is O(n) but much faster than JSON.stringify for large objects
+      if (!isEqual(prevProps[key], value)) {
         return false;
       }
     } else if (key === 'attachedFiles' || key === 'platformOptions') {
