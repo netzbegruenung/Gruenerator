@@ -2,6 +2,11 @@
   "name": "gruenerator",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "packages/*",
+    "gruenerator_backend",
+    "gruenerator_frontend"
+  ],
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.5.0"
@@ -21,6 +26,10 @@
   "scripts": {
     "knip": "knip",
     "prepare": "husky",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "dev:web": "pnpm --filter gruenerator_frontend dev",
+    "dev:backend": "pnpm --filter gruenerator_backend dev",
+    "build:web": "pnpm --filter gruenerator_frontend build",
+    "build:shared": "pnpm --filter @gruenerator/shared build"
   }
 }

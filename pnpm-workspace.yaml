@@ -1,0 +1,4 @@
+packages:
+  - "packages/*"
+  - "gruenerator_backend"
+  - "gruenerator_frontend"
