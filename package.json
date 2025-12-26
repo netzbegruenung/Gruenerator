@@ -1,14 +1,26 @@
 {
+  "name": "gruenerator",
+  "version": "1.0.0",
+  "private": true,
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.5.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.2.0",
+    "@commitlint/config-conventional": "^20.2.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.2",
     "@types/node": "^24.5.2",
+    "husky": "^9.1.7",
     "knip": "^5.63.1",
+    "semantic-release": "^25.0.2",
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "knip": "knip"
+    "knip": "knip",
+    "prepare": "husky",
+    "release": "semantic-release"
   }
 }
