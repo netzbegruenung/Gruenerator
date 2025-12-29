@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
-import { colors, lightTheme, darkTheme } from '../theme';
+import { lightTheme, darkTheme } from '../theme';
+import { AuthProvider } from '../contexts/AuthContext';
 
 /**
  * Root layout for the Grünerator mobile app
@@ -12,7 +13,7 @@ export default function RootLayout() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -41,7 +42,14 @@ export default function RootLayout() {
             presentation: 'modal',
           }}
         />
+        <Stack.Screen
+          name="(modals)"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+          }}
+        />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }

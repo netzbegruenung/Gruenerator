@@ -1,4 +1,11 @@
-// Stores will be added here as we migrate them
-// For now, export placeholder
+export { useAuthStore, setAuthStoreConfig, getAuthState } from './authStore';
+export type { AuthStoreConfig } from './authStore';
 
-export {};
+export { useGeneratedTextStore, getGeneratedTextState } from './generatedTextStore';
+export type {
+  ChatMessage,
+  GeneratedTextMetadata,
+  GeneratedTextState,
+  GeneratedTextActions,
+  GeneratedTextStore,
+} from './generatedTextStore';
