@@ -111,8 +111,7 @@ async function setupRoutes(app) {
   const { default: userGroups } = await import('./routes/auth/userGroups.mjs');
   const { default: userCustomGenerators } = await import('./routes/auth/userCustomGenerators.mjs');
   const { default: userTemplates } = await import('./routes/auth/userTemplates.mjs');
-  // MOBILE AUTH DISABLED
-  // const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
+  const { default: mobileAuthRoutes } = await import('./routes/auth/mobile.mjs');
   const { default: documentsRouter } = await import('./routes/documents.mjs');
 
   const { default: oparlRouter } = await import('./routes/oparl.mjs');
@@ -153,8 +152,7 @@ async function setupRoutes(app) {
   app.use('/api/auth', userGroups);
   app.use('/api/auth', userCustomGenerators);
   app.use('/api/auth', userTemplates);
-  // MOBILE AUTH DISABLED
-  // app.use('/api/auth/mobile', mobileAuthRoutes);
+  app.use('/api/auth/mobile', mobileAuthRoutes);
   app.use('/api/auth/notebook-collections', notebookCollectionsRouter);
   app.use('/api/auth/notebook', notebookInteractionRouter);
   app.use('/api/documents', documentsRouter);
