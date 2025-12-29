@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, StyleSheet, useColorScheme, Pressable, Text, Alert } from 'react-native';
-import { GiftedChat, IMessage, Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { View, StyleSheet, useColorScheme, Pressable, Text, ScrollView, Platform, LayoutAnimation, UIManager } from 'react-native';
+import { GiftedChat, IMessage } from 'react-native-gifted-chat';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
   useGeneratedTextStore,
@@ -12,18 +13,55 @@ import {
   type EditChange,
 } from '@gruenerator/shared/generators';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { FloatingGlassMenu, createChatRenderers, ASSISTANT_USER, CURRENT_USER } from '../../components/chat';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 import { API_ENDPOINTS } from '../../services/api';
 
-const ASSISTANT_USER = {
-  _id: 2,
-  name: 'Grünerator',
-  avatar: require('../../assets/icon.png'),
-};
+interface ExpandableTextPreviewProps {
+  text: string;
+  theme: typeof lightTheme | typeof darkTheme;
+}
 
-const CURRENT_USER = {
-  _id: 1,
-  name: 'Du',
-};
+function ExpandableTextPreview({ text, theme }: ExpandableTextPreviewProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleExpanded = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpanded(!expanded);
+  };
+
+  return (
+    <Pressable
+      onPress={toggleExpanded}
+      style={[styles.textPreview, { backgroundColor: theme.surface, borderColor: theme.border }]}
+    >
+      <View style={styles.previewHeader}>
+        <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>Aktueller Text:</Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={theme.textSecondary}
+        />
+      </View>
+      <ScrollView
+        style={{ maxHeight: expanded ? 300 : 80 }}
+        scrollEnabled={expanded}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text
+          style={[styles.previewText, { color: theme.text }]}
+          numberOfLines={expanded ? undefined : 3}
+        >
+          {text || 'Kein Text vorhanden'}
+        </Text>
+      </ScrollView>
+    </Pressable>
+  );
+}
 
 interface SuggestEditsResponse {
   changes?: EditChange[];
@@ -233,78 +271,7 @@ export default function EditChatModal() {
     }
   }, [componentName, canRedo, redo]);
 
-  const renderBubble = useCallback(
-    (props: any) => (
-      <Bubble
-        {...props}
-        wrapperStyle={{
-          right: {
-            backgroundColor: colors.primary[600],
-            borderRadius: borderRadius.large,
-            marginVertical: spacing.xxsmall,
-          },
-          left: {
-            backgroundColor: theme.surface,
-            borderRadius: borderRadius.large,
-            marginVertical: spacing.xxsmall,
-          },
-        }}
-        textStyle={{
-          right: {
-            color: colors.white,
-          },
-          left: {
-            color: theme.text,
-          },
-        }}
-      />
-    ),
-    [theme]
-  );
-
-  const renderInputToolbar = useCallback(
-    (props: any) => (
-      <InputToolbar
-        {...props}
-        containerStyle={[
-          styles.inputToolbar,
-          {
-            backgroundColor: theme.background,
-            borderTopColor: theme.border,
-          },
-        ]}
-      />
-    ),
-    [theme]
-  );
-
-  const renderComposer = useCallback(
-    (props: any) => (
-      <Composer
-        {...props}
-        textInputStyle={[
-          styles.composer,
-          {
-            color: theme.text,
-            backgroundColor: theme.surface,
-          },
-        ]}
-        placeholderTextColor={theme.textSecondary}
-      />
-    ),
-    [theme]
-  );
-
-  const renderSend = useCallback(
-    (props: any) => (
-      <Send {...props} containerStyle={styles.sendContainer}>
-        <View style={[styles.sendButton, { backgroundColor: colors.primary[600] }]}>
-          <Ionicons name="send" size={18} color={colors.white} />
-        </View>
-      </Send>
-    ),
-    []
-  );
+  const chatRenderers = useMemo(() => createChatRenderers(theme), [theme]);
 
   if (!componentName) {
     return (
@@ -314,61 +281,59 @@ export default function EditChatModal() {
     );
   }
 
-  return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'Text bearbeiten',
-          headerRight: () => (
-            <View style={styles.headerButtons}>
-              <Pressable
-                onPress={handleUndo}
-                disabled={!canUndo}
-                style={({ pressed }) => [
-                  styles.headerButton,
-                  { opacity: canUndo ? (pressed ? 0.7 : 1) : 0.3 },
-                ]}
-              >
-                <Ionicons name="arrow-undo" size={22} color={colors.primary[600]} />
-              </Pressable>
-              <Pressable
-                onPress={handleRedo}
-                disabled={!canRedo}
-                style={({ pressed }) => [
-                  styles.headerButton,
-                  { opacity: canRedo ? (pressed ? 0.7 : 1) : 0.3 },
-                ]}
-              >
-                <Ionicons name="arrow-redo" size={22} color={colors.primary[600]} />
-              </Pressable>
-            </View>
-          ),
-        }}
-      />
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={[styles.textPreview, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>Aktueller Text:</Text>
-          <Text style={[styles.previewText, { color: theme.text }]} numberOfLines={3}>
-            {currentText || 'Kein Text vorhanden'}
-          </Text>
-        </View>
+  const insets = useSafeAreaInsets();
 
-        {/* @ts-expect-error - GiftedChat typing issues with React 19 */}
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+      <FloatingGlassMenu>
+        <Pressable
+          onPress={handleUndo}
+          disabled={!canUndo}
+          style={({ pressed }) => [
+            styles.floatingButton,
+            { opacity: canUndo ? (pressed ? 0.7 : 1) : 0.3 },
+          ]}
+        >
+          <Ionicons name="arrow-undo" size={20} color={theme.text} />
+        </Pressable>
+        <Pressable
+          onPress={handleRedo}
+          disabled={!canRedo}
+          style={({ pressed }) => [
+            styles.floatingButton,
+            { opacity: canRedo ? (pressed ? 0.7 : 1) : 0.3 },
+          ]}
+        >
+          <Ionicons name="arrow-redo" size={20} color={theme.text} />
+        </Pressable>
+        <View style={styles.floatingDivider} />
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [
+            styles.floatingButton,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="checkmark" size={22} color={colors.primary[600]} />
+        </Pressable>
+      </FloatingGlassMenu>
+
+      <View style={styles.contentContainer}>
+        <ExpandableTextPreview text={currentText} theme={theme} />
+
         <GiftedChat
           messages={messages}
           onSend={(msgs: IMessage[]) => onSend(msgs)}
           user={CURRENT_USER}
           isTyping={isTyping}
           alwaysShowSend
-          renderBubble={renderBubble}
-          renderInputToolbar={renderInputToolbar}
-          renderComposer={renderComposer}
-          renderSend={renderSend}
+          {...chatRenderers}
           minInputToolbarHeight={60}
           bottomOffset={0}
+          {...({} as any)}
         />
       </View>
-    </>
+    </View>
   );
 }
 
@@ -376,55 +341,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  contentContainer: {
+    flex: 1,
+    marginTop: spacing.xlarge + spacing.medium,
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerButtons: {
-    flexDirection: 'row',
-    gap: spacing.xsmall,
-  },
-  headerButton: {
+  floatingButton: {
     padding: spacing.xsmall,
   },
+  floatingDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(128, 128, 128, 0.3)',
+    marginHorizontal: spacing.xxsmall,
+  },
   textPreview: {
-    margin: spacing.medium,
+    marginHorizontal: spacing.medium,
+    marginBottom: spacing.small,
     padding: spacing.medium,
     borderRadius: borderRadius.medium,
     borderWidth: 1,
   },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xxsmall,
+  },
   previewLabel: {
     fontSize: 12,
     fontWeight: '500',
-    marginBottom: spacing.xxsmall,
   },
   previewText: {
     fontSize: 14,
     lineHeight: 20,
-  },
-  inputToolbar: {
-    borderTopWidth: 1,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xsmall,
-  },
-  composer: {
-    borderRadius: borderRadius.large,
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    fontSize: 16,
-    marginRight: spacing.xsmall,
-  },
-  sendContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.xsmall,
-  },
-  sendButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
