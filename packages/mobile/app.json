@@ -36,7 +36,10 @@
               "scheme": "gruenerator"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -46,7 +49,28 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Erlaube Grünerator Zugriff auf deine Fotos für die Reel-Erstellung",
+          "cameraPermission": "Erlaube Grünerator die Kamera für Videoaufnahmen zu nutzen"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Erlaube Grünerator, Reels in deiner Galerie zu speichern",
+          "savePhotosPermission": "Erlaube Grünerator, Reels in deiner Galerie zu speichern"
+        }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": false,
+          "supportsPictureInPicture": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
