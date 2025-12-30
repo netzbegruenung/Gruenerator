@@ -10,6 +10,15 @@ import type {
   NormalizedTextResult,
   FormFieldValue,
   ImageStudioFormData,
+  DreizeilenModificationParams,
+  ZitatModificationParams,
+  VeranstaltungModificationParams,
+  ModificationParams,
+} from '@gruenerator/shared/image-studio';
+import {
+  getDefaultModificationParams,
+  typeSupportsModifications,
+  cloneModificationParams,
 } from '@gruenerator/shared/image-studio';
 
 // Re-export shared types for convenience
@@ -38,6 +47,14 @@ interface ImageStudioState {
   canvasLoading: boolean;
   /** Error message */
   error: string | null;
+
+  // Modification state
+  /** Modification parameters (type-specific) */
+  modifications: ModificationParams | null;
+  /** Whether advanced mode is enabled */
+  isAdvancedMode: boolean;
+  /** Loading state for modification regeneration */
+  modificationLoading: boolean;
 }
 
 interface ImageStudioActions {
@@ -69,6 +86,23 @@ interface ImageStudioActions {
   setError: (error: string | null) => void;
   /** Reset to initial state */
   reset: () => void;
+
+  // Modification actions
+  /** Initialize modifications with defaults for current type */
+  initModifications: () => void;
+  /** Update a single modification parameter */
+  updateModification: <K extends keyof DreizeilenModificationParams>(
+    key: K,
+    value: DreizeilenModificationParams[K]
+  ) => void;
+  /** Update multiple modification parameters */
+  updateModifications: (updates: Partial<ModificationParams>) => void;
+  /** Reset modifications to defaults */
+  resetModifications: () => void;
+  /** Toggle advanced mode */
+  toggleAdvancedMode: () => void;
+  /** Set modification loading state */
+  setModificationLoading: (loading: boolean) => void;
 }
 
 type ImageStudioStore = ImageStudioState & ImageStudioActions;
@@ -85,6 +119,10 @@ const initialState: ImageStudioState = {
   textLoading: false,
   canvasLoading: false,
   error: null,
+  // Modification state
+  modifications: null,
+  isAdvancedMode: false,
+  modificationLoading: false,
 };
 
 export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
@@ -174,6 +212,56 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
   reset: () => {
     set(initialState);
   },
+
+  // Modification actions
+  initModifications: () => {
+    const { type } = get();
+    if (!type || !typeSupportsModifications(type)) {
+      set({ modifications: null });
+      return;
+    }
+
+    const defaults = getDefaultModificationParams(type);
+    set({ modifications: defaults });
+  },
+
+  updateModification: (key, value) => {
+    const { modifications } = get();
+    if (!modifications) return;
+
+    // Deep clone to avoid mutation
+    const cloned = cloneModificationParams(modifications);
+    (cloned as unknown as Record<string, unknown>)[key] = value;
+    set({ modifications: cloned });
+  },
+
+  updateModifications: (updates) => {
+    const { modifications } = get();
+    if (!modifications) return;
+
+    const cloned = cloneModificationParams(modifications);
+    Object.assign(cloned, updates);
+    set({ modifications: cloned });
+  },
+
+  resetModifications: () => {
+    const { type } = get();
+    if (!type || !typeSupportsModifications(type)) {
+      set({ modifications: null });
+      return;
+    }
+
+    const defaults = getDefaultModificationParams(type);
+    set({ modifications: defaults });
+  },
+
+  toggleAdvancedMode: () => {
+    set((state) => ({ isAdvancedMode: !state.isAdvancedMode }));
+  },
+
+  setModificationLoading: (loading: boolean) => {
+    set({ modificationLoading: loading });
+  },
 }));
 
 /**
@@ -208,3 +296,21 @@ export const selectCompleteFormData = (state: ImageStudioStore) => ({
  */
 export const selectShouldShowBadges = (state: ImageStudioStore) =>
   state.type === null;
+
+/**
+ * Selector for whether modifications are available for current type
+ */
+export const selectSupportsModifications = (state: ImageStudioStore) =>
+  state.type !== null && typeSupportsModifications(state.type);
+
+/**
+ * Selector for modification loading (includes canvas regeneration)
+ */
+export const selectIsModificationLoading = (state: ImageStudioStore) =>
+  state.modificationLoading || state.canvasLoading;
+
+/**
+ * Selector for getting current modifications with type safety
+ */
+export const selectDreizeilenModifications = (state: ImageStudioStore) =>
+  state.type === 'dreizeilen' ? state.modifications as DreizeilenModificationParams | null : null;
