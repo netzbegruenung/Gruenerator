@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, View, Text, useColorScheme } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, useColorScheme } from 'react-native';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
+import type { SharepicResult } from '@gruenerator/shared/sharepic';
 import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
 import { ContentDisplay } from '../../../components/content';
-import { PresseSocialForm } from '../../../components/generators';
+import { PresseSocialForm, type PresseSocialResult } from '../../../components/generators';
+import { SharepicResult as SharepicResultComponent } from '../../../components/sharepic';
 
 const COMPONENT_NAME = 'presse-social-mobile';
 
@@ -12,16 +14,26 @@ export default function PresseScreen() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const [error, setError] = useState<string | null>(null);
+  const [sharepics, setSharepics] = useState<SharepicResult[] | null>(null);
 
   const content = useGeneratedTextStore((state) => state.generatedTexts[COMPONENT_NAME] || '');
   const setTextWithHistory = useGeneratedTextStore((state) => state.setTextWithHistory);
   const clearGeneratedText = useGeneratedTextStore((state) => state.clearGeneratedText);
 
-  const hasResult = content.trim().length > 0;
+  const hasTextResult = content.trim().length > 0;
+  const hasSharepicResult = sharepics && sharepics.length > 0;
+  const hasResult = hasTextResult || hasSharepicResult;
 
-  const handleResult = useCallback((text: string) => {
+  const handleResult = useCallback((result: PresseSocialResult) => {
     setError(null);
-    setTextWithHistory(COMPONENT_NAME, text);
+
+    if (result.text) {
+      setTextWithHistory(COMPONENT_NAME, result.text);
+    }
+
+    if (result.sharepics && result.sharepics.length > 0) {
+      setSharepics(result.sharepics);
+    }
   }, [setTextWithHistory]);
 
   const handleError = useCallback((message: string) => {
@@ -31,18 +43,27 @@ export default function PresseScreen() {
 
   const handleNewGeneration = useCallback(() => {
     clearGeneratedText(COMPONENT_NAME);
+    setSharepics(null);
     setError(null);
   }, [clearGeneratedText]);
 
   if (hasResult) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ContentDisplay
-          componentName={COMPONENT_NAME}
-          onNewGeneration={handleNewGeneration}
-          title="Presse & Social"
-        />
-      </View>
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+        {hasSharepicResult && (
+          <SharepicResultComponent
+            sharepics={sharepics!}
+            onNewGeneration={!hasTextResult ? handleNewGeneration : undefined}
+          />
+        )}
+
+        {hasTextResult && (
+          <ContentDisplay
+            componentName={COMPONENT_NAME}
+            onNewGeneration={handleNewGeneration}
+          />
+        )}
+      </ScrollView>
     );
   }
 
@@ -59,7 +80,7 @@ export default function PresseScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, justifyContent: 'center' },
   error: {
     backgroundColor: colors.semantic.error + '15',
     paddingVertical: spacing.xsmall,

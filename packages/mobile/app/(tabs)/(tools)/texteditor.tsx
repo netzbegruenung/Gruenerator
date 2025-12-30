@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
 import { lightTheme, darkTheme, spacing, colors } from '../../../theme';
 import { ContentDisplay } from '../../../components/content';
-import { AntragForm } from '../../../components/generators';
+import { TextImproverForm } from '../../../components/generators';
 
-const COMPONENT_NAME = 'antrag-mobile';
+const COMPONENT_NAME = 'texteditor-mobile';
 
-export default function AntragScreen() {
+export default function TextEditorScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
@@ -19,14 +20,17 @@ export default function AntragScreen() {
 
   const hasResult = content.trim().length > 0;
 
-  const handleResult = useCallback((text: string) => {
-    setError(null);
-    setTextWithHistory(COMPONENT_NAME, text);
-  }, [setTextWithHistory]);
+  const handleResult = useCallback(
+    (text: string) => {
+      setError(null);
+      setTextWithHistory(COMPONENT_NAME, text);
+    },
+    [setTextWithHistory]
+  );
 
   const handleError = useCallback((message: string) => {
     setError(message);
-    setTimeout(() => setError(null), 3000);
+    setTimeout(() => setError(null), 5000);
   }, []);
 
   const handleNewGeneration = useCallback(() => {
@@ -37,10 +41,7 @@ export default function AntragScreen() {
   if (hasResult) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ContentDisplay
-          componentName={COMPONENT_NAME}
-          onNewGeneration={handleNewGeneration}
-        />
+        <ContentDisplay componentName={COMPONENT_NAME} onNewGeneration={handleNewGeneration} />
       </View>
     );
   }
@@ -48,24 +49,36 @@ export default function AntragScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {error && (
-        <View style={styles.error}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={16} color={colors.error} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
-      <AntragForm onResult={handleResult} onError={handleError} />
+
+      <TextImproverForm onResult={handleResult} onError={handleError} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center' },
-  error: {
-    backgroundColor: colors.semantic.error + '15',
-    paddingVertical: spacing.xsmall,
-    paddingHorizontal: spacing.medium,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
     marginHorizontal: spacing.medium,
     marginTop: spacing.small,
-    borderRadius: 6,
+    paddingVertical: spacing.xsmall,
+    paddingHorizontal: spacing.small,
+    borderRadius: 8,
+    backgroundColor: 'rgba(211, 47, 47, 0.1)',
   },
-  errorText: { color: colors.semantic.error, fontSize: 13, textAlign: 'center' },
+  errorText: {
+    flex: 1,
+    color: colors.error,
+    fontSize: 13,
+  },
 });

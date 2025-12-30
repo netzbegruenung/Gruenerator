@@ -40,7 +40,6 @@ export default function UniversalScreen() {
         <ContentDisplay
           componentName={COMPONENT_NAME}
           onNewGeneration={handleNewGeneration}
-          title="Universeller Text"
         />
       </View>
     );
@@ -59,7 +58,7 @@ export default function UniversalScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, justifyContent: 'center' },
   error: {
     backgroundColor: colors.semantic.error + '15',
     paddingVertical: spacing.xsmall,
