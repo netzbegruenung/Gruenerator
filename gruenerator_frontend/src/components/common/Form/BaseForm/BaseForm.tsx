@@ -412,8 +412,10 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   // Auto-scroll to generated text on mobile with smart positioning
   useAutoScrollToContent(displaySectionRef, hasEditableContent, {
     mobileOnly: true,
+    mobileBreakpoint: 768,
     delay: 100,
-    topOffset: 80
+    topOffset: 80,
+    centerThreshold: 0.8
   });
 
   // Handler for edit mode toggle
@@ -456,62 +458,42 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [resolvedSubmitConfig.buttonProps, isEditModeActive]);
 
   // Consolidated webSearch config with store integration
+  // Note: webSearchConfig prop only contains runtime state (isActive, isSearching, statusMessage)
+  // enabled comes from useWebSearchFeatureToggle prop or store, toggle from webSearchFeatureToggle prop
   const resolvedWebSearchConfig = React.useMemo(() => {
-    if (webSearchConfig) {
-      return {
-        enabled: webSearchConfig.enabled ?? storeWebSearchConfig.enabled ?? useWebSearchFeatureToggle,
-        toggle: webSearchConfig.toggle ?? webSearchFeatureToggle,
-        ...webSearchConfig
-      };
-    }
     return {
       enabled: storeWebSearchConfig.enabled || useWebSearchFeatureToggle,
-      toggle: webSearchFeatureToggle
+      toggle: webSearchFeatureToggle,
+      isActive: webSearchConfig?.isActive ?? storeWebSearchConfig.isActive,
+      isSearching: webSearchConfig?.isSearching ?? storeWebSearchConfig.isSearching,
+      statusMessage: webSearchConfig?.statusMessage ?? storeWebSearchConfig.statusMessage
     };
   }, [webSearchConfig, useWebSearchFeatureToggle, webSearchFeatureToggle, storeWebSearchConfig]);
 
   // Consolidated privacyMode config with store integration
   const resolvedPrivacyModeConfig = React.useMemo(() => {
-    if (privacyModeConfig) {
-      return {
-        enabled: privacyModeConfig.enabled ?? storePrivacyModeConfig.enabled ?? usePrivacyModeToggle,
-        toggle: privacyModeConfig.toggle ?? privacyModeToggle,
-        ...privacyModeConfig
-      };
-    }
     return {
       enabled: storePrivacyModeConfig.enabled || usePrivacyModeToggle,
-      toggle: privacyModeToggle
+      toggle: privacyModeToggle,
+      isActive: privacyModeConfig?.isActive ?? storePrivacyModeConfig.isActive
     };
   }, [privacyModeConfig, usePrivacyModeToggle, privacyModeToggle, storePrivacyModeConfig]);
 
   // Consolidated proMode config with store integration
   const resolvedProModeConfig = React.useMemo(() => {
-    if (proModeConfig) {
-      return {
-        enabled: proModeConfig.enabled ?? storeProModeConfig.enabled ?? useProModeToggle,
-        toggle: proModeConfig.toggle ?? proModeToggle,
-        ...proModeConfig
-      };
-    }
     return {
       enabled: storeProModeConfig.enabled || useProModeToggle,
-      toggle: proModeToggle // This correctly references the proModeToggle prop from the closure
+      toggle: proModeToggle,
+      isActive: proModeConfig?.isActive ?? storeProModeConfig.isActive
     };
   }, [proModeConfig, useProModeToggle, proModeToggle, storeProModeConfig]);
 
   // Consolidated interactiveMode config with store integration
   const resolvedInteractiveModeConfig = React.useMemo(() => {
-    if (interactiveModeConfig) {
-      return {
-        enabled: interactiveModeConfig.enabled ?? useInteractiveModeToggle,
-        toggle: interactiveModeConfig.toggle ?? interactiveModeToggle,
-        ...interactiveModeConfig
-      };
-    }
     return {
       enabled: useInteractiveModeToggle,
-      toggle: interactiveModeToggle
+      toggle: interactiveModeToggle,
+      isActive: interactiveModeConfig?.isActive ?? false
     };
   }, [interactiveModeConfig, useInteractiveModeToggle, interactiveModeToggle]);
 
@@ -534,8 +516,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   useEffect(() => {
     if (generatedContent) {
       // Check if it's mixed content (has both social and sharepic)
-      const isMixedContent = typeof generatedContent === 'object' && 
-        (generatedContent.sharepic || generatedContent.social);
+      const isMixedContent = typeof generatedContent === 'object' &&
+        generatedContent !== null &&
+        ('sharepic' in generatedContent || 'social' in generatedContent);
       
       if (isMixedContent) {
         // Store the full mixed content object
@@ -656,7 +639,16 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     if (propError && propError !== storeError) {
       setError(propError);
       setStoreError(propError);
-      handleFormError(propError);
+      // Convert ErrorValue to string for handleFormError
+      let errorMessage = 'Ein Fehler ist aufgetreten';
+      if (typeof propError === 'string') {
+        errorMessage = propError;
+      } else if (propError instanceof Error) {
+        errorMessage = propError.message || errorMessage;
+      } else if (propError && typeof propError === 'object' && 'message' in propError) {
+        errorMessage = (propError as { message?: string }).message || errorMessage;
+      }
+      handleFormError(errorMessage);
     }
   }, [propError, storeError, setError, setStoreError, handleFormError]);
 
@@ -798,7 +790,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         ref={baseFormRef}
         className={baseContainerClasses}
         role="main"
-        aria-label={title || 'Formular'}
+        aria-label={typeof title === 'string' ? title : 'Formular'}
         id="main-content"
       >
         <AnimatePresence initial={false}>
@@ -829,7 +821,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
             >
               <FormSection
                 ref={formSectionRef}
-                title={title}
+                title={typeof title === 'string' ? title : undefined}
                 onSubmit={isEditModeActive && onEditSubmit ? onEditSubmit : (useModernForm ? handleEnhancedSubmit : onSubmit)}
                 isFormVisible={isFormVisible}
                 isMultiStep={isMultiStep}
@@ -898,7 +890,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
           >
             <DisplaySection
               ref={displaySectionRef}
-              title={displayTitle}
+              title={typeof displayTitle === 'string' ? displayTitle : ''}
               error={error || propError}
               value={value}
               generatedContent={generatedContent}
