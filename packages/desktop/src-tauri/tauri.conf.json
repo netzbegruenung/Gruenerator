@@ -13,6 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Grünerator",
         "width": 1200,
         "height": 800,
@@ -23,7 +24,20 @@
         "center": true,
         "decorations": false,
         "transparent": false,
-        "visible": true
+        "visible": false
+      },
+      {
+        "label": "splashscreen",
+        "title": "Grünerator",
+        "url": "splashscreen.html",
+        "width": 400,
+        "height": 300,
+        "resizable": false,
+        "fullscreen": false,
+        "center": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true
       }
     ],
     "security": {
@@ -64,7 +78,12 @@
       "minimumSystemVersion": "10.15",
       "frameworks": [],
       "entitlements": "Entitlements.plist",
-      "exceptionDomain": null
+      "exceptionDomain": null,
+      "dmg": {
+        "background": "assets/dmg-background.png",
+        "appPosition": { "x": 180, "y": 170 },
+        "applicationFolderPosition": { "x": 480, "y": 170 }
+      }
     },
     "windows": {
       "webviewInstallMode": {
@@ -75,7 +94,10 @@
         "installMode": "currentUser",
         "languages": ["German", "English"],
         "displayLanguageSelector": true,
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "assets/installer-header.png",
+        "sidebarImage": "assets/installer-sidebar.png",
+        "compression": "lzma"
       },
       "wix": null
     }
