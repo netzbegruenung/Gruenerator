@@ -60,7 +60,15 @@ export const colors = {
     700: '#e8e0d4',
   },
 
-  // Semantic Colors
+  // Semantic Colors (flat for direct access)
+  semantic: {
+    error: '#D32F2F',
+    success: '#52907A', // primary.500
+    warning: '#FFA000',
+    info: '#316049', // primary.600
+  },
+
+  // Legacy semantic (flat access)
   error: '#D32F2F',
   success: '#52907A', // primary.500
   warning: '#FFA000',
@@ -80,6 +88,7 @@ export const lightTheme = {
   background: colors.white,
   backgroundAlt: colors.primary[50],
   backgroundSand: colors.neutral[600],
+  surface: colors.grey[50],
   text: colors.grey[800],
   textSecondary: colors.grey[600],
   textGreen: colors.primary[600],
@@ -98,6 +107,7 @@ export const darkTheme = {
   background: colors.grey[950],
   backgroundAlt: colors.grey[900],
   backgroundSand: colors.grey[800],
+  surface: colors.grey[900],
   text: colors.grey[100],
   textSecondary: colors.grey[400],
   textGreen: colors.primary[400],

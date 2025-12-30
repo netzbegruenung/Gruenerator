@@ -1,4 +1,10 @@
-// Utils will be added here as we migrate them
-// For now, export placeholder
-
-export {};
+// Text normalization utilities for German text search
+export {
+  foldUmlauts,
+  normalizeUnicodeNumbers,
+  normalizeQuery,
+  normalizeText,
+  tokenizeQuery,
+  generateQueryVariants,
+  containsNormalized
+} from './textNormalization';

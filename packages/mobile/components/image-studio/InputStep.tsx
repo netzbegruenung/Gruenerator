@@ -15,16 +15,15 @@ import {
   useColorScheme,
   Pressable,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import type { ImageStudioTemplateType, InputFieldConfig } from '@gruenerator/shared/image-studio';
+import type { ImageStudioTemplateType, InputFieldConfig, FormFieldValue, ImageStudioFormData } from '@gruenerator/shared/image-studio';
 import { getInputFields, getTypeConfig, validateField } from '@gruenerator/shared/image-studio';
 import { Button } from '../common';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
 interface InputStepProps {
   type: ImageStudioTemplateType;
-  formData: Record<string, any>;
-  onUpdateField: (name: string, value: any) => void;
+  formData: ImageStudioFormData;
+  onUpdateField: (name: string, value: FormFieldValue) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -59,7 +58,8 @@ export function InputStep({ type, formData, onUpdateField, onNext, onBack }: Inp
   };
 
   const renderField = (field: InputFieldConfig) => {
-    const value = formData[field.name] || '';
+    const rawValue = formData[field.name];
+    const value = rawValue != null ? String(rawValue) : '';
     const error = errors[field.name];
 
     if (field.type === 'select' && field.options) {
@@ -167,9 +167,6 @@ export function InputStep({ type, formData, onUpdateField, onNext, onBack }: Inp
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={theme.text} />
-          </Pressable>
           <Text style={[styles.title, { color: theme.text }]}>{typeConfig?.label}</Text>
         </View>
 
@@ -196,14 +193,7 @@ const styles = StyleSheet.create({
     padding: spacing.medium,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: spacing.large,
-  },
-  backButton: {
-    padding: spacing.small,
-    marginRight: spacing.small,
-    marginLeft: -spacing.small,
   },
   title: {
     ...typography.h3,

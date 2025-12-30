@@ -5,25 +5,35 @@ import {
   StyleSheet,
   useColorScheme,
   Pressable,
-  Modal,
   ScrollView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
+import { ProfileAvatar } from '../../components/common';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../components/navigation';
 import { useChatStore } from '../../stores/chatStore';
+import { route, type AppRoute } from '../../types/routes';
 
-const QUICK_FEATURES = [
-  { id: 'pressemitteilung', label: 'Pressemitteilung', icon: 'newspaper-outline' as const, route: '/(tabs)/(texte)/presse' },
-  { id: 'instagram', label: 'Instagram', icon: 'logo-instagram' as const, route: '/(tabs)/(texte)/presse' },
-  { id: 'antrag', label: 'Antrag', icon: 'document-text-outline' as const, route: '/(tabs)/(texte)/antrag' },
-  { id: 'reel', label: 'Reel untertiteln', icon: 'videocam-outline' as const, route: '/(tabs)/(media)/reel' },
-  { id: 'suche', label: 'Suche', icon: 'search-outline' as const, route: '/(tabs)/(tools)/suche' },
+interface QuickFeature {
+  id: string;
+  label: string;
+  icon: 'newspaper-outline' | 'logo-instagram' | 'document-text-outline' | 'videocam-outline' | 'search-outline';
+  route: AppRoute;
+}
+
+const QUICK_FEATURES: QuickFeature[] = [
+  { id: 'pressemitteilung', label: 'Pressemitteilung', icon: 'newspaper-outline', route: '/(tabs)/(texte)/presse' },
+  { id: 'instagram', label: 'Instagram', icon: 'logo-instagram', route: '/(tabs)/(texte)/presse' },
+  { id: 'antrag', label: 'Antrag', icon: 'document-text-outline', route: '/(tabs)/(texte)/antrag' },
+  { id: 'reel', label: 'Reel untertiteln', icon: 'videocam-outline', route: '/(tabs)/(media)/reel' },
+  { id: 'suche', label: 'Suche', icon: 'search-outline', route: '/(tabs)/(tools)/suche' },
 ];
 
 export default function StartScreen() {
@@ -33,19 +43,13 @@ export default function StartScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
-  const [menuVisible, setMenuVisible] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const { sendMessage } = useChatStore();
 
   const firstName = user?.display_name?.split(' ')[0] || 'Grüner';
 
-  const handleProfilePress = () => {
-    setMenuVisible(false);
-    router.push('/profile');
-  };
-
-  const handleFeaturePress = (route: string) => {
-    router.push(route as any);
+  const handleFeaturePress = (featureRoute: AppRoute) => {
+    router.push(route(featureRoute));
   };
 
   const handleChatSubmit = useCallback(() => {
@@ -54,11 +58,20 @@ export default function StartScreen() {
 
     sendMessage(trimmedInput);
     setChatInput('');
-    router.push('/(modals)/gruenerator-chat' as any);
+    router.push(route('/(modals)/gruenerator-chat'));
   }, [chatInput, sendMessage, router]);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LinearGradient
+        colors={colorScheme === 'dark'
+          ? [colors.grey[950], colors.grey[950]]
+          : [colors.secondary[50], colors.white]
+        }
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.4 }}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -66,9 +79,14 @@ export default function StartScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator ai Studio</Text>
-          <Pressable onPress={() => setMenuVisible(true)} style={styles.menuButton}>
-            <Ionicons name="ellipsis-vertical" size={24} color={theme.text} />
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
+          <Pressable onPress={() => router.push('/profile')} style={styles.profileButton}>
+            <ProfileAvatar
+              avatarRobotId={user?.avatar_robot_id}
+              displayName={user?.display_name}
+              email={user?.email}
+              size="small"
+            />
           </Pressable>
         </View>
 
@@ -90,39 +108,34 @@ export default function StartScreen() {
 
           {/* Feature Badges */}
           <View style={styles.badgesSection}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.badgesScroll}
-            >
-              {QUICK_FEATURES.map((feature) => (
-                <Pressable
-                  key={feature.id}
-                  style={({ pressed }) => [
-                    styles.badge,
-                    {
-                      backgroundColor: colorScheme === 'dark' ? colors.primary[900] : colors.primary[50],
-                      opacity: pressed ? 0.7 : 1,
-                    },
+            {QUICK_FEATURES.map((feature) => (
+              <Pressable
+                key={feature.id}
+                style={({ pressed }) => [
+                  styles.badge,
+                  {
+                    backgroundColor: colorScheme === 'dark' ? colors.primary[900] : colors.white,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                  colorScheme === 'light' && styles.badgeShadow,
+                ]}
+                onPress={() => handleFeaturePress(feature.route)}
+              >
+                <Ionicons
+                  name={feature.icon}
+                  size={16}
+                  color={colorScheme === 'dark' ? colors.primary[200] : colors.primary[700]}
+                />
+                <Text
+                  style={[
+                    styles.badgeText,
+                    { color: colorScheme === 'dark' ? colors.primary[200] : colors.primary[700] },
                   ]}
-                  onPress={() => handleFeaturePress(feature.route)}
                 >
-                  <Ionicons
-                    name={feature.icon}
-                    size={16}
-                    color={colorScheme === 'dark' ? colors.primary[200] : colors.primary[700]}
-                  />
-                  <Text
-                    style={[
-                      styles.badgeText,
-                      { color: colorScheme === 'dark' ? colors.primary[200] : colors.primary[700] },
-                    ]}
-                  >
-                    {feature.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+                  {feature.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </ScrollView>
 
@@ -134,6 +147,7 @@ export default function StartScreen() {
               backgroundColor: theme.surface,
               borderTopColor: theme.border,
               paddingBottom: Math.max(insets.bottom, spacing.medium),
+              marginBottom: FLOATING_TAB_BAR_HEIGHT,
             },
           ]}
         >
@@ -166,22 +180,6 @@ export default function StartScreen() {
           </View>
         </View>
 
-        {/* Menu Modal */}
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setMenuVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
-            <View style={[styles.menu, { backgroundColor: theme.surface }]}>
-              <Pressable style={styles.menuItem} onPress={handleProfilePress}>
-                <Ionicons name="person-outline" size={20} color={theme.text} />
-                <Text style={[styles.menuItemText, { color: theme.text }]}>Profil</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -205,7 +203,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
-  menuButton: {
+  profileButton: {
     padding: spacing.xsmall,
   },
   scrollView: {
@@ -228,9 +226,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.xsmall,
   },
   badgesSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingVertical: spacing.medium,
-  },
-  badgesScroll: {
     paddingHorizontal: spacing.medium,
     gap: spacing.small,
   },
@@ -241,6 +239,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
     paddingHorizontal: spacing.medium,
     borderRadius: borderRadius.full,
+  },
+  badgeShadow: {
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   badgeText: {
     fontSize: 14,
@@ -259,11 +264,16 @@ const styles = StyleSheet.create({
   chatInput: {
     flex: 1,
     paddingVertical: spacing.small,
-    paddingHorizontal: spacing.medium,
-    borderRadius: borderRadius.large,
-    borderWidth: 1,
+    paddingHorizontal: spacing.large,
+    borderRadius: borderRadius.pill,
+    borderWidth: 0.5,
     fontSize: 16,
     maxHeight: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   sendButton: {
     width: 40,
@@ -271,33 +281,5 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-  },
-  menu: {
-    marginTop: 60,
-    marginRight: spacing.medium,
-    borderRadius: 8,
-    paddingVertical: spacing.xsmall,
-    minWidth: 150,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-    paddingVertical: spacing.small,
-    paddingHorizontal: spacing.medium,
-  },
-  menuItemText: {
-    fontSize: 16,
   },
 });

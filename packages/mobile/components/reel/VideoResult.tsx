@@ -1,13 +1,20 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 import { Button } from '../common/Button';
+import { ShareModal } from '../share';
+import { secureStorage } from '../../services/storage';
 
 interface VideoResultProps {
   videoUri: string;
   savedToGallery: boolean;
+  uploadId?: string;
+  projectId?: string;
+  projectTitle?: string;
+  isRemoteVideo?: boolean;
   onNewVideo: () => void;
   onSaveToGallery?: () => void;
 }
@@ -15,10 +22,32 @@ interface VideoResultProps {
 export function VideoResult({
   videoUri,
   savedToGallery,
+  uploadId,
+  projectId,
+  projectTitle,
+  isRemoteVideo = false,
   onNewVideo,
   onSaveToGallery,
 }: VideoResultProps) {
-  const player = useVideoPlayer(videoUri, (player) => {
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isRemoteVideo) {
+      secureStorage.getToken().then(setAuthToken);
+    }
+  }, [isRemoteVideo]);
+
+  const videoSource = useMemo(() => {
+    if (isRemoteVideo) {
+      return authToken
+        ? { uri: videoUri, headers: { Authorization: `Bearer ${authToken}` } }
+        : null;
+    }
+    return videoUri;
+  }, [videoUri, isRemoteVideo, authToken]);
+
+  const player = useVideoPlayer(videoSource ?? '', (player) => {
     player.loop = true;
   });
 
@@ -38,7 +67,7 @@ export function VideoResult({
         <View style={styles.successIcon}>
           <Ionicons name="checkmark-circle" size={48} color={colors.primary[600]} />
         </View>
-        <Text style={styles.title}>Reel fertig!</Text>
+        <Text style={styles.title}>{projectTitle || 'Reel fertig!'}</Text>
         {savedToGallery && (
           <View style={styles.savedBadge}>
             <Ionicons name="folder" size={14} color={colors.primary[700]} />
@@ -48,43 +77,67 @@ export function VideoResult({
       </View>
 
       <View style={styles.videoContainer}>
-        <VideoView
-          player={player}
-          style={styles.video}
-          contentFit="contain"
-          nativeControls={false}
-        />
+        {isRemoteVideo && !authToken ? (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={colors.primary[600]} />
+          </View>
+        ) : (
+          <>
+            <VideoView
+              player={player}
+              style={styles.video}
+              contentFit="contain"
+              nativeControls={false}
+            />
 
-        <Pressable style={styles.playOverlay} onPress={togglePlayback}>
-          {!isPlaying && (
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={32} color={colors.white} />
+            <Pressable style={styles.playOverlay} onPress={togglePlayback}>
+              {!isPlaying && (
+                <View style={styles.playButton}>
+                  <Ionicons name="play" size={32} color={colors.white} />
+                </View>
+              )}
+            </Pressable>
+
+            <View style={styles.videoControls}>
+              <Pressable style={styles.controlButton} onPress={togglePlayback}>
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={24} color={colors.white} />
+              </Pressable>
             </View>
-          )}
-        </Pressable>
-
-        <View style={styles.videoControls}>
-          <Pressable style={styles.controlButton} onPress={togglePlayback}>
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={24} color={colors.white} />
-          </Pressable>
-        </View>
+          </>
+        )}
       </View>
 
       <View style={styles.actions}>
+        <Button onPress={() => setShowShareModal(true)} variant="primary">
+          <Ionicons name="share-outline" size={18} color={colors.white} />
+          {'  '}Teilen
+        </Button>
+
         {!savedToGallery && onSaveToGallery && (
           <Button onPress={onSaveToGallery} variant="outline">
             In Galerie speichern
           </Button>
         )}
 
-        <Button onPress={onNewVideo} variant="primary">
-          Neues Reel erstellen
+        <Button onPress={onNewVideo} variant="outline">
+          {isRemoteVideo ? 'Zurück zu Projekten' : 'Neues Reel erstellen'}
         </Button>
       </View>
 
-      <Text style={styles.hint}>
-        Du kannst das Video direkt aus deiner Galerie in Instagram oder anderen Apps teilen.
-      </Text>
+      {!isRemoteVideo && (
+        <Text style={styles.hint}>
+          Du kannst das Video direkt aus deiner Galerie in Instagram oder anderen Apps teilen.
+        </Text>
+      )}
+
+      <ShareModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        videoUri={videoUri}
+        uploadId={uploadId}
+        projectId={projectId}
+        defaultTitle={projectTitle || 'Mein Reel'}
+      />
     </View>
   );
 }
@@ -133,6 +186,12 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.black,
   },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,

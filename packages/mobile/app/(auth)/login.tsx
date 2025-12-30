@@ -1,37 +1,131 @@
-import { StyleSheet, Text, View, Pressable, useColorScheme } from 'react-native';
+import { useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  useColorScheme,
+  ActivityIndicator,
+  Image,
+  Linking,
+  ImageSourcePropType,
+} from 'react-native';
 import { router } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
+import { login, type AuthSource } from '../../services/auth';
 
-// Enable web browser result handling for OAuth
-WebBrowser.maybeCompleteAuthSession();
+interface LoginProvider {
+  enabled: boolean;
+  source: AuthSource;
+  title: string;
+  description: string;
+  logo: ImageSourcePropType | null;
+}
 
-/**
- * Login screen
- * Handles Keycloak OIDC authentication
- */
+const LOGIN_PROVIDERS: Record<string, LoginProvider> = {
+  gruenesNetz: {
+    enabled: true,
+    source: 'gruenes-netz-login',
+    title: 'Grünes Netz',
+    description: 'Für Mitglieder von BÜNDNIS 90/DIE GRÜNEN',
+    logo: require('../../assets/images/sonnenblume.png'),
+  },
+  grueneOesterreich: {
+    enabled: true,
+    source: 'gruene-oesterreich-login',
+    title: 'Die Grünen Österreich',
+    description: 'Für Mitglieder der Grünen Österreich',
+    logo: require('../../assets/images/gruene-at-logo.png'),
+  },
+  netzbegruenung: {
+    enabled: true,
+    source: 'netzbegruenung-login',
+    title: 'Netzbegrünung',
+    description: 'Für Mitglieder der Netzbegrünung',
+    logo: require('../../assets/images/nb-icon.png'),
+  },
+  gruenerator: {
+    enabled: false,
+    source: 'gruenerator-login',
+    title: 'Grünerator Login',
+    description: 'Für Mitarbeitende von Abgeordneten und Geschäftsstellen',
+    logo: null,
+  },
+};
+
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  // TODO: Implement actual Keycloak auth with expo-auth-session
-  const handleGrueneratorLogin = async () => {
-    console.log('Login with Grünerator');
-    // Will implement Keycloak OIDC flow
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingSource, setLoadingSource] = useState<AuthSource | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGruenesNetzLogin = async () => {
-    console.log('Login with Grünes Netz');
-    // Will implement with kc_idp_hint=gruenes-netz
-  };
+  const handleLogin = async (source: AuthSource) => {
+    setIsLoading(true);
+    setLoadingSource(source);
+    setError(null);
 
-  const handleNetzbegrünungLogin = async () => {
-    console.log('Login with Netzbegrünung');
-    // Will implement with kc_idp_hint=netzbegruenung
+    try {
+      const result = await login(source);
+
+      if (result.success) {
+        router.replace('/(tabs)');
+      } else {
+        setError(result.error || 'Anmeldung fehlgeschlagen');
+      }
+    } catch (err) {
+      setError('Ein unerwarteter Fehler ist aufgetreten');
+      console.error('[Login] Error:', err);
+    } finally {
+      setIsLoading(false);
+      setLoadingSource(null);
+    }
   };
 
   const handleClose = () => {
     router.back();
+  };
+
+  const handlePrivacyPress = () => {
+    Linking.openURL('https://gruenerator.eu/datenschutz');
+  };
+
+  const renderLoginOption = (provider: LoginProvider) => {
+    if (!provider.enabled) return null;
+
+    const isButtonLoading = loadingSource === provider.source;
+
+    return (
+      <Pressable
+        key={provider.source}
+        style={({ pressed }) => [
+          styles.loginOption,
+          { borderColor: theme.border },
+          { opacity: pressed || isLoading ? 0.7 : 1 },
+        ]}
+        onPress={() => handleLogin(provider.source)}
+        disabled={isLoading}
+      >
+        {provider.logo && (
+          <Image source={provider.logo} style={styles.loginLogo} />
+        )}
+        <View style={styles.loginTextContent}>
+          {isButtonLoading ? (
+            <ActivityIndicator color={theme.text} />
+          ) : (
+            <>
+              <Text style={[styles.loginTitle, { color: theme.text }]}>
+                {provider.title}
+              </Text>
+              <Text style={[styles.loginDescription, { color: theme.textSecondary }]}>
+                {provider.description}
+              </Text>
+            </>
+          )}
+        </View>
+      </Pressable>
+    );
   };
 
   return (
@@ -43,46 +137,31 @@ export default function LoginScreen() {
         Melde dich an, um alle Funktionen zu nutzen
       </Text>
 
-      <View style={styles.buttonContainer}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            styles.primaryButton,
-            { opacity: pressed ? 0.8 : 1 },
-          ]}
-          onPress={handleGrueneratorLogin}
-        >
-          <Text style={styles.primaryButtonText}>Mit Grünerator anmelden</Text>
-        </Pressable>
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            styles.secondaryButton,
-            { borderColor: theme.border, opacity: pressed ? 0.8 : 1 },
-          ]}
-          onPress={handleGruenesNetzLogin}
-        >
-          <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
-            Grünes Netz
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            styles.secondaryButton,
-            { borderColor: theme.border, opacity: pressed ? 0.8 : 1 },
-          ]}
-          onPress={handleNetzbegrünungLogin}
-        >
-          <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
-            Netzbegrünung
-          </Text>
-        </Pressable>
+      <View style={styles.loginOptionsContainer}>
+        {Object.values(LOGIN_PROVIDERS).map(renderLoginOption)}
       </View>
 
-      <Pressable style={styles.cancelButton} onPress={handleClose}>
+      <View style={styles.legalContainer}>
+        <Text style={[styles.legalText, { color: theme.textSecondary }]}>
+          Mit der Anmeldung stimmst du unseren{' '}
+          <Text style={styles.legalLink} onPress={handlePrivacyPress}>
+            Nutzungsbedingungen und der Datenschutzerklärung
+          </Text>
+          {' '}zu.
+        </Text>
+      </View>
+
+      <Pressable
+        style={styles.cancelButton}
+        onPress={handleClose}
+        disabled={isLoading}
+      >
         <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>
           Abbrechen
         </Text>
@@ -106,31 +185,62 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     textAlign: 'center',
-    marginBottom: spacing.xlarge,
+    marginBottom: spacing.large,
   },
-  buttonContainer: {
+  errorContainer: {
+    backgroundColor: colors.semantic.error + '20',
+    borderRadius: borderRadius.medium,
+    padding: spacing.medium,
+    marginBottom: spacing.large,
+    width: '100%',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.semantic.error,
+    textAlign: 'center',
+  },
+  loginOptionsContainer: {
     width: '100%',
     gap: spacing.small,
   },
-  button: {
-    paddingVertical: spacing.medium,
-    paddingHorizontal: spacing.large,
-    borderRadius: borderRadius.medium,
+  loginOption: {
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: spacing.medium,
+    borderWidth: 1.5,
+    borderRadius: borderRadius.medium,
+    minHeight: 70,
   },
-  primaryButton: {
-    backgroundColor: colors.primary[600],
+  loginLogo: {
+    width: 50,
+    height: 50,
+    marginRight: spacing.medium,
+    resizeMode: 'contain',
   },
-  primaryButtonText: {
+  loginTextContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  loginTitle: {
     ...typography.button,
-    color: colors.white,
+    fontWeight: '600',
+    marginBottom: spacing.xxsmall,
   },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
+  loginDescription: {
+    ...typography.bodySmall,
+    opacity: 0.8,
   },
-  secondaryButtonText: {
-    ...typography.button,
+  legalContainer: {
+    marginTop: spacing.large,
+    paddingHorizontal: spacing.medium,
+  },
+  legalText: {
+    ...typography.caption,
+    textAlign: 'center',
+  },
+  legalLink: {
+    color: colors.primary[600],
+    textDecorationLine: 'underline',
   },
   cancelButton: {
     marginTop: spacing.large,

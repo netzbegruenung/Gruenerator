@@ -1,12 +1,21 @@
 import { View, StyleSheet } from 'react-native';
-import { Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
+import {
+  Bubble,
+  InputToolbar,
+  Composer,
+  Send,
+  BubbleProps,
+  InputToolbarProps,
+  ComposerProps,
+  SendProps,
+} from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
 type Theme = typeof lightTheme | typeof darkTheme;
 
 export function createChatRenderers(theme: Theme) {
-  const renderBubble = (props: any) => (
+  const renderBubble = (props: BubbleProps) => (
     <Bubble
       {...props}
       wrapperStyle={{
@@ -32,34 +41,40 @@ export function createChatRenderers(theme: Theme) {
     />
   );
 
-  const renderInputToolbar = (props: any) => (
+  const renderInputToolbar = (props: InputToolbarProps) => (
     <InputToolbar
       {...props}
       containerStyle={[
         styles.inputToolbar,
         {
-          backgroundColor: theme.background,
-          borderTopColor: theme.border,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+        },
+      ]}
+      primaryStyle={[
+        styles.inputPillContainer,
+        {
+          backgroundColor: theme.surface,
         },
       ]}
     />
   );
 
-  const renderComposer = (props: any) => (
+  const renderComposer = (props: ComposerProps) => (
     <Composer
       {...props}
       textInputStyle={[
         styles.composer,
         {
           color: theme.text,
-          backgroundColor: theme.surface,
+          backgroundColor: 'transparent',
         },
       ]}
       placeholderTextColor={theme.textSecondary}
     />
   );
 
-  const renderSend = (props: any) => (
+  const renderSend = (props: SendProps) => (
     <Send {...props} containerStyle={styles.sendContainer}>
       <View style={[styles.sendButton, { backgroundColor: colors.primary[600] }]}>
         <Ionicons name="send" size={18} color={colors.white} />
@@ -77,21 +92,34 @@ export function createChatRenderers(theme: Theme) {
 
 export const styles = StyleSheet.create({
   inputToolbar: {
-    borderTopWidth: 1,
-    paddingHorizontal: spacing.small,
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+    paddingBottom: spacing.medium,
+  },
+  inputPillContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: borderRadius.pill,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.xsmall,
     paddingVertical: spacing.xsmall,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   composer: {
-    borderRadius: borderRadius.large,
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: 0,
     paddingVertical: spacing.small,
     fontSize: 16,
     marginRight: spacing.xsmall,
+    lineHeight: 20,
   },
   sendContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.xsmall,
+    marginBottom: spacing.xxsmall,
   },
   sendButton: {
     width: 36,

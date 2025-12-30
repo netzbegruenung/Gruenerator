@@ -164,7 +164,6 @@ export default function GrueneratorChatModal() {
           {...chatRenderers}
           minInputToolbarHeight={60}
           bottomOffset={0}
-          {...({} as any)}
         />
 
         {showSources && latestMessage.sources && (

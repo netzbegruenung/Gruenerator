@@ -14,6 +14,7 @@ import {
 } from '@gruenerator/shared/generators';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 import { FloatingGlassMenu, createChatRenderers, ASSISTANT_USER, CURRENT_USER } from '../../components/chat';
+import { getErrorMessage } from '../../utils/errors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -37,28 +38,27 @@ function ExpandableTextPreview({ text, theme }: ExpandableTextPreviewProps) {
   return (
     <Pressable
       onPress={toggleExpanded}
-      style={[styles.textPreview, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      style={[styles.textPreview, { backgroundColor: theme.surface }]}
     >
-      <View style={styles.previewHeader}>
-        <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>Aktueller Text:</Text>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={theme.textSecondary}
-        />
-      </View>
       <ScrollView
-        style={{ maxHeight: expanded ? 300 : 80 }}
+        style={{ maxHeight: expanded ? 300 : 120 }}
         scrollEnabled={expanded}
         showsVerticalScrollIndicator={false}
       >
         <Text
           style={[styles.previewText, { color: theme.text }]}
-          numberOfLines={expanded ? undefined : 3}
+          numberOfLines={expanded ? undefined : 5}
         >
           {text || 'Kein Text vorhanden'}
         </Text>
       </ScrollView>
+      <View style={styles.expandIndicator}>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={16}
+          color={theme.textSecondary}
+        />
+      </View>
     </Pressable>
   );
 }
@@ -109,8 +109,7 @@ export default function EditChatModal() {
           createdAt: new Date(msg.timestamp || Date.now()),
           user: msg.type === 'user' ? CURRENT_USER : ASSISTANT_USER,
           system: msg.type === 'error',
-        }))
-        .reverse();
+        }));
       setMessages(giftedMessages);
     } else {
       setMessages([
@@ -128,8 +127,6 @@ export default function EditChatModal() {
     if (!componentName || messages.length === 0) return;
 
     const chatMessages: ChatMessage[] = messages
-      .slice()
-      .reverse()
       .map((msg) => ({
         type: msg.user._id === CURRENT_USER._id ? 'user' : msg.system ? 'error' : 'assistant',
         content: msg.text,
@@ -167,7 +164,7 @@ export default function EditChatModal() {
       const instruction = userMessage.text.trim();
       if (!instruction) return;
 
-      setMessages((prev) => GiftedChat.append(prev, newMessages));
+      setMessages((prev) => [...prev, ...newMessages]);
       setIsTyping(true);
 
       const textBeforeEdit = getEditableText();
@@ -179,7 +176,7 @@ export default function EditChatModal() {
           user: ASSISTANT_USER,
           system: true,
         };
-        setMessages((prev) => GiftedChat.append(prev, [errorMessage]));
+        setMessages((prev) => [...prev, errorMessage]);
         setIsTyping(false);
         return;
       }
@@ -209,7 +206,7 @@ export default function EditChatModal() {
             createdAt: new Date(),
             user: ASSISTANT_USER,
           };
-          setMessages((prev) => GiftedChat.append(prev, [noChangesMessage]));
+          setMessages((prev) => [...prev, noChangesMessage]);
         } else {
           const result = applyEdits(changes);
 
@@ -221,7 +218,7 @@ export default function EditChatModal() {
               user: ASSISTANT_USER,
               system: true,
             };
-            setMessages((prev) => GiftedChat.append(prev, [errorMessage]));
+            setMessages((prev) => [...prev, errorMessage]);
           } else {
             let summary = data?.summary;
             if (!summary) {
@@ -239,19 +236,18 @@ export default function EditChatModal() {
               createdAt: new Date(),
               user: ASSISTANT_USER,
             };
-            setMessages((prev) => GiftedChat.append(prev, [successMessage]));
+            setMessages((prev) => [...prev, successMessage]);
           }
         }
-      } catch (error) {
-        const errText = error instanceof Error ? error.message : 'Fehler bei der Verarbeitung';
+      } catch (error: unknown) {
         const errorMessage: IMessage = {
           _id: Date.now(),
-          text: errText,
+          text: getErrorMessage(error),
           createdAt: new Date(),
           user: ASSISTANT_USER,
           system: true,
         };
-        setMessages((prev) => GiftedChat.append(prev, [errorMessage]));
+        setMessages((prev) => [...prev, errorMessage]);
       } finally {
         setIsTyping(false);
       }
@@ -326,11 +322,11 @@ export default function EditChatModal() {
           onSend={(msgs: IMessage[]) => onSend(msgs)}
           user={CURRENT_USER}
           isTyping={isTyping}
+          inverted={false}
           alwaysShowSend
           {...chatRenderers}
           minInputToolbarHeight={60}
           bottomOffset={0}
-          {...({} as any)}
         />
       </View>
     </View>
@@ -344,6 +340,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     marginTop: spacing.xlarge + spacing.medium,
+    paddingBottom: spacing.large,
   },
   errorContainer: {
     flex: 1,
@@ -363,18 +360,16 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.medium,
     marginBottom: spacing.small,
     padding: spacing.medium,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
+    borderRadius: borderRadius.large,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  previewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  expandIndicator: {
     alignItems: 'center',
-    marginBottom: spacing.xxsmall,
-  },
-  previewLabel: {
-    fontSize: 12,
-    fontWeight: '500',
+    paddingTop: spacing.xsmall,
   },
   previewText: {
     fontSize: 14,
