@@ -2,6 +2,12 @@
   "name": "gruenerator",
   "version": "1.0.0",
   "private": true,
+  "pnpm": {
+    "overrides": {
+      "react": "19.1.0",
+      "react-dom": "19.1.0"
+    }
+  },
   "workspaces": [
     "packages/*",
     "gruenerator_backend",
