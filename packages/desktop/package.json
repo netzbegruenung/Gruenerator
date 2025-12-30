@@ -7,7 +7,9 @@
     "build": "tauri build",
     "build:debug": "tauri build --debug",
     "dev:frontend": "pnpm --filter gruenerator_frontend dev",
-    "signer:generate": "tauri signer generate -w ~/.tauri/gruenerator.key"
+    "signer:generate": "tauri signer generate -w ~/.tauri/gruenerator.key",
+    "preflight": "node preflight-check.mjs",
+    "test:ci": "node preflight-check.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0"
