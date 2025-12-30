@@ -9,6 +9,8 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
 import { routes } from './config/routes';
+import { FirstRunWizard, useFirstRun } from './features/desktop';
+import { useAuthStore } from './stores/authStore';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -56,6 +58,8 @@ function App() {
   useScrollRestoration();
   const { setupKeyboardNav } = useAccessibility();
   const [darkMode, toggleDarkMode] = useDarkMode();
+  const { isFirstRun, requireLogin, completeFirstRun } = useFirstRun();
+  const { login } = useAuthStore();
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -87,6 +91,18 @@ function App() {
       behavior: 'instant'
     });
   }, []);
+
+  if (isFirstRun) {
+    return (
+      <ErrorBoundary>
+        <FirstRunWizard
+          requireLogin={requireLogin}
+          onComplete={completeFirstRun}
+          onLogin={login}
+        />
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <ErrorBoundary>
