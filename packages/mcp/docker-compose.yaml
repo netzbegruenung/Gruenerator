@@ -1,0 +1,25 @@
+services:
+  gruenerator-mcp:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Pflichtfelder (rot markiert in Coolify UI wenn leer)
+      - QDRANT_URL=${QDRANT_URL:?}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:?}
+      # Qdrant Auth
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      # Basic Auth für nginx-Proxy vor Qdrant
+      - QDRANT_BASIC_AUTH_USERNAME=${QDRANT_BASIC_AUTH_USERNAME}
+      - QDRANT_BASIC_AUTH_PASSWORD=${QDRANT_BASIC_AUTH_PASSWORD}
+      # Optional mit Default
+      - PORT=${PORT:-3000}
+      # Optional (editierbar im UI)
+      - PUBLIC_URL=${PUBLIC_URL}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+    restart: unless-stopped

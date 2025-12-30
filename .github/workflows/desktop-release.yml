@@ -76,7 +76,9 @@ jobs:
           workspaces: packages/desktop/src-tauri -> target
 
       - name: Install dependencies
-        run: pnpm install
+        run: |
+          # Only install frontend + desktop + shared (skip backend with native deps like canvas)
+          pnpm install --filter frontend --filter @gruenerator/desktop --filter @gruenerator/shared...
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
