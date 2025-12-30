@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "identifier": "de.gruenerator.desktop",
   "build": {
-    "beforeBuildCommand": "pnpm --filter gruenerator_frontend build",
+    "beforeBuildCommand": "cd ../.. && pnpm --filter frontend build",
     "beforeDevCommand": "",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../../../gruenerator_frontend/build"
