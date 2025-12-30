@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import * as MediaLibrary from 'expo-media-library';
 import { reelApi, AutoProgressResponse } from '../services/reel';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { getErrorMessage } from '../utils/errors';
 
 export type ReelStatus = 'idle' | 'uploading' | 'processing' | 'downloading' | 'complete' | 'error';
 
@@ -21,7 +22,7 @@ export interface ReelProcessingState {
 export const PROCESSING_STAGES = {
   1: { name: 'Video wird analysiert...', icon: 'search-outline' as const },
   2: { name: 'Stille Teile werden entfernt...', icon: 'cut-outline' as const },
-  3: { name: 'Untertitel werden generiert...', icon: 'text-outline' as const },
+  3: { name: 'Untertitel werden grüneriert...', icon: 'text-outline' as const },
   4: { name: 'Wird fertiggestellt...', icon: 'checkmark-circle-outline' as const },
 };
 
@@ -96,8 +97,8 @@ export function useReelProcessing() {
       await MediaLibrary.saveToLibraryAsync(videoUri);
       updateState({ savedToGallery: true });
       return true;
-    } catch (error) {
-      console.error('[ReelProcessing] Save to gallery failed:', error);
+    } catch (error: unknown) {
+      console.error('[ReelProcessing] Save to gallery failed:', getErrorMessage(error));
       handleError('save_failed');
       return false;
     }
@@ -116,7 +117,7 @@ export function useReelProcessing() {
         overallProgress: progress.overallProgress,
       });
 
-      if (progress.status === 'complete' || progress.status === 'processing_done') {
+      if (progress.status === 'complete') {
         if (pollingRef.current) {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
@@ -135,8 +136,8 @@ export function useReelProcessing() {
           });
 
           await saveToGallery(localVideoUri);
-        } catch (downloadError) {
-          handleError('download_failed', String(downloadError));
+        } catch (downloadError: unknown) {
+          handleError('download_failed', getErrorMessage(downloadError));
         }
       } else if (progress.status === 'error') {
         if (pollingRef.current) {
@@ -145,8 +146,8 @@ export function useReelProcessing() {
         }
         handleError('processing_failed', progress.error || undefined);
       }
-    } catch (error) {
-      console.error('[ReelProcessing] Polling error:', error);
+    } catch (error: unknown) {
+      console.error('[ReelProcessing] Polling error:', getErrorMessage(error));
     }
   }, [handleError, saveToGallery, updateState]);
 
@@ -184,9 +185,9 @@ export function useReelProcessing() {
       await reelApi.startAutoProcess(uploadId, user?.id);
 
       startPolling(uploadId);
-    } catch (error) {
-      console.error('[ReelProcessing] Start processing error:', error);
-      handleError('upload_failed', String(error));
+    } catch (error: unknown) {
+      console.error('[ReelProcessing] Start processing error:', getErrorMessage(error));
+      handleError('upload_failed', getErrorMessage(error));
     }
   }, [handleError, reset, startPolling, updateState, user?.id]);
 
