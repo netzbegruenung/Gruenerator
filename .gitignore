@@ -100,3 +100,22 @@ gruenerator_backend/storage/
 /test_*.js
 /add_*.sql
 bfg-*.jar
+
+# Mobile build artifacts
+*.apk
+*.aab
+*.ipa
+*.app
+packages/mobile/android/
+packages/mobile/ios/
+packages/mobile/.expo/
+
+# Desktop build artifacts (Tauri)
+packages/desktop/src-tauri/target/
+packages/desktop/src-tauri/gen/schemas/*.json
+!packages/desktop/src-tauri/gen/schemas/.gitkeep
+
+# Rust
+target/
+Cargo.lock
+!packages/desktop/src-tauri/Cargo.lock
