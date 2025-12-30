@@ -177,7 +177,8 @@ async function createZitatPureImage(processedText, validatedParams) {
     ctx.fillText(processedText.name, margin, nameY); // Position at left margin, not right
     log.debug(`Author name "${processedText.name}" at position (${margin}, ${nameY})`);    
 
-    return canvas.toBuffer('image/png');
+    const rawBuffer = canvas.toBuffer('image/png');
+    return optimizeCanvasBuffer(rawBuffer);
   } catch (error) {
     log.error('Error in createZitatPureImage:', error);
     throw error;
@@ -253,7 +254,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       zitatPureValidatedParams
     );
     
-    const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
+    const base64Image = bufferToBase64(generatedImageBuffer);
 
     log.debug('Zitat Pure image generated successfully');
     res.json({ image: base64Image });

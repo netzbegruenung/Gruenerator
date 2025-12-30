@@ -86,8 +86,9 @@ async function createVeranstaltungImage(imagePath, outputPath, params) {
   drawEventText(ctx, eventTitle, beschreibung, scaledFontSizes);
   drawLocationFooter(ctx, locationName, address, scaledFontSizes);
 
-  const buffer = canvas.toBuffer('image/png');
-  fs.writeFileSync(outputPath, buffer);
+  const rawBuffer = canvas.toBuffer('image/png');
+  const optimizedBuffer = await optimizeCanvasBuffer(rawBuffer);
+  fs.writeFileSync(outputPath, optimizedBuffer);
   log.debug('Veranstaltungs-Sharepic erstellt:', outputPath);
 }
 
@@ -280,7 +281,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     });
 
     const imageBuffer = fs.readFileSync(outputImagePath);
-    const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    const base64Image = bufferToBase64(imageBuffer);
 
     res.json({ image: base64Image });
   } catch (err) {

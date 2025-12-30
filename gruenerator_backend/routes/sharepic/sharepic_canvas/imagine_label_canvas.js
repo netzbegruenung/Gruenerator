@@ -51,7 +51,8 @@ async function addKiLabel(imageBuffer) {
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText(LABEL_TEXT, rectX + rectHorizontalPadding, rectY + rectHeight / 2);
 
-  return canvas.toBuffer('image/png');
+  const rawBuffer = canvas.toBuffer('image/png');
+  return optimizeCanvasBuffer(rawBuffer);
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
@@ -61,7 +62,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 
     const outputBuffer = await addKiLabel(req.file.buffer);
-    const base64Image = `data:image/png;base64,${outputBuffer.toString('base64')}`;
+    const base64Image = bufferToBase64(outputBuffer);
 
     res.json({ image: base64Image });
   } catch (error) {

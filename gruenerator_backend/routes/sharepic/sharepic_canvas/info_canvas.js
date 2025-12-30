@@ -171,7 +171,8 @@ async function createInfoImage(processedText, validatedParams) {
       }
     }
 
-    return canvas.toBuffer('image/png');
+    const rawBuffer = canvas.toBuffer('image/png');
+    return optimizeCanvasBuffer(rawBuffer);
   } catch (error) {
     log.error('Error in createInfoImage:', error);
     throw error;
@@ -277,7 +278,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       infoValidatedParams
     );
 
-    const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
+    const base64Image = bufferToBase64(generatedImageBuffer);
 
     res.json({ image: base64Image });
 

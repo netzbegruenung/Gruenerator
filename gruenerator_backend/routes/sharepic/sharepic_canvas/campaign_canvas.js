@@ -146,9 +146,11 @@ async function generateCampaignCanvas(campaignId, campaignTypeId, textData, loca
   log.debug('[CampaignCanvas] Returning creditText:', creditText);
 
   // Return base64 image and credit text
-  const imageBase64 = canvas.toBuffer('image/png').toString('base64');
+  const rawBuffer = canvas.toBuffer('image/png');
+  const optimizedBuffer = await optimizeCanvasBuffer(rawBuffer);
+  const base64Image = bufferToBase64(optimizedBuffer);
   return {
-    image: `data:image/png;base64,${imageBase64}`,
+    image: base64Image,
     creditText: creditText
   };
 }
@@ -246,10 +248,12 @@ router.post('/', async (req, res) => {
     }
 
     // Return base64 image and credit text
-    const imageBase64 = canvas.toBuffer('image/png').toString('base64');
+    const rawBuffer = canvas.toBuffer('image/png');
+    const optimizedBuffer = await optimizeCanvasBuffer(rawBuffer);
+    const base64Image = bufferToBase64(optimizedBuffer);
     res.json({
       success: true,
-      image: `data:image/png;base64,${imageBase64}`,
+      image: base64Image,
       creditText: creditText
     });
 

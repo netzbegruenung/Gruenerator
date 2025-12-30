@@ -113,8 +113,9 @@ async function addTextToImage(imagePath, outputImagePath, quote, name, fontSize 
     ctx.fillStyle = 'white';
     ctx.fillText(name, quoteX, y + nameOffset);
 
-    const buffer = canvas.toBuffer('image/png');
-    fs.writeFileSync(outputImagePath, buffer);
+    const rawBuffer = canvas.toBuffer('image/png');
+    const optimizedBuffer = await optimizeCanvasBuffer(rawBuffer);
+    fs.writeFileSync(outputImagePath, optimizedBuffer);
     log.debug('Bild erfolgreich gespeichert:', outputImagePath);
   } catch (err) {
     log.error('Fehler beim Erstellen des Bildes:', err);
@@ -147,7 +148,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     await addTextToImage(imagePath, outputImagePath, quote, name, fontSize);
     
     const imageBuffer = fs.readFileSync(outputImagePath);
-    const base64Image = `data:image/png;base64,${imageBuffer.toString('base64')}`;
+    const base64Image = bufferToBase64(imageBuffer);
 
     res.json({ image: base64Image });
   } catch (err) {

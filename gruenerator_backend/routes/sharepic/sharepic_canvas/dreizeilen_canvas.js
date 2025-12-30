@@ -223,7 +223,8 @@ async function addTextToImage(uploadedImageBuffer, processedText, validatedParam
       ctx.fillText(credit, canvasWidth / 2, creditY);
     }
 
-    return canvas.toBuffer('image/png');
+    const rawBuffer = canvas.toBuffer('image/png');
+    return optimizeCanvasBuffer(rawBuffer);
   } catch (error) {
     log.error('Error in addTextToImage:', error);
     if (error.message.includes('Unsupported image type')) {
@@ -316,7 +317,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       }
 
       const generatedImageBuffer = await addTextToImage(imageBuffer, processedText, validatedParams);
-      const base64Image = `data:image/png;base64,${generatedImageBuffer.toString('base64')}`;
+      const base64Image = bufferToBase64(generatedImageBuffer);
 
       res.json({ image: base64Image });
     } catch (error) {
