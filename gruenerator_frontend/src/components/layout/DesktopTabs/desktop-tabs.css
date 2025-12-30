@@ -1,0 +1,336 @@
+.tab-bar-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+  margin: 0 12px;
+  gap: 4px;
+}
+
+.tab-bar-scroll {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 6px 0;
+}
+
+.tab-bar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-bar-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 4px;
+}
+
+/* Individual Tab - Modern pill/capsule style */
+.desktop-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  min-width: 120px;
+  max-width: 220px;
+  padding: 0 12px 0 14px;
+  background-color: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.desktop-tab:hover {
+  background-color: var(--grey-100);
+}
+
+/* Active tab - elevated with no bottom border for seamless content connection */
+.desktop-tab.active {
+  background-color: var(--background-color);
+  box-shadow:
+    0 -2px 4px rgba(0, 0, 0, 0.04),
+    -2px 0 4px rgba(0, 0, 0, 0.04),
+    2px 0 4px rgba(0, 0, 0, 0.04);
+  border-radius: 10px 10px 0 0;
+  margin-bottom: -1px;
+  padding-bottom: 1px;
+}
+
+.desktop-tab.dragging {
+  opacity: 0.6;
+  transform: scale(0.98);
+}
+
+.desktop-tab.drag-over::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background-color: var(--primary-500);
+  border-radius: 2px;
+}
+
+/* Dark mode tabs */
+[data-theme="dark"] .desktop-tab:hover {
+  background-color: var(--grey-800);
+}
+
+[data-theme="dark"] .desktop-tab.active {
+  background-color: var(--grey-900);
+  box-shadow:
+    0 -2px 4px rgba(0, 0, 0, 0.15),
+    -2px 0 4px rgba(0, 0, 0, 0.15),
+    2px 0 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Tab favicon placeholder */
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--primary-400) 0%, var(--primary-600) 100%);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-favicon svg {
+  width: 10px;
+  height: 10px;
+  color: white;
+}
+
+/* Tab title */
+.tab-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--grey-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  letter-spacing: -0.01em;
+}
+
+.desktop-tab.active .tab-title {
+  color: var(--font-color);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .tab-title {
+  color: var(--grey-400);
+}
+
+[data-theme="dark"] .desktop-tab.active .tab-title {
+  color: var(--grey-100);
+}
+
+/* Dirty indicator - unsaved changes dot */
+.tab-dirty-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-400) 0%, var(--primary-600) 100%);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--background-color);
+}
+
+[data-theme="dark"] .tab-dirty-indicator {
+  box-shadow: 0 0 0 2px var(--grey-900);
+}
+
+/* Loading spinner */
+.tab-loading-indicator {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--grey-200);
+  border-top-color: var(--primary-500);
+  border-radius: 50%;
+  animation: tab-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .tab-loading-indicator {
+  border-color: var(--grey-700);
+  border-top-color: var(--primary-400);
+}
+
+@keyframes tab-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Close button */
+.tab-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  color: var(--grey-400);
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: -4px;
+}
+
+.desktop-tab:hover .tab-close-btn,
+.desktop-tab.active .tab-close-btn {
+  opacity: 1;
+}
+
+.tab-close-btn:hover {
+  background-color: var(--grey-200);
+  color: var(--grey-700);
+}
+
+.tab-close-btn:active {
+  transform: scale(0.92);
+}
+
+[data-theme="dark"] .tab-close-btn {
+  color: var(--grey-500);
+}
+
+[data-theme="dark"] .tab-close-btn:hover {
+  background-color: var(--grey-700);
+  color: var(--grey-200);
+}
+
+/* New tab button - Chrome-style inline with tabs */
+.new-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--grey-400);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: 2px;
+}
+
+.new-tab-btn:hover:not(:disabled) {
+  background-color: var(--grey-100);
+  color: var(--primary-600);
+  transform: scale(1.05);
+}
+
+.new-tab-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.new-tab-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .new-tab-btn {
+  color: var(--grey-500);
+}
+
+[data-theme="dark"] .new-tab-btn:hover:not(:disabled) {
+  background-color: var(--grey-800);
+  color: var(--primary-400);
+}
+
+/* Context menu */
+.tab-context-menu {
+  min-width: 200px;
+  background: var(--background-color);
+  border: 1px solid var(--grey-200);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 10001;
+  padding: 6px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .tab-context-menu {
+  background: var(--grey-900);
+  border-color: var(--grey-700);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+.tab-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--font-color);
+  text-align: left;
+  border-radius: 8px;
+  transition: background-color 0.12s ease;
+}
+
+.tab-context-menu-item:hover:not(:disabled) {
+  background-color: var(--primary-50);
+}
+
+.tab-context-menu-item:disabled {
+  color: var(--grey-400);
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .tab-context-menu-item:hover:not(:disabled) {
+  background-color: var(--grey-800);
+}
+
+[data-theme="dark"] .tab-context-menu-item:disabled {
+  color: var(--grey-600);
+}
+
+.tab-context-menu-divider {
+  height: 1px;
+  background-color: var(--grey-200);
+  margin: 4px 0;
+}
+
+[data-theme="dark"] .tab-context-menu-divider {
+  background-color: var(--grey-700);
+}
+
+/* Keyboard shortcut hint */
+.tab-context-menu-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--grey-400);
+  font-weight: 400;
+}
