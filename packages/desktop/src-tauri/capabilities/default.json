@@ -42,6 +42,12 @@
     "window-state:allow-save-window-state",
     "updater:default",
     "updater:allow-check",
-    "updater:allow-download-and-install"
+    "updater:allow-download-and-install",
+    "autostart:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    "core:tray:default",
+    "core:menu:default"
   ]
 }
