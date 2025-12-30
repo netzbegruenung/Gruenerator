@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Detect Tauri build environment - set by Tauri CLI during builds
+const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
+
 export default defineConfig(({ command }) => ({
   plugins: [
     react({ jsxRuntime: 'automatic' })
@@ -32,7 +35,8 @@ export default defineConfig(({ command }) => ({
     }
   },
   build: {
-    target: 'es2022',
+    // Use compatible targets for Tauri WebViews (Chrome=Edge WebView2, Safari=WKWebView)
+    target: isTauri ? ['chrome105', 'safari15'] : 'es2022',
     sourcemap: false,
     cssCodeSplit: true,
     assetsInlineLimit: 0,
@@ -49,8 +53,9 @@ export default defineConfig(({ command }) => ({
       maxParallelFileOps: 1,
       perf: false,
       shimMissingExports: false,
-      // Only externalize Tauri plugins in production - in dev they need to resolve (and fallback)
-      external: command === 'build' ? [
+      // Only externalize Tauri plugins for WEB builds - desktop builds must bundle them
+      // isTauri is true when TAURI_ENV_PLATFORM is set (during Tauri CLI builds)
+      external: (command === 'build' && !isTauri) ? [
         '@tauri-apps/plugin-fs',
         '@tauri-apps/plugin-opener',
         '@tauri-apps/api/path',
@@ -88,7 +93,8 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     port: 3000,
-    open: command === 'serve',
+    strictPort: true, // Tauri expects exact port - fail if unavailable
+    open: command === 'serve' && !isTauri, // Don't auto-open browser for Tauri dev
     watch: {
       usePolling: true,
       ignored: [
