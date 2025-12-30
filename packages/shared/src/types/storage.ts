@@ -9,23 +9,45 @@ export interface StorageAdapter {
   removeItem(key: string): Promise<void>;
 }
 
+// Type for window with localStorage
+interface WindowWithStorage {
+  localStorage: {
+    getItem(key: string): string | null;
+    setItem(key: string, value: string): void;
+    removeItem(key: string): void;
+  };
+}
+
 /**
  * Web storage adapter - wraps localStorage with async interface
  */
-export const createWebStorageAdapter = (): StorageAdapter => ({
-  getItem: async (key: string) => {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(key);
-  },
-  setItem: async (key: string, value: string) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(key, value);
-  },
-  removeItem: async (key: string) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.removeItem(key);
-  },
-});
+export const createWebStorageAdapter = (): StorageAdapter => {
+  // Type-safe window access for cross-platform compatibility
+  const getWindow = (): WindowWithStorage | undefined => {
+    if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+      return (globalThis as unknown as { window: WindowWithStorage }).window;
+    }
+    return undefined;
+  };
+
+  return {
+    getItem: async (key: string) => {
+      const win = getWindow();
+      if (!win) return null;
+      return win.localStorage.getItem(key);
+    },
+    setItem: async (key: string, value: string) => {
+      const win = getWindow();
+      if (!win) return;
+      win.localStorage.setItem(key, value);
+    },
+    removeItem: async (key: string) => {
+      const win = getWindow();
+      if (!win) return;
+      win.localStorage.removeItem(key);
+    },
+  };
+};
 
 /**
  * In-memory storage adapter for SSR/testing

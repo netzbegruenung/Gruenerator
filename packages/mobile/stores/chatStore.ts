@@ -9,6 +9,7 @@ import {
   type ChatAttachment,
   type ChatContext,
 } from '../services/chat';
+import { getErrorMessage } from '../utils/errors';
 
 interface ChatState {
   messages: GrueneratorChatMessage[];
@@ -34,7 +35,7 @@ type ChatStore = ChatState & ChatActions;
 const initialWelcomeMessage: GrueneratorChatMessage = {
   id: 'welcome',
   type: 'assistant',
-  content: 'Hallo! Ich bin der Grünerator. Wie kann ich dir helfen? Du kannst mich bitten, Texte zu erstellen, Sharepics zu generieren, oder einfach Fragen stellen.',
+  content: 'Hallo! Ich bin der Grünerator. Wie kann ich dir helfen? Du kannst mich bitten, Texte zu erstellen, Sharepics zu grünerieren, oder einfach Fragen stellen.',
   timestamp: Date.now(),
   agent: 'conversation',
 };
@@ -73,18 +74,19 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         messages: [...state.messages, assistantMessage],
         isLoading: false,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorContent = getErrorMessage(error);
       const errorMessage: GrueneratorChatMessage = {
         id: Date.now().toString(),
         type: 'error',
-        content: error instanceof Error ? error.message : 'Ein Fehler ist aufgetreten.',
+        content: errorContent,
         timestamp: Date.now(),
       };
 
       set((state) => ({
         messages: [...state.messages, errorMessage],
         isLoading: false,
-        error: errorMessage.content,
+        error: errorContent,
       }));
     }
   },
@@ -98,7 +100,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   clearMessages: async () => {
     try {
       await apiClearChatHistory();
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('[ChatStore] Failed to clear server history:', error);
     }
 

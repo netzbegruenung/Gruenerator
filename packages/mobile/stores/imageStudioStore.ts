@@ -8,13 +8,18 @@ import { create } from 'zustand';
 import type {
   ImageStudioTemplateType,
   NormalizedTextResult,
+  FormFieldValue,
+  ImageStudioFormData,
 } from '@gruenerator/shared/image-studio';
+
+// Re-export shared types for convenience
+export type { FormFieldValue as ImageStudioFieldValue, ImageStudioFormData } from '@gruenerator/shared/image-studio';
 
 interface ImageStudioState {
   /** Selected template type */
   type: ImageStudioTemplateType | null;
   /** Form data (thema, name, etc.) */
-  formData: Record<string, any>;
+  formData: ImageStudioFormData;
   /** Uploaded image URI (local file path) */
   uploadedImageUri: string | null;
   /** Uploaded image as base64 (for API) */
@@ -39,9 +44,9 @@ interface ImageStudioActions {
   /** Set the selected type */
   setType: (type: ImageStudioTemplateType) => void;
   /** Update a form field */
-  updateField: (name: string, value: any) => void;
+  updateField: (name: string, value: FormFieldValue) => void;
   /** Update multiple form fields */
-  updateFields: (fields: Record<string, any>) => void;
+  updateFields: (fields: ImageStudioFormData) => void;
   /** Set uploaded image */
   setUploadedImage: (uri: string, base64: string) => void;
   /** Clear uploaded image */
@@ -89,13 +94,13 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
     set({ type });
   },
 
-  updateField: (name: string, value: any) => {
+  updateField: (name: string, value: FormFieldValue) => {
     set((state) => ({
       formData: { ...state.formData, [name]: value },
     }));
   },
 
-  updateFields: (fields: Record<string, any>) => {
+  updateFields: (fields: ImageStudioFormData) => {
     set((state) => ({
       formData: { ...state.formData, ...fields },
     }));

@@ -9,3 +9,5 @@ export type {
   GeneratedTextActions,
   GeneratedTextStore,
 } from './generatedTextStore';
+
+export { useProjectsStore, getProjectsState } from './projectsStore';

@@ -1,27 +1,34 @@
-import { View, Text, StyleSheet, ScrollView, useColorScheme, Share, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useColorScheme, Share, Pressable, Modal, TouchableWithoutFeedback, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useState, useCallback, useRef } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { useState, useCallback } from 'react';
 import Markdown from 'react-native-markdown-display';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useGeneratedTextStore, extractEditableText } from '@gruenerator/shared/generators';
 import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { secureStorage } from '../../services/storage';
+import { routeWithParams } from '../../types/routes';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 interface ContentDisplayProps {
   componentName: string;
   onNewGeneration: () => void;
-  title?: string;
 }
 
-export function ContentDisplay({ componentName, onNewGeneration, title = 'Generierter Text' }: ContentDisplayProps) {
+export function ContentDisplay({ componentName, onNewGeneration }: ContentDisplayProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [copied, setCopied] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
-  const menuButtonRef = useRef<View>(null);
 
   const content = useGeneratedTextStore((state) => state.generatedTexts[componentName] || '');
   const canUndo = useGeneratedTextStore((state) => state.canUndo(componentName));
@@ -48,10 +55,7 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
   }, [text]);
 
   const openMenu = useCallback(() => {
-    menuButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setMenuPosition({ top: y + height + 4, right: 16 });
-      setMenuVisible(true);
-    });
+    setMenuVisible(true);
   }, []);
 
   const handleMenuCopy = useCallback(async () => {
@@ -60,10 +64,7 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
   }, [handleCopy]);
 
   const handleEdit = useCallback(() => {
-    router.push({
-      pathname: '/(modals)/edit-chat' as const,
-      params: { componentName },
-    } as any);
+    router.push(routeWithParams('/(modals)/edit-chat', { componentName }));
   }, [router, componentName]);
 
   const handleUndo = useCallback(() => {
@@ -73,6 +74,53 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
   const handleRedo = useCallback(() => {
     redo(componentName);
   }, [redo, componentName]);
+
+  const handleDOCXDownload = useCallback(async () => {
+    setMenuVisible(false);
+    try {
+      const token = await secureStorage.getToken();
+      const filename = `gruenerator_${Date.now()}.docx`;
+      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+      const response = await fetch(`${API_BASE_URL}/exports/docx`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ content: text, title: 'Grünerator Text' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Download fehlgeschlagen');
+      }
+
+      const blob = await response.blob();
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        dialogTitle: 'Word-Datei teilen',
+      });
+
+      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+    } catch (error) {
+      console.error('[DOCX Download] Error:', error);
+      Alert.alert('Fehler', 'Word-Export fehlgeschlagen. Bitte versuche es erneut.');
+    }
+  }, [text]);
 
   const markdownStyles = StyleSheet.create({
     body: {
@@ -150,7 +198,7 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
       <View style={[styles.emptyContainer, { backgroundColor: theme.surface }]}>
         <Ionicons name="document-text-outline" size={48} color={theme.textSecondary} />
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-          Noch kein Text generiert
+          Noch kein Text grüneriert
         </Text>
       </View>
     );
@@ -158,32 +206,6 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={handleUndo}
-            disabled={!canUndo}
-            style={({ pressed }) => [
-              styles.iconButton,
-              { opacity: canUndo ? (pressed ? 0.7 : 1) : 0.3 },
-            ]}
-          >
-            <Ionicons name="arrow-undo" size={20} color={theme.text} />
-          </Pressable>
-          <Pressable
-            onPress={handleRedo}
-            disabled={!canRedo}
-            style={({ pressed }) => [
-              styles.iconButton,
-              { opacity: canRedo ? (pressed ? 0.7 : 1) : 0.3 },
-            ]}
-          >
-            <Ionicons name="arrow-redo" size={20} color={theme.text} />
-          </Pressable>
-        </View>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -192,52 +214,32 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
         <Markdown style={markdownStyles}>{text}</Markdown>
       </ScrollView>
 
-      <View style={[styles.actionBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
-        <View style={styles.actionIconsLeft}>
-          <Pressable
-            onPress={handleCopy}
-            style={({ pressed }) => [
-              styles.iconButton,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={22} color={copied ? colors.primary[600] : theme.text} />
+      {Platform.OS === 'ios' && isLiquidGlassAvailable() ? (
+        <GlassView style={[styles.fab, { bottom: insets.bottom + 16 }]}>
+          <Pressable onPress={openMenu} style={styles.fabPressable}>
+            <Ionicons name="pencil" size={24} color={colors.primary[600]} />
           </Pressable>
-
-          <Pressable
-            onPress={handleShare}
-            style={({ pressed }) => [
-              styles.iconButton,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Ionicons name="share-outline" size={22} color={theme.text} />
-          </Pressable>
-
-          <View ref={menuButtonRef} collapsable={false}>
-            <Pressable
-              onPress={openMenu}
-              style={({ pressed }) => [
-                styles.iconButton,
-                { opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <Ionicons name="ellipsis-horizontal" size={22} color={theme.text} />
-            </Pressable>
-          </View>
-        </View>
-
-        <Pressable
-          onPress={handleEdit}
-          style={({ pressed }) => [
-            styles.editButton,
-            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+        </GlassView>
+      ) : (
+        <BlurView
+          intensity={80}
+          tint={colorScheme === 'dark' ? 'dark' : 'light'}
+          style={[
+            styles.fab,
+            styles.fabBlur,
+            {
+              bottom: insets.bottom + 16,
+              backgroundColor: colorScheme === 'dark'
+                ? 'rgba(30, 30, 30, 0.85)'
+                : 'rgba(255, 255, 255, 0.75)',
+            },
           ]}
         >
-          <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
-          <Text style={styles.editButtonText}>Bearbeiten</Text>
-        </Pressable>
-      </View>
+          <Pressable onPress={openMenu} style={styles.fabPressable}>
+            <Ionicons name="pencil" size={24} color={colors.primary[600]} />
+          </Pressable>
+        </BlurView>
+      )}
 
       <Modal
         visible={menuVisible}
@@ -247,12 +249,19 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
       >
         <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
           <View style={styles.menuOverlay}>
-            <View style={[styles.menuContainer, { backgroundColor: theme.card, top: menuPosition.top, right: menuPosition.right }]}>
+            <View style={[styles.menuContainer, { backgroundColor: theme.card, bottom: insets.bottom + 80, right: spacing.medium }]}>
+              <Pressable
+                onPress={() => { setMenuVisible(false); handleEdit(); }}
+                style={({ pressed }) => [styles.menuItem, styles.menuItemPrimary, { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] }]}
+              >
+                <Ionicons name="chatbubble-outline" size={18} color={colors.white} />
+                <Text style={[styles.menuItemText, { color: colors.white, fontWeight: '500' }]}>Bearbeiten</Text>
+              </Pressable>
               <Pressable
                 onPress={handleMenuCopy}
                 style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
               >
-                <Ionicons name="copy-outline" size={18} color={theme.text} />
+                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={copied ? colors.primary[600] : theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Kopieren</Text>
               </Pressable>
               <Pressable
@@ -262,13 +271,41 @@ export function ContentDisplay({ componentName, onNewGeneration, title = 'Generi
                 <Ionicons name="share-outline" size={18} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
               </Pressable>
+              <Pressable
+                onPress={handleDOCXDownload}
+                style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+              >
+                <Ionicons name="document-outline" size={18} color={theme.text} />
+                <Text style={[styles.menuItemText, { color: theme.text }]}>Als Word speichern</Text>
+              </Pressable>
+              {(canUndo || canRedo) && (
+                <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
+              )}
+              {canUndo && (
+                <Pressable
+                  onPress={() => { setMenuVisible(false); handleUndo(); }}
+                  style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                >
+                  <Ionicons name="arrow-undo" size={18} color={theme.text} />
+                  <Text style={[styles.menuItemText, { color: theme.text }]}>Rückgängig</Text>
+                </Pressable>
+              )}
+              {canRedo && (
+                <Pressable
+                  onPress={() => { setMenuVisible(false); handleRedo(); }}
+                  style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
+                >
+                  <Ionicons name="arrow-redo" size={18} color={theme.text} />
+                  <Text style={[styles.menuItemText, { color: theme.text }]}>Wiederholen</Text>
+                </Pressable>
+              )}
               <View style={[styles.menuDivider, { backgroundColor: theme.border }]} />
               <Pressable
                 onPress={() => { setMenuVisible(false); onNewGeneration(); }}
                 style={({ pressed }) => [styles.menuItem, { backgroundColor: pressed ? theme.surface : 'transparent' }]}
               >
                 <Ionicons name="refresh-outline" size={18} color={theme.text} />
-                <Text style={[styles.menuItemText, { color: theme.text }]}>Neu generieren</Text>
+                <Text style={[styles.menuItemText, { color: theme.text }]}>Neu grünerieren</Text>
               </Pressable>
             </View>
           </View>
@@ -295,58 +332,36 @@ const styles = StyleSheet.create({
     ...typography.body,
     textAlign: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderBottomWidth: 1,
-  },
-  title: {
-    ...typography.h3,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: spacing.xsmall,
-  },
-  iconButton: {
-    padding: spacing.xsmall,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: spacing.medium,
+    paddingBottom: 90,
   },
-  actionBar: {
-    flexDirection: 'row',
+  fab: {
+    position: 'absolute',
+    right: spacing.medium,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    borderTopWidth: 1,
+    zIndex: 100,
   },
-  actionIconsLeft: {
-    flexDirection: 'row',
+  fabBlur: {
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  fabPressable: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.xsmall,
-  },
-  iconButton: {
-    padding: spacing.xsmall,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-    paddingVertical: spacing.xsmall,
-    paddingHorizontal: spacing.medium,
-    borderRadius: borderRadius.full,
-  },
-  editButtonText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '500',
   },
   menuOverlay: {
     flex: 1,
@@ -369,6 +384,11 @@ const styles = StyleSheet.create({
     gap: spacing.small,
     paddingVertical: spacing.small,
     paddingHorizontal: spacing.medium,
+  },
+  menuItemPrimary: {
+    borderRadius: borderRadius.small,
+    marginHorizontal: spacing.xsmall,
+    marginVertical: spacing.xxsmall,
   },
   menuItemText: {
     fontSize: 15,

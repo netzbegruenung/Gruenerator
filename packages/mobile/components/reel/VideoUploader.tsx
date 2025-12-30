@@ -9,12 +9,13 @@ interface VideoUploaderProps {
   onVideoSelected: (uri: string) => void;
   uploadProgress: number;
   isUploading: boolean;
+  onBack?: () => void;
 }
 
 const MAX_FILE_SIZE_MB = 500;
 const MAX_DURATION_SECONDS = 600; // 10 minutes
 
-export function VideoUploader({ onVideoSelected, uploadProgress, isUploading }: VideoUploaderProps) {
+export function VideoUploader({ onVideoSelected, uploadProgress, isUploading, onBack }: VideoUploaderProps) {
   const [selectedVideo, setSelectedVideo] = useState<{
     uri: string;
     duration?: number;
@@ -117,6 +118,13 @@ export function VideoUploader({ onVideoSelected, uploadProgress, isUploading }: 
 
   return (
     <View style={styles.container}>
+      {onBack && (
+        <Pressable style={styles.backButton} onPress={onBack}>
+          <Ionicons name="arrow-back" size={24} color={colors.primary[600]} />
+          <Text style={styles.backButtonText}>Zurück</Text>
+        </Pressable>
+      )}
+
       {!selectedVideo ? (
         <>
           <View style={styles.iconContainer}>
@@ -179,6 +187,21 @@ const styles = StyleSheet.create({
     padding: spacing.large,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: spacing.medium,
+    left: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.small,
+  },
+  backButtonText: {
+    ...typography.body,
+    color: colors.primary[600],
+    fontWeight: '500',
   },
   iconContainer: {
     marginBottom: spacing.large,
