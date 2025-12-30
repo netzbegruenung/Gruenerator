@@ -2,55 +2,55 @@ import { Platform, TextStyle } from 'react-native';
 
 /**
  * Typography system for React Native
- * Uses system fonts for native feel
+ * Raleway for headings (brand consistency with web)
+ * System fonts for body text (native feel)
  */
 
-const fontFamily = Platform.select({
+const systemFont = Platform.select({
   ios: 'System',
   android: 'Roboto',
   default: 'System',
 });
 
 export const typography = {
-  // Headings
+  // Headings - Raleway (matches web)
   h1: {
-    fontFamily,
+    fontFamily: 'Raleway_700Bold',
     fontSize: 32,
-    fontWeight: '700',
     lineHeight: 40,
+    letterSpacing: -0.5,
   } as TextStyle,
 
   h2: {
-    fontFamily,
+    fontFamily: 'Raleway_600SemiBold',
     fontSize: 24,
-    fontWeight: '600',
     lineHeight: 32,
+    letterSpacing: -0.3,
   } as TextStyle,
 
   h3: {
-    fontFamily,
+    fontFamily: 'Raleway_600SemiBold',
     fontSize: 20,
-    fontWeight: '600',
     lineHeight: 28,
+    letterSpacing: -0.2,
   } as TextStyle,
 
   h4: {
-    fontFamily,
+    fontFamily: 'Raleway_600SemiBold',
     fontSize: 18,
-    fontWeight: '600',
     lineHeight: 24,
   } as TextStyle,
 
-  // Body text
+  // Body text - System fonts
   body: {
-    fontFamily,
+    fontFamily: systemFont,
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
   } as TextStyle,
 
   bodySmall: {
-    fontFamily,
+    fontFamily: systemFont,
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
@@ -58,29 +58,29 @@ export const typography = {
 
   // Labels and captions
   label: {
-    fontFamily,
+    fontFamily: systemFont,
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
   } as TextStyle,
 
   caption: {
-    fontFamily,
+    fontFamily: systemFont,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,
   } as TextStyle,
 
-  // Buttons
+  // Buttons - System fonts
   button: {
-    fontFamily,
+    fontFamily: systemFont,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
   } as TextStyle,
 
   buttonSmall: {
-    fontFamily,
+    fontFamily: systemFont,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
