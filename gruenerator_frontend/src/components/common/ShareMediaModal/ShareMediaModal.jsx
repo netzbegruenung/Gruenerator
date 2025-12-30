@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import QRCode from 'react-qr-code';
-import { useMediaShareStore, getShareUrl } from '../../../stores/mediaShareStore';
+import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import { canShare, shareContent } from '../../../utils/shareUtils';
 import './ShareMediaModal.css';
 
@@ -29,7 +29,7 @@ const ShareMediaModal = ({
     errorCode,
     clearError,
     clearCurrentShare,
-  } = useMediaShareStore();
+  } = useShareStore();
 
   useEffect(() => {
     if (isOpen) {
@@ -49,7 +49,7 @@ const ShareMediaModal = ({
         if (exportToken) {
           share = await createVideoShareFromToken(exportToken, shareTitle || null, projectId);
         } else if (projectId) {
-          share = await createVideoShare(projectId, shareTitle || null);
+          share = await createVideoShare({ projectId, title: shareTitle || undefined });
         }
       } else if (mediaType === 'image' && imageData) {
         // Get the original image if a getter function was provided
@@ -58,13 +58,13 @@ const ShareMediaModal = ({
           originalImage = await getOriginalImage();
         }
 
-        share = await createImageShare(
-          imageData.image,
-          shareTitle || null,
-          imageData.type || null,
-          imageData.metadata || {},
-          originalImage || null
-        );
+        share = await createImageShare({
+          imageData: imageData.image,
+          title: shareTitle || undefined,
+          type: imageData.type || undefined,
+          metadata: imageData.metadata || {},
+          originalImage: originalImage || undefined,
+        });
       }
 
       if (share && onShareCreated) {

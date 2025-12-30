@@ -75,10 +75,18 @@ jobs:
         with:
           workspaces: packages/desktop/src-tauri -> target
 
-      - name: Install dependencies
+      - name: Install canvas build dependencies (macOS)
+        if: matrix.platform == 'macos-latest'
         run: |
-          # Only install frontend + desktop + shared (skip backend with native deps like canvas)
-          pnpm install --filter frontend --filter @gruenerator/desktop --filter @gruenerator/shared...
+          brew install pkg-config cairo pango libpng jpeg giflib librsvg python-setuptools
+
+      - name: Install canvas build dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
