@@ -3,6 +3,8 @@
  * Works in web, Tauri desktop, and React Native mobile environments
  */
 
+/// <reference lib="dom" />
+
 declare global {
   interface Window {
     __TAURI__?: unknown;

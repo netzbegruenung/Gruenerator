@@ -40,5 +40,8 @@ export * from './sharepic';
 // Image Studio
 export * from './image-studio';
 
+// Subtitle Editor
+export * from './subtitle-editor';
+
 // Platform detection
 export * from './platform';

@@ -46,6 +46,10 @@
     "./image-studio": {
       "import": "./src/image-studio/index.ts",
       "require": "./src/image-studio/index.ts"
+    },
+    "./subtitle-editor": {
+      "import": "./src/subtitle-editor/index.ts",
+      "require": "./src/subtitle-editor/index.ts"
     }
   },
   "scripts": {

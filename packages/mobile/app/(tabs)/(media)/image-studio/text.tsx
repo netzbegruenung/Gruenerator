@@ -7,7 +7,7 @@ import { useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import { router, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useImageStudio } from '@gruenerator/shared/image-studio';
+import { useImageStudio, typeSupportsModifications } from '@gruenerator/shared/image-studio';
 import { TextSelectionStep } from '../../../../components/image-studio/TextSelectionStep';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
@@ -64,7 +64,11 @@ export default function TextScreen() {
   }, []);
 
   const handleNext = () => {
-    router.push('./result' as Href);
+    if (type && typeSupportsModifications(type)) {
+      router.push('./customize' as Href);
+    } else {
+      router.push('./result' as Href);
+    }
   };
 
   const handleRetry = () => {
