@@ -1,0 +1,132 @@
+name: Mirror MCP to Standalone Repo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/mcp/**'
+      - '.github/workflows/mirror-mcp.yml'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: monorepo
+
+      - name: Checkout MCP standalone repo
+        uses: actions/checkout@v4
+        with:
+          repository: Movm/Gruenerator-MCP
+          token: ${{ secrets.MCP_REPO_PAT }}
+          fetch-depth: 0
+          path: mcp-standalone
+
+      - name: Sync files
+        run: |
+          # Remove old files (except .git and .github)
+          find mcp-standalone -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.github' -exec rm -rf {} +
+
+          # Copy new files from monorepo
+          cp -r monorepo/packages/mcp/* mcp-standalone/
+          cp monorepo/packages/mcp/.env.example mcp-standalone/ 2>/dev/null || true
+          cp monorepo/packages/mcp/.gitignore mcp-standalone/ 2>/dev/null || true
+          cp monorepo/packages/mcp/.dockerignore mcp-standalone/ 2>/dev/null || true
+
+          # Restore standalone-specific files
+          cd mcp-standalone
+
+          # Get current version from existing package.json or use 2.0.0
+          CURRENT_VERSION=$(git show HEAD:package.json 2>/dev/null | jq -r '.version' 2>/dev/null || echo "2.0.0")
+
+          # Restore package.json with standalone config
+          cat > package.json << EOF
+          {
+            "name": "gruenerator-mcp",
+            "version": "$CURRENT_VERSION",
+            "description": "Gruenerator MCP Server - Suche in Grünen Parteiprogrammen (DE/AT)",
+            "type": "module",
+            "main": "src/index.js",
+            "bin": {
+              "gruenerator-mcp": "./src/index.js"
+            },
+            "scripts": {
+              "start": "node src/index.js",
+              "dev": "node --watch src/index.js",
+              "test": "node --test src/**/*.test.js",
+              "release": "semantic-release"
+            },
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/Movm/Gruenerator-MCP.git"
+            },
+            "bugs": {
+              "url": "https://github.com/Movm/Gruenerator-MCP/issues"
+            },
+            "homepage": "https://github.com/Movm/Gruenerator-MCP#readme",
+            "keywords": ["mcp", "model-context-protocol", "gruene", "green-party", "qdrant", "vector-search", "rag"],
+            "author": "Moritz Wächter",
+            "license": "MIT",
+            "dependencies": {
+              "@modelcontextprotocol/sdk": "^1.0.0",
+              "@qdrant/js-client-rest": "^1.13.0",
+              "cors": "^2.8.5",
+              "dotenv": "^16.4.0",
+              "express": "^4.21.0",
+              "zod": "^4.2.1"
+            },
+            "devDependencies": {
+              "@semantic-release/changelog": "^6.0.3",
+              "@semantic-release/git": "^10.0.1",
+              "semantic-release": "^25.0.2"
+            },
+            "engines": {
+              "node": ">=18.0.0"
+            }
+          }
+          EOF
+
+          # Restore .releaserc.json for semantic-release on standalone repo
+          cat > .releaserc.json << 'RELEASERC'
+          {
+            "branches": ["main"],
+            "plugins": [
+              "@semantic-release/commit-analyzer",
+              "@semantic-release/release-notes-generator",
+              ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
+              ["@semantic-release/npm", { "npmPublish": false }],
+              ["@semantic-release/git", {
+                "assets": ["CHANGELOG.md", "package.json", "package-lock.json"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }],
+              "@semantic-release/github"
+            ]
+          }
+          RELEASERC
+
+      - name: Check for changes
+        id: changes
+        run: |
+          cd mcp-standalone
+          git add -A
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          cd mcp-standalone
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Get the commit message from monorepo
+          COMMIT_MSG=$(cd ../monorepo && git log -1 --pretty=format:"%s")
+
+          git commit -m "mirror: $COMMIT_MSG"
+          git push
