@@ -296,7 +296,7 @@ router.post('/mode', ensureAuthenticated, async (req, res) => {
 });
 
 // Get documents by source type
-router.get('/by-source/:sourceType?', ensureAuthenticated, async (req, res) => {
+router.get('/by-source/{:sourceType}', ensureAuthenticated, async (req, res) => {
   try {
     const { sourceType } = req.params;
     

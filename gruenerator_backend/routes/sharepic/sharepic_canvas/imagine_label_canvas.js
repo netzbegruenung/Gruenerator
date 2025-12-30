@@ -3,6 +3,7 @@ const multer = require('multer');
 const { createCanvas, loadImage } = require('canvas');
 const { COLORS } = require('./config');
 const { checkFiles, registerFonts } = require('./fileManagement');
+const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
 const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('imagine_label_c');
 

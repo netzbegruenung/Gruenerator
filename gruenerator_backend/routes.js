@@ -87,7 +87,7 @@ function normalizeRoute(path) {
 async function setupRoutes(app) {
 
   // Route usage tracking middleware - non-blocking, fire-and-forget
-  app.use('/api/*', (req, res, next) => {
+  app.use('/api/*splat', (req, res, next) => {
     // Call next() immediately - don't block the request
     next();
 
@@ -141,9 +141,6 @@ async function setupRoutes(app) {
   
   // Import Nextcloud routes as ES6 module
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.mjs');
-  
-  // Import Abyssale routes as ES6 module
-  const { default: abyssaleRouter } = await import('./routes/abyssale.mjs');
   
   // Import URL crawler route as ES6 module
   const { default: crawlUrlRouter } = await import('./routes/crawlUrl.js');
@@ -335,9 +332,6 @@ async function setupRoutes(app) {
 
   // Add Nextcloud routes
   app.use('/api/nextcloud', nextcloudApiRouter);
-
-  // Add Abyssale routes
-  app.use('/api/abyssale', abyssaleRouter);
 
   // Add Sites routes (Web-Visitenkarte)
   const { default: sitesRouter } = await import('./routes/sites.mjs');

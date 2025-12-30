@@ -2,7 +2,7 @@ import express from 'express';
 
 const router = express.Router();
 
-router.get('*', (req, res) => {
+router.get('{*splat}', (req, res) => {
     if (!req.siteData) {
         return res.status(404).send(`
             <!DOCTYPE html>

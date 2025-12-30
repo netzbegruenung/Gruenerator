@@ -563,12 +563,10 @@ router.post('/', withErrorHandler(async (req, res) => {
             const sharepicType = finalAgent === 'zitat_with_image' ? 'zitat' : 'zitat_pure';
             log.debug('[GrueneratorChat] Using sharepic type for completed request:', sharepicType);
 
-            req.body = {
-              ...req.body,
-              ...completedRequestContext,
+            Object.assign(req.body, completedRequestContext, {
               count: 1,
-              preserveName: true  // Enable name preservation for chat requests
-            };
+              preserveName: true
+            });
             const sharepicResponse = await generateSharepicForChat(req, sharepicType, req.body);
 
             // Don't store sharepic responses as chat messages to avoid text content conflicts
@@ -587,12 +585,10 @@ router.post('/', withErrorHandler(async (req, res) => {
         if (finalAgent === 'dreizeilen') {
           try {
             log.debug('[GrueneratorChat] Processing completed dreizeilen request');
-            req.body = {
-              ...req.body,
-              ...completedRequestContext,
+            Object.assign(req.body, completedRequestContext, {
               count: 1,
               preserveName: true
-            };
+            });
             const sharepicResponse = await generateSharepicForChat(req, 'dreizeilen', req.body);
 
             res.json(sharepicResponse);
@@ -947,16 +943,13 @@ async function processSingleIntentRequest(intent, req, res, baseContext) {
     : null;
 
   // Update request body for single intent processing
-  req.body = {
-    ...extractedParams,
-    ...intent.params,
+  Object.assign(req.body, extractedParams, intent.params, {
     agent: intent.agent,
-    documentKnowledge: documentKnowledge,
-    ...baseContext,
-    // Enable automatic document research for chat (conditionally)
+    documentKnowledge: documentKnowledge
+  }, baseContext, {
     useAutomaticSearch: enableAutoSearch,
     searchQuery: autoSearchQuery
-  };
+  });
 
   // Route to appropriate processor (existing logic)
   const routeType = intent.route || intent.agent;
@@ -1125,7 +1118,7 @@ async function processImagineRequest(intentResult, req, res, userId = null) {
 
     // If information was completed, update the request body
     if (informationResult?.type === 'completion') {
-      req.body = { ...req.body, ...informationResult.data };
+      Object.assign(req.body, informationResult.data);
     }
   }
 
@@ -1187,11 +1180,10 @@ async function processSharepicRequest(intentResult, req, res, userId = null) {
   }
 
   // Update request body with sharepic-specific parameters
-  req.body = {
-    ...req.body,
+  Object.assign(req.body, {
     type: sharepicType,
     sharepicType: sharepicType
-  };
+  });
 
   log.debug('[GrueneratorChat] Routing sharepic with type:', {
     originalAgent: intentResult.agent,

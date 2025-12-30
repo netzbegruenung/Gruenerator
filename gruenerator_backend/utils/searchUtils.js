@@ -1,7 +1,7 @@
 const MistralWebSearchService = require('../services/mistralWebSearchService');
 const dotenv = require('dotenv');
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 // Konfiguration
 const searchConfig = {

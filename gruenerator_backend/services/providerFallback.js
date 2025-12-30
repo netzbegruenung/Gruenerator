@@ -13,8 +13,6 @@ function isProviderAvailable(provider) {
       return !!process.env.LITELLM_API_KEY;
     case 'mistral':
       return !!process.env.MISTRAL_API_KEY;
-    case 'openai':
-      return !!process.env.OPENAI_API_KEY;
     case 'claude':
       return !!process.env.CLAUDE_API_KEY;
     case 'bedrock':

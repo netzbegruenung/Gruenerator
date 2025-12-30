@@ -7,6 +7,7 @@ const path = require('path');
 const { COLORS } = require('./config');
 const { isValidHexColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
+const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
 const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('zitat_pure_canv');
 

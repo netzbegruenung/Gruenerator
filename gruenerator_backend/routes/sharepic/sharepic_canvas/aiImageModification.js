@@ -4,7 +4,7 @@ const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('aiImageModifica');
 
 const router = express.Router();
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY

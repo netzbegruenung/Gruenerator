@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const { registerFonts } = require('./fileManagement');
 const { COLORS } = require('./config');
+const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
 const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('veranstaltung_canvas');
 

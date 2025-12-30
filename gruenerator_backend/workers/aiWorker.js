@@ -2,7 +2,7 @@ const { parentPort } = require('worker_threads');
 const providerSelector = require('../services/providerSelector');
 const providerFallback = require('../services/providerFallback');
 const providers = require('./providers');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 // Logging controls
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';

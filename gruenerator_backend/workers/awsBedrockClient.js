@@ -1,5 +1,5 @@
 const { BedrockRuntimeClient } = require("@aws-sdk/client-bedrock-runtime");
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const region = process.env.AWS_REGION;
 const profile = process.env.AWS_PROFILE; // Will be used automatically if set

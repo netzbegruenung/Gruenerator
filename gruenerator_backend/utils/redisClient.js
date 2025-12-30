@@ -1,6 +1,6 @@
 // gruenerator_backend/utils/redisClient.js
 const { createClient } = require('redis');
-require('dotenv').config(); // Stellt sicher, dass .env geladen wird
+require('dotenv').config({ quiet: true });
 
 const redisUrl = process.env.REDIS_URL;
 if (!redisUrl) {

@@ -4,6 +4,7 @@ const { createCanvas, loadImage, registerFont } = require('canvas');
 const path = require('path');
 const fs = require('fs');
 const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } = require('./config');
+const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
 const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('campaign_canvas');
 

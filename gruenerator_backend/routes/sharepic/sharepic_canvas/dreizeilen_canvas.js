@@ -7,6 +7,7 @@ const { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } = require('./config');
 const { isValidHexColor, getDefaultColor } = require('./utils');
 const { checkFiles, registerFonts } = require('./fileManagement');
 const { validateParams } = require('./paramValidation');
+const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
 const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('dreizeilen_canv');
 

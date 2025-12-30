@@ -1,5 +1,5 @@
 const { Mistral } = require('@mistralai/mistralai');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const apiKey = process.env.MISTRAL_API_KEY;
 

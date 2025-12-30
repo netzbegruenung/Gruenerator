@@ -16,7 +16,7 @@ import {
 const log = createLogger('Qdrant');
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ quiet: true });
 
 /**
  * Qdrant Vector Database Service

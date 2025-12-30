@@ -35,7 +35,7 @@ const require = createRequire(import.meta.url);
 
 const numCPUs = os.cpus().length;
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -444,7 +444,7 @@ if (cluster.isMaster) {
 
   // TUS Upload Handler (must be before setupRoutes)
   const tusUploadPath = '/api/subtitler/upload';
-  app.all(tusUploadPath + '*', (req, res) => {
+  app.all(tusUploadPath + '/*splat', (req, res) => {
     tusServer.handle(req, res);
   });
 
@@ -497,17 +497,17 @@ if (cluster.isMaster) {
   app.use('/assets', express.static(path.join(staticFilesPath, 'assets'), {
     maxAge: '1d',
     etag: true,
-    immutable: true // Hash im Dateinamen erlaubt immutable caching
+    immutable: true,
+    dotfiles: 'deny'
   }));
 
   // Andere statische Dateien im Root
   app.use(express.static(staticFilesPath, {
     maxAge: '1d',
     etag: true,
-    // Nur echte Dateien servieren, keine Verzeichnisse
     index: false,
-    // Explizite Dateiendungen für statische Dateien
-    extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico']
+    extensions: ['html', 'js', 'css', 'png', 'jpg', 'gif', 'svg', 'ico'],
+    dotfiles: 'deny'
   }));
 
   // Handle subdomain public sites BEFORE SPA routing
@@ -521,7 +521,7 @@ if (cluster.isMaster) {
   // });
 
   // SPA-Routing: Alle anderen Anfragen zu index.html
-  app.get('*', (req, res, next) => {
+  app.get('{*splat}', (req, res, next) => {
     // API-Routen ignorieren
     if (req.path.startsWith('/api')) {
       return next(); // Ensure next() is called for API routes
@@ -537,6 +537,7 @@ if (cluster.isMaster) {
 
   // Statisches Verzeichnis für Video-Uploads
   app.use('/uploads/exports', express.static(path.join(__dirname, 'uploads/exports'), {
+    dotfiles: 'deny',
     setHeaders: (res, path, stat) => {
       if (path.endsWith('.mov') || path.endsWith('.MOV')) {
         res.set('Content-Type', 'video/quicktime');
@@ -552,10 +553,11 @@ if (cluster.isMaster) {
 
   // Statisches Verzeichnis für Sharepic-Hintergrundbilder
   app.use('/backend-static', express.static(path.join(__dirname, 'public'), {
+    dotfiles: 'deny',
     setHeaders: (res, path, stat) => {
       res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       res.set('Access-Control-Allow-Origin', '*');
-      res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+      res.set('Cache-Control', 'public, max-age=86400');
     }
   }));
 
@@ -669,7 +671,11 @@ if (cluster.isMaster) {
     socket.setKeepAlive(true, 30000); // 30 Sekunden
   });
 
-  server.listen(desiredPort, host, () => {
+  server.listen(desiredPort, host, (error) => {
+    if (error) {
+      log.error(`Worker ${process.pid} failed to start: ${error.message}`);
+      throw error;
+    }
     log.info(`Worker ${process.pid} listening on http://${host}:${desiredPort}`);
   });
 }

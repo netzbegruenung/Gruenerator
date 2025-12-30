@@ -1,7 +1,7 @@
 const redis = require('redis');
 
 // Load environment variables
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 /**
  * Redis OAuth State Manager
@@ -30,21 +30,14 @@ class RedisOAuthStateManager {
 
       this.client = redis.createClient({
         url: process.env.REDIS_URL,
-        retry_strategy: (options) => {
-          if (options.error && options.error.code === 'ECONNREFUSED') {
-            console.error('[Redis OAuth] Redis server connection refused');
-            return new Error('Redis server connection refused');
+        socket: {
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              console.error('[Redis OAuth] Too many retry attempts');
+              return new Error('Too many retry attempts');
+            }
+            return Math.min(retries * 100, 3000);
           }
-          if (options.total_retry_time > 1000 * 60 * 60) {
-            console.error('[Redis OAuth] Retry time exhausted');
-            return new Error('Retry time exhausted');
-          }
-          if (options.attempt > 10) {
-            console.error('[Redis OAuth] Too many retry attempts');
-            return undefined;
-          }
-          // Reconnect after this time
-          return Math.min(options.attempt * 100, 3000);
         }
       });
 
