@@ -9,6 +9,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
 
 export default defineConfig(({ command }) => ({
+  // Use relative paths for Tauri builds so assets resolve correctly with tauri:// protocol
+  base: isTauri ? './' : '/',
   plugins: [
     react({ jsxRuntime: 'automatic' })
   ],
