@@ -39,3 +39,6 @@ export * from './sharepic';
 
 // Image Studio
 export * from './image-studio';
+
+// Platform detection
+export * from './platform';
