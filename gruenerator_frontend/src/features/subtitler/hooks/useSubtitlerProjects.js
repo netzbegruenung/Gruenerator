@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useSubtitlerProjectStore } from '../../../stores/subtitlerProjectStore';
+import { useProjectsStore } from '@gruenerator/shared';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 
 /**
@@ -27,7 +27,7 @@ export const useSubtitlerProjects = () => {
     clearCurrentProject,
     clearError,
     reset
-  } = useSubtitlerProjectStore();
+  } = useProjectsStore();
 
   const isReady = isAuthenticated && isAuthResolved;
 

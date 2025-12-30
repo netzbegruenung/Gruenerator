@@ -70,7 +70,8 @@
           "supportsBackgroundPlayback": false,
           "supportsPictureInPicture": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

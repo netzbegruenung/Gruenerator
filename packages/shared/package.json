@@ -2,6 +2,7 @@
   "name": "@gruenerator/shared",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -25,6 +26,26 @@
     "./utils": {
       "import": "./src/utils/index.ts",
       "require": "./src/utils/index.ts"
+    },
+    "./generators": {
+      "import": "./src/generators/index.ts",
+      "require": "./src/generators/index.ts"
+    },
+    "./search": {
+      "import": "./src/search/index.ts",
+      "require": "./src/search/index.ts"
+    },
+    "./avatar": {
+      "import": "./src/avatar/index.ts",
+      "require": "./src/avatar/index.ts"
+    },
+    "./sharepic": {
+      "import": "./src/sharepic/index.ts",
+      "require": "./src/sharepic/index.ts"
+    },
+    "./image-studio": {
+      "import": "./src/image-studio/index.ts",
+      "require": "./src/image-studio/index.ts"
     }
   },
   "scripts": {

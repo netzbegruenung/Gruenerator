@@ -1,12 +1,20 @@
-import { View, StyleSheet, useColorScheme, ScrollView, ActivityIndicator, Text } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, useColorScheme, ActivityIndicator, Text, BackHandler } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
-import { VideoUploader, ProcessingProgress, VideoResult } from '../../../components/reel';
+import { VideoUploader, ProcessingProgress, VideoResult, ProjectList } from '../../../components/reel';
+import { type Project, getVideoUrl } from '@gruenerator/shared';
+
+type ScreenMode = 'projects' | 'creating' | 'processing' | 'viewing';
 
 export default function ReelScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+
+  const [screenMode, setScreenMode] = useState<ScreenMode>('projects');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const {
     status,
@@ -15,6 +23,7 @@ export default function ReelScreen() {
     stageName,
     stageProgress,
     overallProgress,
+    uploadId,
     videoUri,
     savedToGallery,
     error,
@@ -24,38 +33,106 @@ export default function ReelScreen() {
     saveToGallery,
   } = useReelProcessing();
 
+  const handleNewReel = useCallback(() => {
+    reset();
+    setSelectedProject(null);
+    setScreenMode('creating');
+  }, [reset]);
+
+  const handleSelectProject = useCallback((project: Project) => {
+    setSelectedProject(project);
+    setScreenMode('viewing');
+  }, []);
+
+  const handleBackToProjects = useCallback(() => {
+    reset();
+    setSelectedProject(null);
+    setScreenMode('projects');
+  }, [reset]);
+
+  const handleStartProcessing = useCallback((fileUri: string) => {
+    setScreenMode('processing');
+    startProcessing(fileUri);
+  }, [startProcessing]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (screenMode !== 'projects') {
+          handleBackToProjects();
+          return true;
+        }
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [screenMode, handleBackToProjects])
+  );
+
   const renderContent = () => {
-    switch (status) {
-      case 'idle':
+    // Show project list
+    if (screenMode === 'projects') {
+      return (
+        <ProjectList
+          onSelectProject={handleSelectProject}
+          onNewReel={handleNewReel}
+        />
+      );
+    }
+
+    // Show video uploader for new reel
+    if (screenMode === 'creating') {
+      if (status === 'idle' || status === 'error') {
         return (
           <VideoUploader
-            onVideoSelected={startProcessing}
+            onVideoSelected={handleStartProcessing}
             uploadProgress={0}
             isUploading={false}
+            onBack={handleBackToProjects}
           />
         );
-
-      case 'uploading':
+      }
+      if (status === 'uploading') {
         return (
           <VideoUploader
-            onVideoSelected={startProcessing}
+            onVideoSelected={handleStartProcessing}
+            uploadProgress={uploadProgress}
+            isUploading={true}
+            onBack={handleBackToProjects}
+          />
+        );
+      }
+    }
+
+    // Show processing or processing-related states
+    if (screenMode === 'processing' || status === 'processing' || status === 'uploading') {
+      if (status === 'uploading') {
+        return (
+          <VideoUploader
+            onVideoSelected={handleStartProcessing}
             uploadProgress={uploadProgress}
             isUploading={true}
           />
         );
+      }
 
-      case 'processing':
+      if (status === 'processing') {
         return (
           <ProcessingProgress
             currentStage={processingStage}
             stageName={stageName}
             stageProgress={stageProgress}
             overallProgress={overallProgress}
-            onCancel={cancelProcessing}
+            onCancel={() => {
+              cancelProcessing();
+              handleBackToProjects();
+            }}
           />
         );
+      }
 
-      case 'downloading':
+      if (status === 'downloading') {
         return (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary[600]} />
@@ -64,48 +141,57 @@ export default function ReelScreen() {
             </Text>
           </View>
         );
+      }
 
-      case 'complete':
-        if (videoUri) {
-          return (
-            <VideoResult
-              videoUri={videoUri}
-              savedToGallery={savedToGallery}
-              onNewVideo={reset}
-              onSaveToGallery={!savedToGallery ? () => saveToGallery(videoUri) : undefined}
-            />
-          );
-        }
-        return null;
-
-      case 'error':
+      if (status === 'complete' && videoUri) {
         return (
-          <VideoUploader
-            onVideoSelected={startProcessing}
-            uploadProgress={0}
-            isUploading={false}
+          <VideoResult
+            videoUri={videoUri}
+            savedToGallery={savedToGallery}
+            uploadId={uploadId || undefined}
+            onNewVideo={handleBackToProjects}
+            onSaveToGallery={!savedToGallery ? () => saveToGallery(videoUri) : undefined}
           />
         );
-
-      default:
-        return null;
+      }
     }
+
+    // Show selected project video
+    if (screenMode === 'viewing' && selectedProject) {
+      const projectVideoUrl = getVideoUrl(selectedProject.id);
+      return (
+        <VideoResult
+          videoUri={projectVideoUrl}
+          savedToGallery={true}
+          uploadId={selectedProject.upload_id}
+          projectId={selectedProject.id}
+          projectTitle={selectedProject.title}
+          onNewVideo={handleBackToProjects}
+          isRemoteVideo={true}
+        />
+      );
+    }
+
+    // Fallback to project list
+    return (
+      <ProjectList
+        onSelectProject={handleSelectProject}
+        onNewReel={handleNewReel}
+      />
+    );
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         {renderContent()}
 
-        {error && (
+        {error && screenMode !== 'projects' && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -114,8 +200,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

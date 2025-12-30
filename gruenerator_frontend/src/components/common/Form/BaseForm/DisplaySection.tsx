@@ -1,0 +1,273 @@
+import React, { forwardRef, ReactNode } from 'react';
+import type { GeneratedContent, HelpContent, CustomExportOption } from '@/types/baseform';
+import ActionButtons from '../../ActionButtons';
+import SubmitButton from '../../SubmitButton';
+import { HiCog, HiOutlineUsers } from "react-icons/hi";
+import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
+import ContentRenderer from './ContentRenderer';
+import ErrorDisplay from './ErrorDisplay';
+import HelpDisplay from '../../HelpDisplay';
+import EnrichmentSourcesDisplay from '../../EnrichmentSourcesDisplay';
+import apiClient from '../../../utils/apiClient';
+import { useLazyAuth } from '../../../../hooks/useAuth';
+import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
+import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
+import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
+import { useFormStateSelector } from '../FormStateProvider';
+
+interface DisplaySectionProps {
+  title: string;
+  error?: string | null;
+  value?: string | null;
+  generatedContent?: GeneratedContent;
+  useMarkdown?: boolean | null;
+  helpContent?: HelpContent | null;
+  generatedPost?: string;
+  onGeneratePost?: () => Promise<void>;
+  getExportableContent?: () => string;
+  displayActions?: ReactNode;
+  onSave?: () => void;
+  saveLoading?: boolean;
+  componentName?: string;
+  onErrorDismiss?: () => void;
+  onEditModeToggle?: () => void;
+  isEditModeActive?: boolean;
+  showEditModeToggle?: boolean;
+  onRequestEdit?: () => void;
+  showUndoControls?: boolean;
+  showRedoControls?: boolean;
+  renderActions?: (actionButtons: ReactNode) => ReactNode;
+  showResetButton?: boolean;
+  onReset?: () => void;
+  renderEmptyState?: () => ReactNode;
+  customEditContent?: ReactNode;
+  customRenderer?: (props: {
+    content: unknown;
+    generatedContent: unknown;
+    componentName: string;
+    helpContent?: HelpContent | null;
+    onEditModeToggle?: () => void;
+  }) => ReactNode;
+  customExportOptions?: CustomExportOption[];
+  hideDefaultExportOptions?: boolean;
+  isStartMode?: boolean;
+}
+
+const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
+  title,
+  error,
+  value,
+  generatedContent,
+  useMarkdown = null,
+
+  helpContent,
+  generatedPost,
+  onGeneratePost,
+  getExportableContent,
+  displayActions = null,
+  onSave,
+  saveLoading: propSaveLoading = false,
+  componentName = 'default',
+  onErrorDismiss,
+  onEditModeToggle,
+  isEditModeActive = false,
+  showEditModeToggle = true,
+  onRequestEdit,
+  showUndoControls = true,
+  showRedoControls = true,
+  renderActions = null,
+  showResetButton = false,
+  onReset,
+  renderEmptyState = null,
+  customEditContent = null,
+  customRenderer = null,
+  customExportOptions = [],
+  hideDefaultExportOptions = false,
+  isStartMode = false,
+}, ref) => {
+  const { user } = useLazyAuth(); // Keep for other auth functionality
+  const { getBetaFeatureState } = useBetaFeatures();
+  const storeGeneratedText = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
+  const storeGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName));
+  const streamingContent = useGeneratedTextStore(state => state.streamingContent);
+  const isStreaming = useGeneratedTextStore(state => state.isStreaming);
+  const isLoading = useGeneratedTextStore(state => state.isLoading);
+  const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
+  const { saveToLibrary, isLoading: saveToLibraryLoading, error: saveToLibraryError, success: saveToLibrarySuccess } = useSaveToLibrary();
+  
+  // Store selectors for potential future use
+  const storeSaveLoading = useFormStateSelector(state => state.saveLoading);
+  
+  // Use store state with prop fallback
+  const saveLoading = storeSaveLoading || propSaveLoading;
+
+  // Determine the content to display and use for actions
+  // Priority: store content -> props fallback (no edit mode)
+  const activeContent = React.useMemo(() => {
+    if (storeGeneratedText) {
+      return storeGeneratedText;
+    } else {
+      return generatedContent || value || '';
+    }
+  }, [storeGeneratedText, generatedContent, value]);
+
+  const hasRenderableContent = React.useMemo(() => {
+    if (!activeContent) return false;
+    if (typeof activeContent === 'string') {
+      return activeContent.trim().length > 0;
+    }
+    if (typeof activeContent === 'object') {
+      if (activeContent.sharepic) return true;
+      if (typeof activeContent.content === 'string' && activeContent.content.trim().length > 0) return true;
+      if (typeof activeContent.text === 'string' && activeContent.text.trim().length > 0) return true;
+      if (activeContent.social?.content && typeof activeContent.social.content === 'string' && activeContent.social.content.trim().length > 0) return true;
+    }
+    return false;
+  }, [activeContent]);
+
+  const handleGeneratePost = React.useCallback(async () => {
+    if (!onGeneratePost) return;
+
+    setGeneratePostLoading(true);
+    try {
+      await onGeneratePost();
+    } catch (error) {
+    } finally {
+      setGeneratePostLoading(false);
+    }
+  }, [onGeneratePost]);
+
+  // Check if activeContent is mixed content (has both social and sharepic)
+  const isMixedContent = activeContent && typeof activeContent === 'object' && 
+    (activeContent.sharepic || activeContent.social);
+
+
+  const currentExportableContent = React.useMemo(() => {
+    // For export, use the social content string if it's mixed content
+    return isMixedContent 
+      ? (activeContent.social?.content || activeContent.content || '')
+      : activeContent;
+  }, [activeContent, isMixedContent]);
+
+
+
+  const handleSaveToLibrary = React.useCallback(async () => {
+    try {
+      // Priority: metadata title > prop title > fallback
+      const titleToUse = storeGeneratedTextMetadata?.title || title || 'Unbenannter Text';
+      
+      await saveToLibrary(currentExportableContent, titleToUse, storeGeneratedTextMetadata?.contentType || 'universal');
+    } catch (error) {
+      // Error handling is managed by the hook
+    }
+  }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
+
+
+  const actionButtons = (
+    <ActionButtons
+      content={activeContent}
+      isEditing={false}
+      showExport={true}
+      showDownload={true}
+      showRegenerate={true}
+      showSave={!!onSave}
+      showSaveToLibrary={true}
+      showEditMode={showEditModeToggle}
+      showUndo={showUndoControls}
+      showRedo={showRedoControls}
+      onRegenerate={onGeneratePost}
+      onSave={onSave}
+      onSaveToLibrary={handleSaveToLibrary}
+      onEditModeToggle={onEditModeToggle}
+      isEditModeActive={isEditModeActive}
+      regenerateLoading={generatePostLoading || isStreaming}
+      saveLoading={saveLoading}
+      saveToLibraryLoading={saveToLibraryLoading}
+      exportableContent={currentExportableContent}
+      generatedPost={generatedPost}
+      generatedContent={activeContent}
+      title={storeGeneratedTextMetadata?.title || title}
+      componentName={componentName}
+      onRequestEdit={onRequestEdit}
+      showReset={showResetButton}
+      onReset={onReset}
+      customExportOptions={customExportOptions}
+      hideDefaultExportOptions={hideDefaultExportOptions}
+    />
+  );
+
+  const actionsNode = hasRenderableContent
+    ? (renderActions
+        ? renderActions(actionButtons)
+        : (
+            <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
+              {actionButtons}
+            </div>
+          ))
+    : null;
+
+  return (
+    <div className={`display-container ${isStartMode ? 'display-container--start-mode' : ''} ${helpContent?.isNewFeature && helpContent?.featureId && localStorage.getItem(`feature-seen-${helpContent.featureId}`) !== 'true' ? 'display-container--new-feature' : ''}`} id="display-section-container" ref={ref}>
+      {actionsNode}
+      {!hasRenderableContent && helpContent && (
+        <div className={`help-section ${isStartMode ? 'help-section--start-mode' : ''}`}>
+          <HelpDisplay
+            content={helpContent.content}
+            tips={helpContent.tips}
+            hasGeneratedContent={!!activeContent}
+            isNewFeature={helpContent.isNewFeature}
+            featureId={helpContent.featureId}
+            fallbackContent={helpContent.fallbackContent}
+            fallbackTips={helpContent.fallbackTips}
+            layout={isStartMode ? 'cards' : 'default'}
+            features={helpContent.features}
+          />
+        </div>
+      )}
+      <div className="display-content">
+        {hasRenderableContent ? (
+          <>
+            <ErrorDisplay error={error} onDismiss={onErrorDismiss} />
+            {customRenderer ? (
+              customRenderer({
+                content: activeContent,
+                generatedContent: storeGeneratedText || generatedContent || activeContent,
+                componentName,
+                helpContent,
+                onEditModeToggle
+              })
+            ) : (
+              <ContentRenderer
+                value={activeContent}
+                generatedContent={storeGeneratedText || generatedContent || activeContent}
+                useMarkdown={useMarkdown}
+                componentName={componentName}
+                helpContent={helpContent}
+                onEditModeToggle={onEditModeToggle}
+                isEditModeActive={isEditModeActive}
+              />
+            )}
+          </>
+        ) : (
+          renderEmptyState ? renderEmptyState() : null
+        )}
+      </div>
+      {/* Render enrichment sources if available */}
+      {hasRenderableContent && storeGeneratedTextMetadata?.enrichmentSummary && (
+        <EnrichmentSourcesDisplay
+          enrichmentSummary={storeGeneratedTextMetadata.enrichmentSummary}
+        />
+      )}
+      {/* Render additional display actions if provided */}
+      {displayActions && (
+        <div className="display-action-section">
+          {displayActions}
+        </div>
+      )}
+    </div>
+  );
+});
+
+DisplaySection.displayName = 'DisplaySection';
+
+export default React.memo(DisplaySection); 
