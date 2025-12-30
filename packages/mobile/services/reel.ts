@@ -108,7 +108,8 @@ export async function getAutoProgress(uploadId: string): Promise<AutoProgressRes
     throw new Error(`Failed to get progress: ${response.status}`);
   }
 
-  return response.json();
+  const data: AutoProgressResponse = await response.json();
+  return data;
 }
 
 /**

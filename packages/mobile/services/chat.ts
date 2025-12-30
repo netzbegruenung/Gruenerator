@@ -39,6 +39,25 @@ export interface ChatResponseContent {
   type?: string;
 }
 
+/**
+ * Metadata returned from chat API responses
+ * Contains additional context about the response processing
+ */
+export interface ChatResponseMetadata {
+  /** Whether pro mode was used for this response */
+  useProMode?: boolean;
+  /** Sub-intent detected from the user's message */
+  subIntent?: string;
+  /** Search query used for web search */
+  searchQuery?: string;
+  /** Number of results returned */
+  resultCount?: number;
+  /** Processing time in ms */
+  processingTime?: number;
+  /** Model used for generation */
+  model?: string;
+}
+
 export interface ChatResponse {
   success: boolean;
   agent: string;
@@ -46,13 +65,7 @@ export interface ChatResponse {
   content: ChatResponseContent;
   sources?: ChatSource[];
   requiresResponse?: boolean;
-  metadata?: {
-    useProMode?: boolean;
-    subIntent?: string;
-    searchQuery?: string;
-    resultCount?: number;
-    [key: string]: unknown;
-  };
+  metadata?: ChatResponseMetadata;
   multiResponse?: boolean;
   results?: ChatResponse[];
   error?: string;
@@ -171,7 +184,7 @@ export function normalizeResponse(response: ChatResponse): GrueneratorChatMessag
     case 'imagine_pure':
       return {
         ...baseMessage,
-        content: response.content?.text || 'Bild wurde generiert!',
+        content: response.content?.text || 'Bild wurde grüneriert!',
       };
 
     default:
