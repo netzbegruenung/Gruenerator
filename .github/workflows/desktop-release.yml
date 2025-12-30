@@ -78,17 +78,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build frontend
-        run: pnpm --filter gruenerator_frontend build
-        env:
-          TAURI_ENV_PLATFORM: ${{ matrix.target }}
-
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_ENV_PLATFORM: ${{ matrix.target }}
         with:
           projectPath: packages/desktop
           tauriScript: pnpm tauri
