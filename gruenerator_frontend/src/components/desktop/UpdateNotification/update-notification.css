@@ -1,0 +1,201 @@
+.update-notification {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  min-width: 320px;
+  max-width: 520px;
+  background-color: var(--background-color);
+  border: var(--border-subtle);
+  border-radius: var(--card-border-radius-medium);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-medium);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.update-notification__content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+}
+
+.update-notification__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--primary-100);
+  color: var(--primary-600);
+}
+
+.update-notification__icon--spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.update-notification__icon--success {
+  background-color: var(--primary-100);
+  color: var(--primary-600);
+}
+
+.update-notification__icon--error {
+  background-color: #ffeaea;
+  color: var(--error-red);
+}
+
+.update-notification__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+}
+
+.update-notification__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--font-color);
+  line-height: 1.4;
+}
+
+.update-notification__description {
+  font-size: 13px;
+  color: var(--font-color);
+  opacity: 0.8;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-notification__progress {
+  width: 100%;
+  height: 4px;
+  background-color: var(--grey-200);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: var(--spacing-xxsmall);
+}
+
+.update-notification__progress-bar {
+  height: 100%;
+  background-color: var(--primary-600);
+  border-radius: 2px;
+  transition: width 0.3s ease-out;
+}
+
+.update-notification__actions {
+  display: flex;
+  gap: var(--spacing-xsmall);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.update-notification__button {
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.update-notification__button--primary {
+  background-color: var(--primary-600);
+  color: var(--white);
+}
+
+.update-notification__button--primary:hover {
+  background-color: var(--primary-700);
+}
+
+.update-notification__button--secondary {
+  background-color: transparent;
+  color: var(--font-color);
+}
+
+.update-notification__button--secondary:hover {
+  background-color: var(--button-hover-color);
+}
+
+[data-theme="dark"] .update-notification__icon {
+  background-color: var(--grey-700);
+  color: var(--neutral-600);
+}
+
+[data-theme="dark"] .update-notification__icon--success {
+  background-color: var(--grey-700);
+  color: var(--neutral-600);
+}
+
+[data-theme="dark"] .update-notification__icon--error {
+  background-color: rgba(211, 47, 47, 0.2);
+  color: #ff6b6b;
+}
+
+[data-theme="dark"] .update-notification__progress {
+  background-color: var(--grey-700);
+}
+
+[data-theme="dark"] .update-notification__progress-bar {
+  background-color: var(--neutral-600);
+}
+
+[data-theme="dark"] .update-notification__button--primary {
+  background-color: var(--secondary-600);
+  color: var(--white);
+}
+
+[data-theme="dark"] .update-notification__button--primary:hover {
+  background-color: var(--secondary-700);
+}
+
+@media (max-width: 600px) {
+  .update-notification {
+    left: var(--spacing-medium);
+    right: var(--spacing-medium);
+    transform: none;
+    max-width: none;
+    min-width: auto;
+  }
+
+  .update-notification__content {
+    flex-direction: column;
+  }
+
+  .update-notification__actions {
+    margin-left: 0;
+    margin-top: var(--spacing-small);
+    width: 100%;
+  }
+
+  .update-notification__button {
+    flex: 1;
+  }
+}

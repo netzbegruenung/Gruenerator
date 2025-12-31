@@ -9,6 +9,7 @@ const Footer = lazy(() => import('../../layout/Footer/Footer'));
 // Lazy load desktop-specific components
 const DesktopTitlebar = lazy(() => import('../../layout/DesktopTitlebar/DesktopTitlebar'));
 const DesktopSidebar = lazy(() => import('../../layout/DesktopSidebar/DesktopSidebar'));
+const UpdateNotification = lazy(() => import('../../desktop/UpdateNotification/UpdateNotification'));
 
 const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = true }) => {
   const [showFooter, setShowFooter] = useState(false);
@@ -37,6 +38,9 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
       <div className="desktop-layout">
         <Suspense fallback={null}>
           <DesktopTitlebar />
+        </Suspense>
+        <Suspense fallback={null}>
+          <UpdateNotification />
         </Suspense>
         <div className="desktop-content-area">
           <Suspense fallback={null}>

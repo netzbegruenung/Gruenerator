@@ -122,9 +122,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download signature files from release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#desktop-v}"
+          REPO="${{ github.repository }}"
+
+          mkdir -p signatures
+
+          # Download signature files (tauri-action creates these with .sig extension)
+          # Note: File naming follows Tauri v2 conventions
+          curl -sL -o signatures/linux.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/gruenerator_${VERSION}_amd64.AppImage.tar.gz.sig" || echo "" > signatures/linux.sig
+
+          curl -sL -o signatures/darwin-x64.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_x64.app.tar.gz.sig" || echo "" > signatures/darwin-x64.sig
+
+          curl -sL -o signatures/darwin-aarch64.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_aarch64.app.tar.gz.sig" || echo "" > signatures/darwin-aarch64.sig
+
+          curl -sL -o signatures/windows.sig \
+            "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_x64-setup.nsis.zip.sig" || echo "" > signatures/windows.sig
+
       - name: Generate latest.json for updater
         run: |
           VERSION="${GITHUB_REF_NAME#desktop-v}"
+          REPO="${{ github.repository }}"
+
+          # Read signatures (they're base64 encoded strings)
+          LINUX_SIG=$(cat signatures/linux.sig 2>/dev/null || echo "")
+          DARWIN_X64_SIG=$(cat signatures/darwin-x64.sig 2>/dev/null || echo "")
+          DARWIN_AARCH64_SIG=$(cat signatures/darwin-aarch64.sig 2>/dev/null || echo "")
+          WINDOWS_SIG=$(cat signatures/windows.sig 2>/dev/null || echo "")
+
           cat > latest.json << EOF
           {
             "version": "${VERSION}",
@@ -132,20 +163,20 @@ jobs:
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "linux-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/gruenerator_${VERSION}_amd64.AppImage.tar.gz"
+                "signature": "${LINUX_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/gruenerator_${VERSION}_amd64.AppImage.tar.gz"
               },
               "darwin-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_x64.app.tar.gz"
+                "signature": "${DARWIN_X64_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_x64.app.tar.gz"
               },
               "darwin-aarch64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_aarch64.app.tar.gz"
+                "signature": "${DARWIN_AARCH64_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_aarch64.app.tar.gz"
               },
               "windows-x86_64": {
-                "signature": "",
-                "url": "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_x64-setup.nsis.zip"
+                "signature": "${WINDOWS_SIG}",
+                "url": "https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}/Gruenerator_${VERSION}_x64-setup.nsis.zip"
               }
             }
           }

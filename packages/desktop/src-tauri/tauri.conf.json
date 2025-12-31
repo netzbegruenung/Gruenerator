@@ -52,6 +52,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -109,9 +110,9 @@
       }
     },
     "updater": {
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1RkRCMUY1MEU1N0I0MDEKUldRQnRGY085Ykg5bFJTL2xVdmFLY1ozZUEzb29abXpybURvOVJGMDg0MzNOdzhQWEM2emQ0THoK",
       "endpoints": [
-        "https://github.com/netzbegruenung/Gruenerator/releases/latest/download/latest.json"
+        "https://gruenerator.de/api/releases/updater/latest.json"
       ],
       "windows": {
         "installMode": "passive"

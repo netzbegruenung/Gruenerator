@@ -15,6 +15,7 @@ export interface DesktopMenuEvents {
   onZoom?: (direction: 'in' | 'out' | 'reset') => void;
   onOpenUrl?: (url: string) => void;
   onAbout?: () => void;
+  onCheckUpdates?: () => void;
 }
 
 /**
@@ -68,6 +69,11 @@ export async function initDesktopMenuEvents(handlers: DesktopMenuEvents): Promis
 
     if (handlers.onAbout) {
       const unlisten = await listen('menu-about', handlers.onAbout);
+      menuListenerCleanups.push(unlisten);
+    }
+
+    if (handlers.onCheckUpdates) {
+      const unlisten = await listen('menu-check-updates', handlers.onCheckUpdates);
       menuListenerCleanups.push(unlisten);
     }
 
