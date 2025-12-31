@@ -110,7 +110,7 @@
       }
     },
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1RkRCMUY1MEU1N0I0MDEKUldRQnRGY085Ykg5bFJTL2xVdmFLY1ozZUEzb29abXpybURvOVJGMDg0MzNOdzhQWEM2emQ0THoK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFMUM4RTlDOEMxMEI1NjEKUldSaHRSQ01uSTRjL3JBdnpFZFpuREpEcFQ5MHI3bE5yVEU3SXE3NzUzUXVkMEJlYVJYOCs0N1EK",
       "endpoints": [
         "https://gruenerator.de/api/releases/updater/latest.json"
       ],
