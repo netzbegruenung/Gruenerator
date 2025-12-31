@@ -29,6 +29,8 @@ import { StylePreview } from './StylePreview';
 import { HeightPreview } from './HeightPreview';
 import { getVideoUrl } from '@gruenerator/shared';
 import { secureStorage } from '../../services/storage';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 import {
   SUBTITLE_STYLE_OPTIONS,
   SUBTITLE_HEIGHT_OPTIONS,
@@ -60,6 +62,8 @@ export function SubtitleEditorScreen({
     secureStorage.getToken().then(setAuthToken);
   }, []);
 
+  const isTempProject = project.id.startsWith('temp-');
+
   useEffect(() => {
     const stylePreference = (project.style_preference || 'shadow') as SubtitleStylePreference;
     const heightPreference = (project.height_preference || 'tief') as SubtitleHeightPreference;
@@ -79,10 +83,15 @@ export function SubtitleEditorScreen({
     };
   }, [project, loadProject, reset]);
 
-  const videoUri = getVideoUrl(project.id);
-  const videoSource = authToken
-    ? { uri: videoUri, headers: { Authorization: `Bearer ${authToken}` } }
-    : null;
+  const videoUri = isTempProject
+    ? `${API_BASE_URL}/subtitler/internal-video/${project.upload_id}`
+    : getVideoUrl(project.id);
+
+  const videoSource = isTempProject
+    ? videoUri
+    : authToken
+      ? { uri: videoUri, headers: { Authorization: `Bearer ${authToken}` } }
+      : null;
 
   const player = useVideoPlayer(videoSource ?? '', (p) => {
     p.loop = true;
@@ -242,6 +251,7 @@ export function SubtitleEditorScreen({
         <VideoPreviewWithSubtitle
           videoUri={videoUri}
           isRemoteVideo={true}
+          requiresAuth={!isTempProject}
           segments={segments}
           currentTime={currentTime}
           stylePreference={stylePreference}

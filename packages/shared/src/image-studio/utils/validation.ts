@@ -184,12 +184,6 @@ export function validateCanvasInput(
         return { valid: false, error: ERROR_MESSAGES.EVENT_LOCATION_REQUIRED };
       }
       break;
-
-    case 'text2sharepic':
-      if (!formData.description) {
-        return { valid: false, error: ERROR_MESSAGES.DESCRIPTION_REQUIRED };
-      }
-      break;
   }
 
   return { valid: true };

@@ -1,13 +1,14 @@
 /**
  * Result Screen
  * Final generated image display for Image Studio
+ * Supports both template-based (canvas) and KI (FLUX) generation
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useColorScheme } from 'react-native';
 import { router, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useImageStudio } from '@gruenerator/shared/image-studio';
+import { useImageStudio, useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { ResultDisplay } from '../../../../components/image-studio/ResultDisplay';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
@@ -15,21 +16,32 @@ import { lightTheme, darkTheme } from '../../../../theme';
 export default function ResultScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const hasTriggeredGeneration = useRef(false);
 
   const {
     type,
+    kiType,
     formData,
     uploadedImageBase64,
     generatedImage,
     canvasLoading,
+    kiLoading,
     error,
+    kiInstruction,
+    kiVariant,
+    kiInfrastructureOptions,
     setGeneratedImage,
     setCanvasLoading,
+    setKiLoading,
     setError,
+    setRateLimitExceeded,
     reset,
   } = useImageStudioStore();
 
-  const { generateCanvas, generateText2Sharepic } = useImageStudio({
+  const isKiMode = kiType !== null;
+  const loading = isKiMode ? kiLoading : canvasLoading;
+
+  const { generateCanvas } = useImageStudio({
     onImageGenerated: (image) => {
       setGeneratedImage(image);
     },
@@ -38,6 +50,44 @@ export default function ResultScreen() {
     },
   });
 
+  const { generatePureCreate, generateKiEdit } = useKiImageGeneration({
+    onImageGenerated: (image) => {
+      setGeneratedImage(image);
+    },
+    onError: (err) => {
+      setError(err);
+    },
+    onRateLimitExceeded: () => {
+      setRateLimitExceeded(true);
+    },
+  });
+
+  const handleGenerateKi = useCallback(async () => {
+    if (!kiType) return;
+
+    setKiLoading(true);
+    setError(null);
+
+    try {
+      if (kiType === 'pure-create') {
+        await generatePureCreate({
+          description: kiInstruction,
+          variant: kiVariant,
+        });
+      } else {
+        await generateKiEdit(kiType, {
+          imageData: uploadedImageBase64 || '',
+          instruction: kiInstruction,
+          infrastructureOptions: kiType === 'green-edit' ? kiInfrastructureOptions : undefined,
+        });
+      }
+    } catch (err) {
+      // Error is handled in onError callback
+    } finally {
+      setKiLoading(false);
+    }
+  }, [kiType, kiInstruction, kiVariant, kiInfrastructureOptions, uploadedImageBase64, generatePureCreate, generateKiEdit, setKiLoading, setError]);
+
   const handleGenerateCanvas = useCallback(async () => {
     if (!type) return;
 
@@ -45,28 +95,30 @@ export default function ResultScreen() {
     setError(null);
 
     try {
-      if (type === 'text2sharepic') {
-        await generateText2Sharepic({
-          description: String(formData.description || formData.thema || ''),
-          mood: formData.mood != null ? String(formData.mood) : undefined,
-        });
-      } else {
-        await generateCanvas(type, {
-          type,
-          imageData: uploadedImageBase64 || undefined,
-          formData,
-        });
-      }
+      await generateCanvas(type, {
+        type,
+        imageData: uploadedImageBase64 || undefined,
+        formData,
+      });
     } catch (err) {
       // Error is handled in onError callback
     } finally {
       setCanvasLoading(false);
     }
-  }, [type, formData, uploadedImageBase64, generateCanvas, generateText2Sharepic, setCanvasLoading, setError]);
+  }, [type, formData, uploadedImageBase64, generateCanvas, setCanvasLoading, setError]);
+
+  const handleGenerate = useCallback(() => {
+    if (isKiMode) {
+      handleGenerateKi();
+    } else {
+      handleGenerateCanvas();
+    }
+  }, [isKiMode, handleGenerateKi, handleGenerateCanvas]);
 
   useEffect(() => {
-    if (!generatedImage && !canvasLoading && !error) {
-      handleGenerateCanvas();
+    if (!generatedImage && !loading && !error && !hasTriggeredGeneration.current) {
+      hasTriggeredGeneration.current = true;
+      handleGenerate();
     }
   }, []);
 
@@ -76,10 +128,12 @@ export default function ResultScreen() {
   };
 
   const handleRetry = () => {
-    handleGenerateCanvas();
+    hasTriggeredGeneration.current = true;
+    handleGenerate();
   };
 
-  if (!type) {
+  // Redirect if neither type nor kiType is selected
+  if (!type && !kiType) {
     router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
@@ -88,7 +142,7 @@ export default function ResultScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
       <ResultDisplay
         generatedImage={generatedImage}
-        loading={canvasLoading}
+        loading={loading}
         error={error}
         onNewGeneration={handleNewGeneration}
         onBack={() => router.back()}

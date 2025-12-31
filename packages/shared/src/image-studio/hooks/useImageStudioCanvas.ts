@@ -8,7 +8,6 @@ import { getGlobalApiClient } from '../../api/client';
 import type {
   ImageStudioTemplateType,
   CanvasGenerationRequest,
-  Text2SharepicRequest,
 } from '../types';
 import { getTypeConfig, getCanvasEndpoint } from '../constants';
 import {
@@ -33,13 +32,6 @@ export interface UseImageStudioCanvasReturn {
     type: ImageStudioTemplateType,
     request: CanvasGenerationRequest
   ) => Promise<string>;
-
-  /**
-   * Generate image via text2sharepic endpoint
-   * @param request - Text2Sharepic request
-   * @returns Base64 encoded PNG image
-   */
-  generateText2Sharepic: (request: Text2SharepicRequest) => Promise<string>;
 
   /** Whether generation is in progress */
   loading: boolean;
@@ -227,45 +219,8 @@ export function useImageStudioCanvas(
     [buildFormData, onSuccess, onError]
   );
 
-  const generateText2Sharepic = useCallback(
-    async (request: Text2SharepicRequest): Promise<string> => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        if (!request.description) {
-          throw new Error(ERROR_MESSAGES.DESCRIPTION_REQUIRED);
-        }
-
-        const client = getGlobalApiClient();
-        const response = await client.post('/sharepic/text2sharepic/generate-ai', {
-          description: request.description,
-          mood: request.mood || undefined,
-        });
-
-        if (!response.data?.image) {
-          throw new Error(ERROR_MESSAGES.NO_IMAGE_DATA);
-        }
-
-        const imageBase64 = response.data.image;
-        onSuccess?.(imageBase64);
-        return imageBase64;
-      } catch (err: any) {
-        const errorMessage =
-          err.response?.data?.message || err.message || ERROR_MESSAGES.GENERATION_ERROR;
-        setError(errorMessage);
-        onError?.(errorMessage);
-        throw new Error(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [onSuccess, onError]
-  );
-
   return {
     generateCanvas,
-    generateText2Sharepic,
     loading,
     error,
     clearError,

@@ -21,6 +21,7 @@ import type { SubtitleSegment, SubtitleStylePreference, SubtitleHeightPreference
 interface VideoPreviewWithSubtitleProps {
   videoUri: string;
   isRemoteVideo?: boolean;
+  requiresAuth?: boolean;
   segments: SubtitleSegment[];
   currentTime: number;
   stylePreference: SubtitleStylePreference;
@@ -32,6 +33,7 @@ interface VideoPreviewWithSubtitleProps {
 export function VideoPreviewWithSubtitle({
   videoUri,
   isRemoteVideo = false,
+  requiresAuth = true,
   segments,
   currentTime,
   stylePreference,
@@ -42,21 +44,24 @@ export function VideoPreviewWithSubtitle({
   const [authToken, setAuthToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isRemoteVideo) {
+    if (isRemoteVideo && requiresAuth) {
       secureStorage.getToken().then(setAuthToken);
     }
-  }, [isRemoteVideo]);
+  }, [isRemoteVideo, requiresAuth]);
 
   const videoSource = useMemo(() => {
     if (isRemoteVideo) {
-      return authToken
-        ? { uri: videoUri, headers: { Authorization: `Bearer ${authToken}` } }
-        : null;
+      if (requiresAuth) {
+        return authToken
+          ? { uri: videoUri, headers: { Authorization: `Bearer ${authToken}` } }
+          : null;
+      }
+      return videoUri;
     }
     return videoUri;
-  }, [videoUri, isRemoteVideo, authToken]);
+  }, [videoUri, isRemoteVideo, requiresAuth, authToken]);
 
-  const isLoading = isRemoteVideo && !authToken;
+  const isLoading = isRemoteVideo && requiresAuth && !authToken;
 
   return (
     <View style={styles.container}>

@@ -1,6 +1,6 @@
 /**
  * Image Upload Screen
- * Image upload step for Image Studio
+ * Image upload step for Image Studio (templates and KI edit types)
  */
 
 import { useColorScheme } from 'react-native';
@@ -17,12 +17,20 @@ export default function ImageScreen() {
 
   const {
     type,
+    kiType,
     uploadedImageUri,
     setUploadedImage,
     clearUploadedImage,
   } = useImageStudioStore();
 
   const handleNext = () => {
+    // KI edit types go to ki-input for instruction entry
+    if (kiType) {
+      router.push('./ki-input' as Href);
+      return;
+    }
+
+    // Template types follow existing flow
     if (!type) return;
 
     if (typeHasTextGeneration(type)) {
@@ -32,7 +40,8 @@ export default function ImageScreen() {
     }
   };
 
-  if (!type) {
+  // Redirect if neither type nor kiType is selected
+  if (!type && !kiType) {
     router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
