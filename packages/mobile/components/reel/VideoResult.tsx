@@ -17,6 +17,7 @@ interface VideoResultProps {
   isRemoteVideo?: boolean;
   onNewVideo: () => void;
   onSaveToGallery?: () => void;
+  onEdit?: () => void;
 }
 
 export function VideoResult({
@@ -28,6 +29,7 @@ export function VideoResult({
   isRemoteVideo = false,
   onNewVideo,
   onSaveToGallery,
+  onEdit,
 }: VideoResultProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -112,6 +114,13 @@ export function VideoResult({
           <Ionicons name="share-outline" size={18} color={colors.white} />
           {'  '}Teilen
         </Button>
+
+        {onEdit && (
+          <Button onPress={onEdit} variant="outline">
+            <Ionicons name="create-outline" size={18} color={colors.grey[700]} />
+            {'  '}Bearbeiten
+          </Button>
+        )}
 
         {!savedToGallery && onSaveToGallery && (
           <Button onPress={onSaveToGallery} variant="outline">

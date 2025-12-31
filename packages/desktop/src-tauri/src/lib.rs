@@ -246,6 +246,11 @@ pub fn run() {
                     }
                 });
 
+                // Open DevTools automatically for debugging
+                if let Some(main_window) = app.get_webview_window("main") {
+                    main_window.open_devtools();
+                }
+
                 // Theme change detection - emit events when system theme changes
                 if let Some(main_window) = app.get_webview_window("main") {
                     let window_clone = main_window.clone();

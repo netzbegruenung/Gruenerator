@@ -5,9 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
 import { VideoUploader, ProcessingProgress, VideoResult, ProjectList } from '../../../components/reel';
+import { SubtitleEditorScreen } from '../../../components/subtitle-editor';
 import { type Project, getVideoUrl } from '@gruenerator/shared';
 
-type ScreenMode = 'projects' | 'creating' | 'processing' | 'viewing';
+type ScreenMode = 'projects' | 'creating' | 'processing' | 'viewing' | 'editing';
 
 export default function ReelScreen() {
   const colorScheme = useColorScheme();
@@ -50,6 +51,11 @@ export default function ReelScreen() {
     setScreenMode('projects');
   }, [reset]);
 
+  const handleEditProject = useCallback((project: Project) => {
+    setSelectedProject(project);
+    setScreenMode('editing');
+  }, []);
+
   const handleStartProcessing = useCallback((fileUri: string) => {
     setScreenMode('processing');
     startProcessing(fileUri);
@@ -58,6 +64,10 @@ export default function ReelScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
+        if (screenMode === 'editing') {
+          setScreenMode('viewing');
+          return true;
+        }
         if (screenMode !== 'projects') {
           handleBackToProjects();
           return true;
@@ -71,6 +81,17 @@ export default function ReelScreen() {
   );
 
   const renderContent = () => {
+    // Show subtitle editor
+    if (screenMode === 'editing' && selectedProject) {
+      return (
+        <SubtitleEditorScreen
+          project={selectedProject}
+          onBack={() => setScreenMode('viewing')}
+          onSaved={() => setScreenMode('viewing')}
+        />
+      );
+    }
+
     // Show project list
     if (screenMode === 'projects') {
       return (
@@ -168,6 +189,7 @@ export default function ReelScreen() {
           projectTitle={selectedProject.title}
           onNewVideo={handleBackToProjects}
           isRemoteVideo={true}
+          onEdit={() => handleEditProject(selectedProject)}
         />
       );
     }

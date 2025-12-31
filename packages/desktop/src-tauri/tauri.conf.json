@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "identifier": "de.gruenerator.desktop",
   "build": {
-    "beforeBuildCommand": "cd ../.. && cross-env VITE_API_BASE_URL=https://gruenerator.de/api pnpm --filter frontend build",
+    "beforeBuildCommand": "cd ../.. && pnpm exec cross-env TAURI_ENV_PLATFORM=desktop VITE_API_BASE_URL=https://gruenerator.de/api pnpm --filter frontend build",
     "beforeDevCommand": "",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../../../gruenerator_frontend/build"
