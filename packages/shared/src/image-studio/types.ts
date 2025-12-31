@@ -9,7 +9,6 @@
 
 /**
  * Template types supported by image-studio (canvas-based rendering)
- * KI types (Flux API) are excluded for now
  */
 export type ImageStudioTemplateType =
   | 'dreizeilen'
@@ -20,11 +19,35 @@ export type ImageStudioTemplateType =
   | 'text2sharepic';
 
 /**
+ * KI types supported by image-studio (FLUX API-based)
+ */
+export type ImageStudioKiType =
+  | 'pure-create'
+  | 'green-edit'
+  | 'universal-edit';
+
+/**
+ * All image studio types (templates + KI)
+ */
+export type ImageStudioType = ImageStudioTemplateType | ImageStudioKiType;
+
+/**
+ * Category for organizing types
+ */
+export type ImageStudioCategory = 'templates' | 'ki';
+
+/**
+ * Subcategory for KI types
+ */
+export type KiSubcategory = 'edit' | 'create';
+
+/**
  * Form step identifiers
  */
 export type ImageStudioStep =
   | 'select'    // Type selection
-  | 'input'     // Form input
+  | 'input'     // Form input (template types)
+  | 'ki-input'  // KI input (KI types)
   | 'image'     // Image upload (if required)
   | 'text'      // Text selection/alternatives
   | 'result';   // Final result
@@ -319,6 +342,74 @@ export interface Text2SharepicResult {
 }
 
 // ============================================================================
+// KI GENERATION TYPES (FLUX API)
+// ============================================================================
+
+/**
+ * Style variants for pure-create
+ */
+export type KiStyleVariant =
+  | 'illustration-pure'
+  | 'realistic-pure'
+  | 'pixel-pure'
+  | 'editorial-pure';
+
+/**
+ * Infrastructure options for green-edit
+ */
+export type GreenEditInfrastructure =
+  | 'trees'
+  | 'flowers'
+  | 'bike-lanes'
+  | 'benches'
+  | 'sidewalks'
+  | 'tram'
+  | 'bus-stop';
+
+/**
+ * Pure Create request (text-to-image generation)
+ */
+export interface KiCreateRequest {
+  description: string;
+  variant: KiStyleVariant;
+}
+
+/**
+ * KI Edit request (image editing with instructions)
+ */
+export interface KiEditRequest {
+  imageData: string;
+  instruction: string;
+  infrastructureOptions?: GreenEditInfrastructure[];
+}
+
+/**
+ * KI generation result
+ */
+export interface KiGenerationResult {
+  image: string;
+}
+
+/**
+ * Configuration for a KI type
+ */
+export interface KiTypeConfig {
+  id: ImageStudioKiType;
+  label: string;
+  description: string;
+  category: 'ki';
+  subcategory: KiSubcategory;
+  /** Whether this type requires an image upload */
+  requiresImage: boolean;
+  /** API endpoint */
+  endpoint: string;
+  /** Minimum instruction length */
+  minInstructionLength?: number;
+  /** Whether this is rate-limited */
+  isRateLimited: boolean;
+}
+
+// ============================================================================
 // COMPOSITE TYPES
 // ============================================================================
 
@@ -348,6 +439,32 @@ export interface ImageStudioState {
 }
 
 /**
+ * KI-specific state for image studio
+ */
+export interface KiImageStudioState {
+  /** Selected KI type */
+  kiType: ImageStudioKiType | null;
+  /** Selected category */
+  category: ImageStudioCategory;
+  /** Instruction/description for generation */
+  instruction: string;
+  /** Selected style variant (pure-create) */
+  variant: KiStyleVariant;
+  /** Selected infrastructure options (green-edit) */
+  infrastructureOptions: GreenEditInfrastructure[];
+  /** Uploaded image for edit types */
+  uploadedImage: string | null;
+  /** Generated result image */
+  generatedImage: string | null;
+  /** Loading state for KI generation */
+  kiLoading: boolean;
+  /** Rate limit exceeded */
+  rateLimitExceeded: boolean;
+  /** Error message */
+  error: string | null;
+}
+
+/**
  * Hook options for useImageStudio
  */
 export interface UseImageStudioOptions {
@@ -372,6 +489,33 @@ export interface UseImageStudioReturn {
   textLoading: boolean;
   /** Canvas generation loading state */
   canvasLoading: boolean;
+  /** Current error */
+  error: string | null;
+  /** Reset error state */
+  clearError: () => void;
+}
+
+/**
+ * Options for useKiImageGeneration hook
+ */
+export interface UseKiImageGenerationOptions {
+  onImageGenerated?: (imageBase64: string) => void;
+  onError?: (error: string) => void;
+  onRateLimitExceeded?: () => void;
+}
+
+/**
+ * Return type for useKiImageGeneration hook
+ */
+export interface UseKiImageGenerationReturn {
+  /** Generate image from text (pure-create) */
+  generatePureCreate: (request: KiCreateRequest) => Promise<string>;
+  /** Edit image with instructions (green-edit, universal-edit) */
+  generateKiEdit: (type: 'green-edit' | 'universal-edit', request: KiEditRequest) => Promise<string>;
+  /** Loading state */
+  loading: boolean;
+  /** Rate limit exceeded */
+  rateLimitExceeded: boolean;
   /** Current error */
   error: string | null;
   /** Reset error state */

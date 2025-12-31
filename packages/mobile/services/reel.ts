@@ -15,6 +15,11 @@ export interface AutoProgressResponse {
   duration: number | null;
 }
 
+export interface ManualResultResponse {
+  status: 'processing' | 'complete' | 'error';
+  data: string | null;
+}
+
 /**
  * Upload video using TUS resumable upload protocol
  * Reuses backend TUS endpoint at /api/subtitler/upload (500MB max)
@@ -136,9 +141,71 @@ export async function downloadVideo(uploadId: string): Promise<string> {
   return downloadResult.uri;
 }
 
+/**
+ * Start manual subtitle processing (transcription only, no silence removal)
+ * POST /api/subtitler/process
+ */
+export async function startManualProcess(
+  uploadId: string,
+  stylePreference: string = 'shadow',
+  heightPreference: string = 'tief'
+): Promise<void> {
+  const token = await secureStorage.getToken();
+
+  const response = await fetch(`${API_BASE_URL}/subtitler/process`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      uploadId,
+      subtitlePreference: 'manual',
+      stylePreference,
+      heightPreference,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to start manual processing: ${response.status} - ${errorText}`);
+  }
+}
+
+/**
+ * Poll manual processing result
+ * GET /api/subtitler/result/:uploadId
+ */
+export async function getManualResult(
+  uploadId: string,
+  stylePreference: string = 'shadow',
+  heightPreference: string = 'tief'
+): Promise<ManualResultResponse> {
+  const token = await secureStorage.getToken();
+
+  const params = new URLSearchParams({
+    subtitlePreference: 'manual',
+    stylePreference,
+    heightPreference,
+  });
+
+  const response = await fetch(`${API_BASE_URL}/subtitler/result/${uploadId}?${params}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get manual result: ${response.status}`);
+  }
+
+  const data: ManualResultResponse = await response.json();
+  return data;
+}
+
 export const reelApi = {
   uploadVideo,
   startAutoProcess,
   getAutoProgress,
   downloadVideo,
+  startManualProcess,
+  getManualResult,
 };

@@ -7,6 +7,9 @@
 import { create } from 'zustand';
 import type {
   ImageStudioTemplateType,
+  ImageStudioKiType,
+  KiStyleVariant,
+  GreenEditInfrastructure,
   NormalizedTextResult,
   FormFieldValue,
   ImageStudioFormData,
@@ -19,6 +22,7 @@ import {
   getDefaultModificationParams,
   typeSupportsModifications,
   cloneModificationParams,
+  DEFAULT_STYLE_VARIANT,
 } from '@gruenerator/shared/image-studio';
 
 // Re-export shared types for convenience
@@ -55,6 +59,20 @@ interface ImageStudioState {
   isAdvancedMode: boolean;
   /** Loading state for modification regeneration */
   modificationLoading: boolean;
+
+  // KI state
+  /** Selected KI type */
+  kiType: ImageStudioKiType | null;
+  /** KI instruction/description */
+  kiInstruction: string;
+  /** Selected style variant for pure-create */
+  kiVariant: KiStyleVariant;
+  /** Selected infrastructure options for green-edit */
+  kiInfrastructureOptions: GreenEditInfrastructure[];
+  /** KI generation loading state */
+  kiLoading: boolean;
+  /** Rate limit exceeded */
+  rateLimitExceeded: boolean;
 }
 
 interface ImageStudioActions {
@@ -103,6 +121,20 @@ interface ImageStudioActions {
   toggleAdvancedMode: () => void;
   /** Set modification loading state */
   setModificationLoading: (loading: boolean) => void;
+
+  // KI actions
+  /** Set the selected KI type */
+  setKiType: (type: ImageStudioKiType) => void;
+  /** Set KI instruction */
+  setKiInstruction: (instruction: string) => void;
+  /** Set KI variant */
+  setKiVariant: (variant: KiStyleVariant) => void;
+  /** Toggle an infrastructure option */
+  toggleKiInfrastructureOption: (option: GreenEditInfrastructure) => void;
+  /** Set KI loading state */
+  setKiLoading: (loading: boolean) => void;
+  /** Set rate limit exceeded */
+  setRateLimitExceeded: (exceeded: boolean) => void;
 }
 
 type ImageStudioStore = ImageStudioState & ImageStudioActions;
@@ -123,6 +155,13 @@ const initialState: ImageStudioState = {
   modifications: null,
   isAdvancedMode: false,
   modificationLoading: false,
+  // KI state
+  kiType: null,
+  kiInstruction: '',
+  kiVariant: DEFAULT_STYLE_VARIANT,
+  kiInfrastructureOptions: [],
+  kiLoading: false,
+  rateLimitExceeded: false,
 };
 
 export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
@@ -262,6 +301,37 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
   setModificationLoading: (loading: boolean) => {
     set({ modificationLoading: loading });
   },
+
+  // KI actions
+  setKiType: (type: ImageStudioKiType) => {
+    set({ kiType: type });
+  },
+
+  setKiInstruction: (instruction: string) => {
+    set({ kiInstruction: instruction });
+  },
+
+  setKiVariant: (variant: KiStyleVariant) => {
+    set({ kiVariant: variant });
+  },
+
+  toggleKiInfrastructureOption: (option: GreenEditInfrastructure) => {
+    const { kiInfrastructureOptions } = get();
+    const isSelected = kiInfrastructureOptions.includes(option);
+    set({
+      kiInfrastructureOptions: isSelected
+        ? kiInfrastructureOptions.filter((o) => o !== option)
+        : [...kiInfrastructureOptions, option],
+    });
+  },
+
+  setKiLoading: (loading: boolean) => {
+    set({ kiLoading: loading });
+  },
+
+  setRateLimitExceeded: (exceeded: boolean) => {
+    set({ rateLimitExceeded: exceeded });
+  },
 }));
 
 /**
@@ -314,3 +384,30 @@ export const selectIsModificationLoading = (state: ImageStudioStore) =>
  */
 export const selectDreizeilenModifications = (state: ImageStudioStore) =>
   state.type === 'dreizeilen' ? state.modifications as DreizeilenModificationParams | null : null;
+
+/**
+ * Selector for whether a KI type is selected
+ */
+export const selectIsKiMode = (state: ImageStudioStore) =>
+  state.kiType !== null;
+
+/**
+ * Selector for KI loading state
+ */
+export const selectIsKiLoading = (state: ImageStudioStore) =>
+  state.kiLoading;
+
+/**
+ * Selector for checking if KI instruction is valid
+ */
+export const selectIsKiInstructionValid = (state: ImageStudioStore) => {
+  if (!state.kiType) return false;
+  const minLength = state.kiType === 'pure-create' ? 5 : 15;
+  return state.kiInstruction.length >= minLength;
+};
+
+/**
+ * Selector for floating badges visibility (hide when type or kiType is selected)
+ */
+export const selectShouldShowBadgesWithKi = (state: ImageStudioStore) =>
+  state.type === null && state.kiType === null;

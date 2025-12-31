@@ -1,48 +1,50 @@
 /**
- * Image Upload Screen
- * Image upload step for Image Studio
+ * KI Input Screen
+ * Form input step for KI image generation
  */
 
 import { useColorScheme } from 'react-native';
 import { router, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { typeHasTextGeneration } from '@gruenerator/shared/image-studio';
-import { ImageUploadStep } from '../../../../components/image-studio/ImageUploadStep';
+import { KiInputStep } from '../../../../components/image-studio/KiInputStep';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
 
-export default function ImageScreen() {
+export default function KiInputScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const {
-    type,
+    kiType,
+    kiInstruction,
+    kiVariant,
+    kiInfrastructureOptions,
     uploadedImageUri,
-    setUploadedImage,
-    clearUploadedImage,
+    setKiInstruction,
+    setKiVariant,
+    toggleKiInfrastructureOption,
   } = useImageStudioStore();
 
   const handleNext = () => {
-    if (!type) return;
-
-    if (typeHasTextGeneration(type)) {
-      router.push('./text' as Href);
-    } else {
-      router.push('./result' as Href);
-    }
+    router.push('./result' as Href);
   };
 
-  if (!type) {
+  if (!kiType) {
     router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
-      <ImageUploadStep
+      <KiInputStep
+        kiType={kiType}
+        instruction={kiInstruction}
+        variant={kiVariant}
+        infrastructureOptions={kiInfrastructureOptions}
         uploadedImageUri={uploadedImageUri}
-        onImageSelected={setUploadedImage}
-        onClearImage={clearUploadedImage}
+        onInstructionChange={setKiInstruction}
+        onVariantChange={setKiVariant}
+        onInfrastructureToggle={toggleKiInfrastructureOption}
         onNext={handleNext}
         onBack={() => router.back()}
       />

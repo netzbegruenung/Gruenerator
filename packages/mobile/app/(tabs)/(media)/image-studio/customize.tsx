@@ -124,7 +124,7 @@ export default function CustomizeScreen() {
   };
 
   if (!type) {
-    router.replace('/image-studio' as Href);
+    router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
 

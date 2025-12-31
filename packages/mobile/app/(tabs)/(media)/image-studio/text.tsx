@@ -76,7 +76,7 @@ export default function TextScreen() {
   };
 
   if (!type) {
-    router.replace('/image-studio' as Href);
+    router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
 

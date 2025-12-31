@@ -1,9 +1,14 @@
 import React, { useEffect, Suspense, lazy, useState } from 'react';
 import PropTypes from 'prop-types';
 import Header from '../../layout/Header/Header';
+import { isDesktopApp } from '../../../utils/platform';
 
 // Lazy load Footer
 const Footer = lazy(() => import('../../layout/Footer/Footer'));
+
+// Lazy load desktop-specific components
+const DesktopTitlebar = lazy(() => import('../../layout/DesktopTitlebar/DesktopTitlebar'));
+const DesktopSidebar = lazy(() => import('../../layout/DesktopSidebar/DesktopSidebar'));
 
 const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = true }) => {
   const [showFooter, setShowFooter] = useState(false);
@@ -24,6 +29,26 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
     return <main className="content-wrapper no-header-footer">{children}</main>;
   }
 
+  const isDesktop = isDesktopApp();
+
+  // Desktop layout with titlebar and sidebar
+  if (isDesktop) {
+    return (
+      <div className="desktop-layout">
+        <Suspense fallback={null}>
+          <DesktopTitlebar />
+        </Suspense>
+        <div className="desktop-content-area">
+          <Suspense fallback={null}>
+            <DesktopSidebar />
+          </Suspense>
+          <main className="content-wrapper desktop-main">{children}</main>
+        </div>
+      </div>
+    );
+  }
+
+  // Web layout with header and footer
   return (
     <>
       <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />

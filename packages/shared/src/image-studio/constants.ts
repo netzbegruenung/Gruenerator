@@ -9,6 +9,10 @@ import type {
   TemplateFieldConfig,
   InputFieldConfig,
   NormalizedTextResult,
+  ImageStudioKiType,
+  KiTypeConfig,
+  KiStyleVariant,
+  GreenEditInfrastructure,
 } from './types';
 
 // ============================================================================
@@ -99,6 +103,202 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     legacyType: 'Text2Sharepic',
   },
 };
+
+// ============================================================================
+// KI TYPE CONFIGURATIONS
+// ============================================================================
+
+/**
+ * Configuration for KI types (FLUX API-based)
+ */
+export const KI_TYPE_CONFIGS: Record<ImageStudioKiType, KiTypeConfig> = {
+  'pure-create': {
+    id: 'pure-create',
+    label: 'Bild erstellen',
+    description: 'Generiere ein Bild aus deiner Beschreibung',
+    category: 'ki',
+    subcategory: 'create',
+    requiresImage: false,
+    endpoint: '/imagine/pure',
+    minInstructionLength: 5,
+    isRateLimited: true,
+  },
+
+  'green-edit': {
+    id: 'green-edit',
+    label: 'Grüne Straße',
+    description: 'Verwandle Straßen in grüne, nachhaltige Räume',
+    category: 'ki',
+    subcategory: 'edit',
+    requiresImage: true,
+    endpoint: '/flux/green-edit/prompt',
+    minInstructionLength: 15,
+    isRateLimited: true,
+  },
+
+  'universal-edit': {
+    id: 'universal-edit',
+    label: 'Bild bearbeiten',
+    description: 'Bearbeite ein Bild mit KI nach deinen Anweisungen',
+    category: 'ki',
+    subcategory: 'edit',
+    requiresImage: true,
+    endpoint: '/flux/green-edit/prompt',
+    minInstructionLength: 15,
+    isRateLimited: true,
+  },
+};
+
+// ============================================================================
+// KI STYLE VARIANTS
+// ============================================================================
+
+/**
+ * Style variant configuration for pure-create
+ */
+export interface StyleVariantConfig {
+  id: KiStyleVariant;
+  label: string;
+  description: string;
+}
+
+/**
+ * Available style variants for pure-create
+ */
+export const STYLE_VARIANTS: StyleVariantConfig[] = [
+  {
+    id: 'illustration-pure',
+    label: 'Illustration',
+    description: 'Weicher, künstlerischer Stil',
+  },
+  {
+    id: 'realistic-pure',
+    label: 'Realistisch',
+    description: 'Fotorealistischer Stil',
+  },
+  {
+    id: 'pixel-pure',
+    label: 'Pixel Art',
+    description: 'Retro-Spielstil',
+  },
+  {
+    id: 'editorial-pure',
+    label: 'Editorial',
+    description: 'Magazin-Stil',
+  },
+];
+
+/**
+ * Default style variant
+ */
+export const DEFAULT_STYLE_VARIANT: KiStyleVariant = 'illustration-pure';
+
+// ============================================================================
+// GREEN-EDIT INFRASTRUCTURE OPTIONS
+// ============================================================================
+
+/**
+ * Infrastructure option configuration
+ */
+export interface InfrastructureOptionConfig {
+  id: GreenEditInfrastructure;
+  label: string;
+  description: string;
+}
+
+/**
+ * Available infrastructure options for green-edit
+ */
+export const INFRASTRUCTURE_OPTIONS: InfrastructureOptionConfig[] = [
+  {
+    id: 'trees',
+    label: 'Bäume & Straßengrün',
+    description: 'Schattenspendende Bäume und Grünflächen',
+  },
+  {
+    id: 'flowers',
+    label: 'Bepflanzung & Blumen',
+    description: 'Bienenfreundliche Blühpflanzen',
+  },
+  {
+    id: 'bike-lanes',
+    label: 'Geschützte Fahrradwege',
+    description: 'Sichere Radinfrastruktur',
+  },
+  {
+    id: 'benches',
+    label: 'Sitzbänke im Schatten',
+    description: 'Ruheplätze zum Verweilen',
+  },
+  {
+    id: 'sidewalks',
+    label: 'Breitere Gehwege',
+    description: 'Mehr Platz für Fußgänger',
+  },
+  {
+    id: 'tram',
+    label: 'Straßenbahn',
+    description: 'Öffentlicher Nahverkehr auf Schienen',
+  },
+  {
+    id: 'bus-stop',
+    label: 'Bushaltestelle',
+    description: 'Moderne ÖPNV-Haltestelle',
+  },
+];
+
+// ============================================================================
+// KI HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Check if a type is a KI type
+ */
+export function isKiType(typeId: string): typeId is ImageStudioKiType {
+  return typeId in KI_TYPE_CONFIGS;
+}
+
+/**
+ * Get KI type configuration
+ */
+export function getKiTypeConfig(typeId: ImageStudioKiType): KiTypeConfig | null {
+  return KI_TYPE_CONFIGS[typeId] || null;
+}
+
+/**
+ * Get all KI types as array
+ */
+export function getAllKiTypes(): KiTypeConfig[] {
+  return Object.values(KI_TYPE_CONFIGS);
+}
+
+/**
+ * Get KI types by subcategory
+ */
+export function getKiTypesBySubcategory(subcategory: 'edit' | 'create'): KiTypeConfig[] {
+  return Object.values(KI_TYPE_CONFIGS).filter(t => t.subcategory === subcategory);
+}
+
+/**
+ * Check if KI type requires image upload
+ */
+export function kiTypeRequiresImage(typeId: ImageStudioKiType): boolean {
+  return KI_TYPE_CONFIGS[typeId]?.requiresImage ?? false;
+}
+
+/**
+ * Get style variant by ID
+ */
+export function getStyleVariant(variantId: KiStyleVariant): StyleVariantConfig | null {
+  return STYLE_VARIANTS.find(v => v.id === variantId) || null;
+}
+
+/**
+ * Get infrastructure option by ID
+ */
+export function getInfrastructureOption(optionId: GreenEditInfrastructure): InfrastructureOptionConfig | null {
+  return INFRASTRUCTURE_OPTIONS.find(o => o.id === optionId) || null;
+}
 
 // ============================================================================
 // FIELD CONFIGURATIONS
