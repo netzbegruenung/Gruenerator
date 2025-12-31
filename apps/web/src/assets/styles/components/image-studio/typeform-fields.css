@@ -1,0 +1,374 @@
+.typeform-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 50vh;
+  width: 100%;
+  position: relative;
+}
+
+.typeform-content {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-medium) var(--spacing-large);
+  padding-top: var(--spacing-xlarge);
+}
+
+.typeform-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+}
+
+.typeform-question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.typeform-question__text {
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: var(--font-color-h);
+  line-height: 1.3;
+}
+
+.typeform-question__subheader {
+  font-size: 1rem;
+  color: var(--font-color-disabled);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.typeform-question__help {
+  font-size: 0.875rem;
+  color: var(--font-color-disabled);
+  margin: 0;
+  margin-top: var(--spacing-xsmall);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.typeform-required {
+  color: var(--error-red);
+  margin-left: 4px;
+}
+
+.typeform-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.typeform-subtitle {
+  font-size: 0.95rem;
+  color: var(--font-color-disabled);
+  margin: 0;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.typeform-input-wrapper .typeform-input,
+.typeform-input-wrapper .typeform-textarea,
+.typeform-input-wrapper .form-input,
+.typeform-input-wrapper .form-textarea,
+.typeform-input-wrapper input,
+.typeform-input-wrapper textarea {
+  width: 100%;
+  padding: var(--spacing-medium) 0;
+  font-size: 1.5rem;
+  line-height: 1.6;
+  color: var(--font-color);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--border-color-disabled);
+  border-radius: 0;
+  outline: none;
+  min-height: auto;
+  transition: border-color 0.2s ease;
+}
+
+.typeform-input-wrapper .typeform-input:focus,
+.typeform-input-wrapper .typeform-textarea:focus,
+.typeform-input-wrapper .form-input:focus,
+.typeform-input-wrapper .form-textarea:focus,
+.typeform-input-wrapper input:focus,
+.typeform-input-wrapper textarea:focus {
+  border-bottom-color: var(--interactive-accent-color);
+}
+
+.typeform-input-wrapper .typeform-input::placeholder,
+.typeform-input-wrapper .typeform-textarea::placeholder,
+.typeform-input-wrapper .form-input::placeholder,
+.typeform-input-wrapper .form-textarea::placeholder,
+.typeform-input-wrapper input::placeholder,
+.typeform-input-wrapper textarea::placeholder {
+  color: var(--font-color-disabled);
+}
+
+.typeform-input-wrapper .typeform-textarea,
+.typeform-input-wrapper .form-textarea,
+.typeform-input-wrapper textarea {
+  resize: none;
+  min-height: auto;
+  height: auto;
+  overflow: hidden;
+}
+
+.typeform-input-wrapper .typeform-select {
+  width: 100%;
+  padding: var(--spacing-medium);
+  font-size: 1.25rem;
+  color: var(--font-color);
+  background: var(--background-color);
+  border: 2px solid var(--border-color-disabled);
+  border-radius: var(--border-radius);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8.5L1 3.5h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-medium) center;
+  padding-right: calc(var(--spacing-medium) * 2 + 12px);
+}
+
+.typeform-input-wrapper .typeform-select:focus {
+  border-color: var(--interactive-accent-color);
+}
+
+.typeform-char-count {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  text-align: right;
+  margin-top: var(--spacing-xsmall);
+}
+
+.typeform-error {
+  color: var(--error-red);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .typeform-content {
+    padding: var(--spacing-small) var(--spacing-medium);
+    padding-top: var(--spacing-large);
+  }
+
+  .typeform-question__text {
+    font-size: 1.5rem;
+  }
+
+  .typeform-input,
+  .typeform-textarea {
+    font-size: 1.1rem;
+    padding: var(--spacing-small);
+  }
+
+  .typeform-actions {
+    flex-wrap: wrap;
+    gap: var(--spacing-small);
+  }
+}
+
+@media (max-width: 480px) {
+  .typeform-question__text {
+    font-size: 1.25rem;
+  }
+}
+
+.template-input-step--typeform {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-large);
+}
+
+.typeform-global-error {
+  position: fixed;
+  bottom: var(--spacing-large);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--error-red);
+  color: var(--white);
+  padding: var(--spacing-small) var(--spacing-large);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  z-index: 100;
+}
+
+.template-input-step__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-medium);
+}
+
+.typeform-upload-wrapper {
+  width: 100%;
+}
+
+.typeform-upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-xxlarge);
+  border: 2px dashed var(--border-color-disabled);
+  border-radius: var(--border-radius-large);
+  background: var(--input-background);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.typeform-upload-area:hover,
+.typeform-upload-area--active {
+  border-color: var(--interactive-accent-color);
+  background: var(--hover-color-alt);
+}
+
+.typeform-upload-icon {
+  font-size: 3rem;
+  color: var(--font-color-disabled);
+  transition: color 0.2s ease;
+}
+
+.typeform-upload-area:hover .typeform-upload-icon,
+.typeform-upload-area--active .typeform-upload-icon {
+  color: var(--interactive-accent-color);
+}
+
+.typeform-upload-area span {
+  font-size: 1rem;
+  color: var(--font-color-disabled);
+}
+
+.typeform-upload-preview {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.typeform-upload-preview__image {
+  width: 100%;
+  height: auto;
+  border-radius: var(--border-radius-large);
+  object-fit: cover;
+  max-height: 300px;
+}
+
+.typeform-upload-preview__remove {
+  position: absolute;
+  top: var(--spacing-small);
+  right: var(--spacing-small);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 50%;
+  color: var(--white);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.typeform-upload-preview__remove:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+@media (max-width: 768px) {
+  .typeform-upload-area {
+    padding: var(--spacing-xlarge);
+  }
+
+  .typeform-upload-icon {
+    font-size: 2.5rem;
+  }
+
+  .typeform-upload-preview__image {
+    max-height: 250px;
+  }
+}
+
+/* Image limit indicator for KI types */
+.image-limit-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-small) var(--spacing-medium);
+  margin-top: var(--spacing-large);
+  background: var(--input-background);
+  border-radius: var(--border-radius);
+  text-align: center;
+}
+
+.image-limit-indicator__text {
+  font-size: 0.875rem;
+  color: var(--font-color-disabled);
+}
+
+.image-limit-indicator--blocked {
+  background: var(--error-50, #fef2f2);
+}
+
+.image-limit-indicator__blocked {
+  font-size: 0.875rem;
+  color: var(--error-red);
+  font-weight: 500;
+}
+
+/* Image upload step with tabs */
+.typeform-field--image-upload {
+  gap: var(--spacing-medium);
+}
+
+.typeform-image-source-tabs {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-small);
+}
+
+.typeform-image-source-tabs .segmented-control-wrapper {
+  max-width: 280px;
+}
+
+.typeform-upload-content,
+.typeform-stock-content {
+  width: 100%;
+  min-height: 280px;
+}
+
+.typeform-upload-content--drag-active {
+  background: var(--hover-color-alt);
+  border-radius: var(--border-radius-large);
+}
+
+.typeform-stock-content {
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+/* Attribution display in upload preview */
+.typeform-upload-preview .unsplash-attribution {
+  margin-top: var(--spacing-small);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .typeform-image-source-tabs .segmented-control-wrapper {
+    max-width: 240px;
+  }
+
+  .typeform-upload-content,
+  .typeform-stock-content {
+    min-height: 220px;
+  }
+
+  .typeform-stock-content {
+    max-height: 350px;
+  }
+}

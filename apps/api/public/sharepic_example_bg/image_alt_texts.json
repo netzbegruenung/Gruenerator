@@ -1,0 +1,215 @@
+{
+  "images": [
+    {
+      "filename": "alexander-bagno-wVfoqadZDRo-unsplash.jpg",
+      "alt_text": "View from inside a train compartment showing red sneakers on a small table, with a blurred countryside landscape passing by through the window",
+      "category": "transport",
+      "tags": ["train", "travel", "public-transport", "journey", "mobility", "countryside", "interior"]
+    },
+    {
+      "filename": "antoine-schibler-GimanuXzJBk-unsplash.jpg",
+      "alt_text": "Person holding a large European Union flag with golden stars on blue background, with ancient Roman architecture visible in the background",
+      "category": "politics",
+      "tags": ["european-union", "eu", "flag", "politics", "europe", "democracy", "unity", "architecture"]
+    },
+    {
+      "filename": "benjamin-jopen-2SfssudtyIA-unsplash.jpg",
+      "alt_text": "Close-up of solar panels reflecting the sky, showing the geometric pattern of photovoltaic cells in blue tones",
+      "category": "environment",
+      "tags": ["solar-energy", "renewable-energy", "sustainability", "green-tech", "climate", "photovoltaic", "clean-energy"]
+    },
+    {
+      "filename": "benjamin-jopen-To-B9ICXPnc-unsplash.jpg",
+      "alt_text": "Close-up of blue solar panels with water droplets, showing the reflective surface and grid pattern of renewable energy technology",
+      "category": "environment",
+      "tags": ["solar-energy", "renewable-energy", "sustainability", "green-tech", "climate", "photovoltaic", "clean-energy", "water"]
+    },
+    {
+      "filename": "christian-lue-DOjfdyt2UCo-unsplash.jpg",
+      "alt_text": "Interior of a train compartment showing empty seats with blue patterned upholstery, bright window, and a person with blonde hair reading",
+      "category": "transport",
+      "tags": ["train", "public-transport", "travel", "reading", "mobility", "journey", "interior", "comfort"]
+    },
+    {
+      "filename": "christian-lue-vJi1kDMESrI-unsplash.jpg",
+      "alt_text": "Interior view of an empty train car with rows of seats, showing the symmetric perspective down the aisle with modern lighting",
+      "category": "transport",
+      "tags": ["train", "public-transport", "modern", "mobility", "infrastructure", "interior", "symmetry"]
+    },
+    {
+      "filename": "christian-wiediger-ueLA4x2gZf8-unsplash.jpg",
+      "alt_text": "European Union flag on a flagpole waving against a bright blue sky with white clouds",
+      "category": "politics",
+      "tags": ["european-union", "eu", "flag", "politics", "europe", "democracy", "unity", "sky", "patriotism"]
+    },
+    {
+      "filename": "cody-chan-UM94-k-jbOM-unsplash.jpg",
+      "alt_text": "Artistic photo with lens flare effects showing trees and rainbow-colored light streaks creating a dreamy, ethereal atmosphere",
+      "category": "nature",
+      "tags": ["nature", "trees", "artistic", "rainbow", "light", "dreamy", "colorful", "abstract"]
+    },
+    {
+      "filename": "daiga-ellaby-8rjf7Zn-mEA-unsplash.jpg",
+      "alt_text": "Person in blue rain jacket and backpack hiking through a forest creek, surrounded by moss-covered trees and fallen logs",
+      "category": "nature",
+      "tags": ["hiking", "forest", "nature", "outdoor", "adventure", "creek", "moss", "conservation", "wilderness"]
+    },
+    {
+      "filename": "daiga-ellaby-f4i5EP2TVMk-unsplash.jpg",
+      "alt_text": "Father carrying child on shoulders at sunset, both silhouetted against golden light, watching cattle in a pastoral field setting",
+      "category": "social",
+      "tags": ["family", "agriculture", "farming", "rural", "sunset", "generations", "cattle", "pastoral", "community"]
+    },
+    {
+      "filename": "diogo-ferrer-Ue8fAd5DXnY-unsplash.jpg",
+      "alt_text": "Two white wind turbines on a green hill against a blue sky with white clouds, representing renewable energy",
+      "category": "environment",
+      "tags": ["wind-energy", "renewable-energy", "sustainability", "green-tech", "climate", "clean-energy", "landscape"]
+    },
+    {
+      "filename": "egor-myznik-vHs9Llcs3jY-unsplash.jpg",
+      "alt_text": "Close-up of a bicycle lane symbol painted in white on dark asphalt pavement, with cobblestone visible at the edge",
+      "category": "transport",
+      "tags": ["bicycle", "cycling", "sustainable-transport", "bike-lane", "mobility", "urban-planning", "green-transport"]
+    },
+    {
+      "filename": "eric-tompkins-tRIw6cFSs2E-unsplash.jpg",
+      "alt_text": "Colorful numbered exercise markers (1-7) scattered on a forest floor covered with autumn leaves",
+      "category": "social",
+      "tags": ["exercise", "fitness", "outdoor", "nature", "health", "activity", "autumn", "numbers", "sport"]
+    },
+    {
+      "filename": "gaelle-marcel-L8SNwGUNqbU-unsplash.jpg",
+      "alt_text": "Person in rolled-up jeans with bare feet climbing on a tall stack of books, representing education and learning",
+      "category": "education",
+      "tags": ["education", "learning", "books", "knowledge", "growth", "achievement", "study", "intellectual"]
+    },
+    {
+      "filename": "honey-yanibel-minaya-cruz-Q2dxmAzbUbk-unsplash.jpg",
+      "alt_text": "Artistic arrangement of yellow daisy-like flowers on a dark navy blue background in a repetitive pattern",
+      "category": "nature",
+      "tags": ["flowers", "nature", "pattern", "yellow", "artistic", "design", "botanical", "beauty"]
+    },
+    {
+      "filename": "idean-azad-b64oSuTPXy8-unsplash.jpg",
+      "alt_text": "Wind farm with multiple white wind turbines in a green field under a blue sky, showcasing renewable energy infrastructure",
+      "category": "environment",
+      "tags": ["wind-energy", "renewable-energy", "sustainability", "green-tech", "climate", "clean-energy", "wind-farm", "infrastructure"]
+    },
+    {
+      "filename": "jasmin-chew-VJS-1P6Gh2Q-unsplash.jpg",
+      "alt_text": "Two people from behind walking together in winter, wearing knit hats and warm clothing, in a snowy landscape with bare trees",
+      "category": "social",
+      "tags": ["friendship", "winter", "togetherness", "walking", "nature", "relationship", "cold", "companionship"]
+    },
+    {
+      "filename": "jeremy-eckert-7immbxk2QwQ-unsplash.jpg",
+      "alt_text": "Blue traffic sign mounted on a pole showing pedestrian and bicycle symbols, surrounded by green foliage",
+      "category": "transport",
+      "tags": ["traffic-sign", "bicycle", "pedestrian", "sustainable-transport", "urban-planning", "mobility", "safety"]
+    },
+    {
+      "filename": "marek-studzinski-qaEOokswHT0-unsplash.jpg",
+      "alt_text": "Colorful LGBTQ+ Pride flag with rainbow stripes flying against a blue sky with a chimney visible in the background",
+      "category": "social",
+      "tags": ["pride", "lgbtq", "equality", "diversity", "rights", "rainbow", "flag", "inclusion", "celebration"]
+    },
+    {
+      "filename": "markus-spiske-dLELhwkTSzs-unsplash.jpg",
+      "alt_text": "Red bicycle lane marking with bicycle symbol and directional arrow painted on asphalt street surface",
+      "category": "transport",
+      "tags": ["bicycle", "cycling", "sustainable-transport", "bike-lane", "mobility", "urban-planning", "green-transport", "arrow"]
+    },
+    {
+      "filename": "megan-bucknall-5rwZZcY55r8-unsplash.jpg",
+      "alt_text": "Rainbow Pride flag with 'Y'ALL MEANS ALL!' text displayed in a shop window, promoting inclusivity and equality",
+      "category": "social",
+      "tags": ["pride", "lgbtq", "equality", "diversity", "rights", "inclusion", "text", "message", "acceptance"]
+    },
+    {
+      "filename": "mike-marrah-XNCv-DcTLx4-unsplash.jpg",
+      "alt_text": "Single sunflower in golden sunset light with a warm, dreamy bokeh background effect",
+      "category": "nature",
+      "tags": ["sunflower", "nature", "sunset", "golden", "flower", "warm", "beauty", "dreamy"]
+    },
+    {
+      "filename": "mike-marrah-vKNjdRBqep0-unsplash.jpg",
+      "alt_text": "Sunflower in a field during golden hour sunset with dramatic cloudy sky in the background",
+      "category": "nature",
+      "tags": ["sunflower", "nature", "sunset", "golden-hour", "field", "dramatic", "sky", "agriculture"]
+    },
+    {
+      "filename": "nk-ni-IMwqhxaLnmI-unsplash.jpg",
+      "alt_text": "Person holding a large rainbow Pride flag at what appears to be a Pride parade or celebration in an urban setting",
+      "category": "social",
+      "tags": ["pride", "lgbtq", "equality", "diversity", "rights", "parade", "celebration", "urban", "activism"]
+    },
+    {
+      "filename": "oliver-sand-d6fDkmgd1bk-unsplash.jpg",
+      "alt_text": "Interior of a modern train or subway car with blue seats, metal handrails, and empty passenger compartment",
+      "category": "transport",
+      "tags": ["train", "subway", "public-transport", "modern", "mobility", "infrastructure", "interior", "urban"]
+    },
+    {
+      "filename": "paige-cody-z8gKIE4Kz0Y-unsplash.jpg",
+      "alt_text": "Person in denim overalls walking through rows of green vegetables in an organic garden or farm setting",
+      "category": "environment",
+      "tags": ["agriculture", "farming", "organic", "vegetables", "sustainable", "food", "gardening", "green", "rural"]
+    },
+    {
+      "filename": "patrick-hendry-vlA_C_HTc1A-unsplash.jpg",
+      "alt_text": "Cracked, dry earth surface showing drought conditions with mountains visible in the background during sunset",
+      "category": "environment",
+      "tags": ["drought", "climate-change", "water-crisis", "environment", "crisis", "landscape", "sunset", "warning"]
+    },
+    {
+      "filename": "renzo-d-souza-yJuJszd5SwQ-unsplash.jpg",
+      "alt_text": "Close-up of severely cracked and dried earth, showing the polygonal pattern of drought-affected soil",
+      "category": "environment",
+      "tags": ["drought", "climate-change", "water-crisis", "environment", "crisis", "pattern", "soil", "warning"]
+    },
+    {
+      "filename": "robert-gramner-E56cTF65xFw-unsplash.jpg",
+      "alt_text": "Single white wind turbine in a bright yellow rapeseed field under a blue sky with wispy white clouds",
+      "category": "environment",
+      "tags": ["wind-energy", "renewable-energy", "sustainability", "green-tech", "climate", "clean-energy", "rapeseed", "agriculture"]
+    },
+    {
+      "filename": "salah-darwish-ZfB54P683Nw-unsplash.jpg",
+      "alt_text": "Modern DB (Deutsche Bahn) train station building with glass facade and the red DB logo on top",
+      "category": "transport",
+      "tags": ["train-station", "deutsche-bahn", "modern", "architecture", "public-transport", "infrastructure", "glass"]
+    },
+    
+    {
+      "filename": "taylor-flowe-NTur2_QKpg0-unsplash.jpg",
+      "alt_text": "Classroom scene with student raising hand enthusiastically while teacher stands in background with educational materials",
+      "category": "education",
+      "tags": ["education", "classroom", "student", "teacher", "learning", "school", "participation", "knowledge"]
+    },
+    {
+      "filename": "thomas-de-luze-eaIwCt9tskY-unsplash.jpg",
+      "alt_text": "Interior of a public bus with blue seats, yellow handholds, and passengers visible in the background during daytime",
+      "category": "transport",
+      "tags": ["bus", "public-transport", "interior", "passengers", "mobility", "urban", "commute", "sustainable-transport"]
+    },
+    {
+      "filename": "toni-reed-QDALg5L0l8o-unsplash.jpg",
+      "alt_text": "Large rainbow Pride flag hanging on display against a blue sky with buildings visible in the background",
+      "category": "social",
+      "tags": ["pride", "lgbtq", "equality", "diversity", "rights", "flag", "display", "urban", "celebration"]
+    },
+    {
+      "filename": "william-fonteneau-3Sys5Fg7k7A-unsplash.jpg",
+      "alt_text": "Crowd at Pride parade on a city street holding rainbow flags and celebrating, with historic European architecture in the background",
+      "category": "social",
+      "tags": ["pride", "lgbtq", "equality", "diversity", "rights", "parade", "crowd", "celebration", "architecture", "activism"]
+    },
+    {
+      "filename": "zheyu-huang-pHGmxsmbQWo-unsplash.jpg",
+      "alt_text": "Hand holding a small rainbow Pride flag with a smartwatch visible on the wrist, with blurred crowd in the background",
+      "category": "social",
+      "tags": ["pride", "lgbtq", "equality", "diversity", "rights", "hand", "technology", "personal", "support"]
+    }
+  ]
+}

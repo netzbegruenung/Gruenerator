@@ -1,0 +1,330 @@
+/* Document Upload Component Styling */
+
+.file-dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--card-border-radius);
+  padding: var(--spacing-large);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--background-color-alt);
+}
+
+.file-dropzone:hover,
+.file-dropzone.active {
+  border-color: var(--primary-color);
+  background: var(--background-color);
+}
+
+.file-dropzone.has-file {
+  border-color: var(--success-color);
+  background: var(--background-color);
+}
+
+.upload-icon {
+  font-size: 3rem;
+  color: var(--font-color-disabled);
+  margin-bottom: var(--spacing-small);
+}
+
+.file-requirements {
+  font-size: 0.875rem;
+  color: var(--font-color-disabled);
+  margin-top: var(--spacing-xsmall);
+}
+
+.file-selected {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  color: var(--success-color);
+}
+
+.file-icon {
+  font-size: 1.5rem;
+}
+
+.file-name {
+  font-weight: 500;
+}
+
+.file-size {
+  color: var(--font-color-disabled);
+  font-size: 0.875rem;
+}
+
+.document-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-medium);
+  min-height: 60px;
+}
+
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.document-actions {
+  display: flex;
+  gap: var(--spacing-xsmall);
+  align-items: center;
+}
+
+.document-error {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  color: var(--error-color);
+  font-size: 0.875rem;
+  margin-top: var(--spacing-small);
+  padding: var(--spacing-small);
+  background: var(--background-color-alt);
+  border-radius: var(--card-border-radius-small);
+}
+
+/* Upload Mode Switch Links */
+.upload-mode-link {
+  background: none;
+  border: none;
+  color: var(--font-color-disabled);
+  font-size: 0.9em;
+  cursor: pointer;
+  padding: var(--spacing-xsmall);
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.upload-mode-link:hover {
+  color: var(--secondary-600);
+}
+
+.upload-mode-link:focus {
+  outline: none;
+}
+
+.upload-mode-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upload-mode-link:disabled:hover {
+  color: var(--font-color-disabled);
+}
+
+/* Document Preview Modal Styles are now in document-overview.css */
+
+/* Document Info Component Styling */
+
+.document-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0; /* Allow text truncation */
+}
+
+.document-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--secondary-600);
+  opacity: 0.8;
+}
+
+.document-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+  min-width: 0; /* Allow text truncation */
+  flex: 1;
+}
+
+.document-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  font-weight: 500;
+  margin-bottom: var(--spacing-xsmall);
+  color: var(--font-color);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-meta {
+  display: flex;
+  gap: var(--spacing-medium);
+  font-size: 0.875rem;
+  color: var(--font-color-disabled);
+  flex-wrap: wrap;
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* Interactive states for document items */
+.document-info:hover .document-icon {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+.document-info.selected .document-title {
+  color: var(--secondary-600);
+  font-weight: 700;
+}
+
+.document-info.selected .document-icon {
+  color: var(--secondary-700);
+  opacity: 1;
+}
+
+/* Q&A Section Redesign - Minimal additions only */
+
+.qa-section-redesigned {
+  width: 100%;
+}
+
+/* Title content for overview header */
+.qa-title-content h3 {
+  margin: 0 0 var(--spacing-xxsmall) 0;
+  color: var(--font-color-h3);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.qa-subtitle {
+  margin: 0;
+  color: var(--font-color);
+  opacity: 0.8;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Overview title with icon */
+.qa-overview-title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-medium);
+  flex: 1;
+}
+
+.qa-overview-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--secondary-600);
+  margin-top: var(--spacing-xxsmall);
+  flex-shrink: 0;
+}
+
+/* Creator title with icon */
+.qa-creator-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+}
+
+.qa-creator-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--secondary-600);
+}
+
+/* Empty state features showcase */
+.qa-empty-features {
+  display: flex;
+  gap: var(--spacing-large);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: var(--spacing-large) 0;
+}
+
+.qa-feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-small);
+  min-width: 120px;
+}
+
+.qa-feature-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.qa-feature-item span {
+  font-size: 0.9rem;
+  color: var(--font-color);
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Error state icon */
+.qa-error-icon {
+  width: 48px;
+  height: 48px;
+  color: #D32F2F;
+}
+
+.qa-empty-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--secondary-600);
+  opacity: 0.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .qa-overview-title {
+    align-items: center;
+  }
+  
+  .qa-overview-icon {
+    width: 24px;
+    height: 24px;
+    margin-top: 0;
+  }
+  
+  .qa-empty-features {
+    gap: var(--spacing-medium);
+  }
+  
+  .qa-feature-item {
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .document-details {
+    gap: var(--spacing-xxxsmall);
+  }
+  
+  .document-title {
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+  
+  .document-meta {
+    font-size: 0.7rem;
+  }
+  
+  .qa-empty-features {
+    flex-direction: column;
+    gap: var(--spacing-medium);
+  }
+  
+  .qa-feature-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .qa-feature-icon {
+    font-size: 1.5rem;
+  }
+}

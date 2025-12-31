@@ -1,0 +1,26 @@
+{
+  "name": "@gruenerator/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:debug": "tauri build --debug",
+    "dev:frontend": "pnpm --filter @gruenerator/web dev",
+    "signer:generate": "tauri signer generate -w ~/.tauri/gruenerator.key",
+    "preflight": "node preflight-check.mjs",
+    "test:ci": "node preflight-check.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-notification": "^2.0.0",
+    "@tauri-apps/plugin-updater": "^2.0.0",
+    "@tauri-apps/plugin-opener": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0"
+  }
+}

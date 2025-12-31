@@ -1,0 +1,49 @@
+/* Database Test Page Styles */
+.database-test-page {
+  min-height: 100vh;
+  background: var(--background-color);
+  color: var(--font-color);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-large);
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xxlarge);
+  padding-bottom: var(--spacing-large);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.page-header h1 {
+  color: var(--font-color-h);
+  font-size: var(--font-size-xlarge);
+  margin-bottom: var(--spacing-medium);
+  font-weight: 600;
+}
+
+.page-header p {
+  color: var(--font-color-secondary);
+  font-size: var(--font-size-large);
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: var(--spacing-medium);
+  }
+
+  .page-header h1 {
+    font-size: var(--font-size-large);
+  }
+
+  .page-header p {
+    font-size: var(--font-size-medium);
+  }
+}

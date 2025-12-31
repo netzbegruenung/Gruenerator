@@ -1,0 +1,15 @@
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  padding-top: 10px; /* Ensure vertical alignment with icon */
+  padding-bottom: 10px; /* Ensure vertical alignment with icon */
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--ai-message-text-color);
+  border-radius: 50%;
+  display: inline-block;
+  margin: 0 2px; /* Adjust spacing between dots */
+} 

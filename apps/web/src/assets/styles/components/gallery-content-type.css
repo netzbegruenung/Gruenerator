@@ -1,0 +1,183 @@
+/* 
+* Styles für die multi-content Galerie
+* Verwendet die vordefinierten Variablen aus variables.css
+*/
+
+/* 
+  The .gallery-category-filter class from gallery-layout.css 
+  is now used for the content type button wrapper in ContentGallery.jsx.
+  The buttons inside are .category-button and also pick up styles from gallery-layout.css.
+*/
+
+/* The .content-type-badge style can remain if it's still used with the new button structure */
+.content-type-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--klee);
+  color: var(--weiß);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: bold;
+}
+
+/* Gallery Controls Layouts */
+.gallery-search-controls {
+  margin-bottom: var(--spacing-medium);
+}
+
+/* All Content Container */
+.all-content-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  grid-column: 1 / -1; /* Ensure it spans all columns of the parent grid */
+}
+
+.content-section {
+  margin-bottom: var(--spacing-large);
+}
+
+.content-section-title {
+  margin-bottom: var(--spacing-medium);
+  padding-bottom: var(--spacing-xsmall);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.content-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-medium);
+  grid-column: 1 / -1;
+}
+
+/* Generator Card Styles */
+.gallery-item-card.generator-card {
+  border: 1px solid #ccc; 
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--background-color);
+  cursor: pointer;
+  display: flex;        
+  flex-direction: column; 
+  justify-content: space-between; 
+  transition: transform 0.2s ease, box-shadow 0.2s ease; 
+  height: 100%; /* Ensure it takes full height of the grid cell if needed */
+}
+
+.gallery-item-card.generator-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+}
+
+.generator-card-title {
+  margin-top: 0;
+  margin-bottom: 0.5rem; /* Match antrag-card-title */
+  color: var(--font-color-h);
+  font-size: 1.1rem; 
+  font-weight: 600; /* Match antrag-card-title */
+}
+
+.generator-card-description {
+  margin-bottom: var(--spacing-small);
+  font-size: 0.9rem;
+  color: var(--font-color);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4; /* Consistent line height */
+}
+
+.generator-card-date {
+  font-size: 0.8em;
+  color: #666; /* Match antrag-card-date */
+  margin-top: auto; 
+  margin-bottom: 0;
+  padding-top: 0.75rem; /* Match antrag-card-date */
+  border-top: 1px solid var(--background-color-alt); /* Match antrag-card-date */
+  text-align: right; /* Match antrag-card-date */
+}
+
+/* Loading State Styles */
+.skeleton {
+  background-color: var(--background-color-alt);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0) 100%);
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-title, 
+.skeleton-description, 
+.skeleton-date {
+  height: 1rem;
+  margin-bottom: var(--spacing-small);
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  width: 80%;
+}
+
+.skeleton-description {
+  height: 4rem;
+  width: 100%;
+}
+
+.skeleton-date {
+  height: 0.8rem;
+  width: 50%;
+  margin-top: auto;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Coming Soon Message */
+.coming-soon-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--spacing-large);
+  background-color: var(--background-color-alt);
+  border-radius: 4px;
+  color: var(--font-color);
+  font-size: 1.1rem;
+}
+
+/* PR Texts Placeholder */
+.pr-texts-placeholder {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--spacing-large);
+  background-color: var(--background-color-alt);
+  border-radius: 4px;
+  margin-bottom: var(--spacing-medium);
+}
+
+/* Responsive adjustments */
+/* The .content-type-selector media query is removed as the class is no longer in use here. */
+
+/* @media (max-width: 768px) {
+  .content-type-selector {
+    margin-top: var(--spacing-small);
+  }
+} */ 

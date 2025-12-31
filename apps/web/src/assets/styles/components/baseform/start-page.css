@@ -1,0 +1,265 @@
+/* ============================================
+   Start Page Layout Styles
+   ChatGPT-like centered input experience
+   ============================================ */
+
+/* ===========================================
+   Container Styles
+   =========================================== */
+
+/* Start Mode: Centered form layout */
+.base-container.base-container--start-mode {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 8vh;
+    gap: var(--spacing-large);
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.base-container--start-mode .form-section-motion-wrapper {
+    max-width: 720px;
+    width: 100%;
+    flex: none;
+    transition: all 0.4s ease-out;
+}
+
+/* ===========================================
+   Card Styles
+   =========================================== */
+
+/* Start Mode: ChatGPT-like centered input with elevated styling */
+.form-card--start-mode {
+  background-color: var(--card-background);
+  border: var(--border-subtle);
+  border-radius: 24px;
+  padding: var(--spacing-medium);
+  box-shadow: var(--shadow-md);
+}
+
+.form-card--start-mode .form-card__content {
+  padding: 0;
+}
+
+/* ===========================================
+   Section Styles
+   =========================================== */
+
+.form-section--start-mode {
+  min-height: auto;
+}
+
+.form-section--start-mode .form-section__container {
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.form-section--start-mode .form-inputs__fields {
+  margin-bottom: 0;
+}
+
+.form-section--start-mode .form-section__inputs {
+  flex: none;
+}
+
+.form-section--start-mode .form-section__extras {
+  align-self: stretch;
+  flex: none;
+  width: 100%;
+}
+
+/* ===========================================
+   Extras Section Styles
+   =========================================== */
+
+/* Start mode extras - unified flexbox layout for desktop and mobile */
+.form-section__extras--start-mode {
+  padding: 0;
+  margin-top: var(--spacing-small);
+  width: 100%;
+}
+
+.form-section__extras--start-mode .form-extras__content {
+  width: 100%;
+}
+
+/* Unified row: Icons (left), Platform + Submit (right) */
+.form-section__extras--start-mode .form-extras__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--spacing-small);
+}
+
+.form-section__extras--start-mode .form-extras__left {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.form-section__extras--start-mode .form-extras__right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  flex-shrink: 0;
+}
+
+/* Platform selector needs minimum width for label visibility */
+.form-section__extras--start-mode .form-extras__right .platform-selector {
+  min-width: 140px;
+}
+
+/* ===========================================
+   Header / Title / Description Styles
+   =========================================== */
+
+/* Start mode header - title and description outside the card */
+.form-section__start-header {
+  text-align: left;
+  margin-bottom: var(--spacing-medium);
+}
+
+.form-section__start-title {
+  text-align: left;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-small);
+}
+
+.form-section__start-description {
+  font-size: 1rem;
+  line-height: 1.5;
+  max-width: 100%;
+}
+
+/* ===========================================
+   Textarea Styles
+   =========================================== */
+
+/* Start mode input styling - compact, ChatGPT-like textarea */
+.form-section--start-mode textarea {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  padding: 0 var(--spacing-medium);
+  overflow-y: hidden;
+  border: none;
+  background: transparent;
+}
+
+.form-section--start-mode textarea:focus {
+  outline: none;
+}
+
+/* ===========================================
+   Mobile Responsive (768px)
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Container mobile adjustments */
+  .base-container.base-container--start-mode {
+    padding: var(--spacing-small);
+    padding-top: 2vh;
+    gap: var(--spacing-medium);
+  }
+
+  .base-container.base-container--start-mode .form-section-motion-wrapper {
+    max-width: 100%;
+  }
+
+  /* Card mobile adjustments - fixed to bottom for easier typing */
+  .form-card--start-mode {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 20px 20px 0 0;
+    padding: var(--spacing-small);
+    border: var(--border-subtle);
+    border-bottom: none;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+
+  /* Textarea mobile adjustments */
+  .form-section--start-mode textarea {
+    font-size: 1rem;
+    padding: var(--spacing-small);
+  }
+}
+
+/* ===========================================
+   Mobile Responsive (480px)
+   =========================================== */
+
+@media (max-width: 480px) {
+  /* Remove min-height on content wrapper for start mode on phones */
+  .content-wrapper:has(.base-container--start-mode) {
+    min-height: auto;
+  }
+
+  .base-container.base-container--start-mode {
+    padding-top: var(--spacing-small);
+    gap: var(--spacing-small);
+  }
+
+  .form-card--start-mode {
+    border-radius: 16px 16px 0 0;
+    border: var(--border-subtle);
+    border-bottom: none;
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* ===========================================
+   Large Display Responsive (1280px+)
+   =========================================== */
+
+@media (min-width: 1280px) {
+  .form-card--start-mode.form-card--large {
+    padding: var(--spacing-medium);
+  }
+
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+}
+
+@media (min-width: 1440px) {
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+}
+
+@media (min-width: 1920px) {
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+}
+
+@media (min-width: 2560px) {
+  .form-section--start-mode {
+    min-height: auto;
+  }
+
+  .form-section--start-mode textarea {
+    min-height: auto;
+    padding: 0 var(--spacing-medium);
+  }
+}

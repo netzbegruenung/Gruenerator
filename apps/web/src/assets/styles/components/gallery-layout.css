@@ -1,0 +1,359 @@
+.gallery-layout {
+  max-width: 1200px;
+  margin: 60px auto 0 auto;
+  flex-direction: column;
+}
+
+.gallery-header {
+  text-align: center;
+}
+
+.gallery-header h1 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--font-color-h);
+}
+
+.gallery-header p {
+  max-width: 800px;
+  margin: 0 auto var(--spacing-xlarge);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--font-color);
+  text-align: center;
+}
+
+.gallery-search-controls {
+  display: flex;
+  flex-wrap: wrap; 
+  align-items: flex-start; 
+  justify-content: center;
+  gap: var(--spacing-large); 
+  max-width: 900px;
+  margin: 0 auto 2rem;
+}
+
+.gallery-main-searchbar-section {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: var(--spacing-xlarge);
+  padding: 0 var(--spacing-medium);
+  box-sizing: border-box;
+}
+
+.gallery-content-type-selector-section {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: var(--spacing-large);
+  padding: 0 var(--spacing-medium);
+  box-sizing: border-box;
+}
+
+.gallery-filter {
+  margin-bottom: 3rem;
+  display: flex;
+  justify-content: center;
+}
+
+.gallery-category-filter {
+  display: flex;
+  padding-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.gallery-category-filter .category-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  border: 2px solid var(--button-background-color);
+  border-radius: 25px;
+  background: var(--background-color);
+  color: var(--font-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.gallery-category-filter .category-button:hover {
+  background: var(--background-color-alt);
+  transform: translateY(-1px);
+}
+
+.gallery-category-filter .category-button.active {
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  border-color: var(--primary); 
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-xxlarge);
+  margin: 0 auto;
+}
+
+.gallery-grid .no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem;
+  color: var(--font-color);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 1200px) {
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .gallery-layout {
+    margin-top: 0;
+    padding: 80px 1rem 1rem 1rem;
+  }
+
+  .gallery-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+
+  .gallery-filter {
+    gap: 0.5rem;
+  }
+
+  .gallery-category-filter .category-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+.gallery-item-card.antrag-card {
+  border: 1px solid #ccc; 
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--background-color);
+  cursor: pointer;
+  display: flex;        
+  flex-direction: column; 
+  justify-content: space-between; 
+  transition: transform 0.2s ease, box-shadow 0.2s ease; 
+}
+
+.gallery-item-card.antrag-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
+}
+
+.antrag-card-title {
+  margin-top: 0;
+  margin-bottom: 0.5rem !important;
+  color: var(--font-color-h);
+  font-size: 1.1rem; 
+  font-weight: 600;
+}
+
+.antrag-card-tags {
+  margin-bottom: 1rem; 
+  line-height: 1.4; 
+}
+
+.antrag-card-tag {
+  display: inline-block;
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+}
+
+.antrag-card-tag.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.antrag-card-tag.clickable:hover {
+  background-color: var(--klee);
+  color: var(--weiß);
+}
+
+.antrag-card-tag.clickable:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.antrag-card-tag-more {
+  font-size: 0.8em;
+  color: var(--primary);
+  margin-left: 0.2rem; 
+  display: inline-block; 
+  vertical-align: bottom; 
+  padding-bottom: 0.4rem; 
+}
+
+.antrag-card-date {
+  font-size: 0.8em;
+  color: #666;
+  margin-top: auto; 
+  margin-bottom: 0;
+  padding-top: 0.75rem; 
+  border-top: 1px solid var(--background-color-alt); 
+  text-align: right; 
+}
+
+.search-bar-container .search-depth-selector {
+  flex-shrink: 0; 
+  margin-right: 0.5rem; 
+  height: 100%; 
+  display: flex; 
+  align-items: center; 
+}
+
+.search-bar-container .search-depth-selector .selector-button {
+  border: none; 
+  background: transparent; 
+  
+  padding: 1rem 0.8rem; 
+  border-radius: 0; 
+  color: var(--font-color); 
+  min-width: auto; 
+  height: 100%; 
+  box-sizing: border-box; 
+  display: flex; 
+  align-items: center; 
+  font-size: 0.9rem; 
+}
+
+.search-bar-container .search-depth-selector .selector-button:hover {
+  background: var(--background-color-alt); 
+}
+
+.search-bar-container .search-depth-selector .selector-button:focus {
+  box-shadow: none; 
+  outline: none;
+}
+
+/* Styling für CategoryFilter innerhalb von AdvancedSearchOptions */
+.advanced-search-options .search-option-group .gallery-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem; /* Etwas weniger Abstand als im Hauptfilter */
+  justify-content: flex-start; /* Links ausrichten innerhalb der Options */
+  padding-top: 0.5rem;
+}
+
+.advanced-search-options .category-button {
+  padding: 0.5rem 1rem; /* Kleinere Buttons */
+  font-size: 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 15px; /* Kleinere Radien */
+  background: var(--background-color);
+  color: var(--font-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.advanced-search-options .category-button:hover {
+  background: var(--background-color-alt);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.advanced-search-options .category-button.active {
+  background: var(--primary);
+  color: var(--weiß);
+  border-color: var(--primary);
+}
+
+/* Vorlagen card with thumbnail */
+.gallery-item-card.vorlagen-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--background-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gallery-item-card.vorlagen-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gallery-item-card.vorlagen-card.has-thumbnail {
+  padding: 0;
+}
+
+.gallery-item-card.vorlagen-card:not(.has-thumbnail) {
+  padding: 1rem;
+}
+
+.gallery-card-thumbnail {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--background-color-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-card-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gallery-item-card.has-thumbnail .gallery-card-content {
+  padding: 1rem;
+}
+
+.gallery-item-card.has-thumbnail .antrag-card-date {
+  padding: 0 1rem 1rem;
+  border-top: none;
+  margin-top: 0;
+}
+
+.gallery-card-author {
+  font-size: 0.85rem;
+  color: var(--font-color-muted);
+  margin: 0.5rem 0 0 0;
+}
+
+.gallery-card-author a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.gallery-card-author a:hover {
+  text-decoration: underline;
+}
+
+.gallery-controls {
+  width: 100%;
+  max-width: 800px;
+}
+
+.gallery-controls-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  width: 100%;
+}
+
+.gallery-controls-row .search-bar-container {
+  flex: 1;
+}

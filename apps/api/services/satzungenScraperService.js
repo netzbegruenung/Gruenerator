@@ -1,0 +1,552 @@
+import * as cheerio from 'cheerio';
+import crypto from 'crypto';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+import { smartChunkDocument } from '../utils/textChunker.js';
+import { fastEmbedService } from './FastEmbedService.js';
+import { getQdrantInstance } from '../database/services/QdrantService.js';
+import { BRAND } from '../utils/domainUtils.js';
+
+const SATZUNGEN_SOURCES = [
+    // PDF Sources - Kreisverbände
+    { url: 'https://www.gruene-bielefeld.de/wp-content/uploads/2024/03/Satzung.pdf', city: 'Bielefeld', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-bochum.de/wp-content/uploads/2023/10/Satzung-Gruene-Bochum-2023_neu.pdf', city: 'Bochum', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-bonn.de/partei/wp-content/uploads/sites/3/2020/06/Satzung_GRUENE-Bonn.pdf', city: 'Bonn', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruene-dortmund.de/assets/ov-aplerbeck/assets/downloads/Satzung_KV_Dortmund___nach___nderung_JHV_2024__1.pdf', city: 'Dortmund', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-duisburg.de/wp-content/uploads/2025/03/Satzung-Stand-Mai-2024-1.pdf', city: 'Duisburg', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-dueren.de/files/2019/11/Satzung-KV-D%C3%BCren-laut-KMV-21.09.2018-1.pdf', city: 'Düren', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruene-duesseldorf.de/wp-content/uploads/2025/04/20250128_Satzung.pdf', city: 'Düsseldorf', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-essen.de/kreisverband/wp-content/uploads/sites/2/2023/01/SatzungKVEssen2012.pdf', city: 'Essen', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruene-gelsenkirchen.de/wp-content/uploads/2019/12/Satzung.pdf', city: 'Gelsenkirchen', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruene-kreisgt.de/wp-content/uploads/2022/03/Satzung-KV-Guetersloh-26.03.2022-2.pdf', city: 'Gütersloh', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-herne.de/wp-content/uploads/2020/05/Satzung-und-GO_20201905.pdf', city: 'Herne', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-hoexter.de/userspace/NW/kv_hoexter/Dokumente/Satzung_Beschluss_2014.pdf', city: 'Höxter', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruenekoeln.de/fileadmin/user_upload/GR%C3%9CNE_K%C3%B6ln_-_Satzung__25.03.2023_.pdf', city: 'Köln', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-muenster.de/wp-content/uploads/2025/07/2025-07-Satzung.pdf', city: 'Münster', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-oberberg.de/wp-content/uploads/2023/09/2023.03.24_Satzung-KV-Oberberg.pdf', city: 'Oberberg', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-oberhausen.de/userspace/NW/kv_oberhausen/Dokumente/Texte/Satzung_Stand_September_2025.pdf', city: 'Oberhausen', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruene-rkn.de/wp-content/uploads/2023/11/Satzung-KV-RKN.pdf', city: 'Rhein-Kreis Neuss', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-rhein-sieg.de/wp-content/uploads/2025/11/Satzung_KVRSK_25neu.pdf', city: 'Rhein-Sieg', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-rbk.de/userspace/NW/kv_rheinberg/Typo3/Kreisverband/Satzung/Satzung_Kreisverband_RBK_Stand__31_08_2024.pdf', city: 'Rheinisch-Bergischer Kreis', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://www.gruene-kreis-steinfurt.de/userspace/NW/kv_steinfurt/Dokumente/Neue_Satzung_KV_Steinfurt_-_01.10.2020.pdf', city: 'Steinfurt', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-kreis-warendorf.de/userspace/NW/kv_warendorf/Satzung/20201110_Satzung_KV_Warendorf.pdf', city: 'Warendorf', gremium: 'Kreisverband', format: 'pdf' },
+    { url: 'https://gruene-kvwuppertal.de/userspace/NW/kv_wuppertal/Dokumente/Satzung_01.02.24.pdf', city: 'Wuppertal', gremium: 'Kreisverband', format: 'pdf' },
+
+    // PDF Sources - Ortsverbände
+    { url: 'https://www.gruenekoeln.de/fileadmin/user_upload/Satzung_OV_1.pdf', city: 'Köln Innenstadt/Deutz', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://www.gruenekoeln.de/fileadmin/KV/Kreisverband/Veedel/OV2/OV2_-_Satzung_AKTUELL__ab_2022_.pdf', city: 'Köln Rodenkirchen', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://www.gruenekoeln.de/fileadmin/KV/Kreisverband/Veedel/OV5/SatzungOV5.pdf', city: 'Köln Nippes', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://www.gruenekoeln.de/fileadmin/user_upload/Satzung_Gruene_OV_Chorweiler_Endversion_2021.pdf', city: 'Köln Chorweiler', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://gruene-kleve.de/wp-content/uploads/2023/08/2023-08-22_Satzung_Gruener-OV-Kleve.pdf', city: 'Kleve', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://gruene-unna.de/wp-content/uploads/2025/09/satzung.pdf', city: 'Unna', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://www.gruene-wesel.de/wp-content/uploads/2025/05/Satzung_Stand-21.05.2025.pdf', city: 'Wesel', gremium: 'Ortsverband', format: 'pdf' },
+    { url: 'https://gruene-recklinghausen.de/wp-content/uploads/sites/261/2024/03/SatzungOVRecklinghausen.pdf', city: 'Recklinghausen', gremium: 'Ortsverband', format: 'pdf' },
+
+    // HTML Sources - Kreisverbände
+    { url: 'https://www.gruene-region-aachen.de/service/satzung', city: 'Aachen', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-kreis-borken.de/satzung-buendnis-90-die-gruenen-kreisverband-borken/', city: 'Borken', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.gruene-euskirchen.de/kreisverband/satzung/', city: 'Euskirchen', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.gruene-hamm.de/satzung/', city: 'Hamm', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-kreis-heinsberg.de/satzung-des-kreisverbandes-heinsberg/', city: 'Heinsberg', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-kreis-herford.de/satzung-von-buendnis-90-die-gruenen-kreisverband-herford/', city: 'Herford', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-hochsauerland.de/satzung-des-kreisverbandes/', city: 'Hochsauerlandkreis', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.gruene-krefeld.de/satzung-kv/', city: 'Krefeld', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-lev.de/satzung/', city: 'Leverkusen', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-lippe.de/kreisverband/satzung-und-ordnungen/satzung-kv-lippe/', city: 'Lippe', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.gruene-mk.de/kreisverband/satzung/', city: 'Märkischer Kreis', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://xn--grne-milk-r9a.de/satzung-des-kv-milk/', city: 'Minden-Lübbecke', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-mg.net/satzung-buendnis-90-die-gruenen-kreisverband-moenchengladbach', city: 'Mönchengladbach', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-mh.de/satzung/', city: 'Mülheim', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.padergruen.de/kreisverband/satzung-kreisverband/', city: 'Paderborn', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-recklinghausen.de/satzung-und-dokumente/', city: 'Recklinghausen', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-remscheid.de/partei-der-kreisverband/satzung', city: 'Remscheid', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.gruene-siegen-wittgenstein.de/ueber-uns/satzung/', city: 'Siegen-Wittgenstein', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://gruene-solingen.de/partei/satzung', city: 'Solingen', gremium: 'Kreisverband', format: 'html' },
+    { url: 'https://www.gruene-viersen.de/satzung/', city: 'Viersen', gremium: 'Kreisverband', format: 'html' },
+
+    // HTML Sources - Ortsverbände
+    { url: 'https://www.gruenekoeln.de/veedel/lindenthal/satzung', city: 'Köln Lindenthal', gremium: 'Ortsverband', format: 'html' },
+    { url: 'https://gruene-muenster-nord.de/satzung/', city: 'Münster Nord', gremium: 'Ortsverband', format: 'html' },
+    { url: 'https://gruene-muenster-west.de/?page_id=136', city: 'Münster West', gremium: 'Ortsverband', format: 'html' },
+    { url: 'https://www.gruene-hiltrup.de/ortsverband-hiltrup/satzung/', city: 'Münster Hiltrup', gremium: 'Ortsverband', format: 'html' }
+];
+
+class SatzungenScraperService {
+    constructor() {
+        this.collectionName = 'satzungen_documents';
+        this.landesverband = 'NRW';
+        this.qdrant = null;
+        this.mistralClient = null;
+        this.crawlDelay = 2000;
+        this.batchSize = 10;
+        this.timeout = 60000;
+        this.maxRetries = 3;
+        this.userAgent = BRAND?.botUserAgent || 'Gruenerator-Bot/1.0';
+    }
+
+    async init() {
+        this.qdrant = getQdrantInstance();
+        await this.qdrant.init();
+        await fastEmbedService.init();
+
+        const mod = await import('../workers/mistralClient.js');
+        this.mistralClient = mod.default || mod;
+
+        console.log('[Satzungen] Service initialized');
+    }
+
+    async delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    generateContentHash(text) {
+        return crypto.createHash('sha256')
+            .update(text)
+            .digest('hex')
+            .substring(0, 16);
+    }
+
+    generatePointId(url, chunkIndex) {
+        const combinedString = `satzung_${url}_${chunkIndex}`;
+        let hash = 0;
+        for (let i = 0; i < combinedString.length; i++) {
+            const char = combinedString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash);
+    }
+
+    async fetchUrl(url, retries = 0) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'User-Agent': this.userAgent,
+                    'Accept': '*/*',
+                    'Accept-Language': 'de-DE,de;q=0.9'
+                },
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (retries < this.maxRetries) {
+                await this.delay(1000 * (retries + 1));
+                return this.fetchUrl(url, retries + 1);
+            }
+            throw error;
+        }
+    }
+
+    async extractTextFromPdfWithMistral(pdfBuffer, filename) {
+        console.log(`[Satzungen] Extracting text from PDF with Mistral OCR: ${filename}`);
+
+        const base64 = pdfBuffer.toString('base64');
+        const dataUrl = `data:application/pdf;base64,${base64}`;
+
+        try {
+            const ocrResponse = await this.mistralClient.ocr.process({
+                model: 'mistral-ocr-latest',
+                document: { type: 'document_url', documentUrl: dataUrl },
+                include_image_base64: false
+            });
+
+            const pages = ocrResponse?.pages || [];
+            if (pages.length > 0) {
+                const text = pages.map(p => (p.markdown || p.text || '').trim()).filter(Boolean).join('\n\n');
+                console.log(`[Satzungen] Mistral OCR extracted ${text.length} chars from ${pages.length} pages`);
+                return { text, pageCount: pages.length };
+            }
+        } catch (e) {
+            console.warn('[Satzungen] Mistral OCR data-url attempt failed:', e.message);
+        }
+
+        // Fallback: Upload file to Mistral
+        let fileId;
+        try {
+            const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+            let res;
+            if (this.mistralClient.files?.upload) {
+                res = await this.mistralClient.files.upload({ file: { fileName: filename, content: blob } });
+            } else if (this.mistralClient.files?.create) {
+                res = await this.mistralClient.files.create({ file: { fileName: filename, content: blob } });
+            } else {
+                throw new Error('Mistral client does not expose a files upload method');
+            }
+            fileId = res?.id || res?.file?.id || res?.data?.id;
+        } catch (e) {
+            throw new Error(`Mistral file upload failed: ${e.message}`);
+        }
+
+        const ocrResponse = await this.mistralClient.ocr.process({
+            model: 'mistral-ocr-latest',
+            document: { type: 'file', fileId },
+            include_image_base64: false
+        });
+
+        const pages = ocrResponse?.pages || [];
+        const text = pages.map(p => (p.markdown || p.text || '').trim()).filter(Boolean).join('\n\n');
+        console.log(`[Satzungen] Mistral OCR (file upload) extracted ${text.length} chars from ${pages.length} pages`);
+        return { text, pageCount: pages.length };
+    }
+
+    extractContentFromHtml(html, url) {
+        const $ = cheerio.load(html);
+
+        $('script, style, noscript, iframe, nav, header, footer').remove();
+        $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
+        $('[role="navigation"], [role="banner"], [role="contentinfo"]').remove();
+        $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
+        $('.social-share, .share-buttons, .related-content').remove();
+
+        const title = $('meta[property="og:title"]').attr('content') ||
+                     $('h1.page-title').first().text().trim() ||
+                     $('h1').first().text().trim() ||
+                     $('title').text().trim();
+
+        const contentSelectors = [
+            '.satzung', '.satzung-content', '.entry-content',
+            '.field--name-body', '.node__content', 'article .content',
+            '.article-content', '.main-content', 'main article',
+            '.text-content', '[role="main"]', '.page-content',
+            '.content-area', 'article', 'main'
+        ];
+
+        let contentText = '';
+        for (const selector of contentSelectors) {
+            const el = $(selector);
+            if (el.length && el.text().trim().length > 200) {
+                contentText = el.text();
+                break;
+            }
+        }
+
+        if (!contentText || contentText.trim().length < 200) {
+            contentText = $('main').text() || $('body').text();
+        }
+
+        contentText = contentText
+            .replace(/\s+/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        return { title, text: contentText };
+    }
+
+    async documentExists(url) {
+        try {
+            const result = await this.qdrant.client.scroll(this.collectionName, {
+                filter: {
+                    must: [{ key: 'source_url', match: { value: url } }]
+                },
+                limit: 1,
+                with_payload: ['content_hash', 'indexed_at'],
+                with_vector: false
+            });
+
+            if (result.points && result.points.length > 0) {
+                return result.points[0].payload;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }
+
+    async deleteDocument(url) {
+        await this.qdrant.client.delete(this.collectionName, {
+            filter: {
+                must: [{ key: 'source_url', match: { value: url } }]
+            }
+        });
+    }
+
+    async processAndStoreDocument(source, text, title) {
+        if (!text || text.length < 100) {
+            return { stored: false, reason: 'too_short' };
+        }
+
+        const contentHash = this.generateContentHash(text);
+
+        const existing = await this.documentExists(source.url);
+        if (existing && existing.content_hash === contentHash) {
+            return { stored: false, reason: 'unchanged' };
+        }
+
+        if (existing) {
+            await this.deleteDocument(source.url);
+        }
+
+        const documentTitle = title || `Satzung ${source.gremium} ${source.city}`;
+
+        const chunks = await smartChunkDocument(text, {
+            baseMetadata: {
+                title: documentTitle,
+                source: 'satzungen_gruene',
+                source_url: source.url
+            }
+        });
+
+        if (chunks.length === 0) {
+            return { stored: false, reason: 'no_chunks' };
+        }
+
+        const chunkTexts = chunks.map(c => c.text || c.chunk_text);
+        const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
+
+        const points = chunks.map((chunk, index) => ({
+            id: this.generatePointId(source.url, index),
+            vector: embeddings[index],
+            payload: {
+                document_id: `satzung_${contentHash}`,
+                source_url: source.url,
+                content_hash: contentHash,
+                chunk_index: index,
+                chunk_text: chunkTexts[index],
+                title: documentTitle,
+                landesverband: this.landesverband,
+                gremium: source.gremium,
+                city: source.city,
+                source: 'satzungen_gruene',
+                indexed_at: new Date().toISOString()
+            }
+        }));
+
+        for (let i = 0; i < points.length; i += 10) {
+            const batch = points.slice(i, i + 10);
+            await this.qdrant.client.upsert(this.collectionName, { points: batch });
+        }
+
+        return { stored: true, chunks: chunks.length, vectors: points.length, updated: !!existing };
+    }
+
+    async processPdfSource(source) {
+        const response = await this.fetchUrl(source.url);
+        const arrayBuffer = await response.arrayBuffer();
+        const pdfBuffer = Buffer.from(arrayBuffer);
+
+        const filename = source.url.split('/').pop() || 'satzung.pdf';
+        const { text } = await this.extractTextFromPdfWithMistral(pdfBuffer, filename);
+
+        return this.processAndStoreDocument(source, text, null);
+    }
+
+    async processHtmlSource(source) {
+        const response = await this.fetchUrl(source.url);
+        const html = await response.text();
+
+        const { title, text } = this.extractContentFromHtml(html, source.url);
+
+        return this.processAndStoreDocument(source, text, title);
+    }
+
+    async fullCrawl(options = {}) {
+        const { forceUpdate = false, maxDocuments = null } = options;
+        const startTime = Date.now();
+
+        console.log('\n[Satzungen] ═══════════════════════════════════════');
+        console.log('[Satzungen] Starting full crawl');
+        console.log(`[Satzungen] Force update: ${forceUpdate}`);
+        console.log(`[Satzungen] Total sources: ${SATZUNGEN_SOURCES.length}`);
+        if (maxDocuments) console.log(`[Satzungen] Max documents: ${maxDocuments}`);
+        console.log('[Satzungen] ═══════════════════════════════════════\n');
+
+        const result = {
+            totalSources: SATZUNGEN_SOURCES.length,
+            stored: 0,
+            updated: 0,
+            skipped: 0,
+            errors: 0,
+            totalVectors: 0,
+            duration: 0,
+            skipReasons: {
+                too_short: { count: 0, examples: [] },
+                no_chunks: { count: 0, examples: [] },
+                unchanged: { count: 0, examples: [] },
+                fetch_error: { count: 0, examples: [] }
+            }
+        };
+
+        const sourcesToProcess = maxDocuments ? SATZUNGEN_SOURCES.slice(0, maxDocuments) : SATZUNGEN_SOURCES;
+
+        for (let i = 0; i < sourcesToProcess.length; i++) {
+            const source = sourcesToProcess[i];
+
+            try {
+                if (!forceUpdate) {
+                    const existing = await this.documentExists(source.url);
+                    if (existing) {
+                        result.skipped++;
+                        result.skipReasons.unchanged.count++;
+                        console.log(`[Satzungen] ○ [${i + 1}/${sourcesToProcess.length}] Skipped (unchanged): ${source.city}`);
+                        continue;
+                    }
+                }
+
+                let processResult;
+                if (source.format === 'pdf') {
+                    processResult = await this.processPdfSource(source);
+                } else {
+                    processResult = await this.processHtmlSource(source);
+                }
+
+                if (processResult.stored) {
+                    if (processResult.updated) {
+                        result.updated++;
+                    } else {
+                        result.stored++;
+                    }
+                    result.totalVectors += processResult.vectors;
+                    console.log(`[Satzungen] ✓ [${i + 1}/${sourcesToProcess.length}] ${source.gremium} ${source.city} (${processResult.chunks} chunks)`);
+                } else {
+                    result.skipped++;
+                    const reason = processResult.reason;
+                    if (result.skipReasons[reason]) {
+                        result.skipReasons[reason].count++;
+                        if (result.skipReasons[reason].examples.length < 5) {
+                            result.skipReasons[reason].examples.push(source.url);
+                        }
+                    }
+                    console.log(`[Satzungen] ○ [${i + 1}/${sourcesToProcess.length}] Skipped (${reason}): ${source.city}`);
+                }
+
+            } catch (error) {
+                console.error(`[Satzungen] ✗ Error ${source.city}: ${error.message}`);
+                result.errors++;
+                result.skipReasons.fetch_error.count++;
+                if (result.skipReasons.fetch_error.examples.length < 5) {
+                    result.skipReasons.fetch_error.examples.push(source.url);
+                }
+            }
+
+            await this.delay(this.crawlDelay);
+        }
+
+        result.duration = Math.round((Date.now() - startTime) / 1000);
+
+        console.log('\n[Satzungen] ═══════════════════════════════════════');
+        console.log(`[Satzungen] COMPLETED: ${result.stored} new, ${result.updated} updated (${result.totalVectors} vectors)`);
+        console.log(`[Satzungen] Skipped: ${result.skipped}, Errors: ${result.errors}`);
+        console.log(`[Satzungen] Duration: ${result.duration}s`);
+
+        if (result.skipped > 0) {
+            console.log('\n[Satzungen] Skip Breakdown:');
+            const sr = result.skipReasons;
+            if (sr.unchanged.count > 0) console.log(`  • Unchanged: ${sr.unchanged.count}`);
+            if (sr.too_short.count > 0) console.log(`  • Too short: ${sr.too_short.count}`);
+            if (sr.no_chunks.count > 0) console.log(`  • No chunks: ${sr.no_chunks.count}`);
+            if (sr.fetch_error.count > 0) console.log(`  • Fetch errors: ${sr.fetch_error.count}`);
+        }
+
+        console.log('[Satzungen] ═══════════════════════════════════════');
+
+        return result;
+    }
+
+    async searchDocuments(query, options = {}) {
+        const { gremium = null, city = null, limit = 10, threshold = 0.35 } = options;
+
+        const queryVector = await fastEmbedService.generateQueryEmbedding(query);
+
+        const filter = { must: [] };
+        if (gremium) {
+            filter.must.push({ key: 'gremium', match: { value: gremium } });
+        }
+        if (city) {
+            filter.must.push({ key: 'city', match: { value: city } });
+        }
+
+        const searchResult = await this.qdrant.client.search(this.collectionName, {
+            vector: queryVector,
+            filter: filter.must.length > 0 ? filter : undefined,
+            limit: limit * 3,
+            score_threshold: threshold,
+            with_payload: true
+        });
+
+        const documentsMap = new Map();
+        for (const hit of searchResult) {
+            const docId = hit.payload.document_id;
+            if (!documentsMap.has(docId)) {
+                documentsMap.set(docId, {
+                    id: docId,
+                    score: hit.score,
+                    title: hit.payload.title,
+                    gremium: hit.payload.gremium,
+                    city: hit.payload.city,
+                    landesverband: hit.payload.landesverband,
+                    source_url: hit.payload.source_url,
+                    matchedChunk: hit.payload.chunk_text
+                });
+            }
+
+            if (documentsMap.size >= limit) break;
+        }
+
+        return {
+            results: Array.from(documentsMap.values()),
+            total: documentsMap.size
+        };
+    }
+
+    async getStats() {
+        try {
+            const info = await this.qdrant.client.getCollection(this.collectionName);
+            return {
+                collection: this.collectionName,
+                vectors_count: info.vectors_count,
+                points_count: info.points_count,
+                status: info.status
+            };
+        } catch (error) {
+            return { error: error.message };
+        }
+    }
+
+    async clearCollection() {
+        console.log('[Satzungen] Clearing all documents...');
+        try {
+            let offset = null;
+            const points = [];
+
+            do {
+                const result = await this.qdrant.client.scroll(this.collectionName, {
+                    limit: 100,
+                    offset: offset,
+                    with_payload: false,
+                    with_vector: false
+                });
+
+                points.push(...result.points.map(p => p.id));
+                offset = result.next_page_offset;
+            } while (offset);
+
+            if (points.length > 0) {
+                for (let i = 0; i < points.length; i += 100) {
+                    const batch = points.slice(i, i + 100);
+                    await this.qdrant.client.delete(this.collectionName, {
+                        points: batch
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('[Satzungen] Clear failed:', error.message);
+        }
+        console.log('[Satzungen] Collection cleared');
+    }
+}
+
+export const satzungenScraperService = new SatzungenScraperService();
+export default satzungenScraperService;

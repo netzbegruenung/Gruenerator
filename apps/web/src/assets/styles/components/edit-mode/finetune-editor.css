@@ -1,0 +1,353 @@
+/* Finetune Editor - MDXEditor Styles */
+
+.finetune-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 300px;
+  background: var(--background-color-pure);
+  border-radius: var(--border-radius-medium);
+  overflow: hidden;
+  overflow-anchor: none;
+}
+
+/* MDXEditor root container */
+.finetune-editor .mdxeditor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: var(--font-family);
+  background: var(--background-color-pure);
+  color: var(--font-color);
+}
+
+/* Toolbar styling - positioned at top alongside action buttons */
+.finetune-editor [class*="_toolbarRoot_"] {
+  position: absolute;
+  top: var(--spacing-responsive-large);
+  left: var(--spacing-responsive-large);
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+  color: var(--font-color);
+  z-index: 10;
+  height: 40px;
+}
+
+/* Toolbar button groups */
+.finetune-editor [class*="_toolbarGroupOfGroups_"],
+.finetune-editor [class*="_toolbarToggleGroup_"] {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+/* Toolbar buttons */
+.finetune-editor [class*="_toolbarButton_"],
+.finetune-editor button[class*="_iconButton_"],
+.finetune-editor .mdxeditor button {
+  background: transparent;
+  color: var(--font-color);
+  border: none;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.finetune-editor [class*="_toolbarButton_"] svg,
+.finetune-editor button[class*="_iconButton_"] svg,
+.finetune-editor .mdxeditor button svg,
+.finetune-editor .mdxeditor svg {
+  width: 18px;
+  height: 18px;
+  color: var(--font-color);
+  fill: var(--font-color);
+  stroke: var(--font-color);
+}
+
+/* Target SVG path elements directly */
+.finetune-editor .mdxeditor svg path,
+.finetune-editor [class*="_toolbarButton_"] svg path,
+.finetune-editor button svg path {
+  fill: var(--font-color);
+  stroke: none;
+}
+
+.finetune-editor [class*="_toolbarButton_"]:hover,
+.finetune-editor button[class*="_iconButton_"]:hover {
+  opacity: 0.7;
+}
+
+.finetune-editor [class*="_toolbarButton_"][data-state="on"],
+.finetune-editor button[class*="_iconButton_"][data-state="on"] {
+  color: var(--tanne);
+}
+
+.finetune-editor [class*="_toolbarButton_"][data-state="on"] svg,
+.finetune-editor button[class*="_iconButton_"][data-state="on"] svg {
+  color: var(--tanne);
+  fill: var(--tanne);
+  stroke: var(--tanne);
+}
+
+/* Block type select */
+.finetune-editor [class*="_selectContainer_"] {
+  display: flex;
+  align-items: center;
+}
+
+.finetune-editor [class*="_selectTrigger_"] {
+  background: transparent;
+  color: var(--font-color);
+  border: none;
+  padding: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+.finetune-editor [class*="_selectTrigger_"]:hover {
+  opacity: 0.7;
+}
+
+.finetune-editor [class*="_selectTrigger_"] svg {
+  width: 16px;
+  height: 16px;
+  color: var(--font-color);
+  fill: var(--font-color);
+  stroke: var(--font-color);
+}
+
+/* Prevent layout shift when select dropdown opens */
+.finetune-editor [class*="_selectContent_"],
+.finetune-editor [class*="_selectViewport_"] {
+  overflow-anchor: none;
+}
+
+/* Ensure select dropdown doesn't trigger scroll adjustments */
+.finetune-editor [class*="_selectTrigger_"]:focus {
+  scroll-margin: 0;
+}
+
+.finetune-editor [class*="_selectTrigger_"]:focus-visible {
+  outline: none;
+}
+
+/* Prevent toolbar from triggering focus-based scroll */
+.finetune-editor [class*="_toolbarRoot_"] {
+  scroll-margin: 0;
+}
+
+.finetune-editor [class*="_toolbarRoot_"] * {
+  scroll-margin: 0;
+}
+
+/* Prevent any element from being scrolled into view when focused */
+.finetune-editor [class*="_toolbarRoot_"] [data-state] {
+  scroll-margin: 0;
+}
+
+/* Stabilize select trigger during dropdown state changes */
+.finetune-editor [class*="_selectTrigger_"][data-state="open"],
+.finetune-editor [class*="_selectTrigger_"][data-state="closed"] {
+  transform: none;
+  will-change: auto;
+}
+
+/* Override MDXEditor's filter on open select (can cause layout shifts) */
+.finetune-editor [class*="_selectTrigger_"][data-state="open"] {
+  filter: none;
+}
+
+/* Content area */
+.finetune-editor [class*="_contentEditable_"],
+.finetune-editor .finetune-editor-content {
+  flex: 1;
+  padding: var(--spacing-medium);
+  overflow-y: auto;
+  overflow-anchor: none;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--font-color);
+  background: var(--background-color-pure);
+}
+
+.finetune-editor [class*="_contentEditable_"]:focus,
+.finetune-editor .finetune-editor-content:focus {
+  outline: none;
+}
+
+/* Typography in editor */
+.finetune-editor h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: var(--spacing-medium) 0 var(--spacing-small);
+  color: var(--font-color);
+}
+
+.finetune-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: var(--spacing-medium) 0 var(--spacing-small);
+  color: var(--font-color);
+}
+
+.finetune-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: var(--spacing-small) 0 var(--spacing-xxsmall);
+  color: var(--font-color);
+}
+
+.finetune-editor p {
+  margin: 0 0 var(--spacing-small);
+}
+
+.finetune-editor ul,
+.finetune-editor ol {
+  margin: var(--spacing-small) 0;
+  padding-left: var(--spacing-large);
+}
+
+.finetune-editor li {
+  margin-bottom: var(--spacing-xxsmall);
+}
+
+.finetune-editor a {
+  color: var(--tanne);
+  text-decoration: underline;
+}
+
+.finetune-editor a:hover {
+  color: var(--tanne-dark);
+}
+
+.finetune-editor strong {
+  font-weight: 600;
+}
+
+.finetune-editor em {
+  font-style: italic;
+}
+
+/* Link dialog styling */
+.finetune-editor [class*="_dialogContent_"] {
+  background: var(--background-color-pure);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-medium);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-medium);
+}
+
+.finetune-editor [class*="_dialogContent_"] input {
+  background: var(--background-color);
+  color: var(--font-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.finetune-editor [class*="_dialogContent_"] input:focus {
+  outline: none;
+  border-color: var(--tanne);
+}
+
+.finetune-editor [class*="_dialogContent_"] button {
+  background: var(--tanne);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-small);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.finetune-editor [class*="_dialogContent_"] button:hover {
+  background: var(--tanne-dark);
+}
+
+/* Placeholder text */
+.finetune-editor [data-placeholder]::before {
+  color: var(--font-color-secondary);
+  opacity: 0.6;
+}
+
+/* Read-only mode - hide toolbar and adjust styling */
+.finetune-editor[data-readonly="true"] [class*="_toolbarRoot_"] {
+  display: none;
+}
+
+.finetune-editor[data-readonly="true"] {
+  min-height: auto;
+  border-radius: 0;
+  background: transparent;
+}
+
+.finetune-editor[data-readonly="true"] .mdxeditor {
+  background: transparent;
+}
+
+.finetune-editor[data-readonly="true"] .finetune-editor-content,
+.finetune-editor[data-readonly="true"] [class*="_contentEditable_"] {
+  padding: 0;
+  background: transparent;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .finetune-editor [class*="_dialogContent_"] {
+  background: var(--dunkelgrau);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .finetune-editor {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .finetune-editor [class*="_toolbarRoot_"] {
+    position: static;
+    top: auto;
+    left: auto;
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+    background: var(--background-color);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 2px;
+    height: auto;
+  }
+
+  .finetune-editor [class*="_toolbarGroupOfGroups_"],
+  .finetune-editor [class*="_toolbarToggleGroup_"] {
+    gap: 0;
+  }
+
+  .finetune-editor [class*="_toolbarButton_"],
+  .finetune-editor button[class*="_iconButton_"],
+  .finetune-editor .mdxeditor button {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+
+
+  .finetune-editor [class*="_contentEditable_"],
+  .finetune-editor .finetune-editor-content {
+    padding: var(--spacing-small);
+    font-size: 16px; /* Prevent iOS zoom on focus */
+    -webkit-overflow-scrolling: touch;
+  }
+}

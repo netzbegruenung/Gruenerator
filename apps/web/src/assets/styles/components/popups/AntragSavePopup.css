@@ -1,0 +1,161 @@
+.antrag-save-popup-content {
+  font-family: inherit;
+  padding: var(--spacing-large);
+  background: var(--background-color);
+  color: var(--font-color);
+  border-radius: var(--border-radius-medium, 8px);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  max-width: 600px;
+  width: 90%;
+  margin: auto;
+  position: relative;
+  overflow-y: auto;
+  max-height: 85vh;
+}
+
+.antrag-save-popup-content h2 {
+  color: var(--font-color-h);
+  margin-top: 0;
+  margin-bottom: var(--spacing-small);
+  font-weight: bold;
+  font-size: 1.5em;
+  padding-bottom: var(--spacing-small);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.antrag-save-popup-content p {
+  margin-top: var(--spacing-medium);
+  margin-bottom: var(--spacing-large);
+  color: var(--font-color);
+  line-height: 1.6;
+}
+
+.antrag-save-popup-content .form-field {
+  margin-bottom: var(--spacing-medium);
+}
+
+.antrag-save-popup-content .form-field label {
+  display: block;
+  margin-bottom: var(--spacing-xsmall);
+  font-weight: bold;
+  color: var(--font-color);
+  font-size: 0.9em;
+}
+
+.antrag-save-popup-content .form-field .form-input,
+.antrag-save-popup-content .form-field .form-select,
+/* AntragSavePopup textarea styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
+.antrag-save-popup-content .form-field .form-textarea {
+  font-family: 'PT Sans', Arial, sans-serif;
+  width: 100%;
+  padding: var(--spacing-small);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-small, 4px);
+  box-sizing: border-box;
+  font-size: 0.9em;
+  outline: none;
+  color: var(--font-color);
+  background-color: var(--background-color-alt);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  resize: vertical;
+}
+*/
+
+
+.antrag-save-popup-content .form-field .form-checkbox {
+  accent-color: var(--klee);
+  width: 1.2em;
+  height: 1.2em;
+  cursor: pointer;
+  margin: 0;
+
+  position: relative;
+}
+
+
+.antrag-save-popup-content .form-field .checkbox-label {
+  cursor: pointer;
+  color: var(--font-color);
+  font-size: 0.9em;
+  margin-left: var(--spacing-xsmall);
+
+
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+
+/* AntragSavePopup input focus styles - DISABLED to prevent conflicts with main form-inputs.css */
+/*
+.antrag-save-popup-content .form-field .form-input:focus,
+.antrag-save-popup-content .form-field .form-select:focus,
+.antrag-save-popup-content .form-field .form-textarea:focus {
+  border-color: var(--klee);
+}
+*/
+
+.antrag-save-popup-content .modal-actions {
+  margin-top: var(--spacing-large);
+  padding-top: var(--spacing-medium);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-small);
+}
+
+
+.antrag-save-popup-content .modal-actions .button.secondary {
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--background-color-alt);
+  color: var(--font-color);
+  border-radius: var(--border-radius-small, 4px);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-weight: bold;
+}
+
+.antrag-save-popup-content .modal-actions .button.secondary:hover:not(:disabled) {
+  background-color: var(--border-subtle);
+}
+
+
+.antrag-save-popup-content .modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+.antrag-save-popup-overlay {
+  background-color: rgba(0, 0, 0, 0.6);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.antrag-save-popup-content .ai-description-link {
+  text-decoration: none;
+  color: var(--color-primary, #46962b);
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: inline-block;
+  margin-left: auto;
+  margin-top: var(--spacing-xxsmall);
+}
+
+.antrag-save-popup-content .ai-description-link-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-xxsmall);
+}
+
+.antrag-save-popup-content .ai-description-link[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.7;
+}

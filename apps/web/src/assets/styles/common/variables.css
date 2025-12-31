@@ -1,0 +1,317 @@
+:root {
+    /* Base Colors */
+    --black: #000000;
+    --white: #ffffff;
+    
+    /* Primary Color System (Phtalo Green) - Primary digital interaction color */
+    --primary-50: #F0F8F4;
+    --primary-100: #D8F0E6;
+    --primary-200: #B1E0C9;  /* Jet stream */
+    --primary-300: #8AC9B0;
+    --primary-400: #6BAA91;
+    --primary-500: #52907A;
+    --primary-600: #316049;  /* Base "Deep moss green" color */
+    --primary-700: #285040;
+    --primary-800: #1F3F33;
+    --primary-900: #1A332A;
+    --primary-950: #123624;  /* Phtalo green */
+
+    /* Secondary Color System ("Eucalyptus") */
+    --secondary-50: #F0F4F3;
+    --secondary-100: #D5E1DC;
+    --secondary-200: #BACEC6;
+    --secondary-300: #A0BBB0;
+    --secondary-400: #85A899;
+    --secondary-500: #6A9583;
+    --secondary-600: #5F8575;  /* Base "Eucalyptus" color */
+    --secondary-700: #445F54;
+    --secondary-800: #31453C;
+    --secondary-900: #1E2A25;
+    --secondary-950: #0B0F0D;
+    
+    /* Grey Color System */
+    --grey-50: #f9f9f9;
+    --grey-100: #efefef;
+    --grey-200: #dcdcdc;
+    --grey-300: #bdbdbd;
+    --grey-400: #989898;
+    --grey-500: #7c7c7c;
+    --grey-600: #656565;
+    --grey-700: #525252;
+    --grey-800: #464646;
+    --grey-900: #3d3d3d;
+    --grey-950: #262626;
+    
+    /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
+    --neutral-500: #f8f4ec;
+    --neutral-600: #F5F1E9;  /* Base "Sand" color */
+    --neutral-700: #e8e0d4;
+    
+    /* Semantic color mapping based on brand guidelines */
+    --eucalyptus: var(--secondary-600);  /* Eucalyptus - secondary color */
+
+    /* Legacy compatibility - maintaining old variable names */
+    --primary: var(--primary-600);
+    --klee: var(--primary-500);
+    --secondary: var(--secondary-600);
+    --sand: var(--neutral-600);
+
+    --weiß: var(--white);
+    --dunkelgruen: var(--primary-700);
+    --dunkelgruen-alt: var(--primary-800);
+    --error-red: #D32F2F;
+
+    --backgroundgruen: var(--primary-50);
+    --backgroundgruen-dark: var(--primary-100);
+    --background-red-light: #f5e8e8; /* Very light red for preview mode */
+    --dunkelgrau: var(--grey-900);
+    --anthrazit: var(--grey-950);
+
+    /* Semantic Color Variables - Theme-aware */
+    --background-color: var(--white);
+    --background-color-pure: var(--white);
+    --background-color-alt: var(--backgroundgruen);
+    --background-color-sand: var(--neutral-600);
+    --hover-color-alt: var(--secondary-50);
+    --font-color: var(--grey-800);
+    --font-color-green: var(--primary-600);
+    --font-color-h: var(--grey-800);
+    --font-color-h3: var(--grey-800);
+    --link-color: var(--primary-600);
+    --button-background-color: var(--grey-200);
+    --button-color: var(--primary-600);
+    --button-color-hover: var(--neutral-600);
+    --button-text-color: var(--black);
+    --button-hover-color: var(--secondary-50);
+
+    /* Desktop app bar backgrounds */
+    --bar-background: var(--secondary-50);
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.15);
+    --border-subtle: 1px solid rgba(0, 0, 0, 0.1);
+
+    /* Overlay variables */
+    --overlay-dark-sm: rgba(0, 0, 0, 0.4);
+    --overlay-dark-md: rgba(0, 0, 0, 0.65);
+    --overlay-dark-lg: rgba(0, 0, 0, 0.85);
+    
+    --spacing-xxsmall: 4px;
+    --spacing-xsmall: 8px;
+    --spacing-small: 12px;
+    --spacing-medium: 16px;
+    --spacing-large: 24px;
+    --spacing-xlarge: 32px;
+    --spacing-xxlarge: 48px;
+    
+    /* Responsive spacing multipliers */
+    --spacing-multiplier: 1;
+    --spacing-responsive-xxsmall: calc(var(--spacing-xxsmall) * var(--spacing-multiplier));
+    --spacing-responsive-xsmall: calc(var(--spacing-xsmall) * var(--spacing-multiplier));
+    --spacing-responsive-small: calc(var(--spacing-small) * var(--spacing-multiplier));
+    --spacing-responsive-medium: calc(var(--spacing-medium) * var(--spacing-multiplier));
+    --spacing-responsive-large: calc(var(--spacing-large) * var(--spacing-multiplier));
+    --spacing-responsive-xlarge: calc(var(--spacing-xlarge) * var(--spacing-multiplier));
+    --spacing-responsive-xxlarge: calc(var(--spacing-xxlarge) * var(--spacing-multiplier));
+
+    /* Container max-width variable */
+    --container-max-width: 1200px;
+    
+    --interactive-accent-color: var(--secondary-600);
+    --font-color-disabled: var(--grey-400);
+    --border-color-disabled: var(--grey-200);
+
+    /* Scrollbar variables */
+    --scrollbar-track-color: var(--background-color-alt);
+    --scrollbar-thumb-color: var(--grey-600);
+    --scrollbar-thumb-hover-color: var(--grey-700);
+
+
+    /* Card Styles */
+    --card-border-radius-small: 8px;
+    --card-border-radius-medium: 12px;
+    --card-border-radius-large: 16px;
+    --card-shadow-none: none;
+    --card-shadow-subtle: var(--shadow-sm);
+    --card-shadow-elevated: var(--shadow-md);
+    --card-shadow-floating: var(--shadow-lg);
+    --card-shadow-dramatic: var(--shadow-xl);
+    --card-background: var(--background-color);
+    --card-background-alt: var(--background-color-alt);
+    --card-border: var(--border-subtle);
+    --card-hover-shadow: var(--shadow-xl);
+    --card-hover-transform: translateY(-2px);
+
+    /* Form Input Styles */
+    --input-background: var(--grey-100);
+    --input-border: var(--border-subtle);
+    --input-border-focus: 2px solid var(--interactive-accent-color);
+    --input-border-error: 2px solid var(--error-red);
+    --input-text-color: var(--font-color);
+    --input-placeholder-color: var(--font-color-disabled);
+    --input-shadow-focus: 0 0 0 3px rgba(0, 85, 56, 0.1);
+    --input-transition: all 0.25s ease-out;
+
+    /* Form Element Dimensions */
+    --form-element-font-size: 14px;
+    --form-element-line-height: 1.5;
+    --form-element-padding-y: var(--spacing-responsive-small);
+    --form-element-padding-x: var(--spacing-responsive-small);
+    --form-element-min-height: 44px;
+}
+
+
+[data-theme="dark"] {
+    --background-color: var(--grey-950);
+    --background-color-pure: var(--grey-900);
+    --background-color-alt: var(--grey-800);
+    --background-color-sand: var(--grey-950);
+    --hover-color-alt: var(--grey-700);
+    --font-color: var(--neutral-600);
+    --font-color-h: var(--neutral-600);
+    --font-color-h3: var(--neutral-600);
+    --link-color: var(--neutral-600);
+    --button-background-color: var(--secondary-600);
+    --button-color: var(--neutral-600);
+    --button-color-hover: var(--primary-600);
+    --button-text-color: var(--white);
+    --button-hover-color: var(--grey-700);
+
+    /* Desktop app bar backgrounds */
+    --bar-background: var(--grey-900);
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+
+    
+    --interactive-accent-color: var(--white);
+    --font-color-disabled: var(--grey-500);
+    --border-color-disabled: var(--grey-600);
+
+    /* Scrollbar variables for dark theme */
+    --scrollbar-track-color: var(--background-color-alt);
+    --scrollbar-thumb-color: var(--neutral-600);
+    --scrollbar-thumb-hover-color: var(--white);
+
+
+    /* Form Input Styles for dark theme */
+    --input-background: var(--background-color-alt);
+}
+
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --background-color: var(--grey-950);
+        --background-color-pure: var(--grey-900);
+        --background-color-alt: var(--grey-800);
+        --background-color-sand: var(--secondary-700);
+        --hover-color-alt: var(--grey-700);
+        --font-color: var(--neutral-600);
+        --font-color-h: var(--neutral-600);
+        --font-color-green: var(--neutral-600)
+        --font-color-h3: var(--neutral-600);
+        --link-color: var(--neutral-600);
+        --button-background-color: var(--secondary-600);
+        --button-color: var(--neutral-600);
+        --button-color-hover: var(--primary-600);
+        --button-text-color: var(--white);
+        --button-hover-color: var(--grey-700);
+
+        /* Desktop app bar backgrounds */
+        --bar-background: var(--grey-900);
+
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.5);
+        --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+        --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
+
+        --interactive-accent-color: var(--white);
+        --font-color-disabled: var(--grey-500);
+        --border-color-disabled: var(--grey-600);
+
+        /* Scrollbar variables for prefers-color-scheme: dark */
+        --scrollbar-track-color: var(--background-color-alt);
+        --scrollbar-thumb-color: var(--neutral-600);
+        --scrollbar-thumb-hover-color: var(--white);
+
+
+        /* Form Input Styles for prefers-color-scheme: dark */
+        --input-background: var(--background-color-alt);
+    }
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--font-color);
+    transition: background-color 0.5s, color 0.5s;
+}
+
+a {
+    color: var(--link-color);
+    transition: color 0.5s;
+}
+
+button {
+    color: var(--button-text-color);
+    transition: background-color 0.5s, color 0.5s;
+}
+
+.container {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+/* Responsive breakpoints for spacing multipliers and container sizing */
+@media (min-width: 1280px) {
+    :root {
+        --spacing-multiplier: 1.15;
+        --container-max-width: 1400px;
+        --form-element-font-size: 15px;
+        --form-element-min-height: 46px;
+    }
+}
+
+@media (min-width: 1440px) {
+    :root {
+        --spacing-multiplier: 1.25;
+        --container-max-width: 1600px;
+        --form-element-font-size: 15.5px;
+        --form-element-min-height: 48px;
+    }
+}
+
+@media (min-width: 1920px) {
+    :root {
+        --spacing-multiplier: 1.35;
+        --container-max-width: 1800px;
+        --form-element-font-size: 16px;
+        --form-element-min-height: 50px;
+    }
+}
+
+@media (min-width: 2560px) {
+    :root {
+        --spacing-multiplier: 1.5;
+        --container-max-width: 2000px;
+        --form-element-font-size: 17px;
+        --form-element-min-height: 52px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        margin-top: 0; 
+        margin-bottom: 0px;
+    }
+}

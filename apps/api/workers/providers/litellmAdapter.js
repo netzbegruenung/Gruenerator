@@ -1,0 +1,79 @@
+const { getLiteLlmClient } = require('../clients/liteLlmClient');
+const { mergeMetadata } = require('./adapterUtils');
+const ToolHandler = require('../../services/toolHandler');
+
+async function execute(requestId, data) {
+  const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
+  // Use GPT-OSS 120B as the default model for LiteLLM
+  let model = options.model || 'gpt-oss:120b';
+  const modelStr = String(model).toLowerCase();
+  // Override incompatible models to use gpt-oss:120b
+  const looksIncompatible = /mistral|mixtral|gpt-4|gpt-3|claude|anthropic|bedrock|openai/.test(modelStr);
+  if (looksIncompatible && !modelStr.includes('gpt-oss')) {
+    model = 'gpt-oss:120b';
+  }
+
+  const client = getLiteLlmClient();
+
+  const litellmMessages = [];
+  if (systemPrompt) litellmMessages.push({ role: 'system', content: systemPrompt });
+  if (messages) {
+    messages.forEach(msg => {
+      litellmMessages.push({
+        role: msg.role,
+        content: typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? msg.content.map(c => c.text || c.content || '').join('\n')
+            : String(msg.content)
+      });
+    });
+  }
+
+  const litellmConfig = {
+    model,
+    messages: litellmMessages,
+    max_tokens: options.max_tokens || 4096,
+    temperature: options.temperature || 0.7,
+    top_p: options.top_p || 1.0,
+    stream: false
+  };
+
+  const toolsPayload = ToolHandler.prepareToolsPayload(options, 'litellm', requestId, type);
+  if (toolsPayload.tools) {
+    litellmConfig.tools = toolsPayload.tools;
+    if (toolsPayload.tool_choice) litellmConfig.tool_choice = toolsPayload.tool_choice;
+  }
+
+  const response = await client.chat.completions.create(litellmConfig);
+  const choice = response.choices?.[0];
+  const responseContent = choice?.message?.content || null;
+  const toolCalls = choice?.message?.tool_calls || [];
+  const stopReason = choice?.finish_reason || 'stop';
+
+  // Throw error on empty response to trigger fallback
+  // Tool use responses don't require content
+  const isToolUseResponse = stopReason === 'tool_use' || (toolCalls && toolCalls.length > 0);
+  if (!responseContent && !isToolUseResponse) {
+    const errorMsg = `Empty response from LiteLLM model=${response.model || model}`;
+    console.error(`[LiteLLM ${requestId}] ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  return {
+    content: responseContent,
+    stop_reason: stopReason,
+    tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+    raw_content_blocks: [{ type: 'text', text: responseContent }],
+    success: true,
+    metadata: mergeMetadata(requestMetadata, {
+      provider: 'litellm',
+      model: response.model || model,
+      timestamp: new Date().toISOString(),
+      requestId,
+      usage: response.usage
+    })
+  };
+}
+
+module.exports = { execute };

@@ -1,0 +1,48 @@
+@import '../../../assets/styles/common/variables.css';
+
+/* ========================================
+   Template Studio Flow
+   Inner content container within type-selector-screen wrapper
+   ======================================== */
+
+.template-studio-flow {
+  position: relative;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.template-studio-flow__step {
+  width: 100%;
+}
+
+/* Flow header with title and subtitle */
+.template-studio-flow-header {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--spacing-large);
+}
+
+.template-studio-flow-header .flow-subtitle {
+  font-size: 1rem;
+  color: var(--grey-500);
+  margin: var(--spacing-small) 0 0 0;
+  line-height: 1.4;
+  text-align: left;
+}
+
+@media (min-width: 1200px) {
+  .template-studio-flow {
+    max-width: 900px;
+  }
+}
+
+@media (max-width: 768px) {
+  .template-studio-flow {
+    padding: 0;
+  }
+
+  .template-studio-flow-header .flow-subtitle {
+    font-size: 0.9rem;
+  }
+}

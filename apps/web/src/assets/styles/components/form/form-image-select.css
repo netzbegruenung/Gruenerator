@@ -1,0 +1,101 @@
+/* FormImageSelect Component Styles */
+
+/* Grid container */
+.form-image-select-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols-desktop, 3), 1fr);
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-small);
+}
+
+/* Image card */
+.form-image-select-card {
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: var(--card-border-radius-medium);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 3px solid transparent;
+  box-shadow: var(--card-shadow-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Hover state */
+.form-image-select-card:hover:not(.disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-elevated);
+  border-color: var(--interactive-accent-color);
+}
+
+/* Selected state */
+.form-image-select-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: scale(1.01);
+}
+
+/* Checkmark indicator for selected image */
+.form-image-select-card.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Focus state for keyboard navigation */
+.user-is-tabbing .form-image-select-card:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+/* Disabled state */
+.form-image-select-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Optional label overlay */
+.form-image-select-card__label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: var(--spacing-small);
+  text-align: center;
+  font-size: 0.875rem;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.form-image-select-card:hover .form-image-select-card__label {
+  opacity: 1;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .form-image-select-grid {
+    grid-template-columns: repeat(var(--grid-cols-tablet, 2), 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .form-image-select-grid {
+    grid-template-columns: repeat(var(--grid-cols-mobile, 1), 1fr);
+  }
+}

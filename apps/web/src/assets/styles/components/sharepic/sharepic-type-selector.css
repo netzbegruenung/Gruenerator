@@ -1,0 +1,366 @@
+.type-selector-screen {
+  min-height: calc(100vh - 80px);
+  width: 100%;
+  background: var(--background-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+.type-selector-content {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 2rem;
+  text-align: center;
+}
+
+.type-selector-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: var(--spacing-xlarge);
+  background: none;
+  border: none;
+  color: var(--link-color);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: var(--card-border-radius-small);
+  transition: all 0.2s ease;
+}
+
+.type-selector-back-button:hover {
+  background-color: var(--background-color-alt);
+  color: var(--primary);
+}
+
+.type-selector-header-wrapper {
+  text-align: center;
+}
+
+.type-selector-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-medium);
+  margin-bottom: var(--spacing-large);
+}
+
+.type-selector-header-row h1 {
+  margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .type-selector-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .type-selector-header-row h1 {
+    text-align: center;
+  }
+}
+
+.type-selector-content h1 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--font-color-h);
+  text-align: left;
+}
+
+.type-selector-intro {
+  font-size: 1.2rem;
+  margin-bottom: 3rem;
+  color: var(--font-color);
+}
+
+.type-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.type-options-grid--two-cols {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* KI Generieren - 4 variants in horizontal row */
+.type-options-grid--variants {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.type-options-grid--variants .type-card--image {
+  flex: 1;
+  aspect-ratio: 3/4;
+}
+
+@media (max-width: 900px) {
+  .type-options-grid--variants {
+    flex-wrap: wrap;
+  }
+
+  .type-options-grid--variants .type-card--image {
+    flex: 0 0 calc(50% - 0.75rem);
+    max-width: none;
+  }
+}
+
+/* 4-column flex layout for main category selection */
+.type-options-grid--four {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.type-options-grid--four .type-card--image {
+  flex: 1;
+  aspect-ratio: 3/4;
+}
+
+@media (max-width: 1024px) {
+  .type-options-grid--four {
+    flex-wrap: wrap;
+  }
+
+  .type-options-grid--four .type-card--image {
+    flex: 0 0 calc(50% - 0.75rem);
+  }
+}
+
+@media (max-width: 600px) {
+  .type-options-grid--four .type-card--image {
+    flex: 0 0 100%;
+  }
+}
+
+/* Coming soon states */
+.type-card.coming-soon {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.type-card.coming-soon:hover {
+  transform: none;
+}
+
+.type-card.coming-soon:hover .type-card__image {
+  transform: none;
+  opacity: 1;
+}
+
+.coming-soon-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  z-index: 2;
+  letter-spacing: 0.5px;
+}
+
+.type-card {
+  background: var(--background-color-alt);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.type-card:hover {
+  transform: scale(1.02);
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.type-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.type-card h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--font-color-h3);
+  text-align: center;
+}
+
+.type-card p {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  color: var(--font-color);
+}
+
+/* Image-based type cards - Apple/Jobs-inspired minimal design */
+.type-card--image {
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  box-shadow: none;
+  border-radius: 16px;
+  aspect-ratio: 1;
+  position: relative;
+}
+
+.type-card--image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at top left,
+    rgba(0, 0, 0, 0.9) 0%,
+    rgba(0, 0, 0, 0.6) 20%,
+    rgba(0, 0, 0, 0.25) 45%,
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  border-radius: 16px;
+}
+
+.type-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease, transform 0.4s ease;
+}
+
+.type-card--image:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: transparent;
+  background: transparent;
+}
+
+.type-card--image:hover .type-card__image {
+  transform: scale(1.02);
+  opacity: 0.95;
+}
+
+/* Top-left aligned text (for type selection) */
+.type-card--image h3 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  margin: 0;
+  color: #ffffff;
+  z-index: 1;
+  text-align: left;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Clean variant - gradient and text only on hover, image defines size */
+.type-card--image.no-overlay {
+  aspect-ratio: unset;
+}
+
+.type-card--image.no-overlay .type-card__image {
+  position: relative;
+  height: auto;
+}
+
+.type-card--image.no-overlay::after {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.type-card--image.no-overlay:hover::after {
+  opacity: 1;
+}
+
+.type-card--image.no-overlay h3 {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.type-card--image.no-overlay:hover h3 {
+  opacity: 1;
+}
+
+/* Darker gradient variant with centered text (for start page) */
+.type-card--image.gradient-dark::after {
+  background: radial-gradient(
+    circle at center,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.35) 50%,
+    rgba(0, 0, 0, 0.25) 100%
+  );
+}
+
+.type-card--image.gradient-dark h3 {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.8rem;
+}
+
+/* Centered text variant (for category selection) - commented out, using top-left design instead
+.type-card--image-centered::after {
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.type-card--image-centered h3 {
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: 1.8rem;
+}
+*/
+
+@media (max-width: 1024px) and (min-width: 769px) {
+  .type-options-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .type-card {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .type-selector-screen {
+    padding: 1rem;
+  }
+
+  .type-selector-content {
+    padding: 0 1rem;
+  }
+
+  .type-selector-content h1 {
+    font-size: 2rem;
+  }
+
+  .type-options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .type-card {
+    padding: 1.5rem;
+  }
+} 

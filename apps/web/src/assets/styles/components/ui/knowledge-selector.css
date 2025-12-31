@@ -1,0 +1,56 @@
+/* Knowledge Selector Specific Styles */
+/* Legacy styles maintained for backwards compatibility */
+/* NOTE: Most of this file has been deprecated. New components should use SimpleContentSelector.css */
+
+.knowledge-selector {
+  margin-bottom: var(--spacing-medium);
+}
+
+/* Basic knowledge selector wrapper styles */
+.knowledge-selector__wrapper {
+  margin-bottom: var(--spacing-medium);
+}
+
+.knowledge-selector__source {
+  margin-bottom: var(--spacing-medium);
+}
+
+.knowledge-selector__no-options {
+  color: var(--font-color-disabled);
+  font-size: 0.875rem;
+  margin: var(--spacing-small) 0;
+}
+
+.knowledge-selector__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-medium);
+  color: var(--font-color-disabled);
+  font-size: 0.875rem;
+  background-color: var(--input-background);
+  border: var(--input-border);
+  border-radius: var(--card-border-radius-small);
+}
+
+.knowledge-selector__loading::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--secondary-200);
+  border-top: 2px solid var(--secondary-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ============================================ */
+/* DEPRECATED STYLES BELOW                     */
+/* All styles below this line are legacy code  */
+/* New components use SimpleContentSelector.css */
+/* ============================================ */

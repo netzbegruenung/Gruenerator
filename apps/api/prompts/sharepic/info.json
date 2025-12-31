@@ -1,0 +1,12 @@
+{
+  "systemRole": "Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Erstelle strukturierte Informations-Inhalte für Sharepics.",
+  "requestTemplate": "Erstelle 5 verschiedene Info-Inhalte als JSON Array:\n\n[\n  {\n    \"header\": \"Kurze Hauptaussage zum Thema\",\n    \"subheader\": \"Wichtigster Fakt oder Beleg (1 Satz)\",\n    \"body\": \"Zusätzliche Details und Kontext (2-3 Sätze)\",\n    \"searchTerm\": \"Bildsuchbegriff\"\n  },\n  {\n    \"header\": \"...\",\n    \"subheader\": \"...\",\n    \"body\": \"...\",\n    \"searchTerm\": \"...\"\n  }\n  // ... insgesamt 5 Objekte\n]\n\n{{#if (and thema details)}}\nThema: {{thema}}\nDetails: {{details}}\n{{else}}\nThema: {{thema|default:'Umweltschutz'}}\n{{/if}}\n\nREGELN:\n- NUR reines JSON Array, keine Markdown Backticks\n- header: kurz und prägnant\n- subheader: 1 Satz\n- body: 2-3 Sätze\n- Keine Hashtags oder Sonderzeichen\n- Grüne Position klar vermitteln\n- Sachlich, faktisch fundiert und verständlich\n- Jedes Objekt braucht alle 4 Felder: header, subheader, body, searchTerm",
+  "singleItemTemplate": "Erstelle ein Info-Element als JSON:\n\n{\n  \"header\": \"Kurze Hauptaussage zum Thema\",\n  \"subheader\": \"Wichtigster Fakt (1 Satz)\",\n  \"body\": \"Zusatzinfo ohne Hashtags (2-3 Sätze)\",\n  \"searchTerm\": \"Bildsuchbegriff\"\n}\n\nThema: {{thema}}\nDetails: {{details}}\n\nREGELN:\n- NUR reines JSON, keine Backticks\n- header: kurz, subheader: 1 Satz, body: 2-3 Sätze\n- Keine Hashtags oder Sonderzeichen\n- Grüne Position, sachlich, faktisch",
+  "options": {
+    "max_tokens": 2000,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "provider": "litellm",
+    "model": "gpt-oss:120b"
+  }
+}

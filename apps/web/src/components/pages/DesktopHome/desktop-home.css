@@ -1,0 +1,106 @@
+.desktop-home {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xlarge);
+  background-color: var(--background-color);
+}
+
+.desktop-home-content {
+  max-width: 700px;
+  width: 100%;
+}
+
+.desktop-home-welcome {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--font-color-h);
+  text-align: center;
+  margin-bottom: var(--spacing-xlarge);
+  letter-spacing: -0.02em;
+}
+
+.desktop-home-category {
+  margin-bottom: var(--spacing-large);
+}
+
+.desktop-home-category-title {
+  font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--grey-500);
+  margin-bottom: var(--spacing-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+[data-theme="dark"] .desktop-home-category-title {
+  color: var(--grey-400);
+}
+
+.desktop-home-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-large);
+}
+
+.desktop-home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-large);
+  background-color: var(--background-color);
+  border: 1px solid var(--grey-200);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 120px;
+}
+
+.desktop-home-card:hover {
+  transform: scale(1.02);
+  border-color: var(--primary-300);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.desktop-home-card:active {
+  transform: scale(0.98);
+}
+
+[data-theme="dark"] .desktop-home-card {
+  border-color: var(--grey-700);
+}
+
+[data-theme="dark"] .desktop-home-card:hover {
+  border-color: var(--primary-500);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.desktop-home-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--primary-600);
+}
+
+.desktop-home-card-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+[data-theme="dark"] .desktop-home-card-icon {
+  color: var(--primary-400);
+}
+
+.desktop-home-card-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--font-color);
+  text-align: center;
+}

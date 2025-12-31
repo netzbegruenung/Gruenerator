@@ -1,0 +1,91 @@
+
+/* Display action section with modern spacing */
+.display-action-section {
+    margin-top: var(--spacing-large);
+    padding-top: var(--spacing-medium);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.display-action-section .save-action-element {
+    margin-top: var(--spacing-medium);
+}
+
+.save-action-element .antrag-save-button {
+    margin-top: var(--spacing-small);
+}
+
+/* Modern error message styling */
+.display-content .form-error-message {
+    color: var(--error-red);
+    background-color: rgba(211, 47, 47, 0.1);
+    border: 1px solid var(--error-red);
+    border-radius: var(--card-border-radius-small);
+    padding: var(--spacing-small) var(--spacing-medium);
+    margin-top: var(--spacing-medium);
+    margin-bottom: var(--spacing-medium);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-small);
+    transition: var(--input-transition);
+}
+
+.form-error-message .error-message-text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.form-error-message .error-dismiss-button {
+    background: none;
+    border: none;
+    color: var(--error-red);
+    cursor: pointer;
+    padding: var(--spacing-xxsmall);
+    border-radius: var(--card-border-radius-small);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--input-transition);
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.form-error-message .error-dismiss-button:hover {
+    opacity: 1;
+    background-color: rgba(211, 47, 47, 0.1);
+    transform: scale(1.05);
+}
+
+.form-error-message .error-dismiss-button:focus {
+    outline: 2px solid var(--error-red);
+    outline-offset: 1px;
+    opacity: 1;
+}
+
+.form-error-message .error-dismiss-button:active {
+    transform: scale(0.95);
+}
+
+/* Dark mode adjustments for error messages */
+[data-theme="dark"] .display-content .form-error-message {
+    background-color: rgba(211, 47, 47, 0.15);
+    border-color: rgba(211, 47, 47, 0.6);
+}
+
+[data-theme="dark"] .form-error-message .error-dismiss-button:hover {
+    background-color: rgba(211, 47, 47, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .display-content .form-error-message {
+        background-color: rgba(211, 47, 47, 0.15);
+        border-color: rgba(211, 47, 47, 0.6);
+    }
+    
+    :root:not([data-theme="light"]) .form-error-message .error-dismiss-button:hover {
+        background-color: rgba(211, 47, 47, 0.2);
+    }
+}

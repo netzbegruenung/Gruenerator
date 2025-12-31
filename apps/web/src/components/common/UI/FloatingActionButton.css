@@ -1,0 +1,59 @@
+.floating-action-button {
+  position: fixed;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--secondary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.floating-action-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.floating-action-button:active {
+  transform: scale(0.95);
+}
+
+.floating-action-button svg {
+  font-size: 1.25rem;
+}
+
+/* Positions */
+.floating-action-button--top-left {
+  top: 1rem;
+  left: 1rem;
+}
+
+.floating-action-button--top-right {
+  top: 1rem;
+  right: 1rem;
+}
+
+.floating-action-button--bottom-left {
+  bottom: 1rem;
+  left: 1rem;
+}
+
+.floating-action-button--bottom-right {
+  bottom: 1rem;
+  right: 1rem;
+}
+
+/* Dark mode */
+[data-theme="dark"] .floating-action-button {
+  background-color: var(--primary-600);
+}
+
+[data-theme="dark"] .floating-action-button:hover {
+  background-color: var(--klee);
+}

@@ -1,0 +1,87 @@
+{
+  "categories": {
+    "greeting": {
+      "patterns": [
+        "^(hallo|hi|hey|moin|servus|guten\\s*(tag|morgen|abend))!?$",
+        "^gr[üu](ß|ss)\\s*(dich|euch|gott)!?$",
+        "^wie\\s*geht'?s?\\??$",
+        "^na\\??$"
+      ],
+      "maxLength": 25,
+      "responses": {
+        "de-DE": [
+          "Hallo! Wie kann ich dir helfen?",
+          "Hi! Was kann ich für dich tun?",
+          "Guten Tag! Wobei kann ich dich unterstützen?",
+          "Hey! Was möchtest du erstellen?"
+        ],
+        "de-AT": [
+          "Grüß Gott! Wie kann ich dir helfen?",
+          "Servus! Was kann ich für dich tun?",
+          "Hallo! Wobei kann ich dich unterstützen?",
+          "Hey! Was möchtest du erstellen?"
+        ]
+      }
+    },
+    "thanks": {
+      "patterns": [
+        "^(danke|dankeschön|vielen\\s*dank|thx|thanks|merci)!?$",
+        "^danke\\s*(sehr|schön|dir)!?$"
+      ],
+      "maxLength": 20,
+      "responses": {
+        "de-DE": [
+          "Gerne! Kann ich noch etwas für dich tun?",
+          "Kein Problem! Brauchst du noch was?",
+          "Immer gerne! Was als Nächstes?"
+        ],
+        "de-AT": [
+          "Gerne! Kann ich noch etwas für dich tun?",
+          "Passt! Brauchst du noch was?",
+          "Immer gerne! Was als Nächstes?"
+        ]
+      }
+    },
+    "acknowledgment": {
+      "patterns": [
+        "^(ok|okay|alles\\s*klar|verstanden|gut|super|perfekt|genau|prima|toll)!?$",
+        "^(passt|stimmt|korrekt|richtig)!?$",
+        "^ja!?$",
+        "^jo!?$"
+      ],
+      "maxLength": 15,
+      "responses": {
+        "de-DE": [
+          "Super! Was möchtest du als Nächstes machen?",
+          "Alles klar! Brauchst du noch etwas?",
+          "Perfekt! Wie kann ich weiterhelfen?"
+        ],
+        "de-AT": [
+          "Super! Was möchtest du als Nächstes machen?",
+          "Passt! Brauchst du noch etwas?",
+          "Perfekt! Wie kann ich weiterhelfen?"
+        ]
+      }
+    },
+    "farewell": {
+      "patterns": [
+        "^(tschüss|tschau|ciao|bye|auf\\s*wiedersehen|bis\\s*(dann|bald|später))!?$",
+        "^(schönen\\s*(tag|abend)|mach'?s\\s*gut)!?$"
+      ],
+      "maxLength": 25,
+      "responses": {
+        "de-DE": [
+          "Tschüss! Bis zum nächsten Mal!",
+          "Mach's gut! Komm gerne wieder.",
+          "Auf Wiedersehen! Schön, dass du da warst."
+        ],
+        "de-AT": [
+          "Servus! Bis zum nächsten Mal!",
+          "Pfiat di! Komm gerne wieder.",
+          "Auf Wiedersehen! Schön, dass du da warst."
+        ]
+      }
+    }
+  },
+  "defaultLocale": "de-DE"
+}

@@ -1,0 +1,55 @@
+{
+  "id": "antrag_experimental",
+  "name": "Interactive Antrag Generator (Experimental)",
+  "systemRole": "Du agierst als erfahrener Kommunalpolitiker und Verwaltungsjurist {{partyNameGenitive}}. Deine Aufgabe ist es, rechtssichere, formal korrekte und politisch überzeugende Dokumente für den Stadtrat oder Kreistag zu verfassen. Du beherrschst das 'Verwaltungsdeutsch' für Beschlüsse ebenso wie die politische Rhetorik für Begründungen. Du hast mit dem Benutzer bereits eine ausführliche Verständnisklärung durchgeführt und kennst nun alle wichtigen Details und Präferenzen für diesen Antrag.",
+  "systemRoleExtensions": {
+    "kleine_anfrage": "Erstelle eine KLEINE ANFRAGE (Auskunftsersuchen). \nZIEL: Fakten abfragen, Verwaltung kontrollieren. \nSTRUKTUR:\n1. Formeller Kopf.\n2. Betreff: Kurz und präzise.\n3. Einleitung: 'Unter Bezugnahme auf das Auskunftsrecht in der Gemeindeordnung bitten wir um Beantwortung folgender Fragen:'\n4. Fragenkatalog: Nummerierte, sehr spitze W-Fragen (Wer, Wann, Wie viele, Warum). Keine Meinung, nur Faktenabfrage.\n5. Schluss: Bitte um schriftliche Antwort innerhalb der Frist.\nBerücksichtige dabei die Präferenzen des Benutzers zu Tonalität, Schwerpunkten und gewünschten Fakten.",
+    "grosse_anfrage": "Erstelle eine GROSSE ANFRAGE. \nZIEL: Ein politisches Thema auf die Agenda setzen und eine Debatte im Rat erzwingen. \nSTRUKTUR:\n1. Formeller Kopf.\n2. Betreff.\n3. Vorbemerkung/Politischer Kontext: Ausführliche Darlegung der Sichtweise {{partyNameGenitive}}, warum das Thema relevant ist (Framing).\n4. Fragenkatalog: Gruppiert in Themenblöcke.\n5. Antrag auf Behandlung: Bitte um mündliche Aussprache im Ausschuss/Rat.\nBerücksichtige dabei die Präferenzen des Benutzers zu Tonalität, Schwerpunkten und gewünschten Fakten.",
+    "default": "Erstelle einen ANTRAG (Beschlussvorlage). \nZIEL: Eine konkrete Handlung der Verwaltung auslösen. \nSTRUKTUR:\n1. Betreff: Schlagkräftig.\n2. Beschlussvorschlag: Das Herzstück. Muss im Imperativ und Passiv formuliert sein (z.B. 'Die Verwaltung wird beauftragt...'). Muss exekutierbar sein.\n3. Finanzielle Auswirkungen: Schätzung der Kosten oder der Satz: 'Die Verwaltung wird beauftragt, die Kosten zu ermitteln und einen Deckungsvorschlag zu unterbreiten.'\n4. Begründung: Argumentativer Teil. Erkläre den 'Pain Point' (Ist-Zustand) und den Nutzen (Soll-Zustand) aus Sicht {{partyNameGenitive}}.\nBerücksichtige dabei die vom Benutzer gewünschten Schwerpunkte, die bevorzugte Tonalität und die gewünschte Struktur."
+  },
+  "systemRoleAppendix": "WICHTIG: Gib nur den finalen deutschen Text aus, keine englischen Zwischenschritte oder Gedankengänge. Beginne direkt mit dem fertigen Dokument. Antragslänge: ca. 1500 - maximal 2000 Zeichen.\n\nDu hast bereits ein ausführliches Verständnisgespräch mit dem Benutzer geführt und kennst seine Präferenzen und Wünsche. Erstelle den Antrag ausschließlich basierend auf den Präzisierungen aus dem Verständnisgespräch - erfinde keine zusätzlichen Inhalte oder Schwerpunkte.",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false,
+    "interactiveMode": true,
+    "clarificationQuestions": {
+      "enabled": true,
+      "maxRounds": 2,
+      "questionTypes": ["scope", "audience", "tone", "structure", "facts"],
+      "usePredefinedQuestions": true,
+      "questionSource": "config/antragQuestions.js",
+      "note": "Questions are now predefined in antragQuestions.js, not AI-generated. AI temperature settings removed as they are no longer applicable."
+    }
+  },
+  "requestFields": ["requestType", "thema", "details", "userClarifications"],
+  "validation": {
+    "required": ["thema", "details"],
+    "errorMessage": "Thema und Details sind erforderlich"
+  },
+  "requestTypeMapping": {
+    "kleine_anfrage": "eine kleine Anfrage",
+    "grosse_anfrage": "eine große Anfrage",
+    "default": "einen kommunalpolitischen Antrag"
+  },
+  "requestTemplate": "Erstelle {{requestTypeText}} zum Thema: {{thema}}\n\n{{#if details}}\nGrundlegende Details: {{details}}\n{{/if}}\n\n{{#if userClarifications}}\n## Präzisierungen aus dem Verständnisgespräch\n\n{{#if userClarifications.scope}}\n**Inhaltliche Schwerpunkte:**\n{{#each userClarifications.scope}}\n- {{this}}\n{{/each}}\n{{/if}}\n\n{{#if userClarifications.audience}}\n**Adressat/Gremium:** {{userClarifications.audience}}\n{{/if}}\n\n{{#if userClarifications.tone}}\n**Gewünschte Tonalität:** {{userClarifications.tone}}\n{{/if}}\n\n{{#if userClarifications.structure}}\n**Bevorzugte Struktur:** {{userClarifications.structure}}\n{{/if}}\n\n{{#if userClarifications.facts}}\n**Gewünschte Fakten/Zahlen:**\n{{#each userClarifications.facts}}\n- {{this}}\n{{/each}}\n{{/if}}\n\n{{#if userClarifications.clarifications}}\n**Weitere Präzisierungen:**\n{{#each userClarifications.clarifications}}\n- {{this}}\n{{/each}}\n{{/if}}\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\nWICHTIG:\n- Antworte ausschließlich auf Deutsch\n- Gib nur das finale Dokument aus, keine Zwischenschritte oder Erklärungen\n- Berücksichtige alle oben genannten Präzisierungen und Wünsche des Benutzers aus dem Verständnisgespräch\n- Setze die gewünschte Tonalität konsequent um\n- Fokussiere auf die genannten inhaltlichen Schwerpunkte\n- Die Präzisierungen aus dem Verständnisgespräch sind PRIORITÄT\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "customPromptTemplate": {
+    "requestType": "{{requestTypeText}}",
+    "thema": "{{thema}}",
+    "details": "{{details|default:''}}",
+    "userClarifications": "{{userClarifications}}",
+    "searchSummary": "{{searchSummary|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{thema}} {{details}} Bündnis 90 Die Grünen Politik",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 4000,
+    "temperature": 0.3,
+    "model": "magistral-medium-latest",
+    "provider": "mistral"
+  }
+}

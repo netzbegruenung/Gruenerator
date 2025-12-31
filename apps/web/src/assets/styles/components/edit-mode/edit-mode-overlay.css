@@ -1,0 +1,768 @@
+/* Edit Mode Overlay Styles - Inspired by collab-editor.css */
+
+/* Edit Mode Fullscreen Overlay Option */
+.edit-mode-fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: calc(100vh - 60px);
+  background-color: var(--background-color-pure);
+  z-index: 9990;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.edit-mode-fullscreen-overlay .edit-mode-content {
+  flex-grow: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Edit Mode Split Layout */
+.edit-mode-main-content {
+  display: flex;
+  flex-grow: 1;
+  height: 100%;
+}
+
+
+/* Display Column in Edit Mode */
+.edit-mode-display-column {
+  flex: 2;
+  background-color: var(--background-color-pure);
+  padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-medium) var(--spacing-large);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  overflow-anchor: none;
+}
+
+
+/* Focused Edit Mode Toggle */
+.edit-mode-focus-toggle {
+  position: fixed;
+  top: var(--spacing-large);
+  right: var(--spacing-large);
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--card-border-radius-large);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-small);
+  z-index: 9995;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  gap: var(--spacing-small);
+}
+
+[data-theme="dark"] .edit-mode-focus-toggle {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.edit-mode-toggle-button {
+  background-color: transparent;
+  color: var(--font-color);
+  border: none;
+  padding: var(--spacing-xxsmall);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  width: 40px;
+  height: 40px;
+}
+
+.edit-mode-toggle-button:hover {
+  background-color: var(--background-color);
+  transform: scale(1.05);
+}
+
+[data-theme="dark"] .edit-mode-toggle-button:hover {
+  background-color: var(--dunkelgrau);
+}
+
+/* Responsive Design for Edit Mode */
+@media (max-width: 768px) {
+  .edit-mode-main-content {
+    flex-direction: column;
+  }
+
+  .edit-mode-display-column {
+    flex: 1;
+    padding: var(--spacing-medium);
+  }
+
+  .edit-mode-focus-toggle {
+    top: var(--spacing-medium);
+    right: var(--spacing-medium);
+    left: auto;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: var(--background-color);
+  }
+
+  .edit-mode-floating-input {
+    bottom: var(--spacing-small);
+    left: var(--spacing-small);
+    right: var(--spacing-small);
+  }
+
+  /* Mobile 50/50 split enhancements for UniversalEditForm */
+  .base-container.edit-mode-active .universal-edit-form.enhanced {
+    height: 100%;
+    min-height: unset;
+    border-radius: var(--border-radius-small);
+  }
+
+  .base-container.edit-mode-active .chat-embedded {
+    font-size: 0.9rem;
+    height: 100%;
+}
+
+  .base-container.edit-mode-active .floating-input input {
+    font-size: 16px; /* Prevent iOS zoom on focus */
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+    -webkit-appearance: none;
+  }
+
+  /* Ensure floating input accounts for safe area on notched devices */
+  .edit-mode-floating-input,
+  .floating-input {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Better touch scrolling for chat messages */
+  .universal-edit-form.enhanced {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure chat messages are readable in narrow space */
+  .base-container.edit-mode-active .chat-message {
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Adjust form card padding in mobile edit mode */
+  .base-container.edit-mode-active .form-card--large {
+    padding: var(--spacing-small);
+  }
+
+  .base-container.edit-mode-active .form-card__header {
+    padding: var(--spacing-small) var(--spacing-medium) var(--spacing-small);
+    margin: calc(-1 * var(--spacing-small)) calc(-1 * var(--spacing-medium)) 0;
+  }
+
+  .base-container.edit-mode-active .form-card__title {
+    font-size: 1.2em;
+  }
+
+  /* Remove top padding for display section motion wrapper on mobile */
+  .base-container.edit-mode-active .display-section-motion-wrapper {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: var(--spacing-small) !important;
+    padding-right: var(--spacing-small) !important;
+  }
+
+  /* Adjust display-container spacing on mobile */
+  .base-container.edit-mode-active .display-container {
+    padding-top: var(--spacing-medium) !important;
+    padding-bottom: 0 !important;
+    padding-left: var(--spacing-xsmall) !important;
+    padding-right: var(--spacing-xsmall) !important;
+  }
+}
+
+/* Animation for mode transitions */
+.edit-mode-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Remove display container shadow in edit mode and restore flex */
+.base-container.edit-mode-active .display-container {
+  box-shadow: none !important;
+}
+
+
+/* Override default container spacing for edit mode */
+.base-container.edit-mode-active .container,
+.base-container.edit-mode-active .container.with-header,
+.form-card--editmode .container,
+.form-card--editmode .container.with-header {
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: none !important;
+}
+
+/* Remove body margins in edit mode focus */
+.edit-mode-focus body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Override base-container spacing in edit mode */
+.base-container.edit-mode-active,
+.base-container.edit-mode-focus {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Override content wrapper margin bottom in edit mode */
+.base-container.edit-mode-active .content-wrapper,
+.base-container.edit-mode-active .content,
+.form-card--editmode .content-wrapper,
+.form-card--editmode .content {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Root-level content-wrapper overrides when edit mode is detected via CSS */
+body:has(.base-container.edit-mode-active) .content-wrapper {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  /* Keep margin-top for header spacing */
+}
+
+/* Fallback for browsers without :has() support */
+.content-wrapper.edit-mode-override {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  min-height: calc(100vh - 100px) !important;
+  /* Keep margin-top for header spacing */
+}
+
+/* Container overrides when pages use container with-header */
+body:has(.base-container.edit-mode-active) .container.with-header {
+  padding: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: none !important;
+  min-height: calc(100vh - 160px) !important;
+}
+
+/* Embedded edit mode enhancements (for current implementation) */
+.universal-edit-form.enhanced {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+  height: calc(100vh - 300px);
+  background: var(--chat-background);
+  border-radius: var(--border-radius-medium);
+  overflow: hidden;
+}
+
+/* Ensure chat fills its container */
+.universal-edit-form.enhanced .chat-embedded {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Edit Mode Toolbar Styles */
+.edit-mode-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-small) var(--spacing-medium);
+  background-color: var(--background-color);
+  border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: var(--border-radius-medium);
+  border-top-right-radius: var(--border-radius-medium);
+}
+
+.edit-mode-toolbar-title {
+  font-size: 1em;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+/* Finetune loading state */
+.finetune-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--font-color-secondary);
+  font-size: 0.9rem;
+}
+
+/* Ensure finetune editor takes remaining height */
+.universal-edit-form.enhanced .finetune-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ========================================
+   Mobile Edit Chat - Full Takeover Styles
+   ======================================== */
+
+/* Mobile chat container - simple wrapper, ChatWorkbenchLayout handles layout */
+.universal-edit-form.mobile-chat {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 9990;
+  padding-top: var(--spacing-xlarge);
+  background: var(--background-color);
+}
+
+/* Override form-section stacking context to allow mobile edit mode to appear above header */
+.form-section:has(.universal-edit-form.mobile-chat) {
+  z-index: 9980;
+}
+
+/* Edit result message styling */
+.chat-message.edit-result-message {
+  max-width: 95%;
+  background: var(--chat-assistant-background, var(--background-color-subtle));
+  border-radius: var(--border-radius-medium);
+  padding: var(--spacing-medium);
+  position: relative;
+}
+
+.edit-result-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  padding-top: var(--spacing-large);
+}
+
+.edit-result-summary {
+  font-size: 0.85rem;
+  color: var(--klee);
+  font-weight: 500;
+  padding-bottom: var(--spacing-xsmall);
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  margin-bottom: var(--spacing-xsmall);
+}
+
+[data-theme="dark"] .edit-result-summary {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.edit-result-text {
+  font-size: var(--font-size-md, 1rem);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Scrollbar styling for edit result text */
+.edit-result-text::-webkit-scrollbar {
+  width: 4px;
+}
+
+.edit-result-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.edit-result-text::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+/* ActionButtons - positioned top-right like gruenerator-message-actions */
+.chat-message.edit-result-message > .edit-message-actions {
+  position: absolute;
+  top: var(--spacing-small);
+  right: var(--spacing-small);
+  display: flex;
+  gap: var(--spacing-xxsmall);
+  z-index: 10;
+}
+
+/* Mobile-specific adjustments for edit chat */
+@media (max-width: 768px) {
+  .edit-result-message {
+    margin: var(--spacing-xxsmall);
+  }
+
+  .edit-result-content {
+    padding-top: var(--spacing-xlarge);
+  }
+
+  .edit-result-text {
+    font-size: 0.95rem;
+    max-height: 50vh;
+  }
+
+  /* Mobile button sizing for edit actions */
+  .chat-message.edit-result-message > .edit-message-actions {
+    top: var(--spacing-xsmall);
+    right: var(--spacing-xsmall);
+    gap: var(--spacing-xsmall);
+  }
+
+  .chat-message.edit-result-message > .edit-message-actions button {
+    font-size: var(--font-size-small);
+    padding: var(--spacing-xsmall);
+  }
+}
+
+/* Mobile Edit Close Button */
+.mobile-edit-close-button {
+  position: fixed;
+  top: var(--spacing-medium);
+  right: var(--spacing-medium);
+  z-index: 9995;
+  background-color: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--font-color);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.mobile-edit-close-button:hover {
+  background-color: var(--background-color-hover);
+  transform: scale(1.05);
+}
+
+.mobile-edit-close-button:active {
+  transform: scale(0.95);
+}
+
+[data-theme="dark"] .mobile-edit-close-button {
+  background-color: var(--dunkelgrau);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .mobile-edit-close-button:hover {
+  background-color: var(--mittelgrau);
+}
+
+/* ===== MOBILE EDIT SCROLL FIX ===== */
+/* Phase 1: Fix scrolling - The key issue is .chat-messages-fullscreen has overflow:visible */
+
+/* Fix 1: ChatWorkbenchLayout fills container */
+.universal-edit-form.mobile-chat .qa-chat-container {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 2: Main content area fills remaining space */
+.universal-edit-form.mobile-chat .qa-chat-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 3: Fullscreen content wrapper fills space */
+.universal-edit-form.mobile-chat .qa-chat-fullscreen-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 4: THE KEY FIX - Override fullscreen's overflow:visible */
+.universal-edit-form.mobile-chat .chat-messages-fullscreen {
+  overflow-y: auto !important;
+  height: auto !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(100px + env(safe-area-inset-bottom));
+}
+
+/* Fix 5: ChatUI container needs proper flex setup */
+.universal-edit-form.mobile-chat .qa-chat-ui {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix 6: Ensure input area stays at bottom and doesn't break scroll */
+.universal-edit-form.mobile-chat .chat-input-area-fullscreen {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(to top, var(--background-color) 80%, transparent);
+}
+
+/* ===== SCROLL SYNC HIGHLIGHT ===== */
+/* Phase 2: Highlight animation when scrolling to text sections */
+
+.scroll-sync-highlight {
+  animation: scroll-sync-pulse 0.6s ease-out;
+  border-radius: var(--border-radius-small);
+}
+
+@keyframes scroll-sync-pulse {
+  0% {
+    background-color: var(--klee);
+    opacity: 0.4;
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: var(--klee);
+    opacity: 0.2;
+  }
+  100% {
+    background-color: transparent;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-theme="dark"] .scroll-sync-highlight {
+  animation: scroll-sync-pulse-dark 0.6s ease-out;
+}
+
+@keyframes scroll-sync-pulse-dark {
+  0% {
+    background-color: var(--klee);
+    opacity: 0.3;
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: var(--klee);
+    opacity: 0.15;
+  }
+  100% {
+    background-color: transparent;
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===== VOICE RECORDING STYLES ===== */
+/* Phase 3: Enhanced voice recording visual feedback for mobile edit */
+
+.universal-edit-form.mobile-chat button.voice-recording {
+  background-color: var(--error-red) !important;
+  color: var(--white) !important;
+  animation: voice-pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
+}
+
+@keyframes voice-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(211, 47, 47, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+    transform: scale(1);
+  }
+}
+
+.universal-edit-form.mobile-chat .voice-recording-indicator {
+  position: fixed;
+  top: calc(60px + env(safe-area-inset-top, 0px) + var(--spacing-medium));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--error-red);
+  color: var(--white);
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  border-radius: var(--card-border-radius-large);
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  z-index: 9999;
+  animation: voice-indicator-fade-in 0.2s ease-out;
+}
+
+.voice-recording-indicator::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--white);
+  border-radius: 50%;
+  animation: voice-dot-blink 1s ease-in-out infinite;
+}
+
+@keyframes voice-indicator-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes voice-dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ===== FOCUS MODE STYLES ===== */
+/* Phase 4: Minimal UI when keyboard is active */
+
+.universal-edit-form.mobile-chat.focus-mode .chat-messages-fullscreen {
+  display: none;
+}
+
+.universal-edit-form.mobile-chat.focus-mode .qa-chat-fullscreen-content {
+  justify-content: flex-end;
+}
+
+.mobile-edit-stats-pill {
+  position: fixed;
+  top: calc(60px + env(safe-area-inset-top, 0px) + var(--spacing-medium));
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--background-color-alt);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: var(--spacing-xsmall) var(--spacing-medium);
+  border-radius: var(--card-border-radius-large);
+  font-size: 0.75rem;
+  color: var(--font-color);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  z-index: 9998;
+  box-shadow: var(--shadow-md);
+  animation: stats-pill-fade-in 0.2s ease-out;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.mobile-edit-stats-pill:active {
+  transform: translateX(-50%) scale(0.98);
+}
+
+.mobile-edit-stats-pill .pill-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+.mobile-edit-stats-pill .pill-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--grey-300);
+}
+
+[data-theme="dark"] .mobile-edit-stats-pill {
+  background: var(--grey-800);
+}
+
+[data-theme="dark"] .mobile-edit-stats-pill .pill-divider {
+  background: var(--grey-600);
+}
+
+@keyframes stats-pill-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Peek mode - temporarily show messages */
+.universal-edit-form.mobile-chat.focus-mode.peek-mode .chat-messages-fullscreen {
+  display: flex;
+  animation: peek-slide-up 0.2s ease-out;
+}
+
+@keyframes peek-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus mode input enhancement */
+.universal-edit-form.mobile-chat.focus-mode .chat-input-area-fullscreen {
+  padding-top: var(--spacing-large);
+}
+
+/* =============================================
+   Stats Pill - Focus Mode Edit Counter
+   ============================================= */
+.focus-mode-stats-pill {
+  position: fixed;
+  top: env(safe-area-inset-top, 12px);
+  right: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  background: var(--tanne);
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  z-index: 1001;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.focus-mode-stats-pill:active {
+  transform: scale(0.95);
+}
+
+.stats-pill-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  font-size: 0.7rem;
+}
+
+.stats-pill-label {
+  font-weight: 500;
+}
+
+/* Hide stats pill when not in focus mode or in peek mode */
+.universal-edit-form.mobile-chat:not(.focus-mode) .focus-mode-stats-pill,
+.universal-edit-form.mobile-chat.peek-mode .focus-mode-stats-pill {
+  opacity: 0;
+  pointer-events: none;
+}

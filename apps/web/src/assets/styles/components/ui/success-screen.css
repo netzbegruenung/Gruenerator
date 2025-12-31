@@ -1,0 +1,68 @@
+
+.success-screen-container {
+  border: var(--border-subtle); 
+  border-radius: 8px;
+  padding: var(--spacing-large, 24px);
+  margin: var(--spacing-large, 24px) auto; 
+  max-width: 600px; 
+  text-align: center;
+  background-color: rgba(var(--klee-rgb), 0.1); 
+  border-color: var(--klee); 
+  animation: fadeIn 0.5s ease-out; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.success-icon {
+  font-size: 2.5rem; 
+  color: var(--klee); 
+  margin-bottom: var(--spacing-medium, 16px);
+}
+
+.success-title {
+  color: var(--font-color-h); 
+  margin-bottom: var(--spacing-small, 8px);
+  font-weight: 600;
+}
+
+.success-message-content {
+  color: var(--font-color); 
+  margin-bottom: var(--spacing-large, 24px);
+  white-space: pre-wrap; 
+  word-wrap: break-word;
+  width: 100%; 
+  background-color: var(--background-color); 
+  padding: var(--spacing-medium, 16px);
+  border-radius: 6px;
+  border: var(--border-subtle);
+}
+
+.success-actions {
+  display: flex;
+  justify-content: center; 
+  gap: var(--spacing-medium, 16px); 
+  margin-top: var(--spacing-medium, 16px); 
+}
+
+
+.success-actions .button {
+  
+}
+
+.success-actions .button-secondary {
+    
+    
+    
+    
+}
+
+
+    
+    
+

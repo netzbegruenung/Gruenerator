@@ -1,0 +1,136 @@
+.voice-recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.voice-recorder-controls {
+  margin-bottom: 1rem;
+}
+
+.voice-recorder-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.voice-recorder-button.start {
+  background-color: #46a758;
+  color: white;
+}
+
+.voice-recorder-button.start:hover {
+  background-color: #3d9a4d;
+}
+
+.voice-recorder-button.stop {
+  background-color: #e54d2e;
+  color: white;
+}
+
+.voice-recorder-button.stop:hover {
+  background-color: #ca3e23;
+}
+
+.voice-recorder-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.voice-recorder-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.voice-recorder-animation {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 1rem;
+}
+
+.voice-recorder-status {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0.5rem 0;
+}
+
+.voice-recorder-processing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.voice-recorder-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--klee, #46a758);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0.5rem;
+}
+
+.voice-recorder-error {
+  color: #e54d2e;
+  margin-bottom: 1rem;
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background-color: rgba(229, 77, 46, 0.1);
+  max-width: 400px;
+}
+
+.voice-recorder-retry-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #46a758;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+}
+
+.voice-recorder-retry-button:hover {
+  background-color: #3d9a4d;
+}
+
+.voice-recorder-retry-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+
+@media (max-width: 768px) {
+  .voice-recorder-button {
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
+  }
+  
+  .voice-recorder-button.start {
+    font-size: 20px;
+  }
+  
+  .voice-recorder-button.stop {
+    font-size: 16px;
+  }
+  
+  .voice-recorder-animation {
+    max-width: 150px;
+  }
+} 

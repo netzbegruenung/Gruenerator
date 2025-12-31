@@ -1,0 +1,326 @@
+
+@font-face {
+    font-family: 'PT Sans';
+    src: url('../../fonts/PTSans-Regular.woff2') format('woff2'),
+         url('../../fonts/PTSans-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'PT Sans';
+    src: url('../../fonts/PTSans-Bold.woff2') format('woff2'),
+         url('../../fonts/PTSans-Bold.woff') format('woff');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'PT Sans';
+    src: url('../../fonts/PTSans-Italic.woff2') format('woff2'),
+         url('../../fonts/PTSans-Italic.woff') format('woff');
+    font-weight: normal;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'GrueneType';
+    src: url('../../fonts/GrueneType.woff2') format('woff2'),
+         url('../../fonts/GrueneType.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'GrueneTypeNeue';
+    src: url('../../fonts/GrueneTypeNeue-Regular.woff2') format('woff2'),
+         url('../../fonts/GrueneTypeNeue-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Thin.woff') format('woff');
+    font-weight: 100;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Light.woff') format('woff');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Italic.woff') format('woff');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-MediumItalic.woff') format('woff');
+    font-weight: 500;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-SemiBold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-SemiBoldItalic.woff') format('woff');
+    font-weight: 600;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Raleway';
+    src: url('../../fonts/Raleway-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Typography Scale - Fluid responsive font sizes */
+:root {
+    --font-size-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    
+    /* Typography Scale - Based on Major Third (1.25) ratio */
+    --font-size-xxs: clamp(0.75rem, 0.72rem + 0.15vw, 0.875rem);
+    --font-size-xs: clamp(0.875rem, 0.85rem + 0.125vw, 1rem);
+    --font-size-sm: clamp(0.9375rem, 0.9rem + 0.1875vw, 1.0625rem);
+    --font-size-md: var(--font-size-base); /* 1rem → 1.125rem */
+    --font-size-lg: clamp(1.125rem, 1.05rem + 0.375vw, 1.25rem);
+    --font-size-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+    --font-size-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem);
+    --font-size-3xl: clamp(1.875rem, 1.65rem + 1.125vw, 2.25rem);
+    --font-size-4xl: clamp(2.25rem, 1.95rem + 1.5vw, 3rem);
+    --font-size-5xl: clamp(3rem, 2.5rem + 2.5vw, 4rem);
+    
+    /* Line Height Scale */
+    --line-height-tight: 1.2;
+    --line-height-snug: 1.4;
+    --line-height-normal: 1.6;
+    --line-height-relaxed: 1.8;
+    --line-height-loose: 2;
+    
+    /* Display Content Specific (for generated text) */
+    --display-font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    --display-font-size-large: clamp(1.0625rem, 1rem + 0.3125vw, 1.1875rem);
+    --display-line-height: 1.7;
+    --display-paragraph-spacing: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+    
+    /* Reading Width Constraints */
+    --reading-max-width: 65ch;
+    --reading-optimal-width: clamp(45ch, 50vw, 65ch);
+}
+
+/* Large Display Typography Enhancements */
+@media (min-width: 1280px) {
+    :root {
+        --font-size-base: 1.05rem;
+        --display-font-size: 1.125rem;
+        --display-font-size-large: 1.1875rem;
+        --font-size-2xl: 1.75rem;
+        --font-size-3xl: 2rem;
+        --font-size-4xl: 2.5rem;
+    }
+}
+
+@media (min-width: 1440px) {
+    :root {
+        --font-size-base: 1.08rem;
+        --display-font-size: 1.15rem;
+        --display-font-size-large: 1.21875rem;
+        --font-size-2xl: 1.825rem;
+        --font-size-3xl: 2.125rem;
+        --font-size-4xl: 2.625rem;
+    }
+}
+
+/* Desktop/Large Screen Overrides */
+@media (min-width: 1920px) {
+    :root {
+        --font-size-base: 1.125rem;
+        --display-font-size: 1.1875rem;
+        --display-font-size-large: 1.25rem;
+        --font-size-2xl: 1.875rem;
+        --font-size-3xl: 2.25rem;
+        --font-size-4xl: 2.75rem;
+    }
+}
+
+/* Ultra-wide Screen Support */
+@media (min-width: 2560px) {
+    :root {
+        --font-size-base: 1.25rem;
+        --display-font-size: 1.3125rem;
+        --display-font-size-large: 1.375rem;
+        --font-size-2xl: 2rem;
+        --font-size-3xl: 2.5rem;
+        --font-size-4xl: 3rem;
+    }
+}
+
+
+body {
+    font-family: 'PT Sans', Arial, sans-serif;
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    background-color: var(--background-color);
+    color: var(--font-color);
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.5s, color 0.5s;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Gradient Title Classes - Reusable gradient text styling */
+.gradient-title {
+    font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--klee) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: var(--font-color-h);
+}
+
+[data-theme="dark"] .gradient-title {
+    background: none;
+    -webkit-text-fill-color: var(--white);
+    color: var(--white);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .gradient-title {
+        background: none;
+        -webkit-text-fill-color: var(--white);
+        color: var(--white);
+    }
+}
+
+/* Heading Hierarchy - Raleway for headings, PT Sans for body */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+p, li, div, span {
+    font-family: 'PT Sans', Arial, sans-serif;
+}
+
+h1 {
+    font-size: var(--font-size-4xl);
+    font-weight: 700;
+    line-height: var(--line-height-tight);
+    color: var(--font-color-h);
+    margin: 0 0 0.5em 0;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: var(--font-size-3xl);
+    font-weight: 600;
+    line-height: var(--line-height-tight);
+    color: var(--font-color-h);
+    margin: 1.5em 0 0.5em 0;
+}
+
+h2:first-child {
+    margin-top: 0;
+}
+
+h3 {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    line-height: var(--line-height-snug);
+    color: var(--font-color-h3);
+    margin: 1.5em 0 0.5em 0;
+}
+
+h3:first-child {
+    margin-top: 0;
+}
+
+h4 {
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    line-height: var(--line-height-snug);
+    color: var(--font-color-h3);
+    margin: 1.25em 0 0.5em 0;
+}
+
+h4:first-child {
+    margin-top: 0;
+}
+
+h5 {
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    line-height: var(--line-height-normal);
+    color: var(--font-color);
+    margin: 1em 0 0.5em 0;
+}
+
+h5:first-child {
+    margin-top: 0;
+}
+
+h6 {
+    font-size: var(--font-size-md);
+    font-weight: 400;
+    line-height: var(--line-height-normal);
+    color: var(--font-color-subtle);
+    margin: 1em 0 0.5em 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+h6:first-child {
+    margin-top: 0;
+}
+
+/* Mobile adjustments - minimal since clamp() handles most scaling */
+@media (max-width: 768px) {
+    :root {
+        --display-line-height: 1.6;
+    }
+}

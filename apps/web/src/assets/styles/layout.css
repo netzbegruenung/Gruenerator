@@ -1,0 +1,51 @@
+.content-wrapper {
+  min-height: calc(100vh - 160px);
+  margin-top: 80px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-wrapper.no-header-footer {
+  min-height: 100vh;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  position: relative;
+}
+
+/* Desktop app layout (Tauri) */
+.desktop-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-content-area {
+  display: flex;
+  flex: 1;
+  padding-top: 48px; /* Titlebar height */
+}
+
+.desktop-layout .content-wrapper.desktop-main {
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: 64px; /* Sidebar collapsed width */
+  min-height: calc(100vh - 48px);
+  flex: 1;
+  transition: margin-left 0.2s ease;
+}
+
+/* When sidebar is expanded, content doesn't shift - sidebar overlays */
+.desktop-sidebar.expanded ~ .content-wrapper.desktop-main {
+  margin-left: 64px;
+} 

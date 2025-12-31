@@ -1,0 +1,79 @@
+.slogan-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  width: 100%;
+}
+
+.slogan-hero {
+  padding: var(--spacing-medium) 0;
+  border-bottom: 2px solid var(--grey-300);
+}
+
+.slogan-hero .slogan-content p {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--font-color-h);
+}
+
+.slogan-hero .slogan-content__header {
+  font-size: 1.25rem;
+}
+
+.slogan-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+.slogan-option {
+  padding: var(--spacing-medium);
+  background: var(--background-color);
+  border: 2px solid var(--grey-300);
+  border-radius: var(--card-border-radius-small, 8px);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.slogan-option:hover {
+  border-color: var(--grey-400);
+}
+.slogan-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.slogan-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.slogan-content p {
+  margin: 0;
+  color: var(--font-color);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.slogan-content__header {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--font-color-h);
+}
+
+.slogan-content__subheader {
+  font-size: 1rem;
+  color: var(--font-color);
+}
+
+.slogan-content__body {
+  font-size: 0.95rem;
+  color: var(--grey-600);
+}
+
+.slogan-selector--loading {
+  opacity: 0.6;
+  pointer-events: none;
+}

@@ -1,0 +1,672 @@
+/* FormCard Base Styles */
+.form-card {
+  background-color: var(--card-background, var(--background-color-alt));
+  border: 1px solid var(--card-border, var(--border-subtle));
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-large);
+  box-shadow: var(--shadow-sm);
+  transition: var(--input-transition, all 0.25s ease-out);
+  overflow: hidden;
+}
+
+/* FormCard Header Styles */
+.form-card__header {
+  background-color: var(--card-background);
+  padding: var(--spacing-medium) var(--spacing-xlarge) var(--spacing-medium);
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  margin: calc(-1 * var(--spacing-medium)) calc(-1 * var(--spacing-xlarge)) 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-card__title {
+  margin: 0;
+  font-size: 1.4em;
+}
+
+.form-card__hide-button {
+  background: none;
+  border: none;
+  color: var(--font-color);
+  cursor: pointer;
+  padding: var(--spacing-xxsmall);
+  border-radius: var(--card-border-radius-small);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  opacity: 0.6;
+  transition: var(--input-transition);
+}
+
+.form-card__hide-button:hover {
+  opacity: 1;
+  background-color: var(--background-color-alt);
+  transform: scale(1.01);
+}
+
+.form-card__hide-button:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+.form-card__content {
+  flex: 1;
+}
+
+.form-card--elevated {
+  box-shadow: var(--card-shadow-elevated);
+}
+
+.form-card--floating {
+  box-shadow: var(--card-shadow-floating);
+}
+
+.form-card--subtle {
+  box-shadow: var(--card-shadow-subtle);
+}
+
+.form-card--small {
+  padding: var(--spacing-responsive-medium);
+}
+
+.form-card--medium {
+  padding: var(--spacing-responsive-large);
+}
+
+.form-card--large {
+  padding: var(--spacing-responsive-xlarge);
+}
+
+/* FormSection Modern Layout */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  background-color: var(--card-background);
+  color: var(--font-color);
+}
+
+/* Split Layout Container */
+.form-section__container {
+  display: flex;
+  gap: var(--spacing-responsive-large);
+  height: 100%;
+}
+
+/* Input Section Styles */
+.form-section__inputs {
+  flex: 2;
+  min-width: 0;
+  min-height: 0; /* allow inner flex children to size/scroll */
+}
+
+.form-inputs__form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.form-inputs__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* prevent overflowing children from forcing height */
+}
+
+.form-inputs__fields {
+  flex: 1;
+  margin-bottom: var(--spacing-responsive-large);
+  min-height: 0; /* allow inner components to manage their own scroll */
+}
+
+
+
+.form-inputs__buttons {
+  display: flex;
+  gap: var(--spacing-responsive-medium);
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: var(--spacing-responsive-medium);
+  border-top: var(--border-subtle);
+  margin-top: auto;
+}
+
+.form-inputs__back-button {
+  background-color: transparent;
+  border: 2px solid var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+  padding: var(--spacing-small) var(--spacing-large);
+  border-radius: var(--card-border-radius-small);
+  font-family: 'PT Sans', Arial, sans-serif;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: var(--input-transition);
+}
+
+.form-inputs__back-button:hover {
+  background-color: var(--interactive-accent-color);
+  color: var(--background-color-pure);
+}
+
+.form-inputs__submit {
+  flex-shrink: 0;
+}
+
+/* Extras Section Styles */
+.form-section__extras {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--card-border-radius-small);
+  align-self: flex-start;
+}
+
+.form-extras__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  /* will-change: transform; */
+}
+
+.form-extras__item {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+/* Add spacing between multiple children within a single extras item */
+.form-extras__first > *:not(:last-child),
+.form-extras__item > *:not(:last-child) {
+  margin-bottom: var(--spacing-medium);
+}
+
+
+.form-extras__notice {
+  border-radius: var(--card-border-radius-small);
+}
+
+.form-extras__notice .custom-prompt-notice,
+.form-extras__notice .neutral-notice {
+  margin-top: -10px;
+  font-size: 0.6em;
+  line-height: 1.3;
+
+}
+
+.form-extras__notice .custom-prompt-notice .info-icon,
+.form-extras__notice .neutral-notice .info-icon {
+  font-size: 0.9em;
+  margin-right: var(--spacing-xxsmall);
+  opacity: 0.7;
+}
+
+.form-extras__custom {
+  padding: 0;
+}
+
+.form-extras__submit {
+  padding: 0;
+  margin-top: var(--spacing-medium);
+}
+
+.form-extras__submit-button {
+  width: 100%;
+}
+
+/* Form Field Layouts */
+.form-section .form-field {
+  margin-bottom: var(--spacing-medium);
+}
+
+.form-section .form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-section label {
+  display: block;
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color);
+  font-weight: 500;
+}
+
+
+
+.form-section .help-text,
+.form-section .subtext,
+.form-section p {
+  color: var(--font-color);
+  font-size: 0.9em;
+  margin-top: var(--spacing-xsmall);
+  line-height: 1.4;
+}
+
+/* Error States */
+
+.form-section .inline-validation-message {
+  color: var(--error-red);
+  font-size: 0.85em;
+  margin-top: var(--spacing-xsmall);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .form-card {
+    border: none;
+    box-shadow: none;
+    padding-top: 0;
+    border-radius: 0;
+  }
+
+  .form-card--large {
+    padding: var(--spacing-medium);
+    padding-top: 0;
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-medium);
+  }
+
+  .form-section {
+    min-height: 300px;
+    margin-top: var(--spacing-medium);
+  }
+  
+  .form-card__header {
+    margin: calc(-1 * var(--spacing-small)) calc(-1 * var(--spacing-medium)) 0;
+    padding: var(--spacing-medium) var(--spacing-medium) var(--spacing-medium);
+  }
+  
+  /* Split Layout Mobile */
+  .form-section__container {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-section__extras {
+    align-self: stretch;
+  }
+
+  .form-inputs__buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+  
+  .form-inputs__back-button,
+  .form-inputs__submit {
+    width: 100%;
+    text-align: center;
+  }
+  
+  /* Legacy buttons for compatibility */
+  .form-section__buttons {
+    flex-direction: column;
+    gap: var(--spacing-small);
+  }
+  
+  .form-section__back-button,
+  .form-section__submit {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-card--large {
+    padding: var(--spacing-small);
+    border: var(--border-subtle);
+    border-radius: var(--card-border-radius-medium);
+  }
+}
+
+/* Focus and accessibility improvements */
+.form-section__back-button:focus {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
+}
+
+/* Input focus handled by main form-section focus styles above */
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .form-card {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+  }
+  
+  .form-section {
+    background: Canvas;
+    color: CanvasText;
+  }
+  
+  .form-section__back-button {
+    border: 1px solid ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+}
+
+/* New styles for the bottom section */
+.form-section__bottom {
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--spacing-medium) 0 var(--spacing-small);
+  margin-top: var(--spacing-small);
+}
+
+.form-section__bottom h3 {
+  margin-top: 0;
+}
+
+/* Mobile first extras styles */
+.form-section__mobile-first-extras {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .form-section__mobile-first-extras {
+    display: block;
+    margin-bottom: var(--spacing-large);
+  }
+
+  .form-section__mobile-first-extras > *:not(:last-child) {
+    margin-bottom: var(--spacing-medium);
+  }
+}
+
+/* Press release fields animation container */
+
+.press-release-fields .form-field {
+  margin-bottom: var(--spacing-large);
+}
+
+.press-release-fields .form-field:last-child {
+  margin-bottom: 0;
+}
+
+/* Section headers for conditional form sections */
+.sharepic-upload-fields h4,
+.press-release-fields h4 {
+  margin: 0 0 var(--spacing-medium) 0;
+  padding: 0;
+}
+
+/* Add spacing when press release follows another conditional section */
+.press-release-fields.has-preceding-section {
+  margin-top: var(--spacing-large);
+}
+
+.press-release-fields.has-preceding-section h4 {
+  margin-top: 0;
+}
+
+/* Motion wrapper layout classes */
+.form-section-motion-wrapper {
+  flex: 2; /* Default 2:1 ratio when no content */
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 50/50 split when content is generated */
+.base-container.has-generated-content .form-section-motion-wrapper {
+  flex: 1; /* Equal flex for 50/50 split with generated content */
+}
+
+.display-section-motion-wrapper {
+  min-width: 0;
+  display: flex;
+}
+
+.display-section-motion-wrapper.form-visible {
+  flex: 1;
+  justify-content: flex-start;
+}
+
+/* 50/50 split: equal space for form and display when content is generated */
+.base-container.has-generated-content .display-section-motion-wrapper.form-visible {
+  flex: 1; /* Display takes 1 part, form also has 1 part = 50/50 */
+}
+
+/* Enhanced Edit Mode Layout - similar to collab editor split */
+.base-container.edit-mode-active {
+  gap: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--background-color-pure);
+  box-shadow: none;
+}
+
+.base-container.edit-mode-active .form-section-motion-wrapper {
+  flex: 1; /* Chat side gets 1 part */
+  min-width: 320px;
+  background: var(--chat-background);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.base-container.edit-mode-active .display-section-motion-wrapper,
+.base-container.edit-mode-active .display-section-motion-wrapper.form-visible {
+  flex: 2; /* Display side gets 2 parts, like collab editor - 1/3 : 2/3 split */
+  background: var(--background-color-pure);
+  padding: var(--spacing-large);
+  position: relative;
+  z-index: 10; /* Above form section to prevent dropdown overlap */
+}
+
+/* Contain form section z-index in edit mode */
+.base-container.edit-mode-active .form-section {
+  position: relative;
+  z-index: 1; /* Lower than display section */
+}
+
+/* Edit Mode Focus: Full attention to editing */
+.base-container.edit-mode-focus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1500;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  background: var(--background-color-pure);
+}
+
+.display-section-motion-wrapper.form-hidden {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.display-section-motion-wrapper.form-hidden .display-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Large Display Form Enhancements */
+@media (min-width: 1280px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.1);
+  }
+
+  .form-section {
+    min-height: 450px;
+  }
+
+  .form-section__container {
+    gap: calc(var(--spacing-responsive-large) * 1.2);
+  }
+  
+  /* Better form field spacing */
+  .form-section .form-field {
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.1);
+  }
+  
+  /* Enhanced input heights */
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 44px;
+    padding: 14px 16px;
+    font-size: 1.05rem;
+  }
+  
+  .form-section textarea {
+    min-height: 120px;
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.15);
+  }
+  
+  .form-section {
+    min-height: 480px;
+  }
+
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 46px;
+    padding: 15px 18px;
+    font-size: 1.08rem;
+  }
+  
+  .form-section textarea {
+    min-height: 130px;
+    padding: 18px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.25);
+  }
+  
+  .form-section {
+    min-height: 520px;
+  }
+
+  .form-section__container {
+    gap: calc(var(--spacing-responsive-large) * 1.4);
+  }
+  
+  /* Better form field spacing */
+  .form-section .form-field {
+    margin-bottom: calc(var(--spacing-responsive-medium) * 1.2);
+  }
+  
+  /* Enhanced input heights */
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 48px;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+  }
+  
+  .form-section textarea {
+    min-height: 140px;
+    padding: 20px;
+  }
+
+  /* Larger labels */
+  .form-section label {
+    font-size: 1.05rem;
+    margin-bottom: calc(var(--spacing-responsive-small) * 1.1);
+  }
+}
+
+@media (min-width: 2560px) {
+  .form-card--large {
+    padding: calc(var(--spacing-responsive-xlarge) * 1.4);
+  }
+  
+  .form-section {
+    min-height: 580px;
+  }
+
+  .form-section input[type="text"],
+  .form-section input[type="email"],
+  .form-section textarea {
+    min-height: 52px;
+    padding: 18px 22px;
+    font-size: 1.15rem;
+  }
+
+  .form-section textarea {
+    min-height: 160px;
+    padding: 22px;
+  }
+
+  .form-section label {
+    font-size: 1.1rem;
+  }
+}
+
+/* Edit Mode: maximize usable space in FormCard */
+.form-card.form-card--editmode {
+  padding: 0 !important;
+  background: var(--chat-background);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+.form-card--editmode.form-card--large {
+  padding: 0 !important;
+}
+
+.form-card--editmode .form-card__content {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Edit Mode Split Layout Enhancements */
+.form-section__container.edit-mode-enhanced {
+  gap: 0;
+  height: 100%;
+  min-height: 600px;
+}
+
+.form-section__inputs.edit-mode-enhanced {
+  flex: 1;
+  background: var(--chat-background);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.form-section__extras.edit-mode-enhanced {
+  flex: 2;
+  background: var(--background-color-pure);
+  padding: var(--spacing-large);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+/* Enhanced Focus Mode */
+.edit-mode-focus .form-section__container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1500;
+  background: var(--background-color-pure);
+  gap: 0;
+  max-width: none;
+}

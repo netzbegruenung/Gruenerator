@@ -1,0 +1,131 @@
+.apps-version-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-medium);
+  margin-bottom: var(--spacing-large);
+  flex-wrap: wrap;
+}
+
+.apps-version-badge {
+  background-color: var(--primary-600);
+  color: var(--weiß);
+  padding: var(--spacing-xxsmall) var(--spacing-small);
+  border-radius: var(--card-border-radius-small);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.apps-release-date {
+  color: var(--grey-600);
+  font-size: 0.9rem;
+}
+
+.apps-platforms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-large);
+  margin-top: var(--spacing-medium);
+}
+
+.apps-platform-section {
+  background-color: var(--card-background-color);
+  border: 1px solid var(--card-border-color);
+  border-radius: var(--card-border-radius-medium);
+  padding: var(--spacing-medium);
+}
+
+.apps-platform-section h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  margin-top: 0;
+  margin-bottom: var(--spacing-medium);
+  flex-wrap: wrap;
+}
+
+.apps-platform-current {
+  border-color: var(--primary-600);
+  border-width: 2px;
+}
+
+.apps-platform-badge {
+  background-color: var(--primary-600);
+  color: var(--weiß);
+  padding: 2px var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.platform-icon {
+  font-size: 1.5rem;
+  color: var(--primary-600);
+}
+
+.apps-download-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.apps-download-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  text-decoration: none;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.download-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  flex-wrap: wrap;
+}
+
+.download-size {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.apps-download-recommended {
+  background-color: var(--primary-600);
+  border-color: var(--primary-600);
+}
+
+.apps-download-recommended:hover {
+  background-color: var(--primary-700);
+  border-color: var(--primary-700);
+}
+
+.apps-recommended-badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--weiß);
+  padding: 2px var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.apps-error {
+  color: var(--error-color, #dc2626);
+  margin-bottom: var(--spacing-medium);
+}
+
+.apps-release-notes {
+  margin-top: var(--spacing-xlarge);
+  padding-top: var(--spacing-large);
+  border-top: 1px solid var(--card-border-color);
+}
+
+.apps-release-notes h2 {
+  margin-top: 0;
+}

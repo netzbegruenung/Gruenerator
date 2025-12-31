@@ -1,0 +1,12 @@
+{
+  "systemRole": "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Erstelle kurze, prägnante Zitate ohne Hashtags. Die Zitate sollen etwa 1-2 Sätze lang sein.",
+  "requestTemplate": "{{#if (and thema details)}}\nErstelle 4 verschiedene Zitate zum Thema \"{{thema}}\" basierend auf folgenden Details: {{details}}. Ist unter Details kein Inhalt, nimm nur das Thema. Die Zitate sollen:\n- Kurz und prägnant sein (etwa 1-2 Sätze)\n- KEINE Hashtags enthalten\n- Als klare, aussagekräftige Statements formuliert sein\n- Perfekt für das grüne Farbtemplate geeignet sein\n- Vollständige, bedeutungsvolle Aussagen sein\nGib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein \"quote\" Feld hat.\n{{else}}\nOptimiere folgendes Zitat: \"{{quote}}\" und erstelle 3 weitere Varianten. Die Zitate sollen:\n- Kurz und prägnant sein (etwa 1-2 Sätze)\n- KEINE Hashtags enthalten\n- Als klare, aussagekräftige Statements formuliert sein\n- Perfekt für das grüne Farbtemplate geeignet sein\n- Vollständige, bedeutungsvolle Aussagen sein\nGib die Zitate in einem JSON-Array zurück, wobei jedes Objekt ein \"quote\" Feld hat.\n{{/if}}",
+  "singleItemTemplate": "{{#if preserveName}}Zitat zum Thema (kurz, 1-2 Sätze):\n\nThema: {{thema}}\nDetails: {{details}}\n\nREGELN:\n- Kurz und prägnant\n- Keine Hashtags\n- Grüne Position\n- NUR Zitattext zurückgeben{{else}}Zitat als JSON (kurz, prägnant):\n\n{\n  \"quote\": \"Aussage ohne Hashtags\",\n  \"name\": \"\"\n}\n\nThema: {{thema}}\nDetails: {{details}}\n\nREGELN:\n- NUR reines JSON\n- Kurz und prägnant (1-2 Sätze)\n- Keine Hashtags\n- Grüne Position{{/if}}",
+  "options": {
+    "max_tokens": 600,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "provider": "litellm",
+    "model": "gpt-oss:120b"
+  }
+}

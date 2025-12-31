@@ -1,0 +1,214 @@
+
+
+.field-editor-assistant {
+    border: none;
+}
+
+.field-editor-assistant h5 {
+    color: var(--font-color-h, var(--secondary)); 
+    margin-top: 20px;
+    margin-bottom: var(--spacing-medium, 16px);
+    font-weight: 600; 
+}
+
+
+/* Form-group spacing removed - FormInput components handle their own spacing */
+
+
+
+
+
+/* Input styles removed - now using FormInput components with modern styling */
+
+
+.type-selector-container {
+    display: flex; 
+    border-radius: 6px; 
+    overflow: hidden; 
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3)); 
+    width: fit-content; 
+    padding-top: 10px;
+    gap: 10px;
+}
+
+.type-selector-button {
+    flex: 1; 
+    padding: var(--spacing-small, 12px) var(--spacing-medium, 16px);
+    border: none; 
+    background-color: transparent; 
+    color: var(--font-color, var(--secondary));
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    text-align: center;
+    border-radius: 0; 
+    font-weight: 500;
+}
+
+
+.type-selector-button:not(:last-child) {
+    border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3)); 
+}
+
+.type-selector-button:hover {
+    background-color: rgba(var(--weiß-rgb, 255, 255, 255), 0.05);
+}
+
+.type-selector-button.active {
+    background-color: var(--klee, #8ABD24) !important; 
+    font-weight: 600;
+}
+
+
+
+.field-editor-assistant .form-check {
+    padding-left: 0; 
+    margin-bottom: var(--spacing-small, 12px);
+}
+
+.field-editor-assistant .form-check-input {
+    margin-right: var(--spacing-xsmall, 8px);
+    vertical-align: middle; 
+    margin-top: 0; 
+    width: 1em; 
+    height: 1em;
+}
+
+.field-editor-assistant .form-check-label {
+    display: inline; 
+    margin-bottom: 0;
+    vertical-align: middle;
+}
+
+
+.field-editor-assistant code {
+    background-color: var(--anthrazit, #222);
+    color: var(--font-color, var(--secondary));
+    padding: var(--spacing-xxsmall, 4px) var(--spacing-xsmall, 8px);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9em;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+}
+
+
+.field-editor-assistant .help-text {
+    
+    font-size: 0.9em;
+    color: var(--weiß);
+    opacity: 1; 
+    margin-top: var(--spacing-xsmall, 8px);
+}
+
+
+.field-editor-assistant .alert-danger {
+    background-color: rgba(var(--sonne-rgb, 255, 241, 122), 0.1);
+    border: 1px solid var(--sonne, #FFF17A);
+    color: var(--sonne, #FFF17A);
+    border-radius: 4px;
+    padding: var(--spacing-small, 12px);
+    margin-bottom: var(--spacing-medium, 16px);
+}
+
+
+.field-editor-assistant .btn {
+    
+    background-color: var(--primary, #006A4E);
+    border: 2px solid var(--weiß, #ffffff);
+    color: var(--weiß, #ffffff);
+    padding: 10px 20px; 
+    border-radius: 10px; 
+    font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.field-editor-assistant .btn:hover {
+    
+    background-color: var(--klee, #008939);
+    border-color: var(--weiß, #ffffff);
+    color: var(--weiß, #ffffff);
+}
+
+.field-editor-assistant .btn:active {
+    transform: translateY(1px);
+}
+
+
+.field-editor-assistant .btn-primary {
+    background-color: var(--klee, #008939);
+    border-color: var(--klee, #008939);
+    color: var(--weiß, #ffffff);
+}
+
+.field-editor-assistant .btn-primary:hover {
+    border-color: var(--secondary);
+}
+
+.field-editor-assistant .btn-secondary {
+    
+    background-color: transparent;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.3));
+    color: var(--font-color, var(--secondary));
+}
+
+.field-editor-assistant .btn-secondary:hover {
+    background-color: rgba(var(--weiß-rgb, 255, 255, 255), 0.1);
+    border-color: var(--weiß);
+    color: var(--weiß);
+}
+
+
+.toggle-switch-group {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    margin-bottom: var(--spacing-large, 24px); 
+}
+
+.toggle-switch-group .form-check-label {
+    margin-bottom: 0; 
+    margin-right: var(--spacing-medium, 16px); 
+    display: inline; 
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+    background-color: var(--dimmed, rgba(255, 255, 255, 0.15));
+    border-radius: 14px;
+    cursor: pointer;
+    border: 2px solid var(--border-subtle, rgba(255, 255, 255, 0.4));
+    padding: 0;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.toggle-switch-thumb {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 22px;
+    height: 22px;
+    background-color: var(--weiß, #ffffff);
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+}
+
+
+.toggle-switch.checked {
+    background-color: var(--grashalm, #8ABD24);
+    border-color: var(--grashalm, #8ABD24);
+}
+
+.toggle-switch.checked .toggle-switch-thumb {
+    transform: translateX(22px); 
+}
+
+
+
+.field-editor-assistant .action-button-container {
+    display: flex;
+    justify-content: center; 
+    gap: var(--spacing-medium, 16px); 
+    margin-top: var(--spacing-large, 24px); 
+}

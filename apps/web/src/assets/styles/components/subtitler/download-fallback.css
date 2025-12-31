@@ -1,0 +1,182 @@
+/* Download Fallback Styles - Uses existing button.css classes */
+.download-fallback {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.fallback-message {
+  background-color: var(--background-color);
+  border: 2px solid var(--primary);
+  border-radius: var(--button-border-radius);
+  padding: 2rem;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.fallback-message p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.fallback-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Use existing btn-primary class */
+.fallback-buttons .btn-primary {
+  width: 100%;
+}
+
+/* Secondary button using existing form-button style */
+.fallback-buttons .btn-secondary {
+  width: 100%;
+  background-color: var(--weiß);
+  color: #333;
+  border: 2px solid var(--primary);
+  border-radius: var(--button-border-radius);
+  padding: var(--button-padding);
+  cursor: pointer;
+  transition: all var(--button-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--button-font-size);
+}
+
+.fallback-buttons .btn-secondary:hover {
+  background-color: var(--klee);
+  color: var(--weiß);
+  transform: scale(1.01);
+}
+
+@media (max-width: 768px) {
+  .download-fallback {
+    padding: var(--spacing-small);
+  }
+  
+  .fallback-message {
+    padding: var(--spacing-medium);
+  }
+}
+
+/* Export Progress Overlay */
+.export-progress-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  z-index: 10;
+}
+
+.progress-content {
+  background-color: var(--background-color);
+  border: 2px solid var(--interactive-accent-color);
+  border-radius: var(--button-border-radius);
+  padding: var(--spacing-large);
+  text-align: center;
+  min-width: 200px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.progress-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--interactive-accent-color);
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+  margin: 0 auto var(--spacing-medium);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Spinner with percentage overlay */
+.spinner-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+}
+
+.spinner-container .spinner {
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--weiß);
+  border-top-color: var(--interactive-accent-color);
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+.spinner-percentage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--font-color);
+  text-align: center;
+  line-height: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-content p {
+  margin: 0 0 var(--spacing-medium);
+  font-weight: 500;
+  color: var(--font-color);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--interactive-accent-color);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--font-color);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}

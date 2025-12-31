@@ -1,0 +1,299 @@
+/* Enrichment Sources Display - Shows sources used during generation */
+
+.enrichment-sources {
+  width: 100%;
+  margin-top: var(--spacing-large);
+  padding: var(--spacing-medium);
+  background: var(--background-secondary);
+  border: var(--card-border);
+  border-radius: var(--card-border-radius);
+}
+
+.enrichment-sources__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-medium);
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+}
+
+.enrichment-sources__title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.enrichment-sources__badges {
+  display: flex;
+  gap: var(--spacing-xsmall);
+  flex-wrap: wrap;
+}
+
+.enrichment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  padding: 2px var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.enrichment-badge svg {
+  font-size: 0.9rem;
+}
+
+.enrichment-badge--auto {
+  background: rgba(95, 133, 117, 0.1);
+  border-color: var(--klee);
+  color: var(--secondary-700);
+}
+
+.enrichment-badge--url {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--interactive-accent-color);
+  color: var(--interactive-accent-color);
+}
+
+.enrichment-badge--web {
+  background: rgba(251, 188, 5, 0.1);
+  border-color: var(--sonne);
+  color: var(--sonne-dark);
+}
+
+[data-theme="dark"] .enrichment-badge--auto {
+  background: rgba(95, 133, 117, 0.2);
+  color: var(--secondary-400);
+}
+
+[data-theme="dark"] .enrichment-badge--url {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--himmel);
+}
+
+[data-theme="dark"] .enrichment-badge--web {
+  background: rgba(251, 188, 5, 0.2);
+  color: var(--sonne);
+}
+
+.enrichment-sources__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+/* Source Group */
+.enrichment-source-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.enrichment-source-group__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding-bottom: var(--spacing-xsmall);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.enrichment-source-group__header .group-icon {
+  font-size: 1.1rem;
+  color: var(--secondary-600);
+}
+
+.enrichment-source-group__header .group-title {
+  margin: 0;
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--font-color);
+}
+
+.enrichment-source-group__header .group-count {
+  font-size: 0.8rem;
+  color: var(--font-color-secondary);
+  background: var(--background-color);
+  padding: 2px var(--spacing-xsmall);
+  border-radius: var(--card-border-radius-small);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .enrichment-source-group__header .group-icon {
+  color: var(--secondary-400);
+}
+
+/* Source List */
+.enrichment-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.enrichment-source-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small);
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-border-radius-small);
+  transition: all 0.15s ease;
+}
+
+.enrichment-source-item:hover {
+  border-color: var(--interactive-accent-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.enrichment-source-item .source-icon {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  margin-top: 2px;
+}
+
+.enrichment-source-item--document .source-icon {
+  color: var(--secondary-600);
+}
+
+.enrichment-source-item--url .source-icon {
+  color: var(--interactive-accent-color);
+}
+
+.enrichment-source-item--web .source-icon {
+  color: var(--sonne-dark);
+}
+
+[data-theme="dark"] .enrichment-source-item--document .source-icon {
+  color: var(--secondary-400);
+}
+
+[data-theme="dark"] .enrichment-source-item--web .source-icon {
+  color: var(--sonne);
+}
+
+.source-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.source-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--font-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.source-subtitle {
+  font-size: 0.75rem;
+  color: var(--font-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-meta {
+  font-size: 0.75rem;
+  color: var(--font-color-secondary);
+  font-weight: 500;
+}
+
+.source-link {
+  font-size: 0.75rem;
+  color: var(--interactive-accent-color);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.source-link:hover {
+  color: var(--interactive-accent-color-hover);
+  text-decoration: underline;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .enrichment-sources {
+    padding: var(--spacing-small);
+    margin-top: var(--spacing-medium);
+  }
+
+  .enrichment-sources__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xsmall);
+  }
+
+  .enrichment-sources__title {
+    font-size: 1rem;
+  }
+
+  .enrichment-badge {
+    font-size: 0.7rem;
+  }
+
+  .enrichment-source-item {
+    padding: var(--spacing-xsmall);
+    gap: var(--spacing-xsmall);
+  }
+
+  .enrichment-source-item .source-icon {
+    font-size: 1rem;
+  }
+
+  .source-title {
+    font-size: 0.8rem;
+  }
+
+  .source-subtitle,
+  .source-meta,
+  .source-link {
+    font-size: 0.7rem;
+  }
+
+  .enrichment-source-group__header .group-title {
+    font-size: 0.875rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .enrichment-badge--auto {
+    background: rgba(95, 133, 117, 0.2);
+    color: var(--secondary-400);
+  }
+
+  :root:not([data-theme="light"]) .enrichment-badge--url {
+    background: rgba(59, 130, 246, 0.2);
+    color: var(--himmel);
+  }
+
+  :root:not([data-theme="light"]) .enrichment-badge--web {
+    background: rgba(251, 188, 5, 0.2);
+    color: var(--sonne);
+  }
+
+  :root:not([data-theme="light"]) .enrichment-source-group__header .group-icon {
+    color: var(--secondary-400);
+  }
+
+  :root:not([data-theme="light"]) .enrichment-source-item--document .source-icon {
+    color: var(--secondary-400);
+  }
+
+  :root:not([data-theme="light"]) .enrichment-source-item--web .source-icon {
+    color: var(--sonne);
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "buergeranfragen",
+  "name": "Bürger*innenanfragen Generator",
+  "systemRole": "Du bist ein erfahrener politischer Kommunikator für {{partyName}}.",
+  "taskInstructions": "Erstelle eine professionelle und verständliche Antwort auf die Bürger*innenanfrage.\n\nDeine Antwort soll:\n- Respektvoll und wertschätzend gegenüber der Anfrage sein\n- Klar und verständlich formuliert sein (keine Fachsprache)\n- Die Position von {{partyName}} zu dem Thema deutlich machen\n- Konkrete Informationen und ggf. Lösungsansätze bieten\n- Einen konstruktiven und dialogbereiten Ton wahren\n- Sachlich bleiben, auch bei kritischen Anfragen\n\nGliederung der Antwort:\n1. Höfliche Anrede und Dank für die Anfrage\n2. Zusammenfassung der Anfrage (zeigt, dass du sie verstanden hast)\n3. Ausführliche, sachliche Antwort mit Bezug zur Position von {{partyName}}\n4. Weiterführende Informationen oder Handlungsoptionen (falls relevant)\n5. Freundlicher Abschluss mit Angebot für weitere Fragen",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false
+  },
+  "requestFields": ["gremium", "anliegen", "antwortart", "kontext", "absender"],
+  "validation": {
+    "required": ["anliegen"],
+    "errorMessage": "Das Anliegen/die Anfrage ist ein Pflichtfeld oder ein benutzerdefinierter Prompt muss angegeben werden."
+  },
+  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n{{#if gremium}}\n<gremium>\nZuständiges Gremium/Position: {{gremium}}\n</gremium>\n{{/if}}\n\n<anliegen>\n{{anliegen}}\n</anliegen>\n\n{{#if antwortart}}\n<antwortart>\nGewünschte Art der Antwort: {{antwortart}}\nBitte berücksichtige diese Stilrichtung beim Verfassen der Antwort.\n</antwortart>\n{{/if}}\n\n{{#if kontext}}\n<kontext>\nZusätzlicher Kontext:\n{{kontext}}\n</kontext>\n{{/if}}\n\n{{#if absender}}\n<absender>\nInformationen zum Absender:\n{{absender}}\n</absender>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "customPromptTemplate": {
+    "gremium": "{{gremium|default:''}}",
+    "anliegen": "{{anliegen|default:'Nicht angegeben'}}",
+    "antwortart": "{{antwortart|default:''}}",
+    "kontext": "{{kontext|default:''}}",
+    "absender": "{{absender|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{anliegen}} {{partyName}} Position Politik",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 4000,
+    "temperature": 0.5
+  }
+}

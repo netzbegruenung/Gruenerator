@@ -1,0 +1,169 @@
+/* Responsive styling for attached files list */
+.attached-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xsmall);
+  margin-top: var(--spacing-small);
+  margin-bottom: var(--spacing-small);
+  width: 100%;
+}
+
+/* Compact mode for dropdown inline preview */
+.attached-files-list--compact {
+  margin-top: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: var(--spacing-xxsmall);
+}
+
+.attached-files-list--compact .file-tag {
+  font-size: 0.75rem;
+  padding: 4px var(--spacing-xxsmall);
+  max-width: 100%;
+}
+
+.attached-files-list__more {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px var(--spacing-xsmall);
+  background-color: var(--secondary-100);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.7rem;
+  color: var(--font-color);
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .attached-files-list__more {
+  background-color: var(--grey-600);
+}
+
+.file-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  background-color: var(--secondary-50);
+  border: 1px solid var(--secondary-200);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.8rem;
+  max-width: 100%;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.file-tag .file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  color: var(--font-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile-first responsive breakpoints */
+@media (max-width: 480px) {
+  .attached-files-list {
+    gap: var(--spacing-xxsmall);
+  }
+  
+  .file-tag {
+    font-size: 0.75rem;
+    padding: var(--spacing-xxsmall);
+    max-width: calc(100vw - 2 * var(--spacing-medium));
+  }
+  
+  .file-tag .file-name {
+    max-width: calc(100% - 24px); /* Account for remove button */
+  }
+  
+  .file-remove-btn {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .file-tag {
+    max-width: calc(50vw - var(--spacing-small));
+  }
+}
+
+@media (min-width: 769px) {
+  .file-tag {
+    max-width: 300px;
+  }
+}
+
+.file-remove-btn {
+  margin-left: var(--spacing-xxsmall);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--error-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transition: var(--input-transition);
+  flex-shrink: 0;
+  min-width: 16px;
+}
+
+.file-remove-btn:hover {
+  background-color: var(--error-50);
+}
+
+/* Warning state for privacy mode conflicts */
+.file-tag--warning {
+  border-color: var(--error-500) !important;
+  background-color: rgba(211, 47, 47, 0.05);
+  position: relative;
+}
+
+.file-tag.file-tag--warning .file-name {
+  color: var(--error-700) !important;
+}
+
+.file-tag--warning .file-remove-btn {
+  color: var(--error-600);
+}
+
+.file-tag--warning .file-remove-btn:hover {
+  background-color: var(--error-100);
+  color: var(--error-700);
+}
+
+/* Dark theme */
+[data-theme="dark"] .file-tag {
+  background-color: var(--grey-700);
+  border-color: var(--grey-600);
+}
+
+[data-theme="dark"] .file-remove-btn:hover {
+  background-color: var(--grey-600);
+}
+
+/* Dark theme warning state */
+[data-theme="dark"] .file-tag--warning {
+  background-color: rgba(211, 47, 47, 0.1);
+  border-color: var(--error-400) !important;
+}
+
+[data-theme="dark"] .file-tag.file-tag--warning .file-name {
+  color: var(--error-300) !important;
+}
+
+[data-theme="dark"] .file-tag--warning .file-remove-btn {
+  color: var(--error-400);
+}
+
+[data-theme="dark"] .file-tag--warning .file-remove-btn:hover {
+  background-color: var(--error-900);
+  color: var(--error-300);
+}

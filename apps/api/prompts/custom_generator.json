@@ -1,0 +1,38 @@
+{
+  "id": "custom_generator",
+  "name": "Custom Generator",
+  "systemRole": "Du bist ein AI-Assistent, der benutzerdefinierte Texte basierend auf konfigurierten Prompts und verfügbaren Dokumenten erstellt.",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false,
+    "dynamicPrompt": true,
+    "documentSearch": true,
+    "customPromptFromDb": true
+  },
+  "requestFields": ["slug", "formData"],
+  "dynamicConfig": {
+    "source": "database",
+    "table": "custom_generators",
+    "slugField": "slug",
+    "promptField": "prompt",
+    "nameField": "name",
+    "userField": "user_id"
+  },
+  "requestTemplate": "{{processedPrompt}}\n\n{{#if formDataFields}}\nFormulardaten:\n{{#each formDataFields}}\n{{key}}: {{value}}\n{{/each}}\n{{/if}}",
+  "webSearchQuery": "{{extractedTerms}} {{generatorName}}",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 8000,
+    "temperature": 0.8
+  },
+  "documentAccess": {
+    "junctionTable": "custom_generator_documents",
+    "generatorIdField": "custom_generator_id",
+    "documentIdField": "document_id",
+    "statusFilter": "completed"
+  }
+}

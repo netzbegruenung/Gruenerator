@@ -1,0 +1,116 @@
+{
+  "name": "@gruenerator/web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mdxeditor/editor": "^3.52.1",
+    "@radix-ui/react-checkbox": "^1.3.2",
+    "@radix-ui/react-switch": "^1.2.5",
+    "@remotion/media-utils": "^4.0.390",
+    "@remotion/player": "^4.0.390",
+    "@remotion/preload": "^4.0.390",
+    "@tanstack/react-query": "^5.84.0",
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-shell": "^2",
+    "axios": "^1.8.4",
+    "browser-image-compression": "^2.0.2",
+    "dompurify": "^3.2.6",
+    "fast-deep-equal": "^3.1.3",
+    "file-saver": "^2.0.5",
+    "framer-motion": "^12.23.26",
+    "i18next": "^25.5.2",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "immer": "^10.1.1",
+    "lodash": "^4.17.21",
+    "marked": "^15.0.12",
+    "motion": "^12.23.12",
+    "prop-types": "^15.8.1",
+    "react": "19.1.0",
+    "react-compare-slider": "^3.1.0",
+    "react-dom": "19.1.0",
+    "react-dropzone": "^14.3.8",
+    "react-hook-form": "^7.57.0",
+    "react-i18next": "^15.7.3",
+    "react-icons": "^5.5.0",
+    "react-image-gallery": "^1.4.0",
+    "react-lazy-load-image-component": "^1.6.3",
+    "react-markdown": "^10.1.0",
+    "react-qr-code": "^2.0.18",
+    "react-router-dom": "^7.6.1",
+    "react-select": "^5.10.1",
+    "react-textarea-autosize": "^8.5.9",
+    "react-tooltip": "^5.28.0",
+    "react-type-animation": "^3.2.0",
+    "react-use": "^17.6.0",
+    "remotion": "^4.0.390",
+    "tus-js-client": "^4.3.1",
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@tanstack/react-query-devtools": "^5.75.2",
+    "@testing-library/react": "^16.2.0",
+    "@types/lodash": "^4.17.21",
+    "@types/node": "^24.10.4",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.4.1",
+    "babel-jest": "^29.7.0",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.23.0",
+    "eslint-plugin-react": "^7.37.4",
+    "rimraf": "^6.0.1",
+    "terser": "^5.43.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.5",
+    "vite-bundle-analyzer": "^1.1.0"
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@testing-library|@adobe)/)"
+    ],
+    "transform": {
+      "^.+\\.(js|jsx|ts|tsx)$": "babel-jest"
+    }
+  },
+  "scripts": {
+    "start": "vite",
+    "start:debug": "cross-env NODE_OPTIONS=\"--inspect --max-old-space-size=4096\" vite",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=2048 vite build",
+    "build:low-memory": "cross-env NODE_OPTIONS=\"--max-old-space-size=1536 --gc-interval=100\" vite build",
+    "build:profile": "cross-env NODE_OPTIONS=--prof vite build",
+    "build:sequential": "cross-env NODE_OPTIONS=--max-old-space-size=2048 npm run build:clean && npm run build:chunks",
+    "build:clean": "rimraf build && npm run deps:clean",
+    "build:chunks": "cross-env NODE_OPTIONS=--max-old-space-size=2048 vite build --mode=production",
+    "preview": "vite preview",
+    "test": "jest",
+    "analyze": "vite-bundle-analyzer build",
+    "build:analyze": "npm run build && npm run analyze",
+    "deps:check": "npx depcheck",
+    "deps:clean": "npm prune && npm dedupe"
+  },
+  "eslintConfig": {
+    "extends": [
+      "eslint:recommended",
+      "plugin:react/recommended",
+      "plugin:react/jsx-runtime"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

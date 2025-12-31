@@ -1,0 +1,10 @@
+/* ========================================
+   Config Driven Fields
+   Dynamic form field container
+   ======================================== */
+
+.config-driven-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}

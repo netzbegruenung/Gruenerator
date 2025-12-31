@@ -1,0 +1,34 @@
+{
+  "id": "rede",
+  "name": "Rede Generator",
+  "systemRole": "Sie sind ein politischer Redenschreiber für {{partyName}}.",
+  "taskInstructions": "Erstellen Sie eine überzeugende und mitreißende Rede, die den Werten und Positionen der Partei entspricht.\n\nGeben Sie vor der Rede an:\n- 2-3 unterschiedliche Ideen für den Einstieg\n- 2-3 Kernargumente\n- 2-3 gute Ideen für ein Ende\n- 2-3 Tipps für den Redner, worauf er bei dieser Rede und diesem Thema achten muss\n\nBefolgen Sie diese Richtlinien:\n\n**Struktur:**\n- Beginnen Sie mit einem starken Einstieg, der die Aufmerksamkeit auf sich zieht und das Thema vorstellt\n- Verwenden Sie Übergänge zwischen den Abschnitten, um den Fluss aufrechtzuerhalten\n- Schließen Sie mit einem kraftvollen Aufruf zum Handeln\n\n**Parteilinie:**\n- Integrieren Sie die Kernwerte von {{partyName}}: Umweltschutz, soziale Gerechtigkeit und nachhaltige Entwicklung\n- Beziehen Sie sich auf die aktuellen Positionen der Partei zu relevanten Themen\n\n**Ton und Sprache:**\n- Verwenden Sie klare, zugängliche, bodenständige Sprache, die bei einem vielfältigen Publikum Anklang findet\n- Finden Sie eine Balance zwischen Leidenschaft und Professionalität\n- Setzen Sie rhetorische Mittel wie Wiederholungen, Metaphern oder rhetorische Fragen ein\n- Gehen Sie respektvoll, aber bestimmt auf mögliche Gegenargumente ein\n\n**Abschluss:**\n- Enden Sie mit einer starken, inspirierenden Botschaft, die die Hauptpunkte verstärkt und das Publikum motiviert",
+  "platforms": {},
+  "features": {
+    "webSearch": true,
+    "docQnA": true,
+    "urlCrawl": true,
+    "examples": false
+  },
+  "requestFields": ["rolle", "thema", "zielgruppe", "schwerpunkte", "redezeit"],
+  "validation": {
+    "required": ["rolle", "thema", "zielgruppe"],
+    "errorMessage": "Rolle, Thema und Zielgruppe sind Pflichtfelder oder ein benutzerdefinierter Prompt muss angegeben werden."
+  },
+  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n<rolle>\nRolle/Position des Redners: {{rolle}}\n</rolle>\n\n<thema>\nSpezifisches Thema oder Anlass der Rede: {{thema}}\n</thema>\n\n<zielgruppe>\nZielgruppe: {{zielgruppe}}\n</zielgruppe>\n\n{{#if schwerpunkte}}\n<schwerpunkte>\nBesondere Schwerpunkte oder lokale Aspekte: {{schwerpunkte}}\n</schwerpunkte>\n{{/if}}\n\n{{#if redezeit}}\n<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}",
+  "customPromptTemplate": {
+    "rolle": "{{rolle|default:'Nicht angegeben'}}",
+    "thema": "{{thema|default:'Nicht angegeben'}}",
+    "zielgruppe": "{{zielgruppe|default:'Nicht angegeben'}}",
+    "schwerpunkte": "{{schwerpunkte|default:''}}",
+    "redezeit": "{{redezeit|default:''}}",
+    "currentDate": "{{currentDate}}"
+  },
+  "webSearchQuery": "{{thema}} {{schwerpunkte}} {{partyName}} Politik Rede",
+  "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
+  "shortFormThreshold": 300,
+  "options": {
+    "max_tokens": 4000,
+    "temperature": 0.3
+  }
+}

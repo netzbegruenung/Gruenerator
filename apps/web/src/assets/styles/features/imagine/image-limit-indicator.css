@@ -1,0 +1,102 @@
+/**
+ * Image Generation Limit Indicator Styles
+ * Visual feedback for daily image generation limits
+ */
+
+.limit-indicator {
+  margin: var(--spacing-medium) 0;
+  padding: var(--spacing-small);
+  border-radius: var(--border-radius-small);
+  border: 1px solid var(--border-color);
+  background-color: var(--background-color-alt);
+  transition: all 0.3s ease;
+}
+
+
+.limit-indicator__bar {
+  width: 100%;
+  height: 6px;
+  background-color: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: var(--spacing-xsmall);
+}
+
+.limit-indicator__progress {
+  height: 100%;
+  background-color: var(--interactive-accent-color);
+  transition: width 0.5s ease;
+  border-radius: 3px;
+}
+
+.limit-indicator__note {
+  font-size: var(--font-size-xsmall);
+  color: var(--font-color);
+  font-style: italic;
+  text-align: center;
+  margin-top: var(--spacing-xsmall);
+}
+
+/* Status variations */
+.limit-indicator--normal {
+  border-color: var(--interactive-accent-color);
+  background-color: var(--background-color-success);
+}
+
+.limit-indicator--normal .limit-indicator__progress {
+  background-color: var(--interactive-accent-color);
+}
+
+.limit-indicator--warning {
+  border-color: var(--sonne);
+  background-color: var(--background-color-warning);
+}
+
+
+.limit-indicator--warning .limit-indicator__progress {
+  background-color: var(--sonne);
+}
+
+.limit-indicator--blocked {
+  border-color: var(--error-color);
+  background-color: var(--background-color-error);
+}
+
+
+.limit-indicator--blocked .limit-indicator__progress {
+  background-color: var(--error-color);
+}
+
+.limit-indicator--blocked .limit-indicator__note {
+  color: var(--error-color-muted);
+  font-weight: 500;
+  font-style: normal;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .limit-indicator {
+    margin: var(--spacing-small) 0;
+    padding: var(--spacing-xsmall);
+  }
+  
+  
+  .limit-indicator__note {
+    font-size: var(--font-size-xxsmall);
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .limit-indicator--normal {
+    background-color: var(--background-color-success-dark);
+  }
+  
+  .limit-indicator--warning {
+    background-color: var(--background-color-warning-dark);
+  }
+  
+  .limit-indicator--blocked {
+    background-color: var(--background-color-error-dark);
+  }
+}

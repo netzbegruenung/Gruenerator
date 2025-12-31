@@ -1,0 +1,53 @@
+{
+  "greeting": "Guten Tag",
+  "welcome": "Willkommen beim Grünerator",
+  "welcome_back": "Willkommen zurück!",
+  "january": "Januar",
+  "login": {
+    "title": "Anmelden",
+    "subtitle": "Melde dich an, um fortzufahren",
+    "subtitle_with_page": "Melde dich an, um {{pageName}} zu nutzen",
+    "redirecting": "Weiterleitung zum Login...",
+    "close": "Login schließen",
+    "legal_notice": "Mit der Anmeldung stimmst du unseren {{privacyLink}} zu.",
+    "privacy_link": "Nutzungsbedingungen und der Datenschutzerklärung",
+    "sources": {
+      "gruenes_netz": {
+        "title": "Grünes Netz Login",
+        "description": "Mit deinem Grünes Netz Account anmelden"
+      },
+      "gruene_oesterreich": {
+        "title": "Die Grünen – Die Grüne Alternative",
+        "description": "Mit deinem Die Grünen Account anmelden"
+      },
+      "netzbegruenung": {
+        "title": "Netzbegrünung Login",
+        "description": "Mit deinem Netzbegrünung Account anmelden"
+      },
+      "gruenerator": {
+        "title": "Grünerator Login",
+        "description": "Für Mitarbeitende von Abgeordneten und Geschäftsstellen"
+      }
+    }
+  },
+  "pages": {
+    "sharepic": "Sharepic Grünerator",
+    "antrag": "Antragsversteher",
+    "universal": "Universal Generator",
+    "presse": "Presse Generator",
+    "gruene-jugend": "Grüne Jugend Generator",
+    "subtitler": "Untertitel Generator",
+    "voice": "Sprach-zu-Text",
+    "chat": "KI-Chat",
+    "profile": "Profil",
+    "groups": "Gruppen",
+    "campaigns": "Kampagnen",
+    "search": "Suche",
+    "documents": "Dokumente",
+    "notebook": "Fragen & Antworten",
+    "generators": "Generatoren",
+    "you": "Grüne Ideen für dich",
+    "imagine": "Grünerator Imagine",
+    "this_page": "Diese Seite"
+  }
+}

@@ -1,0 +1,148 @@
+.desktop-titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: var(--bar-background);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  padding-left: 64px;
+  z-index: 9999;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.titlebar-title {
+  flex: 1;
+  color: var(--primary-600);
+  font-size: 14px;
+  font-weight: 600;
+  padding-left: 12px;
+  -webkit-app-region: drag;
+}
+
+[data-theme="dark"] .titlebar-title {
+  color: var(--primary-300);
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  -webkit-app-region: no-drag;
+}
+
+.desktop-titlebar-profile {
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  -webkit-app-region: no-drag;
+}
+
+.desktop-titlebar-profile .profile-button-container {
+  margin: 0;
+}
+
+.desktop-titlebar-profile .profile-button,
+.desktop-titlebar-profile .profile-label-button {
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.desktop-titlebar-profile .profile-button:hover,
+.desktop-titlebar-profile .profile-label-button:hover {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+}
+
+.desktop-titlebar-profile .profile-header-avatar-robot,
+.desktop-titlebar-profile .profile-header-robot-image {
+  width: 32px;
+  height: 32px;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.desktop-titlebar-profile .login-button {
+  padding: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.desktop-titlebar-profile .login-button:hover {
+  background: none;
+}
+
+.desktop-titlebar-profile .profile-icon {
+  font-size: 1.5rem;
+  color: var(--grey-500);
+}
+
+.desktop-titlebar-profile .login-button:hover .profile-icon {
+  color: var(--primary-600);
+}
+
+[data-theme="dark"] .desktop-titlebar-profile .profile-icon {
+  color: var(--grey-400);
+}
+
+[data-theme="dark"] .desktop-titlebar-profile .login-button:hover .profile-icon {
+  color: var(--primary-400);
+}
+
+.titlebar-button {
+  width: 46px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--grey-500);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-button:hover {
+  background-color: var(--grey-100);
+  color: var(--grey-700);
+}
+
+[data-theme="dark"] .titlebar-button {
+  color: var(--grey-400);
+}
+
+[data-theme="dark"] .titlebar-button:hover {
+  background-color: var(--grey-700);
+  color: var(--grey-200);
+}
+
+.titlebar-button.close:hover {
+  background-color: #e81123;
+  color: white;
+}
+
+.titlebar-button svg {
+  width: 10px;
+  height: 10px;
+}
+
