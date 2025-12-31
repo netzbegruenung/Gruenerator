@@ -1,4 +1,6 @@
 import { lazy } from 'react';
+import { isDesktopApp } from '../utils/platform';
+
 // Statische Importe in dynamische umwandeln
 const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
 const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
@@ -31,6 +33,15 @@ const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'
 
 // Lazy loading für statische Seiten
 const Home = lazy(() => import('../components/pages/Startseite'));
+const DesktopHome = lazy(() => import('../components/pages/DesktopHome/DesktopHome'));
+
+// Platform-aware home wrapper for desktop vs web
+const HomeWrapper = () => {
+  if (isDesktopApp()) {
+    return <DesktopHome />;
+  }
+  return <Home />;
+};
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
@@ -142,7 +153,7 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes = [
-  { path: '/', component: Home },
+  { path: '/', component: HomeWrapper },
   { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
   { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
   { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
