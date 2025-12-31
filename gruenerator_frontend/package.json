@@ -12,6 +12,8 @@
     "@remotion/preload": "^4.0.390",
     "@tanstack/react-query": "^5.84.0",
     "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-shell": "^2",
     "axios": "^1.8.4",
     "browser-image-compression": "^2.0.2",

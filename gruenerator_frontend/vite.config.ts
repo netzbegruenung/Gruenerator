@@ -60,6 +60,7 @@ export default defineConfig(({ command }) => ({
       external: (command === 'build' && !isTauri) ? [
         '@tauri-apps/plugin-fs',
         '@tauri-apps/plugin-opener',
+        '@tauri-apps/plugin-shell',
         '@tauri-apps/api/path',
         '@tauri-apps/api/window'
       ] : [],
