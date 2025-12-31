@@ -3,33 +3,19 @@
  * Automatically validates feature access via backend API calls
  */
 
-// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../../components/utils/apiClient';
 
-export const apiCheckMiddleware = (config) => (set, get, api) => {
+export const apiCheckMiddleware = (config: any) => (set: any, get: any, api: any) => {
   const storeApi = config(set, get, api);
 
   // Add API check functionality to the store
-  const checkFeatureAccess = async (featureName) => {
+  const checkFeatureAccess = async (featureName: string) => {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/beta-features/access`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ feature_name: featureName }),
-      });
-      
-      if (!response.ok) {
-        console.warn(`Error checking ${featureName} access: HTTP ${response.status}`);
-        return null; // Don't auto-disable on API errors
-      }
-      
-      const result = await response.json();
+      const response = await apiClient.post('/api/beta-features/access', { feature_name: featureName });
+      const result = response.data;
       return result.canAccess || result.data;
-    } catch (error) {
-      console.warn(`API check failed for ${featureName}:`, error);
+    } catch (error: any) {
+      console.warn(`API check failed for ${featureName}:`, error.message);
       return null;
     }
   };
@@ -74,6 +60,6 @@ export const apiCheckMiddleware = (config) => (set, get, api) => {
  * Configuration helper for API validation
  * Maps store keys to Supabase RPC feature names
  */
-export const createApiValidationConfig = (featureMap) => ({
+export const createApiValidationConfig = (featureMap: Record<string, string>) => ({
   apiValidation: featureMap
 }); 

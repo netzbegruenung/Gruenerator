@@ -166,12 +166,12 @@ const SharedMediaPage = () => {
   };
 
   const handleShareToInstagram = useCallback(async () => {
-    const mediaUrl = `${baseURL}/share/${shareToken}/preview`;
-    if (!mediaUrl) return;
     setIsSharing(true);
     try {
-      const response = await fetch(mediaUrl, { credentials: 'include' });
-      const blob = await response.blob();
+      const response = await apiClient.get(`/share/${shareToken}/preview`, {
+        responseType: 'blob'
+      });
+      const blob = response.data;
       const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
       const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
       const file = new File([blob], `gruenerator_media.${extension}`, { type: mimeType });

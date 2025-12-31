@@ -2,22 +2,11 @@
 import apiClient from '../../../components/utils/apiClient';
 import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from '../../groups/utils/avatarUtils';
 
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
 export const profileApiService = {
   // === PROFILE DATA ===
   async getProfile() {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/profile`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Fehler beim Laden der Profildaten. Status: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const response = await apiClient.get('/auth/profile');
+    const data = response.data;
     const profile = data.user || data.profile || null;
 
     if (!profile) {
@@ -60,18 +49,9 @@ export const profileApiService = {
       memories: includeMemories
     });
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/profile/bundle?${params}`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.get(`/auth/profile/bundle?${params}`);
+    const data = response.data;
 
-    if (!response.ok) {
-      throw new Error(`Fehler beim Laden der Profildaten. Status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
     if (!data.success) {
       throw new Error(data.message || 'Fehler beim Laden der Profildaten');
     }
@@ -88,45 +68,29 @@ export const profileApiService = {
   },
 
   async updateProfile(profileData) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/profile`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profileData)
-    });
-    
-    const result = await response.json();
-    
-    if (!response.ok || !result.success) {
+    const response = await apiClient.put('/auth/profile', profileData);
+    const result = response.data;
+
+    if (!result.success) {
       throw new Error(result.message || 'Profil-Update fehlgeschlagen');
     }
-    
+
     return result.profile;
   },
 
   async updateAvatar(avatarRobotId) {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/avatar`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatar_robot_id: avatarRobotId })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${result.message || 'Avatar-Update fehlgeschlagen'}`);
-      }
-      
+      const response = await apiClient.patch('/auth/profile/avatar', { avatar_robot_id: avatarRobotId });
+      const result = response.data;
+
       if (!result.success) {
         throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
       }
-      
+
       if (!result.profile) {
         throw new Error('Server returned success but no profile data');
       }
-      
+
       return result.profile;
     } catch (error) {
       console.error(`[ProfileAPI] Avatar update failed for robot ID ${avatarRobotId}:`, error);
@@ -136,17 +100,9 @@ export const profileApiService = {
 
   // === ANWEISUNGEN & WISSEN ===
   async getInstructionsStatusForType(instructionType) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/instructions-status/${instructionType}`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.get(`/auth/instructions-status/${instructionType}`);
+    const data = response.data;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch instructions status for ${instructionType}. Status: ${response.status}`);
-    }
-
-    const data = await response.json();
     if (!data.success) {
       throw new Error(data.message || `Failed to check ${instructionType} instructions status`);
     }
@@ -155,24 +111,11 @@ export const profileApiService = {
   },
 
   async getAnweisungenWissen(context = 'user', groupId = null) {
-    let url, response;
-    
     if (context === 'group' && groupId) {
       // Group endpoint - fetch group details which includes instructions and knowledge
-      url = `${AUTH_BASE_URL}/auth/groups/${groupId}/details`;
-      response = await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const response = await apiClient.get(`/auth/groups/${groupId}/details`);
+      const data = response.data;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
       if (!data.success) {
         throw new Error(data.message || 'Failed to fetch group details');
       }
@@ -198,17 +141,9 @@ export const profileApiService = {
       };
     } else {
       // Individual user endpoint (existing logic)
-      url = `${AUTH_BASE_URL}/auth/anweisungen-wissen`;
-      response = await fetch(url, {
-        method: 'GET',
-        credentials: 'include'
-      });
+      const response = await apiClient.get('/auth/anweisungen-wissen');
+      const json = response.data;
 
-      if (!response.ok) {
-        throw new Error('Fehler beim Laden');
-      }
-
-      const json = await response.json();
       return {
         antragPrompt: json.antragPrompt || '',
         antragGliederung: json.antragGliederung || '',
@@ -258,22 +193,14 @@ export const profileApiService = {
         social_instructions_enabled: data.socialInstructionsEnabled
       };
 
-      const instructionsPromise = fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/instructions`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(instructionsPayload)
-      }).then(response => {
-        if (!response.ok) {
-          throw new Error(`Instructions update failed: ${response.status}`);
-        }
-        return response.json();
-      }).then(data => {
-        if (!data.success) {
-          throw new Error(data.message || 'Failed to update instructions');
-        }
-        return data;
-      });
+      const instructionsPromise = apiClient.put(`/auth/groups/${groupId}/instructions`, instructionsPayload)
+        .then(response => {
+          const respData = response.data;
+          if (!respData.success) {
+            throw new Error(respData.message || 'Failed to update instructions');
+          }
+          return respData;
+        });
 
       promises.push(instructionsPromise);
 
@@ -282,47 +209,27 @@ export const profileApiService = {
         const knowledgePromises = cleanedKnowledge.map(async (entry) => {
           // Determine if this is a new entry or an update
           const isNewEntry = !entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'));
-          
+
           if (isNewEntry) {
             // Create new knowledge entry
-            const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: entry.title || 'Untitled',
-                content: entry.content || ''
-              })
+            const response = await apiClient.post(`/auth/groups/${groupId}/knowledge`, {
+              title: entry.title || 'Untitled',
+              content: entry.content || ''
             });
-            
-            if (!response.ok) {
-              throw new Error(`Failed to create knowledge entry: ${response.status}`);
-            }
-            
-            return await response.json();
+            return response.data;
           } else {
             // Update existing knowledge entry
-            const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge/${entry.id}`, {
-              method: 'PUT',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                title: entry.title || 'Untitled',
-                content: entry.content || ''
-              })
+            const response = await apiClient.put(`/auth/groups/${groupId}/knowledge/${entry.id}`, {
+              title: entry.title || 'Untitled',
+              content: entry.content || ''
             });
-            
-            if (!response.ok) {
-              throw new Error(`Failed to update knowledge entry: ${response.status}`);
-            }
-            
-            return await response.json();
+            return response.data;
           }
         });
-        
+
         // Wait for all knowledge operations to complete
         const knowledgeResults = await Promise.all(knowledgePromises);
-        
+
         // Check if any knowledge operations failed
         const failedKnowledge = knowledgeResults.filter(result => !result.success);
         if (failedKnowledge.length > 0) {
@@ -347,19 +254,8 @@ export const profileApiService = {
         knowledge: cleanedKnowledge
       };
 
-      const response = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Speichern' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-      
-      return await response.json();
+      const response = await apiClient.put('/auth/anweisungen-wissen', payload);
+      return response.data;
     }
   },
 
@@ -367,44 +263,27 @@ export const profileApiService = {
     if (typeof entryId === 'string' && entryId.startsWith('new-')) {
       return;
     }
-    
+
     let url;
     if (context === 'group' && groupId) {
-      url = `${AUTH_BASE_URL}/auth/groups/${groupId}/knowledge/${entryId}`;
+      url = `/auth/groups/${groupId}/knowledge/${entryId}`;
     } else {
-      url = `${AUTH_BASE_URL}/auth/anweisungen-wissen/${entryId}`;
+      url = `/auth/anweisungen-wissen/${entryId}`;
     }
 
-    const response = await fetch(url, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      const msg = await response.text();
-      throw new Error(msg || 'Fehler beim Löschen');
-    }
-    
+    await apiClient.delete(url);
     return entryId;
   },
 
   // === Q&A COLLECTIONS ===
   async getNotebookCollections() {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Fehler beim Laden der Q&A-Sammlungen');
-    }
-    
-    const json = await response.json();
-    
+    const response = await apiClient.get('/auth/notebook-collections');
+    const json = response.data;
+
     if (!json.success) {
       throw new Error(json.message || 'Failed to fetch Q&A collections');
     }
-    
+
     return json.collections || [];
   },
 
@@ -421,26 +300,8 @@ export const profileApiService = {
       remove_missing_on_sync: selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : false
     };
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    let json;
-    try {
-      json = await response.json();
-    } catch {
-      json = null;
-    }
-
-    if (!response.ok) {
-      const err = new Error(json?.error || json?.message || 'Fehler beim Erstellen der Q&A-Sammlung');
-      // Attach status for unified error handling
-      err.response = { status: response.status };
-      throw err;
-    }
+    const response = await apiClient.post('/auth/notebook-collections', body);
+    const json = response.data;
 
     if (!json?.success) {
       const err = new Error(json?.message || 'Failed to create Q&A collection');
@@ -464,25 +325,8 @@ export const profileApiService = {
       remove_missing_on_sync: selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : undefined
     };
 
-    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections/${collectionId}`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    let json;
-    try {
-      json = await response.json();
-    } catch {
-      json = null;
-    }
-
-    if (!response.ok) {
-      const err = new Error(json?.error || json?.message || 'Fehler beim Aktualisieren der Q&A-Sammlung');
-      err.response = { status: response.status };
-      throw err;
-    }
+    const response = await apiClient.put(`/auth/notebook-collections/${collectionId}`, body);
+    const json = response.data;
 
     if (!json?.success) {
       const err = new Error(json?.message || 'Failed to update Q&A collection');
@@ -494,24 +338,8 @@ export const profileApiService = {
   },
 
   async syncQACollection(collectionId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections/${collectionId}/sync`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    let json;
-    try {
-      json = await response.json();
-    } catch {
-      json = null;
-    }
-
-    if (!response.ok) {
-      const err = new Error(json?.error || json?.message || 'Fehler beim Synchronisieren der Notebook-Quellen');
-      err.response = { status: response.status };
-      throw err;
-    }
+    const response = await apiClient.post(`/auth/notebook-collections/${collectionId}/sync`);
+    const json = response.data;
 
     if (!json?.success) {
       const err = new Error(json?.message || 'Failed to sync Q&A collection');
@@ -523,21 +351,13 @@ export const profileApiService = {
   },
 
   async deleteQACollection(collectionId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/notebook-collections/${collectionId}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Fehler beim Löschen der Q&A-Sammlung');
-    }
-    
-    const json = await response.json();
-    
+    const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
+    const json = response.data;
+
     if (!json.success) {
       throw new Error(json.message || 'Failed to delete Q&A collection');
     }
-    
+
     return json;
   },
 
@@ -592,115 +412,65 @@ export const profileApiService = {
 
   // === USER TEXTS ===
   async getUserTexts() {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.get('/auth/saved-texts');
+    const data = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
     if (!data.success) {
       throw new Error(data.message || 'Failed to fetch texts');
     }
-    
+
     return data.data || [];
   },
 
   async updateTextTitle(textId, newTitle) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts/${textId}/metadata`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTitle.trim() })
-    });
+    const response = await apiClient.post(`/auth/saved-texts/${textId}/metadata`, { title: newTitle.trim() });
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to update text title');
     }
-    
+
     return result;
   },
 
   async deleteText(textId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts/${textId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.delete(`/auth/saved-texts/${textId}`);
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to delete text');
     }
-    
+
     return result;
   },
 
   // === USER TEMPLATES ===
   async getUserTemplates() {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.get('/auth/user-templates');
+    const data = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
     if (!data.success) {
       throw new Error(data.message || 'Failed to fetch templates');
     }
-    
+
     return data.data || [];
   },
 
   async updateTemplateTitle(templateId, newTitle) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}/metadata`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: newTitle.trim() })
-    });
+    const response = await apiClient.post(`/auth/user-templates/${templateId}/metadata`, { title: newTitle.trim() });
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to update template title');
     }
-    
+
     return result;
   },
 
   async deleteTemplate(templateId) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.delete(`/auth/user-templates/${templateId}`);
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to delete template');
     }
@@ -709,18 +479,9 @@ export const profileApiService = {
   },
 
   async updateTemplateVisibility(templateId, isPrivate) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_private: isPrivate })
-    });
+    const response = await apiClient.put(`/auth/user-templates/${templateId}`, { is_private: isPrivate });
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to update template visibility');
     }
@@ -729,18 +490,9 @@ export const profileApiService = {
   },
 
   async updateTemplate(templateId, data) {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
+    const response = await apiClient.put(`/auth/user-templates/${templateId}`, data);
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to update template');
     }
@@ -750,17 +502,9 @@ export const profileApiService = {
 
   // === AVAILABLE DOCUMENTS (for Q&A) ===
   async getAvailableDocuments() {
-    const response = await fetch(`${AUTH_BASE_URL}/documents/user`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
-    if (!response.ok) {
-      throw new Error('Fehler beim Laden der Dokumente');
-    }
-    
-    const json = await response.json();
-    
+    const response = await apiClient.get('/documents/user');
+    const json = response.data;
+
     if (!json.success) {
       throw new Error(json.message || 'Failed to fetch documents');
     }
@@ -772,60 +516,35 @@ export const profileApiService = {
 
   // === MEMORY (MEM0RY) ===
   async getMemories(userId) {
-    const response = await fetch(`${AUTH_BASE_URL}/mem0/user/${userId}`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.get(`/mem0/user/${userId}`);
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error('Fehler beim Laden der Erinnerungen');
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to fetch memories');
     }
-    
+
     return result.memories || [];
   },
 
   async addMemory(text, topic = '') {
-    const response = await fetch(`${AUTH_BASE_URL}/mem0/add-text`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, topic })
-    });
+    const response = await apiClient.post('/mem0/add-text', { text, topic });
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error('Fehler beim Hinzufügen der Erinnerung');
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to add memory');
     }
-    
+
     return result;
   },
 
   async deleteMemory(memoryId) {
-    const response = await fetch(`${AUTH_BASE_URL}/mem0/${memoryId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
+    const response = await apiClient.delete(`/mem0/${memoryId}`);
+    const result = response.data;
 
-    if (!response.ok) {
-      throw new Error('Fehler beim Löschen der Erinnerung');
-    }
-
-    const result = await response.json();
     if (!result.success) {
       throw new Error(result.message || 'Failed to delete memory');
     }
-    
+
     return result;
   },
 

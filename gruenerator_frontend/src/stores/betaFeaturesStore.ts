@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-
-// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../components/utils/apiClient';
 
 // Normalize backend keys to frontend camelCase keys
 const normalizeBetaFeatures = (features = {}) => {
@@ -40,27 +38,15 @@ export const useBetaFeaturesStore = create(persist((set, get) => ({
   hydrate: async (userId) => {
     if (!userId) return;
     const state = get();
-    
+
     // Early return to prevent unnecessary API calls and state updates
     if (state.userId === userId && state.isHydrated && !state.error) {
       return;
     }
 
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/beta-features`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        set({ error: `Backend fetch error: ${response.status}`, isHydrated: true });
-        return;
-      }
-
-      const result = await response.json();
+      const response = await apiClient.get('/auth/profile/beta-features');
+      const result = response.data;
       const features = normalizeBetaFeatures(result?.betaFeatures || {});
       set({
         userId,
@@ -69,7 +55,7 @@ export const useBetaFeaturesStore = create(persist((set, get) => ({
         error: null,
         lastUpdatedAt: Date.now()
       });
-    } catch (e) {
+    } catch (e: any) {
       set({ error: e?.message || 'Failed to hydrate beta features', isHydrated: true });
     }
   },
@@ -81,23 +67,16 @@ export const useBetaFeaturesStore = create(persist((set, get) => ({
     set({ betaFeatures: optimistic, isUpdating: true, error: null });
 
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/beta-features`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ feature: featureKey, enabled: !!enabled })
-      });
+      const response = await apiClient.patch('/auth/profile/beta-features', { feature: featureKey, enabled: !!enabled });
+      const result = response.data;
 
-      const result = await response.json();
-      if (!response.ok || !result?.success) {
+      if (!result?.success) {
         throw new Error(result?.message || 'Beta Feature Update fehlgeschlagen');
       }
 
       const confirmed = normalizeBetaFeatures(result?.betaFeatures || {});
       set({ betaFeatures: confirmed, isUpdating: false, error: null, lastUpdatedAt: Date.now() });
-    } catch (e) {
+    } catch (e: any) {
       set({ betaFeatures: previous, isUpdating: false, error: e?.message || 'Update failed' });
       throw e;
     }

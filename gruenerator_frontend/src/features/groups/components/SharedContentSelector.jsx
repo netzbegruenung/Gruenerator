@@ -15,6 +15,7 @@ import {
 } from 'react-icons/hi';
 import { NotebookIcon } from '../../../config/icons';
 import Spinner from '../../../components/common/Spinner';
+import apiClient from '../../../components/utils/apiClient';
 import '../../../assets/styles/features/groups/shared-content-selector.css';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
@@ -236,20 +237,9 @@ const SharedContentSelector = ({
 
   // Fetch document content from API
   const fetchDocumentContent = useCallback(async (documentId) => {
-    const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-    const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}/content`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await apiClient.get(`/documents/${documentId}/content`);
+    const data = response.data;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
     return {
       full_content: data.data.ocr_text || 'Kein Text extrahiert',
       markdown_content: data.data.markdown_content

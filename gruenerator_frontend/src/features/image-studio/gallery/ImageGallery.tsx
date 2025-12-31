@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FaImage, FaTrash, FaShareAlt, FaDownload, FaPlus, FaClock, FaEdit } from 'react-icons/fa';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import apiClient from '../../../components/utils/apiClient';
 import './ImageGallery.css';
 
 const MAX_IMAGES = 50;
@@ -208,13 +209,11 @@ const ImageGallery = () => {
   }, [deleteShare]);
 
   const handleDownload = useCallback(async (image) => {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
     try {
-      const response = await fetch(`${baseURL}/share/${image.shareToken}/download`, {
-        credentials: 'include'
+      const response = await apiClient.get(`/share/${image.shareToken}/download`, {
+        responseType: 'blob'
       });
-      if (!response.ok) throw new Error('Download failed');
-      const blob = await response.blob();
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -223,7 +222,7 @@ const ImageGallery = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Download failed:', error);
     }
   }, []);

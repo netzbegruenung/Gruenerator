@@ -3,9 +3,7 @@ import { fetchWithDedup } from '../utils/requestDeduplication';
 import { setLocale } from '../i18n';
 import { isDesktopApp } from '../utils/platform';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
-
-// Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../components/utils/apiClient';
 
 // =============================================================================
 // Type Definitions
@@ -344,18 +342,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Profile management via Backend API
   updateProfile: async (profileData: ProfileData): Promise<ProfileData> => {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/profile`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(profileData)
-    });
+    const response = await apiClient.put('/auth/profile', profileData);
+    const result = response.data as ApiResponse<ProfileData> & { profile?: ProfileData };
 
-    const result = await response.json() as ApiResponse<ProfileData> & { profile?: ProfileData };
-
-    if (!response.ok || !result.success) {
+    if (!result.success) {
       throw new Error(result.message || 'Profil-Update fehlgeschlagen');
     }
 
@@ -369,18 +359,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Avatar update via Backend API
   updateAvatar: async (avatarRobotId: string): Promise<ProfileData> => {
-    const response = await fetch(`${AUTH_BASE_URL}/auth/profile/avatar`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ avatar_robot_id: avatarRobotId })
-    });
+    const response = await apiClient.patch('/auth/profile/avatar', { avatar_robot_id: avatarRobotId });
+    const result = response.data as ApiResponse<ProfileData> & { profile?: ProfileData };
 
-    const result = await response.json() as ApiResponse<ProfileData> & { profile?: ProfileData };
-
-    if (!response.ok || !result.success) {
+    if (!result.success) {
       throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
     }
 
@@ -399,23 +381,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ selectedMessageColor: color });
 
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/message-color`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ color })
-      });
+      const response = await apiClient.patch('/auth/profile/message-color', { color });
+      const result = response.data as ApiResponse & { messageColor?: string };
 
-      const result = await response.json() as ApiResponse & { messageColor?: string };
-
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || 'Message Color Update fehlgeschlagen');
       }
 
       return result.messageColor as string;
-    } catch (error) {
+    } catch (error: any) {
       // Revert optimistic update on failure
       const state = get();
       const previousColor = state.user?.user_metadata?.chat_color || '#008939';
@@ -430,23 +404,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ igelModus: enabled });
 
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/profile/igel-modus`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ igel_modus: enabled })
-      });
+      const response = await apiClient.patch('/auth/profile/igel-modus', { igel_modus: enabled });
+      const result = response.data as ApiResponse & { igelModus?: boolean };
 
-      const result = await response.json() as ApiResponse & { igelModus?: boolean };
-
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || 'Igel-Modus Update fehlgeschlagen');
       }
 
       return result.igelModus as boolean;
-    } catch (error) {
+    } catch (error: any) {
       // Revert optimistic update on failure
       set({ igelModus: !enabled });
       throw error;
@@ -471,9 +437,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     if (isDesktopApp()) {
       openDesktopLogin(source || 'gruenerator-login');
     } else {
+      const baseUrl = apiClient.defaults.baseURL || '/api';
       const authUrl = source
-        ? `${AUTH_BASE_URL}/auth/login?source=${source}`
-        : `${AUTH_BASE_URL}/auth/login`;
+        ? `${baseUrl}/auth/login?source=${source}`
+        : `${baseUrl}/auth/login`;
       window.location.href = authUrl;
     }
   },
@@ -505,25 +472,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
       
       // Step 3: Call backend logout API FIRST (before clearing local state)
-      const authUrl = `${AUTH_BASE_URL}/auth/logout`;
-      
-      let backendResponse = null;
+      let backendResponse: any = null;
       try {
-        const response = await fetchWithDedup('logout', () => fetch(authUrl, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }));
-        
-        backendResponse = await response.json();
+        const response = await apiClient.post('/auth/logout');
+
+        backendResponse = response.data;
         console.log('[AuthStore] Backend logout response:', backendResponse);
-        
+
         // Check if backend logout actually succeeded
-        if (!response.ok || !backendResponse.success) {
+        if (!backendResponse.success) {
           console.error('[AuthStore] Backend logout failed:', backendResponse);
-          
+
           // If backend reports specific session destruction failure, handle it
           if (backendResponse.error === 'session_destruction_failed') {
             console.warn('[AuthStore] Session destruction failed, will need manual recovery');
@@ -532,10 +491,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             throw new Error(`Backend logout failed: ${backendResponse.message || 'Unknown error'}`);
           }
         }
-        
-      } catch (error) {
+
+      } catch (error: any) {
         console.error('[AuthStore] Backend logout API error:', error);
-        
+
         // For network errors, still try to clean up locally but log the issue
         backendResponse = {
           success: false,
@@ -589,21 +548,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Step 6: Verify logout completion (optional verification)
       try {
         console.log('[AuthStore] Verifying logout completion...');
-        const statusResponse = await fetch(`${AUTH_BASE_URL}/auth/status`, {
-          credentials: 'include',
-          method: 'GET'
-        });
-        
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json();
-          if (statusData.isAuthenticated) {
-            console.warn('[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.');
-            // Note: Don't fail here as this could be due to SSO logout timing
-          } else {
-            console.log('[AuthStore] Logout verification successful - user is no longer authenticated');
-          }
+        const statusResponse = await apiClient.get('/auth/status');
+
+        const statusData = statusResponse.data;
+        if (statusData.isAuthenticated) {
+          console.warn('[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.');
+          // Note: Don't fail here as this could be due to SSO logout timing
+        } else {
+          console.log('[AuthStore] Logout verification successful - user is no longer authenticated');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.warn('[AuthStore] Logout verification failed (non-critical):', error);
       }
       
@@ -639,70 +593,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Account deletion for gruenerator users
   deleteAccount: async (confirmationData?: DeleteAccountConfirmation): Promise<{ success: boolean; message: string }> => {
-    const authUrl = `${AUTH_BASE_URL}/auth/delete-account`;
-
-    interface ParsedData {
-      raw?: string;
-      message?: string;
-      error?: string;
-    }
-
-    // Helper: try to parse JSON, gracefully fallback to text/empty
-    const parseResponse = async (response: Response): Promise<{ data: ParsedData | null }> => {
-      try {
-        if (response.status === 204) return { data: null };
-        const contentType = response.headers.get('content-type') || '';
-        const text = await response.text();
-        if (!text) return { data: null };
-        if (contentType.includes('application/json')) {
-          return { data: JSON.parse(text) as ParsedData };
-        }
-        // Not JSON – return raw text for diagnostics
-        return { data: { raw: text } };
-      } catch {
-        // Parsing failed – treat as no data
-        return { data: null };
-      }
-    };
-
-    // Helper: perform a DELETE request and parse response safely
-    const doDelete = async (url: string, options: RequestInit): Promise<{ response: Response; data: ParsedData | null }> => {
-      const response = await fetch(url, options);
-      const { data } = await parseResponse(response);
-      return { response, data };
-    };
-
     try {
-      // Primary attempt: JSON body (some servers accept bodies for DELETE)
-      let { response, data } = await doDelete(authUrl, {
-        method: 'DELETE',
-        credentials: 'include',
+      // Primary attempt: JSON body
+      const response = await apiClient.delete('/auth/delete-account', {
+        data: confirmationData || {},
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(confirmationData || {}),
       });
 
-      // Fallback: if not OK, try query param (for servers not accepting DELETE bodies)
-      if (!response.ok && confirmationData && (confirmationData.confirm || confirmationData.password || confirmationData.confirmation)) {
-        const confirmVal = encodeURIComponent(
-          confirmationData.confirm || confirmationData.password || confirmationData.confirmation
-        );
-        ({ response, data } = await doDelete(`${authUrl}?confirm=${confirmVal}`, {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' },
-        }));
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      const isHtml = contentType.includes('text/html') || (data && typeof data.raw === 'string' && data.raw.trim().startsWith('<!DOCTYPE'));
-
-      if (!response.ok || isHtml) {
-        const message = (data && (data.message || data.error)) || 'Kontolöschung fehlgeschlagen';
-        throw new Error(message);
-      }
+      const data = response.data;
 
       // Clear local auth state
       get().clearAuth();
@@ -712,10 +612,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         message: (data && data.message) || 'Konto erfolgreich gelöscht',
       };
 
-    } catch (error) {
+    } catch (error: any) {
+      // Try fallback with query param if the first attempt failed
+      if (confirmationData && (confirmationData.confirm || confirmationData.password || confirmationData.confirmation)) {
+        try {
+          const confirmVal = encodeURIComponent(
+            confirmationData.confirm || confirmationData.password || confirmationData.confirmation || ''
+          );
+          const fallbackResponse = await apiClient.delete(`/auth/delete-account?confirm=${confirmVal}`, {
+            headers: { 'Accept': 'application/json' },
+          });
+
+          const fallbackData = fallbackResponse.data;
+
+          // Clear local auth state
+          get().clearAuth();
+
+          return {
+            success: true,
+            message: (fallbackData && fallbackData.message) || 'Konto erfolgreich gelöscht',
+          };
+        } catch (fallbackError: any) {
+          throw {
+            success: false,
+            message: fallbackError.response?.data?.message || fallbackError.message || 'Kontolöschung fehlgeschlagen',
+          };
+        }
+      }
+
       throw {
         success: false,
-        message: (error instanceof Error ? error.message : null) || 'Kontolöschung fehlgeschlagen',
+        message: error.response?.data?.message || error.message || 'Kontolöschung fehlgeschlagen',
       };
     }
   },
@@ -723,31 +650,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // Password reset request for gruenerator users
   sendPasswordResetEmail: async (email: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const authUrl = `${AUTH_BASE_URL}/auth/reset-password`;
-      const response = await fetch(authUrl, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json() as { message?: string };
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Passwort-Reset fehlgeschlagen');
-      }
+      const response = await apiClient.post('/auth/reset-password', { email });
+      const data = response.data as { message?: string };
 
       return {
         success: true,
         message: data.message || 'Passwort-Reset erfolgreich'
       };
 
-    } catch (error) {
+    } catch (error: any) {
       throw {
         success: false,
-        message: (error instanceof Error ? error.message : null) || 'Passwort-Reset fehlgeschlagen'
+        message: error.response?.data?.message || error.message || 'Passwort-Reset fehlgeschlagen'
       };
     }
   },
@@ -789,20 +703,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Update backend if user is authenticated
       const state = get();
       if (state.isAuthenticated) {
-        const response = await fetch(`${AUTH_BASE_URL}/auth/locale`, {
-          method: 'PUT',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ locale: newLocale })
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json() as { error?: string };
-          console.error('[AuthStore] Failed to update locale on backend:', errorData.error);
-          return false;
-        }
+        await apiClient.put('/auth/locale', { locale: newLocale });
       }
 
       // Update i18n
@@ -812,8 +713,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ locale: newLocale });
 
       return true;
-    } catch (error) {
-      console.error('[AuthStore] Error updating locale:', error);
+    } catch (error: any) {
+      console.error('[AuthStore] Error updating locale:', error.response?.data?.error || error.message);
       return false;
     }
   },

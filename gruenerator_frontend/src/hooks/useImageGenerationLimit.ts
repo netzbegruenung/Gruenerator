@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useOptimizedAuth } from './useAuth';
-
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../components/utils/apiClient';
 
 /**
  * React Query hook for managing image generation limits
@@ -13,17 +12,9 @@ export const useImageGenerationLimit = () => {
   return useQuery({
     queryKey: ['imageGenerationStatus', user?.id],
     queryFn: async () => {
-      const response = await fetch(`${AUTH_BASE_URL}/image-generation/status`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const response = await apiClient.get('/image-generation/status');
+      const data = response.data;
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image generation status: ${response.status}`);
-      }
-
-      const data = await response.json();
       if (!data.success) {
         throw new Error(data.message || 'Failed to get image generation status');
       }
@@ -33,9 +24,9 @@ export const useImageGenerationLimit = () => {
     enabled: !!user && isAuthenticated,
     refetchOnWindowFocus: true,
     staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    retry: (failureCount, error) => {
+    retry: (failureCount, error: any) => {
       // Don't retry on auth errors
-      if (error.message.includes('401')) return false;
+      if (error.message?.includes('401')) return false;
       return failureCount < 3;
     }
   });

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import Spinner from '../../../components/common/Spinner';
 import { useGroups } from '../hooks/useGroups';
+import apiClient from '../../../components/utils/apiClient';
 
 // Groups Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/features/groups/groups.css';
@@ -26,33 +27,22 @@ const JoinGroupPage = () => {
   // Verify token and fetch group info
   useEffect(() => {
     let isMounted = true;
-    
+
     const verifyToken = async () => {
       if (!joinToken || isLoading || !isAuthResolved || !supabaseUser) return;
-      
+
       try {
         // Use backend API to verify join token
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/groups/verify-token/${joinToken}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await apiClient.get(`/auth/groups/verify-token/${joinToken}`);
+        const data = response.data;
 
-        if (!response.ok) {
-          throw new Error("Ungültiger Einladungslink");
-        }
-
-        const data = await response.json();
-        
         if (!data.success) {
           throw new Error(data.message || "Ungültiger Einladungslink");
         }
-        
+
         if (isMounted) {
           setGroupName(data.group.name);
-          
+
           if (data.alreadyMember) {
             setStatus('already_member');
           } else {
@@ -66,7 +56,7 @@ const JoinGroupPage = () => {
         }
       }
     };
-    
+
     verifyToken();
     return () => { isMounted = false; };
   }, [joinToken, supabaseUser, isLoading, isAuthResolved]);

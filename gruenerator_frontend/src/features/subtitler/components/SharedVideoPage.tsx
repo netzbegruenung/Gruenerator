@@ -164,12 +164,12 @@ const SharedVideoPage = () => {
   };
 
   const handleShareToInstagram = useCallback(async () => {
-    const videoUrl = `${baseURL}/subtitler/share/${shareToken}/preview`;
-    if (!videoUrl) return;
     setIsSharing(true);
     try {
-      const response = await fetch(videoUrl, { credentials: 'include' });
-      const blob = await response.blob();
+      const response = await apiClient.get(`/subtitler/share/${shareToken}/preview`, {
+        responseType: 'blob'
+      });
+      const blob = response.data;
       const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
 
       await navigator.share({
@@ -177,7 +177,7 @@ const SharedVideoPage = () => {
         title: shareData?.title || 'Grünerator Video',
         text: '',
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Share failed:', error);
       }

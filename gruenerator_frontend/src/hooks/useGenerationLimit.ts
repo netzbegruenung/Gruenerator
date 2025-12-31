@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useOptimizedAuth } from './useAuth';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../components/utils/apiClient';
 
 /**
  * Universal React Query hook for managing generation limits across any resource type
@@ -29,23 +28,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
  * const { data: limit } = useGenerationLimit('image');
  * console.log(`Remaining: ${limit?.remaining}/${limit?.limit}`);
  */
-export const useGenerationLimit = (resourceType) => {
+export const useGenerationLimit = (resourceType: string) => {
   const { user, isAuthenticated } = useOptimizedAuth();
 
   return useQuery({
     queryKey: ['generationLimit', resourceType, user?.id || 'anonymous'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/rate-limit/${resourceType}`, {
-        method: 'GET',
-        credentials: 'include', // Important: Send cookies for session tracking
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch limit status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await apiClient.get(`/rate-limit/${resourceType}`);
+      const data = response.data;
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to get generation limit status');
@@ -82,24 +72,14 @@ export const useGenerationLimit = (resourceType) => {
  * console.log(limits.text?.remaining); // 5
  * console.log(limits.image?.remaining); // 3
  */
-export const useMultipleGenerationLimits = (resourceTypes) => {
+export const useMultipleGenerationLimits = (resourceTypes: string[]) => {
   const { user } = useOptimizedAuth();
 
   return useQuery({
     queryKey: ['generationLimitBulk', resourceTypes, user?.id || 'anonymous'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/rate-limit/bulk`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resourceTypes })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch bulk limits: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await apiClient.post('/rate-limit/bulk', { resourceTypes });
+      const data = response.data;
 
       if (!data.success) {
         throw new Error(data.error || 'Failed to get bulk limit status');

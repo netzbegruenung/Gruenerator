@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
+import apiClient from '../components/utils/apiClient';
 
 /**
  * Simplified hook to fetch user's custom instructions (Anweisungen)
@@ -9,26 +10,14 @@ import { useAuth } from './useAuth';
  * @param {boolean} isActive - Whether instructions are currently active (from Anweisungen toggle)
  * @returns {string|null} Custom prompt text or null
  */
-export const useUserInstructions = (instructionType, isActive = false) => {
+export const useUserInstructions = (instructionType: string, isActive = false) => {
   const { user } = useAuth();
 
   const { data } = useQuery({
     queryKey: ['userInstructions', user?.id],
     queryFn: async () => {
-      const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const response = await fetch(`${AUTH_BASE_URL}/auth/anweisungen-wissen`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
+      const response = await apiClient.get('/auth/anweisungen-wissen');
+      const result = response.data;
 
       if (result.success) {
         return {

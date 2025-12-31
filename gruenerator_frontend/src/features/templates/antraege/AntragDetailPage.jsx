@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef, lazy } from 'react';
 import { useParams, Link } from 'react-router-dom';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import apiClient from '../../../components/utils/apiClient';
 
 // Antrag Detail Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/pages/AntragDetailPage.css';
-
-// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Hilfsfunktionen (ähnlich wie in AntragDetailView)
 const formatDate = (dateString) => {
@@ -53,24 +51,8 @@ const AntragDetailPage = () => {
       }
 
       try {
-        const response = await fetch(`${AUTH_BASE_URL}/auth/antraege/${antragId}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Antrag nicht gefunden.');
-          } else {
-            const error = await response.json().catch(() => ({ message: 'Failed to fetch antrag' }));
-            throw new Error(error.message || 'Fehler beim Laden des Antrags.');
-          }
-        }
-
-        const data = await response.json();
+        const response = await apiClient.get(`/auth/antraege/${antragId}`);
+        const data = response.data;
         const antrag = data.antrag || data;
 
         if (!antrag) {
@@ -119,21 +101,8 @@ const AntragDetailPage = () => {
         kontakt_email: editedAntrag.kontakt_email,
       };
 
-      const response = await fetch(`${AUTH_BASE_URL}/auth/antraege/${antragId}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to update antrag' }));
-        throw new Error(error.message || 'Fehler beim Speichern des Antrags.');
-      }
-
-      const result = await response.json();
+      const response = await apiClient.put(`/auth/antraege/${antragId}`, updateData);
+      const result = response.data;
       setAntrag(result.antrag || editedAntrag);
       setIsEditing(false);
       console.log("[AntragDetailPage] Antrag erfolgreich aktualisiert.");

@@ -5,6 +5,7 @@ import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload, FaFileAlt
 import CopyButton from '../../../components/common/CopyButton';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import apiClient from '../../../components/utils/apiClient';
 import '../../../assets/styles/components/ui/button.css';
 import '../styles/VideoSuccessScreen.css';
 
@@ -123,8 +124,10 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
     if (!videoUrl) return;
     setIsSharing(true);
     try {
-      const response = await fetch(videoUrl, { credentials: 'include' });
-      const blob = await response.blob();
+      // Extract path from videoUrl for apiClient
+      const urlPath = videoUrl.startsWith('/api') ? videoUrl.replace('/api', '') : videoUrl;
+      const response = await apiClient.get(urlPath, { responseType: 'blob' });
+      const blob = response.data;
       const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
 
       await navigator.share({
@@ -132,7 +135,7 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
         title: 'Gruenerator Video',
         text: socialText || '',
       });
-    } catch (error) {
+    } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Share failed:', error);
       }

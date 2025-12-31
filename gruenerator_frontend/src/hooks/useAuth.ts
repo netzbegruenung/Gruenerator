@@ -1,9 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
-
-// Auth Backend URL aus Environment Variable oder Fallback zu relativem Pfad
-const AUTH_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+import apiClient from '../components/utils/apiClient';
 
 interface AuthOptions {
   skipAuth?: boolean;
@@ -135,32 +133,29 @@ const detectPartialLogoutState = async () => {
   try {
     const authStore = useAuthStore.getState();
     const frontendLoggedOut = !authStore.isAuthenticated;
-    
+
     // If frontend shows logged out, check if backend still has session
     if (frontendLoggedOut) {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/status`, {
-        credentials: 'include',
-        method: 'GET'
+      const response = await apiClient.get('/auth/status', {
+        skipAuthRedirect: true
       });
-      
-      if (response.ok) {
-        const statusData = await response.json();
-        const backendAuthenticated = statusData.isAuthenticated;
-        
-        if (backendAuthenticated) {
-          console.warn('[useAuth] Partial logout detected: Frontend logged out but backend still authenticated');
-          return {
-            isPartialLogout: true,
-            needsRecovery: true,
-            frontendState: 'logged_out',
-            backendState: 'authenticated'
-          };
-        }
+
+      const statusData = response.data;
+      const backendAuthenticated = statusData.isAuthenticated;
+
+      if (backendAuthenticated) {
+        console.warn('[useAuth] Partial logout detected: Frontend logged out but backend still authenticated');
+        return {
+          isPartialLogout: true,
+          needsRecovery: true,
+          frontendState: 'logged_out',
+          backendState: 'authenticated'
+        };
       }
     }
-    
+
     return { isPartialLogout: false };
-  } catch (error) {
+  } catch (error: any) {
     console.warn('[useAuth] Could not check for partial logout state:', error);
     return { isPartialLogout: false };
   }
@@ -169,13 +164,14 @@ const detectPartialLogoutState = async () => {
 /**
  * Helper function to check if server is available
  */
-const checkServerHealth = async (baseUrl) => {
+const checkServerHealth = async () => {
   try {
-    // Health endpoint is always at /health, not /api/health
-    const healthUrl = baseUrl.replace('/api', '') + '/health';
+    // Health endpoint is at /health (relative to base URL without /api)
+    const baseURL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+    const healthUrl = baseURL.replace('/api', '') + '/health';
     const response = await fetch(healthUrl, {
       method: 'GET',
-      signal: AbortSignal.timeout(1000), // Reduced from 2s to 1s
+      signal: AbortSignal.timeout(1000),
     });
     return response.ok;
   } catch {
@@ -206,8 +202,7 @@ const useServerAvailability = (skipCheck = false) => {
     const maxChecks = 5; // Reduced from 20 to 5 checks
     
     const checkServer = async () => {
-      const baseUrl = AUTH_BASE_URL || window.location.origin;
-      const available = await checkServerHealth(baseUrl);
+      const available = await checkServerHealth();
       
       if (available) {
         setIsServerAvailable(true);
@@ -388,22 +383,11 @@ export const useAuth = (options = {}) => {
     queryKey: ['authStatus'],
     queryFn: async () => {
       try {
-        const response = await fetch(`${AUTH_BASE_URL}/auth/status`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin,
-          },
+        const response = await apiClient.get('/auth/status', {
+          skipAuthRedirect: true,
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data;
-      } catch (error) {
+        return response.data;
+      } catch (error: any) {
         throw error;
       }
     },
@@ -467,16 +451,11 @@ export const useAuth = (options = {}) => {
               queryKey: ['userGroups', authData.user.id],
               queryFn: async () => {
                 try {
-                  const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
-                    method: 'GET',
-                    credentials: 'include',
+                  const response = await apiClient.get('/auth/groups', {
+                    skipAuthRedirect: true
                   });
-                  if (response.ok) {
-                    const data = await response.json();
-                    return data.groups || [];
-                  }
-                  return [];
-                } catch (error) {
+                  return response.data.groups || [];
+                } catch (error: any) {
                   console.warn('[useAuth] Groups prefetch failed:', error);
                   return [];
                 }

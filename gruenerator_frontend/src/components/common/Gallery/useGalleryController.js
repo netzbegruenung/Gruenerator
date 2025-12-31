@@ -9,52 +9,32 @@ import {
   PR_TYPES
 } from './config';
 import { parseSearchQuery, addTagToSearch } from './searchUtils';
+import apiClient from '../../utils/apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const DEBOUNCE_DELAY = 500;
 
-const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Unbekannter Fehler' }));
-    throw new Error(error.message || 'Fehler beim Laden der Daten');
-  }
-
-  return response.json();
-};
-
-const buildUrl = (path) => {
-  if (path.startsWith('http')) return path;
-  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
-};
-
 const fetchAntraege = async ({ searchTerm, searchMode, selectedCategory, signal }) => {
-  const params = new URLSearchParams();
+  const params = {};
   if (searchTerm) {
-    params.append('searchTerm', searchTerm);
-    if (searchMode) params.append('searchMode', searchMode);
+    params.searchTerm = searchTerm;
+    if (searchMode) params.searchMode = searchMode;
   }
   if (selectedCategory && selectedCategory !== 'all') {
-    params.append('categoryId', selectedCategory);
+    params.categoryId = selectedCategory;
   }
 
-  const url = buildUrl(`/auth/antraege${params.toString() ? `?${params.toString()}` : ''}`);
-  const data = await fetchJson(url, { method: 'GET', signal });
+  const response = await apiClient.get('/auth/antraege', { params, signal });
+  const data = response.data;
   return Array.isArray(data?.antraege) ? data.antraege : [];
 };
 
 const fetchGenerators = async ({ searchTerm, selectedCategory, signal }) => {
-  const params = new URLSearchParams();
-  if (searchTerm) params.append('searchTerm', searchTerm);
-  if (selectedCategory && selectedCategory !== 'all') params.append('category', selectedCategory);
+  const params = {};
+  if (searchTerm) params.searchTerm = searchTerm;
+  if (selectedCategory && selectedCategory !== 'all') params.category = selectedCategory;
 
-  const url = buildUrl(`/auth/custom-generators${params.toString() ? `?${params.toString()}` : ''}`);
-  const data = await fetchJson(url, { method: 'GET', signal });
+  const response = await apiClient.get('/auth/custom-generators', { params, signal });
+  const data = response.data;
   if (Array.isArray(data?.generators)) return data.generators;
   if (Array.isArray(data)) return data;
   return [];
@@ -73,18 +53,14 @@ const fetchSemanticResults = async ({ searchTerm, contentType, selectedCategory,
     typeParam = 'template';
   }
 
-  const url = buildUrl('/auth/examples/similar');
   const payload = {
     query: String(searchTerm).trim(),
     limit: 200,
     ...(typeParam ? { type: typeParam } : {})
   };
 
-  const data = await fetchJson(url, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    signal
-  });
+  const response = await apiClient.post('/auth/examples/similar', payload, { signal });
+  const data = response.data;
 
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data)) return data;
@@ -98,24 +74,24 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
     };
   }
 
-  const params = new URLSearchParams();
+  const params = {
+    onlyExamples: 'true',
+    status: 'published',
+    limit: '200'
+  };
   if (searchTerm) {
-    params.append('searchTerm', searchTerm);
-    if (searchMode) params.append('searchMode', searchMode);
+    params.searchTerm = searchTerm;
+    if (searchMode) params.searchMode = searchMode;
   }
   if (selectedCategory && selectedCategory !== 'all') {
-    params.append('category', selectedCategory);
+    params.category = selectedCategory;
   }
   if (Array.isArray(filterTypes) && filterTypes.length > 0) {
-    params.append('types', filterTypes.join(','));
+    params.types = filterTypes.join(',');
   }
 
-  params.append('onlyExamples', 'true');
-  params.append('status', 'published');
-  params.append('limit', '200');
-
-  const url = buildUrl(`/auth/database?${params.toString()}`);
-  const data = await fetchJson(url, { method: 'GET', signal });
+  const response = await apiClient.get('/auth/database', { params, signal });
+  const data = response.data;
   const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 
   if (!Array.isArray(sectionOrder) || !sectionTypeMap) {
@@ -136,20 +112,20 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
 };
 
 const fetchVorlagen = async ({ searchTerm, searchMode, selectedCategory, tags, signal }) => {
-  const params = new URLSearchParams();
+  const params = {};
   if (searchTerm) {
-    params.append('searchTerm', searchTerm);
-    if (searchMode) params.append('searchMode', searchMode);
+    params.searchTerm = searchTerm;
+    if (searchMode) params.searchMode = searchMode;
   }
   if (selectedCategory && selectedCategory !== 'all') {
-    params.append('templateType', selectedCategory);
+    params.templateType = selectedCategory;
   }
   if (Array.isArray(tags) && tags.length > 0) {
-    params.append('tags', JSON.stringify(tags));
+    params.tags = JSON.stringify(tags);
   }
 
-  const url = buildUrl(`/auth/vorlagen${params.toString() ? `?${params.toString()}` : ''}`);
-  const data = await fetchJson(url, { method: 'GET', signal });
+  const response = await apiClient.get('/auth/vorlagen', { params, signal });
+  const data = response.data;
   return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
 };
 
@@ -157,8 +133,8 @@ const categoryQueryOptions = {
   antraege: {
     queryKey: ['antraegeCategories'],
     queryFn: async () => {
-      const url = buildUrl('/auth/antraege-categories');
-      const data = await fetchJson(url, { method: 'GET' });
+      const response = await apiClient.get('/auth/antraege-categories');
+      const data = response.data;
       const categories = Array.isArray(data?.categories) ? data.categories : [];
       return [{ id: 'all', label: 'Alle Kategorien' }, ...categories];
     }
@@ -166,8 +142,8 @@ const categoryQueryOptions = {
   vorlagen: {
     queryKey: ['vorlagenCategories'],
     queryFn: async () => {
-      const url = buildUrl('/auth/vorlagen-categories');
-      const data = await fetchJson(url, { method: 'GET' });
+      const response = await apiClient.get('/auth/vorlagen-categories');
+      const data = response.data;
       const categories = Array.isArray(data?.categories) ? data.categories : [];
       return [{ id: 'all', label: 'Alle Typen' }, ...categories];
     }

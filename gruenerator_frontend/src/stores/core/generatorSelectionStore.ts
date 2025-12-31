@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import apiClient from '../../components/utils/apiClient';
 
 // Source types
 interface Source {
@@ -302,27 +303,15 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       setLoadingTexts(true);
 
       try {
-        const AUTH_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
-        const response = await fetch(`${AUTH_BASE_URL}/auth/saved-texts`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const response = await apiClient.get('/auth/saved-texts');
+        const result = response.data;
 
         if (result.success) {
           setAvailableTexts(result.data || []);
         } else {
           throw new Error(result.message || 'Failed to fetch texts');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[SelectionStore] Error fetching texts:', error);
         handleTextLoadError(error);
         setAvailableTexts([]);

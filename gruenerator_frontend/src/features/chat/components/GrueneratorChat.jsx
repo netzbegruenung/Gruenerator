@@ -8,6 +8,7 @@ import { useChatApi } from '../hooks/useChatApi';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { validateFiles, prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import { resolveTextContent } from '../utils/textResolvers';
+import apiClient from '../../../components/utils/apiClient';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
 const EXAMPLE_QUESTIONS = [
@@ -75,11 +76,7 @@ const GrueneratorChat = () => {
       setAttachedFiles([]);
 
       try {
-        await fetch('/api/chat/clear', {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        await apiClient.delete('/chat/clear');
       } catch (error) {
         console.warn('Failed to clear backend session:', error);
       }
@@ -225,22 +222,8 @@ const GrueneratorChat = () => {
     if (window.confirm('Möchten Sie wirklich den gesamten Chat zurücksetzen? Alle Nachrichten und generierte Texte gehen verloren.')) {
       try {
         // Clear backend data first
-        const response = await fetch('/api/chat/clear', {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          console.warn('Failed to clear backend data:', response.status, response.statusText);
-          // Continue with frontend reset even if backend fails
-        } else {
-          const result = await response.json();
-          console.log('Backend data cleared:', result);
-        }
-
+        const response = await apiClient.delete('/chat/clear');
+        console.log('Backend data cleared:', response.data);
       } catch (error) {
         console.error('Error clearing backend data:', error);
         // Continue with frontend reset even if backend fails

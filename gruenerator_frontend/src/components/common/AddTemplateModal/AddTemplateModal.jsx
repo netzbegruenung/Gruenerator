@@ -6,8 +6,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import { suggestTagsFromTemplate } from './tagSuggestions';
 import { useTagAutocomplete } from '../TemplateModal';
 import '../TemplateModal/template-modal.css';
-
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../../utils/apiClient';
 
 const READ_ONLY_PERMISSIONS = { read: true, write: false, collaborative: false };
 
@@ -91,16 +90,10 @@ const AddTemplateModal = ({
         setPreviewData(null);
 
         try {
-            const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/from-url`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: canvaUrl.trim(), preview: true })
-            });
+            const response = await apiClient.post('/auth/user-templates/from-url', { url: canvaUrl.trim(), preview: true });
+            const data = response.data;
 
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
+            if (!data.success) {
                 throw new Error(data.message || 'Fehler beim Laden der Vorschau');
             }
 
@@ -109,7 +102,7 @@ const AddTemplateModal = ({
             const suggestedTags = suggestTagsFromTemplate(data.preview, 'canva');
             setDescription(existingDesc + (existingDesc && suggestedTags ? '\n\n' : '') + suggestedTags);
         } catch (error) {
-            setPreviewError(error.message || 'Fehler beim Laden der Vorschau');
+            setPreviewError(error.response?.data?.message || error.message || 'Fehler beim Laden der Vorschau');
         } finally {
             setIsLoadingPreview(false);
         }
@@ -130,24 +123,19 @@ const AddTemplateModal = ({
                     throw new Error('Titel ist erforderlich.');
                 }
 
-                const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/from-url`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        url: canvaUrl.trim(),
-                        title: title.trim(),
-                        description: description.trim(),
-                        metadata: {
-                            author_name: authorName.trim() || null,
-                            contact_email: contactEmail.trim() || null
-                        }
-                    })
+                const response = await apiClient.post('/auth/user-templates/from-url', {
+                    url: canvaUrl.trim(),
+                    title: title.trim(),
+                    description: description.trim(),
+                    metadata: {
+                        author_name: authorName.trim() || null,
+                        contact_email: contactEmail.trim() || null
+                    }
                 });
 
-                const data = await response.json();
+                const data = response.data;
 
-                if (!response.ok || !data.success) {
+                if (!data.success) {
                     throw new Error(data.message || 'Fehler beim Erstellen der Vorlage');
                 }
 
@@ -163,25 +151,20 @@ const AddTemplateModal = ({
                     throw new Error('URL ist erforderlich.');
                 }
 
-                const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: title.trim(),
-                        description: description.trim(),
-                        canva_url: externalUrl.trim(),
-                        template_type: 'external',
-                        metadata: {
-                            author_name: authorName.trim() || null,
-                            contact_email: contactEmail.trim() || null
-                        }
-                    })
+                const response = await apiClient.post('/auth/user-templates', {
+                    title: title.trim(),
+                    description: description.trim(),
+                    canva_url: externalUrl.trim(),
+                    template_type: 'external',
+                    metadata: {
+                        author_name: authorName.trim() || null,
+                        contact_email: contactEmail.trim() || null
+                    }
                 });
 
-                const data = await response.json();
+                const data = response.data;
 
-                if (!response.ok || !data.success) {
+                if (!data.success) {
                     throw new Error(data.message || 'Fehler beim Erstellen der Vorlage');
                 }
 

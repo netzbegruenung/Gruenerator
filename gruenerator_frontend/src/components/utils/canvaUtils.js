@@ -391,32 +391,21 @@ export const handleBulkDeleteTemplates = async (templateIds, onError = null) => 
     try {
         const localTemplateIds = templateIds.filter(id => !id.startsWith('canva_'));
         const canvaDesignCount = templateIds.length - localTemplateIds.length;
-        
+
         if (canvaDesignCount > 0) {
             const warningMsg = `${canvaDesignCount} Canva Design(s) können nur in Canva selbst gelöscht werden.`;
             onError?.(warningMsg);
         }
-        
+
         if (localTemplateIds.length === 0) {
             return { deleted: 0, message: 'Keine lokalen Vorlagen zum Löschen ausgewählt.' };
         }
-        
-        const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-        const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/bulk`, {
-            method: 'DELETE',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ ids: localTemplateIds })
+
+        const response = await apiClient.delete('/auth/user-templates/bulk', {
+            data: { ids: localTemplateIds }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Bulk delete failed');
-        }
-
-        const result = await response.json();
+        const result = response.data;
         console.log('[CanvaUtils] Bulk delete templates result:', result);
         return result;
     } catch (error) {

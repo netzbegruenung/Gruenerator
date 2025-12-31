@@ -1,6 +1,7 @@
 import { handleError } from './errorHandling';
+import apiClient from './apiClient';
 
-// Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
+// Auth Backend URL - only needed for image URL generation
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Helper function to generate public URL safely
@@ -17,20 +18,8 @@ export const templateService = {
    */
   async getPublicTemplates() {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/templates`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to fetch templates' }));
-        throw new Error(error.message || 'Fehler beim Abrufen der Templates');
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get('/api/templates');
+      const data = response.data;
       
       // Transformiere die Daten in das im Frontend erwartete Format
       return data.map(template => {
@@ -81,25 +70,13 @@ export const templateService = {
    */
   async getTemplatesByCategory(categoryId) {
     try {
-      const url = new URL(`${AUTH_BASE_URL}/api/templates`);
+      const params = {};
       if (categoryId) {
-        url.searchParams.append('categoryId', categoryId);
+        params.categoryId = categoryId;
       }
 
-      const response = await fetch(url, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to fetch templates by category' }));
-        throw new Error(error.message || 'Fehler beim Filtern der Templates nach Kategorie');
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get('/api/templates', { params });
+      const data = response.data;
       
       // Transform data (similar to getTemplates)
       return data.map(template => {
@@ -146,20 +123,8 @@ export const templateService = {
    */
   async getCategories() {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/api/templates/categories`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to fetch categories' }));
-        throw new Error(error.message || 'Fehler beim Abrufen der Kategorien');
-      }
-        
-      const data = await response.json();
+      const response = await apiClient.get('/api/templates/categories');
+      const data = response.data;
       return data || []; // Return fetched data or an empty array
 
     } catch (error) {
@@ -174,20 +139,8 @@ export const templateService = {
    */
   async getUserTemplates() {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to fetch user templates' }));
-        throw new Error(error.message || 'Fehler beim Abrufen der Benutzer-Templates');
-      }
-      
-      const data = await response.json();
+      const response = await apiClient.get('/auth/user-templates');
+      const data = response.data;
       return data.success ? data.data : [];
     } catch (error) {
       handleError(error, 'Fehler beim Abrufen der Benutzer-Templates');
@@ -202,22 +155,8 @@ export const templateService = {
    */
   async createUserTemplate(templateData) {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(templateData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to create template' }));
-        throw new Error(error.message || 'Fehler beim Erstellen des Templates');
-      }
-      
-      const data = await response.json();
-      return data;
+      const response = await apiClient.post('/auth/user-templates', templateData);
+      return response.data;
     } catch (error) {
       handleError(error, 'Fehler beim Erstellen des Templates');
       throw error;
@@ -232,22 +171,8 @@ export const templateService = {
    */
   async updateUserTemplate(templateId, templateData) {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(templateData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to update template' }));
-        throw new Error(error.message || 'Fehler beim Aktualisieren des Templates');
-      }
-      
-      const data = await response.json();
-      return data;
+      const response = await apiClient.put(`/auth/user-templates/${templateId}`, templateData);
+      return response.data;
     } catch (error) {
       handleError(error, 'Fehler beim Aktualisieren des Templates');
       throw error;
@@ -261,21 +186,8 @@ export const templateService = {
    */
   async deleteUserTemplate(templateId) {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to delete template' }));
-        throw new Error(error.message || 'Fehler beim Löschen des Templates');
-      }
-      
-      const data = await response.json();
-      return data;
+      const response = await apiClient.delete(`/auth/user-templates/${templateId}`);
+      return response.data;
     } catch (error) {
       handleError(error, 'Fehler beim Löschen des Templates');
       throw error;
@@ -290,22 +202,8 @@ export const templateService = {
    */
   async updateUserTemplateMetadata(templateId, metadata) {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/${templateId}/metadata`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(metadata),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to update template metadata' }));
-        throw new Error(error.message || 'Fehler beim Aktualisieren der Template-Metadaten');
-      }
-      
-      const data = await response.json();
-      return data;
+      const response = await apiClient.post(`/auth/user-templates/${templateId}/metadata`, metadata);
+      return response.data;
     } catch (error) {
       handleError(error, 'Fehler beim Aktualisieren der Template-Metadaten');
       throw error;
@@ -320,22 +218,8 @@ export const templateService = {
    */
   async createUserTemplateFromUrl(url, enhancedMetadata = false) {
     try {
-      const response = await fetch(`${AUTH_BASE_URL}/auth/user-templates/from-url`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url, enhancedMetadata }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Failed to create template from URL' }));
-        throw new Error(error.message || 'Fehler beim Erstellen des Templates aus URL');
-      }
-      
-      const data = await response.json();
-      return data;
+      const response = await apiClient.post('/auth/user-templates/from-url', { url, enhancedMetadata });
+      return response.data;
     } catch (error) {
       console.error('[templateService] Error creating template from URL:', error);
       throw error;

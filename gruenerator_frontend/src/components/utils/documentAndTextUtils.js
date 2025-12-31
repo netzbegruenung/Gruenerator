@@ -1,12 +1,12 @@
 /**
  * Document and Text Management Utilities
- * 
+ *
  * This file contains business logic, constants, and utility functions
  * for document and text management operations, extracted from ContentManagementTab
  * to improve code organization and reusability.
  */
 
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from './apiClient';
 
 // =====================================================================
 // CONSTANTS AND TYPE DEFINITIONS
@@ -86,24 +86,14 @@ export const handleBulkOperationResult = (result, operation, itemType) => {
 export const bulkDeleteDocuments = async (documentIds) => {
     try {
         console.log('[documentAndTextUtils] Bulk deleting documents:', documentIds);
-        
-        const response = await fetch(`${AUTH_BASE_URL}/documents/bulk`, {
-            method: 'DELETE',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ ids: documentIds })
+
+        const response = await apiClient.delete('/documents/bulk', {
+            data: { ids: documentIds }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Bulk delete failed');
-        }
-
-        const result = await response.json();
+        const result = response.data;
         console.log('[documentAndTextUtils] Bulk delete documents result:', result);
-        
+
         return handleBulkOperationResult(result, 'delete', 'Dokumente');
     } catch (error) {
         console.error('[documentAndTextUtils] Error in bulk delete documents:', error);
@@ -119,24 +109,14 @@ export const bulkDeleteDocuments = async (documentIds) => {
 export const bulkDeleteTexts = async (textIds) => {
     try {
         console.log('[documentAndTextUtils] Bulk deleting texts:', textIds);
-        
-        const response = await fetch(`${AUTH_BASE_URL}/saved-texts/bulk`, {
-            method: 'DELETE',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ ids: textIds })
+
+        const response = await apiClient.delete('/saved-texts/bulk', {
+            data: { ids: textIds }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Bulk delete failed');
-        }
-
-        const result = await response.json();
+        const result = response.data;
         console.log('[documentAndTextUtils] Bulk delete texts result:', result);
-        
+
         return handleBulkOperationResult(result, 'delete', 'Texte');
     } catch (error) {
         console.error('[documentAndTextUtils] Error in bulk delete texts:', error);
@@ -152,22 +132,12 @@ export const bulkDeleteTexts = async (textIds) => {
 export const bulkDeleteQA = async (qaIds) => {
     try {
         console.log('[documentAndTextUtils] Bulk deleting QA collections:', qaIds);
-        
-        const response = await fetch(`${AUTH_BASE_URL}/qa-collections/bulk`, {
-            method: 'DELETE',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ ids: qaIds })
+
+        const response = await apiClient.delete('/qa-collections/bulk', {
+            data: { ids: qaIds }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Bulk delete failed');
-        }
-
-        const result = await response.json();
+        const result = response.data;
         console.log('[documentAndTextUtils] Bulk delete QA result:', result);
 
         return handleBulkOperationResult(result, 'delete', 'Notebooks');

@@ -8,6 +8,7 @@ import { validateUrl, normalizeUrl, generateTitleFromUrl } from '../../utils/url
 import Spinner from './Spinner';
 import FeatureToggle from './FeatureToggle';
 import WolkeFilePicker from './WolkeFilePicker/WolkeFilePicker';
+import apiClient from '../utils/apiClient';
 
 // Import button styles for modal
 import '../../assets/styles/components/ui/button.css';
@@ -43,20 +44,8 @@ const DocumentPreview = ({ document }) => {
     setError(null);
 
     try {
-      const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-      const response = await fetch(`${AUTH_BASE_URL}/documents/${document.id}/content`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await apiClient.get(`/documents/${document.id}/content`);
+      const data = response.data;
       setPreviewText(data.data.ocr_text || 'Kein Text extrahiert');
       setShowPreview(true);
     } catch (err) {

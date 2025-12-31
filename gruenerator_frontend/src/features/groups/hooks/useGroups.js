@@ -7,8 +7,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroupsStore } from '../../../stores/auth/groupsStore';
-
-const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import apiClient from '../../../components/utils/apiClient';
 
 // Request deduplication cache to prevent duplicate API calls
 const requestCache = new Map();
@@ -61,22 +60,8 @@ export const useGroups = ({ isActive } = {}) => {
 
     const requestKey = `groups_${user.id}`;
     return deduplicatedFetch(requestKey, async () => {
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppen' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
+      const response = await apiClient.get('/auth/groups');
+      const data = response.data;
       return data.groups || [];
     });
   };
@@ -102,23 +87,8 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: groupName }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Erstellen der Gruppe' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
+      const response = await apiClient.post('/auth/groups', { name: groupName });
+      const data = response.data;
       return data.group;
     },
     onMutate: () => {
@@ -144,22 +114,7 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Löschen der Gruppe' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
+      await apiClient.delete(`/auth/groups/${groupId}`);
       return groupId;
     },
     onMutate: (groupId) => {
@@ -186,24 +141,8 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/info`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, description }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Aktualisieren der Gruppendetails' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
-      return data;
+      const response = await apiClient.put(`/auth/groups/${groupId}/info`, { name, description });
+      return response.data;
     },
     onMutate: () => {
       setSaving(true);
@@ -228,24 +167,8 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/name`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Aktualisieren des Gruppennamens' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
-      return data;
+      const response = await apiClient.put(`/auth/groups/${groupId}/name`, { name });
+      return response.data;
     },
     onMutate: () => {
       setSaving(true);
@@ -270,24 +193,8 @@ export const useGroups = ({ isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/join`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ joinToken }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Beitritt zur Gruppe' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
-      return data;
+      const response = await apiClient.post('/auth/groups/join', { joinToken });
+      return response.data;
     },
     onMutate: () => {
       setJoining(true);
@@ -422,22 +329,8 @@ export const useGroupMembers = (groupId, { isActive } = {}) => {
 
     const requestKey = `members_${groupId}_${user.id}`;
     return deduplicatedFetch(requestKey, async () => {
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/members`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppenmitglieder' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
+      const response = await apiClient.get(`/auth/groups/${groupId}/members`);
+      const data = response.data;
       return data.members || [];
     });
   };
@@ -490,21 +383,8 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
     }
 
     console.log('[useGroupSharing] Fetching group content from API...');
-    const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content?_t=${Date.now()}`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Fehler beim Laden der Gruppeninhalte' }));
-      throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-    }
-
-    const data = await response.json();
-    
+    const response = await apiClient.get(`/auth/groups/${groupId}/content?_t=${Date.now()}`);
+    const data = response.data;
     return data.content || {};
   };
 
@@ -550,24 +430,8 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
       }
 
       const shareGroupId = targetGroupId || groupId;
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${shareGroupId}/share`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ contentType, contentId, permissions }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Teilen des Inhalts' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
-      return data;
+      const response = await apiClient.post(`/auth/groups/${shareGroupId}/share`, { contentType, contentId, permissions });
+      return response.data;
     },
     onMutate: () => {
       setSaving(true);
@@ -594,24 +458,10 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content/${contentId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ contentType }),
+      const response = await apiClient.delete(`/auth/groups/${groupId}/content/${contentId}`, {
+        data: { contentType }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Entfernen des geteilten Inhalts' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
-      return data;
+      return response.data;
     },
     onMutate: () => {
       setSaving(true);
@@ -634,24 +484,8 @@ export const useGroupSharing = (groupId, { isActive } = {}) => {
         throw new Error('User not authenticated');
       }
 
-
-      const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${groupId}/content/${contentId}/permissions`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ contentType, permissions }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Fehler beim Aktualisieren der Berechtigungen' }));
-        throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-      }
-
-      const data = await response.json();
-      
-      return data;
+      const response = await apiClient.put(`/auth/groups/${groupId}/content/${contentId}/permissions`, { contentType, permissions });
+      return response.data;
     },
     onMutate: () => {
       setSaving(true);
@@ -781,26 +615,11 @@ export const useAllGroupsContent = ({ isActive, enabled = true } = {}) => {
     // Create parallel fetch promises for all groups
     const groupFetchPromises = groups.map(async (group) => {
       const requestKey = `group_content_${group.id}_${user.id}`;
-      
+
       try {
         const result = await deduplicatedFetch(requestKey, async () => {
-          
-          const response = await fetch(`${AUTH_BASE_URL}/auth/groups/${group.id}/content`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ 
-              message: `Fehler beim Laden der Inhalte für Gruppe ${group.name}` 
-            }));
-            throw new Error(errorData.message || 'Ein unbekannter Fehler ist aufgetreten.');
-          }
-
-          return response.json();
+          const response = await apiClient.get(`/auth/groups/${group.id}/content`);
+          return response.data;
         });
 
         if (result.content) {

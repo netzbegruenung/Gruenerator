@@ -156,16 +156,7 @@ const DocumentsSection = ({
     const handleTextTitleUpdate = async (textId, newTitle) => {
         try {
             // Direct API call for text title update
-            const response = await fetch(`/api/auth/saved-texts/${textId}/title`, {
-                method: 'PUT',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: newTitle })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            await apiClient.put(`/auth/saved-texts/${textId}/title`, { title: newTitle });
 
             // Refresh combined content after update
             await handleCombinedFetch();

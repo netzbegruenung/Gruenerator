@@ -1,23 +1,34 @@
 import axios from 'axios';
 import { buildLoginUrl } from '../../utils/authRedirect';
+import { isDesktopApp } from '../../utils/platform';
+import { getDesktopToken } from '../../utils/desktopAuth';
 
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+// Desktop app uses JWT tokens, web app uses session cookies
+// withCredentials must be false for desktop to avoid "Refused to set unsafe header Origin" error
+const useCredentials = !isDesktopApp();
+
 const apiClient = axios.create({
   baseURL: baseURL,
   timeout: 900000,
   headers: { 'Content-Type': 'application/json' },
-  // Include cookies for session-based authentication
-  withCredentials: true
+  withCredentials: useCredentials
 });
 
 // Request interceptor for debugging and header setup
 apiClient.interceptors.request.use(
   (config) => {
-    // Session-based auth uses cookies automatically with withCredentials: true
-    // No need to manually add Authorization headers
+    // Desktop app uses JWT token from localStorage
+    if (isDesktopApp()) {
+      const token = getDesktopToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    // Web app uses session cookies automatically with withCredentials: true
     return config;
   },
   error => {

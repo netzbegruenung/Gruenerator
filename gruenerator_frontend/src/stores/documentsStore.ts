@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-
-const AUTH_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+import apiClient from '../components/utils/apiClient';
 
 interface Document {
   id: string;
@@ -123,32 +122,18 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
       });
 
       try {
-        // Fetching user documents
-        
-        const response = await fetch(`${AUTH_BASE_URL}/documents/user`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await apiClient.get('/documents/user');
+        const result = response.data;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
             state.documents = result.data || [];
             state.isLoading = false;
           });
-          // Documents fetched
         } else {
           throw new Error(result.message || 'Failed to fetch documents');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error fetching documents:', error);
         set((state) => {
           state.error = error.message;
@@ -165,19 +150,8 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
       });
 
       try {
-        const response = await fetch(`${AUTH_BASE_URL}/documents/combined-content`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const response = await apiClient.get('/documents/combined-content');
+        const result = response.data;
 
         if (result.success) {
           set((state) => {
@@ -189,7 +163,7 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to fetch combined content');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error fetching combined content:', error);
         set((state) => {
           state.error = error.message;
@@ -210,7 +184,6 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Uploading document (manual mode):', { title, filename: file.name, size: file.size });
 
-        // Create FormData
         const formData = new FormData();
         formData.append('document', file);
         formData.append('title', title);
@@ -218,33 +191,23 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
           formData.append('group_id', groupId);
         }
 
-        // Upload to manual vectors-only endpoint
-        const response = await fetch(`${AUTH_BASE_URL}/documents/upload-manual`, {
-          method: 'POST',
-          credentials: 'include',
-          body: formData,
+        const response = await apiClient.post('/documents/upload-manual', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
+        const result = response.data;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
-            // Add new document to the list
             state.documents.unshift(result.data);
             state.isUploading = false;
             state.uploadProgress = 100;
           });
-          
           console.log('[DocumentsStore] Document vectorized successfully:', result.data.id);
           return result.data;
         } else {
           throw new Error(result.message || 'Failed to process document');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error uploading document:', error);
         set((state) => {
           state.error = error.message;
@@ -258,7 +221,7 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
     // Crawl URL and create document (vectors-only manual mode)
     crawlUrl: async (url, title, groupId = null) => {
       set((state) => {
-        state.isUploading = true; // Reuse upload state for crawling
+        state.isUploading = true;
         state.uploadProgress = 0;
         state.error = null;
       });
@@ -266,39 +229,25 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
       try {
         console.log('[DocumentsStore] Crawling URL (manual mode):', { url, title, groupId });
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/crawl-url-manual`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            url: url.trim(), 
-            title: title.trim(),
-            group_id: groupId 
-          }),
+        const response = await apiClient.post('/documents/crawl-url-manual', {
+          url: url.trim(),
+          title: title.trim(),
+          group_id: groupId
         });
+        const result = response.data;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
-            // Add new document to the list
             state.documents.unshift(result.data);
             state.isUploading = false;
             state.uploadProgress = 100;
           });
-          
           console.log('[DocumentsStore] URL crawled and vectorized successfully:', result.data.id);
           return result.data;
         } else {
           throw new Error(result.message || 'Failed to crawl and process URL');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error crawling URL:', error);
         set((state) => {
           state.error = error.message;
@@ -313,33 +262,19 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
     deleteDocument: async (documentId) => {
       try {
         console.log('[DocumentsStore] Deleting document:', documentId);
+        const response = await apiClient.delete(`/documents/${documentId}`);
+        const result = response.data;
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}`, {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
-            // Remove document from the list
             state.documents = state.documents.filter(doc => doc.id !== documentId);
           });
-          
           console.log('[DocumentsStore] Document deleted successfully');
           return true;
         } else {
           throw new Error(result.message || 'Failed to delete document');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error deleting document:', error);
         set((state) => {
           state.error = error.message;
@@ -360,37 +295,23 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         const searchMode = mode === 'fulltext' ? 'text' : 'hybrid';
         console.log('[DocumentsStore] Searching documents:', { query, limit, mode: searchMode, documentIds });
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/search`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ query, limit, searchMode, documentIds }),
-        });
+        const response = await apiClient.post('/documents/search', { query, limit, searchMode, documentIds });
+        const result = response.data;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
-            state.searchResults = (result.data || []).map(item => ({
+            state.searchResults = (result.data || []).map((item: any) => ({
               ...item,
-              // Ensure search_type is present per item for UI meta rendering
               search_type: item.search_type || result.searchType || searchMode
             }));
             state.isSearching = false;
           });
-
           console.log(`[DocumentsStore] Found ${result.data?.length || 0} search results`);
           return result.data || [];
         } else {
           throw new Error(result.message || 'Failed to search documents');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error searching documents:', error);
         set((state) => {
           state.error = error.message;
@@ -440,33 +361,16 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
     updateDocumentTitle: async (documentId, newTitle) => {
       try {
         console.log('[DocumentsStore] Updating document title:', { documentId, newTitle });
+        const response = await apiClient.post(`/documents/${documentId}/metadata`, { title: newTitle.trim() });
+        const result = response.data;
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}/metadata`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ title: newTitle.trim() }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
             const docIndex = state.documents.findIndex(doc => doc.id === documentId);
             if (docIndex !== -1) {
-              state.documents[docIndex] = {
-                ...state.documents[docIndex],
-                title: newTitle.trim()
-              };
+              state.documents[docIndex] = { ...state.documents[docIndex], title: newTitle.trim() };
             }
           });
-          
           console.log('[DocumentsStore] Document title updated successfully');
           return true;
         } else {
@@ -482,32 +386,16 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
     refreshDocument: async (documentId) => {
       try {
         console.log('[DocumentsStore] Refreshing document:', documentId);
+        const response = await apiClient.get(`/documents/${documentId}/content`);
+        const result = response.data;
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/${documentId}/content`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
         if (result.success) {
           set((state) => {
             const docIndex = state.documents.findIndex(doc => doc.id === documentId);
             if (docIndex !== -1) {
-              state.documents[docIndex] = {
-                ...state.documents[docIndex],
-                ...result.data
-              };
+              state.documents[docIndex] = { ...state.documents[docIndex], ...result.data };
             }
           });
-          
           console.log('[DocumentsStore] Document refreshed successfully');
           return result.data;
         } else {
@@ -528,24 +416,10 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
 
       try {
         console.log('[DocumentsStore] Browsing Wolke files for share link:', shareLinkId);
+        const response = await apiClient.get(`/documents/wolke/browse/${shareLinkId}`);
+        const result = response.data;
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/wolke/browse/${shareLinkId}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        set((state) => {
-          state.isLoading = false;
-        });
+        set((state) => { state.isLoading = false; });
 
         if (result.success) {
           console.log('[DocumentsStore] Wolke files loaded successfully:', result.files.length, 'files');
@@ -553,7 +427,7 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to browse Wolke files');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('[DocumentsStore] Error browsing Wolke files:', error);
         set((state) => {
           state.error = error.message;
@@ -571,78 +445,47 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         state.error = null;
       });
 
+      let progressInterval: ReturnType<typeof setInterval> | undefined;
       try {
         console.log('[DocumentsStore] Importing Wolke files:', { shareLinkId, fileCount: files.length });
 
-        // Simulate progress updates during the import
-        let progressInterval;
         if (onProgress) {
           let currentProgress = 0;
           progressInterval = setInterval(() => {
             if (currentProgress < 90) {
               currentProgress += Math.random() * 10;
-              set((state) => {
-                state.uploadProgress = Math.min(currentProgress, 90);
-              });
+              set((state) => { state.uploadProgress = Math.min(currentProgress, 90); });
               onProgress(Math.min(currentProgress, 90));
             }
           }, 200);
         }
 
-        const response = await fetch(`${AUTH_BASE_URL}/documents/wolke/import`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            shareLinkId,
-            files
-          }),
-        });
-
-        // Clear progress interval
-        if (progressInterval) {
-          clearInterval(progressInterval);
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const response = await apiClient.post('/documents/wolke/import', { shareLinkId, files });
+        if (progressInterval) clearInterval(progressInterval);
+        const result = response.data;
 
         set((state) => {
           state.isUploading = false;
           state.uploadProgress = 100;
         });
-
-        if (onProgress) {
-          onProgress(100);
-        }
+        if (onProgress) onProgress(100);
 
         if (result.success) {
           console.log('[DocumentsStore] Wolke files imported successfully:', result.summary);
-
-          // Refresh documents list to show newly imported files
           await get().fetchDocuments();
-
           return result;
         } else {
           throw new Error(result.message || 'Failed to import Wolke files');
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (progressInterval) clearInterval(progressInterval);
         console.error('[DocumentsStore] Error importing Wolke files:', error);
         set((state) => {
           state.error = error.message;
           state.isUploading = false;
           state.uploadProgress = 0;
         });
-
-        if (onProgress) {
-          onProgress(0);
-        }
-
+        if (onProgress) onProgress(0);
         throw error;
       }
     },

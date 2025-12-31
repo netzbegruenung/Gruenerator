@@ -11,6 +11,7 @@ import SelectAllCheckbox from './SelectAllCheckbox';
 import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import { getActionItems } from './ItemActionBuilder';
 import { truncateForPreview, stripMarkdownForPreview, getSortValueFactory, normalizeRemoteResults, formatDate } from '../utils/documentOverviewUtils';
+import apiClient from '../utils/apiClient';
 
 // Document Overview Feature CSS - Loaded only when this feature is accessed
 import '../../assets/styles/components/document-overview.css';
@@ -360,26 +361,14 @@ const DocumentOverview = ({
         setPreviewError(null);
 
         try {
-            const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-            const response = await fetch(`${AUTH_BASE_URL}/documents/${item.id}/content`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
+            const response = await apiClient.get(`/documents/${item.id}/content`);
+            const data = response.data;
             const enhancedItem = {
                 ...item,
                 full_content: data.data.ocr_text || 'Kein Text extrahiert',
                 markdown_content: data.data.markdown_content
             };
-            
+
             setSelectedItem(enhancedItem);
             setShowPreview(true);
         } catch (error) {

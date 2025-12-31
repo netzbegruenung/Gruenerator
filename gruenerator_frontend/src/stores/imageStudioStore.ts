@@ -1071,12 +1071,11 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     // Fetch original background image if URL is provided
     if (originalImageUrl) {
       try {
-        const response = await fetch(originalImageUrl, { credentials: 'include' });
-        if (response.ok) {
-          const blob = await response.blob();
-          formData.uploadedImage = blob;
-          formData.file = blob;
-        }
+        // Strip /api prefix since apiClient baseURL already includes it
+        const urlPath = originalImageUrl.startsWith('/api') ? originalImageUrl.slice(4) : originalImageUrl;
+        const response = await apiClient.get(urlPath, { responseType: 'blob' });
+        formData.uploadedImage = response.data;
+        formData.file = response.data;
       } catch (error) {
         console.warn('[ImageStudioStore] Failed to fetch original image:', error);
       }
@@ -1136,21 +1135,16 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
 
       if (data.imageSessionId && data.hasImage) {
         try {
-          const baseURL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
-          const response = await fetch(`${baseURL}/sharepic/edit-session/${data.imageSessionId}`, {
-            credentials: 'include'
-          });
-          if (response.ok) {
-            const imageData = await response.json();
-            if (imageData.imageData) {
-              const fetchRes = await fetch(imageData.imageData);
-              const blob = await fetchRes.blob();
-              formData.uploadedImage = blob;
-              formData.file = blob;
-              formData.hasOriginalImage = !!imageData.hasOriginalImage;
-            }
+          const response = await apiClient.get(`/sharepic/edit-session/${data.imageSessionId}`);
+          const imageData = response.data;
+          if (imageData.imageData) {
+            const fetchRes = await fetch(imageData.imageData);
+            const blob = await fetchRes.blob();
+            formData.uploadedImage = blob;
+            formData.file = blob;
+            formData.hasOriginalImage = !!imageData.hasOriginalImage;
           }
-        } catch (error) {
+        } catch (error: any) {
           console.warn('[ImageStudioStore] Failed to fetch session image:', error);
         }
       }
