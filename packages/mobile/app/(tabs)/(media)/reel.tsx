@@ -1,14 +1,15 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, useColorScheme, ActivityIndicator, Text, BackHandler } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
-import { VideoUploader, ProcessingProgress, VideoResult, ProjectList } from '../../../components/reel';
+import { VideoUploader, ProcessingProgress, VideoResult, ProjectList, ModeSelector } from '../../../components/reel';
 import { SubtitleEditorScreen } from '../../../components/subtitle-editor';
 import { type Project, getVideoUrl } from '@gruenerator/shared';
+import type { ReelMode } from '../../../components/reel/ModeSelector';
 
-type ScreenMode = 'projects' | 'creating' | 'processing' | 'viewing' | 'editing';
+type ScreenMode = 'projects' | 'creating' | 'mode-select' | 'processing' | 'transcribing' | 'viewing' | 'editing';
 
 export default function ReelScreen() {
   const colorScheme = useColorScheme();
@@ -16,6 +17,7 @@ export default function ReelScreen() {
 
   const [screenMode, setScreenMode] = useState<ScreenMode>('projects');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [pendingVideoUri, setPendingVideoUri] = useState<string | null>(null);
 
   const {
     status,
@@ -28,7 +30,9 @@ export default function ReelScreen() {
     videoUri,
     savedToGallery,
     error,
+    transcribedSubtitles,
     startProcessing,
+    startManualProcessing,
     cancelProcessing,
     reset,
     saveToGallery,
@@ -37,6 +41,7 @@ export default function ReelScreen() {
   const handleNewReel = useCallback(() => {
     reset();
     setSelectedProject(null);
+    setPendingVideoUri(null);
     setScreenMode('creating');
   }, [reset]);
 
@@ -48,6 +53,7 @@ export default function ReelScreen() {
   const handleBackToProjects = useCallback(() => {
     reset();
     setSelectedProject(null);
+    setPendingVideoUri(null);
     setScreenMode('projects');
   }, [reset]);
 
@@ -56,16 +62,66 @@ export default function ReelScreen() {
     setScreenMode('editing');
   }, []);
 
-  const handleStartProcessing = useCallback((fileUri: string) => {
-    setScreenMode('processing');
-    startProcessing(fileUri);
-  }, [startProcessing]);
+  const handleVideoSelected = useCallback((fileUri: string) => {
+    setPendingVideoUri(fileUri);
+    setScreenMode('mode-select');
+  }, []);
+
+  const handleModeSelect = useCallback((mode: ReelMode) => {
+    if (!pendingVideoUri) return;
+
+    if (mode === 'auto') {
+      setScreenMode('processing');
+      startProcessing(pendingVideoUri);
+    } else if (mode === 'subtitle') {
+      setScreenMode('transcribing');
+      startManualProcessing(pendingVideoUri);
+    }
+  }, [pendingVideoUri, startProcessing, startManualProcessing]);
+
+  const handleBackFromModeSelect = useCallback(() => {
+    setPendingVideoUri(null);
+    setScreenMode('creating');
+  }, []);
+
+  useEffect(() => {
+    if (screenMode === 'transcribing' && status === 'complete' && transcribedSubtitles && uploadId) {
+      const tempProject: Project = {
+        id: `temp-${uploadId}`,
+        user_id: '',
+        upload_id: uploadId,
+        title: 'Neues Reel',
+        thumbnail_path: null,
+        video_path: null,
+        video_metadata: null,
+        video_size: 0,
+        video_filename: null,
+        subtitles: transcribedSubtitles,
+        style_preference: 'shadow',
+        height_preference: 'tief',
+        mode_preference: 'manual',
+        export_count: 0,
+        last_edited_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      };
+      setSelectedProject(tempProject);
+      setScreenMode('editing');
+    }
+  }, [screenMode, status, transcribedSubtitles, uploadId]);
 
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
         if (screenMode === 'editing') {
-          setScreenMode('viewing');
+          if (selectedProject?.id.startsWith('temp-')) {
+            handleBackToProjects();
+          } else {
+            setScreenMode('viewing');
+          }
+          return true;
+        }
+        if (screenMode === 'mode-select') {
+          handleBackFromModeSelect();
           return true;
         }
         if (screenMode !== 'projects') {
@@ -77,17 +133,18 @@ export default function ReelScreen() {
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => subscription.remove();
-    }, [screenMode, handleBackToProjects])
+    }, [screenMode, selectedProject, handleBackToProjects, handleBackFromModeSelect])
   );
 
   const renderContent = () => {
     // Show subtitle editor
     if (screenMode === 'editing' && selectedProject) {
+      const isTempProject = selectedProject.id.startsWith('temp-');
       return (
         <SubtitleEditorScreen
           project={selectedProject}
-          onBack={() => setScreenMode('viewing')}
-          onSaved={() => setScreenMode('viewing')}
+          onBack={() => isTempProject ? handleBackToProjects() : setScreenMode('viewing')}
+          onSaved={() => isTempProject ? handleBackToProjects() : setScreenMode('viewing')}
         />
       );
     }
@@ -104,34 +161,57 @@ export default function ReelScreen() {
 
     // Show video uploader for new reel
     if (screenMode === 'creating') {
-      if (status === 'idle' || status === 'error') {
-        return (
-          <VideoUploader
-            onVideoSelected={handleStartProcessing}
-            uploadProgress={0}
-            isUploading={false}
-            onBack={handleBackToProjects}
-          />
-        );
-      }
+      return (
+        <VideoUploader
+          onVideoSelected={handleVideoSelected}
+          uploadProgress={0}
+          isUploading={false}
+          onBack={handleBackToProjects}
+        />
+      );
+    }
+
+    // Show mode selector after video is selected
+    if (screenMode === 'mode-select') {
+      return (
+        <ModeSelector
+          onSelect={handleModeSelect}
+          onBack={handleBackFromModeSelect}
+        />
+      );
+    }
+
+    // Show transcribing state (manual mode)
+    if (screenMode === 'transcribing') {
       if (status === 'uploading') {
         return (
           <VideoUploader
-            onVideoSelected={handleStartProcessing}
+            onVideoSelected={handleVideoSelected}
             uploadProgress={uploadProgress}
             isUploading={true}
-            onBack={handleBackToProjects}
           />
         );
       }
+
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <Text style={[styles.loadingText, { color: theme.text }]}>
+            {stageName || 'Untertitel werden grüneriert...'}
+          </Text>
+          <Text style={[styles.loadingSubtext, { color: theme.textSecondary }]}>
+            Dies kann einige Minuten dauern
+          </Text>
+        </View>
+      );
     }
 
-    // Show processing or processing-related states
+    // Show processing or processing-related states (auto mode)
     if (screenMode === 'processing' || status === 'processing' || status === 'uploading') {
       if (status === 'uploading') {
         return (
           <VideoUploader
-            onVideoSelected={handleStartProcessing}
+            onVideoSelected={handleVideoSelected}
             uploadProgress={uploadProgress}
             isUploading={true}
           />
@@ -233,6 +313,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    marginTop: -spacing.xsmall,
   },
   errorContainer: {
     marginHorizontal: spacing.large,

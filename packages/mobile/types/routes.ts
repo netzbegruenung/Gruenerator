@@ -23,6 +23,7 @@ export type AppRoute =
   | '/(tabs)/(media)/image-studio/input'
   | '/(tabs)/(media)/image-studio/image'
   | '/(tabs)/(media)/image-studio/text'
+  | '/(tabs)/(media)/image-studio/customize'
   | '/(tabs)/(media)/image-studio/result'
   // Tools routes
   | '/(tabs)/(tools)/suche'

@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as MediaLibrary from 'expo-media-library';
-import { reelApi, AutoProgressResponse } from '../services/reel';
+import { reelApi } from '../services/reel';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { getErrorMessage } from '../utils/errors';
 
-export type ReelStatus = 'idle' | 'uploading' | 'processing' | 'downloading' | 'complete' | 'error';
+export type ReelStatus = 'idle' | 'uploading' | 'processing' | 'downloading' | 'complete' | 'error' | 'transcribing';
 
 export interface ReelProcessingState {
   status: ReelStatus;
@@ -17,6 +17,7 @@ export interface ReelProcessingState {
   videoUri: string | null;
   savedToGallery: boolean;
   error: string | null;
+  transcribedSubtitles: string | null;
 }
 
 export const PROCESSING_STAGES = {
@@ -46,6 +47,7 @@ const initialState: ReelProcessingState = {
   videoUri: null,
   savedToGallery: false,
   error: null,
+  transcribedSubtitles: null,
 };
 
 export function useReelProcessing() {
@@ -199,9 +201,79 @@ export function useReelProcessing() {
     reset();
   }, [reset]);
 
+  const pollManualResult = useCallback(async (uploadId: string) => {
+    try {
+      const result = await reelApi.getManualResult(uploadId);
+
+      if (!isMountedRef.current) return;
+
+      if (result.status === 'complete' && result.data) {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+
+        updateState({
+          status: 'complete',
+          transcribedSubtitles: result.data,
+        });
+      } else if (result.status === 'error') {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        handleError('processing_failed');
+      }
+    } catch (error: unknown) {
+      console.error('[ReelProcessing] Manual polling error:', getErrorMessage(error));
+    }
+  }, [handleError, updateState]);
+
+  const startManualPolling = useCallback((uploadId: string) => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
+
+    pollManualResult(uploadId);
+
+    pollingRef.current = setInterval(() => {
+      pollManualResult(uploadId);
+    }, 2000);
+  }, [pollManualResult]);
+
+  const startManualProcessing = useCallback(async (fileUri: string) => {
+    reset();
+    updateState({ status: 'uploading' });
+
+    try {
+      const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
+        if (isMountedRef.current) {
+          updateState({ uploadProgress: progress });
+        }
+      });
+
+      if (!isMountedRef.current) return;
+
+      updateState({
+        status: 'transcribing',
+        uploadId,
+        uploadProgress: 100,
+        stageName: 'Untertitel werden grüneriert...',
+      });
+
+      await reelApi.startManualProcess(uploadId);
+
+      startManualPolling(uploadId);
+    } catch (error: unknown) {
+      console.error('[ReelProcessing] Start manual processing error:', getErrorMessage(error));
+      handleError('upload_failed', getErrorMessage(error));
+    }
+  }, [handleError, reset, startManualPolling, updateState]);
+
   return {
     ...state,
     startProcessing,
+    startManualProcessing,
     cancelProcessing,
     reset,
     saveToGallery,

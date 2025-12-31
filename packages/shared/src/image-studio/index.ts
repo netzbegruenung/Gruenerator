@@ -10,6 +10,10 @@ export type {
   ImageStudioFormData,
   // Core types
   ImageStudioTemplateType,
+  ImageStudioKiType,
+  ImageStudioType,
+  ImageStudioCategory,
+  KiSubcategory,
   ImageStudioStep,
   ImageStudioEndpoints,
   ImageStudioTypeConfig,
@@ -28,10 +32,21 @@ export type {
   CanvasGenerationResult,
   Text2SharepicRequest,
   Text2SharepicResult,
+  // KI types
+  KiStyleVariant,
+  GreenEditInfrastructure,
+  KiCreateRequest,
+  KiEditRequest,
+  KiGenerationResult,
+  KiTypeConfig,
+  KiImageStudioState,
+  // Result types
   ImageStudioResult,
   ImageStudioState,
   UseImageStudioOptions,
   UseImageStudioReturn,
+  UseKiImageGenerationOptions,
+  UseKiImageGenerationReturn,
 } from './types';
 
 // Constants
@@ -50,7 +65,20 @@ export {
   getCanvasEndpoint,
   getInputFields,
   getPreviewFields,
+  // KI constants
+  KI_TYPE_CONFIGS,
+  STYLE_VARIANTS,
+  DEFAULT_STYLE_VARIANT,
+  INFRASTRUCTURE_OPTIONS,
+  isKiType,
+  getKiTypeConfig,
+  getAllKiTypes,
+  getKiTypesBySubcategory,
+  kiTypeRequiresImage,
+  getStyleVariant,
+  getInfrastructureOption,
 } from './constants';
+export type { StyleVariantConfig, InfrastructureOptionConfig } from './constants';
 
 // Validation
 export {
@@ -68,6 +96,7 @@ export type { ImageStudioValidationResult } from './utils/validation';
 // Hooks
 export { useImageStudio } from './hooks/useImageStudio';
 export { useImageStudioCanvas } from './hooks/useImageStudioCanvas';
+export { useKiImageGeneration } from './hooks/useKiImageGeneration';
 export type {
   UseImageStudioCanvasOptions,
   UseImageStudioCanvasReturn,
