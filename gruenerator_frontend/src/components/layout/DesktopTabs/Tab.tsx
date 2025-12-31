@@ -37,6 +37,7 @@ const Tab: React.FC<TabProps> = ({
     if (tabs.length > 1) {
       const currentIndex = tabs.findIndex(t => t.id === tab.id);
       const wasActive = isActive;
+
       closeTab(tab.id);
 
       if (wasActive) {

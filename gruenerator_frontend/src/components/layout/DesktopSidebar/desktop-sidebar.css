@@ -4,8 +4,7 @@
   left: 0;
   height: calc(100vh - 48px);
   width: 64px;
-  background-color: var(--background-color);
-  border-right: 1px solid var(--grey-200);
+  background-color: var(--bar-background);
   z-index: 1000;
   transition: width 0.2s ease;
   overflow: hidden;
@@ -13,11 +12,6 @@
 
 .desktop-sidebar.expanded {
   width: 220px;
-}
-
-[data-theme="dark"] .desktop-sidebar {
-  background-color: var(--grey-900);
-  border-right-color: var(--grey-700);
 }
 
 .sidebar-content {
@@ -37,6 +31,11 @@
   color: var(--font-color);
   border-radius: 8px;
   transition: background-color 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
 }
 
 .sidebar-logo:hover {

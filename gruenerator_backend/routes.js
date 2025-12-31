@@ -66,6 +66,7 @@ const exportDocumentsRouter = require('./routes/exportDocuments'); // Server-sid
 const markdownRouter = require('./routes/markdown'); // Server-side markdown conversion
 const databaseTestRouter = require('./routes/databaseTest'); // Database schema test route
 const rateLimitRouter = require('./routes/rateLimit'); // Universal rate limiting status API
+const releasesRouter = require('./routes/releases'); // Desktop app releases info
 // mem0Router will be imported dynamically like auth routes
 // Auth routes will be imported dynamically
 
@@ -290,6 +291,7 @@ async function setupRoutes(app) {
   app.use('/api/web-search', webSearchRouter); // TODO: Remove after migration
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter); // Universal rate limiting status API for all resource types
+  app.use('/api/releases', releasesRouter); // Desktop app releases info
   app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', markdownRouter);
   app.use('/api/database', databaseTestRouter);

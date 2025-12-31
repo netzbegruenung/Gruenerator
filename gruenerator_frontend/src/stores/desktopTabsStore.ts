@@ -64,7 +64,6 @@ export const useDesktopTabsStore = create<TabsState & TabsActions>()(
       createTab: (route = DEFAULT_TAB_ROUTE, title = DEFAULT_TAB_TITLE) => {
         const state = get();
         if (state.tabs.length >= state.maxTabs) {
-          console.warn('[TabsStore] Maximum tabs reached');
           return state.activeTabId!;
         }
 

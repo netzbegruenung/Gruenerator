@@ -16,17 +16,47 @@ const resources = {
   }
 };
 
+// Validate locale to prevent RangeError with invalid language tags
+const validateLocale = (locale) => {
+  if (!locale) return false;
+  try {
+    new Intl.Locale(locale);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Get safe initial locale
+const getSafeLocale = () => {
+  const stored = localStorage.getItem('gruenerator_locale');
+  if (stored && resources[stored]) return stored;
+
+  // Check navigator languages for valid match
+  const navLangs = navigator.languages || [navigator.language];
+  for (const lang of navLangs) {
+    if (validateLocale(lang)) {
+      // Check for exact match first
+      if (resources[lang]) return lang;
+      // Check for base language match (e.g., 'de' -> 'de-DE')
+      const base = lang.split('-')[0];
+      if (base === 'de') return 'de-DE';
+    }
+  }
+  return 'de-DE';
+};
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'de-DE', // default language
+    lng: getSafeLocale(), // safe default language
     fallbackLng: 'de-DE',
 
-    // Language detection configuration
+    // Language detection configuration - skip navigator to avoid invalid locales
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
       caches: ['localStorage'],
       lookupLocalStorage: 'gruenerator_locale'
     },

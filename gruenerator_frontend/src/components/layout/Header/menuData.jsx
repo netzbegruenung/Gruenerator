@@ -53,6 +53,14 @@ export const getMenuItems = (betaFeatures = {}) => {
     icon: getIcon('actions', 'edit')
   });
 
+  toolsItems.push({
+    id: 'apps',
+    path: '/apps',
+    title: 'Apps',
+    description: 'Desktop-App herunterladen',
+    icon: getIcon('actions', 'download')
+  });
+
   // Add website generator if beta feature is enabled
   if (betaFeatures.websiteBetaEnabled) {
     toolsItems.push({

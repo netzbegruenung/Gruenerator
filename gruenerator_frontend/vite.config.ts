@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,10 +8,46 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Detect Tauri build environment - set by Tauri CLI during builds
 const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
 
+// Tauri packages that need stubs when running in web context
+const tauriPackages = [
+  '@tauri-apps/api',
+  '@tauri-apps/api/app',
+  '@tauri-apps/api/path',
+  '@tauri-apps/api/window',
+  '@tauri-apps/plugin-fs',
+  '@tauri-apps/plugin-opener',
+  '@tauri-apps/plugin-shell',
+  '@tauri-apps/plugin-updater',
+  '@tauri-apps/plugin-process'
+];
+
+// Plugin to provide stub modules for Tauri packages in web context
+function tauriStubPlugin(): Plugin {
+  return {
+    name: 'tauri-stub',
+    enforce: 'pre',
+    resolveId(id) {
+      if (tauriPackages.some(pkg => id === pkg || id.startsWith(pkg + '/'))) {
+        return `\0tauri-stub:${id}`;
+      }
+      return null;
+    },
+    load(id) {
+      if (id.startsWith('\0tauri-stub:')) {
+        // Return empty stub module - actual Tauri imports are guarded by isDesktopApp() checks
+        return 'export default {}; export const check = () => Promise.resolve(null); export const getVersion = () => Promise.resolve("web"); export const relaunch = () => Promise.resolve();';
+      }
+      return null;
+    }
+  };
+}
+
 export default defineConfig(({ command }) => ({
   // Use relative paths for Tauri builds so assets resolve correctly with tauri:// protocol
   base: isTauri ? './' : '/',
   plugins: [
+    // Only use stub plugin when NOT in Tauri context
+    ...(!isTauri ? [tauriStubPlugin()] : []),
     react({ jsxRuntime: 'automatic' })
   ],
   resolve: {
@@ -55,15 +91,7 @@ export default defineConfig(({ command }) => ({
       maxParallelFileOps: 1,
       perf: false,
       shimMissingExports: false,
-      // Only externalize Tauri plugins for WEB builds - desktop builds must bundle them
-      // isTauri is true when TAURI_ENV_PLATFORM is set (during Tauri CLI builds)
-      external: (command === 'build' && !isTauri) ? [
-        '@tauri-apps/plugin-fs',
-        '@tauri-apps/plugin-opener',
-        '@tauri-apps/plugin-shell',
-        '@tauri-apps/api/path',
-        '@tauri-apps/api/window'
-      ] : [],
+      // Tauri packages are now handled by tauriStubPlugin for web builds
       output: {
         entryFileNames: 'assets/js/[name].[hash].js',
         chunkFileNames: 'assets/js/[name].[hash].js',

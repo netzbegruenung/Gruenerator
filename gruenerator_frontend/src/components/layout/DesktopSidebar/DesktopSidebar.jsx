@@ -4,7 +4,6 @@ import { getMenuItems } from '../Header/menuData';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
-import { PiHouse } from 'react-icons/pi';
 import './desktop-sidebar.css';
 
 const DesktopSidebar = () => {
@@ -47,28 +46,21 @@ const DesktopSidebar = () => {
       onMouseLeave={() => setExpanded(false)}
     >
       <div className="sidebar-content">
-        <div className="sidebar-logo">
+        <button
+          className="sidebar-logo"
+          onClick={() => handleNavigation('/', 'Start')}
+          type="button"
+          title="Zur Startseite"
+        >
           <img
             src="/images/logo-square.png"
             alt="Grünerator"
             className="sidebar-logo-icon"
           />
           {expanded && <span className="sidebar-logo-text">Grünerator</span>}
-        </div>
+        </button>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
-          <button
-            onClick={() => handleNavigation('/', 'Start')}
-            className={`sidebar-item ${isActive('/') ? 'active' : ''}`}
-            aria-current={isActive('/') ? 'page' : undefined}
-            type="button"
-          >
-            <span className="sidebar-icon">
-              <PiHouse aria-hidden="true" />
-            </span>
-            {expanded && <span className="sidebar-label">Start</span>}
-          </button>
-
           {Object.entries(menuItems).map(([sectionKey, section]) => (
             <div key={sectionKey} className="sidebar-section">
               {expanded && (

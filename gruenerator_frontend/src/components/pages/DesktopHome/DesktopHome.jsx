@@ -1,33 +1,48 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../stores/authStore';
-import { getIcon, ICONS } from '../../../config/icons';
+import { getIcon } from '../../../config/icons';
 import { HiChat } from 'react-icons/hi';
 import './desktop-home.css';
 
-const features = [
-  { title: 'Pressemitteilung', route: '/presse-social', icon: 'presse-social', category: 'navigation' },
-  { title: 'Instagram Post', route: '/presse-social', icon: 'instagram', category: 'platforms' },
-  { title: 'Antrag', route: '/antrag', icon: 'antrag', category: 'navigation' },
-  { title: 'Universal', route: '/universal', icon: 'universal', category: 'navigation' },
-  { title: 'Chat', route: '/chat', icon: 'chat', category: 'custom' },
-  { title: 'Reel', route: '/subtitler', icon: 'reel', category: 'navigation' },
-  { title: 'Suche', route: '/suche', icon: 'suche', category: 'navigation' },
-  { title: 'KI Bilder', route: '/image-studio', icon: 'imagine', category: 'navigation' },
-  { title: 'Sharepic', route: '/sharepic', icon: 'sharepic', category: 'navigation' },
+const featureCategories = [
+  {
+    title: 'Texte',
+    items: [
+      { title: 'Presse & Social Media', route: '/presse-social', icon: 'presse-social', iconCategory: 'navigation' },
+      { title: 'Anträge & Anfragen', route: '/antrag', icon: 'antrag', iconCategory: 'navigation' },
+      { title: 'Universal', route: '/universal', icon: 'universal', iconCategory: 'navigation' },
+    ]
+  },
+  {
+    title: 'Bild und Video',
+    items: [
+      { title: 'Reel', route: '/reel', icon: 'reel', iconCategory: 'navigation' },
+      { title: 'Image Studio', route: '/image-studio', icon: 'sharepic', iconCategory: 'navigation' },
+    ]
+  },
+  {
+    title: 'Tools',
+    items: [
+      { title: 'Suche', route: '/suche', icon: 'suche', iconCategory: 'navigation' },
+      { title: 'Chat', route: '/chat', icon: 'chat', iconCategory: 'custom' },
+      { title: 'Barrierefreiheit', route: '/barrierefreiheit', icon: 'barrierefreiheit', iconCategory: 'navigation' },
+      { title: 'Text Editor', route: '/texteditor', icon: 'edit', iconCategory: 'actions' },
+    ]
+  }
 ];
 
-const FeatureCard = ({ title, route, icon, category, onClick }) => {
-  const IconComponent = category === 'custom'
+const FeatureCard = ({ title, route, icon, iconCategory, onClick }) => {
+  const IconComponent = iconCategory === 'custom'
     ? HiChat
-    : getIcon(category, icon);
+    : getIcon(iconCategory, icon);
 
   return (
-    <button className="feature-card" onClick={onClick}>
-      <div className="feature-card-icon">
+    <button className="desktop-home-card" onClick={onClick}>
+      <div className="desktop-home-card-icon">
         {IconComponent && <IconComponent />}
       </div>
-      <span className="feature-card-title">{title}</span>
+      <span className="desktop-home-card-title">{title}</span>
     </button>
   );
 };
@@ -43,15 +58,20 @@ const DesktopHome = () => {
           Willkommen{firstName ? `, ${firstName}` : ''}!
         </h1>
 
-        <div className="feature-grid">
-          {features.map(feature => (
-            <FeatureCard
-              key={feature.title}
-              {...feature}
-              onClick={() => navigate(feature.route)}
-            />
-          ))}
-        </div>
+        {featureCategories.map(category => (
+          <div key={category.title} className="desktop-home-category">
+            <h2 className="desktop-home-category-title">{category.title}</h2>
+            <div className="desktop-home-grid">
+              {category.items.map(feature => (
+                <FeatureCard
+                  key={feature.title}
+                  {...feature}
+                  onClick={() => navigate(feature.route)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

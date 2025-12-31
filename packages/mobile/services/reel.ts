@@ -197,8 +197,11 @@ export async function getManualResult(
     throw new Error(`Failed to get manual result: ${response.status}`);
   }
 
-  const data: ManualResultResponse = await response.json();
-  return data;
+  const responseData = await response.json();
+  return {
+    status: responseData.status,
+    data: responseData.subtitles || responseData.data || null,
+  };
 }
 
 export const reelApi = {

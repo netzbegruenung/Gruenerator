@@ -4,19 +4,15 @@
   left: 0;
   right: 0;
   height: 48px;
-  background: var(--background-color);
+  background: var(--bar-background);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0;
-  padding-left: 12px;
+  padding-left: 64px;
   z-index: 9999;
   user-select: none;
   -webkit-app-region: drag;
-}
-
-[data-theme="dark"] .desktop-titlebar {
-  background: var(--grey-900);
 }
 
 .titlebar-title {
@@ -39,32 +35,77 @@
   -webkit-app-region: no-drag;
 }
 
-.titlebar-profile {
+.desktop-titlebar-profile {
+  padding: 0 12px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 8px;
   height: 48px;
-  border-left: 1px solid var(--grey-200);
+  -webkit-app-region: no-drag;
 }
 
-[data-theme="dark"] .titlebar-profile {
-  border-left-color: var(--grey-700);
+.desktop-titlebar-profile .profile-button-container {
+  margin: 0;
 }
 
-.titlebar-profile .profile-button-container {
-  margin-left: 0;
-}
-
-.titlebar-profile .profile-button {
+.desktop-titlebar-profile .profile-button,
+.desktop-titlebar-profile .profile-label-button {
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
   width: 32px;
   height: 32px;
+  padding: 0;
 }
 
-.titlebar-profile .profile-header-avatar-robot,
-.titlebar-profile .profile-header-robot-image {
+.desktop-titlebar-profile .profile-button:hover,
+.desktop-titlebar-profile .profile-label-button:hover {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  transform: none;
+}
+
+.desktop-titlebar-profile .profile-header-avatar-robot,
+.desktop-titlebar-profile .profile-header-robot-image {
   width: 32px;
   height: 32px;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.desktop-titlebar-profile .login-button {
+  padding: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.desktop-titlebar-profile .login-button:hover {
+  background: none;
+}
+
+.desktop-titlebar-profile .profile-icon {
+  font-size: 1.5rem;
+  color: var(--grey-500);
+}
+
+.desktop-titlebar-profile .login-button:hover .profile-icon {
+  color: var(--primary-600);
+}
+
+[data-theme="dark"] .desktop-titlebar-profile .profile-icon {
+  color: var(--grey-400);
+}
+
+[data-theme="dark"] .desktop-titlebar-profile .login-button:hover .profile-icon {
+  color: var(--primary-400);
 }
 
 .titlebar-button {
@@ -105,49 +146,3 @@
   height: 10px;
 }
 
-/* Quick Links */
-.titlebar-quick-links {
-  display: flex;
-  align-items: center;
-  height: 48px;
-  padding: 0 4px;
-  gap: 2px;
-  border-right: 1px solid var(--grey-200);
-}
-
-[data-theme="dark"] .titlebar-quick-links {
-  border-right-color: var(--grey-700);
-}
-
-.quick-link-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--grey-500);
-  transition: all 0.15s ease;
-  -webkit-app-region: no-drag;
-}
-
-.quick-link-btn:hover {
-  background-color: var(--grey-100);
-  color: var(--primary-600);
-}
-
-.quick-link-btn:active {
-  transform: scale(0.95);
-}
-
-[data-theme="dark"] .quick-link-btn {
-  color: var(--grey-400);
-}
-
-[data-theme="dark"] .quick-link-btn:hover {
-  background-color: var(--grey-700);
-  color: var(--primary-400);
-}

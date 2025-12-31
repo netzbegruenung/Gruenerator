@@ -31,17 +31,12 @@ const RegistrationPage = lazy(() => import('../features/auth/pages/RegistrationP
 // Gruppen-Komponente importieren
 const JoinGroupPage = lazy(() => import('../features/groups/pages/JoinGroupPage'));
 
-// Lazy loading für statische Seiten
-const Home = lazy(() => import('../components/pages/Startseite'));
-const DesktopHome = lazy(() => import('../components/pages/DesktopHome/DesktopHome'));
-
-// Platform-aware home wrapper for desktop vs web
-const HomeWrapper = () => {
-  if (isDesktopApp()) {
-    return <DesktopHome />;
-  }
-  return <Home />;
-};
+// Lazy loading für statische Seiten - platform-aware home
+const HomeWrapper = lazy(() =>
+  isDesktopApp()
+    ? import('../components/pages/DesktopHome/DesktopHome')
+    : import('../components/pages/Startseite')
+);
 const Datenschutz = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Datenschutz'));
 const Impressum = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Impressum'));
 const Support = lazy(() => import('../components/pages/Impressum_Datenschutz_Terms/Support'));
@@ -69,6 +64,7 @@ const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator
 const SurveyIndex = lazy(() => import('../features/umfragen'));
 const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ default: module.SurveyPage })));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
+const AppsPage = lazy(() => import('../features/apps/AppsPage'));
 
 
 // NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
@@ -214,6 +210,8 @@ const standardRoutes = [
   { path: '/umfragen', component: GrueneratorenBundle.SurveyIndex },
   // Text Editor
   { path: '/texteditor', component: GrueneratorenBundle.TextEditor },
+  // Apps Download Page
+  { path: '/apps', component: AppsPage },
   // Image Studio Routes
   { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },

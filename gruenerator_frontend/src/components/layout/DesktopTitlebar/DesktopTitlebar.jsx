@@ -1,7 +1,6 @@
 import React, { Suspense, lazy, Component } from 'react';
 import { isDesktopApp } from '../../../utils/platform';
 import ProfileButton from '../Header/ProfileButton';
-import QuickLinks from './QuickLinks';
 import '../../../assets/styles/components/layout/profile-dropdown.css';
 import './desktop-titlebar.css';
 
@@ -79,8 +78,7 @@ const DesktopTitlebar = () => {
       </TabBarErrorBoundary>
 
       <div className="titlebar-controls">
-        <QuickLinks />
-        <div className="titlebar-profile">
+        <div className="desktop-titlebar-profile">
           <ProfileButton />
         </div>
         <button
