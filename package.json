@@ -33,6 +33,7 @@
   "scripts": {
     "knip": "knip",
     "prepare": "husky",
+    "postinstall": "npm rebuild canvas",
     "release": "semantic-release",
     "dev:web": "pnpm --filter gruenerator_frontend dev",
     "dev:backend": "pnpm --filter gruenerator_backend dev",

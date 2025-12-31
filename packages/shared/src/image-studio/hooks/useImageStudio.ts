@@ -10,7 +10,6 @@ import type {
   ImageStudioTemplateType,
   TextGenerationRequest,
   CanvasGenerationRequest,
-  Text2SharepicRequest,
   NormalizedTextResult,
   UseImageStudioOptions,
   UseImageStudioReturn,
@@ -65,7 +64,6 @@ export function useImageStudio(
   // Canvas generation (via composed hook)
   const {
     generateCanvas: canvasGenerate,
-    generateText2Sharepic: text2SharepicGenerate,
     loading: canvasLoading,
     error: canvasError,
     clearError: clearCanvasError,
@@ -168,16 +166,6 @@ export function useImageStudio(
     [canvasGenerate]
   );
 
-  /**
-   * Generate text2sharepic
-   */
-  const generateText2Sharepic = useCallback(
-    async (request: Text2SharepicRequest): Promise<string> => {
-      return text2SharepicGenerate(request);
-    },
-    [text2SharepicGenerate]
-  );
-
   // Combined loading state
   const loading = textLoading || canvasLoading;
 
@@ -187,7 +175,6 @@ export function useImageStudio(
   return {
     generateText,
     generateCanvas,
-    generateText2Sharepic,
     loading,
     textLoading,
     canvasLoading,

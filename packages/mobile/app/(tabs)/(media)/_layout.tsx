@@ -4,11 +4,12 @@ import { withLayoutContext, usePathname, useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme } from '../../../theme';
 import { FloatingBadgeTabs, TabDefinition } from '../../../components/navigation';
-import { useImageStudioStore, selectShouldShowBadges } from '../../../stores/imageStudioStore';
 
 const { Navigator } = createMaterialTopTabNavigator();
 
 const MaterialTopTabs = withLayoutContext(Navigator);
+
+const BADGE_HEIGHT = 52;
 
 const MEDIA_TABS: TabDefinition[] = [
   { key: 'reel', label: 'Reel' },
@@ -21,8 +22,6 @@ export default function MediaLayout() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const shouldShowBadges = useImageStudioStore(selectShouldShowBadges);
-
   const activeTab = pathname.includes('image-studio') ? 'image-studio' : 'reel';
 
   const handleTabPress = (tabKey: string) => {
@@ -31,7 +30,12 @@ export default function MediaLayout() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top']}>
-      <View style={{ flex: 1 }}>
+      <FloatingBadgeTabs
+        tabs={MEDIA_TABS}
+        activeTab={activeTab}
+        onTabPress={handleTabPress}
+      />
+      <View style={{ flex: 1, paddingTop: BADGE_HEIGHT }}>
         <MaterialTopTabs
           tabBar={() => null}
           screenOptions={{
@@ -48,14 +52,6 @@ export default function MediaLayout() {
             options={{ title: 'Image Studio' }}
           />
         </MaterialTopTabs>
-
-        {shouldShowBadges && (
-          <FloatingBadgeTabs
-            tabs={MEDIA_TABS}
-            activeTab={activeTab}
-            onTabPress={handleTabPress}
-          />
-        )}
       </View>
     </SafeAreaView>
   );
