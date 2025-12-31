@@ -24,6 +24,68 @@ const detectPlatform = () => {
   return 'windows'; // Default fallback
 };
 
+const detectArchitecture = () => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const platform = navigator.platform?.toLowerCase() || '';
+
+  // Check for Apple Silicon (M1/M2/M3)
+  // On Apple Silicon Macs, navigator.platform returns "MacIntel" for compatibility
+  // but we can detect ARM through various means
+  if (platform.includes('mac') || userAgent.includes('mac')) {
+    // Check if running in Rosetta or native ARM
+    // Modern browsers expose this through userAgentData
+    if (navigator.userAgentData?.platform === 'macOS') {
+      // Chrome/Edge on macOS may expose architecture
+      const arch = navigator.userAgentData?.architecture;
+      if (arch === 'arm') return 'arm64';
+    }
+
+    // Fallback: Check for Apple Silicon hints in userAgent
+    // Safari on Apple Silicon includes specific identifiers
+    if (userAgent.includes('macintosh') &&
+        (userAgent.includes('applewebkit') && !userAgent.includes('intel'))) {
+      // Could be Apple Silicon, but not definitive
+    }
+
+    // Use WebGL renderer as fallback detection
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          const renderer = gl.getParameter(debugInfo.UNRENDERED_RENDERER_WEBGL).toLowerCase();
+          if (renderer.includes('apple m') || renderer.includes('apple gpu')) {
+            return 'arm64';
+          }
+        }
+      }
+    } catch (e) {
+      // WebGL not available
+    }
+
+    return 'x64'; // Default to Intel for Mac
+  }
+
+  // Windows ARM detection
+  if (platform.includes('win')) {
+    if (userAgent.includes('arm64') || userAgent.includes('aarch64')) {
+      return 'arm64';
+    }
+    return 'x64';
+  }
+
+  // Linux ARM detection
+  if (platform.includes('linux')) {
+    if (userAgent.includes('aarch64') || userAgent.includes('arm64')) {
+      return 'arm64';
+    }
+    return 'x64';
+  }
+
+  return 'x64'; // Default fallback
+};
+
 const formatDate = (dateString) => {
   return new Date(dateString).toLocaleDateString('de-DE', {
     year: 'numeric',
@@ -42,11 +104,20 @@ const getAssetLabel = (filename) => {
   if (lower.includes('.msi')) return 'Windows Installer (.msi)';
   if (lower.includes('.exe') && lower.includes('setup')) return 'Windows Setup (.exe)';
   if (lower.includes('.exe')) return 'Windows (.exe)';
-  if (lower.includes('.dmg')) return 'macOS Disk Image (.dmg)';
+  if (lower.includes('.dmg') && lower.includes('aarch64')) return 'macOS Apple Silicon (.dmg)';
+  if (lower.includes('.dmg') && lower.includes('x64')) return 'macOS Intel (.dmg)';
+  if (lower.includes('.dmg')) return 'macOS (.dmg)';
   if (lower.includes('.appimage')) return 'AppImage';
   if (lower.includes('.deb')) return 'Debian/Ubuntu (.deb)';
   if (lower.includes('.rpm')) return 'Fedora/RHEL (.rpm)';
   return filename;
+};
+
+const getAssetArchitecture = (filename) => {
+  const lower = filename.toLowerCase();
+  if (lower.includes('aarch64') || lower.includes('arm64')) return 'arm64';
+  if (lower.includes('x64') || lower.includes('x86_64') || lower.includes('amd64')) return 'x64';
+  return 'x64'; // Default
 };
 
 const categorizeAssets = (assets) => {
@@ -59,8 +130,17 @@ const categorizeAssets = (assets) => {
   };
 };
 
-const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform }) => {
+const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform, userArchitecture }) => {
   if (!assets || assets.length === 0) return null;
+
+  // Sort assets to put the user's architecture first
+  const sortedAssets = [...assets].sort((a, b) => {
+    const archA = getAssetArchitecture(a.name);
+    const archB = getAssetArchitecture(b.name);
+    if (archA === userArchitecture && archB !== userArchitecture) return -1;
+    if (archB === userArchitecture && archA !== userArchitecture) return 1;
+    return 0;
+  });
 
   return (
     <div className={`apps-platform-section ${isCurrentPlatform ? 'apps-platform-current' : ''}`}>
@@ -70,19 +150,27 @@ const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform }) => {
         {isCurrentPlatform && <span className="apps-platform-badge">Dein System</span>}
       </h3>
       <ul className="apps-download-list">
-        {assets.map((asset) => (
-          <li key={asset.id}>
-            <a
-              href={asset.browser_download_url}
-              className="btn-primary apps-download-btn"
-              download
-            >
-              <HiDownload />
-              <span className="download-label">{getAssetLabel(asset.name)}</span>
-              <span className="download-size">({formatSize(asset.size)})</span>
-            </a>
-          </li>
-        ))}
+        {sortedAssets.map((asset) => {
+          const assetArch = getAssetArchitecture(asset.name);
+          const isRecommended = isCurrentPlatform && assetArch === userArchitecture;
+
+          return (
+            <li key={asset.id}>
+              <a
+                href={asset.browser_download_url}
+                className={`btn-primary apps-download-btn ${isRecommended ? 'apps-download-recommended' : ''}`}
+                download
+              >
+                <HiDownload />
+                <span className="download-label">
+                  {getAssetLabel(asset.name)}
+                  {isRecommended && <span className="apps-recommended-badge">Empfohlen</span>}
+                </span>
+                <span className="download-size">({formatSize(asset.size)})</span>
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -172,6 +260,7 @@ const AppsPage = () => {
           <h2>Downloads</h2>
           {(() => {
             const currentPlatform = detectPlatform();
+            const currentArchitecture = detectArchitecture();
             const platformConfigs = [
               { key: 'windows', title: 'Windows', icon: FaWindows, assets: categorizedAssets.windows },
               { key: 'macos', title: 'macOS', icon: FaApple, assets: categorizedAssets.macos },
@@ -194,6 +283,7 @@ const AppsPage = () => {
                     icon={platform.icon}
                     assets={platform.assets}
                     isCurrentPlatform={platform.key === currentPlatform}
+                    userArchitecture={currentArchitecture}
                   />
                 ))}
               </div>
