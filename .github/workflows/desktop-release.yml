@@ -11,6 +11,16 @@ on:
         required: false
         default: true
         type: boolean
+      platforms:
+        description: 'Platforms to build'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
 
 permissions:
   contents: write
@@ -25,20 +35,28 @@ jobs:
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             args: ''
+            os_type: linux
           # macOS Intel
           - platform: macos-latest
             target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
+            os_type: macos
           # macOS Apple Silicon
           - platform: macos-latest
             target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
+            os_type: macos
           # Windows x86_64
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             args: ''
+            os_type: windows
 
     runs-on: ${{ matrix.platform }}
+    if: >-
+      github.event.inputs.platforms == 'all' ||
+      github.event.inputs.platforms == '' ||
+      github.event.inputs.platforms == matrix.os_type
 
     steps:
       - name: Checkout repository
