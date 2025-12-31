@@ -30,8 +30,6 @@ export type {
   VeranstaltungFontSizes,
   CanvasGenerationRequest,
   CanvasGenerationResult,
-  Text2SharepicRequest,
-  Text2SharepicResult,
   // KI types
   KiStyleVariant,
   GreenEditInfrastructure,

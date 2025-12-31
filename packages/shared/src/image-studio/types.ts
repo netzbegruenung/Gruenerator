@@ -15,8 +15,7 @@ export type ImageStudioTemplateType =
   | 'zitat'
   | 'zitat-pure'
   | 'info'
-  | 'veranstaltung'
-  | 'text2sharepic';
+  | 'veranstaltung';
 
 /**
  * KI types supported by image-studio (FLUX API-based)
@@ -64,8 +63,6 @@ export interface ImageStudioEndpoints {
   text?: string;
   /** Canvas rendering endpoint */
   canvas?: string;
-  /** Direct generation endpoint (for text2sharepic) */
-  generate?: string;
 }
 
 /**
@@ -323,25 +320,6 @@ export interface CanvasGenerationResult {
 }
 
 // ============================================================================
-// TEXT2SHAREPIC TYPES
-// ============================================================================
-
-/**
- * Text2Sharepic generation request
- */
-export interface Text2SharepicRequest {
-  description: string;
-  mood?: string;
-}
-
-/**
- * Text2Sharepic generation result
- */
-export interface Text2SharepicResult {
-  image: string;
-}
-
-// ============================================================================
 // KI GENERATION TYPES (FLUX API)
 // ============================================================================
 
@@ -481,8 +459,6 @@ export interface UseImageStudioReturn {
   generateText: (type: ImageStudioTemplateType, formData: TextGenerationRequest) => Promise<NormalizedTextResult>;
   /** Generate canvas image */
   generateCanvas: (type: ImageStudioTemplateType, request: CanvasGenerationRequest) => Promise<string>;
-  /** Generate text2sharepic */
-  generateText2Sharepic: (request: Text2SharepicRequest) => Promise<string>;
   /** Loading state */
   loading: boolean;
   /** Text generation loading state */

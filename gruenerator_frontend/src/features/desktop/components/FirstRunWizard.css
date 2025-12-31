@@ -21,7 +21,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: clamp(20px, 4vw, 40px);
   overflow-y: auto;
 }
 
@@ -86,7 +86,7 @@
 .navigation-buttons {
   display: flex;
   justify-content: space-between;
-  padding: 20px 40px;
+  padding: clamp(15px, 3vw, 20px) clamp(20px, 4vw, 40px);
   background: var(--background-color-alt);
   border-top: 1px solid var(--button-hover-color);
 }
@@ -134,9 +134,9 @@
 }
 
 .welcome-logo {
-  width: 300px;
+  width: clamp(180px, 25vw, 300px);
   max-width: 80%;
-  margin-bottom: 30px;
+  margin-bottom: clamp(20px, 3vw, 30px);
   animation: logoFloat 3s ease-in-out infinite;
 }
 
@@ -170,16 +170,16 @@
 
 .features-step h2 {
   text-align: center;
-  font-size: 1.8rem;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
   color: var(--font-color-h);
-  margin-bottom: 40px;
+  margin-bottom: clamp(20px, 4vw, 40px);
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
-  padding: 0 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 45%), 1fr));
+  gap: clamp(12px, 2vw, 20px);
+  padding: 0 clamp(12px, 2vw, 20px);
 }
 
 .feature-card {
@@ -235,13 +235,13 @@
 .theme-options {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: clamp(12px, 2vw, 20px);
   flex-wrap: wrap;
 }
 
 .theme-option {
-  width: 160px;
-  padding: 20px;
+  width: clamp(130px, 15vw, 160px);
+  padding: clamp(14px, 2vw, 20px);
   border-radius: 16px;
   border: 2px solid var(--grey-300);
   background: var(--background-color);
@@ -454,13 +454,57 @@
   box-shadow: 0 8px 25px rgba(82, 144, 122, 0.45);
 }
 
-@media (max-width: 768px) {
-  .wizard-content {
-    padding: 20px;
+/* Small desktop */
+@media (max-width: 1280px) {
+  .wizard-step {
+    max-width: 700px;
   }
 
-  .navigation-buttons {
-    padding: 15px 20px;
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablet landscape */
+@media (max-width: 1024px) {
+  .wizard-step {
+    max-width: 600px;
+  }
+
+  .ready-checkmark {
+    width: 80px;
+    height: 80px;
+  }
+
+  .ready-checkmark svg {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Tablet portrait */
+@media (max-width: 900px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feature-card {
+    padding: 18px;
+  }
+
+  .feature-icon {
+    font-size: 2rem;
+  }
+
+  .login-benefits {
+    max-width: 100%;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .wizard-step {
+    max-width: 100%;
   }
 
   .features-grid {
@@ -475,5 +519,44 @@
   .theme-option {
     width: 100%;
     max-width: 200px;
+  }
+
+  .welcome-step {
+    padding: 20px 15px;
+  }
+
+  .ready-checkmark {
+    width: 70px;
+    height: 70px;
+  }
+
+  .ready-checkmark svg {
+    width: 35px;
+    height: 35px;
+  }
+
+  .start-button {
+    padding: 14px 36px;
+    font-size: 1.1rem;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
+  .nav-button {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
+  .login-button {
+    padding: 12px 32px;
+  }
+
+  .feature-card h3 {
+    font-size: 1rem;
+  }
+
+  .feature-card p {
+    font-size: 0.85rem;
   }
 }

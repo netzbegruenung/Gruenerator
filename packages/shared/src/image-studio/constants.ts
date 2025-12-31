@@ -89,19 +89,6 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     },
     legacyType: 'Veranstaltung',
   },
-
-  text2sharepic: {
-    id: 'text2sharepic',
-    label: 'Text zu Sharepic',
-    description: 'KI generiert Sharepic aus Beschreibung',
-    requiresImage: false,
-    hasTextGeneration: false,
-    isBeta: true,
-    endpoints: {
-      generate: '/sharepic/text2sharepic/generate-ai',
-    },
-    legacyType: 'Text2Sharepic',
-  },
 };
 
 // ============================================================================
@@ -462,42 +449,6 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
     showEditPanel: true,
     minimalLayout: false,
   },
-
-  text2sharepic: {
-    inputFields: [
-      {
-        name: 'description',
-        type: 'textarea',
-        label: 'Sharepic-Beschreibung',
-        placeholder: 'Beschreibe den Inhalt deines Sharepics...',
-        required: true,
-        minLength: 10,
-        rows: 3,
-      },
-      {
-        name: 'mood',
-        type: 'select',
-        label: 'Stimmung (optional)',
-        required: false,
-        options: [
-          { value: 'optimistic', label: 'Optimistisch' },
-          { value: 'serious', label: 'Seriös' },
-          { value: 'urgent', label: 'Dringend' },
-          { value: 'inspiring', label: 'Inspirierend' },
-        ],
-      },
-    ],
-    previewFields: [],
-    resultFields: [],
-    showImageUpload: false,
-    showColorControls: false,
-    showFontSizeControl: false,
-    showAdvancedEditing: false,
-    showCredit: false,
-    showAlternatives: false,
-    showEditPanel: false,
-    minimalLayout: true,
-  },
 };
 
 // ============================================================================
@@ -576,13 +527,6 @@ export function mapTextResponse(
           address: alt.address || '',
         })),
         searchTerms: response.searchTerms || [],
-      };
-
-    case 'text2sharepic':
-      // text2sharepic doesn't have text generation
-      return {
-        fields: {},
-        alternatives: [],
       };
 
     default:
