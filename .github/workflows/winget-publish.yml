@@ -1,0 +1,19 @@
+name: Publish to winget
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    if: contains(github.event.release.tag_name, 'desktop-v')
+
+    steps:
+      - name: Submit to winget
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: Netzbegruenung.Gruenerator
+          installers-regex: '_x64-setup\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
+          fork-user: netzbegruenung

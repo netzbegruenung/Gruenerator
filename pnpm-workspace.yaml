@@ -1,4 +1,4 @@
 packages:
+  - "apps/*"
   - "packages/*"
-  - "gruenerator_backend"
-  - "gruenerator_frontend"
+  - "services/*"

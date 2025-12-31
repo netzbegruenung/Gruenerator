@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 
-> **Note**: This repository is automatically mirrored from the [gruenerator monorepo](https://github.com/Movm/gruenerator/tree/main/packages/mcp). For contributions, you can open PRs here or directly in the monorepo.
+> **Note**: This repository is automatically mirrored from the [gruenerator monorepo](https://github.com/Movm/gruenerator/tree/main/services/mcp). For contributions, you can open PRs here or directly in the monorepo.
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives AI assistants direct access to Green Party political programs from Germany and Austria.
 

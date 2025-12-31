@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="gruenerator_frontend/public/images/Sonnenblume_RGB_gelb.png" alt="Grünerator" width="120"/>
+  <img src="apps/web/public/images/gruenerator_logo_gruen.svg" alt="Grünerator" width="200"/>
 
   # Grünerator
 
@@ -173,20 +173,15 @@ Y.js-powered collaborative editing:
 
 2. **Install dependencies**
    ```bash
-   # Backend
-   cd gruenerator_backend
-   npm install
-
-   # Frontend
-   cd ../gruenerator_frontend
-   npm install
+   # Install all dependencies with pnpm
+   pnpm install
    ```
 
 3. **Configure environment**
    ```bash
    # Copy example configs
-   cp gruenerator_backend/.env.example gruenerator_backend/.env
-   cp gruenerator_frontend/.env.example gruenerator_frontend/.env
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env
 
    # Edit with your values (see Configuration section)
    ```
@@ -194,22 +189,19 @@ Y.js-powered collaborative editing:
 4. **Initialize database**
    ```bash
    # Run PostgreSQL schema
-   psql -d gruenerator -f gruenerator_backend/database/postgres/schema.sql
+   psql -d gruenerator -f apps/api/database/postgres/schema.sql
    ```
 
 5. **Start development servers**
    ```bash
    # Terminal 1: Backend
-   cd gruenerator_backend
-   npm run dev
+   pnpm dev:backend
 
    # Terminal 2: Frontend
-   cd gruenerator_frontend
-   npm start
+   pnpm dev:web
 
    # Terminal 3: Y.js collaboration server (optional)
-   cd gruenerator_backend
-   npm run start:yjs
+   pnpm --filter @gruenerator/api start:yjs
    ```
 
 6. **Access the application**

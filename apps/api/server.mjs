@@ -491,7 +491,7 @@ if (cluster.isMaster) {
   });
 
   // Optimierte statische Datei-Auslieferung für Vite
-  const staticFilesPath = path.join(__dirname, '../gruenerator_frontend/build');
+  const staticFilesPath = path.join(__dirname, '../web/build');
 
   // Statische Assets mit spezifischer Struktur
   app.use('/assets', express.static(path.join(staticFilesPath, 'assets'), {

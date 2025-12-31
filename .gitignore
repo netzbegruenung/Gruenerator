@@ -32,22 +32,22 @@ yarn-debug.log*
 yarn-error.log*
 
 # Cache files
-gruenerator_frontend/node_modules/.cache
+apps/web/node_modules/.cache
 *.pack
-gruenerator_backend/local_cache/
-gruenerator_backend/fastembed_cache/
+apps/api/local_cache/
+apps/api/fastembed_cache/
 
 # Playwright MCP files
 .playwright-mcp/
 
 # Dataset files
-gruenerator_backend/public/dataset_*.json
+apps/api/public/dataset_*.json
 
 # OCR training data
-gruenerator_backend/*.traineddata
+apps/api/*.traineddata
 
 # Migration files (temporary)
-gruenerator_backend/migration/
+apps/api/migration/
 
 # Editor directories and files
 .idea
@@ -58,19 +58,19 @@ gruenerator_backend/migration/
 *.sln
 
 # Upload directories - ignore contents but keep structure
-gruenerator_backend/uploads/transcriptions/*
-!gruenerator_backend/uploads/transcriptions/.gitkeep
-gruenerator_backend/uploads/videos/*
-!gruenerator_backend/uploads/videos/.gitkeep
-gruenerator_backend/uploads/exports/*
-!gruenerator_backend/uploads/exports/.gitkeep
-gruenerator_backend/uploads/tus-temp/*
-!gruenerator_backend/uploads/tus-temp/.gitkeep
-gruenerator_backend/uploads/temp/*
-!gruenerator_backend/uploads/temp/.gitkeep
-gruenerator_backend/uploads/*.zip
-gruenerator_backend/uploads/*.png
-gruenerator_backend/uploads/*.zip:Zone.Identifier
+apps/api/uploads/transcriptions/*
+!apps/api/uploads/transcriptions/.gitkeep
+apps/api/uploads/videos/*
+!apps/api/uploads/videos/.gitkeep
+apps/api/uploads/exports/*
+!apps/api/uploads/exports/.gitkeep
+apps/api/uploads/tus-temp/*
+!apps/api/uploads/tus-temp/.gitkeep
+apps/api/uploads/temp/*
+!apps/api/uploads/temp/.gitkeep
+apps/api/uploads/*.zip
+apps/api/uploads/*.png
+apps/api/uploads/*.zip:Zone.Identifier
 
 # Claude Code & Cursor files
 CLAUDE.md
@@ -84,7 +84,7 @@ scripts/
 
 # Documentation (local development)
 docs/
-!gruenerator_backend/docs/
+!apps/api/docs/
 
 # Backup files
 backup/
@@ -94,7 +94,7 @@ git-*-backup-*.txt
 aws/
 
 # Storage files (crawler and queue data)
-gruenerator_backend/storage/
+apps/api/storage/
 
 # Root-level temporary files
 /test_*.js
@@ -106,16 +106,16 @@ bfg-*.jar
 *.aab
 *.ipa
 *.app
-packages/mobile/android/
-packages/mobile/ios/
-packages/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/.expo/
 
 # Desktop build artifacts (Tauri)
-packages/desktop/src-tauri/target/
-packages/desktop/src-tauri/gen/schemas/*.json
-!packages/desktop/src-tauri/gen/schemas/.gitkeep
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/*.json
+!apps/desktop/src-tauri/gen/schemas/.gitkeep
 
 # Rust
 target/
 Cargo.lock
-!packages/desktop/src-tauri/Cargo.lock
+!apps/desktop/src-tauri/Cargo.lock

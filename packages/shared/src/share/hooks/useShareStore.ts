@@ -1,6 +1,6 @@
 /**
  * Share store - Zustand store for share state management
- * Migrated from gruenerator_frontend/src/stores/mediaShareStore.js
+ * Migrated from apps/web/src/stores/mediaShareStore.js
  */
 
 import { create } from 'zustand';

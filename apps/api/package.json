@@ -1,5 +1,5 @@
 {
-  "name": "gruenerator_backend",
+  "name": "@gruenerator/api",
   "version": "1.0.0",
   "description": "Backend for Gruenerator project",
   "main": "server.mjs",

@@ -1,4 +1,4 @@
-// gruenerator_backend/routes/subtitler/services/tusService.js
+// apps/api/routes/subtitler/services/tusService.js
 const { Server } = require('@tus/server');
 const { FileStore } = require('@tus/file-store');
 const path = require('path');

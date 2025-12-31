@@ -25,7 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Cache files
-gruenerator_frontend/node_modules/.cache
+node_modules/.cache
 *.pack
 
 # Large files

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, '../../..');
-const frontendDir = resolve(projectRoot, 'gruenerator_frontend');
+const frontendDir = resolve(projectRoot, 'apps/web');
 const desktopDir = resolve(__dirname, '..');
 
 const checks = [];

@@ -56,10 +56,10 @@ rustup target add x86_64-apple-darwin aarch64-apple-darwin
 
 ```bash
 # Terminal 1: Start frontend dev server
-pnpm --filter gruenerator_frontend dev
+pnpm --filter @gruenerator/web dev
 
 # Terminal 2: Start Tauri dev mode
-cd packages/desktop && pnpm dev
+cd apps/desktop && pnpm dev
 ```
 
 The app will open with hot-reload enabled for both frontend and Rust code.

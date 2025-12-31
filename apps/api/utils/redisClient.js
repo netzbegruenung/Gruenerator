@@ -1,4 +1,4 @@
-// gruenerator_backend/utils/redisClient.js
+// apps/api/utils/redisClient.js
 const { createClient } = require('redis');
 require('dotenv').config({ quiet: true });
 

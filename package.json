@@ -9,9 +9,9 @@
     }
   },
   "workspaces": [
+    "apps/*",
     "packages/*",
-    "gruenerator_backend",
-    "gruenerator_frontend"
+    "services/*"
   ],
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
@@ -35,9 +35,11 @@
     "prepare": "husky",
     "postinstall": "npm rebuild canvas",
     "release": "semantic-release",
-    "dev:web": "pnpm --filter gruenerator_frontend dev",
-    "dev:backend": "pnpm --filter gruenerator_backend dev",
-    "build:web": "pnpm --filter gruenerator_frontend build",
-    "build:shared": "pnpm --filter @gruenerator/shared build"
+    "dev:web": "pnpm --filter @gruenerator/web dev",
+    "dev:backend": "pnpm --filter @gruenerator/api dev",
+    "dev:mobile": "pnpm --filter @gruenerator/mobile start",
+    "build:web": "pnpm --filter @gruenerator/web build",
+    "build:shared": "pnpm --filter @gruenerator/shared build",
+    "build:desktop": "pnpm --filter @gruenerator/desktop build"
   }
 }
