@@ -4,15 +4,25 @@ import { isDesktopApp } from '../../../utils/platform';
 
 const QuickLinks: React.FC = () => {
   const handleClick = async (url: string) => {
+    console.log('[QuickLinks] Click handler called for:', url);
+    console.log('[QuickLinks] isDesktopApp():', isDesktopApp());
+
     if (isDesktopApp()) {
       try {
-        const { open } = await import('@tauri-apps/plugin-opener');
+        console.log('[QuickLinks] Attempting Tauri opener import...');
+        const openerModule = await import('@tauri-apps/plugin-opener');
+        console.log('[QuickLinks] Opener module loaded:', openerModule);
+        const { open } = openerModule;
+        console.log('[QuickLinks] Calling open() with:', url);
         await open(url);
+        console.log('[QuickLinks] open() completed successfully');
         return;
       } catch (error) {
         console.error('[QuickLinks] Tauri opener failed:', error);
+        // Fall through to window.open
       }
     }
+    console.log('[QuickLinks] Using window.open fallback');
     window.open(url, '_blank');
   };
 
