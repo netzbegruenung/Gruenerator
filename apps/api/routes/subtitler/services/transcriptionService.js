@@ -1,46 +1,38 @@
-const path = require('path');
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const { transcribeWithAssemblyAI } = require('./assemblyAIService');
-const { transcribeWithGladia } = require('./gladiaService');
-const { extractAudio } = require('./videoUploadService');
+import path from 'path';
 
-const { generateManualSubtitles } = require('./manualSubtitleGeneratorService');
-const { startBackgroundCompression } = require('./backgroundCompressionService');
-const { createLogger } = require('../../../utils/logger.js');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import { transcribeWithGladia } from './gladiaService.js';
+import { extractAudio } from './videoUploadService.js';
+
+import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
+import { startBackgroundCompression } from './backgroundCompressionService.js';
+import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('transcription');
 
 /**
- * Transcribe audio using Gladia as primary provider with AssemblyAI as fallback
+ * Transcribe audio using Gladia
  * @param {string} audioPath - Path to audio file
  * @param {boolean} requestWordTimestamps - Whether to request word timestamps
  * @param {string|null} uploadId - Optional upload ID for cancellation support
  * @returns {Promise<Object>} - Transcription result in consistent format
  */
 async function transcribeWithProvider(audioPath, requestWordTimestamps = false, uploadId = null) {
-    log.debug('Using Gladia as primary provider with AssemblyAI fallback');
+    log.debug('Using Gladia for transcription');
 
     try {
         return await transcribeWithGladia(audioPath, requestWordTimestamps, uploadId);
     } catch (error) {
         if (error.message === 'CANCELLED') {
             log.info(`Transcription cancelled for upload: ${uploadId}`);
-            throw error;
         }
-
-        log.warn(`Gladia transcription failed: ${error.message} - falling back to AssemblyAI`);
-
-        try {
-            return await transcribeWithAssemblyAI(audioPath, requestWordTimestamps, uploadId);
-        } catch (fallbackError) {
-            if (fallbackError.message === 'CANCELLED') {
-                log.info(`Transcription cancelled for upload: ${uploadId}`);
-                throw fallbackError;
-            }
-            log.error(`AssemblyAI fallback also failed: ${fallbackError.message}`);
-            throw new Error(`Transcription failed: Primary (Gladia) - ${error.message}, Fallback (AssemblyAI) - ${fallbackError.message}`);
-        }
+        throw error;
     }
 }
 
@@ -318,6 +310,4 @@ async function transcribeVideo(videoPath, subtitlePreference = 'manual', aiWorke
   }
 }
 
-module.exports = {
-  transcribeVideo
-}; 
+export { transcribeVideo };
