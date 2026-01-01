@@ -174,10 +174,17 @@ const Datenschutz = () => {
 
       <p><strong>5. netzbegrünung e.V.</strong> (Deutschland)</p>
       <ul>
-        <li>Zweck: Privacy-Modus (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
-        <li>Server: Eigene Server (Deutschland)</li>
+        <li>Zweck: Kerninfrastruktur des GRUENERATOR</li>
+        <li>Server: Eigene Server in Finnland (EU)</li>
+        <li>Bereitgestellte Dienste:
+          <ul>
+            <li>PostgreSQL-Datenbank (Benutzerprofile, Einstellungen)</li>
+            <li>Keycloak-Authentifizierung (Login, Benutzerverwaltung)</li>
+            <li>Textbegrünung/Etherpad (kollaboratives Schreiben)</li>
+            <li>Privacy-Modus (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
+          </ul>
+        </li>
         <li>Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle Datennutzung</li>
-        <li>Aktivierung: Standardmäßig deaktiviert, Du entscheidest bei jeder Anfrage</li>
         <li>Backup-Provider: IONOS SE (bei Ausfall) - Stateless Service in Berlin</li>
       </ul>
 
@@ -241,16 +248,6 @@ const Datenschutz = () => {
       <h3>Dauer der Datenspeicherung</h3>
       <p>
         Ihre Daten werden so lange gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich sind oder bis Sie eine Löschung beantragen. Nach Beendigung der Nutzung unserer Dienste werden Ihre Daten für weitere 30 Tage aufbewahrt und anschließend gelöscht, es sei denn, gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung.
-      </p>
-
-      <h3>Standort der Datenverarbeitung</h3>
-      <p>
-        Supabase verarbeitet Daten in Rechenzentren innerhalb der Europäischen Union. [Falls zutreffend: In einigen Fällen können Daten auch in Rechenzentren außerhalb der EU verarbeitet werden. In diesen Fällen stellen wir sicher, dass ein angemessenes Datenschutzniveau gemäß Art. 44 ff. DSGVO gewährleistet ist.]
-      </p>
-
-      <h3>Rechtsgrundlage</h3>
-      <p>
-        Die Verarbeitung Ihrer Daten in Supabase erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung bzw. Durchführung vorvertraglicher Maßnahmen) sowie Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der effizienten und sicheren Bereitstellung unserer Dienste).
       </p>
 
       <h3>3. Betroffenenrechte</h3>
