@@ -9,6 +9,107 @@ const { createLogger } = require('../utils/logger.js');
 const log = createLogger('exportDocuments');
 
 
+// Parse citation markers (⚡CITE1⚡, ⚡CITE2⚡, etc.) from text
+function parseCitationMarkers(text) {
+  if (!text || typeof text !== 'string') return [{ text, isCitation: false }];
+
+  const citationPattern = /⚡CITE(\d+)⚡/g;
+  const segments = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = citationPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      const textBefore = text.slice(lastIndex, match.index);
+      if (textBefore) {
+        segments.push({ text: textBefore, isCitation: false });
+      }
+    }
+
+    segments.push({
+      text: `[${match[1]}]`,
+      isCitation: true,
+      citationIndex: match[1]
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    const remainingText = text.slice(lastIndex);
+    if (remainingText) {
+      segments.push({ text: remainingText, isCitation: false });
+    }
+  }
+
+  return segments.length === 0 ? [{ text, isCitation: false }] : segments;
+}
+
+// Create academic-style sources section for DOCX
+function createSourcesSection(docxLib, citations) {
+  if (!citations || citations.length === 0) return [];
+
+  const { Paragraph, TextRun, HeadingLevel } = docxLib;
+  const children = [];
+
+  children.push(new Paragraph({
+    children: [
+      new TextRun({ text: 'Quellen', bold: true, size: 26, font: 'GrueneTypeNeue' })
+    ],
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 600, after: 200 }
+  }));
+
+  const sortedCitations = [...citations].sort((a, b) =>
+    parseInt(a.index) - parseInt(b.index)
+  );
+
+  for (const citation of sortedCitations) {
+    const relevancePercent = citation.similarity_score
+      ? Math.round(citation.similarity_score * 100)
+      : null;
+
+    const citedTextPreview = citation.cited_text
+      ? (citation.cited_text.length > 150
+          ? citation.cited_text.substring(0, 150) + '...'
+          : citation.cited_text)
+      : '';
+
+    const textRuns = [
+      new TextRun({ text: `${citation.index}. `, bold: true, size: 20, font: 'PT Sans' }),
+      new TextRun({ text: citation.document_title || 'Unbekannte Quelle', bold: true, size: 20, font: 'PT Sans' })
+    ];
+
+    if (citedTextPreview) {
+      textRuns.push(new TextRun({ text: ', ', size: 20, font: 'PT Sans' }));
+      textRuns.push(new TextRun({ text: `„${citedTextPreview}"`, italics: true, size: 20, font: 'PT Sans' }));
+    }
+
+    if (relevancePercent) {
+      textRuns.push(new TextRun({ text: ` (Relevanz: ${relevancePercent}%)`, size: 18, color: '666666', font: 'PT Sans' }));
+    }
+
+    children.push(new Paragraph({
+      children: textRuns,
+      spacing: { after: 120 },
+      indent: { left: 360 }
+    }));
+
+    if (citation.source_url) {
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ text: '→ ', size: 18, color: '666666', font: 'PT Sans' }),
+          new TextRun({ text: citation.source_url, size: 18, color: '0066cc', font: 'PT Sans' })
+        ],
+        spacing: { after: 80 },
+        indent: { left: 720 }
+      }));
+    }
+  }
+
+  return children;
+}
+
 // Parse content with formatting information preserved
 function parseFormattedContent(input) {
   if (!input) return [];
@@ -370,8 +471,9 @@ router.post('/pdf', async (req, res) => {
 // POST /api/exports/docx
 router.post('/docx', async (req, res) => {
   try {
-    const { content, title } = req.body || {};
+    const { content, title, citations } = req.body || {};
     const formattedParagraphs = parseFormattedContent(content);
+    const hasCitations = citations && Array.isArray(citations) && citations.length > 0;
 
     const docx = await import('docx');
     const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer } = docx;
@@ -417,16 +519,41 @@ router.post('/docx', async (req, res) => {
           spacing: { before: 300, after: 200 },
         }));
       } else {
-        // Create regular paragraph with formatting
-        const textRuns = paragraph.segments.map(segment =>
-          new TextRun({
-            text: segment.text,
-            bold: segment.bold,
-            italics: segment.italic,
-            size: 22,
-            font: 'PT Sans'
-          })
-        );
+        // Create regular paragraph with formatting and citation support
+        const textRuns = [];
+
+        for (const segment of paragraph.segments) {
+          if (hasCitations && segment.text.includes('⚡CITE')) {
+            const citationSegments = parseCitationMarkers(segment.text);
+            for (const citeSeg of citationSegments) {
+              if (citeSeg.isCitation) {
+                textRuns.push(new TextRun({
+                  text: citeSeg.text,
+                  superScript: true,
+                  size: 16,
+                  color: '0066cc',
+                  font: 'PT Sans'
+                }));
+              } else {
+                textRuns.push(new TextRun({
+                  text: citeSeg.text,
+                  bold: segment.bold,
+                  italics: segment.italic,
+                  size: 22,
+                  font: 'PT Sans'
+                }));
+              }
+            }
+          } else {
+            textRuns.push(new TextRun({
+              text: segment.text,
+              bold: segment.bold,
+              italics: segment.italic,
+              size: 22,
+              font: 'PT Sans'
+            }));
+          }
+        }
 
         const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
 
@@ -437,6 +564,11 @@ router.post('/docx', async (req, res) => {
           indent: isList ? { left: 360 } : undefined,
         }));
       }
+    }
+
+    // Add sources section if citations exist
+    if (hasCitations) {
+      children.push(...createSourcesSection(docx, citations));
     }
 
     children.push(new Paragraph({

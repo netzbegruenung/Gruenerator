@@ -1,9 +1,11 @@
-import React, { lazy, Suspense, memo } from 'react';
+import React, { lazy, Suspense, memo, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { HiChip } from 'react-icons/hi';
+import { FaFileWord } from 'react-icons/fa';
 import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
 import ActionButtons from '../../../components/common/ActionButtons';
 import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../../components/common/Chat/utils/chatMessageUtils';
+import { useExportStore } from '../../../stores/core/exportStore';
 import '../../../assets/styles/features/notebook/notebook-mobile-message.css';
 import '../../../assets/styles/common/markdown-styles.css';
 
@@ -11,11 +13,37 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 
 const NotebookChatMessage = ({ msg, index }) => {
   const hasResultData = msg.type === 'assistant' && msg.resultData;
+  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
 
   const hasSources = hasResultData && (
     (msg.resultData.sources?.length > 0) ||
     (msg.resultData.additionalSources?.length > 0)
   );
+
+  const hasCitations = hasResultData && msg.resultData.citations?.length > 0;
+
+  const handleNotebookDOCXExport = useCallback(async () => {
+    if (!hasResultData || !hasCitations) return;
+
+    await generateNotebookDOCX(
+      msg.content,
+      msg.resultData.question || 'Notebook-Antwort',
+      msg.resultData.citations || [],
+      msg.resultData.sources || []
+    );
+  }, [msg, hasResultData, hasCitations, generateNotebookDOCX]);
+
+  const customExportOptions = useMemo(() => {
+    if (!hasCitations) return [];
+
+    return [{
+      id: 'notebook-docx',
+      label: 'Word mit Quellen',
+      subtitle: 'Inkl. Quellenangaben',
+      icon: <FaFileWord size={16} />,
+      onClick: handleNotebookDOCXExport
+    }];
+  }, [hasCitations, handleNotebookDOCXExport]);
 
   return (
     <motion.div
@@ -52,6 +80,7 @@ const NotebookChatMessage = ({ msg, index }) => {
             showUndo={false}
             showRedo={false}
             className="qa-message-actions"
+            customExportOptions={customExportOptions}
           />
         </div>
       ) : (

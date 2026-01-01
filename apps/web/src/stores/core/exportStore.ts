@@ -71,5 +71,36 @@ export const useExportStore = create<any>((set, get) => ({
     } finally {
       setTimeout(() => set({ isGenerating: false }), 500);
     }
+  },
+
+  // Notebook DOCX Generation with citations and sources
+  generateNotebookDOCX: async (content: string, title: string, citations: any[], sources?: any[]) => {
+    set({ isGenerating: true });
+    try {
+      const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
+      const filename = `${extractFilenameFromContent(content, title)}.docx`;
+      const response = await apiClient.post('/exports/docx', {
+        content,
+        title,
+        citations,
+        sources
+      }, {
+        responseType: 'blob'
+      });
+      const blob = response.data;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Notebook DOCX generation error:', error);
+      throw error;
+    } finally {
+      setTimeout(() => set({ isGenerating: false }), 500);
+    }
   }
 }));
