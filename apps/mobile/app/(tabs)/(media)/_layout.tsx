@@ -14,6 +14,7 @@ const BADGE_HEIGHT = 52;
 const MEDIA_TABS: TabDefinition[] = [
   { key: 'reel', label: 'Reel' },
   { key: 'image-studio', label: 'Image Studio' },
+  { key: 'mediathek', label: 'Mediathek' },
 ];
 
 export default function MediaLayout() {
@@ -22,7 +23,11 @@ export default function MediaLayout() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const activeTab = pathname.includes('image-studio') ? 'image-studio' : 'reel';
+  const activeTab = pathname.includes('image-studio')
+    ? 'image-studio'
+    : pathname.includes('mediathek')
+      ? 'mediathek'
+      : 'reel';
 
   const handleTabPress = (tabKey: string) => {
     router.navigate(`/(tabs)/(media)/${tabKey}` as Href);
@@ -50,6 +55,10 @@ export default function MediaLayout() {
           <MaterialTopTabs.Screen
             name="image-studio"
             options={{ title: 'Image Studio' }}
+          />
+          <MaterialTopTabs.Screen
+            name="mediathek"
+            options={{ title: 'Mediathek' }}
           />
         </MaterialTopTabs>
       </View>
