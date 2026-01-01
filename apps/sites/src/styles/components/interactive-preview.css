@@ -1,0 +1,132 @@
+/* InteractivePreview - Minimal preview-specific styles */
+/* Most styles are reused from the actual component CSS files */
+
+/* Hero section in preview uses centered layout with gradient */
+.preview-hero {
+  padding: var(--spacing-xxl-r) var(--spacing-md-r);
+  text-align: center;
+  background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
+}
+
+.preview-hero-portrait {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid white;
+  box-shadow: var(--shadow-lg);
+}
+
+.preview-hero-name {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  margin-bottom: var(--spacing-sm);
+  color: var(--grey-900);
+}
+
+.preview-hero-tagline {
+  font-size: var(--font-size-lg);
+  color: var(--grey-600);
+}
+
+/* Empty states for preview */
+.preview-empty-state {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--grey-500);
+}
+
+.preview-empty-state--full-width {
+  grid-column: 1 / -1;
+}
+
+/* Action tile text overlay in preview */
+.preview-action-text {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Themes section title - centered */
+.preview-section-title {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--spacing-xl);
+  text-align: center;
+  color: var(--grey-900);
+}
+
+/* Contact section text styles */
+.contact-email {
+  font-size: var(--font-size-base);
+  margin-bottom: var(--spacing-sm);
+}
+
+.contact-phone {
+  font-size: var(--font-size-base);
+  opacity: 0.9;
+  margin-bottom: var(--spacing-xs);
+}
+
+.contact-address {
+  font-size: var(--font-size-sm);
+  opacity: 0.8;
+  white-space: pre-line;
+}
+
+.contact-info-wrapper {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Social Feed Preview Section */
+.social-feed-section-preview {
+  padding: var(--spacing-xl-r) var(--container-padding);
+  background: var(--white);
+}
+
+.social-feed-preview-content {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+}
+
+.social-feed-preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  background: var(--grey-50);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--grey-300);
+}
+
+.social-feed-preview-info,
+.social-feed-preview-empty,
+.social-feed-preview-disabled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--grey-600);
+  text-align: center;
+  padding: var(--spacing-lg);
+}
+
+.social-feed-preview-icon {
+  font-size: 32px;
+}
+
+.social-feed-preview-info p,
+.social-feed-preview-empty p,
+.social-feed-preview-disabled p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.social-feed-preview-info {
+  color: var(--primary-600);
+}
+
+.social-feed-preview-disabled {
+  opacity: 0.6;
+}

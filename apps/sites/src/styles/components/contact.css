@@ -1,0 +1,132 @@
+/* Contact Section - Mobile First */
+.contact-section {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  padding: var(--spacing-xxl-r) 0;
+}
+
+.contact-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+
+.contact-overlay {
+  position: relative;
+  z-index: 2;
+}
+
+.contact-container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: var(--spacing-lg-r) var(--spacing-md-r);
+}
+
+.contact-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.contact-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: var(--spacing-lg-r);
+}
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--white);
+  font-size: var(--font-size-base);
+}
+
+.contact-item:hover {
+  text-decoration: underline;
+  opacity: 1;
+}
+
+.contact-icon {
+  width: 20px;
+  text-align: center;
+  color: var(--white);
+}
+
+.contact-social {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+}
+
+.contact-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background-color: var(--primary-600);
+  color: var(--white);
+  border-radius: 50%;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.contact-social-link:hover {
+  background-color: var(--primary-400);
+  transform: translateY(-2px);
+  opacity: 1;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  .contact-section {
+    padding: var(--spacing-xxxl-r) 0;
+  }
+
+  .contact-container {
+    padding: var(--spacing-xl-r) var(--spacing-lg-r);
+  }
+
+  .contact-title {
+    font-size: var(--font-size-3xl);
+  }
+
+  .contact-social {
+    justify-content: flex-start;
+  }
+}
+
+/* Container queries for preview mode */
+@container preview (min-width: 768px) {
+  .contact-section {
+    padding: var(--spacing-xxxl-r) 0;
+  }
+
+  .contact-container {
+    padding: var(--spacing-xl-r) var(--spacing-lg-r);
+  }
+
+  .contact-title {
+    font-size: var(--font-size-3xl);
+  }
+
+  .contact-social {
+    justify-content: flex-start;
+  }
+}
+
+@container preview (max-width: 767px) {
+  .contact-social {
+    justify-content: center;
+  }
+}
