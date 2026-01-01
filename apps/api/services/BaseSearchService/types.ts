@@ -5,6 +5,7 @@
  */
 
 import type { Request } from 'express';
+import type { SearchPatternResult } from './keyword-extractor-types.js';
 
 // ============ Search Parameters ============
 
@@ -223,10 +224,7 @@ export interface HybridOptions {
 export interface HybridChunkParams {
   embedding: number[];
   query: string;
-  searchPatterns?: {
-    patterns: string[];
-    [key: string]: unknown;
-  };
+  searchPatterns?: SearchPatternResult;
   userId?: string | null;
   filters?: SearchFilters;
   limit: number;

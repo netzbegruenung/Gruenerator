@@ -1,13 +1,36 @@
 /**
- * Keyword Extraction Service
- * Extracts meaningful keywords and phrases from search queries
- * Optimized for German language with fallback to English
+ * KeywordExtractor - German-optimized keyword and phrase extraction
+ *
+ * Features:
+ * - German stopword filtering (comprehensive list)
+ * - N-gram phrase extraction (2-3 words)
+ * - Keyword weighting (length, compound words, frequency)
+ * - Language detection (German/English/mixed)
+ * - Search pattern generation for hybrid search
+ *
+ * @example
+ * ```typescript
+ * const patterns = keywordExtractor.generateSearchPatterns('Klimaschutz im Grundsatzprogramm');
+ * // Returns: { exact: '...', keywords: ['klimaschutz', 'grundsatzprogramm'], phrases: [...], fuzzy: [...] }
+ * ```
  */
 
+import type {
+  KeywordExtractionConfig,
+  Language,
+  WeightedKeyword,
+  KeywordExtractionResult,
+  SearchPatternResult,
+  KeywordExtractionOptions,
+  KeywordExtractorStats
+} from './keyword-extractor-types.js';
+
 /**
- * German stopwords - common words to filter out
+ * German stopwords - common words filtered from keyword extraction
+ * Includes articles, prepositions, pronouns, auxiliary verbs, conjunctions
+ * with English fallback for mixed-language queries
  */
-const GERMAN_STOPWORDS = new Set([
+const GERMAN_STOPWORDS: ReadonlySet<string> = new Set([
   // Articles
   'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einem', 'eines',
   // Prepositions
@@ -28,8 +51,9 @@ const GERMAN_STOPWORDS = new Set([
 
 /**
  * Keyword extraction configuration
+ * Optimized for German language queries with English fallback
  */
-const CONFIG = {
+const CONFIG: Readonly<KeywordExtractionConfig> = {
   minKeywordLength: 2,
   maxKeywordLength: 50,
   minQueryLength: 1,
@@ -37,20 +61,25 @@ const CONFIG = {
   keywordWeightThreshold: 0.1,
   phraseBoostFactor: 1.5,
   exactMatchBoostFactor: 2.0
-};
+} as const;
 
+/**
+ * KeywordExtractor class for German-optimized keyword and phrase extraction
+ */
 class KeywordExtractor {
+  private readonly stopwords: ReadonlySet<string>;
+
   constructor() {
     this.stopwords = GERMAN_STOPWORDS;
   }
 
   /**
    * Extract keywords and phrases from a search query
-   * @param {string} query - Search query text
-   * @param {Object} options - Extraction options
-   * @returns {Object} Extracted keywords with weights and metadata
+   * @param query - Search query text
+   * @param options - Extraction options
+   * @returns Extracted keywords with weights and metadata
    */
-  extractKeywords(query, options = {}) {
+  extractKeywords(query: string, options: KeywordExtractionOptions = {}): KeywordExtractionResult {
     if (!query || typeof query !== 'string' || query.trim().length < CONFIG.minQueryLength) {
       return {
         keywords: [],
@@ -65,7 +94,7 @@ class KeywordExtractor {
 
     const cleanQuery = query.trim().toLowerCase();
     const tokens = this.tokenize(cleanQuery);
-    
+
     if (tokens.length === 0) {
       return {
         keywords: [],
@@ -78,20 +107,11 @@ class KeywordExtractor {
       };
     }
 
-    // Detect likely language (simple heuristic)
     const language = this.detectLanguage(tokens);
-    
-    // Extract individual keywords
     const keywords = this.extractIndividualKeywords(tokens);
-    
-    // Extract n-gram phrases
     const phrases = this.extractPhrases(tokens, options.maxNgramSize || CONFIG.maxNgramSize);
-    
-    // Calculate keyword weights
     const weightedKeywords = this.calculateKeywordWeights(keywords, tokens.length);
     const weightedPhrases = this.calculatePhraseWeights(phrases, tokens.length);
-    
-    // Filter by weight threshold
     const filteredKeywords = weightedKeywords.filter(kw => kw.weight >= CONFIG.keywordWeightThreshold);
     const filteredPhrases = weightedPhrases.filter(phrase => phrase.weight >= CONFIG.keywordWeightThreshold);
 
@@ -110,151 +130,95 @@ class KeywordExtractor {
 
   /**
    * Generate search patterns for Qdrant text matching
-   * @param {string} query - Search query
-   * @returns {Object} Search patterns for different match types
+   * PRIMARY PUBLIC API - Used by BaseSearchService for hybrid search
+   * @param query - Search query
+   * @returns Search patterns for different match types
    */
-  generateSearchPatterns(query) {
+  generateSearchPatterns(query: string): SearchPatternResult {
     const extraction = this.extractKeywords(query);
-    const patterns = {
+    const patternData: Omit<SearchPatternResult, 'metadata' | 'patterns'> = {
       exact: query.trim(),
       keywords: [],
       phrases: [],
       fuzzy: []
     };
 
-    // Add individual keywords
     extraction.keywords.forEach(kw => {
-      patterns.keywords.push(kw.term);
-      // Add fuzzy variants for longer terms
+      patternData.keywords.push(kw.term);
       if (kw.term.length > 4) {
-        patterns.fuzzy.push(kw.term);
+        patternData.fuzzy.push(kw.term);
       }
     });
 
-    // Add phrase patterns
     extraction.phrases.forEach(phrase => {
-      patterns.phrases.push(phrase.term);
-      // Quoted phrases for exact matching
-      patterns.phrases.push(`"${phrase.term}"`);
+      patternData.phrases.push(phrase.term);
+      patternData.phrases.push(`"${phrase.term}"`);
     });
 
+    // Combine all patterns into a single array for metadata
+    const allPatterns = [
+      ...patternData.keywords,
+      ...patternData.phrases,
+      ...patternData.fuzzy
+    ];
+
     return {
-      ...patterns,
+      ...patternData,
+      patterns: [...new Set(allPatterns)], // Remove duplicates
       metadata: extraction.metadata
     };
   }
 
   /**
-   * Create Qdrant filter conditions for text matching
-   * @param {string} query - Search query
-   * @param {Object} options - Filter options
-   * @returns {Object} Qdrant filter conditions
+   * Get service statistics and configuration
+   * @returns Service statistics
    */
-  createTextFilters(query, options = {}) {
-    const patterns = this.generateSearchPatterns(query);
-    const conditions = [];
-
-    // Exact match condition (highest priority)
-    if (patterns.exact && patterns.exact.length > 0) {
-      conditions.push({
-        type: 'exact',
-        condition: {
-          key: 'chunk_text',
-          match: { text: patterns.exact }
-        },
-        weight: CONFIG.exactMatchBoostFactor
-      });
-    }
-
-    // Phrase match conditions
-    patterns.phrases.forEach(phrase => {
-      conditions.push({
-        type: 'phrase',
-        condition: {
-          key: 'chunk_text',
-          match: { text: phrase }
-        },
-        weight: CONFIG.phraseBoostFactor
-      });
-    });
-
-    // Keyword match conditions
-    patterns.keywords.forEach(keyword => {
-      conditions.push({
-        type: 'keyword',
-        condition: {
-          key: 'chunk_text',
-          match: { text: keyword }
-        },
-        weight: 1.0
-      });
-    });
-
-    // Title/filename boost conditions
-    if (options.includeMetadata) {
-      const titleConditions = patterns.keywords.map(keyword => ({
-        type: 'metadata',
-        condition: {
-          key: 'title',
-          match: { text: keyword }
-        },
-        weight: 1.3 // Boost for title matches
-      }));
-      conditions.push(...titleConditions);
-    }
-
+  getStats(): KeywordExtractorStats {
     return {
-      conditions,
-      patterns,
-      metadata: {
-        totalConditions: conditions.length,
-        queryComplexity: this.calculateQueryComplexity(patterns)
-      }
+      stopwordsCount: this.stopwords.size,
+      config: CONFIG,
+      version: '1.0.0'
     };
   }
 
   /**
    * Tokenize text into individual words
-   * @param {string} text - Text to tokenize
-   * @returns {Array<string>} Array of tokens
-   * @private
+   * @param text - Text to tokenize
+   * @returns Array of tokens
    */
-  tokenize(text) {
-    // Split on whitespace and punctuation, but preserve hyphenated words
+  private tokenize(text: string): string[] {
     return text
       .toLowerCase()
-      .replace(/[^\w\säöüß-]/g, ' ') // Keep German umlauts and hyphens
+      .replace(/[^\w\säöüß-]/g, ' ')
       .split(/\s+/)
       .map(token => token.trim())
-      .filter(token => 
-        token.length >= CONFIG.minKeywordLength && 
+      .filter(token =>
+        token.length >= CONFIG.minKeywordLength &&
         token.length <= CONFIG.maxKeywordLength &&
         !this.stopwords.has(token) &&
-        !/^\d+$/.test(token) // Filter out pure numbers
+        !/^\d+$/.test(token)
       );
   }
 
   /**
    * Extract individual keywords from tokens
-   * @param {Array<string>} tokens - Tokenized text
-   * @returns {Array<string>} Filtered keywords
-   * @private
+   * @param tokens - Tokenized text
+   * @returns Filtered keywords
    */
-  extractIndividualKeywords(tokens) {
+  private extractIndividualKeywords(tokens: string[]): string[] {
     const uniqueTokens = [...new Set(tokens)];
     return uniqueTokens.filter(token => this.isValidKeyword(token));
   }
 
   /**
    * Extract n-gram phrases from tokens
-   * @param {Array<string>} tokens - Tokenized text
-   * @param {number} maxN - Maximum n-gram size
-   * @returns {Array<string>} Extracted phrases
-   * @private
+   * @param tokens - Tokenized text
+   * @param maxN - Maximum n-gram size
+   * @returns Extracted phrases
    */
-  extractPhrases(tokens, maxN = 3) {
-    const phrases = [];
-    
+  private extractPhrases(tokens: string[], maxN: number = 3): string[] {
+    const phrases: string[] = [];
+
     for (let n = 2; n <= Math.min(maxN, tokens.length); n++) {
       for (let i = 0; i <= tokens.length - n; i++) {
         const phrase = tokens.slice(i, i + n).join(' ');
@@ -263,35 +227,30 @@ class KeywordExtractor {
         }
       }
     }
-    
-    return [...new Set(phrases)]; // Remove duplicates
+
+    return [...new Set(phrases)];
   }
 
   /**
    * Calculate weights for individual keywords
-   * @param {Array<string>} keywords - Keywords to weight
-   * @param {number} totalTokens - Total number of tokens in query
-   * @returns {Array<Object>} Keywords with weights
-   * @private
+   * @param keywords - Keywords to weight
+   * @param totalTokens - Total number of tokens in query
+   * @returns Keywords with weights
    */
-  calculateKeywordWeights(keywords, totalTokens) {
+  private calculateKeywordWeights(keywords: string[], totalTokens: number): WeightedKeyword[] {
     return keywords.map(keyword => {
-      // Simple frequency-based weighting
       let weight = 1.0;
-      
-      // Boost longer keywords (more specific)
+
       if (keyword.length > 6) {
         weight *= 1.2;
       }
-      
-      // Boost compound words (German specialty)
+
       if (keyword.includes('-') || keyword.length > 12) {
         weight *= 1.3;
       }
-      
-      // Normalize by query length
+
       weight = weight / Math.log(totalTokens + 1);
-      
+
       return {
         term: keyword,
         weight: Math.min(1.0, weight),
@@ -302,21 +261,16 @@ class KeywordExtractor {
 
   /**
    * Calculate weights for phrases
-   * @param {Array<string>} phrases - Phrases to weight
-   * @param {number} totalTokens - Total number of tokens in query
-   * @returns {Array<Object>} Phrases with weights
-   * @private
+   * @param phrases - Phrases to weight
+   * @param totalTokens - Total number of tokens in query
+   * @returns Phrases with weights
    */
-  calculatePhraseWeights(phrases, totalTokens) {
+  private calculatePhraseWeights(phrases: string[], totalTokens: number): WeightedKeyword[] {
     return phrases.map(phrase => {
       const phraseTokens = phrase.split(' ').length;
-      
-      // Longer phrases get higher weights (more specific)
       let weight = phraseTokens * 0.4;
-      
-      // Normalize by query length
       weight = weight / Math.log(totalTokens + 1);
-      
+
       return {
         term: phrase,
         weight: Math.min(1.0, weight),
@@ -328,77 +282,48 @@ class KeywordExtractor {
 
   /**
    * Simple language detection based on common words
-   * @param {Array<string>} tokens - Tokenized text
-   * @returns {string} Detected language
-   * @private
+   * @param tokens - Tokenized text
+   * @returns Detected language
    */
-  detectLanguage(tokens) {
+  private detectLanguage(tokens: string[]): Language {
     const germanIndicators = ['der', 'die', 'das', 'und', 'oder', 'ist', 'sind', 'haben', 'für', 'mit'];
     const englishIndicators = ['the', 'and', 'or', 'is', 'are', 'have', 'for', 'with'];
-    
+
     let germanScore = 0;
     let englishScore = 0;
-    
+
     tokens.forEach(token => {
       if (germanIndicators.includes(token)) germanScore++;
       if (englishIndicators.includes(token)) englishScore++;
     });
-    
+
     if (germanScore > englishScore) return 'german';
     if (englishScore > germanScore) return 'english';
     return 'mixed';
   }
 
   /**
-   * Check if a token is a valid keyword (optimized)
-   * @param {string} token - Token to validate
-   * @returns {boolean} Whether token is valid
-   * @private
+   * Check if a token is a valid keyword
+   * @param token - Token to validate
+   * @returns Whether token is valid
    */
-  isValidKeyword(token) {
-    return token.length >= CONFIG.minKeywordLength && 
-           !this.stopwords.has(token) && 
+  private isValidKeyword(token: string): boolean {
+    return token.length >= CONFIG.minKeywordLength &&
+           !this.stopwords.has(token) &&
            !/^\d+$/.test(token) &&
            /[a-zäöüß]/i.test(token);
   }
 
   /**
-   * Check if a phrase is valid for extraction (optimized)
-   * @param {string} phrase - Phrase to validate
-   * @returns {boolean} Whether phrase is valid
-   * @private
+   * Check if a phrase is valid for extraction
+   * @param phrase - Phrase to validate
+   * @returns Whether phrase is valid
    */
-  isValidPhrase(phrase) {
+  private isValidPhrase(phrase: string): boolean {
     if (phrase.length > CONFIG.maxKeywordLength) return false;
-    
+
     const tokens = phrase.split(' ');
     return tokens.some(token => !this.stopwords.has(token));
-  }
-
-  /**
-   * Calculate query complexity score (simplified)
-   * @param {Object} patterns - Search patterns
-   * @returns {number} Complexity score (0-1)
-   * @private
-   */
-  calculateQueryComplexity(patterns) {
-    const complexity = (patterns.keywords.length * 0.1) + 
-                      (patterns.phrases.length * 0.2) + 
-                      (patterns.exact?.length > 10 ? 0.3 : 0);
-    
-    return Math.min(1.0, complexity);
-  }
-
-  /**
-   * Get service statistics
-   * @returns {Object} Service statistics
-   */
-  getStats() {
-    return {
-      stopwordsCount: this.stopwords.size,
-      config: CONFIG,
-      version: '1.0.0'
-    };
   }
 }
 
