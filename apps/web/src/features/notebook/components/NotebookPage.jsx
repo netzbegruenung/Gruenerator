@@ -148,6 +148,9 @@ const NotebookPageContent = ({ config }) => {
 
     return (
         <ErrorBoundary>
+            <div className="notebook-beta-warning">
+                <span>Diese Funktion befindet sich in der Beta-Phase. Antworten können ungenau sein.</span>
+            </div>
             <CitationModal />
             <ChatWorkbenchLayout
                 mode="chat"
