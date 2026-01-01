@@ -65,6 +65,7 @@ const SurveyIndex = lazy(() => import('../features/umfragen'));
 const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ default: module.SurveyPage })));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
+const MediaLibraryPage = lazy(() => import('../features/media-library/MediaLibraryPage').then(m => ({ default: m.default })));
 
 
 // NEU: CollabEditorPage importieren (Lazy Loading) - DISABLED - Feature removed, backup available in archive/collab-feature-backup-2025-01
@@ -212,6 +213,8 @@ const standardRoutes = [
   { path: '/texteditor', component: GrueneratorenBundle.TextEditor },
   // Apps Download Page
   { path: '/apps', component: AppsPage },
+  // Media Library Route
+  { path: '/media-library', component: MediaLibraryPage },
   // Image Studio Routes
   { path: '/image-studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
   { path: '/image-studio/gallery', component: GrueneratorenBundle.ImageGallery },
