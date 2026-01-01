@@ -50,6 +50,10 @@
     "./subtitle-editor": {
       "import": "./src/subtitle-editor/index.ts",
       "require": "./src/subtitle-editor/index.ts"
+    },
+    "./media-library": {
+      "import": "./src/media-library/index.ts",
+      "require": "./src/media-library/index.ts"
     }
   },
   "scripts": {
