@@ -11,7 +11,7 @@ const log = createLogger('imagineGenService');
 
 // Dynamic imports for ESM modules
 let FluxImageService = null;
-import { buildFluxPrompt, VARIANTS } from '../../../services/fluxPromptBuilder.js';
+import { buildFluxPrompt, VARIANTS } from '../../../services/flux/index.js';
 import { composeImagineCreate, OUTPUT_WIDTH, OUTPUT_HEIGHT } from '../../../services/imagineCanvasService.js';
 import { addKiLabel } from '../../sharepic/sharepic_canvas/imagine_label_canvas.js';
 import ImageGenerationCounter from '../../../utils/imageGenerationCounter.js';
@@ -22,8 +22,8 @@ const imageCounter = new ImageGenerationCounter(redisClient);
 // Initialize FluxImageService lazily
 async function getFluxImageService() {
   if (!FluxImageService) {
-    const module = await import('../../../services/fluxImageService.mjs');
-    FluxImageService = module.default;
+    const module = await import('../../../services/flux/index.js');
+    FluxImageService = module.FluxImageService;
   }
   return new FluxImageService();
 }

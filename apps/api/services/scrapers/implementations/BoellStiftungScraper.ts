@@ -10,8 +10,11 @@ import type { ScraperResult } from '../types.js';
 import { smartChunkDocument } from '../../../utils/textChunker.js';
 import { fastEmbedService } from '../../FastEmbedService.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
+import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/hashUtils.js';
+import { extractMainContent, extractDate } from '../utils/contentExtractor.js';
+import { extractTitle, extractMetaDescription, removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 /**
  * Content type classification
@@ -303,41 +306,19 @@ export class BoellStiftungScraper extends BaseScraper {
   /**
    * Fetch page with retry logic
    */
-  async #fetchPage(url: string, retries: number = 0): Promise<string | null> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+  async #fetchPage(url: string): Promise<string | null> {
+    const response = await this.fetchWithRetry(url, {
+      timeout: this.timeout,
+      maxRetries: this.maxRetries,
+      userAgent: this.userAgent,
+    });
 
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': this.userAgent,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'de-DE,de;q=0.9',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('text/html')) {
-        return null;
-      }
-
-      return await response.text();
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (retries < this.maxRetries) {
-        await this.delay(1000 * (retries + 1));
-        return this.#fetchPage(url, retries + 1);
-      }
-      throw error;
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      return null;
     }
+
+    return await response.text();
   }
 
   /**
@@ -552,17 +533,25 @@ export class BoellStiftungScraper extends BaseScraper {
    */
   async #articleExists(url: string): Promise<ExistingArticle | null> {
     try {
-      const result = await this.qdrant.client.scroll(this.config.collectionName, {
-        filter: {
+      const points = await scrollDocuments(
+        this.qdrant.client,
+        this.config.collectionName,
+        {
           must: [{ key: 'source_url', match: { value: url } }],
         },
-        limit: 1,
-        with_payload: ['content_hash', 'indexed_at'],
-        with_vector: false,
-      });
+        {
+          limit: 1,
+          withPayload: true,
+          withVector: false,
+        }
+      );
 
-      if (result.points && result.points.length > 0) {
-        return result.points[0].payload as ExistingArticle;
+      if (points.length > 0) {
+        const payload = points[0].payload;
+        return {
+          content_hash: payload.content_hash as string,
+          indexed_at: payload.indexed_at as string,
+        };
       }
       return null;
     } catch {
@@ -574,11 +563,13 @@ export class BoellStiftungScraper extends BaseScraper {
    * Delete article from Qdrant
    */
   async #deleteArticle(url: string): Promise<void> {
-    await this.qdrant.client.delete(this.config.collectionName, {
-      filter: {
+    await batchDelete(
+      this.qdrant.client,
+      this.config.collectionName,
+      {
         must: [{ key: 'source_url', match: { value: url } }],
-      },
-    });
+      }
+    );
   }
 
 
@@ -642,10 +633,9 @@ export class BoellStiftungScraper extends BaseScraper {
       },
     }));
 
-    // Store in batches of 10
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await this.qdrant.client.upsert(this.config.collectionName, { points: batch });
+      await batchUpsert(this.qdrant.client, this.config.collectionName, batch);
     }
 
     return { stored: true, chunks: chunks.length, vectors: points.length, updated: !!existing };
@@ -885,12 +875,12 @@ export class BoellStiftungScraper extends BaseScraper {
    */
   async getStats(): Promise<BoellStats> {
     try {
-      const info = await this.qdrant.client.getCollection(this.config.collectionName);
+      const stats = await getCollectionStats(this.qdrant.client, this.config.collectionName);
       return {
         collection: this.config.collectionName,
-        vectors_count: info.vectors_count,
-        points_count: info.points_count,
-        status: info.status,
+        vectors_count: stats.vectors_count,
+        points_count: stats.points_count,
+        status: stats.status,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -904,24 +894,28 @@ export class BoellStiftungScraper extends BaseScraper {
   async getTopics(): Promise<string[]> {
     try {
       const topics = new Set<string>();
-      let offset: string | number | null = null;
 
-      do {
-        const result = await this.qdrant.client.scroll(this.config.collectionName, {
+      const points = await scrollDocuments(
+        this.qdrant.client,
+        this.config.collectionName,
+        {},
+        {
           limit: 100,
-          offset: offset,
-          with_payload: ['subcategories'],
-          with_vector: false,
-        });
-
-        for (const point of result.points) {
-          if (point.payload.subcategories) {
-            point.payload.subcategories.forEach((t: string) => topics.add(t));
-          }
+          withPayload: true,
+          withVector: false,
         }
+      );
 
-        offset = result.next_page_offset;
-      } while (offset);
+      for (const point of points) {
+        const subcategories = point.payload.subcategories;
+        if (Array.isArray(subcategories)) {
+          subcategories.forEach((t: unknown) => {
+            if (typeof t === 'string') {
+              topics.add(t);
+            }
+          });
+        }
+      }
 
       return Array.from(topics).sort();
     } catch (error) {
@@ -935,28 +929,20 @@ export class BoellStiftungScraper extends BaseScraper {
   async clearCollection(): Promise<void> {
     this.log('Clearing all documents...');
     try {
-      let offset: string | number | null = null;
-      const points: number[] = [];
-
-      do {
-        const result = await this.qdrant.client.scroll(this.config.collectionName, {
+      const points = await scrollDocuments(
+        this.qdrant.client,
+        this.config.collectionName,
+        undefined,
+        {
           limit: 100,
-          offset: offset,
-          with_payload: false,
-          with_vector: false,
-        });
-
-        points.push(...result.points.map((p: any) => p.id));
-        offset = result.next_page_offset;
-      } while (offset);
+          withPayload: false,
+          withVector: false,
+        }
+      );
 
       if (points.length > 0) {
-        for (let i = 0; i < points.length; i += 100) {
-          const batch = points.slice(i, i + 100);
-          await this.qdrant.client.delete(this.config.collectionName, {
-            points: batch,
-          });
-        }
+        const pointIds = points.map((p) => p.id);
+        await this.qdrant.client.delete(this.config.collectionName, { points: pointIds });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

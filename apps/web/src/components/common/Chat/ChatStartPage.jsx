@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
-import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
 import ChatSubmitButton from './ChatSubmitButton';
@@ -52,7 +51,6 @@ const ChatStartPage = ({
   filterBar = null,
   filterButton = null
 }) => {
-  const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const isGruenerator = variant === "gruenerator";
   // Use internal hook only if voice props not provided from parent
   const hasExternalVoice = externalStartRecording !== undefined;
@@ -189,51 +187,6 @@ const ChatStartPage = ({
                 <span>{question.text}</span>
               </button>
             ))}
-          </motion.div>
-        )}
-
-        {sources.length > 0 && (
-          <motion.div
-            className="chat-start-page-sources"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.35 }}
-          >
-            <button
-              type="button"
-              className="chat-start-page-sources-toggle"
-              onClick={() => setSourcesExpanded(!sourcesExpanded)}
-            >
-              {sourcesExpanded ? <HiChevronDown /> : <HiChevronRight />}
-              <span>Welche Notebooks werden durchsucht?</span>
-            </button>
-            {sourcesExpanded && (
-              <div className="chat-start-page-sources-list">
-                {sources.map((source, index) => {
-                  const isSelected = source.selected !== false;
-                  const selectedCount = sources.filter(s => s.selected !== false).length;
-                  const canToggle = onSourceToggle && (selectedCount > 1 || !isSelected);
-
-                  return (
-                    <button
-                      key={source.id || index}
-                      type="button"
-                      className={`chat-start-page-source-item ${onSourceToggle ? 'chat-start-page-source-item--selectable' : ''} ${isSelected ? 'chat-start-page-source-item--selected' : ''}`}
-                      onClick={() => canToggle && onSourceToggle(source.id)}
-                      disabled={!canToggle && onSourceToggle}
-                    >
-                      {onSourceToggle && (
-                        <span className={`chat-start-page-source-checkbox ${isSelected ? 'chat-start-page-source-checkbox--checked' : ''}`}>
-                          {isSelected && '✓'}
-                        </span>
-                      )}
-                      <span className="chat-start-page-source-name">{source.name}</span>
-                      <span className="chat-start-page-source-count">{source.count}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </motion.div>
         )}
       </div>

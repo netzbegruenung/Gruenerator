@@ -15,6 +15,8 @@ export type {
   EmbeddingResult,
   BatchEmbeddingResult,
   CacheConfig,
+  CacheStats,
+  RedisClient,
   ServiceState
 } from './types.js';
 
@@ -23,6 +25,9 @@ export { validateText, validateTexts, estimateTokenCount } from './validation.js
 
 // Export caching operations (if needed externally)
 export { generateQueryEmbeddingWithCache } from './caching.js';
+
+// Export embedding cache singleton and class
+export { embeddingCache, EmbeddingCache } from './embeddingCache.js';
 
 // Export embedding operations (if needed externally)
 export {

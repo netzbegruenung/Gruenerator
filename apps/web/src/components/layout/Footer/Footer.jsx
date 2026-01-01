@@ -62,21 +62,14 @@ const Footer = () => {
                                 <section className="footer-section" aria-labelledby="footer-notebooks">
                                     <h3 id="footer-notebooks">Notebooks</h3>
                                     <ul>
-                                        <li><Link to="/gruenerator-notebook">Frag Grünerator</Link></li>
-                                        <li><Link to="/gruene-notebook">Frag Bündnis 90/Die Grünen</Link></li>
-                                        <li><Link to="/gruene-bundestag">Frag die Bundestagsfraktion</Link></li>
-                                        <li><Link to="/gruene-oesterreich">Frag Die Grünen Österreich</Link></li>
+                                        <li><Link to="/gruenerator-notebook">Grünerator</Link></li>
+                                        <li><Link to="/gruene-notebook">Bündnis 90/Die Grünen</Link></li>
+                                        <li><Link to="/gruene-bundestag">Bundestagsfraktion</Link></li>
+                                        <li><Link to="/gruene-oesterreich">Die Grünen Österreich</Link></li>
                                     </ul>
                                 </section>
                             )}
 
-                            <section className="footer-section" aria-labelledby="footer-gpts">
-                                <h3 id="footer-gpts">GPTs für ChatGPT</h3>
-                                <ul>
-                                    <li><a href="https://chat.openai.com/g/g-ZZwx8kZS3-grunerator-social-media" target="_blank" rel="noopener noreferrer">Social Media</a></li>
-                                    <li><a href="https://chatgpt.com/g/g-Npcb04iH7-grunerator-pressemitteilungen" target="_blank" rel="noopener noreferrer">Pressemitteilung</a></li>
-                                </ul>
-                            </section>
                         </div>
                     </div>
 

@@ -25,6 +25,7 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
 - **kommunalwiki**: content_type, primary_category, subcategories
 - **boell-stiftung**: content_type, primary_category, subcategories, region
 - **bundestagsfraktion**, **gruene-de**, **gruene-at**: primary_category, country
+- **examples**: platform (instagram/facebook), country (DE/AT)
 
 ## Beispiel-Workflow
 
@@ -41,7 +42,8 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
       'gruene-de',
       'gruene-at',
       'kommunalwiki',
-      'boell-stiftung'
+      'boell-stiftung',
+      'examples'
     ]).describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden')
   },
 

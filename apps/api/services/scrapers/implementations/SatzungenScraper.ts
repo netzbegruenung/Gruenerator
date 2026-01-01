@@ -10,8 +10,13 @@ import type { ScraperResult } from '../types.js';
 import { smartChunkDocument } from '../../../utils/textChunker.js';
 import { fastEmbedService } from '../../FastEmbedService.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
+import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/hashUtils.js';
+import { ocrService } from '../../OcrService/index.js';
+import { promises as fs } from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 /**
  * Satzung source definition
@@ -241,104 +246,15 @@ export class SatzungenScraper extends BaseScraper {
   /**
    * Fetch URL with retry logic
    */
-  async #fetchUrl(url: string, retries: number = 0): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': this.userAgent,
-          Accept: '*/*',
-          'Accept-Language': 'de-DE,de;q=0.9',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (retries < this.maxRetries) {
-        await this.delay(1000 * (retries + 1));
-        return this.#fetchUrl(url, retries + 1);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Extract text from PDF using Mistral OCR
-   */
-  async #extractTextFromPdfWithMistral(pdfBuffer: Buffer, filename: string): Promise<{ text: string; pageCount: number }> {
-    this.log(`Extracting text from PDF with Mistral OCR: ${filename}`);
-
-    const base64 = pdfBuffer.toString('base64');
-    const dataUrl = `data:application/pdf;base64,${base64}`;
-
-    // Try data-url method first
-    try {
-      const ocrResponse = await this.mistralClient.ocr.process({
-        model: 'mistral-ocr-latest',
-        document: { type: 'document_url', documentUrl: dataUrl },
-        include_image_base64: false,
-      });
-
-      const pages = ocrResponse?.pages || [];
-      if (pages.length > 0) {
-        const text = pages
-          .map((p: any) => (p.markdown || p.text || '').trim())
-          .filter(Boolean)
-          .join('\n\n');
-        this.log(`Mistral OCR extracted ${text.length} chars from ${pages.length} pages`);
-        return { text, pageCount: pages.length };
-      }
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      console.warn('[Satzungen] Mistral OCR data-url attempt failed:', errorMessage);
-    }
-
-    // Fallback: Upload file to Mistral
-    let fileId: string;
-    try {
-      const blob = new Blob([new Uint8Array(pdfBuffer)], { type: 'application/pdf' });
-      let res: any;
-      if (this.mistralClient.files?.upload) {
-        res = await this.mistralClient.files.upload({ file: { fileName: filename, content: blob } });
-      } else if (this.mistralClient.files?.create) {
-        res = await this.mistralClient.files.create({ file: { fileName: filename, content: blob } });
-      } else {
-        throw new Error('Mistral client does not expose a files upload method');
-      }
-      fileId = res?.id || res?.file?.id || res?.data?.id;
-      if (!fileId) {
-        throw new Error('No file ID returned from Mistral upload');
-      }
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
-      throw new Error(`Mistral file upload failed: ${errorMessage}`);
-    }
-
-    const ocrResponse = await this.mistralClient.ocr.process({
-      model: 'mistral-ocr-latest',
-      document: { type: 'file', fileId },
-      include_image_base64: false,
+  async #fetchUrl(url: string): Promise<Response> {
+    return this.fetchWithRetry(url, {
+      timeout: this.timeout,
+      maxRetries: this.maxRetries,
+      userAgent: this.userAgent,
+      headers: { Accept: '*/*' },
     });
-
-    const pages = ocrResponse?.pages || [];
-    const text = pages
-      .map((p: any) => (p.markdown || p.text || '').trim())
-      .filter(Boolean)
-      .join('\n\n');
-    this.log(`Mistral OCR (file upload) extracted ${text.length} chars from ${pages.length} pages`);
-    return { text, pageCount: pages.length };
   }
+
 
   /**
    * Extract content from HTML
@@ -399,17 +315,25 @@ export class SatzungenScraper extends BaseScraper {
    */
   async #documentExists(url: string): Promise<ExistingDocument | null> {
     try {
-      const result = await this.qdrant.client.scroll(this.config.collectionName, {
-        filter: {
+      const points = await scrollDocuments(
+        this.qdrant.client,
+        this.config.collectionName,
+        {
           must: [{ key: 'source_url', match: { value: url } }],
         },
-        limit: 1,
-        with_payload: ['content_hash', 'indexed_at'],
-        with_vector: false,
-      });
+        {
+          limit: 1,
+          withPayload: true,
+          withVector: false,
+        }
+      );
 
-      if (result.points && result.points.length > 0) {
-        return result.points[0].payload as ExistingDocument;
+      if (points.length > 0) {
+        const payload = points[0].payload;
+        return {
+          content_hash: payload.content_hash as string,
+          indexed_at: payload.indexed_at as string,
+        };
       }
       return null;
     } catch {
@@ -421,26 +345,15 @@ export class SatzungenScraper extends BaseScraper {
    * Delete document from Qdrant
    */
   async #deleteDocument(url: string): Promise<void> {
-    await this.qdrant.client.delete(this.config.collectionName, {
-      filter: {
+    await batchDelete(
+      this.qdrant.client,
+      this.config.collectionName,
+      {
         must: [{ key: 'source_url', match: { value: url } }],
-      },
-    });
+      }
+    );
   }
 
-  /**
-   * Generate deterministic point ID
-   */
-  #generatePointId(url: string, chunkIndex: number): number {
-    const combinedString = `satzung_${url}_${chunkIndex}`;
-    let hash = 0;
-    for (let i = 0; i < combinedString.length; i++) {
-      const char = combinedString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash);
-  }
 
   /**
    * Process and store document
@@ -479,7 +392,7 @@ export class SatzungenScraper extends BaseScraper {
     const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
 
     const points = chunks.map((chunk, index) => ({
-      id: this.#generatePointId(source.url, index),
+      id: generatePointId('satzung', source.url, index),
       vector: embeddings[index],
       payload: {
         document_id: `satzung_${contentHash}`,
@@ -496,17 +409,16 @@ export class SatzungenScraper extends BaseScraper {
       },
     }));
 
-    // Store in batches of 10
     for (let i = 0; i < points.length; i += 10) {
       const batch = points.slice(i, i + 10);
-      await this.qdrant.client.upsert(this.config.collectionName, { points: batch });
+      await batchUpsert(this.qdrant.client, this.config.collectionName, batch);
     }
 
     return { stored: true, chunks: chunks.length, vectors: points.length, updated: !!existing };
   }
 
   /**
-   * Process PDF source
+   * Process PDF source using centralized OcrService
    */
   async #processPdfSource(source: SatzungSource): Promise<ProcessResult> {
     const response = await this.#fetchUrl(source.url);
@@ -514,9 +426,29 @@ export class SatzungenScraper extends BaseScraper {
     const pdfBuffer = Buffer.from(arrayBuffer);
 
     const filename = source.url.split('/').pop() || 'satzung.pdf';
-    const { text } = await this.#extractTextFromPdfWithMistral(pdfBuffer, filename);
 
-    return this.#processAndStoreDocument(source, text, null);
+    // Write PDF to temp file for OcrService
+    const tempPath = path.join(os.tmpdir(), `satzung_${Date.now()}_${filename}`);
+    let textResult;
+
+    try {
+      await fs.writeFile(tempPath, pdfBuffer);
+      this.log(`Processing PDF with OcrService: ${filename}`);
+
+      const result = await ocrService.extractTextWithMistralOCR(tempPath);
+      textResult = result.text || '';
+
+      this.log(`OcrService extracted ${textResult.length} chars from ${filename}`);
+    } finally {
+      // Clean up temp file
+      try {
+        await fs.unlink(tempPath);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+
+    return this.#processAndStoreDocument(source, textResult, null);
   }
 
   /**
@@ -692,12 +624,12 @@ export class SatzungenScraper extends BaseScraper {
    */
   async getStats(): Promise<any> {
     try {
-      const info = await this.qdrant.client.getCollection(this.config.collectionName);
+      const stats = await getCollectionStats(this.qdrant.client, this.config.collectionName);
       return {
         collection: this.config.collectionName,
-        vectors_count: info.vectors_count,
-        points_count: info.points_count,
-        status: info.status,
+        vectors_count: stats.vectors_count,
+        points_count: stats.points_count,
+        status: stats.status,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -711,28 +643,20 @@ export class SatzungenScraper extends BaseScraper {
   async clearCollection(): Promise<void> {
     this.log('Clearing all documents...');
     try {
-      let offset: string | number | null = null;
-      const points: number[] = [];
-
-      do {
-        const result = await this.qdrant.client.scroll(this.config.collectionName, {
+      const points = await scrollDocuments(
+        this.qdrant.client,
+        this.config.collectionName,
+        undefined,
+        {
           limit: 100,
-          offset: offset,
-          with_payload: false,
-          with_vector: false,
-        });
-
-        points.push(...result.points.map((p: any) => p.id));
-        offset = result.next_page_offset;
-      } while (offset);
+          withPayload: false,
+          withVector: false,
+        }
+      );
 
       if (points.length > 0) {
-        for (let i = 0; i < points.length; i += 100) {
-          const batch = points.slice(i, i + 100);
-          await this.qdrant.client.delete(this.config.collectionName, {
-            points: batch,
-          });
-        }
+        const pointIds = points.map((p) => p.id);
+        await this.qdrant.client.delete(this.config.collectionName, { points: pointIds });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -5,46 +5,46 @@
  */
 
 // Types
-export * from './types';
+export * from './types/index.js';
 
 // API client
-export * from './api';
+export * from './api/index.js';
 
 // Stores (Zustand)
-export * from './stores';
+export * from './stores/index.js';
 
 // Hooks
-export * from './hooks';
+export * from './hooks/index.js';
 
 // Utils
-export * from './utils';
+export * from './utils/index.js';
 
 // Generators
-export * from './generators';
+export * from './generators/index.js';
 
 // Search
-export * from './search';
+export * from './search/index.js';
 
 // Share
-export * from './share';
+export * from './share/index.js';
 
 // Projects
-export * from './projects';
+export * from './projects/index.js';
 
 // Avatar
-export * from './avatar';
+export * from './avatar/index.js';
 
 // Sharepic
-export * from './sharepic';
+export * from './sharepic/index.js';
 
 // Image Studio
-export * from './image-studio';
+export * from './image-studio/index.js';
 
 // Subtitle Editor
-export * from './subtitle-editor';
+export * from './subtitle-editor/index.js';
 
 // Media Library
-export * from './media-library';
+export * from './media-library/index.js';
 
 // Platform detection
-export * from './platform';
+export * from './platform/index.js';

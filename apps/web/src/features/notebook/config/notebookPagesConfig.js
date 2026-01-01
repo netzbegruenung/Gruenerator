@@ -15,7 +15,8 @@ export const NOTEBOOK_CONFIGS = {
                 icon: HiDocumentText,
                 description: 'Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025',
                 documentCount: '3 Programme',
-                linkType: 'vectorDocument'
+                linkType: 'vectorDocument',
+                locale: 'de-DE'
             },
             {
                 id: 'bundestagsfraktion-system',
@@ -24,7 +25,8 @@ export const NOTEBOOK_CONFIGS = {
                 description: 'Fachtexte, Ziele und einfache Erklärungen',
                 documentCount: '542 Artikel',
                 externalUrl: 'https://www.gruene-bundestag.de',
-                linkType: 'url'
+                linkType: 'url',
+                locale: 'de-DE'
             },
             {
                 id: 'gruene-de-system',
@@ -33,7 +35,8 @@ export const NOTEBOOK_CONFIGS = {
                 description: 'Positionen, Themen und Aktuelles von gruene.de',
                 documentCount: 'Webseite',
                 externalUrl: 'https://www.gruene.de',
-                linkType: 'url'
+                linkType: 'url',
+                locale: 'de-DE'
             },
             {
                 id: 'oesterreich-gruene-system',
@@ -41,7 +44,8 @@ export const NOTEBOOK_CONFIGS = {
                 icon: HiDocumentText,
                 description: 'Programme der Grünen – Die Grüne Alternative Österreich',
                 documentCount: '3 Programme',
-                linkType: 'vectorDocument'
+                linkType: 'vectorDocument',
+                locale: 'de-AT'
             },
             {
                 id: 'gruene-at-system',
@@ -50,7 +54,8 @@ export const NOTEBOOK_CONFIGS = {
                 description: 'Positionen, Themen und Aktuelles von gruene.at',
                 documentCount: 'Webseite',
                 externalUrl: 'https://www.gruene.at',
-                linkType: 'url'
+                linkType: 'url',
+                locale: 'de-AT'
             },
             {
                 id: 'kommunalwiki-system',
@@ -59,7 +64,8 @@ export const NOTEBOOK_CONFIGS = {
                 description: 'Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)',
                 documentCount: 'Wiki',
                 externalUrl: 'https://kommunalwiki.boell.de',
-                linkType: 'url'
+                linkType: 'url',
+                locale: 'de-DE'
             },
             {
                 id: 'boell-stiftung-system',
@@ -68,7 +74,8 @@ export const NOTEBOOK_CONFIGS = {
                 description: 'Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung',
                 documentCount: 'Publikationen',
                 externalUrl: 'https://www.boell.de',
-                linkType: 'url'
+                linkType: 'url',
+                locale: 'de-DE'
             }
         ],
         startPageTitle: 'Was möchtest du wissen?',

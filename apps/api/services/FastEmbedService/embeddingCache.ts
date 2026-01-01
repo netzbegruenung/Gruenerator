@@ -1,10 +1,19 @@
-import crypto from 'crypto';
-
 /**
- * Embedding cache service using existing Redis client for caching query embeddings
- * Provides significant performance improvements for repeated queries
+ * Embedding Cache Service
+ *
+ * Redis-backed caching for query embeddings.
+ * Provides significant performance improvements for repeated queries.
  */
+
+import crypto from 'crypto';
+import type { CacheStats, RedisClient } from './types.js';
+
 class EmbeddingCache {
+  private ttl: number;
+  private keyPrefix: string;
+  private redis: RedisClient | null;
+  private initialized: boolean;
+
   constructor() {
     this.ttl = 86400; // 24 hour cache
     this.keyPrefix = 'embedding:';
@@ -14,77 +23,72 @@ class EmbeddingCache {
 
   /**
    * Initialize Redis connection using existing client
-   * @private
    */
-  async initialize() {
+  private async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
       // Use existing Redis client via dynamic ESM-compatible import
-      let redisClient = null;
+      let redisClient: RedisClient | null = null;
       try {
-        const mod = await import('../utils/redisClient.js');
+        const mod = await import('../../utils/redisClient.js');
         // Support both CJS (module.exports) and ESM default exports
-        redisClient = mod?.default ?? mod;
+        redisClient = (mod?.default ?? mod) as unknown as RedisClient | null;
       } catch (e) {
-        // If import fails, treat as unavailable and fall through to warning
-        console.warn('[EmbeddingCache] Failed to import Redis client:', e.message);
+        const error = e as Error;
+        console.warn('[EmbeddingCache] Failed to import Redis client:', error.message);
       }
-      
+
       if (redisClient && redisClient.isReady) {
         this.redis = redisClient;
         console.log('[EmbeddingCache] Using existing Redis connection');
       } else if (redisClient) {
         // Wait for connection if not ready
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(() => reject(new Error('Redis connection timeout')), 5000);
-          
-          if (redisClient.isReady) {
+
+          if (redisClient!.isReady) {
             clearTimeout(timeout);
             resolve();
           } else {
-            redisClient.once('ready', () => {
+            redisClient!.once('ready', () => {
               clearTimeout(timeout);
               resolve();
             });
-            redisClient.once('error', (err) => {
+            redisClient!.once('error', (err: unknown) => {
               clearTimeout(timeout);
               reject(err);
             });
           }
         });
-        
+
         this.redis = redisClient;
         console.log('[EmbeddingCache] Connected to existing Redis client');
       } else {
         console.warn('[EmbeddingCache] Redis client not available, caching disabled');
       }
     } catch (error) {
-      console.warn('[EmbeddingCache] Redis not available, caching disabled:', error.message);
+      const err = error as Error;
+      console.warn('[EmbeddingCache] Redis not available, caching disabled:', err.message);
     }
-    
+
     this.initialized = true;
   }
 
   /**
    * Generate cache key for a query
-   * @param {string} query - Search query
-   * @returns {string} Cache key
-   * @private
    */
-  generateCacheKey(query) {
+  private generateCacheKey(query: string): string {
     const hash = crypto.createHash('sha256').update(query.trim().toLowerCase()).digest('hex');
     return `${this.keyPrefix}${hash}`;
   }
 
   /**
    * Get cached embedding for a query
-   * @param {string} query - Search query
-   * @returns {Promise<Array|null>} Cached embedding or null if not found
    */
-  async getCachedEmbedding(query) {
+  async getCachedEmbedding(query: string): Promise<number[] | null> {
     await this.initialize();
-    
+
     if (!this.redis) {
       return null;
     }
@@ -92,9 +96,9 @@ class EmbeddingCache {
     try {
       const key = this.generateCacheKey(query);
       const cached = await this.redis.get(key);
-      
+
       if (cached) {
-        const embedding = JSON.parse(cached);
+        const embedding = JSON.parse(cached) as number[];
         console.log(`[EmbeddingCache] Cache HIT for "${query.substring(0, 50)}..."`);
         return embedding;
       }
@@ -109,13 +113,10 @@ class EmbeddingCache {
 
   /**
    * Cache an embedding for a query
-   * @param {string} query - Search query
-   * @param {Array} embedding - Embedding vector
-   * @returns {Promise<boolean>} Success status
    */
-  async cacheEmbedding(query, embedding) {
+  async cacheEmbedding(query: string, embedding: number[]): Promise<boolean> {
     await this.initialize();
-    
+
     if (!this.redis || !embedding || !Array.isArray(embedding)) {
       return false;
     }
@@ -133,11 +134,10 @@ class EmbeddingCache {
 
   /**
    * Get cache statistics
-   * @returns {Promise<Object>} Cache statistics
    */
-  async getStats() {
+  async getStats(): Promise<CacheStats> {
     await this.initialize();
-    
+
     if (!this.redis) {
       return { enabled: false, keys: 0 };
     }
@@ -145,25 +145,25 @@ class EmbeddingCache {
     try {
       const keys = await this.redis.keys(`${this.keyPrefix}*`);
       const info = await this.redis.info('memory');
-      
+
       return {
         enabled: true,
         keys: keys.length,
         memoryInfo: info
       };
     } catch (error) {
+      const err = error as Error;
       console.error('[EmbeddingCache] Error getting stats:', error);
-      return { enabled: false, keys: 0, error: error.message };
+      return { enabled: false, keys: 0, error: err.message };
     }
   }
 
   /**
    * Clear all cached embeddings
-   * @returns {Promise<boolean>} Success status
    */
-  async clearCache() {
+  async clearCache(): Promise<boolean> {
     await this.initialize();
-    
+
     if (!this.redis) {
       return false;
     }
@@ -182,10 +182,10 @@ class EmbeddingCache {
   }
 
   /**
-   * Close Redis connection (not needed since we use shared client)
+   * Disconnect from shared Redis client
    */
-  async close() {
-    // Don't close the shared Redis client
+  async close(): Promise<void> {
+    // Don't close the shared Redis client, just release reference
     this.redis = null;
     this.initialized = false;
     console.log('[EmbeddingCache] Disconnected from shared Redis client');
@@ -194,3 +194,6 @@ class EmbeddingCache {
 
 // Export singleton instance
 export const embeddingCache = new EmbeddingCache();
+
+// Export class for testing
+export { EmbeddingCache };

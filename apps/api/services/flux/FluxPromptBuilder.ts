@@ -7,18 +7,34 @@
  * No negative prompts - describe what you want, not what you don't want
  */
 
-const BRAND_COLORS = {
+export interface BrandColors {
+  TANNE: string;
+  KLEE: string;
+  SAND: string;
+  WHITE: string;
+}
+
+export const BRAND_COLORS: BrandColors = {
   TANNE: '#005538',
   KLEE: '#008939',
   SAND: '#F5F1E9',
   WHITE: '#FFFFFF'
 };
 
+export interface AspectRatioConfig {
+  ratio: string;
+  width: number;
+  height: number;
+  useCase: string;
+}
+
+export type AspectRatioKey = 'square' | 'portrait' | 'landscape' | 'classic' | 'ultrawide' | 'instagram';
+
 /**
  * Aspect Ratios with recommended dimensions
  * FLUX limits: Min 64x64, Max 4MP, multiples of 16
  */
-const ASPECT_RATIOS = {
+export const ASPECT_RATIOS: Record<AspectRatioKey, AspectRatioConfig> = {
   'square': { ratio: '1:1', width: 1024, height: 1024, useCase: 'Social media, product shots' },
   'portrait': { ratio: '9:16', width: 768, height: 1360, useCase: 'Mobile content, stories, infographics' },
   'landscape': { ratio: '16:9', width: 1360, height: 768, useCase: 'Landscapes, cinematic shots' },
@@ -27,7 +43,30 @@ const ASPECT_RATIOS = {
   'instagram': { ratio: '4:5', width: 1080, height: 1350, useCase: 'Instagram posts' }
 };
 
-const VARIANTS = {
+export interface VariantConfig {
+  name: string;
+  style: string;
+  composition?: string;
+  aspectRatio: AspectRatioKey;
+  defaultAction: string;
+  isPhoto?: boolean;
+  isPixel?: boolean;
+}
+
+export type VariantKey =
+  | 'light-top'
+  | 'green-bottom'
+  | 'realistic-top'
+  | 'realistic-bottom'
+  | 'pixel-top'
+  | 'pixel-bottom'
+  | 'editorial'
+  | 'illustration-pure'
+  | 'realistic-pure'
+  | 'pixel-pure'
+  | 'editorial-pure';
+
+export const VARIANTS: Record<VariantKey, VariantConfig> = {
   'light-top': {
     name: 'Soft Illustration (Light Top)',
     style: 'soft painterly illustration with gentle textures, warm atmospheric tones, subtle watercolor quality',
@@ -88,7 +127,6 @@ const VARIANTS = {
     defaultAction: 'posed for editorial shoot'
   },
 
-  // Pure variants (no composition hints - full image without reserved space)
   'illustration-pure': {
     name: 'Illustration (Pure)',
     style: 'soft painterly illustration with gentle textures, warm atmospheric tones, subtle watercolor quality, soft diffused lighting',
@@ -120,10 +158,21 @@ const VARIANTS = {
   }
 };
 
+export interface PromptData {
+  subject: string;
+  action: string;
+  style: string;
+  composition?: string;
+  color_palette?: string[];
+  mood?: string;
+  lighting?: string;
+  rendering: string;
+}
+
 /**
  * Build prompt for illustration variants (light-top, green-bottom)
  */
-function buildIllustrationPrompt(subject, action, variant) {
+export function buildIllustrationPrompt(subject: string, action: string | undefined, variant: VariantKey): PromptData {
   const config = VARIANTS[variant];
 
   if (config.isPhoto) {
@@ -162,7 +211,7 @@ function buildIllustrationPrompt(subject, action, variant) {
  * Flatten prompt object to natural language string
  * Optimized Priority Order: Subject → Action → Style → Context → Details
  */
-function flattenPromptToString(promptData) {
+export function flattenPromptToString(promptData: PromptData): string {
   const parts = [
     promptData.subject,
     promptData.action,
@@ -177,17 +226,29 @@ function flattenPromptToString(promptData) {
   return parts.join('. ');
 }
 
+export interface BuildFluxPromptOptions {
+  variant?: VariantKey;
+  subject: string;
+  action?: string;
+}
+
+export interface BuildFluxPromptResult {
+  prompt: string;
+  dimensions: {
+    width: number;
+    height: number;
+    ratio: string;
+  };
+}
+
 /**
  * Main prompt builder function
  * Returns formatted prompt string based on variant
  *
- * @param {Object} options
- * @param {string} options.variant - Variant ID
- * @param {string} options.subject - Main subject
- * @param {string} options.action - What subject is doing (optional)
- * @returns {Object} { prompt: string, dimensions: {width, height} }
+ * @param options - Prompt building options
+ * @returns Formatted prompt and dimensions
  */
-function buildFluxPrompt(options) {
+export function buildFluxPrompt(options: BuildFluxPromptOptions): BuildFluxPromptResult {
   const {
     variant = 'light-top',
     subject,
@@ -197,25 +258,7 @@ function buildFluxPrompt(options) {
   const variantConfig = VARIANTS[variant] || VARIANTS['light-top'];
   const aspectConfig = ASPECT_RATIOS[variantConfig.aspectRatio] || ASPECT_RATIOS['instagram'];
 
-  let promptData;
-
-  switch (variant) {
-    case 'light-top':
-    case 'green-bottom':
-    case 'realistic-top':
-    case 'realistic-bottom':
-    case 'pixel-top':
-    case 'pixel-bottom':
-    case 'editorial':
-    case 'illustration-pure':
-    case 'realistic-pure':
-    case 'pixel-pure':
-    case 'editorial-pure':
-    default:
-      promptData = buildIllustrationPrompt(subject, action, variant);
-      break;
-  }
-
+  const promptData = buildIllustrationPrompt(subject, action, variant);
   const prompt = flattenPromptToString(promptData);
 
   return {
@@ -228,19 +271,28 @@ function buildFluxPrompt(options) {
   };
 }
 
+export interface VariantInfo {
+  id: string;
+  name: string;
+  aspectRatio: string;
+  dimensions: string;
+  useCase: string;
+}
+
 /**
  * Get available variants with their configurations
  */
-function getVariants() {
+export function getVariants(): VariantInfo[] {
   return Object.keys(VARIANTS).map(key => {
-    const config = VARIANTS[key];
+    const variantKey = key as VariantKey;
+    const config = VARIANTS[variantKey];
     const aspect = ASPECT_RATIOS[config.aspectRatio];
     return {
       id: key,
       name: config.name,
-      aspectRatio: aspect?.ratio,
-      dimensions: aspect ? `${aspect.width}x${aspect.height}` : null,
-      useCase: aspect?.useCase
+      aspectRatio: aspect.ratio,
+      dimensions: `${aspect.width}x${aspect.height}`,
+      useCase: aspect.useCase
     };
   });
 }
@@ -248,8 +300,6 @@ function getVariants() {
 /**
  * Get aspect ratio configurations
  */
-function getAspectRatios() {
+export function getAspectRatios(): Record<AspectRatioKey, AspectRatioConfig> {
   return ASPECT_RATIOS;
 }
-
-export { buildFluxPrompt, buildIllustrationPrompt, flattenPromptToString, getVariants, getAspectRatios, VARIANTS, ASPECT_RATIOS, BRAND_COLORS };

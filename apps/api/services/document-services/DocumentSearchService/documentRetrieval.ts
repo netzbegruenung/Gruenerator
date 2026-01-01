@@ -17,7 +17,7 @@ import type {
     QdrantDocument
 } from './types.js';
 
-import type { QdrantOperations } from '../../database/services/QdrantOperations.js';
+import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 
 /**
  * Get full document text from Qdrant vectors

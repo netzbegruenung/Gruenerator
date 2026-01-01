@@ -83,6 +83,16 @@ export const config = {
         subcategories: { label: 'Unterkategorien', type: 'keyword' },
         region: { label: 'Region', type: 'keyword' }
       }
+    },
+    examples: {
+      name: 'social_media_examples',
+      displayName: 'Social Media Beispiele',
+      description: 'Erfolgreiche Instagram- und Facebook-Posts als Inspiration für eigene Inhalte',
+      filterableFields: {
+        platform: { label: 'Plattform', type: 'keyword' },
+        country: { label: 'Land', type: 'keyword' },
+        content_type: { label: 'Inhaltstyp', type: 'keyword' }
+      }
     }
   }
 };

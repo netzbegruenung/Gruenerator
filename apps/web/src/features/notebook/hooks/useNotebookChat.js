@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 import { processText } from '../../../components/utils/apiClient';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import useResponsive from '../../../components/common/Form/hooks/useResponsive';
@@ -23,6 +24,7 @@ const useNotebookChat = ({
   extraApiParams = {}
 }) => {
   const { user } = useOptimizedAuth();
+  const locale = useAuthStore((state) => state.locale);
   const { isMobileView } = useResponsive(768);
   const [inputValue, setInputValue] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -122,11 +124,13 @@ const useNotebookChat = ({
             question,
             mode: 'dossier',
             collectionIds: collections.map(c => c.id),
+            locale,
             ...(filters && { filters })
           }
         : {
             question,
             mode: 'dossier',
+            locale,
             ...(filters && { filters }),
             ...extraApiParams
           };

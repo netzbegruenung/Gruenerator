@@ -2,7 +2,7 @@ import express from 'express';
 const router = express.Router();
 import { webSearchService } from '../../utils/searchUtils.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../utils/promptUtils.js';
-import { DocumentSearchService } from '../../services/DocumentSearchService.js';
+import { DocumentSearchService } from '../../services/document-services/DocumentSearchService.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('deepResearch');
 

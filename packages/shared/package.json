@@ -24,8 +24,8 @@
       "require": "./src/hooks/index.ts"
     },
     "./utils": {
-      "import": "./src/utils/index.ts",
-      "require": "./src/utils/index.ts"
+      "import": "./src/utils/index.js",
+      "require": "./src/utils/index.js"
     },
     "./generators": {
       "import": "./src/generators/index.ts",
@@ -34,6 +34,10 @@
     "./search": {
       "import": "./src/search/index.ts",
       "require": "./src/search/index.ts"
+    },
+    "./search/vector": {
+      "import": "./src/search/vector/index.js",
+      "require": "./src/search/vector/index.js"
     },
     "./avatar": {
       "import": "./src/avatar/index.ts",

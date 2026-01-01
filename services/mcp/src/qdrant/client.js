@@ -2,15 +2,21 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { config } from '../config.js';
 import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
 
+// Import shared search algorithms
+import {
+  applyReciprocalRankFusion,
+  applyWeightedCombination,
+  applyQualityGate,
+  calculateDynamicThreshold,
+  calculateTextSearchScore,
+  DEFAULT_HYBRID_CONFIG,
+} from '@gruenerator/shared/search/vector';
+
 let client = null;
 
-// Hybrid search configuration
+// Use shared hybrid config with MCP-specific overrides
 const hybridConfig = {
-  enableDynamicThresholds: true,
-  enableQualityGate: true,
-  enableConfidenceWeighting: true,
-  minVectorWithTextThreshold: 0.3,
-  minVectorOnlyThreshold: 0.5,
+  ...DEFAULT_HYBRID_CONFIG,
   minFinalScore: 0.01,
   minVectorOnlyFinalScore: 0.02,
   confidenceBoost: 1.1,
@@ -202,157 +208,27 @@ async function performTextSearch(collectionName, searchTerm, limit = 10, baseFil
   }));
 }
 
-/**
- * Calculate text search score
- */
-function calculateTextSearchScore(searchTerm, text, position) {
-  if (!text || !searchTerm) return 0.1;
-
-  const lowerText = text.toLowerCase();
-  const lowerTerm = searchTerm.toLowerCase();
-
-  const escapedTerm = lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const matches = (lowerText.match(new RegExp(escapedTerm, 'g')) || []).length;
-  let score = Math.min(matches * 0.1, 0.8);
-
-  const positionPenalty = Math.max(0.1, 1 - (position * 0.1));
-  score *= positionPenalty;
-
-  const lengthNormalization = Math.min(1, searchTerm.length / 10);
-  score *= lengthNormalization;
-
-  return Math.min(1.0, Math.max(0.1, score));
-}
+// calculateTextSearchScore is imported from @gruenerator/shared
 
 /**
- * Apply Reciprocal Rank Fusion
+ * Apply Reciprocal Rank Fusion - uses shared implementation
  */
 function applyRRF(vectorResults, textResults, limit, k = 60) {
-  const scoresMap = new Map();
-
-  vectorResults.forEach((result, index) => {
-    const rrfScore = 1 / (k + index + 1);
-    scoresMap.set(result.id, {
-      item: result,
-      rrfScore,
-      vectorRank: index + 1,
-      textRank: null,
-      originalVectorScore: result.score,
-      originalTextScore: null,
-      searchMethod: 'vector',
-      confidence: hybridConfig.enableConfidenceWeighting ? hybridConfig.confidencePenalty : 1.0
-    });
-  });
-
-  textResults.forEach((result, index) => {
-    const rrfScore = 1 / (k + index + 1);
-    const key = result.id;
-
-    if (scoresMap.has(key)) {
-      const existing = scoresMap.get(key);
-      existing.rrfScore += rrfScore;
-      existing.textRank = index + 1;
-      existing.originalTextScore = result.score;
-      existing.searchMethod = 'hybrid';
-      existing.confidence = hybridConfig.enableConfidenceWeighting ? hybridConfig.confidenceBoost : 1.0;
-    } else {
-      scoresMap.set(key, {
-        item: result,
-        rrfScore,
-        vectorRank: null,
-        textRank: index + 1,
-        originalVectorScore: null,
-        originalTextScore: result.score,
-        searchMethod: 'text',
-        confidence: 1.0
-      });
-    }
-  });
-
-  return Array.from(scoresMap.values())
-    .map(result => ({
-      ...result,
-      finalScore: result.rrfScore * result.confidence
-    }))
-    .sort((a, b) => b.finalScore - a.finalScore)
-    .slice(0, limit)
-    .map(result => ({
-      ...result.item,
-      score: result.finalScore,
-      searchMethod: result.searchMethod,
-      originalVectorScore: result.originalVectorScore,
-      originalTextScore: result.originalTextScore
-    }));
+  return applyReciprocalRankFusion(vectorResults, textResults, limit, k, hybridConfig);
 }
 
 /**
- * Apply weighted combination
+ * Apply weighted combination - uses shared implementation
  */
-function applyWeightedCombination(vectorResults, textResults, vectorWeight, textWeight, limit) {
-  const scoresMap = new Map();
-  const totalWeight = vectorWeight + textWeight;
-  const normVW = vectorWeight / totalWeight;
-  const normTW = textWeight / totalWeight;
-
-  vectorResults.forEach(result => {
-    scoresMap.set(result.id, {
-      item: result,
-      vectorScore: result.score * normVW,
-      textScore: 0,
-      originalVectorScore: result.score,
-      originalTextScore: null,
-      searchMethod: 'vector'
-    });
-  });
-
-  textResults.forEach(result => {
-    const key = result.id;
-    const textScore = result.score * normTW;
-
-    if (scoresMap.has(key)) {
-      const existing = scoresMap.get(key);
-      existing.textScore = textScore;
-      existing.originalTextScore = result.score;
-      existing.searchMethod = 'hybrid';
-    } else {
-      scoresMap.set(key, {
-        item: result,
-        vectorScore: 0,
-        textScore,
-        originalVectorScore: null,
-        originalTextScore: result.score,
-        searchMethod: 'text'
-      });
-    }
-  });
-
-  return Array.from(scoresMap.values())
-    .map(result => ({
-      ...result.item,
-      score: result.vectorScore + result.textScore,
-      searchMethod: result.searchMethod,
-      originalVectorScore: result.originalVectorScore,
-      originalTextScore: result.originalTextScore
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+function applyWeightedCombinationLocal(vectorResults, textResults, vectorWeight, textWeight, limit) {
+  return applyWeightedCombination(vectorResults, textResults, vectorWeight, textWeight, limit);
 }
 
 /**
- * Apply quality gate filtering
+ * Apply quality gate filtering - uses shared implementation
  */
-function applyQualityGate(results, hasTextMatches) {
-  if (!hybridConfig.enableQualityGate || !results?.length) {
-    return results;
-  }
-
-  return results.filter(result => {
-    if (result.score < hybridConfig.minFinalScore) return false;
-    if (result.searchMethod === 'vector' && !hasTextMatches) {
-      if (result.score < hybridConfig.minVectorOnlyFinalScore) return false;
-    }
-    return true;
-  });
+function applyQualityGateLocal(results, hasTextMatches) {
+  return applyQualityGate(results, hasTextMatches, hybridConfig);
 }
 
 /**
@@ -432,10 +308,10 @@ export async function hybridSearchCollection(collectionName, embedding, query, l
   // Apply fusion
   let combinedResults = shouldUseRRF
     ? applyRRF(mappedVectorResults, textResults, limit * 2, rrfK)
-    : applyWeightedCombination(mappedVectorResults, textResults, vW, tW, limit * 2);
+    : applyWeightedCombinationLocal(mappedVectorResults, textResults, vW, tW, limit * 2);
 
   // Apply quality gate
-  combinedResults = applyQualityGate(combinedResults, hasTextMatches);
+  combinedResults = applyQualityGateLocal(combinedResults, hasTextMatches);
 
   // Apply quality-weighted scoring
   const finalResults = combinedResults.slice(0, limit).map(result => {

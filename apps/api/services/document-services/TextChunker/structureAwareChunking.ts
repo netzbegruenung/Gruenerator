@@ -3,8 +3,8 @@
  * Uses DocumentStructureDetector to respect semantic boundaries
  */
 
-import { documentStructureDetector } from '../../services/DocumentStructureDetector.js';
-import type { DocumentStructure, SemanticBoundary as DetectorSemanticBoundary } from '../../services/DocumentStructureDetector/types.js';
+import { documentStructureDetector } from '../../DocumentStructureDetector.js';
+import type { DocumentStructure, SemanticBoundary as DetectorSemanticBoundary } from '../../DocumentStructureDetector/types.js';
 import { estimateTokens } from './validation.js';
 import type { Chunk, ChunkContext, SemanticBoundary } from './types.js';
 

@@ -6,7 +6,7 @@ import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import { fastEmbedService } from '../../services/FastEmbedService.js';
-import { smartChunkDocument } from '../../utils/textChunker.js';
+import { smartChunkDocument } from '../../services/document-services/textChunker.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('userContent');
 

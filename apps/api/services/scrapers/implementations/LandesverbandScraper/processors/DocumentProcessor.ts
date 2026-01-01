@@ -6,10 +6,11 @@
 
 import { smartChunkDocument } from '../../../../../utils/textChunker.js';
 import { fastEmbedService } from '../../../FastEmbedService.js';
+import { scrollDocuments, batchDelete, batchUpsert } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';
-import type { QdrantOperations } from '../operations/QdrantOperations.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
+import type { QdrantClient } from '@qdrant/js-client-rest';
 
 /**
  * Document processing orchestration
@@ -17,10 +18,11 @@ import { DateExtractor } from '../extractors/DateExtractor.js';
  */
 export class DocumentProcessor {
   constructor(
-    private qdrantOps: QdrantOperations,
+    private qdrantClient: QdrantClient,
+    private collectionName: string,
     private generateHash: (text: string) => string,
     private generatePointId: (url: string, chunkIndex: number) => number,
-    private config: { collectionName: string; batchSize: number }
+    private config: { batchSize: number }
   ) {}
 
   /**
@@ -50,7 +52,23 @@ export class DocumentProcessor {
 
     // STEP 3: Deduplication check
     const contentHash = this.generateHash(text);
-    const existing = await this.qdrantOps.documentExists(url);
+    const points = await scrollDocuments(
+      this.qdrantClient,
+      this.collectionName,
+      {
+        must: [{ key: 'source_url', match: { value: url } }],
+      },
+      {
+        limit: 1,
+        withPayload: true,
+        withVector: false,
+      }
+    );
+
+    const existing = points.length > 0 ? {
+      content_hash: points[0].payload.content_hash as string,
+      indexed_at: points[0].payload.indexed_at as string,
+    } : null;
 
     if (existing && existing.content_hash === contentHash) {
       return { stored: false, reason: 'unchanged' };
@@ -58,7 +76,13 @@ export class DocumentProcessor {
 
     // STEP 4: Delete old version if exists (update scenario)
     if (existing) {
-      await this.qdrantOps.deleteDocument(url);
+      await batchDelete(
+        this.qdrantClient,
+        this.collectionName,
+        {
+          must: [{ key: 'source_url', match: { value: url } }],
+        }
+      );
     }
 
     // STEP 5: Build document title
@@ -107,7 +131,11 @@ export class DocumentProcessor {
     }));
 
     // STEP 9: Store in batches
-    await this.qdrantOps.upsertPoints(points, this.config.batchSize);
+    const batchSize = this.config.batchSize;
+    for (let i = 0; i < points.length; i += batchSize) {
+      const batch = points.slice(i, i + batchSize);
+      await batchUpsert(this.qdrantClient, this.collectionName, batch);
+    }
 
     return {
       stored: true,

@@ -23,8 +23,8 @@ import type {
 } from './types.js';
 
 // Import QdrantOperations - this is a TypeScript class
-import type { QdrantOperations } from '../../database/services/QdrantOperations.js';
-import { chunkToNumericId } from '../../database/services/QdrantService/utils.js';
+import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
 
 /**
  * Store document vectors in Qdrant
