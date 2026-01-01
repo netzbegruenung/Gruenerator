@@ -1,5 +1,8 @@
 import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js';
 import { createLogger } from '../utils/logger.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const imagePickerService = require('../services/imagePickerService');
 const log = createLogger('claude_website');
 
 const router = createAuthenticatedRouter();
@@ -42,7 +45,7 @@ Der JSON muss EXAKT dieser Struktur folgen:
   },
   "about": {
     "title": "Überschrift für 'Über mich' Bereich (max. 30 Zeichen)",
-    "content": "Authentische persönliche Geschichte, Werdegang und politische Vision (300-500 Wörter, HTML-Tags erlaubt: <p>, <strong>, <em>)"
+    "content": "Authentische persönliche Geschichte, Werdegang und politische Vision (300-500 Wörter, Absätze durch Leerzeilen trennen, KEIN HTML)"
   },
   "hero_image": {
     "title": "Hauptbotschaft/Slogan (max. 60 Zeichen)",
@@ -85,7 +88,7 @@ Der JSON muss EXAKT dieser Struktur folgen:
 Wichtige Hinweise:
 - Die Texte sollen motivierend und aktivierend sein
 - Verwende konkrete Beispiele aus der Beschreibung der Person
-- Der about.content sollte mit <p> Tags strukturiert sein
+- Der about.content sollte Absätze durch Leerzeilen trennen (kein HTML)
 - Stelle sicher, dass das JSON valide ist`;
 
     const userPrompt = `Erstelle eine professionelle Landing-Page für folgende Person:
@@ -177,6 +180,59 @@ ${description}`;
     if (parsedJson.actions.length > 3) {
       parsedJson.actions = parsedJson.actions.slice(0, 3);
     }
+
+    // AI Image Selection for hero and themes
+    log.debug('[claude_website] Starting image selection...');
+
+    const pickImage = async (text) => {
+      try {
+        const result = await imagePickerService.selectBestImage(
+          text,
+          req.app.locals.aiWorkerPool,
+          { maxCandidates: 5 },
+          req
+        );
+        return `/api/image-picker/stock-image/${result.selectedImage.filename}`;
+      } catch (err) {
+        log.warn('[claude_website] Image picker failed:', err.message);
+        return '';
+      }
+    };
+
+    // Pick images in parallel: 1 hero + 3 themes + 3 actions + 1 contact
+    const imagePromises = [
+      pickImage(`${parsedJson.hero_image.title} ${parsedJson.hero_image.subtitle}`),
+      ...parsedJson.themes.map(theme => pickImage(`${theme.title} ${theme.content}`)),
+      ...parsedJson.actions.map(action => pickImage(action.text)),
+      pickImage(`${parsedJson.contact.title} Kontakt Politik Grüne`)
+    ];
+
+    const imageResults = await Promise.all(imagePromises);
+
+    // Distribute results: 1 hero, 3 themes, 3 actions, 1 contact
+    const heroImageUrl = imageResults[0];
+    const themeImageUrls = imageResults.slice(1, 4);
+    const actionImageUrls = imageResults.slice(4, 7);
+    const contactImageUrl = imageResults[7];
+
+    // Add image URLs to parsed JSON
+    parsedJson.hero_image.imageUrl = heroImageUrl;
+    parsedJson.themes = parsedJson.themes.map((theme, i) => ({
+      ...theme,
+      imageUrl: themeImageUrls[i] || ''
+    }));
+    parsedJson.actions = parsedJson.actions.map((action, i) => ({
+      ...action,
+      imageUrl: actionImageUrls[i] || ''
+    }));
+    parsedJson.contact.backgroundImageUrl = contactImageUrl;
+
+    log.debug('[claude_website] Image selection complete:', {
+      heroImage: !!heroImageUrl,
+      themeImages: themeImageUrls.filter(Boolean).length,
+      actionImages: actionImageUrls.filter(Boolean).length,
+      contactImage: !!contactImageUrl
+    });
 
     const response = {
       json: parsedJson,
