@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { FaFileWord } from 'react-icons/fa';
 import SearchBar from './SearchBar';
 import useSearch from '../hooks/useSearch';
 import ActionButtons from '../../../components/common/ActionButtons';
@@ -8,6 +9,7 @@ import { formatExportContent } from '../../../components/utils/exportUtils';
 import ContentRenderer from '../../../components/common/Form/BaseForm/ContentRenderer';
 import { CitationModal, CitationSourcesDisplay } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import { useExportStore } from '../../../stores/core/exportStore';
 
 // Search Feature CSS - Loaded only when this feature is accessed
 import '../styles/SearchPage.css';
@@ -116,6 +118,7 @@ SourceList.propTypes = {
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState('web');
+  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
   const {
     results,
     usedSources,
@@ -132,6 +135,50 @@ const SearchPage = () => {
     citations = [],
     citationSources = []
   } = useSearch();
+
+  const hasCitations = citations.length > 0;
+
+  const handleWebSearchDOCXExport = useCallback(async () => {
+    if (!hasCitations || !webResults?.summary?.text) return;
+    await generateNotebookDOCX(
+      webResults.summary.text,
+      'Web-Suche Zusammenfassung',
+      citations,
+      citationSources
+    );
+  }, [hasCitations, webResults, citations, citationSources, generateNotebookDOCX]);
+
+  const handleDeepResearchDOCXExport = useCallback(async () => {
+    if (!hasCitations || !dossier) return;
+    await generateNotebookDOCX(
+      dossier,
+      'Recherche-Dossier',
+      citations,
+      citationSources
+    );
+  }, [hasCitations, dossier, citations, citationSources, generateNotebookDOCX]);
+
+  const webSearchExportOptions = useMemo(() => {
+    if (!hasCitations) return [];
+    return [{
+      id: 'web-search-docx',
+      label: 'Word mit Quellen',
+      subtitle: 'Inkl. Quellenangaben',
+      icon: <FaFileWord size={16} />,
+      onClick: handleWebSearchDOCXExport
+    }];
+  }, [hasCitations, handleWebSearchDOCXExport]);
+
+  const deepResearchExportOptions = useMemo(() => {
+    if (!hasCitations) return [];
+    return [{
+      id: 'deep-research-docx',
+      label: 'Word mit Quellen',
+      subtitle: 'Inkl. Quellenangaben',
+      icon: <FaFileWord size={16} />,
+      onClick: handleDeepResearchDOCXExport
+    }];
+  }, [hasCitations, handleDeepResearchDOCXExport]);
 
   const handleSearch = async (query) => {
     if (searchMode === 'deep') {
@@ -200,6 +247,7 @@ const SearchPage = () => {
                     allowEditing={false}
                     hideEditButton={true}
                     showExport={true}
+                    customExportOptions={webSearchExportOptions}
                   />
                 </div>
                 <div className="analysis-content">
@@ -272,6 +320,7 @@ const SearchPage = () => {
                   allowEditing={false}
                   hideEditButton={true}
                   showExport={true}
+                  customExportOptions={deepResearchExportOptions}
                 />
               </div>
               <div className="dossier-content">
