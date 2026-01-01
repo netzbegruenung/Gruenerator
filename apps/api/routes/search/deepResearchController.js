@@ -1,7 +1,9 @@
 import express from 'express';
 const router = express.Router();
-import { webSearchService } from '../../utils/searchUtils.js';
+import { MistralWebSearchService } from '../../services/mistral/index.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../utils/promptUtils.js';
+
+const mistralWebSearchService = new MistralWebSearchService();
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('deepResearch');
@@ -343,11 +345,21 @@ WICHTIG: Erstelle KEINE Frage zur Grünen Position, da diese bereits separat rec
         const subSearchPromises = queriesToExecute.map(async (query, subIndex) => {
           try {
             log.debug(`[deep-research] Executing sub-query ${subIndex + 1}/${queriesToExecute.length}: "${query}"`);
-            const searchResults = await webSearchService.search(query, searchOptions);
+
+            const agentType = searchOptions.topic === 'news' ? 'news' : 'withSources';
+            const searchResults = await mistralWebSearchService.performWebSearch(query, agentType);
+
+            const formattedResults = searchResults.sources.map(source => ({
+              title: source.title,
+              url: source.url,
+              content: source.snippet,
+              score: source.relevance
+            }));
+
             return {
               query,
-              results: searchResults.results || [],
-              answer: searchResults.answer || null
+              results: formattedResults,
+              answer: searchResults.textContent || null
             };
           } catch (error) {
             log.error(`[deep-research] Error in sub-query ${subIndex + 1}:`, error);

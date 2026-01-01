@@ -8,7 +8,7 @@ import { BaseScraper } from '../../base/BaseScraper.js';
 import type { ScraperResult } from '../../types.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import { scrollDocuments, batchDelete } from '../../../../database/services/QdrantService/operations/batchOperations.js';
-import { fastEmbedService } from '../../../FastEmbedService.js';
+import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { getSourceById, getSourcesByType, getSourcesByLandesverband, LANDESVERBAENDE_CONFIG } from '../../../../config/landesverbaendeConfig.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
@@ -64,7 +64,7 @@ export class LandesverbandScraper extends BaseScraper {
   async init(): Promise<void> {
     const qdrant = getQdrantInstance();
     await qdrant.init();
-    await fastEmbedService.init();
+    await mistralEmbeddingService.init();
 
     // Store Qdrant client
     this.qdrantClient = qdrant.client;

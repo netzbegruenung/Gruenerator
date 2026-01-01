@@ -4,9 +4,9 @@
  * Tests DocumentStructureDetector, FastEmbedService, and OcrService
  */
 
-import { documentStructureDetector } from './services/DocumentStructureDetector.js';
-import { fastEmbedService } from './services/FastEmbedService.js';
-import { ocrService } from './services/ocrService.js';
+import { documentStructureDetector } from './services/DocumentStructureDetector/index.js';
+import { mistralEmbeddingService } from './services/mistral/index.js';
+import { ocrService } from './services/OcrService/index.js';
 
 console.log('🧪 Testing Migrated TypeScript Services\n');
 
@@ -44,31 +44,31 @@ Dies ist der zweite Abschnitt.
   }
 }
 
-// Test 2: FastEmbedService
-async function testFastEmbedService() {
-  console.log('\n2️⃣  Testing FastEmbedService...');
+// Test 2: MistralEmbeddingService
+async function testMistralEmbeddingService() {
+  console.log('\n2️⃣  Testing MistralEmbeddingService...');
 
   try {
     // Test singleton instance
-    console.log(`  ✓ Singleton instance exists: ${!!fastEmbedService}`);
+    console.log(`  ✓ Singleton instance exists: ${!!mistralEmbeddingService}`);
 
     // Test model info
-    const modelInfo = fastEmbedService.getModelInfo();
+    const modelInfo = mistralEmbeddingService.getModelInfo();
     console.log(`  ✓ Model: ${modelInfo.modelName}`);
     console.log(`  ✓ Dimensions: ${modelInfo.dimensions}`);
-    console.log(`  ✓ Ready: ${fastEmbedService.isReady()}`);
+    console.log(`  ✓ Ready: ${mistralEmbeddingService.isReady()}`);
 
     // Test token estimation
-    const tokenCount = fastEmbedService.estimateTokenCount('This is a test sentence.');
+    const tokenCount = mistralEmbeddingService.estimateTokenCount('This is a test sentence.');
     console.log(`  ✓ Token estimation works: ${tokenCount} tokens`);
 
     // Test mock embedding
-    const mockEmbedding = fastEmbedService.generateMockEmbedding('test');
+    const mockEmbedding = mistralEmbeddingService.generateMockEmbedding('test');
     console.log(`  ✓ Mock embedding generated: ${mockEmbedding.length} dimensions`);
 
     return true;
   } catch (error) {
-    console.error(`  ✗ FastEmbedService test failed:`, error.message);
+    console.error(`  ✗ MistralEmbeddingService test failed:`, error.message);
     return false;
   }
 }
@@ -104,10 +104,10 @@ async function testServiceIntegration() {
   console.log('\n4️⃣  Testing Service Integration...');
 
   try {
-    // Test: DocumentStructureDetector can be used with FastEmbedService
+    // Test: DocumentStructureDetector can be used with MistralEmbeddingService
     const testDoc = 'Kapitel 1\n\nDies ist ein Test.';
     const structure = documentStructureDetector.analyzeStructure(testDoc);
-    const tokenCount = fastEmbedService.estimateTokenCount(testDoc);
+    const tokenCount = mistralEmbeddingService.estimateTokenCount(testDoc);
 
     console.log(`  ✓ Services can interact`);
     console.log(`  ✓ Structure + Embedding estimation: ${structure.chapters.length} chapters, ~${tokenCount} tokens`);
@@ -125,15 +125,15 @@ async function testImportCompatibility() {
 
   try {
     // Test different import styles work
-    const { DocumentStructureDetector } = await import('./services/DocumentStructureDetector.js');
-    const { FastEmbedService } = await import('./services/FastEmbedService.js');
-    const { OCRService } = await import('./services/ocrService.js');
+    const { DocumentStructureDetector } = await import('./services/DocumentStructureDetector/index.js');
+    const { MistralEmbeddingService } = await import('./services/mistral/MistralEmbeddingService/index.js');
+    const { OCRService } = await import('./services/OcrService/index.js');
 
     console.log(`  ✓ Named imports work`);
 
     // Test class instantiation
     new DocumentStructureDetector();
-    new FastEmbedService();
+    new MistralEmbeddingService();
     new OCRService();
 
     console.log(`  ✓ Classes can be instantiated`);
@@ -149,7 +149,7 @@ async function testImportCompatibility() {
 async function runTests() {
   const results = await Promise.all([
     testDocumentStructureDetector(),
-    testFastEmbedService(),
+    testMistralEmbeddingService(),
     testOcrService(),
     testServiceIntegration(),
     testImportCompatibility()

@@ -7,8 +7,8 @@
 import * as cheerio from 'cheerio';
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperResult } from '../types.js';
-import { smartChunkDocument } from '../../../utils/textChunker.js';
-import { fastEmbedService } from '../../FastEmbedService.js';
+import { smartChunkDocument } from '../../document-services/textChunker.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
@@ -278,7 +278,7 @@ export class BoellStiftungScraper extends BaseScraper {
   async init(): Promise<void> {
     this.qdrant = getQdrantInstance();
     await this.qdrant.init();
-    await fastEmbedService.init();
+    await mistralEmbeddingService.init();
     this.log('Service initialized');
   }
 
@@ -327,35 +327,21 @@ export class BoellStiftungScraper extends BaseScraper {
   #extractContent(html: string, url: string): ExtractedContent {
     const $ = cheerio.load(html);
 
-    // Remove unwanted elements
-    $('script, style, noscript, iframe, nav, header, footer').remove();
-    $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
-    $('[role="navigation"], [role="banner"], [role="contentinfo"]').remove();
-    $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
-    $('.social-share, .share-buttons, .related-content').remove();
-    $('.author-info, .author-bio').remove();
+    // Remove unwanted elements using shared utility
+    const removeSelectors = [
+      'script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer',
+      '.navigation', '.sidebar', '.cookie-banner', '.cookie-notice', '.popup', '.modal',
+      '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
+      '.breadcrumb', '.breadcrumb-nav', '[aria-label*="Breadcrumb"]',
+      '.social-share', '.share-buttons', '.related-content',
+      '.author-info', '.author-bio',
+    ];
+    removeUnwantedElements($, removeSelectors);
 
-    // Extract metadata
-    const title =
-      $('meta[property="og:title"]').attr('content') ||
-      $('h1.page-title').first().text().trim() ||
-      $('h1').first().text().trim() ||
-      $('title').text().trim() ||
-      '';
-
-    const description = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '';
-
-    // Extract publication date
-    let publishedAt: string | null = null;
-    const ogDate = $('meta[property="article:published_time"]').attr('content');
-    if (ogDate) {
-      publishedAt = ogDate;
-    } else {
-      const timeEl = $('time[datetime]').first();
-      if (timeEl.length) {
-        publishedAt = timeEl.attr('datetime') || null;
-      }
-    }
+    // Extract metadata using shared utilities
+    const title = extractTitle(html) || '';
+    const description = extractMetaDescription(html) || '';
+    const publishedAt = extractDate(html);
 
     // Content extraction selectors (Böll-specific)
     const contentSelectors = [
@@ -369,23 +355,14 @@ export class BoellStiftungScraper extends BaseScraper {
       '[role="main"]',
     ];
 
-    let contentText = '';
-    for (const selector of contentSelectors) {
-      const el = $(selector);
-      if (el.length && el.text().trim().length > 100) {
-        contentText = el.text();
-        break;
-      }
-    }
+    // Extract main content using shared utility
+    const extraction = extractMainContent(html, {
+      contentSelectors,
+      removeSelectors,
+    });
+    const contentText = extraction.content;
 
-    // Fallback to main or body
-    if (!contentText || contentText.trim().length < 100) {
-      contentText = $('main').text() || $('body').text();
-    }
-
-    // Clean text
-    contentText = contentText.replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-
+    // Extract domain-specific metadata
     const contentType = this.#detectContentType(url, $);
     const topics = this.#extractTopics($, url);
     const region = this.#detectRegion(url, topics);
@@ -605,7 +582,7 @@ export class BoellStiftungScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const subcategories = [...(content.topics || [])];
     if (content.region && !subcategories.includes(content.region)) {
@@ -827,7 +804,7 @@ export class BoellStiftungScraper extends BaseScraper {
   async searchArticles(query: string, options: BoellSearchOptions = {}): Promise<{ results: BoellArticleResult[]; total: number }> {
     const { contentType = null, topic = null, limit = 10, threshold = 0.35 } = options;
 
-    const queryVector = await fastEmbedService.generateQueryEmbedding(query);
+    const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
     const filter: any = { must: [] };
     if (contentType) {

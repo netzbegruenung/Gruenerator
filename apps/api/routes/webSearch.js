@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import searxngWebSearchService from '../services/searxngWebSearchService.js';
+import { searxngService as searxngWebSearchService } from '../services/search/index.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('webSearch');
 

@@ -70,7 +70,7 @@ export async function generateAndStoreEmbeddings(
   text: string,
   metadata: ProcessingMetadata,
   smartChunkDocument: any,
-  fastEmbedService: any,
+  mistralEmbeddingService: any,
   qdrant: any,
   postgres: any,
   vectorConfig: any
@@ -107,7 +107,7 @@ export async function generateAndStoreEmbeddings(
 
     // Step 3: Generate embeddings in batches
     const chunkTexts = qualityChunks.map((chunk: any) => chunk.text || chunk);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
       chunkTexts,
       'search_document'
     );

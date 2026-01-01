@@ -1,11 +1,20 @@
-// Privacy mode fallback execution helper (CommonJS)
+/**
+ * Privacy mode fallback execution helper
+ * Provides automatic failover across privacy-friendly LLM providers
+ */
+
+import type {
+  ProviderName,
+  ModelName,
+  ProviderExecutor,
+  PrivacyProviderData,
+  ExecutionResponse
+} from './types.js';
 
 /**
  * Check if a provider is available based on environment configuration
- * @param {string} provider - Provider name
- * @returns {boolean} True if provider is configured and available
  */
-function isProviderAvailable(provider) {
+export function isProviderAvailable(provider: ProviderName): boolean {
   switch (provider) {
     case 'ionos':
       return !!process.env.IONOS_API_TOKEN;
@@ -25,10 +34,8 @@ function isProviderAvailable(provider) {
 
 /**
  * Get the appropriate model for a privacy fallback provider
- * @param {string} provider - Provider name
- * @returns {string} Model name to use
  */
-function getPrivacyModelForProvider(provider) {
+export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
   switch (provider) {
     case 'ionos':
       return 'openai/gpt-oss-120b';
@@ -44,14 +51,22 @@ function getPrivacyModelForProvider(provider) {
 /**
  * Try privacy-friendly providers in order, using a caller-supplied executor.
  * Only attempts providers that have the required API tokens configured.
- * @param {(providerName: string, data: object) => Promise<object>} execForProvider
- * @param {string} requestId
- * @param {object} data
- * @param {Array<string>} chain - Default chain: LiteLLM → Mistral → IONOS → Bedrock
+ *
+ * @param execForProvider - Async function that executes the request for a given provider
+ * @param requestId - Request ID for logging
+ * @param data - Request data to be passed to executor
+ * @param chain - Provider chain to try in order (default: LiteLLM → Mistral → IONOS → Bedrock)
+ * @throws {Error} When no providers are configured or all providers fail
+ * @returns The successful response from the first working provider
  */
-async function tryPrivacyModeProviders(execForProvider, requestId, data, chain = ['litellm', 'mistral', 'ionos', 'bedrock']) {
-  let lastError;
-  let attemptedProviders = [];
+export async function tryPrivacyModeProviders(
+  execForProvider: ProviderExecutor,
+  requestId: string,
+  data: PrivacyProviderData,
+  chain: ProviderName[] = ['litellm', 'mistral', 'ionos', 'bedrock']
+): Promise<ExecutionResponse> {
+  let lastError: Error | undefined;
+  const attemptedProviders: ProviderName[] = [];
 
   for (const provider of chain) {
     // Skip providers that are not configured
@@ -64,7 +79,7 @@ async function tryPrivacyModeProviders(execForProvider, requestId, data, chain =
 
     try {
       console.log(`[ProviderFallback ${requestId}] Trying fallback provider: ${provider}`);
-      const privacyData = {
+      const privacyData: PrivacyProviderData = {
         ...data,
         options: {
           ...(data.options || {}),
@@ -84,8 +99,9 @@ async function tryPrivacyModeProviders(execForProvider, requestId, data, chain =
       console.warn(`[ProviderFallback ${requestId}] Empty response from ${provider}, trying next`);
       lastError = new Error(`Empty response from ${provider}`);
     } catch (err) {
-      console.warn(`[ProviderFallback ${requestId}] Error from ${provider}: ${err.message}`);
-      lastError = err;
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.warn(`[ProviderFallback ${requestId}] Error from ${provider}: ${errorMessage}`);
+      lastError = err instanceof Error ? err : new Error(errorMessage);
       continue;
     }
   }
@@ -97,5 +113,3 @@ async function tryPrivacyModeProviders(execForProvider, requestId, data, chain =
   const msg = lastError?.message || 'Unknown error';
   throw new Error(`All privacy mode providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`);
 }
-
-export { tryPrivacyModeProviders, isProviderAvailable, getPrivacyModelForProvider };

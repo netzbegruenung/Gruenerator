@@ -18,7 +18,7 @@
  */
 
 import { StateGraph, Annotation, MemorySaver, interrupt, Command } from "@langchain/langgraph";
-import searxngService from '../../services/searxngWebSearchService.js';
+import { searxngService } from '../../services/search/index.js';
 import { urlCrawlerService } from '../../services/urlCrawlerService.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';

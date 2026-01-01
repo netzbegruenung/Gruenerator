@@ -31,8 +31,8 @@ async function getSearxngService() {
   if (!_searxngLoaded) {
     _searxngLoaded = true;
     try {
-      const mod = await import('../../services/searxngWebSearchService.js');
-      _searxngService = mod.default;
+      const mod = await import('../../services/search/index.js');
+      _searxngService = mod.searxngService;
     } catch (_) {
       _searxngService = null;
     }

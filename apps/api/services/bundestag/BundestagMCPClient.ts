@@ -7,16 +7,90 @@
 const BUNDESTAG_MCP_URL = process.env.BUNDESTAG_MCP_URL || 'https://bundestagapi.moritz-waechter.de';
 const REQUEST_TIMEOUT = 30000;
 
+/**
+ * MCP JSON-RPC request structure
+ */
+interface MCPRequest {
+    jsonrpc: '2.0';
+    id: number;
+    method: 'tools/call';
+    params: {
+        name: string;
+        arguments: Record<string, any>;
+    };
+}
+
+/**
+ * MCP JSON-RPC response structure
+ */
+interface MCPResponse {
+    jsonrpc: '2.0';
+    id: number;
+    result?: {
+        content?: Array<{
+            type: string;
+            text: string;
+        }>;
+    };
+    error?: {
+        code: number;
+        message: string;
+    };
+}
+
+/**
+ * Person search parameters
+ */
+interface PersonSearchParams {
+    query?: string;
+    fraktion?: string;
+    wahlperiode?: number;
+    limit?: number;
+}
+
+/**
+ * Drucksachen (document) search parameters
+ */
+interface DrucksachenSearchParams {
+    query?: string;
+    urheber?: string;
+    drucksachetyp?: string;
+    wahlperiode?: number;
+    limit?: number;
+}
+
+/**
+ * Activities search parameters
+ */
+interface AktivitaetenSearchParams {
+    person_id?: string | number;
+    aktivitaetsart?: string;
+    wahlperiode?: number;
+    limit?: number;
+}
+
+/**
+ * Generic search result structure
+ */
+interface SearchResult {
+    documents?: any[];
+    results?: any[];
+    [key: string]: any;
+}
+
 class BundestagMCPClient {
-    constructor(baseUrl = BUNDESTAG_MCP_URL) {
+    private baseUrl: string;
+    private sessionId: string | null;
+
+    constructor(baseUrl: string = BUNDESTAG_MCP_URL) {
         this.baseUrl = baseUrl;
         this.sessionId = null;
     }
 
-    async _callTool(toolName, args = {}) {
+    private async _callTool(toolName: string, args: Record<string, any> = {}): Promise<SearchResult> {
         const url = `${this.baseUrl}/mcp`;
 
-        const body = {
+        const body: MCPRequest = {
             jsonrpc: '2.0',
             id: Date.now(),
             method: 'tools/call',
@@ -46,7 +120,7 @@ class BundestagMCPClient {
                 throw new Error(`Bundestag MCP error: ${response.status}`);
             }
 
-            const result = await response.json();
+            const result: MCPResponse = await response.json();
 
             if (result.error) {
                 throw new Error(result.error.message || 'MCP tool call failed');
@@ -62,10 +136,10 @@ class BundestagMCPClient {
                 return parsed;
             }
 
-            return result.result;
+            return result.result || {};
         } catch (err) {
             clearTimeout(timeoutId);
-            if (err.name === 'AbortError') {
+            if (err instanceof Error && err.name === 'AbortError') {
                 throw new Error(`Bundestag MCP timeout after ${REQUEST_TIMEOUT}ms`);
             }
             throw err;
@@ -74,13 +148,10 @@ class BundestagMCPClient {
 
     /**
      * Search for MPs/persons
-     * @param {Object} params - Search parameters
-     * @param {string} [params.query] - Name to search for
-     * @param {string} [params.fraktion] - Parliamentary group (e.g., "GRÜNE")
-     * @param {number} [params.wahlperiode] - Electoral period (default: 20)
-     * @param {number} [params.limit] - Max results
+     * @param params - Search parameters
+     * @returns Search results
      */
-    async searchPersonen(params = {}) {
+    async searchPersonen(params: PersonSearchParams = {}): Promise<SearchResult> {
         return this._callTool('bundestag_search_personen', {
             query: params.query,
             fraktion: params.fraktion,
@@ -91,22 +162,19 @@ class BundestagMCPClient {
 
     /**
      * Get a specific person by ID
-     * @param {string|number} id - Person ID
+     * @param id - Person ID
+     * @returns Person details
      */
-    async getPerson(id) {
+    async getPerson(id: string | number): Promise<SearchResult> {
         return this._callTool('bundestag_get_person', { id: String(id) });
     }
 
     /**
      * Search Drucksachen (parliamentary documents)
-     * @param {Object} params - Search parameters
-     * @param {string} [params.query] - Title search
-     * @param {string} [params.urheber] - Author/initiator
-     * @param {string} [params.drucksachetyp] - Document type (e.g., "Antrag")
-     * @param {number} [params.wahlperiode] - Electoral period
-     * @param {number} [params.limit] - Max results
+     * @param params - Search parameters
+     * @returns Search results
      */
-    async searchDrucksachen(params = {}) {
+    async searchDrucksachen(params: DrucksachenSearchParams = {}): Promise<SearchResult> {
         return this._callTool('bundestag_search_drucksachen', {
             query: params.query,
             urheber: params.urheber,
@@ -118,13 +186,10 @@ class BundestagMCPClient {
 
     /**
      * Search activities (speeches, questions, etc.)
-     * @param {Object} params - Search parameters
-     * @param {string|number} [params.person_id] - Person ID
-     * @param {string} [params.aktivitaetsart] - Activity type
-     * @param {number} [params.wahlperiode] - Electoral period
-     * @param {number} [params.limit] - Max results
+     * @param params - Search parameters
+     * @returns Search results
      */
-    async searchAktivitaeten(params = {}) {
+    async searchAktivitaeten(params: AktivitaetenSearchParams = {}): Promise<SearchResult> {
         return this._callTool('bundestag_search_aktivitaeten', {
             person_id: params.person_id ? String(params.person_id) : undefined,
             aktivitaetsart: params.aktivitaetsart,
@@ -135,13 +200,20 @@ class BundestagMCPClient {
 }
 
 // Singleton instance
-let clientInstance = null;
+let clientInstance: BundestagMCPClient | null = null;
 
-function getBundestagMCPClient() {
+function getBundestagMCPClient(): BundestagMCPClient {
     if (!clientInstance) {
         clientInstance = new BundestagMCPClient();
     }
     return clientInstance;
 }
 
-export { BundestagMCPClient, getBundestagMCPClient };
+export {
+    BundestagMCPClient,
+    getBundestagMCPClient,
+    type PersonSearchParams,
+    type DrucksachenSearchParams,
+    type AktivitaetenSearchParams,
+    type SearchResult
+};

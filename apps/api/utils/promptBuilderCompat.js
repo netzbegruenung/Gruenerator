@@ -175,7 +175,7 @@ class UnifiedPromptBuilder {
 
     try {
       // Import and use SearXNGWebSearchService
-      const { default: searxngWebSearchService } = await import('../services/searxngWebSearchService.js');
+      const { searxngService: searxngWebSearchService } = await import('../services/search/index.js');
       const searchService = searxngWebSearchService;
       
       const searchResults = await searchService.performWebSearch(query, agentType);

@@ -1,7 +1,7 @@
 import { getPostgresInstance } from '../database/services/PostgresService.js';
 import { getQdrantInstance } from '../database/services/QdrantService.js';
-import { fastEmbedService } from './FastEmbedService.js';
-import { smartChunkDocument } from './document-services/textChunker.js';
+import { mistralEmbeddingService } from './mistral/index.js';
+import { smartChunkDocument } from './document-services/index.js';
 import { generateContentHash, generatePointId } from '../utils/hashUtils.js';
 
 /**
@@ -34,7 +34,7 @@ class UserKnowledgeService {
             await this.qdrant.init();
             
             // Initialize FastEmbed for vectorization
-            await fastEmbedService.init();
+            await mistralEmbeddingService.init();
 
             
             console.log('[UserKnowledgeService] Initialized successfully');
@@ -229,7 +229,7 @@ class UserKnowledgeService {
             let embeddings;
             if (fullText.length < 1000) {
                 // Direct embedding for short content
-                const embedding = await fastEmbedService.generateEmbedding(fullText);
+                const embedding = await mistralEmbeddingService.generateEmbedding(fullText);
                 embeddings = [{ text: fullText, embedding, tokens: fullText.split(' ').length }];
             } else {
                 // Chunk longer content
@@ -241,7 +241,7 @@ class UserKnowledgeService {
                 
                 embeddings = [];
                 for (const chunk of chunks) {
-                    const embedding = await fastEmbedService.generateEmbedding(chunk.text);
+                    const embedding = await mistralEmbeddingService.generateEmbedding(chunk.text);
                     embeddings.push({ text: chunk.text, embedding, tokens: chunk.tokens });
                 }
             }
@@ -299,7 +299,7 @@ class UserKnowledgeService {
         // Try vector search first if Qdrant is available
         if (this.qdrant.isAvailable()) {
             try {
-                const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+                const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
                 const searchResult = await this.qdrant.client.search(this.qdrant.collections.user_knowledge, {
                     vector: queryEmbedding,
                     filter: { must: [{ key: 'user_id', match: { value: userId } }] },

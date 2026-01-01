@@ -5,7 +5,7 @@
  * Eliminates code duplication while allowing customization through inheritance.
  */
 
-import { fastEmbedService } from '../FastEmbedService.js';
+import { mistralEmbeddingService } from '../mistral/index.js';
 import { InputValidator, ValidationError } from '../../utils/inputValidation.js';
 import { createCache } from '../../utils/lruCache.js';
 import { SearchError, DatabaseError, createErrorHandler } from '../../utils/errorHandling.js';
@@ -277,7 +277,7 @@ export class BaseSearchService {
    * @protected
    */
   async generateQueryEmbedding(query: string, options: SearchOptions = {}): Promise<number[]> {
-    return await fastEmbedService.generateQueryEmbedding(query);
+    return await mistralEmbeddingService.generateQueryEmbedding(query);
   }
 
   /**

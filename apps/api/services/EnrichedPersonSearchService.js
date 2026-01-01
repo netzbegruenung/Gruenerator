@@ -10,7 +10,7 @@
  */
 
 import { getPersonDetectionService } from './PersonDetectionService.js';
-import { getBundestagMCPClient } from './BundestagMCPClient.js';
+import { getBundestagMCPClient } from './bundestag/BundestagMCPClient.js';
 import { getQdrantInstance } from '../database/services/QdrantService.js';
 import MistralEmbeddingClient from './MistralEmbeddingClient.js';
 

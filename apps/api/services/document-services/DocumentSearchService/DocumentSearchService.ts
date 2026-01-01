@@ -22,7 +22,7 @@ import { vectorConfig } from '../../../config/vectorConfig.js';
 // @ts-ignore - JavaScript module without types
 import { isSystemQdrantCollection } from '../../../config/systemCollectionsConfig.js';
 // @ts-ignore - JavaScript module without types
-import { fastEmbedService } from '../../FastEmbedService.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 
 import type {
     DocumentSearchParams,
@@ -443,7 +443,7 @@ export class DocumentSearchService extends BaseSearchService {
 
     async searchBundestagContent(query: string, options: BundestagSearchOptions = {}): Promise<BundestagSearchResult> {
         await this.ensureInitialized();
-        return await searchOps.searchBundestagContent(this.qdrant, fastEmbedService, query, options);
+        return await searchOps.searchBundestagContent(this.qdrant, mistralEmbeddingService, query, options);
     }
 
     // ========== BaseSearchService Abstract Method Implementations ==========

@@ -378,8 +378,8 @@ Format deiner Antwort:
 router.get('/status', async (req, res) => {
   try {
     // Dynamic import of the SearXNG service
-    const searxngService = await import('../../services/searxngService.mjs');
-    const status = await searxngService.default.getServiceStatus();
+    const { searxngService } = await import('../../services/search/index.js');
+    const status = await searxngService.getServiceStatus();
 
     res.json({
       success: true,
@@ -418,8 +418,8 @@ router.post('/clear-cache', async (req, res) => {
 
   try {
     // Dynamic import of the SearXNG service
-    const searxngService = await import('../../services/searxngService.mjs');
-    await searxngService.default.clearCache();
+    const { searxngService } = await import('../../services/search/index.js');
+    await searxngService.clearCache();
 
     res.json({
       success: true,

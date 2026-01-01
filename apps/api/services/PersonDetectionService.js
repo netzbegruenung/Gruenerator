@@ -4,7 +4,7 @@
  * Uses pattern matching, cached MP list, and DIP API validation
  */
 
-import { getBundestagMCPClient } from './BundestagMCPClient.js';
+import { getBundestagMCPClient } from './bundestag/BundestagMCPClient.js';
 
 // MP cache: normalizedName -> person object
 let mpCache = new Map();

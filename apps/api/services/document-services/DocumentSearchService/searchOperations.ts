@@ -330,14 +330,14 @@ export async function findHybridChunks(
  * for better presentation of web content.
  *
  * @param qdrant - QdrantService instance
- * @param fastEmbedService - Embedding service for query vectorization
+ * @param mistralEmbeddingService - Embedding service for query vectorization
  * @param query - Search query string
  * @param options - Bundestag search options
  * @returns Grouped search results by URL
  */
 export async function searchBundestagContent(
     qdrant: QdrantService,
-    fastEmbedService: { generateEmbedding: (text: string) => Promise<number[]> },
+    mistralEmbeddingService: { generateEmbedding: (text: string) => Promise<number[]> },
     query: string,
     options: BundestagSearchOptions = {}
 ): Promise<BundestagSearchResult> {
@@ -349,7 +349,7 @@ export async function searchBundestagContent(
             hybridMode = true
         } = options;
 
-        const queryVector = await fastEmbedService.generateEmbedding(query);
+        const queryVector = await mistralEmbeddingService.generateEmbedding(query);
 
         const searchResult = await qdrant.searchBundestagDocuments(queryVector, {
             section,

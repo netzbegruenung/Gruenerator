@@ -3,7 +3,7 @@
  * Semantic search and collection statistics
  */
 
-import { fastEmbedService } from '../../../FastEmbedService.js';
+import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { LANDESVERBAENDE_CONFIG } from '../../../../../config/landesverbaendeConfig.js';
 import type { LandesverbandSearchOptions, LandesverbandSearchResult } from '../types.js';
 
@@ -28,7 +28,7 @@ export class SearchOperations {
     const { sourceId = null, landesverband = null, sourceType = null, contentType = null, limit = 10, threshold = 0.35 } = options;
 
     // Generate query embedding
-    const queryVector = await fastEmbedService.generateQueryEmbedding(query);
+    const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
     // Build filter from options
     const filter: any = { must: [] };

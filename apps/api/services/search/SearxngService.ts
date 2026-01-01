@@ -1,12 +1,54 @@
 /**
- * Simplified SearXNG Web Search Service
- * Focused core functionality for use with LangGraph
- * Removed redundant features - graph handles orchestration
+ * SearXNG Web Search Service
+ * Integrates with self-hosted SearXNG instance and provides AI-powered summaries
  */
 
 import crypto from 'crypto';
+import type {
+  SearxngSearchOptions,
+  SearchResult,
+  ContentStats,
+  FormattedSearchResults,
+  FormattedSearchResultsWithSummary,
+  SearxngSummary,
+  CacheEntry,
+  ServiceStatus
+} from './types.js';
 
-class SearXNGService {
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const isDebug = LOG_LEVEL === 'debug';
+const isVerbose = ['debug', 'verbose'].includes(LOG_LEVEL);
+
+interface RawSearxngResult {
+  title?: string;
+  url: string;
+  content?: string;
+  publishedDate?: string;
+  engine?: string;
+  score?: number;
+  category?: string;
+}
+
+interface RawSearxngResponse {
+  results: RawSearxngResult[];
+  number_of_results?: number;
+  suggestions?: string[];
+  infoboxes?: any[];
+  answers?: any[];
+}
+
+interface AIWorkerPool {
+  processRequest(request: any, req?: any): Promise<any>;
+}
+
+class SearxngService {
+  private baseUrl: string;
+  private defaultOptions: Required<SearxngSearchOptions>;
+  private redisClient: any;
+  private cache: Map<string, CacheEntry<FormattedSearchResults>>;
+  private cacheTimeout: number;
+  private newsCache: number;
+
   constructor() {
     this.baseUrl = 'https://searxng-b4o4swssok8scoos488c4wgk.services.moritz-waechter.de';
     this.defaultOptions = {
@@ -14,46 +56,42 @@ class SearXNGService {
       maxResults: 10,
       language: 'de-DE',
       safesearch: 0,
-      format: 'json'
+      format: 'json',
+      categories: 'general',
+      time_range: '',
+      page: 1
     };
 
-    // Redis client for caching (fallback to in-memory if Redis unavailable)
     this.redisClient = null;
-    this.cache = new Map(); // In-memory fallback cache
+    this.cache = new Map();
     this.cacheTimeout = 60 * 60; // 1 hour in seconds
     this.newsCache = 15 * 60; // 15 minutes for news in seconds
 
-    // Initialize Redis client
     this.initializeRedis();
   }
 
   /**
    * Initialize Redis client for caching
    */
-  async initializeRedis() {
+  private async initializeRedis(): Promise<void> {
     try {
-      const { default: redisClient } = await import('../utils/redisClient.js');
+      const { default: redisClient } = await import('../../utils/redisClient.js');
 
-      // Test Redis connection
       await redisClient.ping();
       this.redisClient = redisClient;
-      console.log('[SearXNGService] Redis caching enabled');
+      if (isVerbose) console.log('[SearXNG] Redis caching enabled');
 
-      // Clear in-memory cache if Redis is available
       this.cache.clear();
-    } catch (error) {
-      console.warn('[SearXNGService] Redis unavailable, using in-memory cache:', error.message);
+    } catch (error: any) {
+      if (isVerbose) console.warn('[SearXNG] Redis unavailable, using in-memory cache:', error.message);
       this.redisClient = null;
     }
   }
 
   /**
    * Perform web search using SearXNG
-   * @param {string} query - Search query
-   * @param {Object} options - Search options
-   * @returns {Promise<Object>} Search results with metadata
    */
-  async performWebSearch(query, options = {}) {
+  async performWebSearch(query: string, options: SearxngSearchOptions = {}): Promise<FormattedSearchResults> {
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       throw new Error('Valid search query is required');
     }
@@ -63,60 +101,59 @@ class SearXNGService {
       ...options
     };
 
-    // Generate cache key
     const cacheKey = this.generateCacheKey(query, searchOptions);
 
-    // Check cache first
     const cachedResult = await this.getCachedResult(cacheKey, searchOptions);
     if (cachedResult) {
-      console.log(`💾 [SearXNG] Cache hit (${Math.round((Date.now() - new Date(cachedResult.timestamp)) / 1000)}s old)`);
+      if (isVerbose) {
+        const age = Math.round((Date.now() - new Date(cachedResult.timestamp).getTime()) / 1000);
+        console.log(`💾 [SearXNG] Cache hit (${age}s old)`);
+      }
       return cachedResult;
     }
 
-    console.log(`🔍 [SearXNG] Searching: "${query.length > 50 ? query.substring(0, 50) + '...' : query}"`);
+    if (isVerbose) {
+      const displayQuery = query.length > 50 ? query.substring(0, 50) + '...' : query;
+      console.log(`🔍 [SearXNG] Searching: "${displayQuery}"`);
+    }
 
     try {
       const searchResults = await this.querySearXNG(query, searchOptions);
 
       const formattedResults = this.formatSearchResults(searchResults, query, searchOptions);
 
-      // Cache the results
       await this.setCachedResult(cacheKey, formattedResults, searchOptions);
 
-      console.log(`✅ [SearXNG] Found ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`);
+      console.log(`🔍 [SearXNG] ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`);
 
       return formattedResults;
 
-    } catch (error) {
-      console.error(`[SearXNGService] Search failed for query "${query}":`, error.message);
+    } catch (error: any) {
+      console.error(`[SearXNG] Search failed:`, error.message);
       throw new Error(`Web search failed: ${error.message}`);
     }
   }
 
   /**
    * Query SearXNG API directly
-   * @param {string} query - Search query
-   * @param {Object} options - Search options
-   * @returns {Promise<Object>} Raw SearXNG response
    */
-  async querySearXNG(query, options) {
+  private async querySearXNG(query: string, options: Required<SearxngSearchOptions>): Promise<RawSearxngResponse> {
     const searchParams = new URLSearchParams({
       q: query,
       format: options.format || 'json',
       categories: options.categories || 'general',
       language: options.language || 'de-DE',
-      safesearch: options.safesearch || 0,
-      pageno: options.page || 1
+      safesearch: String(options.safesearch || 0),
+      pageno: String(options.page || 1)
     });
 
-    // Add time range if specified
     if (options.time_range) {
       searchParams.append('time_range', options.time_range);
     }
 
     const searchUrl = `${this.baseUrl}/search?${searchParams.toString()}`;
 
-    console.log(`[SearXNGService] Querying: ${this.baseUrl}/search`);
+    if (isDebug) console.log(`[SearXNG] Querying: ${this.baseUrl}/search`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), options.timeout || this.defaultOptions.timeout);
@@ -142,7 +179,7 @@ class SearXNGService {
         throw new Error('Invalid response format from SearXNG');
       }
 
-      const data = await response.json();
+      const data = await response.json() as RawSearxngResponse;
 
       if (!data || !Array.isArray(data.results)) {
         throw new Error('Invalid response structure from SearXNG');
@@ -150,7 +187,7 @@ class SearXNGService {
 
       return data;
 
-    } catch (error) {
+    } catch (error: any) {
       clearTimeout(timeoutId);
 
       if (error.name === 'AbortError') {
@@ -163,16 +200,16 @@ class SearXNGService {
 
   /**
    * Format raw SearXNG results into standardized structure
-   * @param {Object} rawResults - Raw SearXNG response
-   * @param {string} originalQuery - Original search query
-   * @param {Object} searchOptions - Search options used
-   * @returns {Object} Formatted search results
    */
-  formatSearchResults(rawResults, originalQuery, searchOptions) {
+  private formatSearchResults(
+    rawResults: RawSearxngResponse,
+    originalQuery: string,
+    searchOptions: Required<SearxngSearchOptions>
+  ): FormattedSearchResults {
     const results = rawResults.results || [];
     const maxResults = Math.min(searchOptions.maxResults || this.defaultOptions.maxResults, results.length);
 
-    const formattedResults = results.slice(0, maxResults).map((result, index) => ({
+    const formattedResults: SearchResult[] = results.slice(0, maxResults).map((result, index) => ({
       rank: index + 1,
       title: result.title || 'Untitled',
       url: result.url,
@@ -189,7 +226,6 @@ class SearXNGService {
       }
     }));
 
-    // Calculate content statistics
     const contentStats = this.calculateContentStats(formattedResults);
 
     return {
@@ -206,7 +242,6 @@ class SearXNGService {
         maxResults: maxResults
       },
       contentStats,
-      // Additional metadata from SearXNG
       suggestions: rawResults.suggestions || [],
       infoboxes: rawResults.infoboxes || [],
       answers: rawResults.answers || []
@@ -215,14 +250,14 @@ class SearXNGService {
 
   /**
    * Generate AI summary of search results using privacy mode providers
-   * @param {Object} searchResults - Formatted search results
-   * @param {string} originalQuery - Original search query
-   * @param {Object} aiWorkerPool - AI worker pool instance
-   * @param {Object} summaryOptions - Summary options
-   * @param {Object} req - Express request object for privacy mode
-   * @returns {Promise<Object>} Search results with AI summary
    */
-  async generateAISummary(searchResults, originalQuery, aiWorkerPool, summaryOptions = {}, req = null) {
+  async generateAISummary(
+    searchResults: FormattedSearchResults,
+    originalQuery: string,
+    aiWorkerPool: AIWorkerPool,
+    summaryOptions: any = {},
+    req: any = null
+  ): Promise<FormattedSearchResultsWithSummary> {
     if (!searchResults.results || searchResults.results.length === 0) {
       return {
         ...searchResults,
@@ -235,7 +270,7 @@ class SearXNGService {
     }
 
     if (!aiWorkerPool) {
-      console.warn('[SearXNGService] No AI worker pool provided for summary generation');
+      if (isVerbose) console.warn('[SearXNG] No AI worker pool for summary');
       return {
         ...searchResults,
         summary: {
@@ -247,10 +282,8 @@ class SearXNGService {
     }
 
     try {
-      // Prepare content for summarization
       const contentForSummary = this.prepareContentForSummary(searchResults.results, originalQuery);
 
-      // Configure summary request
       const summaryRequest = {
         type: 'web_search_summary',
         messages: [{
@@ -265,14 +298,13 @@ ${contentForSummary}
 Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Informationen, um fundierte Erkenntnisse zu liefern, erkläre Zusammenhänge und gib praktische Hinweise wo sinnvoll.`
         }],
         options: {
-          max_tokens: 400,
-          temperature: 0.2
+          max_tokens: 1000,
+          temperature: 0.3
         }
       };
 
-      console.log(`[SearXNGService] Generating AI summary for query: "${originalQuery}"`);
+      if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
 
-      // Use the AI worker pool to process the request (pass req for privacy mode)
       const aiResponse = await aiWorkerPool.processRequest(summaryRequest, req);
 
       if (aiResponse.success && aiResponse.content) {
@@ -288,7 +320,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
           }
         };
       } else {
-        console.warn('[SearXNGService] AI summary generation failed:', aiResponse.error);
+        if (isVerbose) console.warn('[SearXNG] Summary generation failed:', aiResponse.error);
         return {
           ...searchResults,
           summary: {
@@ -299,8 +331,8 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
         };
       }
 
-    } catch (error) {
-      console.error('[SearXNGService] Error generating AI summary:', error);
+    } catch (error: any) {
+      console.error('[SearXNG] Error generating summary:', error.message || error);
       return {
         ...searchResults,
         summary: {
@@ -314,12 +346,9 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
 
   /**
    * Prepare search results content for AI summarization
-   * @param {Array} results - Search results
-   * @param {string} query - Original query
-   * @returns {string} Formatted content for summarization
    */
-  prepareContentForSummary(results, query) {
-    const relevantResults = results.slice(0, 8); // Limit to top 8 results for summary
+  private prepareContentForSummary(results: SearchResult[], query: string): string {
+    const relevantResults = results.slice(0, 8);
 
     return relevantResults.map((result, index) => {
       const content = result.content || result.snippet || '';
@@ -336,10 +365,8 @@ URL: ${result.url}
 
   /**
    * Calculate content statistics from search results
-   * @param {Array} results - Formatted search results
-   * @returns {Object} Content statistics
    */
-  calculateContentStats(results) {
+  private calculateContentStats(results: SearchResult[]): ContentStats {
     const withContent = results.filter(r => r.metadata.hasContent);
     const totalContentLength = results.reduce((sum, r) => sum + r.metadata.length, 0);
     const domains = [...new Set(results.map(r => r.domain))];
@@ -355,10 +382,8 @@ URL: ${result.url}
 
   /**
    * Extract domain from URL
-   * @param {string} url - Full URL
-   * @returns {string} Domain name
    */
-  extractDomainFromUrl(url) {
+  private extractDomainFromUrl(url: string): string {
     try {
       const urlObject = new URL(url);
       return urlObject.hostname.replace('www.', '');
@@ -369,11 +394,8 @@ URL: ${result.url}
 
   /**
    * Extract snippet from content
-   * @param {string} content - Full content
-   * @param {number} maxLength - Maximum snippet length
-   * @returns {string} Snippet
    */
-  extractSnippet(content, maxLength = 200) {
+  private extractSnippet(content: string, maxLength: number = 200): string {
     if (!content || content.length <= maxLength) {
       return content || '';
     }
@@ -390,11 +412,8 @@ URL: ${result.url}
 
   /**
    * Generate cache key for search query and options
-   * @param {string} query - Search query
-   * @param {Object} options - Search options
-   * @returns {string} Cache key
    */
-  generateCacheKey(query, options) {
+  private generateCacheKey(query: string, options: SearxngSearchOptions): string {
     const keyData = {
       query: query.toLowerCase().trim(),
       categories: options.categories || 'general',
@@ -409,38 +428,32 @@ URL: ${result.url}
 
   /**
    * Get cached search result
-   * @param {string} cacheKey - Cache key
-   * @param {Object} searchOptions - Search options to determine TTL
-   * @returns {Promise<Object|null>} Cached result or null
    */
-  async getCachedResult(cacheKey, searchOptions = {}) {
+  private async getCachedResult(cacheKey: string, searchOptions: SearxngSearchOptions): Promise<FormattedSearchResults | null> {
     try {
       if (this.redisClient) {
-        // Use Redis cache
         const cachedData = await this.redisClient.get(cacheKey);
         if (cachedData) {
-          console.log(`[SearXNGService] Redis cache hit for key: ${cacheKey.substring(0, 20)}...`);
+          if (isDebug) console.log(`[SearXNG] Redis cache hit: ${cacheKey.substring(0, 20)}...`);
           return JSON.parse(cachedData);
         }
       } else {
-        // Fallback to in-memory cache
         const cached = this.cache.get(cacheKey);
         const timeout = searchOptions.categories === 'news'
           ? this.newsCache * 1000
           : this.cacheTimeout * 1000;
 
         if (cached && Date.now() - cached.timestamp < timeout) {
-          console.log(`[SearXNGService] Memory cache hit for key: ${cacheKey.substring(0, 20)}...`);
+          if (isDebug) console.log(`[SearXNG] Memory cache hit: ${cacheKey.substring(0, 20)}...`);
           return cached.data;
         }
 
-        // Clean up expired cache entry
         if (cached) {
           this.cache.delete(cacheKey);
         }
       }
-    } catch (error) {
-      console.warn('[SearXNGService] Cache read error:', error.message);
+    } catch (error: any) {
+      if (isVerbose) console.warn('[SearXNG] Cache read error:', error.message);
     }
 
     return null;
@@ -448,69 +461,58 @@ URL: ${result.url}
 
   /**
    * Set cached search result
-   * @param {string} cacheKey - Cache key
-   * @param {Object} data - Data to cache
-   * @param {Object} searchOptions - Search options to determine TTL
-   * @returns {Promise<void>}
    */
-  async setCachedResult(cacheKey, data, searchOptions = {}) {
+  private async setCachedResult(cacheKey: string, data: FormattedSearchResults, searchOptions: SearxngSearchOptions): Promise<void> {
     try {
       if (this.redisClient) {
-        // Use Redis cache with appropriate TTL
         const ttl = searchOptions.categories === 'news' ? this.newsCache : this.cacheTimeout;
         await this.redisClient.setEx(cacheKey, ttl, JSON.stringify(data));
-        console.log(`[SearXNGService] Cached result in Redis with ${ttl}s TTL`);
+        if (isVerbose) console.log(`[SearXNG] Cached in Redis (${ttl}s)`);
       } else {
-        // Fallback to in-memory cache
-        // Simple cache size management - remove oldest entries if cache gets too large
         if (this.cache.size > 1000) {
           const firstKey = this.cache.keys().next().value;
-          this.cache.delete(firstKey);
+          if (firstKey) this.cache.delete(firstKey);
         }
 
         this.cache.set(cacheKey, {
           data,
           timestamp: Date.now()
         });
-        console.log(`[SearXNGService] Cached result in memory`);
+        if (isVerbose) console.log(`[SearXNG] Cached in memory`);
       }
-    } catch (error) {
-      console.warn('[SearXNGService] Cache write error:', error.message);
+    } catch (error: any) {
+      if (isVerbose) console.warn('[SearXNG] Cache write error:', error.message);
     }
   }
 
   /**
    * Clear cache
    */
-  async clearCache() {
+  async clearCache(): Promise<void> {
     try {
       if (this.redisClient) {
-        // Clear only search-related keys from Redis
         const keys = await this.redisClient.keys('searxng:*');
         if (keys.length > 0) {
           await this.redisClient.del(keys);
-          console.log(`[SearXNGService] Cleared ${keys.length} Redis cache entries`);
+          if (isVerbose) console.log(`[SearXNG] Cleared ${keys.length} Redis cache entries`);
         } else {
-          console.log('[SearXNGService] No Redis cache entries to clear');
+          if (isVerbose) console.log('[SearXNG] No Redis cache entries to clear');
         }
       } else {
-        // Clear in-memory cache
         this.cache.clear();
-        console.log('[SearXNGService] In-memory cache cleared');
+        if (isVerbose) console.log('[SearXNG] In-memory cache cleared');
       }
-    } catch (error) {
-      console.error('[SearXNGService] Error clearing cache:', error.message);
-      // Fallback to clearing in-memory cache
+    } catch (error: any) {
+      if (isVerbose) console.error('[SearXNG] Error clearing cache:', error.message);
       this.cache.clear();
     }
   }
 
   /**
    * Get service status and statistics
-   * @returns {Promise<Object>} Service status
    */
-  async getServiceStatus() {
-    let cacheInfo = {
+  async getServiceStatus(): Promise<ServiceStatus> {
+    let cacheInfo: ServiceStatus['cache'] = {
       type: 'memory',
       size: this.cache.size,
       connected: true
@@ -525,7 +527,7 @@ URL: ${result.url}
           size: keys.length,
           connected: true
         };
-      } catch (error) {
+      } catch (error: any) {
         cacheInfo = {
           type: 'redis',
           size: 0,
@@ -548,5 +550,5 @@ URL: ${result.url}
 }
 
 // Export singleton instance
-const searxngService = new SearXNGService();
+export const searxngService = new SearxngService();
 export default searxngService;

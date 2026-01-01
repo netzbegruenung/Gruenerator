@@ -4,8 +4,8 @@
  * Handles: validation, age filter, deduplication, chunking, embedding, storage
  */
 
-import { smartChunkDocument } from '../../../../../utils/textChunker.js';
-import { fastEmbedService } from '../../../FastEmbedService.js';
+import { smartChunkDocument } from '../../../../document-services/textChunker.js';
+import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { scrollDocuments, batchDelete, batchUpsert } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
@@ -52,7 +52,7 @@ export class DocumentProcessor {
 
     // STEP 3: Deduplication check
     const contentHash = this.generateHash(text);
-    const points = await scrollDocuments(
+    const existingPoints = await scrollDocuments(
       this.qdrantClient,
       this.collectionName,
       {
@@ -65,9 +65,9 @@ export class DocumentProcessor {
       }
     );
 
-    const existing = points.length > 0 ? {
-      content_hash: points[0].payload.content_hash as string,
-      indexed_at: points[0].payload.indexed_at as string,
+    const existing = existingPoints.length > 0 ? {
+      content_hash: existingPoints[0].payload.content_hash as string,
+      indexed_at: existingPoints[0].payload.indexed_at as string,
     } : null;
 
     if (existing && existing.content_hash === contentHash) {
@@ -103,7 +103,7 @@ export class DocumentProcessor {
 
     // STEP 7: Generate embeddings
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     // STEP 8: Build Qdrant points
     const points = chunks.map((chunk, index) => ({

@@ -7,8 +7,8 @@
 
 import { StateGraph, Annotation } from "@langchain/langgraph";
 import { DocumentSearchService } from '../../services/DocumentSearchService.js';
-import searxngService from '../../services/searxngWebSearchService.js';
-import MistralWebSearchService from '../../services/mistralWebSearchService.js';
+import { searxngService } from '../../services/search/index.js';
+import MistralWebSearchService from '../../services/mistral/index.js';
 import { urlCrawlerService } from '../../services/urlCrawlerService.js';
 
 // Initialize Mistral as fallback search service
@@ -22,7 +22,7 @@ import {
   validateAndInjectCitations,
   summarizeReferencesForPrompt,
   parseAIJsonResponse
-} from '../../services/SearchResultProcessor.js';
+} from '../../services/search/index.js';
 
 // State schema for the search graph
 const SearchState = Annotation.Root({

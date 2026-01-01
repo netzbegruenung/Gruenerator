@@ -31,7 +31,7 @@ class EmbeddingCache {
       // Use existing Redis client via dynamic ESM-compatible import
       let redisClient: RedisClient | null = null;
       try {
-        const mod = await import('../../utils/redisClient.js');
+        const mod = await import('../../../utils/redisClient.js');
         // Support both CJS (module.exports) and ESM default exports
         redisClient = (mod?.default ?? mod) as unknown as RedisClient | null;
       } catch (e) {

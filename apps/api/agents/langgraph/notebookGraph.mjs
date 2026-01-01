@@ -17,7 +17,7 @@ import {
   renumberCitationsInOrder,
   summarizeReferencesForPrompt,
   parseAIJsonResponse
-} from '../../services/SearchResultProcessor.js';
+} from '../../services/search/index.js';
 
 const documentSearchService = new DocumentSearchService();
 
