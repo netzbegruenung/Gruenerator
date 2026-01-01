@@ -1,6 +1,7 @@
 //routes.js
 const { createLogger } = require('./utils/logger.js');
 const log = createLogger('Routes');
+const { requireAuth } = require('./middleware/authMiddleware.js');
 
 const antraegeRouter = require('./routes/antraege/index');
 const recentValuesRouter = require('./routes/recentValues');
@@ -278,6 +279,10 @@ async function setupRoutes(app) {
 
   // Unified media sharing routes (images + videos)
   app.use('/api/share', shareRouter);
+
+  // Media library routes (unified gallery across all apps)
+  const { default: mediaRouter } = await import('./routes/media/mediaController.js');
+  app.use('/api/media', requireAuth, mediaRouter);
 
   // Import and enable Mistral-based voice routes
   const voiceRouter = require('./routes/voice/voiceController');
