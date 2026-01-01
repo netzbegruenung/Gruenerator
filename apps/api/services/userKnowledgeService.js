@@ -1,7 +1,7 @@
 import { getPostgresInstance } from '../database/services/PostgresService.js';
 import { getQdrantInstance } from '../database/services/QdrantService.js';
 import { fastEmbedService } from './FastEmbedService.js';
-import { smartChunkDocument } from '../utils/textChunker.js';
+import { smartChunkDocument } from './document-services/textChunker.js';
 import { generateContentHash, generatePointId } from '../utils/hashUtils.js';
 
 /**

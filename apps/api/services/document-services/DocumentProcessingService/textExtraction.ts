@@ -3,7 +3,7 @@
  * Handles OCR extraction and content preview generation
  */
 
-import { ocrService } from '../OcrService/index.js';
+import { ocrService } from '../../OcrService/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';

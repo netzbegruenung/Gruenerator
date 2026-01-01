@@ -5,7 +5,7 @@
 
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
-import { smartChunkDocument } from '../../../utils/textChunker.js';
+import { smartChunkDocument } from '../../document-services/textChunker.js';
 import { fastEmbedService } from '../../FastEmbedService.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 

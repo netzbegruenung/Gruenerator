@@ -3,8 +3,8 @@
  * Handles text chunking and embedding generation
  */
 
-import { fastEmbedService } from '../FastEmbedService.js';
-import { smartChunkDocument } from '../../utils/textChunker.js';
+import { fastEmbedService } from '../../FastEmbedService.js';
+import { smartChunkDocument } from '../textChunker.js';
 import type { ChunkingOptions, ChunkAndEmbedResult } from './types.js';
 
 /**

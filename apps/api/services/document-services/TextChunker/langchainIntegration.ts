@@ -3,8 +3,8 @@
  * Handles RecursiveCharacterTextSplitter with fallback strategies
  */
 
-import { vectorConfig } from '../../config/vectorConfig.js';
-import { cleanTextForEmbedding } from '../textCleaning.js';
+import { vectorConfig } from '../../../config/vectorConfig.js';
+import { cleanTextForEmbedding } from '../../../utils/textCleaning.js';
 import { estimateTokens } from './validation.js';
 import { GERMAN_SEPARATORS } from './germanLanguageRules.js';
 import type { Chunk, ChunkingOptions, LangChainChunkerOptions } from './types.js';

@@ -1,11 +1,13 @@
 import { getPostgresInstance } from '../database/services/PostgresService.js';
-import { DocumentSearchService } from './DocumentSearchService.js';
-import { getPostgresDocumentService } from './postgresDocumentService.js';
+import {
+  DocumentSearchService,
+  getPostgresDocumentService,
+  smartChunkDocument
+} from './document-services/index.js';
 import { NextcloudShareManager } from '../utils/nextcloudShareManager.js';
 import NextcloudApiClient from './nextcloudApiClient.js';
 import { ocrService } from './ocrService.js';
 import { fastEmbedService } from './FastEmbedService.js';
-import { smartChunkDocument } from '../utils/textChunker.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';

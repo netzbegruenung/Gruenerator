@@ -21,13 +21,13 @@ import type {
     QdrantSearchResult
 } from './types.js';
 
-import type { SearchResponse } from '../BaseSearchService/types.js';
-import type { QdrantOperations } from '../../database/services/QdrantOperations.js';
-import type { QdrantService } from '../../database/services/QdrantService.js';
+import type { SearchResponse } from '../../BaseSearchService/types.js';
+import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+import type { QdrantService } from '../../../database/services/QdrantService.js';
 
 // Import JavaScript dependencies
 // @ts-ignore - JavaScript module without types
-import { vectorConfig } from '../../config/vectorConfig.js';
+import { vectorConfig } from '../../../config/vectorConfig.js';
 
 /**
  * Perform full-text (keyword-only) search over document chunks

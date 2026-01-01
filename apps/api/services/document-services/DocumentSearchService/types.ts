@@ -17,7 +17,7 @@ import type {
     HybridMetadata,
     HybridOptions,
     DocumentResult
-} from '../BaseSearchService/types.js';
+} from '../../BaseSearchService/types.js';
 
 // ============ Qdrant Filter Types ============
 

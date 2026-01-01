@@ -1,6 +1,6 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import { DocumentSearchService } from '../services/DocumentSearchService.js';
+import { DocumentSearchService } from '../services/document-services/DocumentSearchService.js';
 import passport from '../config/passportSetup.mjs';
 import { createLogger } from '../utils/logger.js';
 import {

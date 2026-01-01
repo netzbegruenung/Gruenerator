@@ -10,7 +10,7 @@ import path from 'path';
 import os from 'os';
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperResult, OparlPaper, OparlFile, OparlEndpoint } from '../types.js';
-import { smartChunkDocument } from '../../../utils/textChunker.js';
+import { smartChunkDocument } from '../../document-services/textChunker.js';
 import { fastEmbedService } from '../../FastEmbedService.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import oparlApiClient from '../../oparlApiClient.js';

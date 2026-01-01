@@ -3,7 +3,7 @@
  * Integrates with embeddingCache for Redis-backed query caching
  */
 
-import { embeddingCache } from '../embeddingCache.js';
+import { embeddingCache } from './embeddingCache.js';
 import { validateText } from './validation.js';
 import type MistralEmbeddingClient from '../MistralEmbeddingClient.js';
 

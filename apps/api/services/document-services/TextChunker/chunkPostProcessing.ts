@@ -3,9 +3,9 @@
  * Handles sentence repacking, metadata enrichment, and overlap creation
  */
 
-import { vectorConfig } from '../../config/vectorConfig.js';
-import { detectContentType, detectMarkdownStructure, extractPageNumber } from '../contentTypeDetector.js';
-import { chunkQualityService } from '../../services/ChunkQualityService/index.js';
+import { vectorConfig } from '../../../config/vectorConfig.js';
+import { detectContentType, detectMarkdownStructure, extractPageNumber } from '../../../utils/contentTypeDetector.js';
+import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
   sentenceSegments,
   findPageMarkers,

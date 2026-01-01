@@ -12,7 +12,7 @@ import {
 import { getEnrichedPersonSearch } from '../services/EnrichedPersonSearch.js';
 
 // All available collection keys for validation
-const COLLECTION_KEYS = ['oesterreich', 'deutschland', 'bundestagsfraktion', 'gruene-de', 'gruene-at', 'kommunalwiki', 'boell-stiftung'];
+const COLLECTION_KEYS = ['oesterreich', 'deutschland', 'bundestagsfraktion', 'gruene-de', 'gruene-at', 'kommunalwiki', 'boell-stiftung', 'examples'];
 
 export const searchTool = {
   name: 'gruenerator_search',
@@ -35,6 +35,7 @@ export const searchTool = {
 | gruene-at | Grüne Österreich | Inhalte von gruene.at |
 | kommunalwiki | KommunalWiki | Kommunalpolitik-Fachwissen (Böll-Stiftung) |
 | boell-stiftung | Heinrich-Böll-Stiftung | Analysen, Dossiers, Atlanten |
+| examples | Social Media Beispiele | Instagram/Facebook Posts als Inspiration |
 
 ## Filter
 
@@ -46,6 +47,7 @@ WICHTIG: Rufe ZUERST gruenerator_get_filters auf, um gültige Filterwerte zu erf
 | kommunalwiki, boell-stiftung | content_type (Inhaltstyp), subcategories (Unterkategorien) |
 | boell-stiftung | region (z.B. europa, asien, nahost) |
 | bundestagsfraktion, gruene-de, gruene-at | country (DE oder AT) |
+| examples | platform (instagram, facebook), country (DE oder AT) |
 
 ## Beispiele
 
@@ -65,7 +67,8 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
       content_type: z.string().optional().describe('Inhaltstyp (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'),
       subcategories: z.string().optional().describe('Unterkategorie (für kommunalwiki, boell-stiftung) - erst gruenerator_get_filters aufrufen!'),
       region: z.string().optional().describe('Region (nur boell-stiftung: europa, asien, nahost, etc.) - erst gruenerator_get_filters aufrufen!'),
-      country: z.string().optional().describe('Land (DE oder AT für bundestagsfraktion, gruene-de, gruene-at) - erst gruenerator_get_filters aufrufen!')
+      country: z.string().optional().describe('Land (DE oder AT für bundestagsfraktion, gruene-de, gruene-at, examples) - erst gruenerator_get_filters aufrufen!'),
+      platform: z.string().optional().describe('Plattform (instagram oder facebook, nur für examples) - erst gruenerator_get_filters aufrufen!')
     }).optional().describe('Filter - IMMER erst gruenerator_get_filters aufrufen um gültige Werte zu erhalten'),
     useCache: z.boolean().default(true).describe('Cache für schnellere Ergebnisse')
   },
@@ -235,7 +238,7 @@ function buildQdrantFilter(filters) {
   if (!filters) return null;
 
   const must = [];
-  const filterKeys = ['primary_category', 'content_type', 'subcategories', 'region', 'country'];
+  const filterKeys = ['primary_category', 'content_type', 'subcategories', 'region', 'country', 'platform'];
 
   for (const key of filterKeys) {
     const value = filters[key];

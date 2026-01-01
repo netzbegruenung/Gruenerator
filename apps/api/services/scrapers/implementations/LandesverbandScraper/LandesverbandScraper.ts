@@ -7,16 +7,19 @@
 import { BaseScraper } from '../../base/BaseScraper.js';
 import type { ScraperResult } from '../../types.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
+import { scrollDocuments, batchDelete } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { fastEmbedService } from '../../../FastEmbedService.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
 import { getSourceById, getSourcesByType, getSourcesByLandesverband, LANDESVERBAENDE_CONFIG } from '../../../../config/landesverbaendeConfig.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
-import { PdfProcessor } from './processors/PdfProcessor.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
-import { QdrantOperations } from './operations/QdrantOperations.js';
 import { SearchOperations } from './operations/SearchOperations.js';
+import { ocrService } from '../../../OcrService/index.js';
+import { promises as fs } from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import type {
   SourceResult,
   LandesverbandScrapeOptions,
@@ -30,9 +33,8 @@ import type {
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
 export class LandesverbandScraper extends BaseScraper {
-  private qdrantOps!: QdrantOperations;
+  private qdrantClient: any;
   private searchOps!: SearchOperations;
-  private pdfProcessor!: PdfProcessor;
   private documentProcessor!: DocumentProcessor;
   private linkExtractor!: LinkExtractor;
 
@@ -64,18 +66,17 @@ export class LandesverbandScraper extends BaseScraper {
     await qdrant.init();
     await fastEmbedService.init();
 
-    const mistralMod = await import('../../../../workers/mistralClient.js');
-    const mistralClient = (mistralMod as any).default || mistralMod;
+    // Store Qdrant client
+    this.qdrantClient = qdrant.client;
 
     // Compose operations
-    this.qdrantOps = new QdrantOperations(qdrant, this.config.collectionName);
     this.searchOps = new SearchOperations(qdrant, this.config.collectionName);
-    this.pdfProcessor = new PdfProcessor(mistralClient);
     this.documentProcessor = new DocumentProcessor(
-      this.qdrantOps,
+      this.qdrantClient,
+      this.config.collectionName,
       this.generateHash.bind(this),
       this.#generatePointId.bind(this),
-      { collectionName: this.config.collectionName, batchSize: this.batchSize }
+      { batchSize: this.batchSize }
     );
     this.linkExtractor = new LinkExtractor(
       this.#fetchUrl.bind(this),
@@ -157,8 +158,13 @@ export class LandesverbandScraper extends BaseScraper {
         const pdf = toProcess[i];
         try {
           if (!forceUpdate) {
-            const existing = await this.qdrantOps.documentExists(pdf.url);
-            if (existing) {
+            const points = await scrollDocuments(
+              this.qdrantClient,
+              this.config.collectionName,
+              { must: [{ key: 'source_url', match: { value: pdf.url } }] },
+              { limit: 1, withPayload: false, withVector: false }
+            );
+            if (points.length > 0) {
               result.skipped++;
               continue;
             }
@@ -169,7 +175,27 @@ export class LandesverbandScraper extends BaseScraper {
           const pdfBuffer = Buffer.from(arrayBuffer);
 
           const filename = pdf.url.split('/').pop() || 'document.pdf';
-          const { text } = await this.pdfProcessor.extractTextWithMistral(pdfBuffer, filename, this.log.bind(this));
+
+          // Write PDF to temp file for OcrService
+          const tempPath = path.join(os.tmpdir(), `landesverband_${Date.now()}_${filename}`);
+          let text = '';
+
+          try {
+            await fs.writeFile(tempPath, pdfBuffer);
+            this.log(`Processing PDF with OcrService: ${filename}`);
+
+            const result = await ocrService.extractTextWithMistralOCR(tempPath);
+            text = result.text || '';
+
+            this.log(`OcrService extracted ${text.length} chars from ${filename}`);
+          } finally {
+            // Clean up temp file
+            try {
+              await fs.unlink(tempPath);
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+          }
 
           const storeResult = await this.documentProcessor.processAndStoreDocument(source, contentPath.type, pdf.url, {
             title: pdf.title,
@@ -206,8 +232,13 @@ export class LandesverbandScraper extends BaseScraper {
         const url = toProcess[i];
         try {
           if (!forceUpdate) {
-            const existing = await this.qdrantOps.documentExists(url);
-            if (existing) {
+            const points = await scrollDocuments(
+              this.qdrantClient,
+              this.config.collectionName,
+              { must: [{ key: 'source_url', match: { value: url } }] },
+              { limit: 1, withPayload: false, withVector: false }
+            );
+            if (points.length > 0) {
               result.skipped++;
               continue;
             }
@@ -405,36 +436,12 @@ export class LandesverbandScraper extends BaseScraper {
   /**
    * Fetch URL with retry logic and timeout
    */
-  async #fetchUrl(url: string, retries: number = 0): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': this.userAgent,
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (retries < this.maxRetries) {
-        await this.delay(1000 * (retries + 1));
-        return this.#fetchUrl(url, retries + 1);
-      }
-      throw error;
-    }
+  async #fetchUrl(url: string): Promise<Response> {
+    return this.fetchWithRetry(url, {
+      timeout: this.timeout,
+      maxRetries: this.maxRetries,
+      userAgent: this.userAgent,
+    });
   }
 
   /**

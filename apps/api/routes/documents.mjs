@@ -1,12 +1,14 @@
 import express from 'express';
 import multer from 'multer';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import { DocumentSearchService } from '../services/DocumentSearchService.js';
-import { getPostgresDocumentService } from '../services/postgresDocumentService.js';
+import {
+  DocumentSearchService,
+  getPostgresDocumentService,
+  getDocumentProcessingService,
+  getDocumentContentService
+} from '../services/document-services/index.js';
 import { getWolkeSyncService } from '../services/wolkeSyncService.js';
 import path from 'path';
-import { getDocumentProcessingService } from '../services/documentProcessingService.js';
-import { getDocumentContentService } from '../services/documentContentService.js';
 import passport from '../config/passportSetup.mjs';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('documents');

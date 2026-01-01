@@ -12,17 +12,17 @@
  * - User statistics and management
  */
 
-import { BaseSearchService } from '../BaseSearchService/index.js';
-import { getQdrantInstance } from '../../database/services/QdrantService.js';
-import { QdrantOperations } from '../../database/services/QdrantOperations.js';
+import { BaseSearchService } from '../../BaseSearchService/index.js';
+import { getQdrantInstance } from '../../../database/services/QdrantService.js';
+import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 // @ts-ignore - JavaScript module without types
-import { InputValidator } from '../../utils/inputValidation.js';
+import { InputValidator } from '../../../utils/inputValidation.js';
 // @ts-ignore - JavaScript module without types
-import { vectorConfig } from '../../config/vectorConfig.js';
+import { vectorConfig } from '../../../config/vectorConfig.js';
 // @ts-ignore - JavaScript module without types
-import { isSystemQdrantCollection } from '../../config/systemCollectionsConfig.js';
+import { isSystemQdrantCollection } from '../../../config/systemCollectionsConfig.js';
 // @ts-ignore - JavaScript module without types
-import { fastEmbedService } from '../FastEmbedService.js';
+import { fastEmbedService } from '../../FastEmbedService.js';
 
 import type {
     DocumentSearchParams,
@@ -53,9 +53,9 @@ import type {
     SearchParams,
     SearchResponse,
     HybridMetadata
-} from '../BaseSearchService/types.js';
+} from '../../BaseSearchService/types.js';
 
-import type { QdrantService } from '../../database/services/QdrantService.js';
+import type { QdrantService } from '../../../database/services/QdrantService.js';
 
 import * as vectorOps from './vectorOperations.js';
 import * as docRetrieval from './documentRetrieval.js';

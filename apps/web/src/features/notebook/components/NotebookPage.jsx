@@ -8,26 +8,34 @@ import NotebookChatMessage from './NotebookChatMessage';
 import FilterDropdownButton from './FilterDropdownButton';
 import ActiveFiltersDisplay from './ActiveFiltersDisplay';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 
 const NotebookPageContent = ({ config }) => {
     const isMulti = config.collectionType === 'multi';
+    const locale = useAuthStore((state) => state.locale);
+
+    // Filter collections by user locale (de-DE or de-AT)
+    const localeCollections = useMemo(() => {
+        if (!isMulti) return config.collections;
+        return config.collections.filter(c => !c.locale || c.locale === locale);
+    }, [isMulti, config.collections, locale]);
 
     const [selectedIds, setSelectedIds] = useState(() =>
-        isMulti ? config.collections.map(c => c.id) : []
+        isMulti ? localeCollections.map(c => c.id) : []
     );
 
     const selectedCollections = useMemo(() => {
         if (isMulti) {
-            return config.collections.filter(c => selectedIds.includes(c.id));
+            return localeCollections.filter(c => selectedIds.includes(c.id));
         }
-        return config.collections;
-    }, [isMulti, config.collections, selectedIds]);
+        return localeCollections;
+    }, [isMulti, localeCollections, selectedIds]);
 
     const sources = useMemo(() => {
         if (isMulti) {
-            return config.collections.map(c => ({
+            return localeCollections.map(c => ({
                 id: c.id,
                 name: c.name,
                 count: c.documentCount,
@@ -35,7 +43,7 @@ const NotebookPageContent = ({ config }) => {
             }));
         }
         return config.sources;
-    }, [isMulti, config.collections, config.sources, selectedIds]);
+    }, [isMulti, localeCollections, config.sources, selectedIds]);
 
     const handleSourceToggle = useCallback((sourceId) => {
         setSelectedIds(prev => {
@@ -77,7 +85,7 @@ const NotebookPageContent = ({ config }) => {
             <div className="qa-collection-info-documents">
                 <h4>{isMulti ? 'Verfügbare Quellen:' : 'Verfügbare Dokumente:'}</h4>
                 {isMulti ? (
-                    config.collections.map((collection) => {
+                    localeCollections.map((collection) => {
                         const CollectionIcon = collection.icon || HiDocumentText;
                         return (
                             <div key={collection.id} className="qa-multi-collection-item">

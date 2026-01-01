@@ -1,19 +1,19 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import FluxImageService from '../../services/fluxImageService.mjs';
+import { FluxImageService } from '../../services/flux/index.js';
 import ImageGenerationCounter from '../../utils/imageGenerationCounter.js';
 import redisClient from '../../utils/redisClient.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
-import { ASPECT_RATIOS } from '../../services/fluxPromptBuilder.js';
+import { ASPECT_RATIOS } from '../../services/flux/index.js';
 
 const log = createLogger('imaginePure');
 const router = express.Router();
 const imageCounter = new ImageGenerationCounter(redisClient);
 
-import { buildFluxPrompt } from '../../services/fluxPromptBuilder.js';
+import { buildFluxPrompt } from '../../services/flux/index.js';
 
 function buildPurePrompt(userPrompt, variant = 'illustration-pure') {
   return buildFluxPrompt({

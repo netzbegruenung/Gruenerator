@@ -4,7 +4,7 @@
  * This service manages document metadata only, not file storage
  */
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import type {
   DocumentMetadata,
   DocumentRecord,

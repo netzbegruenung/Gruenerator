@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
-import FluxImageService from '../../services/fluxImageService.mjs';
+import { FluxImageService } from '../../services/flux/index.js';
 import ImageGenerationCounter from '../../utils/imageGenerationCounter.js';
 import redisClient from '../../utils/redisClient.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';

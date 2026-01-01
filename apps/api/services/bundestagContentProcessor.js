@@ -1,5 +1,5 @@
 import { fastEmbedService } from './FastEmbedService.js';
-import { smartChunkDocument, hierarchicalChunkDocument, estimateTokens } from '../utils/textChunker.js';
+import { smartChunkDocument, hierarchicalChunkDocument, estimateTokens } from './document-services/textChunker.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('BundestagProcessor');

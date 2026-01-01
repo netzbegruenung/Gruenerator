@@ -6,8 +6,6 @@ import { generateDefaultSharepics } from '../../../services/defaultSharepicServi
 const router = express.Router();
 const log = createLogger('sharepic_claude');
 
-// import aiShortenerService from '../../../services/aiShortenerService.js';
-
 // Helper function to detect if an error is related to throttling/temporary issues
 const isThrottlingError = (error) => {
   if (!error || typeof error !== 'string') return false;
@@ -390,22 +388,6 @@ const handleDreizeilenRequest = async (req, res) => {
           }
         });
       }
-
-      // AI shortener disabled - using fallback truncation only
-      // try {
-      //   const shortenedSlogan = await aiShortenerService.shortenSharepicText('dreizeilen', mainSlogan, req);
-
-      //   if (isSloganValid(shortenedSlogan)) {
-      //     return res.json({
-      //       success: true,
-      //       mainSlogan: shortenedSlogan,
-      //       alternatives: [],
-      //       searchTerms: searchTerms
-      //     });
-      //   }
-      // } catch (shortenerError) {
-      //   log.error(`[sharepic_dreizeilen] AI shortener error:`, shortenerError);
-      // }
 
       // Create a preview of the last generated content for debugging
       const finalContent = result?.content || 'No content available';

@@ -169,4 +169,60 @@ export abstract class BaseScraper {
     const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
     return this.delay(delay);
   }
+
+  /**
+   * Fetch URL with retry logic and timeout
+   * Consolidated implementation shared by all scrapers
+   */
+  protected async fetchWithRetry(
+    url: string,
+    options: {
+      timeout?: number;
+      maxRetries?: number;
+      userAgent?: string;
+      headers?: Record<string, string>;
+    } = {}
+  ): Promise<Response> {
+    const {
+      timeout = 30000,
+      maxRetries = 3,
+      userAgent = 'Gruenerator-Bot/1.0',
+      headers = {},
+    } = options;
+
+    const fetchAttempt = async (retries: number): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'User-Agent': userAgent,
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9',
+            ...headers,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (retries < maxRetries) {
+          await this.delay(1000 * (retries + 1));
+          return fetchAttempt(retries + 1);
+        }
+        throw error;
+      }
+    };
+
+    return fetchAttempt(0);
+  }
 }
