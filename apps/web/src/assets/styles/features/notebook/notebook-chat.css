@@ -1,1 +1,14 @@
 @import '../../components/chat/chat-workbench.css';
+
+.notebook-beta-warning {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-small);
+    padding: var(--spacing-small) var(--spacing-medium);
+    background-color: var(--background-color-alt);
+    border-bottom: var(--border-subtle);
+    font-size: 0.875rem;
+    color: var(--font-color);
+    text-align: center;
+}
