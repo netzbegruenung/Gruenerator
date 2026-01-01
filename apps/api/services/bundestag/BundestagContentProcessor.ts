@@ -1,15 +1,96 @@
-import { fastEmbedService } from './FastEmbedService.js';
-import { smartChunkDocument, hierarchicalChunkDocument, estimateTokens } from './document-services/textChunker.js';
-import { createLogger } from '../utils/logger.js';
+import { mistralEmbeddingService } from '../mistral/index.js';
+import { smartChunkDocument, hierarchicalChunkDocument, estimateTokens } from '../document-services/textChunker.js';
+import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('BundestagProcessor');
+
+/**
+ * Crawled page data structure
+ */
+interface PageData {
+    url: string;
+    text: string;
+    title?: string;
+    section?: string;
+    content_hash?: string;
+    published_at?: string;
+}
+
+/**
+ * Base metadata for chunks
+ */
+interface ChunkMetadata {
+    url?: string;
+    title?: string;
+    section?: string;
+    chunk_index?: number;
+    total_chunks?: number;
+    [key: string]: any;
+}
+
+/**
+ * Text chunk with metadata
+ */
+interface TextChunk {
+    text: string;
+    chunk_index: number;
+    token_count: number;
+    metadata: ChunkMetadata;
+    embedding?: number[] | null;
+    embeddingError?: string;
+}
+
+/**
+ * Processed page result
+ */
+interface ProcessedPage {
+    url: string;
+    title?: string;
+    section?: string;
+    content_hash?: string;
+    published_at?: string;
+    chunks: TextChunk[];
+}
+
+/**
+ * Processing results
+ */
+interface ProcessingResults {
+    processed: number;
+    totalChunks: number;
+    errors: Array<{ url: string; error: string }>;
+    pages: ProcessedPage[];
+}
+
+/**
+ * Progress callback data
+ */
+interface ProgressData {
+    current: number;
+    total: number;
+    url: string;
+    chunks: number;
+}
+
+/**
+ * Processor options
+ */
+interface ProcessorOptions {
+    chunkSize?: number;
+    chunkOverlap?: number;
+    batchSize?: number;
+}
 
 /**
  * Bundestag Content Processor
  * Processes crawled web content for Qdrant indexing
  */
 class BundestagContentProcessor {
-    constructor(options = {}) {
+    private chunkSize: number;
+    private chunkOverlap: number;
+    private batchSize: number;
+
+    constructor(options: ProcessorOptions = {}) {
         this.chunkSize = options.chunkSize || 400; // tokens
         this.chunkOverlap = options.chunkOverlap || 50; // tokens
         this.batchSize = options.batchSize || 10; // embedding batch size
@@ -17,10 +98,10 @@ class BundestagContentProcessor {
 
     /**
      * Process a single crawled page and prepare chunks with embeddings
-     * @param {Object} pageData - Crawled page data
-     * @returns {Promise<Array>} Array of chunks with embeddings
+     * @param pageData - Crawled page data
+     * @returns Array of chunks with embeddings
      */
-    async processPage(pageData) {
+    async processPage(pageData: PageData): Promise<TextChunk[]> {
         const { url, text, title, section, content_hash } = pageData;
 
         if (!text || text.trim().length < 50) {
@@ -54,19 +135,23 @@ class BundestagContentProcessor {
             return chunksWithEmbeddings;
 
         } catch (error) {
-            log.error(`Failed to process page ${url}: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            log.error(`Failed to process page ${url}: ${errorMessage}`);
             throw error;
         }
     }
 
     /**
      * Process multiple pages
-     * @param {Array} pages - Array of crawled page data
-     * @param {Function} progressCallback - Optional progress callback
-     * @returns {Promise<Object>} Processing results
+     * @param pages - Array of crawled page data
+     * @param progressCallback - Optional progress callback
+     * @returns Processing results
      */
-    async processPages(pages, progressCallback = null) {
-        const results = {
+    async processPages(
+        pages: PageData[],
+        progressCallback: ((data: ProgressData) => void) | null = null
+    ): Promise<ProcessingResults> {
+        const results: ProcessingResults = {
             processed: 0,
             totalChunks: 0,
             errors: [],
@@ -101,11 +186,12 @@ class BundestagContentProcessor {
                 }
 
             } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 results.errors.push({
                     url: page.url,
-                    error: error.message
+                    error: errorMessage
                 });
-                log.error(`Error processing ${page.url}: ${error.message}`);
+                log.error(`Error processing ${page.url}: ${errorMessage}`);
             }
         }
 
@@ -114,10 +200,10 @@ class BundestagContentProcessor {
 
     /**
      * Clean text for processing
-     * @param {string} text - Raw text
-     * @returns {string} Cleaned text
+     * @param text - Raw text
+     * @returns Cleaned text
      */
-    cleanText(text) {
+    private cleanText(text: string): string {
         if (!text) return '';
 
         return text
@@ -127,13 +213,13 @@ class BundestagContentProcessor {
             .replace(/\n\s*\n/g, '\n\n')
             // Remove common boilerplate patterns
             .replace(/Cookie[s]?\s*(Policy|Einstellungen|Hinweis)/gi, '')
-            .replace(/Datenschutzerkl\u00E4rung/gi, '')  // Only remove "Datenschutzerklärung", not "Datenschutz" alone
+            .replace(/Datenschutzerklärung/gi, '')
             .replace(/Newsletter\s*abonnieren/gi, '')
             .replace(/Folgen?\s*Sie\s*uns/gi, '')
             .replace(/Teilen\s*(auf\s*)?(Facebook|Twitter|LinkedIn)/gi, '')
             // Remove footer/contact boilerplate
             .replace(/Nimm Kontakt mit uns auf/gi, '')
-            .replace(/B[üu]rger\*?innentelefon/gi, '')
+            .replace(/Bürger\*?innentelefon/gi, '')
             .replace(/Platz der Republik 1\s*11011 Berlin/gi, '')
             // Remove breadcrumb navigation text
             .replace(/Startseite\s*›[^.]+/gi, '')
@@ -147,11 +233,11 @@ class BundestagContentProcessor {
 
     /**
      * Chunk text into smaller pieces
-     * @param {string} text - Text to chunk
-     * @param {Object} metadata - Base metadata for chunks
-     * @returns {Promise<Array>} Array of chunk objects
+     * @param text - Text to chunk
+     * @param metadata - Base metadata for chunks
+     * @returns Array of chunk objects
      */
-    async chunkText(text, metadata = {}) {
+    private async chunkText(text: string, metadata: ChunkMetadata = {}): Promise<TextChunk[]> {
         try {
             // Use smartChunkDocument for intelligent chunking
             const chunks = await smartChunkDocument(text, {
@@ -161,7 +247,7 @@ class BundestagContentProcessor {
             });
 
             if (Array.isArray(chunks) && chunks.length > 0) {
-                return chunks.map((chunk, index) => ({
+                return chunks.map((chunk: any, index: number): TextChunk => ({
                     text: chunk.text || chunk,
                     chunk_index: index,
                     token_count: chunk.tokens || estimateTokens(chunk.text || chunk),
@@ -174,7 +260,8 @@ class BundestagContentProcessor {
                 }));
             }
         } catch (error) {
-            log.warn(`Smart chunking failed, using fallback: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            log.warn(`Smart chunking failed, using fallback: ${errorMessage}`);
         }
 
         // Fallback: use hierarchical chunking
@@ -185,7 +272,7 @@ class BundestagContentProcessor {
             });
 
             if (Array.isArray(chunks) && chunks.length > 0) {
-                return chunks.map((chunk, index) => ({
+                return chunks.map((chunk: any, index: number): TextChunk => ({
                     text: chunk.text || chunk,
                     chunk_index: index,
                     token_count: chunk.tokens || estimateTokens(chunk.text || chunk),
@@ -197,7 +284,8 @@ class BundestagContentProcessor {
                 }));
             }
         } catch (error) {
-            log.warn(`Hierarchical chunking failed, using simple split: ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            log.warn(`Hierarchical chunking failed, using simple split: ${errorMessage}`);
         }
 
         // Final fallback: simple splitting
@@ -206,12 +294,12 @@ class BundestagContentProcessor {
 
     /**
      * Simple text splitting fallback
-     * @param {string} text - Text to split
-     * @param {Object} metadata - Base metadata
-     * @returns {Array} Array of chunk objects
+     * @param text - Text to split
+     * @param metadata - Base metadata
+     * @returns Array of chunk objects
      */
-    simpleSplit(text, metadata = {}) {
-        const chunks = [];
+    private simpleSplit(text: string, metadata: ChunkMetadata = {}): TextChunk[] {
+        const chunks: TextChunk[] = [];
         const sentences = text.split(/(?<=[.!?])\s+/);
         let currentChunk = '';
         let chunkIndex = 0;
@@ -255,10 +343,10 @@ class BundestagContentProcessor {
 
     /**
      * Get overlap text from end of chunk
-     * @param {string} text - Text to get overlap from
-     * @returns {string} Overlap text
+     * @param text - Text to get overlap from
+     * @returns Overlap text
      */
-    getOverlapText(text) {
+    private getOverlapText(text: string): string {
         const words = text.split(/\s+/);
         const overlapWords = Math.min(
             words.length,
@@ -268,23 +356,12 @@ class BundestagContentProcessor {
     }
 
     /**
-     * Estimate token count
-     * @param {string} text - Text to estimate
-     * @returns {number} Estimated token count
-     */
-    estimateTokensLocal(text) {
-        if (!text) return 0;
-        // Use imported estimateTokens or fallback
-        return estimateTokens(text);
-    }
-
-    /**
      * Generate embeddings for chunks in batches
-     * @param {Array} chunks - Array of chunk objects
-     * @returns {Promise<Array>} Chunks with embeddings
+     * @param chunks - Array of chunk objects
+     * @returns Chunks with embeddings
      */
-    async generateEmbeddings(chunks) {
-        const results = [];
+    private async generateEmbeddings(chunks: TextChunk[]): Promise<TextChunk[]> {
+        const results: TextChunk[] = [];
 
         // Process in batches
         for (let i = 0; i < chunks.length; i += this.batchSize) {
@@ -292,7 +369,7 @@ class BundestagContentProcessor {
             const texts = batch.map(chunk => chunk.text);
 
             try {
-                const embeddings = await fastEmbedService.generateBatchEmbeddings(texts);
+                const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts);
 
                 for (let j = 0; j < batch.length; j++) {
                     results.push({
@@ -302,14 +379,15 @@ class BundestagContentProcessor {
                 }
 
             } catch (error) {
-                log.error(`Embedding generation failed for batch ${i / this.batchSize}: ${error.message}`);
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                log.error(`Embedding generation failed for batch ${i / this.batchSize}: ${errorMessage}`);
 
                 // Skip failed batch but continue
                 for (const chunk of batch) {
                     results.push({
                         ...chunk,
                         embedding: null,
-                        embeddingError: error.message
+                        embeddingError: errorMessage
                     });
                 }
             }
@@ -326,5 +404,15 @@ class BundestagContentProcessor {
     }
 }
 
-export { BundestagContentProcessor };
+export {
+    BundestagContentProcessor,
+    type PageData,
+    type ChunkMetadata,
+    type TextChunk,
+    type ProcessedPage,
+    type ProcessingResults,
+    type ProgressData,
+    type ProcessorOptions
+};
+
 export default BundestagContentProcessor;

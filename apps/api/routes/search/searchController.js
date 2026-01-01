@@ -1,4 +1,4 @@
-import MistralWebSearchService from '../../services/mistralWebSearchService.js';
+import MistralWebSearchService from '../../services/mistral/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('search');
 

@@ -6,7 +6,7 @@
  */
 
 import { getQdrantInstance, QdrantService } from '../database/services/QdrantService/index.js';
-import { fastEmbedService } from './FastEmbedService.js';
+import { mistralEmbeddingService } from './mistral/index.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('ContentExamplesService');
@@ -255,8 +255,8 @@ class ContentExamplesService {
             const countryInfo = options.country ? ` (country: ${options.country})` : '';
             log.debug(`Searching for "${query}" in ${contentType}${countryInfo}`);
 
-            await fastEmbedService.init();
-            if (!fastEmbedService.isReady()) {
+            await mistralEmbeddingService.init();
+            if (!mistralEmbeddingService.isReady()) {
                 log.warn('FastEmbed service not ready - vector search disabled');
                 return [];
             }
@@ -276,7 +276,7 @@ class ContentExamplesService {
 
             let queryEmbedding: number[];
             try {
-                queryEmbedding = await fastEmbedService.generateEmbedding(query);
+                queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
             } catch (embeddingError) {
                 const message = embeddingError instanceof Error ? embeddingError.message : String(embeddingError);
                 log.error(`Failed to generate embedding: ${message}`);
@@ -428,8 +428,8 @@ class ContentExamplesService {
      */
     async storeExample(exampleData: ExampleData): Promise<StoreResult> {
         try {
-            await fastEmbedService.init();
-            if (!fastEmbedService.isReady() || !(await this.qdrant.isAvailable())) {
+            await mistralEmbeddingService.init();
+            if (!mistralEmbeddingService.isReady() || !(await this.qdrant.isAvailable())) {
                 log.warn('Services not ready for storing');
                 return { success: false, error: 'Vector services not available' };
             }
@@ -446,7 +446,7 @@ class ContentExamplesService {
             }
 
             const embeddingText = `${exampleData.title}\n\n${contentText}`.trim();
-            const embedding = await fastEmbedService.generateEmbedding(embeddingText);
+            const embedding = await mistralEmbeddingService.generateEmbedding(embeddingText);
 
             const metadata = {
                 type: exampleData.type,
@@ -553,13 +553,13 @@ class ContentExamplesService {
             const countryInfo = resolvedCountry ? `, country: ${resolvedCountry}` : '';
             log.debug(`Social media search: "${query}" (platform: ${platform || 'all'}${countryInfo})`);
 
-            await fastEmbedService.init();
-            if (!fastEmbedService.isReady() || !(await this.qdrant.isAvailable())) {
+            await mistralEmbeddingService.init();
+            if (!mistralEmbeddingService.isReady() || !(await this.qdrant.isAvailable())) {
                 log.warn('Services not ready for social media search');
                 return [];
             }
 
-            const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+            const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
             const searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
                 platform: platform || undefined,

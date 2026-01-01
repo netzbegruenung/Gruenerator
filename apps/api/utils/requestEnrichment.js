@@ -18,7 +18,12 @@ const { urlCrawlerService } = (() => {
 })();
 
 const searxngWebSearchService = (() => {
-  try { return require('../services/searxngWebSearchService'); } catch (_) { return null; }
+  try {
+    const mod = require('../services/search/index.js');
+    return mod.searxngService;
+  } catch (_) {
+    return null;
+  }
 })();
 
 /**

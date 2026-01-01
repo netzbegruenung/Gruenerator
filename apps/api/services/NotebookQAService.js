@@ -25,7 +25,7 @@ import {
     renumberCitationsInOrder,
     filterAndSortResults,
     groupSourcesByCollection
-} from './SearchResultProcessor.js';
+} from './search/index.js';
 import {
     SYSTEM_COLLECTIONS,
     isSystemCollectionId,

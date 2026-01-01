@@ -7,13 +7,15 @@
 import * as cheerio from 'cheerio';
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperResult } from '../types.js';
-import { smartChunkDocument } from '../../../utils/textChunker.js';
-import { fastEmbedService } from '../../FastEmbedService.js';
+import { smartChunkDocument } from '../../document-services/textChunker.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/hashUtils.js';
 import { ocrService } from '../../OcrService/index.js';
+import { extractMainContent } from '../utils/contentExtractor.js';
+import { extractTitle, removeUnwantedElements } from '../utils/htmlCleaner.js';
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -220,7 +222,7 @@ export class SatzungenScraper extends BaseScraper {
   async init(): Promise<void> {
     this.qdrant = getQdrantInstance();
     await this.qdrant.init();
-    await fastEmbedService.init();
+    await mistralEmbeddingService.init();
 
     // Import Mistral client dynamically
     const mod = await import('../../../workers/mistralClient.js');
@@ -262,15 +264,18 @@ export class SatzungenScraper extends BaseScraper {
   #extractContentFromHtml(html: string, url: string): { title: string; text: string } {
     const $ = cheerio.load(html);
 
-    // Remove unwanted elements
-    $('script, style, noscript, iframe, nav, header, footer').remove();
-    $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
-    $('[role="navigation"], [role="banner"], [role="contentinfo"]').remove();
-    $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
-    $('.social-share, .share-buttons, .related-content').remove();
+    // Remove unwanted elements using shared utility
+    const removeSelectors = [
+      'script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer',
+      '.navigation', '.sidebar', '.cookie-banner', '.cookie-notice', '.popup', '.modal',
+      '[role="navigation"]', '[role="banner"]', '[role="contentinfo"]',
+      '.breadcrumb', '.breadcrumb-nav', '[aria-label*="Breadcrumb"]',
+      '.social-share', '.share-buttons', '.related-content',
+    ];
+    removeUnwantedElements($, removeSelectors);
 
-    const title =
-      $('meta[property="og:title"]').attr('content') || $('h1.page-title').first().text().trim() || $('h1').first().text().trim() || $('title').text().trim() || '';
+    // Extract title using shared utility
+    const title = extractTitle(html) || '';
 
     // Content selectors (satzung-specific)
     const contentSelectors = [
@@ -291,23 +296,13 @@ export class SatzungenScraper extends BaseScraper {
       'main',
     ];
 
-    let contentText = '';
-    for (const selector of contentSelectors) {
-      const el = $(selector);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
-    }
+    // Extract main content using shared utility
+    const extraction = extractMainContent(html, {
+      contentSelectors,
+      removeSelectors,
+    });
 
-    // Fallback to main or body
-    if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
-    }
-
-    contentText = contentText.replace(/\s+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-
-    return { title, text: contentText };
+    return { title, text: extraction.content };
   }
 
   /**
@@ -389,7 +384,7 @@ export class SatzungenScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const points = chunks.map((chunk, index) => ({
       id: generatePointId('satzung', source.url, index),
@@ -576,7 +571,7 @@ export class SatzungenScraper extends BaseScraper {
   async searchDocuments(query: string, options: SatzungenSearchOptions = {}): Promise<{ results: SatzungSearchResult[]; total: number }> {
     const { gremium = null, city = null, limit = 10, threshold = 0.35 } = options;
 
-    const queryVector = await fastEmbedService.generateQueryEmbedding(query);
+    const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
     const filter: any = { must: [] };
     if (gremium) {

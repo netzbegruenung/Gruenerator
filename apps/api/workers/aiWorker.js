@@ -1,6 +1,6 @@
 import { parentPort } from 'worker_threads';
-import * as providerSelector from '../services/providerSelector.js';
-import * as providerFallback from '../services/providerFallback.js';
+import * as providerSelector from '../services/providers/providerSelector.js';
+import * as providerFallback from '../services/providers/providerFallback.js';
 import * as providers from './providers/index.js';
 
 import { createRequire } from 'module';

@@ -9,7 +9,7 @@ import * as http from 'http';
 import * as https from 'https';
 import * as dotenv from 'dotenv';
 import { createLogger } from '../../../utils/logger.js';
-import { fastEmbedService } from '../../../services/FastEmbedService.js';
+import { mistralEmbeddingService } from '../../../services/mistral/index.js';
 import {
   COLLECTION_SCHEMAS,
   TEXT_SEARCH_COLLECTIONS,
@@ -213,8 +213,8 @@ export class QdrantService {
 
       await this.testConnectionWithRetry();
 
-      await fastEmbedService.init();
-      this.vectorSize = fastEmbedService.getDimensions();
+      await mistralEmbeddingService.init();
+      this.vectorSize = mistralEmbeddingService.getDimensions();
 
       await createCollections(
         this.client,

@@ -7,7 +7,7 @@ import {
 import { NextcloudShareManager } from '../utils/nextcloudShareManager.js';
 import NextcloudApiClient from './nextcloudApiClient.js';
 import { ocrService } from './ocrService.js';
-import { fastEmbedService } from './FastEmbedService.js';
+import { mistralEmbeddingService } from './mistral/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -326,7 +326,7 @@ class WolkeSyncService {
             
             // Generate embeddings
             const texts = chunks.map(chunk => chunk.text);
-            const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+            const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts, 'search_document');
 
             // Generate a short preview for UI lists
             const generateContentPreview = (text, limit = 600) => {

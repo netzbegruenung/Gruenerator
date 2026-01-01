@@ -11,7 +11,7 @@ import os from 'os';
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperResult, OparlPaper, OparlFile, OparlEndpoint } from '../types.js';
 import { smartChunkDocument } from '../../document-services/textChunker.js';
-import { fastEmbedService } from '../../FastEmbedService.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import oparlApiClient from '../../oparlApiClient.js';
 import { ocrService } from '../../ocrService.js';
@@ -122,7 +122,7 @@ export class OparlScraper extends BaseScraper {
   async init(): Promise<void> {
     this.qdrant = getQdrantInstance();
     await this.qdrant.init();
-    await fastEmbedService.init();
+    await mistralEmbeddingService.init();
     this.log('Service initialized');
   }
 
@@ -219,7 +219,7 @@ export class OparlScraper extends BaseScraper {
 
             // Embed
             const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
-            const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
+            const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
             // Store immediately (in small batches of 5 points)
             const points = this.#createPoints(endpoint.city, paper, fullText, chunks, embeddings);
@@ -392,7 +392,7 @@ export class OparlScraper extends BaseScraper {
   async searchPapers(query: string, options: OparlSearchOptions = {}): Promise<{ results: PaperSearchResult[]; total: number }> {
     const { city, limit = 10, threshold = 0.35 } = options;
 
-    const queryVector = await fastEmbedService.generateQueryEmbedding(query);
+    const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
     const filter = city
       ? {

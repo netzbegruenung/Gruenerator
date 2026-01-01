@@ -1,25 +1,26 @@
 /**
- * FastEmbed Service - Client wrapper for the Mistral embedding service
+ * Mistral Embedding Service - Client wrapper for the Mistral embedding service
  * Uses MistralEmbeddingClient to communicate with Mistral API
  * Provides caching and batch processing capabilities
  */
 
-import MistralEmbeddingClient from '../MistralEmbeddingClient.js';
-import { generateQueryEmbeddingWithCache } from './caching.js';
+import MistralEmbeddingClient from './MistralEmbeddingClient.js';
+import { embeddingCache } from './embeddingCache.js';
 import {
+  validateText,
   generateSingleEmbedding,
   generateBatchEmbeddings,
   generateMockEmbedding,
-  generateMockBatchEmbeddings
+  generateMockBatchEmbeddings,
+  estimateTokenCount
 } from './embeddingOperations.js';
-import { estimateTokenCount } from './validation.js';
 import type { ModelInfo } from './types.js';
 
 /**
- * FastEmbedService class
+ * MistralEmbeddingService class
  * Provides embedding generation with Mistral API integration and caching
  */
-export class FastEmbedService {
+export class MistralEmbeddingService {
   private client: MistralEmbeddingClient;
   private modelInfo: ModelInfo;
   private isInitialized: boolean;
@@ -37,7 +38,7 @@ export class FastEmbedService {
   }
 
   /**
-   * Initialize FastEmbed service (no-op for Mistral client)
+   * Initialize MistralEmbeddingService (no-op for Mistral client)
    */
   async init(): Promise<void> {
     return;
@@ -75,7 +76,24 @@ export class FastEmbedService {
    * Generate embedding for a search query with caching
    */
   async generateQueryEmbedding(query: string): Promise<number[]> {
-    return await generateQueryEmbeddingWithCache(this.client, query);
+    validateText(query);
+
+    // Check cache first
+    const cachedEmbedding = await embeddingCache.getCachedEmbedding(query);
+    if (cachedEmbedding) {
+      return cachedEmbedding;
+    }
+
+    // Generate new embedding using client
+    console.log(`[MistralEmbeddingService] Generating embedding for "${query.substring(0, 50)}..."`);
+    const startTime = Date.now();
+    const embedding = await this.client.generateEmbedding(query);
+    const duration = Date.now() - startTime;
+    console.log(`[MistralEmbeddingService] Embedding generated in ${duration}ms (${embedding.length} dims)`);
+
+    // Cache the result
+    await embeddingCache.cacheEmbedding(query, embedding);
+    return embedding;
   }
 
   /**
@@ -114,6 +132,6 @@ export class FastEmbedService {
    */
   async cleanup(): Promise<void> {
     this.isInitialized = false;
-    console.log('[FastEmbedService] Client cleaned up');
+    console.log('[MistralEmbeddingService] Client cleaned up');
   }
 }

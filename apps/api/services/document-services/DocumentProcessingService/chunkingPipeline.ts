@@ -3,7 +3,7 @@
  * Handles text chunking and embedding generation
  */
 
-import { fastEmbedService } from '../../FastEmbedService.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { smartChunkDocument } from '../textChunker.js';
 import type { ChunkingOptions, ChunkAndEmbedResult } from './types.js';
 
@@ -35,7 +35,7 @@ export async function chunkAndEmbedText(
   }
 
   const texts = chunks.map((chunk: any) => chunk.text);
-  const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+  const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts, 'search_document');
 
   return {
     chunks,

@@ -1,10 +1,43 @@
 /**
  * Embedding generation operations
- * Handles single, batch, and mock embedding generation
+ * Handles single, batch, and mock embedding generation with validation
  */
 
-import { validateText, validateTexts } from './validation.js';
-import type MistralEmbeddingClient from '../MistralEmbeddingClient.js';
+import type MistralEmbeddingClient from './MistralEmbeddingClient.js';
+
+// ============================================================================
+// Validation utilities
+// ============================================================================
+
+/**
+ * Validate single text input
+ */
+export function validateText(text: unknown): asserts text is string {
+  if (!text || typeof text !== 'string') {
+    throw new Error('Text is required and must be a string');
+  }
+}
+
+/**
+ * Validate array of texts
+ */
+export function validateTexts(texts: unknown): asserts texts is string[] {
+  if (!Array.isArray(texts) || texts.length === 0) {
+    throw new Error('Texts must be a non-empty array');
+  }
+}
+
+/**
+ * Estimate token count for text
+ * Simple estimation: roughly 4 chars per token
+ */
+export function estimateTokenCount(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+// ============================================================================
+// Embedding generation operations
+// ============================================================================
 
 /**
  * Generate embeddings for a single text
@@ -27,17 +60,17 @@ export async function generateBatchEmbeddings(
 ): Promise<number[][]> {
   validateTexts(texts);
 
-  console.log(`[FastEmbedService] Generating embeddings for ${texts.length} texts`);
+  console.log(`[MistralEmbeddingService] Generating embeddings for ${texts.length} texts`);
   const startTime = Date.now();
 
   try {
     const embeddings = await client.generateBatchEmbeddings(texts);
     const duration = Date.now() - startTime;
-    console.log(`[FastEmbedService] Successfully generated ${embeddings.length} embeddings in ${duration}ms`);
+    console.log(`[MistralEmbeddingService] Successfully generated ${embeddings.length} embeddings in ${duration}ms`);
     return embeddings;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[FastEmbedService] Failed to generate embeddings after ${duration}ms:`, (error as Error).message);
+    console.error(`[MistralEmbeddingService] Failed to generate embeddings after ${duration}ms:`, (error as Error).message);
     throw error;
   }
 }

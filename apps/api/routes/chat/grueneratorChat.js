@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 import { classifyIntent, isQuestionMessage } from '../../agents/chat/intentClassifier.js';
 import { extractParameters, analyzeParameterConfidence } from '../../agents/chat/parameterExtractor.js';
 import { handleInformationRequest, isWebSearchConfirmation, getWebSearchQuestion } from '../../agents/chat/informationRequestHandler.js';
-import searxngWebSearchService from '../../services/searxngWebSearchService.js';
+import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
 import { processGraphRequest } from '../../agents/langgraph/promptProcessor.js';
 import { withErrorHandler } from '../../utils/errorHandler.js';
 import { generateSharepicForChat } from './services/sharepicGenerationService.js';

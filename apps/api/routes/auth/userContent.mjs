@@ -5,7 +5,7 @@ import { getUserKnowledgeService } from '../../services/userKnowledgeService.js'
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
-import { fastEmbedService } from '../../services/FastEmbedService.js';
+import { mistralEmbeddingService } from '../../services/mistral/index.js';
 import { smartChunkDocument } from '../../services/document-services/textChunker.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('userContent');
@@ -663,7 +663,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
       try {
         // Initialize services
         const qdrant = getQdrantInstance();
-        await fastEmbedService.init();
+        await mistralEmbeddingService.init();
         
         // Only vectorize if Qdrant is available
         if (qdrant.isAvailable()) {
@@ -706,7 +706,7 @@ router.post('/save-to-library', ensureAuthenticated, async (req, res) => {
           for (let i = 0; i < chunks.length; i += batchSize) {
             const batch = chunks.slice(i, i + batchSize);
             const texts = batch.map(chunk => chunk.text);
-            const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+            const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts, 'search_document');
             
             const chunksWithEmbeddings = batch.map((chunk, idx) => ({
               text: chunk.text,
@@ -998,7 +998,7 @@ router.put('/saved-texts/:id/content', ensureAuthenticated, async (req, res) => 
     setImmediate(async () => {
       try {
         const qdrant = getQdrantInstance();
-        await fastEmbedService.init();
+        await mistralEmbeddingService.init();
 
         if (qdrant.isAvailable()) {
           // First delete existing vectors
@@ -1041,7 +1041,7 @@ router.put('/saved-texts/:id/content', ensureAuthenticated, async (req, res) => 
           for (let i = 0; i < chunks.length; i += batchSize) {
             const batch = chunks.slice(i, i + batchSize);
             const texts = batch.map(chunk => chunk.text);
-            const embeddings = await fastEmbedService.generateBatchEmbeddings(texts, 'search_document');
+            const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts, 'search_document');
 
             const chunksWithEmbeddings = batch.map((chunk, idx) => ({
               text: chunk.text,
@@ -1439,7 +1439,7 @@ router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
     
     // Initialize services
     const qdrant = getQdrantInstance();
-    await fastEmbedService.init();
+    await mistralEmbeddingService.init();
     
     if (!qdrant.isAvailable()) {
       return res.status(503).json({
@@ -1449,7 +1449,7 @@ router.post('/search-saved-texts', ensureAuthenticated, async (req, res) => {
     }
     
     // Generate query embedding
-    const queryEmbedding = await fastEmbedService.generateEmbedding(query);
+    const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
     
     // Build filter for user's documents
     const filter = {

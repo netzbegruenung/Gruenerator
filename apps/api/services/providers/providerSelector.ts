@@ -1,9 +1,20 @@
-// Centralized provider selection and model override logic (CommonJS)
+/**
+ * Centralized provider selection and model override logic
+ * Handles routing between Mistral, Bedrock, LiteLLM, and other providers
+ */
+
+import type {
+  ProviderName,
+  ModelName,
+  ProviderOptions,
+  RequestMetadata,
+  ProviderResult
+} from './types.js';
 
 /**
  * Check if a model name is compatible with LiteLLM
  */
-function isLiteLLMCompatibleModel(modelName = '') {
+export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
   const name = String(modelName || '').toLowerCase();
   // LiteLLM models typically use prefixes like gpt-oss, or are mistral/mixtral variants
   // Exclude Mistral API models (mistral-medium-latest, magistral-*, etc.)
@@ -20,13 +31,22 @@ function isLiteLLMCompatibleModel(modelName = '') {
   return false;
 }
 
-function shouldAllowMainLlmOverride(options = {}, metadata = {}) {
+/**
+ * Determine if MAIN_LLM_OVERRIDE environment variable should be applied
+ */
+export function shouldAllowMainLlmOverride(
+  options: ProviderOptions = {},
+  metadata: RequestMetadata = {}
+): boolean {
   if (options.privacyMode === true || metadata.privacyMode === true) return false;
   if (options.disableExternalProviders || metadata.requiresPrivacy) return false;
   return true;
 }
 
-function determineProviderFromModel(modelName = '') {
+/**
+ * Infer provider from model name patterns
+ */
+export function determineProviderFromModel(modelName: string = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
   if (name.includes('arn:aws:bedrock') || name.includes('anthropic.claude') || name.includes('anthropic/claude')) {
     return 'bedrock';
@@ -46,19 +66,26 @@ function determineProviderFromModel(modelName = '') {
   return 'litellm';
 }
 
+interface SelectProviderParams {
+  type: string;
+  options?: ProviderOptions;
+  metadata?: RequestMetadata;
+  env?: NodeJS.ProcessEnv;
+}
+
 /**
- * Select provider and model given request context and env
- * @param {Object} params
- * @param {string} params.type
- * @param {Object} params.options
- * @param {Object} params.metadata
- * @param {Object} params.env
- * @returns {{provider: string, model: string, useBedrock?: boolean}}
+ * Select provider and model given request context and environment
+ * Handles mode flags (ultra, pro, bedrock), type-based routing, and environment overrides
  */
-function selectProviderAndModel({ type, options = {}, metadata = {}, env = process.env }) {
+export function selectProviderAndModel({
+  type,
+  options = {},
+  metadata = {},
+  env = process.env
+}: SelectProviderParams): ProviderResult {
   // Base defaults
-  let provider = options.provider || 'mistral';
-  let model = options.model || 'mistral-medium-latest';
+  let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
+  let model: ModelName = options.model || 'mistral-medium-latest';
   let useBedrock = false;
 
   // Ultra mode (useUltraMode flag) - routes to Claude Sonnet 4.5 via Bedrock
@@ -113,11 +140,11 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
     // When explicitly using litellm, ensure model is litellm-compatible
     if (provider === 'litellm' && !isLiteLLMCompatibleModel(model)) {
       // Use explicitly provided litellm model or default
-      model = isLiteLLMCompatibleModel(options.model) ? options.model : 'gpt-oss:120b';
+      model = isLiteLLMCompatibleModel(options.model) ? options.model! : 'gpt-oss:120b';
     }
   }
 
-  // MAIN_LLM override
+  // MAIN_LLM_OVERRIDE environment variable
   const mainLlmOverride = env.MAIN_LLM_OVERRIDE;
   if (mainLlmOverride && shouldAllowMainLlmOverride(options, metadata)) {
     model = mainLlmOverride;
@@ -126,5 +153,3 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
 
   return { provider, model, useBedrock };
 }
-
-export { shouldAllowMainLlmOverride, determineProviderFromModel, selectProviderAndModel };

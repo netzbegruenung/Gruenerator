@@ -6,7 +6,7 @@
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
 import { smartChunkDocument } from '../../document-services/textChunker.js';
-import { fastEmbedService } from '../../FastEmbedService.js';
+import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 
 interface ArticleTitle {
@@ -93,7 +93,7 @@ export class KommunalwikiScraper extends BaseScraper {
   async init(): Promise<void> {
     this.qdrant = getQdrantInstance();
     await this.qdrant.init();
-    await fastEmbedService.init();
+    await mistralEmbeddingService.init();
     this.log('Service initialized');
   }
 
@@ -296,7 +296,7 @@ export class KommunalwikiScraper extends BaseScraper {
     }
 
     const chunkTexts = chunks.map((c: any) => c.text || c.chunk_text);
-    const embeddings = await fastEmbedService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     const articleType = this.detectArticleType(article.title, categories);
     const primaryCategory = categories.length > 0 ? categories[0] : null;
@@ -549,7 +549,7 @@ export class KommunalwikiScraper extends BaseScraper {
   async searchArticles(query: string, options: SearchOptions = {}): Promise<any> {
     const { category = null, articleType = null, limit = 10, threshold = 0.35 } = options;
 
-    const queryVector = await fastEmbedService.generateQueryEmbedding(query);
+    const queryVector = await mistralEmbeddingService.generateQueryEmbedding(query);
 
     const filter: any = { must: [] };
     if (category) {

@@ -1,14 +1,26 @@
 /**
  * FastEmbedService - Backward Compatibility Wrapper
  *
- * Re-exports from ./FastEmbedService/ folder module.
- * This allows existing imports to continue working:
+ * @deprecated Use mistralEmbeddingService from mistral/index.js instead
  *
- * import { fastEmbedService } from '../services/FastEmbedService.js'
- * import { FastEmbedService } from '../services/FastEmbedService.js'
+ * This wrapper maintains backward compatibility for code using the old FastEmbedService name.
+ * The service has been renamed to MistralEmbeddingService to accurately reflect that it uses
+ * the Mistral API, not the FastEmbed package.
  *
- * Both the folder path and root-level path will work identically.
+ * Old import:
+ * import { fastEmbedService } from '../services/FastEmbedService.js';
+ *
+ * New import (recommended):
+ * import { mistralEmbeddingService } from '../services/mistral/index.js';
  */
 
-export * from './FastEmbedService/index.js';
-export { default } from './FastEmbedService/index.js';
+// Re-export everything from the new location
+export * from './mistral/MistralEmbeddingService/index.js';
+
+// Create backward compatibility alias
+import { mistralEmbeddingService } from './mistral/MistralEmbeddingService/index.js';
+
+/**
+ * @deprecated Use mistralEmbeddingService instead
+ */
+export const fastEmbedService = mistralEmbeddingService;

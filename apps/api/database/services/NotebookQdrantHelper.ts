@@ -6,7 +6,7 @@
 import { QdrantService, getQdrantInstance } from './QdrantService/index.js';
 import { QdrantOperations } from './QdrantService/operations/index.js';
 import type { QdrantFilter } from './QdrantService/types.js';
-import { fastEmbedService } from '../../services/FastEmbedService.js';
+import { mistralEmbeddingService } from '../../services/mistral/index.js';
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
 import { createLogger } from '../../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -147,9 +147,9 @@ class NotebookQdrantHelper {
         description: string = '',
         customPrompt: string = ''
     ): Promise<number[]> {
-        await fastEmbedService.init();
+        await mistralEmbeddingService.init();
         const text = `${name} ${description} ${customPrompt}`.trim();
-        return await fastEmbedService.generateEmbedding(text);
+        return await mistralEmbeddingService.generateEmbedding(text);
     }
 
     /**
@@ -557,8 +557,8 @@ class NotebookQdrantHelper {
 
         try {
             // Generate embedding for the question for analytics
-            await fastEmbedService.init();
-            const questionEmbedding = await fastEmbedService.generateEmbedding(question);
+            await mistralEmbeddingService.init();
+            const questionEmbedding = await mistralEmbeddingService.generateEmbedding(question);
 
             const point: QdrantPoint = {
                 id: this.generateNumericId(uuidv4()),

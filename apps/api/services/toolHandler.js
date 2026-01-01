@@ -3,7 +3,7 @@
  * Manages tool validation, processing, and provider-specific formatting
  */
 
-import MistralWebSearchService from './mistralWebSearchService.js';
+import MistralWebSearchService from './mistral/index.js';
 
 class ToolHandler {
   /**

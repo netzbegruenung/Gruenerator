@@ -1,7 +1,9 @@
 import express from 'express';
 const router = express.Router();
-import { webSearchService } from '../utils/searchUtils.js';
+import { MistralWebSearchService } from '../services/mistral/index.js';
 import { HTML_FORMATTING_INSTRUCTIONS, MARKDOWN_CHAT_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS } from '../utils/promptUtils.js';
+
+const mistralWebSearchService = new MistralWebSearchService();
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_chat');
 
@@ -239,18 +241,15 @@ router.post('/', async (req, res) => {
         const searchQuery = `${message} antworte auf deutsch`;
         log.debug(`[claude_chat] Explicit search query: ${searchQuery}`);
 
-        const searchResults = await webSearchService.search(searchQuery, {
-          includeAnswer: "advanced", // Requesting comprehensive search results
-          maxResults: 5
-        });
+        const searchResults = await mistralWebSearchService.performWebSearch(searchQuery, 'withSources');
 
         const messagesToReturn = [];
-        if (searchResults.answer) {
-          messagesToReturn.push(searchResults.answer);
+        if (searchResults.textContent) {
+          messagesToReturn.push(searchResults.textContent);
         }
-        if (searchResults.results && searchResults.results.length > 0) {
-          searchResults.results.forEach(result => {
-            messagesToReturn.push(`[${result.title}](${result.url})`);
+        if (searchResults.sources && searchResults.sources.length > 0) {
+          searchResults.sources.forEach(source => {
+            messagesToReturn.push(`[${source.title}](${source.url})`);
           });
         }
 
@@ -492,19 +491,16 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
       } else if (toolCallDetails.name === WEB_SEARCH_TOOL_NAME) {
         log.debug(`[claude_chat] Executing tool '${WEB_SEARCH_TOOL_NAME}' with input:`, toolInput);
         try {
-          const searchResults = await webSearchService.search(toolInput.query, {
-            includeAnswer: "advanced",
-            maxResults: 5
-          });
-          
+          const searchResults = await mistralWebSearchService.performWebSearch(toolInput.query, 'withSources');
+
           let combinedResults = "";
-          if (searchResults.answer) {
-            combinedResults += `Antwort der Suche: ${searchResults.answer}\n\n`;
+          if (searchResults.textContent) {
+            combinedResults += `Antwort der Suche: ${searchResults.textContent}\n\n`;
         }
-        if (searchResults.results && searchResults.results.length > 0) {
+        if (searchResults.sources && searchResults.sources.length > 0) {
             combinedResults += "Gefundene Quellen:\n";
-            searchResults.results.forEach(r => {
-                combinedResults += `- Titel: ${r.title}\n  URL: ${r.url}\n  Inhalt (Auszug): ${r.content ? r.content.substring(0, 200) + '...' : 'Kein Inhalt verfügbar.'}\n`;
+            searchResults.sources.forEach(r => {
+                combinedResults += `- Titel: ${r.title}\n  URL: ${r.url}\n  Inhalt (Auszug): ${r.snippet ? r.snippet.substring(0, 200) + '...' : 'Kein Inhalt verfügbar.'}\n`;
             });
           }
           toolResultContent = combinedResults || "Keine Ergebnisse für die Suche gefunden.";
