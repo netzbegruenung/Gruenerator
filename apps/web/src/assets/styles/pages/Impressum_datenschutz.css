@@ -54,6 +54,30 @@
     margin-bottom: 10px;
 }
 
+.page-container table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.page-container th,
+.page-container td {
+    text-align: left;
+    padding: 8px;
+}
+
+.page-container thead tr {
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+.page-container tbody tr {
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.page-container tbody tr:last-child {
+    border-bottom: none;
+}
+
 footer {
     text-align: center;
     padding: 20px;

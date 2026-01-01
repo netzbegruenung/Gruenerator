@@ -223,22 +223,42 @@
   text-decoration: underline;
 }
 
+.terms-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
 .button-terms {
   background-color: var(--font-color-h);
   color: var(--background-color);
   padding: 10px 20px;
   border: none;
   border-radius: 50px;
-  font-size: 1.2em;
+  font-size: 1em;
   cursor: pointer;
   transition: background-color 0.3s ease, color 0.3s ease;
-  display: flex;
-  align-items: center;
   text-decoration: none;
-  margin-left: 20px; 
 }
 
 .button-terms:hover {
+  background-color: var(--secondary);
+  color: var(--weiß);
+}
+
+.button-terms-secondary {
+  background-color: var(--font-color-h);
+  color: var(--background-color);
+  padding: 10px 20px;
+  border: none;
+  border-radius: 50px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-decoration: none;
+}
+
+.button-terms-secondary:hover {
   background-color: var(--secondary);
   color: var(--weiß);
 }
@@ -261,13 +281,16 @@
     margin-bottom: 10px;
   }
 
-  .button-terms {
-    margin-left: 0;
-    padding: 10px 25px;
-    font-size: 1em;
-    width: auto;
+  .terms-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .button-terms,
+  .button-terms-secondary {
+    width: 100%;
     justify-content: center;
-    align-self: center;
+    padding: 12px 20px;
   }
 }
 
@@ -280,9 +303,10 @@
     font-size: 0.8em;
   }
 
-  .button-terms {
+  .button-terms,
+  .button-terms-secondary {
     font-size: 0.9em;
-    padding: 8px 20px;
+    padding: 10px 16px;
   }
 }
 
