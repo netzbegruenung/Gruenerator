@@ -516,6 +516,248 @@ class SharedMediaService {
         return path.join(SHARED_MEDIA_PATH, shareToken, filename);
     }
 
+    // ============================================
+    // Media Library Methods (unified gallery)
+    // ============================================
+
+    async getMediaLibrary(userId, filters = {}) {
+        await this.ensureInitialized();
+
+        const {
+            type = 'all',
+            search = null,
+            limit = 50,
+            offset = 0,
+            sort = 'newest'
+        } = filters;
+
+        try {
+            let query = `
+                SELECT id, share_token, media_type, title, thumbnail_path, file_size,
+                       mime_type, duration, image_type, image_metadata, status,
+                       download_count, view_count, created_at, alt_text, upload_source,
+                       original_filename
+                FROM shared_media
+                WHERE user_id = $1
+                  AND status = 'ready'
+                  AND COALESCE(is_library_item, TRUE) = TRUE
+            `;
+            const params = [userId];
+            let paramIndex = 2;
+
+            if (type && type !== 'all') {
+                query += ` AND media_type = $${paramIndex}`;
+                params.push(type);
+                paramIndex++;
+            }
+
+            if (search) {
+                query += ` AND (title ILIKE $${paramIndex} OR alt_text ILIKE $${paramIndex})`;
+                params.push(`%${search}%`);
+                paramIndex++;
+            }
+
+            query += sort === 'oldest'
+                ? ` ORDER BY created_at ASC`
+                : ` ORDER BY created_at DESC`;
+
+            query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+            params.push(limit, offset);
+
+            const results = await this.postgres.query(query, params);
+
+            const countQuery = `
+                SELECT COUNT(*) as total
+                FROM shared_media
+                WHERE user_id = $1
+                  AND status = 'ready'
+                  AND COALESCE(is_library_item, TRUE) = TRUE
+                  ${type && type !== 'all' ? 'AND media_type = $2' : ''}
+            `;
+            const countParams = type && type !== 'all' ? [userId, type] : [userId];
+            const countResult = await this.postgres.queryOne(countQuery, countParams);
+
+            return {
+                items: results,
+                total: parseInt(countResult.total, 10),
+                limit,
+                offset
+            };
+
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to get media library:', error);
+            throw new Error(`Failed to get media library: ${error.message}`);
+        }
+    }
+
+    async getMediaById(userId, mediaId) {
+        await this.ensureInitialized();
+
+        try {
+            const query = `
+                SELECT id, share_token, media_type, title, file_path, file_name,
+                       thumbnail_path, file_size, mime_type, duration, image_type,
+                       image_metadata, status, download_count, view_count, created_at,
+                       alt_text, upload_source, original_filename
+                FROM shared_media
+                WHERE id = $1 AND user_id = $2
+            `;
+            const result = await this.postgres.queryOne(query, [mediaId, userId]);
+            return result;
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to get media by id:', error);
+            throw new Error(`Failed to get media: ${error.message}`);
+        }
+    }
+
+    async updateMediaMetadata(userId, mediaId, { title, altText }) {
+        await this.ensureInitialized();
+
+        try {
+            const updates = [];
+            const params = [];
+            let paramIndex = 1;
+
+            if (title !== undefined) {
+                updates.push(`title = $${paramIndex}`);
+                params.push(title);
+                paramIndex++;
+            }
+
+            if (altText !== undefined) {
+                updates.push(`alt_text = $${paramIndex}`);
+                params.push(altText);
+                paramIndex++;
+            }
+
+            if (updates.length === 0) {
+                throw new Error('No fields to update');
+            }
+
+            params.push(mediaId, userId);
+
+            const query = `
+                UPDATE shared_media
+                SET ${updates.join(', ')}
+                WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1}
+                RETURNING id, share_token, title, alt_text
+            `;
+
+            const result = await this.postgres.queryOne(query, params);
+
+            if (!result) {
+                throw new Error('Media not found or not owned by user');
+            }
+
+            console.log(`[SharedMediaService] Updated media metadata for ${result.share_token}`);
+            return result;
+
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to update media metadata:', error);
+            throw new Error(`Failed to update media: ${error.message}`);
+        }
+    }
+
+    async uploadMediaFile(userId, { fileBuffer, originalFilename, mimeType, title, altText, uploadSource = 'upload' }) {
+        await this.ensureInitialized();
+        await this.enforceUserLimit(userId);
+
+        const shareToken = this.generateShareToken();
+        const shareDir = path.join(SHARED_MEDIA_PATH, shareToken);
+
+        try {
+            await fs.mkdir(shareDir, { recursive: true });
+
+            const isImage = mimeType.startsWith('image/');
+            const isVideo = mimeType.startsWith('video/');
+
+            if (!isImage && !isVideo) {
+                throw new Error('Unsupported file type. Only images and videos are allowed.');
+            }
+
+            const extension = this.getExtensionFromMime(mimeType);
+            const targetPath = path.join(shareDir, `media.${extension}`);
+            await fs.writeFile(targetPath, fileBuffer);
+
+            const relativeFilePath = `${shareToken}/media.${extension}`;
+            let relativeThumbnailPath = null;
+            let imageInfo = null;
+
+            if (isImage) {
+                const image = await loadImage(targetPath);
+                imageInfo = { width: image.width, height: image.height };
+
+                const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
+                const thumbWidth = Math.round(image.width * scale);
+                const thumbHeight = Math.round(image.height * scale);
+
+                const canvas = createCanvas(thumbWidth, thumbHeight);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
+
+                const thumbnailBuffer = canvas.toBuffer('image/jpeg', { quality: 0.8 });
+                const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
+                await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
+                relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
+            }
+
+            const query = `
+                INSERT INTO shared_media
+                (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
+                 file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
+                 image_metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', TRUE, $10, $11, $12, $13)
+                RETURNING id, share_token, created_at
+            `;
+
+            const result = await this.postgres.queryOne(query, [
+                userId,
+                shareToken,
+                isImage ? 'image' : 'video',
+                title || originalFilename || 'Uploaded media',
+                relativeFilePath,
+                `media.${extension}`,
+                relativeThumbnailPath,
+                fileBuffer.length,
+                mimeType,
+                altText || null,
+                uploadSource,
+                originalFilename,
+                imageInfo ? JSON.stringify(imageInfo) : null
+            ]);
+
+            console.log(`[SharedMediaService] Uploaded media ${shareToken} for user ${userId}`);
+
+            return {
+                id: result.id,
+                shareToken: result.share_token,
+                shareUrl: `/share/${shareToken}`,
+                createdAt: result.created_at,
+                mediaType: isImage ? 'image' : 'video'
+            };
+
+        } catch (error) {
+            try {
+                await fs.rm(shareDir, { recursive: true, force: true });
+            } catch {}
+            console.error('[SharedMediaService] Failed to upload media:', error);
+            throw new Error(`Failed to upload media: ${error.message}`);
+        }
+    }
+
+    getExtensionFromMime(mimeType) {
+        const mimeToExt = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/webp': 'webp',
+            'image/gif': 'gif',
+            'video/mp4': 'mp4',
+            'video/webm': 'webm',
+            'video/quicktime': 'mov'
+        };
+        return mimeToExt[mimeType] || 'bin';
+    }
+
     async updateImageShare(userId, shareToken, { imageBase64, title, metadata = {}, originalImage = null }) {
         await this.ensureInitialized();
 

@@ -869,6 +869,15 @@ CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_created ON shared_media(user_id, created_at DESC);
 
+-- Media Library extensions for unified gallery across all apps
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_library_item BOOLEAN DEFAULT TRUE;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS alt_text TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS upload_source TEXT DEFAULT 'upload';
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_filename TEXT;
+
+-- Media library indexes
+CREATE INDEX IF NOT EXISTS idx_shared_media_library ON shared_media(user_id, is_library_item, created_at DESC);
+
 -- Download tracking table for shared media
 CREATE TABLE IF NOT EXISTS shared_media_downloads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
