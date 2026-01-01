@@ -178,6 +178,7 @@ if (cluster.isMaster) {
   // IMPORTANT: Exclude TUS upload paths from body parsing (TUS handles streaming itself with 500MB limit)
   const skipBodyParserForTUS = (req) => req.path.startsWith('/api/subtitler/upload');
 
+  // Express 5: Use built-in body parsers (bodyParser package is deprecated)
   app.use((req, res, next) => {
     if (skipBodyParserForTUS(req)) {
       return next();
@@ -189,21 +190,7 @@ if (cluster.isMaster) {
     if (skipBodyParserForTUS(req)) {
       return next();
     }
-    express.raw({limit: '10mb'})(req, res, next);
-  });
-
-  app.use((req, res, next) => {
-    if (skipBodyParserForTUS(req)) {
-      return next();
-    }
-    bodyParser.json({ limit: '10mb' })(req, res, next);
-  });
-
-  app.use((req, res, next) => {
-    if (skipBodyParserForTUS(req)) {
-      return next();
-    }
-    bodyParser.urlencoded({ limit: '10mb', extended: true })(req, res, next);
+    express.urlencoded({ limit: '10mb', extended: true })(req, res, next);
   });
 
   app.use((req, res, next) => {
@@ -302,7 +289,11 @@ if (cluster.isMaster) {
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'", "blob:"],
-        frameSrc: ["'none'"],
+        frameSrc: [
+          "'self'",
+          "https://www.instagram.com",
+          "https://instagram.com",
+        ],
       },
     },
     crossOriginResourcePolicy: { policy: "cross-origin" },

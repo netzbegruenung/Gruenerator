@@ -11,7 +11,29 @@ const { requireAuth } = authMiddlewareModule;
 
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app', 'mail', 'ftp', 'blog', 'shop', 'test', 'dev', 'staging'];
 
-// Apply authentication middleware to all routes
+// Public endpoint - no auth required
+router.get('/public/:subdomain', async (req, res) => {
+    try {
+        const { subdomain } = req.params;
+        const subdomainLower = subdomain.toLowerCase().trim();
+
+        const result = await db.query(
+            'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true',
+            [subdomainLower]
+        );
+
+        if (!result || result.length === 0) {
+            return res.status(404).json({ error: 'Site nicht gefunden oder nicht veröffentlicht' });
+        }
+
+        res.json({ site: result[0] });
+    } catch (error) {
+        log.error('Error fetching public site:', error);
+        res.status(500).json({ error: 'Fehler beim Laden der Site' });
+    }
+});
+
+// Apply authentication middleware to all remaining routes
 router.use(requireAuth);
 
 router.get('/my-site', async (req, res) => {
