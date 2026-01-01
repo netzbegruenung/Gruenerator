@@ -43,5 +43,8 @@ export * from './image-studio';
 // Subtitle Editor
 export * from './subtitle-editor';
 
+// Media Library
+export * from './media-library';
+
 // Platform detection
 export * from './platform';
