@@ -1,0 +1,289 @@
+/* Responsive Utilities - Mobile First */
+
+/* ----------------------------------------
+ * VISIBILITY UTILITIES
+ * ---------------------------------------- */
+
+/* Show only on mobile (hidden on tablet+) */
+.show-mobile-only {
+  display: block !important;
+}
+
+@media (min-width: 768px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}
+
+/* Hide on mobile (shown on tablet+) */
+.hide-mobile-only {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .hide-mobile-only {
+    display: block !important;
+  }
+}
+
+/* Show only on desktop (1024px+) */
+.show-desktop-only {
+  display: none !important;
+}
+
+@media (min-width: 1024px) {
+  .show-desktop-only {
+    display: block !important;
+  }
+}
+
+/* Hide on desktop */
+.hide-desktop-only {
+  display: block !important;
+}
+
+@media (min-width: 1024px) {
+  .hide-desktop-only {
+    display: none !important;
+  }
+}
+
+/* ----------------------------------------
+ * TEXT ALIGNMENT UTILITIES
+ * ---------------------------------------- */
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* Tablet alignment */
+@media (min-width: 768px) {
+  .text-md-left {
+    text-align: left;
+  }
+  .text-md-center {
+    text-align: center;
+  }
+  .text-md-right {
+    text-align: right;
+  }
+}
+
+/* Desktop alignment */
+@media (min-width: 1024px) {
+  .text-lg-left {
+    text-align: left;
+  }
+  .text-lg-center {
+    text-align: center;
+  }
+  .text-lg-right {
+    text-align: right;
+  }
+}
+
+/* ----------------------------------------
+ * FLEX UTILITIES
+ * ---------------------------------------- */
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-row {
+  flex-direction: row;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+/* Tablet flex direction */
+@media (min-width: 768px) {
+  .flex-md-row {
+    flex-direction: row;
+  }
+  .flex-md-col {
+    flex-direction: column;
+  }
+}
+
+/* Desktop flex direction */
+@media (min-width: 1024px) {
+  .flex-lg-row {
+    flex-direction: row;
+  }
+  .flex-lg-col {
+    flex-direction: column;
+  }
+}
+
+/* ----------------------------------------
+ * GRID UTILITIES
+ * ---------------------------------------- */
+
+.grid {
+  display: grid;
+}
+
+.grid-cols-1 {
+  grid-template-columns: 1fr;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Tablet grid columns */
+@media (min-width: 768px) {
+  .grid-md-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-md-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Desktop grid columns */
+@media (min-width: 1024px) {
+  .grid-lg-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-lg-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .grid-lg-cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ----------------------------------------
+ * SPACING UTILITIES (use responsive vars)
+ * ---------------------------------------- */
+
+/* Gap utilities */
+.gap-xs {
+  gap: var(--spacing-xs-r);
+}
+
+.gap-sm {
+  gap: var(--spacing-sm-r);
+}
+
+.gap-md {
+  gap: var(--spacing-md-r);
+}
+
+.gap-lg {
+  gap: var(--spacing-lg-r);
+}
+
+.gap-xl {
+  gap: var(--spacing-xl-r);
+}
+
+/* Padding utilities */
+.p-sm {
+  padding: var(--spacing-sm-r);
+}
+
+.p-md {
+  padding: var(--spacing-md-r);
+}
+
+.p-lg {
+  padding: var(--spacing-lg-r);
+}
+
+.p-xl {
+  padding: var(--spacing-xl-r);
+}
+
+/* Horizontal padding */
+.px-sm {
+  padding-left: var(--spacing-sm-r);
+  padding-right: var(--spacing-sm-r);
+}
+
+.px-md {
+  padding-left: var(--spacing-md-r);
+  padding-right: var(--spacing-md-r);
+}
+
+.px-lg {
+  padding-left: var(--spacing-lg-r);
+  padding-right: var(--spacing-lg-r);
+}
+
+/* Vertical padding */
+.py-sm {
+  padding-top: var(--spacing-sm-r);
+  padding-bottom: var(--spacing-sm-r);
+}
+
+.py-md {
+  padding-top: var(--spacing-md-r);
+  padding-bottom: var(--spacing-md-r);
+}
+
+.py-lg {
+  padding-top: var(--spacing-lg-r);
+  padding-bottom: var(--spacing-lg-r);
+}
+
+/* ----------------------------------------
+ * CONTAINER UTILITY
+ * ---------------------------------------- */
+
+.container-responsive {
+  width: 100%;
+  max-width: var(--container-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--container-padding);
+  padding-right: var(--container-padding);
+}
+
+/* ----------------------------------------
+ * WIDTH UTILITIES
+ * ---------------------------------------- */
+
+.w-full {
+  width: 100%;
+}
+
+.max-w-full {
+  max-width: 100%;
+}

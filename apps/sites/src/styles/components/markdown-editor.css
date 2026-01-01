@@ -1,0 +1,36 @@
+/* MDXEditor wrapper and theme overrides */
+
+.markdown-editor {
+  border: 1px solid var(--grey-300, #dee2e6);
+  border-radius: 6px;
+  background: white;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.markdown-editor:focus-within {
+  border-color: var(--primary-500, #4caf50);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15);
+}
+
+/* MDXEditor overrides */
+.markdown-editor .mdxeditor {
+  font-family: inherit;
+}
+
+.markdown-editor .mdxeditor-toolbar {
+  background: var(--grey-50, #f8f9fa);
+  border-bottom: 1px solid var(--grey-200, #e9ecef);
+}
+
+.markdown-editor .mdxeditor-root-contenteditable {
+  padding: 12px;
+  font-size: var(--font-size-base, 16px);
+  line-height: 1.6;
+  color: var(--grey-900, #212529);
+  min-height: 120px;
+}
+
+.markdown-editor .mdxeditor-root-contenteditable:focus {
+  outline: none;
+}

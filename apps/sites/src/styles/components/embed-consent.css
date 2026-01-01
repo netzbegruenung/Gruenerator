@@ -1,0 +1,107 @@
+.embed-consent-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  background: var(--neutral-600);
+  border-radius: var(--radius-md);
+  text-align: center;
+  min-height: 300px;
+}
+
+.embed-consent-icon {
+  font-size: 48px;
+  color: var(--grey-600);
+  margin-bottom: var(--spacing-md);
+}
+
+.embed-consent-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.embed-consent-title {
+  font-family: var(--font-family-heading);
+  font-size: var(--font-size-xl);
+  color: var(--grey-900);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.embed-consent-description {
+  font-size: var(--font-size-sm);
+  color: var(--grey-600);
+  max-width: 480px;
+  margin: 0 0 var(--spacing-sm);
+  line-height: 1.5;
+}
+
+.embed-consent-warning {
+  font-size: var(--font-size-xs);
+  color: var(--grey-400);
+  max-width: 480px;
+  margin: 0 0 var(--spacing-lg);
+  line-height: 1.4;
+}
+
+.embed-consent-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+  cursor: pointer;
+}
+
+.embed-consent-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-600);
+  cursor: pointer;
+}
+
+.embed-consent-checkbox span {
+  font-size: var(--font-size-sm);
+  color: var(--grey-600);
+}
+
+.embed-consent-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.embed-consent-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--primary-600);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.embed-consent-button:hover {
+  background: var(--primary-700);
+}
+
+.embed-consent-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.embed-consent-link {
+  font-size: var(--font-size-xs);
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.embed-consent-link:hover {
+  text-decoration: underline;
+}

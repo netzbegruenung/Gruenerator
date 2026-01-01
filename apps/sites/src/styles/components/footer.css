@@ -1,0 +1,30 @@
+/* Footer - Mobile First */
+.site-footer {
+  background-color: var(--grey-950);
+  padding: var(--spacing-lg-r) var(--spacing-md-r);
+  margin-top: auto;
+}
+
+.footer-content {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  text-align: center;
+  color: var(--grey-400);
+  font-size: var(--font-size-sm);
+}
+
+.footer-powered {
+  margin-top: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+.footer-powered a {
+  color: var(--primary-400);
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  .site-footer {
+    padding: var(--spacing-xl-r) var(--spacing-lg-r);
+  }
+}

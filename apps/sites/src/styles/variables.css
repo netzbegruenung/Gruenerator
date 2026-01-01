@@ -1,0 +1,159 @@
+/* Font Faces */
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Regular.woff2') format('woff2'),
+       url('/fonts/PTSans-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Bold.woff2') format('woff2'),
+       url('/fonts/PTSans-Bold.woff') format('woff');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PT Sans';
+  src: url('/fonts/PTSans-Italic.woff2') format('woff2'),
+       url('/fonts/PTSans-Italic.woff') format('woff');
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'GrueneTypeNeue';
+  src: url('/fonts/GrueneTypeNeue-Regular.woff2') format('woff2'),
+       url('/fonts/GrueneTypeNeue-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Green Party Design Tokens */
+:root {
+  /* Primary Colors (Phtalo Green) */
+  --primary-50: #F0F8F4;
+  --primary-100: #D8F0E6;
+  --primary-200: #B1E0C9;
+  --primary-300: #8AC9B0;
+  --primary-400: #6BAA91;
+  --primary-500: #52907A;
+  --primary-600: #316049;
+  --primary-700: #285040;
+  --primary-800: #1F3F33;
+  --primary-900: #1A332A;
+  --primary-950: #005437;
+
+  /* Secondary Colors (Eucalyptus) */
+  --secondary-50: #F0F4F3;
+  --secondary-100: #D5E1DC;
+  --secondary-600: #5F8575;
+
+  /* Neutral Colors (Sand) */
+  --neutral-500: #f8f4ec;
+  --neutral-600: #F5F1E9;
+  --neutral-700: #e8e0d4;
+
+  /* Grey Scale */
+  --grey-100: #efefef;
+  --grey-200: #dcdcdc;
+  --grey-400: #989898;
+  --grey-600: #656565;
+  --grey-800: #464646;
+  --grey-900: #3d3d3d;
+  --grey-950: #262626;
+
+  /* Semantic Colors */
+  --white: #ffffff;
+  --black: #000000;
+  --background-color: var(--white);
+  --font-color: var(--grey-800);
+  --link-color: var(--primary-600);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.12);
+
+  /* Overlays */
+  --overlay-dark-sm: rgba(0, 0, 0, 0.4);
+  --overlay-dark-md: rgba(0, 0, 0, 0.65);
+
+  /* Spacing (base values) */
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  --spacing-xxxl: 64px;
+
+  /* Responsive Spacing Multiplier */
+  --spacing-multiplier: 1;
+
+  /* Responsive Spacing (scales with multiplier) */
+  --spacing-xs-r: calc(var(--spacing-xs) * var(--spacing-multiplier));
+  --spacing-sm-r: calc(var(--spacing-sm) * var(--spacing-multiplier));
+  --spacing-md-r: calc(var(--spacing-md) * var(--spacing-multiplier));
+  --spacing-lg-r: calc(var(--spacing-lg) * var(--spacing-multiplier));
+  --spacing-xl-r: calc(var(--spacing-xl) * var(--spacing-multiplier));
+  --spacing-xxl-r: calc(var(--spacing-xxl) * var(--spacing-multiplier));
+  --spacing-xxxl-r: calc(var(--spacing-xxxl) * var(--spacing-multiplier));
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Container */
+  --container-max-width: 1200px;
+  --container-padding: var(--spacing-md);
+
+  /* Typography */
+  --font-family-body: 'PT Sans', Arial, sans-serif;
+  --font-family-heading: 'GrueneTypeNeue', 'PT Sans', Arial, sans-serif;
+
+  /* Fluid Typography (clamp: min, preferred, max) */
+  --font-size-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --font-size-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+  --font-size-base: clamp(1rem, 0.925rem + 0.375vw, 1.125rem);
+  --font-size-lg: clamp(1.125rem, 1rem + 0.625vw, 1.375rem);
+  --font-size-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.625rem);
+  --font-size-2xl: clamp(1.5rem, 1.25rem + 1.25vw, 2.25rem);
+  --font-size-3xl: clamp(1.875rem, 1.5rem + 1.875vw, 3rem);
+  --font-size-4xl: clamp(2.25rem, 1.75rem + 2.5vw, 4rem);
+}
+
+/* Responsive Breakpoints - Spacing Multiplier Adjustments */
+@media (min-width: 768px) {
+  :root {
+    --spacing-multiplier: 1.1;
+    --container-padding: var(--spacing-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --spacing-multiplier: 1.15;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --spacing-multiplier: 1.2;
+    --container-max-width: 1400px;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --spacing-multiplier: 1.25;
+    --container-max-width: 1600px;
+  }
+}

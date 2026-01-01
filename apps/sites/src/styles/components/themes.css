@@ -1,0 +1,230 @@
+/* Themes Section - Horizontal Scroll Carousel */
+.themes-section {
+  background-color: var(--primary-50);
+  padding: var(--spacing-xxl-r) 0;
+  overflow: hidden;
+}
+
+.themes-section .section-container {
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-md-r);
+}
+
+.themes-section .section-title {
+  margin-bottom: var(--spacing-lg-r);
+}
+
+/* Carousel Wrapper */
+.themes-carousel-wrapper {
+  position: relative;
+}
+
+/* Carousel Container */
+.themes-carousel {
+  display: flex;
+  gap: var(--spacing-md-r);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: var(--spacing-xs) 0 var(--spacing-lg-r);
+  margin: 0 calc(-1 * var(--spacing-md-r));
+  padding-left: var(--spacing-md-r);
+  padding-right: var(--spacing-md-r);
+}
+
+.themes-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+/* Theme Card - Mobile First (1 card + peek) */
+.theme-card {
+  flex: 0 0 calc(85% - var(--spacing-sm-r));
+  min-width: 280px;
+  background-color: var(--white);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  scroll-snap-align: start;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.theme-image-wrapper {
+  aspect-ratio: 16/10;
+  overflow: hidden;
+}
+
+.theme-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.theme-card:hover .theme-image {
+  transform: scale(1.05);
+}
+
+.theme-content {
+  padding: var(--spacing-lg-r);
+}
+
+.theme-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--primary-600);
+  margin-bottom: var(--spacing-sm);
+}
+
+.theme-description {
+  color: var(--grey-600);
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+}
+
+/* Pagination Dots */
+.themes-pagination {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md-r);
+}
+
+.pagination-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--grey-200);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.pagination-dot:hover {
+  background-color: var(--primary-400);
+}
+
+.pagination-dot:focus-visible {
+  outline: 2px solid var(--primary-600);
+  outline-offset: 2px;
+}
+
+.pagination-dot.active {
+  background-color: var(--primary-600);
+  transform: scale(1.2);
+}
+
+/* Tablet (2 cards visible) */
+@media (min-width: 768px) {
+  .themes-section {
+    padding: var(--spacing-xxxl-r) 0;
+  }
+
+  .themes-carousel {
+    gap: var(--spacing-lg-r);
+  }
+
+  .theme-card {
+    flex: 0 0 calc(50% - var(--spacing-md-r));
+    min-width: 320px;
+  }
+}
+
+/* Desktop (3 cards visible, scrollable) */
+@media (min-width: 1024px) {
+  .themes-carousel {
+    gap: var(--spacing-xl-r);
+  }
+
+  .theme-card {
+    flex: 0 0 calc(33.333% - var(--spacing-lg-r));
+    min-width: 300px;
+    max-width: 400px;
+  }
+}
+
+/* Large Desktop */
+@media (min-width: 1280px) {
+  .theme-card {
+    flex: 0 0 calc(33.333% - var(--spacing-xl-r));
+    max-width: 440px;
+  }
+}
+
+/* Container queries for editor preview mode */
+@container preview (max-width: 767px) {
+  .themes-section {
+    padding: var(--spacing-xxl-r) 0;
+  }
+
+  .themes-carousel {
+    gap: var(--spacing-md-r);
+    scroll-snap-type: x mandatory;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .theme-card {
+    flex: 0 0 calc(85% - var(--spacing-sm-r));
+    min-width: 280px;
+  }
+
+  .themes-pagination {
+    display: flex;
+  }
+}
+
+@container preview (min-width: 768px) and (max-width: 1023px) {
+  .themes-section {
+    padding: var(--spacing-xxxl-r) 0;
+  }
+
+  .themes-carousel {
+    gap: var(--spacing-lg-r);
+    scroll-snap-type: x mandatory;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .theme-card {
+    flex: 0 0 calc(50% - var(--spacing-md-r));
+    min-width: 320px;
+  }
+
+  .themes-pagination {
+    display: flex;
+  }
+}
+
+@container preview (min-width: 1024px) {
+  .themes-carousel {
+    gap: var(--spacing-xl-r);
+  }
+
+  .theme-card {
+    flex: 0 0 calc(33.333% - var(--spacing-lg-r));
+    min-width: 280px;
+    max-width: 360px;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .themes-carousel {
+    scroll-behavior: auto;
+  }
+
+  .theme-card,
+  .theme-image,
+  .pagination-dot {
+    transition: none;
+  }
+}

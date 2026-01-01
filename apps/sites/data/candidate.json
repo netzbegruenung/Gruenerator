@@ -1,0 +1,89 @@
+{
+  "id": "maxi-mustermensch",
+  "slug": "maxi-mustermensch",
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=400&fit=crop",
+    "name": "Maxi Mustermensch",
+    "tagline": "Kandidat*in für den Wahlkreis 54",
+    "socialLinks": {
+      "facebook": "https://facebook.com/gruene",
+      "twitter": "https://twitter.com/gruloebau",
+      "instagram": "https://instagram.com/gruene_im_bundestag",
+      "mastodon": "https://gruene.social/@gruene"
+    }
+  },
+  "about": {
+    "title": "Wer ich bin",
+    "content": "Seit über 15 Jahren setze ich mich für nachhaltige Politik in unserer Region ein. Als Mutter von zwei Kindern weiß ich, wie wichtig es ist, heute die richtigen Entscheidungen für morgen zu treffen.\n\nIch bin überzeugt: Wir können Klimaschutz und wirtschaftliche Entwicklung zusammenbringen. In meiner Zeit als Stadträtin habe ich mich erfolgreich für den Ausbau erneuerbarer Energien und bezahlbaren Wohnraum eingesetzt.\n\nMit Ihrer Stimme möchte ich diese Arbeit im Bundestag fortsetzen und mich für eine gerechte, grüne Zukunft stark machen."
+  },
+  "heroImage": {
+    "imageUrl": "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=1920&h=1080&fit=crop",
+    "title": "Gemeinsam für eine nachhaltige Zukunft!",
+    "subtitle": "Für Klimaschutz, soziale Gerechtigkeit und eine starke Demokratie."
+  },
+  "themes": {
+    "title": "Meine Themen",
+    "themes": [
+      {
+        "imageUrl": "https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=600&h=400&fit=crop",
+        "title": "Mit Herz für Klimaschutz",
+        "content": "Erneuerbare Energien ausbauen, nachhaltige Mobilität fördern und unsere Region klimaneutral gestalten – für eine lebenswerte Zukunft unserer Kinder."
+      },
+      {
+        "imageUrl": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop",
+        "title": "Grüne und günstige Mobilität",
+        "content": "Besserer ÖPNV, sichere Radwege und bezahlbare Alternativen zum Auto – Mobilität muss für alle zugänglich und klimafreundlich sein."
+      },
+      {
+        "imageUrl": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&h=400&fit=crop",
+        "title": "Gemeinsam gegen Hass und Hetze",
+        "content": "Für eine offene Gesellschaft, in der alle Menschen respektiert werden – unabhängig von Herkunft, Religion oder Geschlecht."
+      }
+    ]
+  },
+  "actions": {
+    "actions": [
+      {
+        "imageUrl": "https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?w=600&h=400&fit=crop",
+        "text": "Unterstütze uns",
+        "link": "https://www.gruene.de/spenden"
+      },
+      {
+        "imageUrl": "https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?w=600&h=400&fit=crop",
+        "text": "Werde Mitglied",
+        "link": "https://www.gruene.de/mitglied-werden"
+      },
+      {
+        "imageUrl": "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=600&h=400&fit=crop",
+        "text": "Mach mit",
+        "link": "https://www.gruene.de/mitmachen"
+      }
+    ]
+  },
+  "contact": {
+    "title": "Sag Hallo!",
+    "backgroundImageUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=600&fit=crop",
+    "email": "maxi.mustermensch@gruene.de",
+    "phone": "+49 123 456789",
+    "address": "Grünes Büro, Musterstraße 1, 12345 Musterstadt",
+    "socialMedia": [
+      {
+        "platform": "Facebook",
+        "url": "https://facebook.com/gruene"
+      },
+      {
+        "platform": "Twitter",
+        "url": "https://twitter.com/gruloebau"
+      },
+      {
+        "platform": "Instagram",
+        "url": "https://instagram.com/gruene_im_bundestag"
+      }
+    ]
+  },
+  "meta": {
+    "createdAt": "2024-12-31T00:00:00Z",
+    "updatedAt": "2024-12-31T00:00:00Z",
+    "published": true
+  }
+}
