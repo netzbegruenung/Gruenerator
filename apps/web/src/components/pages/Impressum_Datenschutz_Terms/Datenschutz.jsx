@@ -5,7 +5,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 19. September 2025</p>
+      <p>Stand: 1. Januar 2026</p>
       
       <h2>Kurzzusammenfassung</h2>
       <p>
@@ -25,7 +25,7 @@ const Datenschutz = () => {
       </ul>
       <p>Die Auswahl triffst Du bei jeder einzelnen Anfrage selbst.</p>
       <p>
-        <strong>Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio- und Videodaten auf unserem Server verarbeitet. Beim Reel-Grünerator werden die Audiodaten zur Transkription an AssemblyAI übermittelt und ausschließlich auf EU-Servern verarbeitet. Die Daten werden nach der Transkription automatisch gelöscht (Zero Data Retention). Die verarbeiteten Daten werden nicht dauerhaft bei uns gespeichert.</strong>
+        <strong>Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio- und Videodaten auf unserem Server verarbeitet. Beim Reel-Grünerator werden die Audiodaten zur Transkription an Gladia übermittelt und ausschließlich auf EU-Servern verarbeitet. Die Daten werden nach der Transkription automatisch gelöscht (Zero Data Retention). Die verarbeiteten Daten werden nicht dauerhaft bei uns gespeichert.</strong>
       </p>
       <p>
         Ausführliche Informationen zur Datenschutzerklärung und Deinen Rechten
@@ -103,7 +103,7 @@ const Datenschutz = () => {
       <p><strong>Externe Verarbeitung durch Dienstleister:</strong></p>
       <ul>
         <li>Sprache-zu-Text: Mistral Voxtral (EU-Server, max. 30 Tage)</li>
-        <li>Video-Transkription: AssemblyAI (EU-Server, Zero Retention)</li>
+        <li>Video-Transkription: Gladia (EU-Server, Zero Retention)</li>
         <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
       </ul>
 
@@ -119,7 +119,7 @@ const Datenschutz = () => {
         Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
         Auftragsverarbeiter. 
         Bei Aktivierung des Pro-Modus fungiert zusätzlich Amazon Web Services EMEA SARL als Auftragsverarbeiter für die KI-Textgenerierung mittels Claude.
-        Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert <strong>AssemblyAI, Inc.</strong> als Auftragsverarbeiter für die Audiotranskription mit ausschließlicher EU-Datenverarbeitung.
+        Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert <strong>Gladia SAS</strong> als Auftragsverarbeiter für die Audiotranskription mit ausschließlicher EU-Datenverarbeitung.
     </p>
       
       <p>
@@ -163,14 +163,13 @@ const Datenschutz = () => {
         <li>Verarbeitete Daten: Eingabebilder, Prompts, Ausgabebilder, Metadaten</li>
       </ul>
 
-      <p><strong>4. AssemblyAI Inc.</strong></p>
+      <p><strong>4. Gladia SAS</strong> (Paris, Frankreich)</p>
       <ul>
         <li>Zweck: Video-Audiotranskription (Reel-Grünerator)</li>
-        <li>Server: api.eu.assemblyai.com (nur EU)</li>
+        <li>Server: EU (Frankreich)</li>
         <li>Zero Data Retention: Sofortlöschung nach Transkription</li>
-        <li>Maximale Speicherdauer: 3 Tage (statt 30 Tage)</li>
-        <li>Zertifizierung: SOC 2 Type II</li>
-        <li>Details: <a href="https://www.assemblyai.com/trust">Trust Center</a> und <a href="https://www.assemblyai.com/legal/dpa">DPA</a></li>
+        <li>DSGVO-konform: Französisches Unternehmen mit EU-Datenverarbeitung</li>
+        <li>Details: <a href="https://www.gladia.io/privacy-policy">Datenschutzerklärung</a></li>
       </ul>
 
       <p><strong>5. netzbegrünung e.V.</strong> (Deutschland)</p>
@@ -263,7 +262,7 @@ const Datenschutz = () => {
 
       <p>
         <strong>Audiodaten beim Reel-Grünerator:</strong>
-        Deine Betroffenenrechte bezüglich der an AssemblyAI übermittelten Audiodaten kannst Du über uns geltend machen. Direktkontakt: support@assemblyai.com. Beachte die maximale Speicherdauer von 3 Tagen mit automatischer Löschung nach Transkription (Zero Data Retention).
+        Deine Betroffenenrechte bezüglich der an Gladia übermittelten Audiodaten kannst Du über uns geltend machen. Direktkontakt: privacy@gladia.io. Die Daten werden nach der Transkription automatisch gelöscht (Zero Data Retention).
       </p>
 
       <p>
