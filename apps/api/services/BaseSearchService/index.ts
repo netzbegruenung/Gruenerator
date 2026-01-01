@@ -61,3 +61,14 @@ export {
   calculateStaticThreshold,
   applyMMRSelection
 } from './scoring.js';
+
+// KeywordExtractor exports
+export { KeywordExtractor, keywordExtractor } from './KeywordExtractor.js';
+export type {
+  SearchPatternResult,
+  KeywordExtractionResult,
+  WeightedKeyword,
+  KeywordExtractionOptions,
+  Language,
+  KeywordExtractorStats
+} from './keyword-extractor-types.js';

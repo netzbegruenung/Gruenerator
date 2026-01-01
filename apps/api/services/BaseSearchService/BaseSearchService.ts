@@ -205,7 +205,7 @@ export class BaseSearchService {
       const threshold = options.threshold ?? this.calculateDynamicThreshold(query);
 
       // Import keyword extractor for text component
-      const { keywordExtractor } = await import('../keywordExtractor.js');
+      const { keywordExtractor } = await import('./KeywordExtractor.js');
       const searchPatterns = keywordExtractor.generateSearchPatterns(query);
 
       // Execute hybrid search
