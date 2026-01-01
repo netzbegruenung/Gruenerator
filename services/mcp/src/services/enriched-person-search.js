@@ -3,10 +3,10 @@
  * Orchestrates multi-source search when a person (Abgeordneter) is detected
  */
 
-import { getPersonDetectionService } from './PersonDetectionService.js';
-import { getBundestagMCPClient } from './BundestagMCPClient.js';
+import { getPersonDetectionService } from './person-detection.js';
+import { getBundestagMCPClient } from './bundestag-client.js';
 import { getQdrantClient } from '../qdrant/client.js';
-import { generateEmbedding } from '../embeddings/mistral.js';
+import { generateEmbedding } from '../embeddings.js';
 
 class EnrichedPersonSearch {
     constructor() {

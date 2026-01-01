@@ -3,7 +3,7 @@
  * Detects when a query is about a specific German MP (Abgeordneter)
  */
 
-import { getBundestagMCPClient } from './BundestagMCPClient.js';
+import { getBundestagMCPClient } from './bundestag-client.js';
 
 let mpCache = new Map();
 let cacheLastUpdated = 0;

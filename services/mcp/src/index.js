@@ -16,14 +16,14 @@ console.log('[Boot] Dependencies loaded');
 console.log('[Boot] Loading config...');
 import { config, validateConfig } from './config.js';
 import { searchTool, cacheStatsTool } from './tools/search.js';
-import { clientConfigTool } from './tools/clientConfig.js';
+import { clientConfigTool } from './clients/config.js';
 import { filtersTool } from './tools/filters.js';
-import { personSearchTool } from './tools/personSearch.js';
-import { examplesSearchTool } from './tools/examplesSearch.js';
+import { personSearchTool } from './tools/person-search.js';
+import { examplesSearchTool } from './tools/examples-search.js';
 import { getCacheStats } from './utils/cache.js';
 import { info, error, logSearch, getStats } from './utils/logger.js';
 import { getCollectionResources, getCollectionResource, getServerInfoResource, readServerInfoResource } from './resources/collections.js';
-import { getSystemPromptResource } from './resources/systemPrompt.js';
+import { getSystemPromptResource } from './resources/system-prompt.js';
 console.log('[Boot] Config loaded');
 
 // Konfiguration validieren

@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { getQdrantClient } from '../qdrant/client.js';
-import { generateEmbedding } from '../embeddings/mistral.js';
+import { generateEmbedding } from '../embeddings.js';
 
 const COLLECTION_NAME = 'social_media_examples';
 const DEFAULT_THRESHOLD = 0.15;

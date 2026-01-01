@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { config } from '../config.js';
 import { searchCollection, hybridSearchCollection, textSearchCollection } from '../qdrant/client.js';
-import { generateEmbedding } from '../embeddings/mistral.js';
+import { generateEmbedding } from '../embeddings.js';
 import {
   getCachedEmbedding,
   cacheEmbedding,
@@ -9,7 +9,7 @@ import {
   cacheSearch,
   getCacheStats
 } from '../utils/cache.js';
-import { getEnrichedPersonSearch } from '../services/EnrichedPersonSearch.js';
+import { getEnrichedPersonSearch } from '../services/enriched-person-search.js';
 
 // All available collection keys for validation
 const COLLECTION_KEYS = ['oesterreich', 'deutschland', 'bundestagsfraktion', 'gruene-de', 'gruene-at', 'kommunalwiki', 'boell-stiftung', 'examples'];
