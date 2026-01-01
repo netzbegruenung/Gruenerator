@@ -50,9 +50,13 @@
     <!-- Konfigurationsdatei -->
     <script src="/config.js"></script>
 
-    <!-- Matomo -->
+    <!-- Matomo (GDPR-compliant with consent) -->
     <script>
       var _paq = window._paq = window._paq || [];
+      _paq.push(['requireConsent']);
+      if (localStorage.getItem('analyticsConsent') === 'true') {
+        _paq.push(['setConsentGiven']);
+      }
       _paq.push(['trackPageView']);
       _paq.push(['enableLinkTracking']);
       (function() {
@@ -62,6 +66,14 @@
         var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
         g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
       })();
+      window.grantMatomoConsent = function() {
+        _paq.push(['setConsentGiven']);
+        localStorage.setItem('analyticsConsent', 'true');
+      };
+      window.revokeMatomoConsent = function() {
+        _paq.push(['forgetConsentGiven']);
+        localStorage.removeItem('analyticsConsent');
+      };
     </script>
     <!-- End Matomo Code -->
     

@@ -180,7 +180,9 @@ const Datenschutz = () => {
           <ul>
             <li>PostgreSQL-Datenbank (Benutzerprofile, Einstellungen)</li>
             <li>Keycloak-Authentifizierung (Login, Benutzerverwaltung)</li>
-            <li>Textbegrünung/Etherpad (kollaboratives Schreiben)</li>
+            <li>Redis (Session-Speicher, max. 24h Speicherdauer)</li>
+            <li>Qdrant-Vektorsuche (semantische Suche in Parteiprogrammen, anonymisiert)</li>
+            <li>Textbegrünung/Etherpad (kollaboratives Schreiben, Pad-IDs ohne Personenbezug)</li>
             <li>Privacy-Modus (KI-Verarbeitung bei aktivierter Datenschutz-Option)</li>
           </ul>
         </li>
@@ -195,11 +197,14 @@ const Datenschutz = () => {
         <li>Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle</li>
       </ul>
 
-      <h3>Webanalyse mit Matomo</h3>
+      <h3 id="webanalyse">Webanalyse mit Matomo</h3>
       <p>
         Diese Website nutzt den Open-Source-Webanalysedienst Matomo zur statistischen Auswertung der Besucherzugriffe. Matomo wird von <strong>Grünes CMS</strong> (piwik.gruenes-cms.de) in Deutschland gehostet und betrieben.
       </p>
-      <p><strong>Erfasste Daten:</strong></p>
+      <p>
+        <strong>Einwilligung:</strong> Die Webanalyse wird erst aktiviert, nachdem Du bei Deinem ersten Besuch zugestimmt hast. Ohne Deine Einwilligung findet keine Analyse statt.
+      </p>
+      <p><strong>Erfasste Daten (nur nach Einwilligung):</strong></p>
       <ul>
         <li>Besuchte Seiten und Verweildauer</li>
         <li>Referrer (von welcher Seite Du kamst)</li>
@@ -213,10 +218,34 @@ const Datenschutz = () => {
         <li>Keine Weitergabe an Dritte</li>
         <li>Keine Verknüpfung mit anderen Datenquellen</li>
         <li>Cookies zur Wiedererkennung (können deaktiviert werden)</li>
-        <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Analyse des Nutzerverhaltens)</li>
+        <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)</li>
       </ul>
       <p>
-        <strong>Opt-out:</strong> Du kannst die Erfassung Deiner Daten durch Matomo jederzeit deaktivieren. Besuche dazu die <a href="https://piwik.gruenes-cms.de/index.php?module=CoreAdminHome&action=optOut&language=de" target="_blank" rel="noopener noreferrer">Matomo Opt-out Seite</a>.
+        <strong>Widerruf:</strong> Du kannst Deine Einwilligung jederzeit widerrufen. Lösche dazu den Eintrag „analyticsConsent" in Deinen Browser-Einstellungen (Websitedaten/Cookies) oder besuche die <a href="https://piwik.gruenes-cms.de/index.php?module=CoreAdminHome&action=optOut&language=de" target="_blank" rel="noopener noreferrer">Matomo Opt-out Seite</a>.
+      </p>
+
+      <h3>Cookies und Einwilligung</h3>
+      <p>
+        Diese Website verwendet Cookies. Technisch notwendige Cookies werden ohne Einwilligung gesetzt. Analyse-Cookies (Matomo) werden erst nach Deiner ausdrücklichen Einwilligung aktiviert.
+      </p>
+      <p><strong>Verwendete Cookies:</strong></p>
+      <ul>
+        <li><strong>Session-Cookie:</strong> Zur Authentifizierung und Aufrechterhaltung Deiner Sitzung (technisch notwendig, Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO)</li>
+        <li><strong>Matomo-Cookies:</strong> Zur anonymisierten Webanalyse (nur nach Einwilligung, Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO)</li>
+      </ul>
+
+      <h3>Lokale Speicherung im Browser</h3>
+      <p>
+        Wir nutzen den lokalen Speicher Deines Browsers (localStorage, sessionStorage) für folgende Zwecke:
+      </p>
+      <ul>
+        <li><strong>Authentifizierungsdaten:</strong> Speicherung des Login-Status und der Sitzungsinformationen</li>
+        <li><strong>Benutzereinstellungen:</strong> Deine persönlichen Präferenzen wie Dark Mode, Spracheinstellungen</li>
+        <li><strong>Temporäre Zwischenspeicherung:</strong> Entwürfe und ungesendete Eingaben, damit nichts verloren geht</li>
+        <li><strong>Einwilligungsstatus:</strong> Ob Du den Nutzungsbedingungen und der Webanalyse zugestimmt hast</li>
+      </ul>
+      <p>
+        <strong>Hinweis:</strong> Diese Daten werden ausschließlich lokal in Deinem Browser gespeichert und nicht an unsere Server übertragen. Du kannst sie jederzeit über die Browser-Einstellungen (Websitedaten/Cookies löschen) entfernen.
       </p>
 
       <p>
@@ -249,6 +278,42 @@ const Datenschutz = () => {
       <p>
         Ihre Daten werden so lange gespeichert, wie sie für die Bereitstellung unserer Dienste erforderlich sind oder bis Sie eine Löschung beantragen. Nach Beendigung der Nutzung unserer Dienste werden Ihre Daten für weitere 30 Tage aufbewahrt und anschließend gelöscht, es sei denn, gesetzliche Aufbewahrungspflichten erfordern eine längere Speicherung.
       </p>
+
+      <h4>Übersicht der Speicherfristen</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Datenart</th>
+            <th>Speicherdauer</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Sitzungsdaten (Redis)</td>
+            <td>Bis Sitzungsende, max. 24 Stunden</td>
+          </tr>
+          <tr>
+            <td>Benutzerprofile</td>
+            <td>Bis zur Löschung durch Nutzer</td>
+          </tr>
+          <tr>
+            <td>KI-Anfragen (Mistral/Claude)</td>
+            <td>Max. 30 Tage (Missbrauchserkennung)</td>
+          </tr>
+          <tr>
+            <td>Video-Transkription (Gladia)</td>
+            <td>Zero Retention – sofortige Löschung</td>
+          </tr>
+          <tr>
+            <td>Matomo-Analysen</td>
+            <td>13 Monate</td>
+          </tr>
+          <tr>
+            <td>Server-Logs</td>
+            <td>7 Tage</td>
+          </tr>
+        </tbody>
+      </table>
 
       <h3>3. Betroffenenrechte</h3>
       <h4>a. Recht auf Auskunft</h4>

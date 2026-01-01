@@ -1,23 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import '../../assets/styles/components/popups/popup.css';
+
 const PopupNutzungsbedingungen = () => {
   const [visible, setVisible] = useState(false);
   const location = useLocation();
 
-  // Prüfen, ob wir uns in einer Route ohne Header und Footer befinden
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
 
   useEffect(() => {
-    // Popup nur anzeigen, wenn wir nicht in einer Route ohne Header und Footer sind
-    // und die Nutzungsbedingungen noch nicht akzeptiert wurden
     const hasAccepted = localStorage.getItem('termsAccepted');
     if (!hasAccepted && !isNoHeaderFooterRoute) {
       setVisible(true);
     }
   }, [isNoHeaderFooterRoute]);
 
-  const handleAccept = () => {
+  const handleAcceptAll = () => {
+    localStorage.setItem('termsAccepted', 'true');
+    if (typeof window.grantMatomoConsent === 'function') {
+      window.grantMatomoConsent();
+    }
+    setVisible(false);
+  };
+
+  const handleAcceptNecessary = () => {
     localStorage.setItem('termsAccepted', 'true');
     setVisible(false);
   };
@@ -26,14 +32,24 @@ const PopupNutzungsbedingungen = () => {
 
   return (
     <div className="popup-terms">
-      <button className="close-button" onClick={handleAccept}>&times;</button>
       <p className="terms-text">
-        Durch die Nutzung dieser Website stimmst du den{' '}
+        Diese Website verwendet Cookies. Durch die Nutzung stimmst du den{' '}
         <a href="/datenschutz#nutzungsbedingungen" className="terms-link">
           Nutzungsbedingungen
-        </a> zu.
+        </a>{' '}
+        zu.{' '}
+        <a href="/datenschutz#webanalyse" className="terms-link">
+          Mehr erfahren
+        </a>
       </p>
-      <button className="button-terms" onClick={handleAccept}>Zustimmen</button>
+      <div className="terms-buttons">
+        <button className="button-terms-secondary" onClick={handleAcceptNecessary}>
+          Nur Notwendige
+        </button>
+        <button className="button-terms" onClick={handleAcceptAll}>
+          Alle akzeptieren
+        </button>
+      </div>
     </div>
   );
 };
