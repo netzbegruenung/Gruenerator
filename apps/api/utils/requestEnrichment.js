@@ -4,10 +4,13 @@
  * Handles URL detection, attachment processing, web search, and document aggregation
  */
 
-const { extractUrlsFromContent, filterNewUrls, getUrlDomain } = require('./urlDetection.js');
-const { processAndBuildAttachments } = require('./attachmentUtils.js');
-const { extractLocaleFromRequest } = require('./localizationHelper.js');
-const { getQdrantDocumentService } = require('../services/DocumentSearchService.js');
+import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from './urlDetection.js';
+import { processAndBuildAttachments } from './attachmentUtils.js';
+import { extractLocaleFromRequest } from './localizationHelper.js';
+import { getQdrantDocumentService } from '../services/DocumentSearchService.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 // Import services with fallback handling
 const { urlCrawlerService } = (() => {
@@ -751,7 +754,7 @@ class RequestEnricher {
       // Only use AI query enhancement if NOT in privacy mode
       if (!usePrivacyMode) {
         try {
-          const aiSearchAgent = require('../services/aiSearchAgent.js');
+          const { default: aiSearchAgent } = await import('../services/aiSearchAgent.js');
 
           const enhancement = await aiSearchAgent.enhanceQuery(
             searchQuery,
@@ -889,7 +892,4 @@ async function enrichRequest(requestBody, options = {}, req = null) {
   return await enricher.enrichRequest(requestBody, options, req);
 }
 
-module.exports = {
-  enrichRequest,
-  RequestEnricher
-};
+export { enrichRequest, RequestEnricher };

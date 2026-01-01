@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 const fsPromises = fs.promises;
-const { requireAuth } = require('../../middleware/authMiddleware');
-const { createLogger } = require('../../utils/logger.js');
-const redisClient = require('../../utils/redisClient');
+import { requireAuth } from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
+import redisClient from '../../utils/redisClient.js';
 
 const log = createLogger('subtitler-share');
 
@@ -566,4 +566,4 @@ router.delete('/:shareToken', requireAuth, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

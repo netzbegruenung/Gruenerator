@@ -122,4 +122,4 @@ async function jwtAuthMiddleware(req, res, next) {
   return next();
 }
 
-module.exports = jwtAuthMiddleware;
+export default jwtAuthMiddleware;

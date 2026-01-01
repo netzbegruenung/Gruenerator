@@ -1,15 +1,13 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { requireAuth } = require('../middleware/authMiddleware');
-const { createLogger } = require('../utils/logger.js');
+import { requireAuth } from '../middleware/authMiddleware.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('recentValues');
 
-const {
-  saveRecentValue,
+import { saveRecentValue,
   getRecentValues,
   clearRecentValues,
-  getFieldTypesWithCounts
-} = require('../services/RecentValuesService');
+  getFieldTypesWithCounts } from '../services/RecentValuesService.js';
 
 /**
  * POST /api/recent-values
@@ -126,4 +124,4 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

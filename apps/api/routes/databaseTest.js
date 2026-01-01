@@ -1,8 +1,14 @@
-const express = require('express');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-const { createLogger } = require('../utils/logger.js');
+import fs from 'fs';
+import path from 'path';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('databaseTest');
 
 
@@ -146,4 +152,4 @@ function extractTablesFromSchema(schemaContent) {
   });
 }
 
-module.exports = router;
+export default router;

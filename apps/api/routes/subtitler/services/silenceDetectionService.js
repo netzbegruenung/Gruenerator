@@ -1,6 +1,6 @@
-const { spawn } = require('child_process');
-const { createLogger } = require('../../../utils/logger.js');
-const { ffmpegPath, ffprobe } = require('./ffmpegWrapper.js');
+import { spawn } from 'child_process';
+import { createLogger } from '../../../utils/logger.js';
+import { ffmpegPath, ffprobe } from './ffmpegWrapper.js';
 
 const log = createLogger('silence-detection');
 
@@ -156,10 +156,4 @@ async function getVideoDuration(inputPath) {
   });
 }
 
-module.exports = {
-  detectSilence,
-  calculateTrimPoints,
-  parseSilenceOutput,
-  SILENCE_THRESHOLD_DB,
-  MIN_SILENCE_DURATION
-};
+export { detectSilence, calculateTrimPoints, parseSilenceOutput, SILENCE_THRESHOLD_DB, MIN_SILENCE_DURATION };

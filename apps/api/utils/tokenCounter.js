@@ -139,11 +139,4 @@ function formatTokenCount(tokens) {
   return `${tokens} tokens`;
 }
 
-module.exports = {
-  countTokens,
-  countMessageTokens,
-  trimMessagesToTokenLimit,
-  getTokenStats,
-  exceedsTokenLimit,
-  formatTokenCount
-};
+export { countTokens, countMessageTokens, trimMessagesToTokenLimit, getTokenStats, exceedsTokenLimit, formatTokenCount };

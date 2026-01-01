@@ -1,11 +1,11 @@
-const path = require('path');
-const fs = require('fs').promises;
-const { v4: uuidv4 } = require('uuid');
-const { renderVideo, cleanupRender } = require('../../../services/remotion/renderService');
-const { getFilePathFromUploadId, checkFileExists, getOriginalFilename } = require('./tusService');
-const { getVideoMetadata } = require('./videoUploadService');
-const { createLogger } = require('../../../utils/logger');
-const redisClient = require('../../../utils/redisClient');
+import path from 'path';
+import fs from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import { renderVideo, cleanupRender } from '../../../services/remotion/renderService.js';
+import { getFilePathFromUploadId, checkFileExists, getOriginalFilename } from './tusService.js';
+import { getVideoMetadata } from './videoUploadService.js';
+import { createLogger } from '../../../utils/logger.js';
+import redisClient from '../../../utils/redisClient.js';
 
 const log = createLogger('remotion-export');
 
@@ -215,6 +215,4 @@ async function processRemotionExportAsync(exportToken, params) {
   }
 }
 
-module.exports = {
-  processRemotionExport
-};
+export { processRemotionExport };

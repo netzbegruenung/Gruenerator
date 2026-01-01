@@ -1,7 +1,7 @@
 import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { urlCrawlerService } from '../../services/urlCrawlerService.js';
+import { urlCrawlerService } from '../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('userTemplates');
 

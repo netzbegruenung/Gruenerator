@@ -1,6 +1,6 @@
-const express = require('express');
-const { processGraphRequest } = require('../agents/langgraph/promptProcessor');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import { processGraphRequest } from '../agents/langgraph/promptProcessor.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_universa');
 
 
@@ -44,9 +44,4 @@ const buergeranfragenHandler = async (req, res) => {
 
 buergeranfragenRouter.post('/', buergeranfragenHandler);
 
-module.exports = {
-  universalRouter,
-  redeRouter,
-  wahlprogrammRouter,
-  buergeranfragenRouter
-};
+export { universalRouter, redeRouter, wahlprogrammRouter, buergeranfragenRouter };

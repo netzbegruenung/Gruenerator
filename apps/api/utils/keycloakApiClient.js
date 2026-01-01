@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 /**
  * Keycloak API Client for user management operations
@@ -432,4 +432,4 @@ class KeycloakApiClient {
   }
 }
 
-module.exports = { KeycloakApiClient }; 
+export { KeycloakApiClient };

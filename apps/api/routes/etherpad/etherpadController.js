@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { createPadWithText } = require('./etherpadService');
-const { generateSecureId } = require('../../utils/securityUtils');
-const { createLogger } = require('../../utils/logger.js');
+import { createPadWithText } from './etherpadService.js';
+import { generateSecureId } from '../../utils/securityUtils.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('etherpad');
 
 
@@ -23,4 +23,4 @@ router.post('/create', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

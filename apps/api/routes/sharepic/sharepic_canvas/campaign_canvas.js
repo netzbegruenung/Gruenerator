@@ -1,11 +1,17 @@
-const express = require('express');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
-const { createCanvas, loadImage, registerFont } = require('canvas');
-const path = require('path');
-const fs = require('fs');
-const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } = require('./config');
-const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
-const { createLogger } = require('../../../utils/logger.js');
+import { createCanvas, loadImage, registerFont } from 'canvas';
+import path from 'path';
+import fs from 'fs';
+import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } from './config.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('campaign_canvas');
 
 
@@ -438,5 +444,5 @@ function renderCredit(ctx, creditConfig, location = '', customCredit = null) {
   return creditText;
 }
 
-module.exports = router;
-module.exports.generateCampaignCanvas = generateCampaignCanvas;
+export default router;
+export { generateCampaignCanvas };

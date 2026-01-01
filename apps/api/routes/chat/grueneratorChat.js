@@ -14,23 +14,23 @@ const __dirname = path.dirname(__filename);
 
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
-const { classifyIntent, isQuestionMessage } = require('../../agents/chat/intentClassifier');
-const { extractParameters, analyzeParameterConfidence } = require('../../agents/chat/parameterExtractor');
-const { handleInformationRequest, isWebSearchConfirmation, getWebSearchQuestion } = require('../../agents/chat/informationRequestHandler');
-const searxngWebSearchService = require('../../services/searxngWebSearchService');
-const { processGraphRequest } = require('../../agents/langgraph/promptProcessor');
-const { withErrorHandler } = require('../../utils/errorHandler');
-const { generateSharepicForChat } = require('./services/sharepicGenerationService');
-const { generateImagineForChat } = require('./services/imagineGenerationService');
-const chatMemory = require('../../services/chatMemoryService');
-const { trimMessagesToTokenLimit } = require('../../utils/tokenCounter');
-const DocumentQnAService = require('../../services/documentQnAService');
-const SharepicImageManager = require('../../services/sharepicImageManager');
-const redisClient = require('../../utils/redisClient');
-const mistralClient = require('../../workers/mistralClient');
-const crypto = require('crypto');
-const { localizePlaceholders } = require('../../utils/localizationHelper');
-const { detectSimpleMessage, generateSimpleResponse } = require('../../utils/simpleMessageDetector');
+import { classifyIntent, isQuestionMessage } from '../../agents/chat/intentClassifier.js';
+import { extractParameters, analyzeParameterConfidence } from '../../agents/chat/parameterExtractor.js';
+import { handleInformationRequest, isWebSearchConfirmation, getWebSearchQuestion } from '../../agents/chat/informationRequestHandler.js';
+import searxngWebSearchService from '../../services/searxngWebSearchService.js';
+import { processGraphRequest } from '../../agents/langgraph/promptProcessor.js';
+import { withErrorHandler } from '../../utils/errorHandler.js';
+import { generateSharepicForChat } from './services/sharepicGenerationService.js';
+import { generateImagineForChat } from './services/imagineGenerationService.js';
+import * as chatMemory from '../../services/chatMemoryService.js';
+import { trimMessagesToTokenLimit } from '../../utils/tokenCounter.js';
+import DocumentQnAService from '../../services/documentQnAService.js';
+import SharepicImageManager from '../../services/sharepicImageManager.js';
+import redisClient from '../../utils/redisClient.js';
+import mistralClient from '../../workers/mistralClient.js';
+import crypto from 'crypto';
+import { localizePlaceholders } from '../../utils/localizationHelper.js';
+import { detectSimpleMessage, generateSimpleResponse } from '../../utils/simpleMessageDetector.js';
 
 // Configuration constants - centralized for easy maintenance
 const CONFIG = {
@@ -510,7 +510,7 @@ router.post('/', withErrorHandler(async (req, res) => {
         log.debug('[GrueneratorChat] Treating as answer to pending request');
 
         // Try to extract the requested information from the current message
-        const { extractRequestedInformation, completePendingRequest } = require('../../agents/chat/informationRequestHandler');
+        const { extractRequestedInformation, completePendingRequest } = await import('../../agents/chat/informationRequestHandler.js');
         const extractedInfo = extractRequestedInformation(message, pendingRequest);
 
         if (extractedInfo) {

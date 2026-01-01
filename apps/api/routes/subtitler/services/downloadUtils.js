@@ -1,14 +1,20 @@
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import fs from 'fs';
 const fsPromises = fs.promises;
-const { ffmpeg } = require('./ffmpegWrapper.js');
-const { v4: uuidv4 } = require('uuid');
-const { getVideoMetadata, cleanupFiles } = require('./videoUploadService');
-const { getFilePathFromUploadId, checkFileExists } = require('./tusService');
-const redisClient = require('../../../utils/redisClient');
-const AssSubtitleService = require('./assSubtitleService');
-const { createLogger } = require('../../../utils/logger.js');
-const hwaccel = require('./hwaccelUtils.js');
+import { ffmpeg } from './ffmpegWrapper.js';
+import { v4 as uuidv4 } from 'uuid';
+import { getVideoMetadata, cleanupFiles } from './videoUploadService.js';
+import { getFilePathFromUploadId, checkFileExists } from './tusService.js';
+import redisClient from '../../../utils/redisClient.js';
+import AssSubtitleService from './assSubtitleService.js';
+import { createLogger } from '../../../utils/logger.js';
+import * as hwaccel from './hwaccelUtils.js';
 const log = createLogger('downloadUtils');
 
 
@@ -638,10 +644,4 @@ async function getProcessedVideoPath(uploadId) {
   return getFilePathFromUploadId(uploadId);
 }
 
-module.exports = {
-  generateDownloadToken,
-  processDirectDownload,
-  processChunkedDownload,
-  processVideoExport,
-  processSubtitleSegments
-};
+export { generateDownloadToken, processDirectDownload, processChunkedDownload, processVideoExport, processSubtitleSegments };

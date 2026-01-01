@@ -1,5 +1,5 @@
-const express = require('express');
-const { createLogger } = require('../../../utils/logger.js');
+import express from 'express';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('shortSubtitleGe');
 
 
@@ -125,6 +125,4 @@ Gib NUR den formatierten Untertiteltext zurück, ohne weitere Erklärungen.`;
     }
 }
 
-module.exports = {
-    generateShortSubtitlesViaAI
-}; 
+export { generateShortSubtitlesViaAI };

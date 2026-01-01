@@ -3,7 +3,7 @@
  * Integrates with self-hosted SearXNG instance and provides AI-powered summaries
  */
 
-const crypto = require('crypto');
+import crypto from 'crypto';
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const isDebug = LOG_LEVEL === 'debug';
 const isVerbose = ['debug', 'verbose'].includes(LOG_LEVEL);
@@ -34,7 +34,7 @@ class SearXNGWebSearchService {
    */
   async initializeRedis() {
     try {
-      const redisClient = require('../utils/redisClient');
+      const { default: redisClient } = await import('../utils/redisClient.js');
       
       // Test Redis connection
       await redisClient.ping();
@@ -550,4 +550,5 @@ URL: ${result.url}
 }
 
 // Export singleton instance
-module.exports = new SearXNGWebSearchService();
+const instance = new SearXNGWebSearchService();
+export default instance;

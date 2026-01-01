@@ -12,7 +12,7 @@
  * - No synchronization with frontend needed
  */
 
-const redisClient = require('../utils/redisClient');
+import redisClient from '../utils/redisClient.js';
 
 // Configuration
 const CHAT_TTL = 24 * 60 * 60; // 24 hours in seconds
@@ -579,24 +579,6 @@ async function cleanupExpiredSessions() {
   }
 }
 
-module.exports = {
-  getConversation,
-  addMessage,
-  clearConversation,
-  getConversationStats,
-  healthCheck,
-  setPendingRequest,
-  getPendingRequest,
-  clearPendingRequest,
-  hasPendingRequest,
-  // Race condition prevention locks
-  acquirePendingLock,
-  releasePendingLock,
-  // Experimental Antrag session management
-  setExperimentalSession,
-  getExperimentalSession,
-  updateExperimentalSession,
-  deleteExperimentalSession,
-  getUserExperimentalSessions,
-  cleanupExpiredSessions
-};
+export { getConversation, addMessage, clearConversation, getConversationStats, healthCheck, setPendingRequest, getPendingRequest, clearPendingRequest, hasPendingRequest, // Race condition prevention locks
+  acquirePendingLock, releasePendingLock, // Experimental Antrag session management
+  setExperimentalSession, getExperimentalSession, updateExperimentalSession, deleteExperimentalSession, getUserExperimentalSessions, cleanupExpiredSessions };

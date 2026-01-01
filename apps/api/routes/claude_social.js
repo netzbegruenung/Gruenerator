@@ -7,7 +7,7 @@ const log = createLogger('claude_social');
 
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
-const { processGraphRequest } = require('../agents/langgraph/promptProcessor');
+import { processGraphRequest } from '../agents/langgraph/promptProcessor.js';
 
 // Create authenticated router
 const router = createAuthenticatedRouter();

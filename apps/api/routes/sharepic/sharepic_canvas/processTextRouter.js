@@ -1,6 +1,6 @@
-const express = require('express');
-const { processText } = require('./dreizeilen_canvas');
-const { createLogger } = require('../../../utils/logger.js');
+import express from 'express';
+import { processText } from './dreizeilen_canvas.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('processText');
 
 
@@ -19,4 +19,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

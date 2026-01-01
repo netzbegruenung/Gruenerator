@@ -1,6 +1,9 @@
-const express = require('express');
-const { OffboardingService } = require('../../services/offboardingService');
-const { createLogger } = require('../../utils/logger.js');
+import express from 'express';
+import { OffboardingService } from '../../services/offboardingService.js';
+import { createLogger } from '../../utils/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const log = createLogger('offboarding');
 
 
@@ -192,4 +195,4 @@ router.get('/documentation', (req, res) => {
   });
 });
 
-module.exports = router; 
+export default router;

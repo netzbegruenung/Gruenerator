@@ -1,13 +1,19 @@
-const { createCanvas, loadImage } = require('canvas');
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+import { createCanvas, loadImage } from 'canvas';
 
-const { checkFiles, registerFonts } = require('./fileManagement');
-const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
-const { createLogger } = require('../../../utils/logger.js');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
+
+import { checkFiles, registerFonts } from './fileManagement.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('zitat_canvas');
 
 
@@ -168,4 +174,4 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,10 +1,10 @@
-const express = require('express');
-const multer = require('multer');
-const { createCanvas, loadImage } = require('canvas');
-const { COLORS } = require('./config');
-const { checkFiles, registerFonts } = require('./fileManagement');
-const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
-const { createLogger } = require('../../../utils/logger.js');
+import express from 'express';
+import multer from 'multer';
+import { createCanvas, loadImage } from 'canvas';
+import { COLORS } from './config.js';
+import { checkFiles, registerFonts } from './fileManagement.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('imagine_label_c');
 
 
@@ -71,4 +71,4 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = { router, addKiLabel };
+export { router, addKiLabel };

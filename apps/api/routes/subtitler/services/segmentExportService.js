@@ -8,7 +8,7 @@ import redisClient from '../../../utils/redisClient.js';
 import * as hwaccel from './hwaccelUtils.js';
 
 const require = createRequire(import.meta.url);
-const { ffmpeg, ffprobe } = require('./ffmpegWrapper.js');
+import { ffmpeg, ffprobe } from './ffmpegWrapper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

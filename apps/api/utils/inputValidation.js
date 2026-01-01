@@ -3,7 +3,7 @@
  * Prevents SQL injection and validates data types throughout the vector backend
  */
 
-const { ValidationError } = require('./errorHandling.js');
+import { ValidationError } from './errorHandling.js';
 
 /**
  * Comprehensive input validation for vector search operations
@@ -303,7 +303,4 @@ class InputValidator {
   }
 }
 
-module.exports = {
-  InputValidator,
-  ValidationError
-};
+export { InputValidator, ValidationError };

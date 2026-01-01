@@ -46,5 +46,4 @@ function getAllTypeProfiles() {
   return { ...profiles };
 }
 
-module.exports = { getTypeProfile, getAllTypeProfiles };
-
+export { getTypeProfile, getAllTypeProfiles };

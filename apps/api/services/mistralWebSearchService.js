@@ -3,7 +3,7 @@
  * Provides real web search capabilities using Mistral's web search agent
  */
 
-const mistralClient = require('../workers/mistralClient');
+import mistralClient from '../workers/mistralClient.js';
 
 class MistralWebSearchService {
   constructor() {
@@ -268,4 +268,4 @@ class MistralWebSearchService {
   }
 }
 
-module.exports = MistralWebSearchService;
+export default MistralWebSearchService;

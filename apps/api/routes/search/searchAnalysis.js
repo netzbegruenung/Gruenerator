@@ -1,5 +1,5 @@
-const express = require('express');
-const { createLogger } = require('../../utils/logger.js');
+import express from 'express';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('searchAnalysis');
 
 const router = express.Router();
@@ -116,4 +116,4 @@ Format deiner Antwort:
   }
 });
 
-module.exports = router; 
+export default router;

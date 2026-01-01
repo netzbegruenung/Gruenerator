@@ -1,6 +1,12 @@
-const path = require('path');
-const fsPromises = require('fs').promises;
-const { createLogger } = require('../../../utils/logger.js');
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import fsPromises from 'fs/promises';
+import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('projectSaving');
 const PROJECTS_DIR = path.join(__dirname, '../../uploads/subtitler-projects');
@@ -134,8 +140,4 @@ async function saveOrUpdateProject(userId, projectData) {
     return { project, isNew: true };
 }
 
-module.exports = {
-    saveToExistingProject,
-    autoSaveProject,
-    saveOrUpdateProject
-};
+export { saveToExistingProject, autoSaveProject, saveOrUpdateProject };

@@ -252,13 +252,4 @@ function getAspectRatios() {
   return ASPECT_RATIOS;
 }
 
-module.exports = {
-  buildFluxPrompt,
-  buildIllustrationPrompt,
-  flattenPromptToString,
-  getVariants,
-  getAspectRatios,
-  VARIANTS,
-  ASPECT_RATIOS,
-  BRAND_COLORS
-};
+export { buildFluxPrompt, buildIllustrationPrompt, flattenPromptToString, getVariants, getAspectRatios, VARIANTS, ASPECT_RATIOS, BRAND_COLORS };

@@ -1,6 +1,6 @@
 import express from 'express';
 import oparlApiClient from '../services/oparlApiClient.js';
-import { oparlScraperService } from '../services/oparlScraperService.js';
+import { oparlScraperService } from '../services/scrapers/implementations/OparlScraper/index.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
 import passport from '../config/passportSetup.mjs';
 import { createLogger } from '../utils/logger.js';

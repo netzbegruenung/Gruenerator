@@ -1,5 +1,5 @@
-const express = require('express');
-const { createLogger } = require('../../utils/logger.js');
+import express from 'express';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('subtitlerSocial');
 
 const router = express.Router();
@@ -57,4 +57,4 @@ router.post('/generate-social', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router;

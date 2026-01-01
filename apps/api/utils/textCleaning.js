@@ -56,8 +56,4 @@ function cleanTextForEmbedding(text, preserveStructure = false) {
   return out;
 }
 
-module.exports = {
-  cleanTextForEmbedding,
-  removeMarkdownImages,
-  collapseBlankLines,
-};
+export { cleanTextForEmbedding, removeMarkdownImages, collapseBlankLines };

@@ -1,8 +1,14 @@
-const path = require('path');
-const fs = require('fs').promises;
-const redisClient = require('../../../utils/redisClient');
-const { sanitizeFilename } = require('../../../utils/securityUtils');
-const { createLogger } = require('../../../utils/logger.js');
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import fs from 'fs/promises';
+import redisClient from '../../../utils/redisClient.js';
+import { sanitizeFilename } from '../../../utils/securityUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('assSubtitle');
 
@@ -781,4 +787,4 @@ ${dialogueLines}`;
   }
 }
 
-module.exports = AssSubtitleService; 
+export default AssSubtitleService;

@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const multer = require('multer');
-const mistralVoiceService = require('./mistralVoiceService');
-const { createLogger } = require('../../utils/logger.js');
+import multer from 'multer';
+import mistralVoiceService from './mistralVoiceService.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('voice');
 
 
@@ -161,4 +161,4 @@ router.get('/formats', (_, res) => {
   }
 });
 
-module.exports = router; 
+export default router;

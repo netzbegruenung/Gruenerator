@@ -125,10 +125,4 @@ function enhanceWithAttribution(image) {
   };
 }
 
-module.exports = {
-  parseFilename,
-  formatPhotographerName,
-  buildUnsplashUrls,
-  getAttribution,
-  enhanceWithAttribution
-};
+export { parseFilename, formatPhotographerName, buildUnsplashUrls, getAttribution, enhanceWithAttribution };

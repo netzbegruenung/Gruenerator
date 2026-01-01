@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const unifiedSearchController = require('./unifiedSearchController');
+import unifiedSearchController from './unifiedSearchController.js';
 
 // Mount the unified search controller (handles all search modes)
 router.use('/', unifiedSearchController);
 
-module.exports = router; 
+export default router;

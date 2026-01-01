@@ -11,14 +11,17 @@
  * - GET /api/sharepic/text2sharepic/components - List available components
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
-const { createSharepicComposer } = require('../../services/text2sharepic');
-const { listTemplates, getTemplate } = require('../../services/text2sharepic/zoneTemplates');
-const { listComponents, getCorporateDesign } = require('../../services/text2sharepic/componentLibrary');
-const { generateLayoutPlan } = require('../../agents/sharepic/layoutPlanner');
-const { createLogger } = require('../../utils/logger.js');
+import { createSharepicComposer } from '../../services/text2sharepic/index.js';
+import { listTemplates, getTemplate } from '../../services/text2sharepic/zoneTemplates.js';
+import { listComponents, getCorporateDesign } from '../../services/text2sharepic/componentLibrary.js';
+import { generateLayoutPlan } from '../../agents/sharepic/layoutPlanner.js';
+import { createLogger } from '../../utils/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const log = createLogger('text2sharepic');
 
 
@@ -494,4 +497,4 @@ router.get('/health', (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

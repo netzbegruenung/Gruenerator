@@ -1,8 +1,8 @@
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 const fsPromises = fs.promises;
-const { ffmpeg } = require('./ffmpegWrapper.js');
-const { createLogger } = require('../../../utils/logger.js');
+import { ffmpeg } from './ffmpegWrapper.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('videoUpload');
 
 // Function to get video metadata (remains unchanged)
@@ -131,8 +131,4 @@ async function cleanupFiles(...filePaths) {
   }
 }
 
-module.exports = {
-  getVideoMetadata,
-  extractAudio,
-  cleanupFiles
-}; 
+export { getVideoMetadata, extractAudio, cleanupFiles };

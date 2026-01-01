@@ -6,8 +6,8 @@
  * Returns corrected layouts when possible.
  */
 
-const { getComponent, CORPORATE_DESIGN } = require('./componentLibrary');
-const { getTemplate, validateComponentPlacement } = require('./zoneTemplates');
+import { getComponent, CORPORATE_DESIGN } from './componentLibrary.js';
+import { getTemplate, validateComponentPlacement } from './zoneTemplates.js';
 
 const ALLOWED_COLORS = Object.values(CORPORATE_DESIGN.colors);
 
@@ -352,13 +352,4 @@ function validateAIOutput(aiOutput) {
   };
 }
 
-module.exports = {
-  validateLayout,
-  validateZone,
-  validateParams,
-  validateGeneratedText,
-  validateAIOutput,
-  isAllowedColor,
-  isValidImagePath,
-  CONSTRAINTS
-};
+export { validateLayout, validateZone, validateParams, validateGeneratedText, validateAIOutput, isAllowedColor, isValidImagePath, CONSTRAINTS };

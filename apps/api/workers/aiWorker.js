@@ -1,7 +1,10 @@
-const { parentPort } = require('worker_threads');
-const providerSelector = require('../services/providerSelector');
-const providerFallback = require('../services/providerFallback');
-const providers = require('./providers');
+import { parentPort } from 'worker_threads';
+import * as providerSelector from '../services/providerSelector.js';
+import * as providerFallback from '../services/providerFallback.js';
+import * as providers from './providers/index.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 require('dotenv').config({ quiet: true });
 
 // Logging controls

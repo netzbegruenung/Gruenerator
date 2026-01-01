@@ -375,20 +375,6 @@ const processAndBuildAttachments = async (attachments, usePrivacyMode, routeName
   };
 };
 
-module.exports = {
-  validateAttachments,
-  buildMessagesWithAttachments,
-  enhanceSystemPromptWithAttachments,
-  createAttachmentsSummary,
-  hasValidAttachments,
-  // New consolidated functions
-  processAttachmentsForRoute,
-  buildDocumentsForPromptBuilder,
-  logAttachmentProcessing,
-  processAndBuildAttachments,
-  // Export constants for use in other modules
-  ALLOWED_MIME_TYPES,
-  ALLOWED_ATTACHMENT_TYPES,
-  MAX_FILE_SIZE,
-  MAX_TOTAL_SIZE
-};
+export { validateAttachments, buildMessagesWithAttachments, enhanceSystemPromptWithAttachments, createAttachmentsSummary, hasValidAttachments, // New consolidated functions
+  processAttachmentsForRoute, buildDocumentsForPromptBuilder, logAttachmentProcessing, processAndBuildAttachments, // Export constants for use in other modules
+  ALLOWED_MIME_TYPES, ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE, MAX_TOTAL_SIZE };

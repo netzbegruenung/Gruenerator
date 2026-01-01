@@ -8,7 +8,10 @@ const { contentExamplesService } = (() => {
   try { return require('../../services/contentExamplesService.js'); } catch (_) { return { contentExamplesService: null }; }
 })();
 
-const { localizePlaceholders } = require('../../utils/localizationHelper.js');
+import { localizePlaceholders } from '../../utils/localizationHelper.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 // URL detection is now handled by requestEnrichment.js
 
@@ -527,4 +530,4 @@ async function precomputeDocumentQnA(state) {
   }
 }
 
-module.exports = { assemblePromptGraph, assemblePromptGraphAsync, precomputeDocumentQnA };
+export { assemblePromptGraph, assemblePromptGraphAsync, precomputeDocumentQnA };

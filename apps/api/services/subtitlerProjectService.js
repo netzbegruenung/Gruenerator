@@ -175,7 +175,7 @@ class SubtitlerProjectService {
 
             // Mark upload as promoted to prevent cleanup
             try {
-                const { markUploadAsPromoted } = require('../routes/subtitler/services/tusService');
+                const { markUploadAsPromoted } = await import('../routes/subtitler/services/tusService.js');
                 markUploadAsPromoted(uploadId);
             } catch (promoteError) {
                 console.warn('[SubtitlerProjectService] Could not mark upload as promoted:', promoteError.message);

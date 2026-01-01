@@ -1,6 +1,6 @@
 // src/routes/claude_text_adjustment.js
-const express = require('express');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_text_adj');
 
 const router = express.Router();
@@ -51,4 +51,4 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
   }
 });
 
-module.exports = router;
+export default router;

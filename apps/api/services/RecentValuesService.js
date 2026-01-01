@@ -167,9 +167,4 @@ async function getFieldTypesWithCounts(userId) {
   }
 }
 
-module.exports = {
-  saveRecentValue,
-  getRecentValues,
-  clearRecentValues,
-  getFieldTypesWithCounts
-};
+export { saveRecentValue, getRecentValues, clearRecentValues, getFieldTypesWithCounts };

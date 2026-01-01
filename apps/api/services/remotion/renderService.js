@@ -1,11 +1,17 @@
-const { renderMedia, selectComposition } = require('@remotion/renderer');
-const path = require('path');
-const fs = require('fs').promises;
-const { v4: uuidv4 } = require('uuid');
-const { getBundle } = require('./bundle');
-const { loadAllFonts, getAllFontPaths, FONTS_DIR } = require('./fonts');
-const { createLogger } = require('../../utils/logger');
-const redisClient = require('../../utils/redisClient');
+import { renderMedia, selectComposition } from '@remotion/renderer';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
+import fs from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import { getBundle } from './bundle.js';
+import { loadAllFonts, getAllFontPaths, FONTS_DIR } from './fonts.js';
+import { createLogger } from '../../utils/logger.js';
+import redisClient from '../../utils/redisClient.js';
 
 const log = createLogger('remotion-render');
 
@@ -228,9 +234,4 @@ function getRenderQueueStatus() {
   };
 }
 
-module.exports = {
-  renderVideo,
-  cleanupRender,
-  getRenderQueueStatus,
-  EXPORTS_DIR
-};
+export { renderVideo, cleanupRender, getRenderQueueStatus, EXPORTS_DIR };

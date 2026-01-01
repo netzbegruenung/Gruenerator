@@ -4,7 +4,7 @@
  * Simplified prompt with exact zone names and complete examples.
  */
 
-const { CORPORATE_DESIGN } = require('./componentLibrary');
+import { CORPORATE_DESIGN } from './componentLibrary.js';
 
 const COLORS = {
   tanne: '#005538',
@@ -199,12 +199,4 @@ async function editLayout(currentLayout, editRequest, aiWorkerPool, req) {
   return parseResponse(result.content);
 }
 
-module.exports = {
-  buildSystemPrompt,
-  buildUserMessage,
-  buildEditPrompt,
-  parseResponse,
-  generateLayout,
-  generateLayoutWithRetry,
-  editLayout
-};
+export { buildSystemPrompt, buildUserMessage, buildEditPrompt, parseResponse, generateLayout, generateLayoutWithRetry, editLayout };

@@ -1,6 +1,6 @@
-const express = require('express');
-const redisClient = require('../../utils/redisClient');
-const { createLogger } = require('../../utils/logger.js');
+import express from 'express';
+import redisClient from '../../utils/redisClient.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('editSession');
 
 const router = express.Router();
@@ -121,4 +121,4 @@ router.delete('/:sessionId', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

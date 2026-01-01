@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { generateShortSubtitlesViaAI } = require('./subtitler/services/shortSubtitleGeneratorService');
-const { createLogger } = require('../utils/logger.js');
+import { generateShortSubtitlesViaAI } from './subtitler/services/shortSubtitleGeneratorService.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_subtitle');
 
 
@@ -35,4 +35,4 @@ router.post('/generate-short-subtitles', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router;

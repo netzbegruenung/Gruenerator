@@ -1,4 +1,7 @@
-const { BedrockRuntimeClient } = require("@aws-sdk/client-bedrock-runtime");
+import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 require('dotenv').config({ quiet: true });
 
 const region = process.env.AWS_REGION;
@@ -24,4 +27,4 @@ const bedrockClient = new BedrockRuntimeClient({
 
 console.log(`[AWS Bedrock Client] Initialized for region: ${region || 'default'}. Profile: ${profile || 'default/env/role'}.`);
 
-module.exports = bedrockClient; 
+export default bedrockClient;

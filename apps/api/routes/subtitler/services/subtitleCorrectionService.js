@@ -1,4 +1,4 @@
-const { createLogger } = require('../../../utils/logger.js');
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('subtitleCorrect');
 
 /**
@@ -148,6 +148,4 @@ Antworte NUR mit dem JSON-Objekt, keine weiteren Erklärungen.`;
     }
 }
 
-module.exports = {
-    correctSubtitlesViaAI
-};
+export { correctSubtitlesViaAI };

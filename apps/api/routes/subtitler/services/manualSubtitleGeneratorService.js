@@ -6,7 +6,7 @@
  * optimal readability.
  */
 
-const { createLogger } = require('../../../utils/logger.js');
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('manualSubtitle');
 
 /**
@@ -470,15 +470,5 @@ async function generateManualSubtitles(fullText, words) {
     }
 }
 
-module.exports = {
-    generateManualSubtitles,
-    CONFIG,
-    // Export utility functions for testing
-    detectPunctuation,
-    formatTime,
-    groupWordsIntoSegments,
-    formatSegmentsToSubtitleText,
-    validateWordTimestamps,
-    findSmartBreakPoint,
-    applyElasticTiming
-};
+export { generateManualSubtitles, CONFIG, // Export utility functions for testing
+    detectPunctuation, formatTime, groupWordsIntoSegments, formatSegmentsToSubtitleText, validateWordTimestamps, findSmartBreakPoint, applyElasticTiming };

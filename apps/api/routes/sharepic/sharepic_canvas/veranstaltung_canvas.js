@@ -1,14 +1,14 @@
-const { createCanvas, loadImage } = require('canvas');
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+import { createCanvas, loadImage } from 'canvas';
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
-const { registerFonts } = require('./fileManagement');
-const { COLORS } = require('./config');
-const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
-const { createLogger } = require('../../../utils/logger.js');
+import { registerFonts } from './fileManagement.js';
+import { COLORS } from './config.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('veranstaltung_canvas');
 
 const router = express.Router();
@@ -301,4 +301,4 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

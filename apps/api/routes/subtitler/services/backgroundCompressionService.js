@@ -1,12 +1,12 @@
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 const fsPromises = fs.promises;
-const { ffmpeg } = require('./ffmpegWrapper.js');
-const redisClient = require('../../../utils/redisClient');
-const { getVideoMetadata } = require('./videoUploadService');
-const { ffmpegPool } = require('./ffmpegPool');
-const { createLogger } = require('../../../utils/logger.js');
-const hwaccel = require('./hwaccelUtils.js');
+import { ffmpeg } from './ffmpegWrapper.js';
+import redisClient from '../../../utils/redisClient.js';
+import { getVideoMetadata } from './videoUploadService.js';
+import { ffmpegPool } from './ffmpegPool.js';
+import { createLogger } from '../../../utils/logger.js';
+import * as hwaccel from './hwaccelUtils.js';
 const log = createLogger('backgroundCompr');
 
 // Configuration for background compression
@@ -474,9 +474,4 @@ function startBackgroundCompression(videoPath, uploadId) {
   });
 }
 
-module.exports = {
-  startBackgroundCompression,
-  getCompressionStatus,
-  shouldCompressVideo,
-  COMPRESSION_CONFIG
-};
+export { startBackgroundCompression, getCompressionStatus, shouldCompressVideo, COMPRESSION_CONFIG };

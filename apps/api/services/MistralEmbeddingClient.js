@@ -1,7 +1,7 @@
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const mistralClient = require('../workers/mistralClient.js');
+import mistralClient from '../workers/mistralClient.js';
 
 export default class MistralEmbeddingClient {
   constructor({ model = 'mistral-embed' } = {}) {

@@ -10,5 +10,4 @@ function mergeMetadata(requestMetadata = {}, responseMetadata = {}) {
   };
 }
 
-module.exports = { mergeMetadata };
-
+export { mergeMetadata };

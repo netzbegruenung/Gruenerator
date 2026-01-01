@@ -3,7 +3,7 @@
  * Handles detection of missing information and generation of clarification questions
  */
 
-const chatMemory = require('../../services/chatMemoryService');
+import * as chatMemory from '../../services/chatMemoryService.js';
 
 /**
  * Web search confirmation detection
@@ -453,7 +453,7 @@ async function handleInformationRequest(userId, message, agent, extractedParams,
 async function generateAntragQuestions(context, aiWorkerPool) {
   console.warn('[InformationRequestHandler] generateAntragQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js');
 
-  const { getQuestionsForType } = require('../../config/antragQuestions.js');
+  const { getQuestionsForType } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
 
   return getQuestionsForType(requestType, 1);
@@ -514,7 +514,7 @@ function generateFallbackAntragQuestions(context) {
 async function analyzeAnswersForFollowup(questions, answers, context, aiWorkerPool) {
   console.warn('[InformationRequestHandler] analyzeAnswersForFollowup is deprecated. Use hasFollowUpQuestions from config/antragQuestions.js');
 
-  const { hasFollowUpQuestions } = require('../../config/antragQuestions.js');
+  const { hasFollowUpQuestions } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
 
   return hasFollowUpQuestions(requestType);
@@ -531,7 +531,7 @@ async function analyzeAnswersForFollowup(questions, answers, context, aiWorkerPo
 async function generateFollowUpQuestions(context, aiWorkerPool) {
   console.warn('[InformationRequestHandler] generateFollowUpQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js');
 
-  const { getQuestionsForType } = require('../../config/antragQuestions.js');
+  const { getQuestionsForType } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
 
   return getQuestionsForType(requestType, 2);
@@ -613,18 +613,6 @@ REQUIRED_FIELDS['antrag_experimental'] = {
   }
 };
 
-module.exports = {
-  handleInformationRequest,
-  checkForMissingInformation,
-  generateInformationQuestion,
-  extractRequestedInformation,
-  completePendingRequest,
-  // New exports for Antrag experimental flow
-  generateAntragQuestions,
-  analyzeAnswersForFollowup,
-  generateFollowUpQuestions,
-  extractStructuredAnswers,
-  // Web search confirmation exports
-  isWebSearchConfirmation,
-  getWebSearchQuestion
-};
+export { handleInformationRequest, checkForMissingInformation, generateInformationQuestion, extractRequestedInformation, completePendingRequest, // New exports for Antrag experimental flow
+  generateAntragQuestions, analyzeAnswersForFollowup, generateFollowUpQuestions, extractStructuredAnswers, // Web search confirmation exports
+  isWebSearchConfirmation, getWebSearchQuestion };

@@ -2,7 +2,7 @@ import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js
 import { createLogger } from '../utils/logger.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const imagePickerService = require('../services/imagePickerService');
+import imagePickerService from '../services/imagePickerService.js';
 const log = createLogger('claude_website');
 
 const router = createAuthenticatedRouter();

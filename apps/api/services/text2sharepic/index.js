@@ -6,59 +6,26 @@
  * corporate design, component library, and zone templates.
  */
 
-const { SharepicComposer, createSharepicComposer, quickGenerate } = require('./sharepicComposer');
-const componentLibrary = require('./componentLibrary');
-const zoneTemplates = require('./zoneTemplates');
-const aiLayoutGenerator = require('./aiLayoutGenerator');
-const layoutValidator = require('./layoutValidator');
+import { SharepicComposer, createSharepicComposer, quickGenerate } from './sharepicComposer.js';
+import * as componentLibrary from './componentLibrary.js';
+import * as zoneTemplates from './zoneTemplates.js';
+import * as aiLayoutGenerator from './aiLayoutGenerator.js';
+import * as layoutValidator from './layoutValidator.js';
 
-module.exports = {
-  // Main service
+export {
+  SharepicComposer,
+  createSharepicComposer,
+  quickGenerate
+};
+
+export { componentLibrary, zoneTemplates, aiLayoutGenerator, layoutValidator };
+
+export default {
   SharepicComposer,
   createSharepicComposer,
   quickGenerate,
-
-  // Component library
-  componentLibrary: {
-    registerComponent: componentLibrary.registerComponent,
-    getComponent: componentLibrary.getComponent,
-    listComponents: componentLibrary.listComponents,
-    renderComponent: componentLibrary.renderComponent,
-    getCorporateDesign: componentLibrary.getCorporateDesign,
-    CORPORATE_DESIGN: componentLibrary.CORPORATE_DESIGN
-  },
-
-  // Zone templates
-  zoneTemplates: {
-    registerTemplate: zoneTemplates.registerTemplate,
-    getTemplate: zoneTemplates.getTemplate,
-    listTemplates: zoneTemplates.listTemplates,
-    getTemplatesByCategory: zoneTemplates.getTemplatesByCategory,
-    getTemplatesForContentType: zoneTemplates.getTemplatesForContentType,
-    validateComponentPlacement: zoneTemplates.validateComponentPlacement,
-    getZoneBounds: zoneTemplates.getZoneBounds,
-    getTemplateZonesWithBounds: zoneTemplates.getTemplateZonesWithBounds,
-    CANVAS_DIMENSIONS: zoneTemplates.CANVAS_DIMENSIONS
-  },
-
-  // AI Layout Generator
-  aiLayoutGenerator: {
-    buildSystemPrompt: aiLayoutGenerator.buildSystemPrompt,
-    buildUserMessage: aiLayoutGenerator.buildUserMessage,
-    generateLayout: aiLayoutGenerator.generateLayout,
-    generateLayoutWithRetry: aiLayoutGenerator.generateLayoutWithRetry,
-    parseResponse: aiLayoutGenerator.parseResponse
-  },
-
-  // Layout Validator
-  layoutValidator: {
-    validateLayout: layoutValidator.validateLayout,
-    validateAIOutput: layoutValidator.validateAIOutput,
-    validateZone: layoutValidator.validateZone,
-    validateParams: layoutValidator.validateParams,
-    validateGeneratedText: layoutValidator.validateGeneratedText,
-    isAllowedColor: layoutValidator.isAllowedColor,
-    isValidImagePath: layoutValidator.isValidImagePath,
-    CONSTRAINTS: layoutValidator.CONSTRAINTS
-  }
+  componentLibrary,
+  zoneTemplates,
+  aiLayoutGenerator,
+  layoutValidator
 };

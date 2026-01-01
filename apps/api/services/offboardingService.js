@@ -1,7 +1,8 @@
-const axios = require('axios');
-const fs = require('fs').promises;
-const path = require('path');
-const winston = require('winston');
+import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import winston from 'winston';
 // Lazily import ESM PostgresService from CJS context when needed
 
 // Configuration constants
@@ -439,15 +440,10 @@ async function runOffboardingCLI() {
   }
 }
 
-module.exports = {
-  OffboardingService,
-  GrueneApiClient,
-  GrueneratorOffboarding,
-  RetryManager,
-  runOffboardingCLI
-};
+export { OffboardingService, GrueneApiClient, GrueneratorOffboarding, RetryManager, runOffboardingCLI };
 
 // If this file is run directly (not imported), execute CLI
-if (require.main === module) {
+const __filename = fileURLToPath(import.meta.url);
+if (process.argv[1] === __filename) {
   runOffboardingCLI();
 } 

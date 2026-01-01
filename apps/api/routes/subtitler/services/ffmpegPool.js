@@ -5,7 +5,7 @@
  * Uses a simple semaphore pattern - zero external dependencies.
  */
 
-const { createLogger } = require('../../../utils/logger.js');
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('FFmpegPool');
 
 class FFmpegPool {
@@ -63,4 +63,4 @@ class FFmpegPool {
 // With 16 cores and 15GB RAM, we can handle 6 concurrent FFmpeg processes
 const ffmpegPool = new FFmpegPool(6);
 
-module.exports = { ffmpegPool, FFmpegPool };
+export { ffmpegPool, FFmpegPool };

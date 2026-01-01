@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const searxngWebSearchService = require('../services/searxngWebSearchService');
-const { createLogger } = require('../utils/logger.js');
+import searxngWebSearchService from '../services/searxngWebSearchService.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('webSearch');
 
 
@@ -262,4 +262,4 @@ function mapSearchTypeToCategories(searchType) {
   return categoryMap[searchType] || 'general';
 }
 
-module.exports = router;
+export default router;

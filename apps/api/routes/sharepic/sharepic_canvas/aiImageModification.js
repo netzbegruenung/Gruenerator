@@ -1,6 +1,9 @@
-const express = require('express');
-const Anthropic = require('@anthropic-ai/sdk');
-const { createLogger } = require('../../../utils/logger.js');
+import express from 'express';
+import Anthropic from '@anthropic-ai/sdk';
+import { createLogger } from '../../../utils/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const log = createLogger('aiImageModifica');
 
 const router = express.Router();
@@ -187,4 +190,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

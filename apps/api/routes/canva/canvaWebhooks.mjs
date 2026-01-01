@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { supabaseService } from '../../utils/supabaseClient.js';
+import { getProfileService } from '../../services/ProfileService.mjs';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('canvaWebhooks');
 
@@ -456,18 +456,8 @@ async function handleAssetDeleted(asset, user) {
  */
 async function findUserByCanvaId(canvaUserId) {
   try {
-    const { data: user, error } = await supabaseService
-      .from('profiles')
-      .select('id, email, display_name')
-      .eq('canva_user_id', canvaUserId)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') {
-      throw error;
-    }
-    
-    return user;
-    
+    const profileService = getProfileService();
+    return await profileService.getProfileByCanvaId(canvaUserId);
   } catch (error) {
     log.error('[Canva Webhooks] Error finding user by Canva ID:', error);
     return null;

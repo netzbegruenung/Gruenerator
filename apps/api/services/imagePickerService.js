@@ -1,5 +1,11 @@
-const path = require('path');
-const fs = require('fs').promises;
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import fs from 'fs/promises';
 
 class ImagePickerService {
   constructor() {
@@ -70,7 +76,7 @@ class ImagePickerService {
   async validateImageExists(filename) {
     try {
       const imagePath = this.getImagePath(filename);
-      const fs = require('fs').promises;
+      const { default: fs } = await import('fs/promises');
       await fs.access(imagePath);
       return true;
     } catch {
@@ -91,4 +97,5 @@ class ImagePickerService {
   }
 }
 
-module.exports = new ImagePickerService();
+const instance = new ImagePickerService();
+export default instance;

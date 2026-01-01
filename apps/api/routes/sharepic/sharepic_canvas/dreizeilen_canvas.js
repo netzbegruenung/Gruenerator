@@ -1,14 +1,14 @@
-const express = require('express');
-const multer = require('multer');
-const { createCanvas, loadImage } = require('canvas');
-const fs = require('fs').promises;
+import express from 'express';
+import multer from 'multer';
+import { createCanvas, loadImage } from 'canvas';
+import fs from 'fs/promises';
 
-const { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } = require('./config');
-const { isValidHexColor, getDefaultColor } = require('./utils');
-const { checkFiles, registerFonts } = require('./fileManagement');
-const { validateParams } = require('./paramValidation');
-const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
-const { createLogger } = require('../../../utils/logger.js');
+import { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } from './config.js';
+import { isValidHexColor, getDefaultColor } from './utils.js';
+import { checkFiles, registerFonts } from './fileManagement.js';
+import { validateParams } from './paramValidation.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('dreizeilen_canv');
 
 
@@ -334,4 +334,5 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export { processText };
+export default router;

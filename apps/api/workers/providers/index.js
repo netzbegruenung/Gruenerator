@@ -1,8 +1,8 @@
-const bedrock = require('./bedrockAdapter');
-const claude = require('./anthropicAdapter');
-const mistral = require('./mistralAdapter');
-const ionos = require('./ionosAdapter');
-const litellm = require('./litellmAdapter');
+import * as bedrock from './bedrockAdapter.js';
+import * as claude from './anthropicAdapter.js';
+import * as mistral from './mistralAdapter.js';
+import * as ionos from './ionosAdapter.js';
+import * as litellm from './litellmAdapter.js';
 
 const adapters = { bedrock, claude, mistral, ionos, litellm };
 
@@ -14,5 +14,4 @@ async function executeProvider(providerName, requestId, data) {
   return adapter.execute(requestId, data);
 }
 
-module.exports = { ...adapters, executeProvider };
-
+export { bedrock, claude, mistral, ionos, litellm, adapters, executeProvider };

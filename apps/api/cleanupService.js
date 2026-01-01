@@ -1,5 +1,11 @@
-const fs = require('fs').promises;
-const path = require('path');
+import fs from 'fs/promises';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
 
 const TEMP_DIR = path.join(__dirname, '..', 'temp_uploads');
 const FILE_EXPIRY = 60 * 60 * 1000; // 60 Minuten in Millisekunden
@@ -28,4 +34,4 @@ function startCleanupService(interval = 30 * 60 * 1000) {
   console.log('Cleanup-Service gestartet');
 }
 
-module.exports = { startCleanupService };
+export { startCleanupService };

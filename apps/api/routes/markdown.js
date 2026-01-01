@@ -1,14 +1,12 @@
-const express = require('express');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('markdown');
 
 const router = express.Router();
-const { 
-  markdownToHtml, 
+import { markdownToHtml, 
   markdownToPlainText, 
   markdownForExport, 
-  isMarkdownContent 
-} = require('../utils/markdownService');
+  isMarkdownContent } from '../utils/markdownService.js';
 
 /**
  * POST /api/markdown/to-html
@@ -141,4 +139,4 @@ router.post('/check', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

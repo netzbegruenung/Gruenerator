@@ -3,7 +3,7 @@
  * Handles all markdown to HTML/plain text conversions
  */
 
-const marked = require('marked');
+import { marked } from 'marked';
 
 // Configure marked with consistent settings
 marked.setOptions({
@@ -109,9 +109,4 @@ function isMarkdownContent(content) {
   return markdownPatterns.some(pattern => pattern.test(content));
 }
 
-module.exports = {
-  markdownToHtml,
-  markdownToPlainText,
-  markdownForExport,
-  isMarkdownContent
-};
+export { markdownToHtml, markdownToPlainText, markdownForExport, isMarkdownContent };

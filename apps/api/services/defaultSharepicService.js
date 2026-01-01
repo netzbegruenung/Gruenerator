@@ -1,4 +1,4 @@
-const { generateSharepicForChat } = require('../routes/chat/services/sharepicGenerationService');
+import { generateSharepicForChat } from '../routes/chat/services/sharepicGenerationService.js';
 
 /**
  * Generate 3 default sharepics: dreizeilen (with AI image), quote_pure, and info
@@ -59,6 +59,4 @@ const generateDefaultSharepics = async (expressReq, requestBody) => {
   }
 };
 
-module.exports = {
-  generateDefaultSharepics
-};
+export { generateDefaultSharepics };

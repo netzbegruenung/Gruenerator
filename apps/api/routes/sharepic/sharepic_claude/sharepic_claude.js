@@ -1,10 +1,12 @@
-const express = require('express');
+import express from 'express';
+import prompts from '../../../prompts/sharepic/index.js';
+import { createLogger } from '../../../utils/logger.js';
+import { generateDefaultSharepics } from '../../../services/defaultSharepicService.js';
+
 const router = express.Router();
-const prompts = require('../../../prompts/sharepic');
-const { createLogger } = require('../../../utils/logger.js');
 const log = createLogger('sharepic_claude');
 
-// const aiShortenerService = require('../../../services/aiShortenerService');
+// import aiShortenerService from '../../../services/aiShortenerService.js';
 
 // Helper function to detect if an error is related to throttling/temporary issues
 const isThrottlingError = (error) => {
@@ -1165,7 +1167,6 @@ const handleVeranstaltungRequest = async (req, res) => {
 const handleDefaultRequest = async (req, res) => {
 
   try {
-    const { generateDefaultSharepics } = require('../../../services/defaultSharepicService');
     const result = await generateDefaultSharepics(req, req.body);
 
     if (!result.success) {
@@ -1213,5 +1214,5 @@ router.post('/', async (req, res) => {
 });
 
 // Export both the router and the handler for external use
-module.exports = router;
-module.exports.handleClaudeRequest = handleClaudeRequest;
+export default router;
+export { handleClaudeRequest };

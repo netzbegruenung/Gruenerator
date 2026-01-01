@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { jsonrepair } = require('jsonrepair');
-const { createLogger } = require('../utils/logger.js');
+import { jsonrepair } from 'jsonrepair';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_suggest_');
 
 
@@ -131,7 +131,7 @@ router.post('/', async (req, res) => {
   let generationContext = null;
   if (componentName && req.session?.id) {
     try {
-      const redisClient = require('../utils/redisClient');
+      const { default: redisClient } = await import('../utils/redisClient.js');
       const contextKey = `edit_context:${req.session.id}:${componentName}`;
 
       const cached = await redisClient.get(contextKey);
@@ -146,7 +146,7 @@ router.post('/', async (req, res) => {
 
   try {
     // Build context summary if available
-    const { buildEditContextSummary } = require('../utils/editContextBuilder');
+    const { buildEditContextSummary } = await import('../utils/editContextBuilder.js');
     const contextSummary = buildEditContextSummary(generationContext);
 
     const systemPrompt = `Du bist ein präziser Text-Editor. ${contextSummary ? 'Du kennst den Kontext der ursprünglichen Generierung und berücksichtigst ihn bei Änderungen. ' : ''}Gib AUSSCHLIESSLICH valides JSON zurück.`;
@@ -300,4 +300,4 @@ Gib NUR das JSON-Objekt gemäß Spezifikation zurück.`;
   }
 });
 
-module.exports = router;
+export default router;

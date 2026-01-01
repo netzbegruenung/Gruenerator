@@ -6,9 +6,9 @@
  * - zitat_canvas: expects multer file with path
  */
 
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
+import fs from 'fs/promises';
+import path from 'path';
+import crypto from 'crypto';
 
 /**
  * Get the first image attachment from attachments array
@@ -206,10 +206,4 @@ function validateImageAttachment(attachment) {
   }
 }
 
-module.exports = {
-  getFirstImageAttachment,
-  convertToBuffer,
-  convertToTempFile,
-  validateImageAttachment,
-  getFileExtension
-};
+export { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment, getFileExtension };

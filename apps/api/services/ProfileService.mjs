@@ -72,6 +72,24 @@ class ProfileService {
     }
 
     /**
+     * Get user profile by Canva user ID
+     */
+    async getProfileByCanvaId(canvaUserId) {
+        try {
+            await this.db.ensureInitialized();
+            const profile = await this.db.queryOne(
+                'SELECT id, email, display_name FROM profiles WHERE canva_user_id = $1',
+                [canvaUserId],
+                { table: this.tableName }
+            );
+            return profile;
+        } catch (error) {
+            console.error('[ProfileService] Error getting profile by Canva ID:', error);
+            return null;
+        }
+    }
+
+    /**
      * Create a new user profile
      */
     async createProfile(profileData) {

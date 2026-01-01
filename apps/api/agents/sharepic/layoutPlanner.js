@@ -5,8 +5,8 @@
  * layout specifications using the component library and zone templates.
  */
 
-const { listTemplates, getTemplate, getTemplateZonesWithBounds, getTemplatesForContentType } = require('../../services/text2sharepic/zoneTemplates');
-const { listComponents, getCorporateDesign, CORPORATE_DESIGN } = require('../../services/text2sharepic/componentLibrary');
+import { listTemplates, getTemplate, getTemplateZonesWithBounds, getTemplatesForContentType } from '../../services/text2sharepic/zoneTemplates.js';
+import { listComponents, getCorporateDesign, CORPORATE_DESIGN } from '../../services/text2sharepic/componentLibrary.js';
 
 /**
  * Intent categories for sharepic types
@@ -781,14 +781,4 @@ function validateLayoutPlan(plan) {
   };
 }
 
-module.exports = {
-  generateLayoutPlan,
-  generateLayoutPlanWithAI,
-  validateLayoutPlan,
-  analyzeDescription,
-  selectTemplate,
-  generateColorScheme,
-  extractContentFromDescription,
-  INTENT_CATEGORIES,
-  COLOR_MOODS
-};
+export { generateLayoutPlan, generateLayoutPlanWithAI, validateLayoutPlan, analyzeDescription, selectTemplate, generateColorScheme, extractContentFromDescription, INTENT_CATEGORIES, COLOR_MOODS };

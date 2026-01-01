@@ -1,5 +1,8 @@
 // apps/api/utils/redisClient.js
-const { createClient } = require('redis');
+import { createClient } from 'redis';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 require('dotenv').config({ quiet: true });
 
 const redisUrl = process.env.REDIS_URL;
@@ -42,4 +45,4 @@ client.connect().catch(err => {
 });
 
 // Exportiere den verbundenen Client für andere Module
-module.exports = client;
+export default client;

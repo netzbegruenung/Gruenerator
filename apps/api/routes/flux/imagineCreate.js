@@ -1,19 +1,19 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const { default: FluxImageService } = require('../../services/fluxImageService.mjs');
-const ImageGenerationCounter = require('../../utils/imageGenerationCounter.js');
-const redisClient = require('../../utils/redisClient.js');
-const { requireAuth } = require('../../middleware/authMiddleware.js');
-const { createLogger } = require('../../utils/logger.js');
-const { composeImagineCreate, FLUX_WIDTH, FLUX_HEIGHT } = require('../../services/imagineCanvasService.js');
-const { addKiLabel } = require('../sharepic/sharepic_canvas/imagine_label_canvas.js');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import FluxImageService from '../../services/fluxImageService.mjs';
+import ImageGenerationCounter from '../../utils/imageGenerationCounter.js';
+import redisClient from '../../utils/redisClient.js';
+import { requireAuth } from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
+import { composeImagineCreate, FLUX_WIDTH, FLUX_HEIGHT } from '../../services/imagineCanvasService.js';
+import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imagineCreate');
 const router = express.Router();
 const imageCounter = new ImageGenerationCounter(redisClient);
 
-const { buildFluxPrompt } = require('../../services/fluxPromptBuilder.js');
+import { buildFluxPrompt } from '../../services/fluxPromptBuilder.js';
 
 function buildCreatePrompt(userPrompt, variant = 'light-top') {
   return buildFluxPrompt({
@@ -180,4 +180,4 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,6 +1,6 @@
-const express = require('express');
-const { processGraphRequest } = require('../agents/langgraph/promptProcessor');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import { processGraphRequest } from '../agents/langgraph/promptProcessor.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('text_improver');
 
 const router = express.Router();
@@ -10,4 +10,4 @@ router.post('/', async (req, res) => {
   await processGraphRequest('text_improver', req, res);
 });
 
-module.exports = router;
+export default router;

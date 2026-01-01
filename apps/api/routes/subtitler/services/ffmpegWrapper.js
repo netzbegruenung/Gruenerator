@@ -1,5 +1,5 @@
-const { spawn } = require('child_process');
-const { createLogger } = require('../../../utils/logger.js');
+import { spawn } from 'child_process';
+import { createLogger } from '../../../utils/logger.js';
 
 // Use system ffmpeg/ffprobe (Debian 12: ffmpeg 5.1.7)
 const ffmpegPath = '/usr/bin/ffmpeg';
@@ -253,10 +253,4 @@ ffmpeg.setFfprobePath = function() {
   // No-op, path is hardcoded from @ffprobe-installer
 };
 
-module.exports = {
-  FFmpegCommand,
-  ffprobe,
-  ffmpeg,
-  ffmpegPath,
-  ffprobePath
-};
+export { FFmpegCommand, ffprobe, ffmpeg, ffmpegPath, ffprobePath };

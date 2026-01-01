@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { webSearchService } = require('../utils/searchUtils');
-const { HTML_FORMATTING_INSTRUCTIONS, MARKDOWN_CHAT_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS } = require('../utils/promptUtils');
-const { createLogger } = require('../utils/logger.js');
+import { webSearchService } from '../utils/searchUtils.js';
+import { HTML_FORMATTING_INSTRUCTIONS, MARKDOWN_CHAT_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS } from '../utils/promptUtils.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_chat');
 
 
@@ -623,4 +623,4 @@ ${JSON_OUTPUT_FORMATTING_INSTRUCTIONS}`;
   }
 });
 
-module.exports = router; 
+export default router;

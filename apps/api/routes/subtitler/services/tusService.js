@@ -1,10 +1,16 @@
 // apps/api/routes/subtitler/services/tusService.js
-const { Server } = require('@tus/server');
-const { FileStore } = require('@tus/file-store');
-const path = require('path');
-const fs = require('fs').promises;
-const { sanitizePath } = require('../../../utils/securityUtils');
-const { createLogger } = require('../../../utils/logger.js');
+import { Server } from '@tus/server';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import { FileStore } from '@tus/file-store';
+import path from 'path';
+import fs from 'fs/promises';
+import { sanitizePath } from '../../../utils/securityUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('TusService');
 
 // Singleton-Pattern um mehrfache Initialisierung zu verhindern
@@ -339,16 +345,4 @@ const getOriginalFilename = async (uploadId) => {
   return status.metadata?.metadata?.filename || `video_${uploadId}.mp4`;
 };
 
-module.exports = {
-  tusServer,
-  getFilePathFromUploadId,
-  checkFileExists,
-  cleanupTusUploads,
-  markUploadAsProcessed,
-  markUploadAsPromoted,
-  isUploadPromoted,
-  scheduleImmediateCleanup,
-  getUploadStatus,
-  cleanupUploadFiles,
-  getOriginalFilename
-};
+export { tusServer, getFilePathFromUploadId, checkFileExists, cleanupTusUploads, markUploadAsProcessed, markUploadAsPromoted, isUploadPromoted, scheduleImmediateCleanup, getUploadStatus, cleanupUploadFiles, getOriginalFilename };

@@ -1,12 +1,12 @@
-const express = require('express');
-const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
-const { default: FluxImageService } = require('../../services/fluxImageService.mjs');
-const ImageGenerationCounter = require('../../utils/imageGenerationCounter.js');
-const redisClient = require('../../utils/redisClient.js');
-const { requireAuth } = require('../../middleware/authMiddleware.js');
-const { createLogger } = require('../../utils/logger.js');
+import express from 'express';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import FluxImageService from '../../services/fluxImageService.mjs';
+import ImageGenerationCounter from '../../utils/imageGenerationCounter.js';
+import redisClient from '../../utils/redisClient.js';
+import { requireAuth } from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('greenEditPrompt');
 
 
@@ -251,8 +251,7 @@ router.post('/prompt', requireAuth, upload.single('image'), async (req, res) => 
   }
 });
 
-module.exports = router;
-
+export default router;
 // --- Generation helpers and route ---
 
 // Remove duplicate helpers in favor of service

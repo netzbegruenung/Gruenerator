@@ -1,7 +1,13 @@
-const { bundle } = require('@remotion/bundler');
-const path = require('path');
-const fs = require('fs').promises;
-const { createLogger } = require('../../utils/logger');
+import { bundle } from '@remotion/bundler';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
+import fs from 'fs/promises';
+import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('remotion-bundle');
 
@@ -108,10 +114,4 @@ async function initializeBundle() {
   }
 }
 
-module.exports = {
-  createBundle,
-  getBundle,
-  invalidateBundle,
-  initializeBundle,
-  BUNDLE_CACHE_DIR
-};
+export { createBundle, getBundle, invalidateBundle, initializeBundle, BUNDLE_CACHE_DIR };

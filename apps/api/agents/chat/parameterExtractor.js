@@ -3,7 +3,7 @@
  * Extracts relevant parameters from user messages for different agents using Mistral AI
  */
 
-const mistralClient = require('../../workers/mistralClient');
+import mistralClient from '../../workers/mistralClient.js';
 
 /**
  * Extract parameters from user message based on target agent using Mistral AI
@@ -757,8 +757,4 @@ function analyzeParameterConfidence(params, agent) {
   return analysis;
 }
 
-module.exports = {
-  extractParameters,
-  analyzeParameterConfidence,
-  extractQuoteAuthor
-};
+export { extractParameters, analyzeParameterConfidence, extractQuoteAuthor };

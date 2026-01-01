@@ -5,8 +5,8 @@
  * Each zone has a name, bounds, and component type constraints.
  */
 
-const { CORPORATE_DESIGN } = require('./componentLibrary');
-const { createLogger } = require('../../utils/logger.js');
+import { CORPORATE_DESIGN } from './componentLibrary.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('Templates');
 
 /**
@@ -646,15 +646,4 @@ if (registeredTemplates.length > 0) {
   log.info(`Registered ${registeredTemplates.length} templates`);
 }
 
-module.exports = {
-  registerTemplate,
-  getTemplate,
-  listTemplates,
-  getTemplatesByCategory,
-  getTemplatesForContentType,
-  validateComponentPlacement,
-  getZoneBounds,
-  getTemplateZonesWithBounds,
-  calculateZoneBounds,
-  CANVAS_DIMENSIONS
-};
+export { registerTemplate, getTemplate, listTemplates, getTemplatesByCategory, getTemplatesForContentType, validateComponentPlacement, getZoneBounds, getTemplateZonesWithBounds, calculateZoneBounds, CANVAS_DIMENSIONS };

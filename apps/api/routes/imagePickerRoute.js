@@ -1,8 +1,14 @@
-const express = require('express');
-const path = require('path');
-const imagePickerService = require('../services/imagePickerService');
-const { enhanceWithAttribution } = require('../utils/unsplashAttribution');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
+import imagePickerService from '../services/imagePickerService.js';
+import { enhanceWithAttribution } from '../utils/unsplashAttribution.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('imagePicker');
 
 
@@ -280,4 +286,4 @@ router.get('/stock-image/:filename', (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

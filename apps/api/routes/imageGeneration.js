@@ -3,11 +3,11 @@
  * Handles daily image generation limits and status
  */
 
-const express = require('express');
-const ImageGenerationCounter = require('../utils/imageGenerationCounter');
-const redisClient = require('../utils/redisClient');
-const { requireAuth } = require('../middleware/authMiddleware');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import ImageGenerationCounter from '../utils/imageGenerationCounter.js';
+import redisClient from '../utils/redisClient.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('imageGeneration');
 
 
@@ -120,4 +120,4 @@ router.post('/reset', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

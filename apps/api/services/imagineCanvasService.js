@@ -1,7 +1,7 @@
-const { createCanvas, loadImage } = require('canvas');
-const { checkFiles, registerFonts } = require('../routes/sharepic/sharepic_canvas/fileManagement');
-const { COLORS } = require('../routes/sharepic/sharepic_canvas/config');
-const { createLogger } = require('../utils/logger.js');
+import { createCanvas, loadImage } from 'canvas';
+import { checkFiles, registerFonts } from '../routes/sharepic/sharepic_canvas/fileManagement.js';
+import { COLORS } from '../routes/sharepic/sharepic_canvas/config.js';
+import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('imagineCanvasService');
 
@@ -240,12 +240,4 @@ async function composeImagineCreate(fluxImageBuffer, options) {
   return buffer;
 }
 
-module.exports = {
-  composeImagineCreate,
-  VARIANT_CONFIGS,
-  FLUX_WIDTH,
-  FLUX_HEIGHT,
-  OUTPUT_WIDTH,
-  OUTPUT_HEIGHT,
-  BRAND_COLORS
-};
+export { composeImagineCreate, VARIANT_CONFIGS, FLUX_WIDTH, FLUX_HEIGHT, OUTPUT_WIDTH, OUTPUT_HEIGHT, BRAND_COLORS };

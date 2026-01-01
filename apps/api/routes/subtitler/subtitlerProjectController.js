@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 const fsPromises = fs.promises;
-const { requireAuth } = require('../../middleware/authMiddleware');
-const { createLogger } = require('../../utils/logger.js');
-const { saveOrUpdateProject } = require('./services/projectSavingService');
+import { requireAuth } from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
+import { saveOrUpdateProject } from './services/projectSavingService.js';
 
 const log = createLogger('subtitler-projects');
 
@@ -307,4 +307,4 @@ router.post('/:projectId/export', requireAuth, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

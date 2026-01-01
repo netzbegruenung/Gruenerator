@@ -113,12 +113,4 @@ function extractLocaleFromRequest(req) {
   return req?.user?.locale || 'de-DE';
 }
 
-module.exports = {
-  PARTY_NAMES,
-  LOCALE_MAPPINGS,
-  getLocalizedText,
-  localizePlaceholders,
-  localizePromptObject,
-  getPartyName,
-  extractLocaleFromRequest
-};
+export { PARTY_NAMES, LOCALE_MAPPINGS, getLocalizedText, localizePlaceholders, localizePromptObject, getPartyName, extractLocaleFromRequest };
