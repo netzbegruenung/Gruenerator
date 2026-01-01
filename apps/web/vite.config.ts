@@ -54,7 +54,7 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '~': path.resolve(__dirname, './'),
-      '@gruenerator/shared': path.resolve(__dirname, '../packages/shared/src')
+      '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src')
     }
   },
   optimizeDeps: {

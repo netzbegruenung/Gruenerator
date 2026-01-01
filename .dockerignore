@@ -1,0 +1,21 @@
+# Build artifacts
+**/dist/
+**/node_modules/
+
+# Development files
+**/.env
+**/.env.local
+**/*.log
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.md
+!README.md
+docs/

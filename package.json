@@ -40,6 +40,8 @@
     "dev:mobile": "pnpm --filter @gruenerator/mobile start",
     "build:web": "pnpm --filter @gruenerator/web build",
     "build:shared": "pnpm --filter @gruenerator/shared build",
-    "build:desktop": "pnpm --filter @gruenerator/desktop build"
+    "build:desktop": "pnpm --filter @gruenerator/desktop build",
+    "dev:sites": "pnpm --filter @gruenerator/sites dev",
+    "build:sites": "pnpm --filter @gruenerator/sites build"
   }
 }
