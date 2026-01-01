@@ -134,9 +134,9 @@ async function deleteAntragById(antragId, userId) {
 
 // Add other functions like getAntragById, listAntraegeByUser etc. here later
 
-module.exports = {
+export {
   saveAntragToDatabase,
-  saveAntragToSupabase: saveAntragToDatabase, // Keep old name for compatibility
+  saveAntragToDatabase as saveAntragToSupabase,
   getAntraegeByUserId,
-  deleteAntragById,
-}; 
+  deleteAntragById
+};

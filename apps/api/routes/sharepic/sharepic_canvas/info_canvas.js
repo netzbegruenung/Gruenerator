@@ -1,14 +1,20 @@
-const express = require('express');
-const multer = require('multer');
-const { createCanvas, loadImage } = require('canvas');
-const fs = require('fs').promises;
-const path = require('path');
+import express from 'express';
 
-const { COLORS } = require('./config');
-const { isValidHexColor } = require('./utils');
-const { checkFiles, registerFonts } = require('./fileManagement');
-const { optimizeCanvasBuffer, bufferToBase64 } = require('./imageOptimizer');
-const { createLogger } = require('../../../utils/logger.js');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import multer from 'multer';
+import { createCanvas, loadImage } from 'canvas';
+import fs from 'fs/promises';
+import path from 'path';
+
+import { COLORS } from './config.js';
+import { isValidHexColor } from './utils.js';
+import { checkFiles, registerFonts } from './fileManagement.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('info_canvas');
 
 
@@ -290,4 +296,4 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

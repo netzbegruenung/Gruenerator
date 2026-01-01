@@ -1,5 +1,5 @@
-const { params } = require('./config');
-const { isValidHexColor } = require('./utils');
+import { params } from './config.js';
+import { isValidHexColor } from './utils.js';
 
 function validateParams(inputParams) {
   return {
@@ -51,6 +51,4 @@ function validateParams(inputParams) {
   };
 }
 
-module.exports = {
-  validateParams
-};
+export { validateParams };

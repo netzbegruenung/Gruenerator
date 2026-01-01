@@ -1,15 +1,21 @@
-const path = require('path');
-const fs = require('fs').promises;
-const { v4: uuidv4 } = require('uuid');
-const { createLogger } = require('../../../utils/logger.js');
-const redisClient = require('../../../utils/redisClient.js');
-const { detectSilence, calculateTrimPoints } = require('./silenceDetectionService.js');
-const { transcribeVideo } = require('./transcriptionService.js');
-const { ffmpeg, ffprobe } = require('./ffmpegWrapper.js');
-const hwaccel = require('./hwaccelUtils.js');
-const AssSubtitleService = require('./assSubtitleService.js');
-const { ffmpegPool } = require('./ffmpegPool.js');
-const { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } = require('./ffmpegExportUtils.js');
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import fs from 'fs/promises';
+import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../../utils/logger.js';
+import redisClient from '../../../utils/redisClient.js';
+import { detectSilence, calculateTrimPoints } from './silenceDetectionService.js';
+import { transcribeVideo } from './transcriptionService.js';
+import { ffmpeg, ffprobe } from './ffmpegWrapper.js';
+import * as hwaccel from './hwaccelUtils.js';
+import AssSubtitleService from './assSubtitleService.js';
+import { ffmpegPool } from './ffmpegPool.js';
+import { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 
 const assService = new AssSubtitleService();
 
@@ -561,8 +567,4 @@ async function getAutoProgress(token) {
   return JSON.parse(data);
 }
 
-module.exports = {
-  processVideoAutomatically,
-  getAutoProgress,
-  STAGES
-};
+export { processVideoAutomatically, getAutoProgress, STAGES };

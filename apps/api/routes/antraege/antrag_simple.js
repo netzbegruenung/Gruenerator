@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { processGraphRequest } = require('../../agents/langgraph/promptProcessor');
-const { createLogger } = require('../../utils/logger.js');
+import { processGraphRequest } from '../../agents/langgraph/promptProcessor.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('antrag_simple');
 
 
@@ -73,4 +73,4 @@ const routeHandler = async (req, res) => {
 
 router.post('/', routeHandler);
 
-module.exports = router;
+export default router;

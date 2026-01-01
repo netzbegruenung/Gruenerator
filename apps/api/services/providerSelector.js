@@ -127,9 +127,4 @@ function selectProviderAndModel({ type, options = {}, metadata = {}, env = proce
   return { provider, model, useBedrock };
 }
 
-module.exports = {
-  shouldAllowMainLlmOverride,
-  determineProviderFromModel,
-  selectProviderAndModel
-};
-
+export { shouldAllowMainLlmOverride, determineProviderFromModel, selectProviderAndModel };

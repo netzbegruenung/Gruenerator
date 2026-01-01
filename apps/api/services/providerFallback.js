@@ -98,5 +98,4 @@ async function tryPrivacyModeProviders(execForProvider, requestId, data, chain =
   throw new Error(`All privacy mode providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`);
 }
 
-module.exports = { tryPrivacyModeProviders, isProviderAvailable, getPrivacyModelForProvider };
-
+export { tryPrivacyModeProviders, isProviderAvailable, getPrivacyModelForProvider };

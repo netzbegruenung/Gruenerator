@@ -3,14 +3,11 @@ import crypto from 'crypto';
 import axios from 'axios';
 import passport from '../../config/passportSetup.mjs';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { createRequire } from 'module';
 import { getProfileService } from '../../services/ProfileService.mjs';
 import { createLogger } from '../../utils/logger.js';
+import CanvaTokenManager from '../../utils/canvaTokenManager.js';
+import redisOAuthStateManager from '../../utils/redisOAuthStateManager.js';
 const log = createLogger('canvaAuth');
-
-const require = createRequire(import.meta.url);
-const CanvaTokenManager = require('../../utils/canvaTokenManager.js');
-const redisOAuthStateManager = require('../../utils/redisOAuthStateManager.js');
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 

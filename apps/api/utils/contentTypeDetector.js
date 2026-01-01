@@ -104,11 +104,4 @@ function detectGermanPatterns(text) {
   return { hasUmlauts, hasSectionSymbol, germanQuotes, months };
 }
 
-module.exports = {
-  detectContentType,
-  detectMarkdownStructure,
-  extractHeaderLevel,
-  extractPageNumber,
-  detectGermanPatterns,
-};
-
+export { detectContentType, detectMarkdownStructure, extractHeaderLevel, extractPageNumber, detectGermanPatterns };

@@ -911,26 +911,4 @@ const enhanceSystemPromptWithAttachments = (baseSystemPrompt, hasAttachments) =>
   return baseSystemPrompt + ATTACHMENT_INSTRUCTIONS;
 };
 
-module.exports = {
-  HTML_FORMATTING_INSTRUCTIONS,
-  PLATFORM_SPECIFIC_GUIDELINES,
-  MARKDOWN_CHAT_INSTRUCTIONS,
-  MARKDOWN_FORMATTING_INSTRUCTIONS,
-  COMPREHENSIVE_DOSSIER_INSTRUCTIONS,
-  JSON_OUTPUT_FORMATTING_INSTRUCTIONS,
-  SEARCH_DOCUMENTS_TOOL,
-  PROVIDE_REFERENCES_TOOL,
-  WEB_SEARCH_TOOL,
-  TITLE_GENERATION_INSTRUCTION,
-  ATTACHMENT_INSTRUCTIONS,
-  extractCitationsFromText,
-  processAIResponseWithCitations,
-  isStructuredPrompt,
-  formatUserContent,
-  detectContentType,
-  generateSmartTitle,
-  extractTitleFromResponse,
-  processResponseWithTitle,
-  sanitizeMarkdownForDisplay,
-  enhanceSystemPromptWithAttachments
-};
+export { HTML_FORMATTING_INSTRUCTIONS, PLATFORM_SPECIFIC_GUIDELINES, MARKDOWN_CHAT_INSTRUCTIONS, MARKDOWN_FORMATTING_INSTRUCTIONS, COMPREHENSIVE_DOSSIER_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS, SEARCH_DOCUMENTS_TOOL, PROVIDE_REFERENCES_TOOL, WEB_SEARCH_TOOL, TITLE_GENERATION_INSTRUCTION, ATTACHMENT_INSTRUCTIONS, extractCitationsFromText, processAIResponseWithCitations, isStructuredPrompt, formatUserContent, detectContentType, generateSmartTitle, extractTitleFromResponse, processResponseWithTitle, sanitizeMarkdownForDisplay, enhanceSystemPromptWithAttachments };

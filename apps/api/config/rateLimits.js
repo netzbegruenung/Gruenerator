@@ -18,7 +18,7 @@
  * - monthly: Resets on 1st of month
  */
 
-module.exports = {
+export default {
   // Resource limit definitions
   resources: {
     // AI Image Generation (Flux)

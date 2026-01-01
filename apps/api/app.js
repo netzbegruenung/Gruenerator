@@ -1,3 +1,3 @@
 // Entferne diese Zeilen, da die Route jetzt in routes.js registriert wird
-// const wahlpruefsteinBundestagswahl = require('./routes/wahlpruefsteinbundestagswahl');
+// import wahlpruefsteinBundestagswahl from './routes/wahlpruefsteinbundestagswahl.js';
 // app.use('/api/wahlpruefsteinbundestagswahl', wahlpruefsteinBundestagswahl);

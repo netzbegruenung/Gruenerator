@@ -1,7 +1,7 @@
-const { mergeMetadata } = require('./adapterUtils');
-const ToolHandler = require('../../services/toolHandler');
-const mistralClient = require('../mistralClient');
-const { connectionMetrics } = require('../mistralClient');
+import { mergeMetadata } from './adapterUtils.js';
+import ToolHandler from '../../services/toolHandler.js';
+import mistralClient from '../mistralClient.js';
+import { connectionMetrics } from '../mistralClient.js';
 
 /**
  * Extract final answer from reasoning model response
@@ -463,4 +463,4 @@ async function execute(requestId, data) {
   };
 }
 
-module.exports = { execute };
+export { execute };

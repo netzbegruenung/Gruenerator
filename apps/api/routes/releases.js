@@ -1,7 +1,13 @@
-const express = require('express');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 
 // Release files directory - create this on your server
 // Place release bundles here: /var/www/gruenerator/releases/desktop/v{version}/
@@ -198,4 +204,4 @@ router.get('/info', (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

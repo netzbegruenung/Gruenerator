@@ -566,10 +566,4 @@ function getAvailableRequestTypes() {
   return Object.keys(ANTRAG_QUESTIONS);
 }
 
-module.exports = {
-  ANTRAG_QUESTIONS,
-  ANTRAG_QUESTIONS_V2,
-  getQuestionsForType,
-  hasFollowUpQuestions,
-  getAvailableRequestTypes
-};
+export { ANTRAG_QUESTIONS, ANTRAG_QUESTIONS_V2, getQuestionsForType, hasFollowUpQuestions, getAvailableRequestTypes };

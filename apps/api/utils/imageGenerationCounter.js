@@ -156,4 +156,4 @@ class ImageGenerationCounter {
   }
 }
 
-module.exports = ImageGenerationCounter;
+export default ImageGenerationCounter;

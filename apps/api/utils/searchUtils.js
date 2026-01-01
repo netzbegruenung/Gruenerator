@@ -1,5 +1,5 @@
-const MistralWebSearchService = require('../services/mistralWebSearchService');
-const dotenv = require('dotenv');
+import MistralWebSearchService from '../services/mistralWebSearchService.js';
+import dotenv from 'dotenv';
 
 dotenv.config({ quiet: true });
 
@@ -164,9 +164,7 @@ class WebSearchService {
   }
 }
 
-module.exports = {
-  searchConfig,
-  webSearchService: new WebSearchService(),
-  // Backward compatibility aliases
-  tavilyService: new WebSearchService()
-}; 
+const webSearchService = new WebSearchService();
+const tavilyService = new WebSearchService();
+
+export { searchConfig, webSearchService, tavilyService };

@@ -1,4 +1,7 @@
-const { Mistral } = require('@mistralai/mistralai');
+import { Mistral } from '@mistralai/mistralai';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 require('dotenv').config({ quiet: true });
 
 const apiKey = process.env.MISTRAL_API_KEY;
@@ -35,5 +38,5 @@ process.on('exit', () => {
 });
 
 // Export both client and metrics
-module.exports = mistralClient;
-module.exports.connectionMetrics = connectionMetrics;
+export default mistralClient;
+export { connectionMetrics };

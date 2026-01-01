@@ -262,10 +262,4 @@ const parseResponse = (rawResponse, parserConfig) => {
   }
 };
 
-module.exports = {
-  parseResponse,
-  lineExtractor,
-  multiLineExtractor,
-  jsonExtractor,
-  regexExtractor
-};
+export { parseResponse, lineExtractor, multiLineExtractor, jsonExtractor, regexExtractor };

@@ -4,18 +4,18 @@
  * Supports three modes: pure, sharepic (with title), and edit (image-to-image)
  */
 
-const path = require('path');
-const fs = require('fs');
-const { createLogger } = require('../../../utils/logger.js');
+import path from 'path';
+import fs from 'fs';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('imagineGenService');
 
 // Dynamic imports for ESM modules
 let FluxImageService = null;
-const { buildFluxPrompt, VARIANTS } = require('../../../services/fluxPromptBuilder');
-const { composeImagineCreate, OUTPUT_WIDTH, OUTPUT_HEIGHT } = require('../../../services/imagineCanvasService');
-const { addKiLabel } = require('../../sharepic/sharepic_canvas/imagine_label_canvas');
-const ImageGenerationCounter = require('../../../utils/imageGenerationCounter');
-const redisClient = require('../../../utils/redisClient');
+import { buildFluxPrompt, VARIANTS } from '../../../services/fluxPromptBuilder.js';
+import { composeImagineCreate, OUTPUT_WIDTH, OUTPUT_HEIGHT } from '../../../services/imagineCanvasService.js';
+import { addKiLabel } from '../../sharepic/sharepic_canvas/imagine_label_canvas.js';
+import ImageGenerationCounter from '../../../utils/imageGenerationCounter.js';
+import redisClient from '../../../utils/redisClient.js';
 
 const imageCounter = new ImageGenerationCounter(redisClient);
 
@@ -426,6 +426,4 @@ async function saveGeneratedImage(buffer, mode) {
   return filePath;
 }
 
-module.exports = {
-  generateImagineForChat
-};
+export { generateImagineForChat };

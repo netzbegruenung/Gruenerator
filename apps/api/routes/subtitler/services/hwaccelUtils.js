@@ -1,6 +1,6 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
-const { createLogger } = require('../../../utils/logger.js');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('HWAccel');
 
@@ -206,18 +206,4 @@ function isHwAccelAvailable() {
   return hwaccelAvailable;
 }
 
-module.exports = {
-  detectVaapi,
-  getVaapiInputOptions,
-  getVaapiEncoder,
-  getVaapiOutputOptions,
-  getSubtitleFilterChain,
-  getCompressionFilterChain,
-  crfToQp,
-  resetDetection,
-  isHwAccelAvailable,
-  getQualitySettings,
-  getX264QualityParams,
-  VAAPI_DEVICE,
-  QUALITY_CONFIG
-};
+export { detectVaapi, getVaapiInputOptions, getVaapiEncoder, getVaapiOutputOptions, getSubtitleFilterChain, getCompressionFilterChain, crfToQp, resetDetection, isHwAccelAvailable, getQualitySettings, getX264QualityParams, VAAPI_DEVICE, QUALITY_CONFIG };

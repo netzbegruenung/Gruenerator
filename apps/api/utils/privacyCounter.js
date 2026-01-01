@@ -83,4 +83,4 @@ class PrivacyCounter {
   }
 }
 
-module.exports = PrivacyCounter;
+export default PrivacyCounter;

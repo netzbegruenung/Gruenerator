@@ -102,9 +102,4 @@ function validateCampaignInputsOrThrow(inputs, campaignConfig) {
   }
 }
 
-module.exports = {
-  ValidationError,
-  validateField,
-  validateCampaignInputs,
-  validateCampaignInputsOrThrow
-};
+export { ValidationError, validateField, validateCampaignInputs, validateCampaignInputsOrThrow };

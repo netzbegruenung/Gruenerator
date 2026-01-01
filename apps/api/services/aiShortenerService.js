@@ -473,7 +473,4 @@ const shortenSharepicText = async (type, data, req) => {
   }
 };
 
-module.exports = {
-  shortenSharepicText,
-  CHARACTER_LIMITS
-};
+export { shortenSharepicText, CHARACTER_LIMITS };

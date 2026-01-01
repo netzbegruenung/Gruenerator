@@ -1,5 +1,5 @@
 import express from 'express';
-import { urlCrawlerService } from '../services/urlCrawlerService.js';
+import { urlCrawlerService } from '../services/scrapers/implementations/UrlCrawler/index.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('crawlUrl');
 

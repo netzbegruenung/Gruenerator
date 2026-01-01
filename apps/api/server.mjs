@@ -1,9 +1,12 @@
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv';
+dotenv.config({ quiet: true });
+
 import express from 'express';
 import cluster from 'cluster';
 import os from 'os';
 import compression from 'compression';
 import bodyParser from 'body-parser';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import morgan from 'morgan';
 import fs from 'fs';
@@ -16,26 +19,25 @@ import multer from 'multer';
 import axios from 'axios';
 import { createRequire } from 'module';
 import { createLogger } from './utils/logger.js';
-
-import routesModule from './routes.js';
-const { setupRoutes } = routesModule;
-
-import AiWorkerPoolModule from './workers/aiWorkerPool.js';
-const AIWorkerPool = AiWorkerPoolModule;
-
-import tusServiceModule from './routes/subtitler/services/tusService.js';
-const { tusServer } = tusServiceModule;
-
 import session from 'express-session';
 import {RedisStore} from 'connect-redis';
-import passport from './config/passportSetup.mjs';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 
 const require = createRequire(import.meta.url);
 
-const numCPUs = os.cpus().length;
+// Dynamic import for passport after dotenv is loaded
+const passport = (await import('./config/passportSetup.mjs')).default;
 
-dotenv.config({ quiet: true });
+// Load CommonJS modules using createRequire
+const routesModule = await import('./routes.js');
+const { setupRoutes } = routesModule;
+
+import AIWorkerPool from './workers/aiWorkerPool.js';
+
+const tusServiceModule = require('./routes/subtitler/services/tusService.js');
+const { tusServer } = tusServiceModule;
+
+const numCPUs = os.cpus().length;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

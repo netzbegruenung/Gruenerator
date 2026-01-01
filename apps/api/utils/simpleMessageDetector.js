@@ -1,5 +1,11 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
 
 let configCache = null;
 
@@ -37,4 +43,4 @@ function generateSimpleResponse(category, locale = 'de-DE') {
   return responses[Math.floor(Math.random() * responses.length)];
 }
 
-module.exports = { detectSimpleMessage, generateSimpleResponse, loadConfig };
+export { detectSimpleMessage, generateSimpleResponse, loadConfig };

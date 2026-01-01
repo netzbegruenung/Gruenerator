@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 /**
  * Canva Connect API Client Service
@@ -401,4 +401,4 @@ class CanvaApiClient {
 }
 
 // Export the class for creating instances
-module.exports = CanvaApiClient;
+export default CanvaApiClient;

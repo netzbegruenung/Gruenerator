@@ -5,7 +5,7 @@
  * Prevents information leakage while maintaining good debugging capabilities
  */
 
-const { sendErrorResponse } = require('./responseFormatter');
+import { sendErrorResponse } from './responseFormatter.js';
 
 /**
  * Common error types and their user-friendly messages
@@ -164,13 +164,4 @@ const addCorrelationId = (req, res, next) => {
   next();
 };
 
-module.exports = {
-  ERROR_TYPES,
-  handleRouteError,
-  handleValidationError,
-  handleAttachmentError,
-  handleAIWorkerError,
-  withErrorHandler,
-  addCorrelationId,
-  classifyError
-};
+export { ERROR_TYPES, handleRouteError, handleValidationError, handleAttachmentError, handleAIWorkerError, withErrorHandler, addCorrelationId, classifyError };

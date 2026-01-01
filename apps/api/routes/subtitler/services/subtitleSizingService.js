@@ -1,4 +1,4 @@
-const { createLogger } = require('../../../utils/logger.js');
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('subtitleSizing');
 
 function calculateScaleFactor(avgChars, avgWords) {
@@ -109,8 +109,4 @@ function calculateFontSizing(metadata, segments) {
     };
 }
 
-module.exports = {
-    calculateFontSizing,
-    calculateScaleFactor,
-    getBaseFontSettings
-};
+export { calculateFontSizing, calculateScaleFactor, getBaseFontSettings };

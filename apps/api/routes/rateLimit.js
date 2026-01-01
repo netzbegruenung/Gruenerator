@@ -9,9 +9,9 @@
  * - POST /api/rate-limit/reset/:resourceType - Reset counter (admin/dev only)
  */
 
-const express = require('express');
-const { rateLimiter } = require('../middleware/rateLimitMiddleware');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import { rateLimiter } from '../middleware/rateLimitMiddleware.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('rateLimit');
 
 
@@ -237,4 +237,4 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-module.exports = router;
+export default router;

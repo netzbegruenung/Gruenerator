@@ -6,7 +6,7 @@
  * unwanted reuse across different sharepic requests.
  */
 
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 class SharepicImageManager {
   constructor(redisClient) {
@@ -170,4 +170,4 @@ class SharepicImageManager {
   }
 }
 
-module.exports = SharepicImageManager;
+export default SharepicImageManager;

@@ -4,8 +4,8 @@
  * Replaces multiple existing search controllers
  */
 
-const express = require('express');
-const { createLogger } = require('../../utils/logger.js');
+import express from 'express';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('unifiedSearch');
 
 const router = express.Router();
@@ -437,4 +437,4 @@ router.post('/clear-cache', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -82,7 +82,4 @@ function isValidGenerationContext(generationContext) {
     && typeof generationContext.enrichedState === 'object';
 }
 
-module.exports = {
-  buildEditContextSummary,
-  isValidGenerationContext
-};
+export { buildEditContextSummary, isValidGenerationContext };

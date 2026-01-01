@@ -1,6 +1,6 @@
-const { getLiteLlmClient } = require('../clients/liteLlmClient');
-const { mergeMetadata } = require('./adapterUtils');
-const ToolHandler = require('../../services/toolHandler');
+import { getLiteLlmClient } from '../clients/liteLlmClient.js';
+import { mergeMetadata } from './adapterUtils.js';
+import ToolHandler from '../../services/toolHandler.js';
 
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
@@ -76,4 +76,4 @@ async function execute(requestId, data) {
   };
 }
 
-module.exports = { execute };
+export { execute };

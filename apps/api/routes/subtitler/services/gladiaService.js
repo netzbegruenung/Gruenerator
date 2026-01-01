@@ -1,8 +1,8 @@
-const fs = require('fs');
-const https = require('https');
-const FormData = require('form-data');
-const { createLogger } = require('../../../utils/logger.js');
-const redisClient = require('../../../utils/redisClient');
+import fs from 'fs';
+import https from 'https';
+import FormData from 'form-data';
+import { createLogger } from '../../../utils/logger.js';
+import redisClient from '../../../utils/redisClient.js';
 
 const log = createLogger('gladia');
 
@@ -378,13 +378,4 @@ async function checkServiceHealth() {
   }
 }
 
-module.exports = {
-  transcribeWithGladia,
-  checkServiceHealth,
-  uploadAudioFile,
-  submitTranscriptionRequest,
-  pollForCompletion,
-  getTranscriptionResult,
-  deleteTranscript,
-  transformToOpenAIFormat
-};
+export { transcribeWithGladia, checkServiceHealth, uploadAudioFile, submitTranscriptionRequest, pollForCompletion, getTranscriptionResult, deleteTranscript, transformToOpenAIFormat };

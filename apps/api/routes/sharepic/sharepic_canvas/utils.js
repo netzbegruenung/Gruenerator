@@ -1,4 +1,4 @@
-const { COLORS } = require('./config');
+import { COLORS } from './config.js';
 
 function isValidHexColor(color) {
   return /^#[0-9A-F]{6}$/i.test(color);
@@ -12,7 +12,4 @@ function getDefaultColor(type, index) {
   }
 }
 
-module.exports = {
-  isValidHexColor,
-  getDefaultColor
-};
+export { isValidHexColor, getDefaultColor };

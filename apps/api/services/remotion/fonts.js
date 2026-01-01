@@ -1,4 +1,10 @@
-const path = require('path');
+import path from 'path';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 
 const FONTS_DIR = path.resolve(__dirname, '../../public/fonts');
 
@@ -50,7 +56,7 @@ async function loadAllFonts() {
   const results = [];
 
   for (const fontPath of fontPaths) {
-    const fs = require('fs').promises;
+    const { default: fs } = await import('fs/promises');
     try {
       await fs.access(fontPath);
       results.push({ path: fontPath, success: true });
@@ -82,10 +88,4 @@ function getAllFontPaths() {
   return uniqueFiles.map(file => path.join(FONTS_DIR, file));
 }
 
-module.exports = {
-  loadAllFonts,
-  getFontPath,
-  getAllFontPaths,
-  fontDefinitions,
-  FONTS_DIR
-};
+export { loadAllFonts, getFontPath, getAllFontPaths, fontDefinitions, FONTS_DIR };

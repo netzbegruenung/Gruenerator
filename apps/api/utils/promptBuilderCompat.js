@@ -1,7 +1,7 @@
 
 
-const { PLATFORM_SPECIFIC_GUIDELINES, HTML_FORMATTING_INSTRUCTIONS, TITLE_GENERATION_INSTRUCTION, isStructuredPrompt, formatUserContent, processResponseWithTitle, WEB_SEARCH_TOOL } = require('./promptUtils');
-const { assemblePromptGraph, assemblePromptGraphAsync } = require('../agents/langgraph/promptAssemblyGraph.js');
+import { PLATFORM_SPECIFIC_GUIDELINES, HTML_FORMATTING_INSTRUCTIONS, TITLE_GENERATION_INSTRUCTION, isStructuredPrompt, formatUserContent, processResponseWithTitle, WEB_SEARCH_TOOL } from './promptUtils.js';
+import { assemblePromptGraph, assemblePromptGraphAsync } from '../agents/langgraph/promptAssemblyGraph.js';
 
 // Environment-based logging levels
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'; // debug, info, warn, error
@@ -175,7 +175,7 @@ class UnifiedPromptBuilder {
 
     try {
       // Import and use SearXNGWebSearchService
-      const searxngWebSearchService = require('../services/searxngWebSearchService');
+      const { default: searxngWebSearchService } = await import('../services/searxngWebSearchService.js');
       const searchService = searxngWebSearchService;
       
       const searchResults = await searchService.performWebSearch(query, agentType);
@@ -1139,16 +1139,11 @@ function shouldUseExamples(routeType, platforms = []) {
 }
 
 // Export unified class with compatibility aliases
-module.exports = {
-  // Classes (both point to unified implementation)
-  PromptBuilder: UnifiedPromptBuilder,
-  PromptBuilderWithExamples: UnifiedPromptBuilder, // Alias for backward compatibility
-  
-  // Helper functions
+export {
+  UnifiedPromptBuilder as PromptBuilder,
+  UnifiedPromptBuilder as PromptBuilderWithExamples,
   addExamplesFromService,
   shouldUseExamples,
-  
-  // Re-export utilities from promptUtils for convenience
   HTML_FORMATTING_INSTRUCTIONS,
   PLATFORM_SPECIFIC_GUIDELINES,
   TITLE_GENERATION_INSTRUCTION,

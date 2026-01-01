@@ -100,11 +100,4 @@ const filterNewUrls = (urls, existingAttachments = []) => {
   return urls.filter(url => !existingUrls.has(url));
 };
 
-module.exports = {
-  detectUrls,
-  extractUrlsFromContent,
-  isValidUrl,
-  getUrlDomain,
-  filterNewUrls,
-  URL_REGEX
-};
+export { detectUrls, extractUrlsFromContent, isValidUrl, getUrlDomain, filterNewUrls, URL_REGEX };

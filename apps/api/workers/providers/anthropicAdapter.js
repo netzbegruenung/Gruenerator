@@ -1,8 +1,8 @@
-const { Anthropic } = require('@anthropic-ai/sdk');
-const ToolHandler = require('../../services/toolHandler');
-const config = require('../worker.config');
-const { mergeMetadata } = require('./adapterUtils');
-const typeProfiles = require('../../utils/typeProfiles');
+import { Anthropic } from '@anthropic-ai/sdk';
+import ToolHandler from '../../services/toolHandler.js';
+import config from '../worker.config.js';
+import { mergeMetadata } from './adapterUtils.js';
+import * as typeProfiles from '../../utils/typeProfiles.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
@@ -95,5 +95,4 @@ async function execute(requestId, data) {
   };
 }
 
-module.exports = { execute };
-
+export { execute };

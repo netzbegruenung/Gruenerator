@@ -5,8 +5,8 @@
  * including token validation, automatic refresh, and connection status checks.
  */
 
-const CanvaTokenManager = require('../utils/canvaTokenManager.js');
-const CanvaApiClient = require('../services/canvaApiClient.js');
+import CanvaTokenManager from '../utils/canvaTokenManager.js';
+import CanvaApiClient from '../services/canvaApiClient.js';
 
 /**
  * Middleware to ensure user has a valid Canva connection
@@ -284,11 +284,4 @@ function canvaRateLimit(options = {}) {
   };
 }
 
-module.exports = {
-  requireCanvaConnection,
-  checkCanvaConnection,
-  requireCanvaScopes,
-  handleCanvaErrors,
-  addCanvaStatus,
-  canvaRateLimit
-};
+export { requireCanvaConnection, checkCanvaConnection, requireCanvaScopes, handleCanvaErrors, addCanvaStatus, canvaRateLimit };

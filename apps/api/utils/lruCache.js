@@ -219,7 +219,4 @@ const createCache = {
   })
 };
 
-module.exports = {
-  LRUCache,
-  createCache
-};
+export { LRUCache, createCache };

@@ -1,7 +1,7 @@
-const mistralClient = require('../../workers/mistralClient');
-const fs = require('fs').promises;
-const path = require('path');
-const { createLogger } = require('../../utils/logger.js');
+import mistralClient from '../../workers/mistralClient.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('mistralVoice');
 
 
@@ -209,4 +209,5 @@ class MistralVoiceService {
   }
 }
 
-module.exports = new MistralVoiceService();
+const instance = new MistralVoiceService();
+export default instance;

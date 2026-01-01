@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { webSearchService } = require('../../utils/searchUtils');
-const { MARKDOWN_FORMATTING_INSTRUCTIONS } = require('../../utils/promptUtils');
-const { DocumentSearchService } = require('../../services/DocumentSearchService.js');
-const { createLogger } = require('../../utils/logger.js');
+import { webSearchService } from '../../utils/searchUtils.js';
+import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../utils/promptUtils.js';
+import { DocumentSearchService } from '../../services/DocumentSearchService.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('deepResearch');
 
 
@@ -844,4 +844,4 @@ async function executeGrundsatzSearch(searchQuery) {
   }
 }
 
-module.exports = router;
+export default router;

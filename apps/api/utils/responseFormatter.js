@@ -5,7 +5,7 @@
  * Handles success responses, error responses, and metadata standardization
  */
 
-const { processResponseWithTitle } = require('./promptUtils');
+import { processResponseWithTitle } from './promptUtils.js';
 
 /**
  * Creates a standardized success response
@@ -164,11 +164,4 @@ const sendErrorResponse = (res, routePath, error, userMessage, statusCode = 500)
   res.status(finalStatusCode).json(response);
 };
 
-module.exports = {
-  createSuccessResponse,
-  createSuccessResponseWithAttachments,
-  createErrorResponse,
-  sendSuccessResponse,
-  sendSuccessResponseWithAttachments,
-  sendErrorResponse
-};
+export { createSuccessResponse, createSuccessResponseWithAttachments, createErrorResponse, sendSuccessResponse, sendSuccessResponseWithAttachments, sendErrorResponse };

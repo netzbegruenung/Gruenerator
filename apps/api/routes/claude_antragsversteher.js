@@ -1,8 +1,8 @@
-const express = require('express');
-const multer = require('multer');
-const { Anthropic } = require('@anthropic-ai/sdk');
-const { MARKDOWN_CHAT_INSTRUCTIONS } = require('../utils/promptUtils');
-const { createLogger } = require('../utils/logger.js');
+import express from 'express';
+import multer from 'multer';
+import { Anthropic } from '@anthropic-ai/sdk';
+import { MARKDOWN_CHAT_INSTRUCTIONS } from '../utils/promptUtils.js';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_antragsv');
 
 const router = express.Router();
@@ -95,4 +95,4 @@ router.post('/upload-pdf', upload.single('file'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,7 +1,11 @@
-const { Worker } = require('worker_threads');
-const path = require('path');
-const config = require('./worker.config');
-const PrivacyCounter = require('../utils/privacyCounter');
+import { Worker } from 'worker_threads';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import config from './worker.config.js';
+import PrivacyCounter from '../utils/privacyCounter.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class AIWorkerPool {
   constructor(numWorkers = config.worker.workersPerNode, redisClient = null) {
@@ -9,7 +13,7 @@ class AIWorkerPool {
     this.currentWorker = 0;
     this.pendingRequests = new Map();
     this.privacyCounter = redisClient ? new PrivacyCounter(redisClient) : null;
-    
+
     for (let i = 0; i < numWorkers; i++) {
       this.createWorker(i);
     }
@@ -17,15 +21,13 @@ class AIWorkerPool {
 
   createWorker(index) {
     const worker = new Worker(path.join(__dirname, 'aiWorker.js'));
-    
-    // Unified message handler for all responses
+
     worker.on('message', (message) => {
       this.handleWorkerMessage(index, message);
     });
-    
+
     worker.on('error', (error) => {
       console.error(`Worker ${index} Fehler:`, error);
-      // Handle all pending requests from this worker with an error
       this.handleWorkerFailure(index, error);
       this.replaceWorker(index);
     });
@@ -47,22 +49,20 @@ class AIWorkerPool {
 
   handleWorkerMessage(workerIndex, message) {
     const { type, requestId, data, error } = message;
-    
-    
+
     const pendingRequest = this.pendingRequests.get(requestId);
     if (!pendingRequest) {
       console.warn(`[AIWorkerPool] Received response for unknown request ${requestId}`);
       return;
     }
-    
+
     const { resolve, reject, timeout } = pendingRequest;
-    
+
     if (type === 'response') {
-      // Remove from pending and clear timeout
       this.pendingRequests.delete(requestId);
       this.workers[workerIndex].pendingRequests.delete(requestId);
       clearTimeout(timeout);
-      
+
       resolve({
         content: data.content,
         stop_reason: data.stop_reason,
@@ -76,17 +76,15 @@ class AIWorkerPool {
           processedAt: new Date().toISOString()
         }
       });
-    } 
+    }
     else if (type === 'progress') {
       // Progress updates removed for cleaner logs
-      // Only log critical milestones if needed
     }
     else if (type === 'error') {
-      // Remove from pending and clear timeout
       this.pendingRequests.delete(requestId);
       this.workers[workerIndex].pendingRequests.delete(requestId);
       clearTimeout(timeout);
-      
+
       console.error(`[AIWorkerPool] Error for request ${requestId}:`, error);
       reject(new Error(error));
     }
@@ -102,8 +100,7 @@ class AIWorkerPool {
   handleWorkerFailure(workerIndex, error) {
     const worker = this.workers[workerIndex];
     if (!worker) return;
-    
-    // Reject all pending requests for this worker
+
     for (const requestId of worker.pendingRequests) {
       const pendingRequest = this.pendingRequests.get(requestId);
       if (pendingRequest) {
@@ -113,7 +110,7 @@ class AIWorkerPool {
         this.pendingRequests.delete(requestId);
       }
     }
-    
+
     worker.pendingRequests.clear();
   }
 
@@ -126,12 +123,11 @@ class AIWorkerPool {
         console.warn(`Could not terminate worker ${index}:`, e);
       }
     }
-    
+
     this.createWorker(index);
   }
 
   selectWorker() {
-    // Basic round-robin selection
     const workerIndex = this.currentWorker;
     this.currentWorker = (this.currentWorker + 1) % this.workers.length;
     return { workerIndex, worker: this.workers[workerIndex].instance };
@@ -139,67 +135,55 @@ class AIWorkerPool {
 
   async processRequest(data, req = null) {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    
-    // Handle privacy mode provider selection
+
     let processedData = { ...data };
-    
+
     if (data.usePrivacyMode && this.privacyCounter && req) {
       try {
-        // Get user ID from request (prioritize user.id, fallback to sessionID)
         const userId = req.user?.id || req.sessionID;
-        
+
         if (userId) {
-          // Get provider based on request count
           const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
-          
-          // Override any existing provider selection for privacy mode
           processedData.provider = privacyProvider;
-          
         } else {
           console.warn('[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider');
         }
       } catch (error) {
         console.error('[AIWorkerPool] Privacy mode error:', error);
-        // Continue with original data on error
       }
     }
 
     return new Promise((resolve, reject) => {
       const { workerIndex, worker } = this.selectWorker();
-      
-      // Setup timeout before sending
+
       const timeout = setTimeout(() => {
         console.error(`[AIWorkerPool] Timeout for request ${requestId} after ${config.worker.requestTimeout}ms`);
         this.pendingRequests.delete(requestId);
         this.workers[workerIndex].pendingRequests.delete(requestId);
         reject(new Error(`Worker Timeout nach ${config.worker.requestTimeout}ms`));
       }, config.worker.requestTimeout);
-      
-      // Store the promise resolvers
+
       this.pendingRequests.set(requestId, { resolve, reject, timeout, workerIndex, startTime: Date.now() });
       this.workers[workerIndex].pendingRequests.add(requestId);
-      
-      // Send the message to the worker with request ID
+
       const message = {
         type: 'request',
         requestId,
         data: processedData
       };
-      
+
       worker.postMessage(message);
     });
   }
 
   shutdown() {
-    // Reject all pending requests
     for (const [requestId, { reject }] of this.pendingRequests.entries()) {
       reject(new Error('Worker pool shutting down'));
     }
     this.pendingRequests.clear();
-    
-    // Terminate all workers
+
     return Promise.all(this.workers.map(worker => worker.instance.terminate()));
   }
 }
 
-module.exports = AIWorkerPool;
+export default AIWorkerPool;

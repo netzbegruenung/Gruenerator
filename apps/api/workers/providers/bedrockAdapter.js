@@ -1,8 +1,8 @@
-const { InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
-const bedrockClient = require('../awsBedrockClient');
-const ToolHandler = require('../../services/toolHandler');
-const config = require('../worker.config');
-const { mergeMetadata } = require('./adapterUtils');
+import { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import bedrockClient from '../awsBedrockClient.js';
+import ToolHandler from '../../services/toolHandler.js';
+import config from '../worker.config.js';
+import { mergeMetadata } from './adapterUtils.js';
 
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, tools, metadata: requestMetadata = {} } = data;
@@ -137,5 +137,4 @@ async function execute(requestId, data) {
   };
 }
 
-module.exports = { execute };
-
+export { execute };

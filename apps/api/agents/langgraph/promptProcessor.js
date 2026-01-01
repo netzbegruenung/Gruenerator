@@ -1,19 +1,23 @@
-const fs = require('fs');
-const path = require('path');
-const { createRequire } = require('module');
+import fs from 'fs';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
+import { createRequire } from 'module';
 
 // Import required utilities
-const { enrichRequest } = require('../../utils/requestEnrichment');
-const { assemblePromptGraphAsync } = require('./promptAssemblyGraph.js');
-const { sendSuccessResponseWithAttachments } = require('../../utils/responseFormatter');
-const { withErrorHandler, handleValidationError } = require('../../utils/errorHandler');
-const {
-  MARKDOWN_FORMATTING_INSTRUCTIONS,
+import { enrichRequest } from '../../utils/requestEnrichment.js';
+import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
+import { sendSuccessResponseWithAttachments } from '../../utils/responseFormatter.js';
+import { withErrorHandler, handleValidationError } from '../../utils/errorHandler.js';
+import { MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
   TITLE_GENERATION_INSTRUCTION,
-  PLATFORM_SPECIFIC_GUIDELINES
-} = require('../../utils/promptUtils');
-const { localizePromptObject, extractLocaleFromRequest } = require('../../utils/localizationHelper');
+  PLATFORM_SPECIFIC_GUIDELINES } from '../../utils/promptUtils.js';
+import { localizePromptObject, extractLocaleFromRequest } from '../../utils/localizationHelper.js';
 
 // Generation stats logging (lazy-loaded ES module)
 let generationStatsService = null;
@@ -609,7 +613,7 @@ async function processGraphRequest(routeType, req, res) {
     // Cache enriched context for future edit requests
     if (req.session?.id) {
       try {
-        const redisClient = require('../../utils/redisClient');
+        const { default: redisClient } = await import('../../utils/redisClient.js');
         const contextCacheKey = `edit_context:${req.session.id}:${routeType}`;
 
         const contextData = {
@@ -689,16 +693,4 @@ async function processGraphRequest(routeType, req, res) {
 }
 
 // Export the main function and utilities
-module.exports = {
-  processGraphRequest,
-  loadPromptConfig,
-  SimpleTemplateEngine,
-  buildSystemRole,
-  buildRequestContent,
-  buildWebSearchQuery,
-  getFormattingInstructions,
-  buildConstraints,
-  getAIOptions,
-  buildPlatformGuidelines,
-  getTaskInstructions
-};
+export { processGraphRequest, loadPromptConfig, SimpleTemplateEngine, buildSystemRole, buildRequestContent, buildWebSearchQuery, getFormattingInstructions, buildConstraints, getAIOptions, buildPlatformGuidelines, getTaskInstructions };

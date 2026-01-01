@@ -1,25 +1,31 @@
-const express = require('express');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
 const fsPromises = fs.promises;
-const { ffmpeg } = require('./services/ffmpegWrapper.js');
-const { getVideoMetadata, cleanupFiles } = require('./services/videoUploadService');
-const { transcribeVideo } = require('./services/transcriptionService');
-const { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup, getOriginalFilename } = require('./services/tusService');
-const redisClient = require('../../utils/redisClient');
-const { v4: uuidv4 } = require('uuid');
-const AssSubtitleService = require('./services/assSubtitleService');
-const { generateDownloadToken, processDirectDownload, processChunkedDownload, processSubtitleSegments } = require('./services/downloadUtils');
-const { calculateFontSizing } = require('./services/subtitleSizingService');
-const { saveToExistingProject, autoSaveProject } = require('./services/projectSavingService');
-const { getCompressionStatus } = require('./services/backgroundCompressionService');
-const { ffmpegPool } = require('./services/ffmpegPool');
-const { createLogger } = require('../../utils/logger.js');
-const { correctSubtitlesViaAI } = require('./services/subtitleCorrectionService');
-const hwaccel = require('./services/hwaccelUtils.js');
-const { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } = require('./services/ffmpegExportUtils.js');
-const { processRemotionExport } = require('./services/remotionExportService');
+import { ffmpeg } from './services/ffmpegWrapper.js';
+import { getVideoMetadata, cleanupFiles } from './services/videoUploadService.js';
+import { transcribeVideo } from './services/transcriptionService.js';
+import { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup, getOriginalFilename } from './services/tusService.js';
+import redisClient from '../../utils/redisClient.js';
+import { v4 as uuidv4 } from 'uuid';
+import AssSubtitleService from './services/assSubtitleService.js';
+import { generateDownloadToken, processDirectDownload, processChunkedDownload, processSubtitleSegments } from './services/downloadUtils.js';
+import { calculateFontSizing } from './services/subtitleSizingService.js';
+import { saveToExistingProject, autoSaveProject } from './services/projectSavingService.js';
+import { getCompressionStatus } from './services/backgroundCompressionService.js';
+import { ffmpegPool } from './services/ffmpegPool.js';
+import { createLogger } from '../../utils/logger.js';
+import { correctSubtitlesViaAI } from './services/subtitleCorrectionService.js';
+import * as hwaccel from './services/hwaccelUtils.js';
+import { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } from './services/ffmpegExportUtils.js';
+import { processRemotionExport } from './services/remotionExportService.js';
 
 const log = createLogger('subtitler');
 
@@ -971,7 +977,7 @@ router.post('/export-segments', async (req, res) => {
     let videoPath;
 
     if (projectId) {
-      const SubtitlerProjectService = require('../../services/subtitlerProjectService');
+      const { default: SubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
       const projService = new SubtitlerProjectService();
       const project = await projService.getProjectById(projectId);
 
@@ -1079,7 +1085,7 @@ router.post('/export-remotion', async (req, res) => {
 
 // ===== AUTOMATIC PROCESSING ENDPOINTS =====
 
-const { processVideoAutomatically, getAutoProgress } = require('./services/autoProcessingService.js');
+import { processVideoAutomatically, getAutoProgress } from './services/autoProcessingService.js';
 
 /**
  * Start automatic video processing
@@ -1284,4 +1290,4 @@ router.get('/auto-download/:uploadId', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router;

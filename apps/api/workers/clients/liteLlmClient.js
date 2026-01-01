@@ -38,5 +38,4 @@ function getLiteLlmClient() {
   };
 }
 
-module.exports = { getLiteLlmClient };
-
+export { getLiteLlmClient };

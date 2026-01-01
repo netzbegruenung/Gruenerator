@@ -1,11 +1,17 @@
-const express = require('express');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
-const { markdownForExport, isMarkdownContent } = require('../utils/markdownService');
-const { sanitizeFilename: sanitizeFilenameCentral } = require('../utils/securityUtils');
-const { PRIMARY_DOMAIN } = require('../utils/domainUtils.js');
-const path = require('path');
-const fs = require('fs').promises;
-const { createLogger } = require('../utils/logger.js');
+import { markdownForExport, isMarkdownContent } from '../utils/markdownService.js';
+import { sanitizeFilename as sanitizeFilenameCentral } from '../utils/securityUtils.js';
+import { PRIMARY_DOMAIN } from '../utils/domainUtils.js';
+import path from 'path';
+import fs from 'fs/promises';
+import { createLogger } from '../utils/logger.js';
 const log = createLogger('exportDocuments');
 
 
@@ -598,5 +604,4 @@ router.post('/docx', async (req, res) => {
   }
 });
 
-module.exports = router;
-
+export default router;

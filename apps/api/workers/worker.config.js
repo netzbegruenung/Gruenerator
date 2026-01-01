@@ -1,4 +1,4 @@
-module.exports = {
+export default {
     worker: {
       // Anzahl der AI-Worker aus Umgebungsvariable oder Standardwert
       workersPerNode: parseInt(process.env.AI_WORKER_COUNT, 10) || 1,

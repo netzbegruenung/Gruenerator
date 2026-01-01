@@ -1,17 +1,23 @@
-const sharepicClaudeRouter = require('../../sharepic/sharepic_claude/sharepic_claude');
-const infoCanvasRouter = require('../../sharepic/sharepic_canvas/info_canvas');
-const zitatPureCanvasRouter = require('../../sharepic/sharepic_canvas/zitat_pure_canvas');
-const zitatCanvasRouter = require('../../sharepic/sharepic_canvas/zitat_canvas');
-const dreizeilenCanvasRouter = require('../../sharepic/sharepic_canvas/dreizeilen_canvas');
-const campaignCanvasRouter = require('../../sharepic/sharepic_canvas/campaign_canvas');
+import sharepicClaudeRouter from '../../sharepic/sharepic_claude/sharepic_claude.js';
 
-const { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment } = require('../../../utils/attachmentToCanvasAdapter');
-const imagePickerService = require('../../../services/imagePickerService');
-const { parseResponse } = require('../../../utils/campaignResponseParser');
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const path = require('path');
-const { createLogger } = require('../../../utils/logger.js');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import infoCanvasRouter from '../../sharepic/sharepic_canvas/info_canvas.js';
+import zitatPureCanvasRouter from '../../sharepic/sharepic_canvas/zitat_pure_canvas.js';
+import zitatCanvasRouter from '../../sharepic/sharepic_canvas/zitat_canvas.js';
+import dreizeilenCanvasRouter from '../../sharepic/sharepic_canvas/dreizeilen_canvas.js';
+import campaignCanvasRouter from '../../sharepic/sharepic_canvas/campaign_canvas.js';
+
+import { getFirstImageAttachment, convertToBuffer, convertToTempFile, validateImageAttachment } from '../../../utils/attachmentToCanvasAdapter.js';
+import imagePickerService from '../../../services/imagePickerService.js';
+import { parseResponse } from '../../../utils/campaignResponseParser.js';
+import fs from 'fs/promises';
+import fsSync from 'fs';
+import path from 'path';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('sharepicGenerat');
 
 
@@ -801,6 +807,4 @@ const generateSharepicForChat = async (expressReq, type, requestBody) => {
   }
 };
 
-module.exports = {
-  generateSharepicForChat
-};
+export { generateSharepicForChat };

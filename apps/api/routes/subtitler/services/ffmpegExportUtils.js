@@ -1,6 +1,6 @@
-const path = require('path');
-const hwaccel = require('./hwaccelUtils.js');
-const { createLogger } = require('../../../utils/logger.js');
+import path from 'path';
+import * as hwaccel from './hwaccelUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('ffmpeg-export-utils');
 
@@ -206,11 +206,4 @@ function isLargeFile(fileStats) {
   return (fileStats.size / 1024 / 1024) > 200;
 }
 
-module.exports = {
-  calculateScaleFilter,
-  getAudioCodecSettings,
-  buildFFmpegOutputOptions,
-  buildVideoFilters,
-  getReferenceDimension,
-  isLargeFile
-};
+export { calculateScaleFilter, getAudioCodecSettings, buildFFmpegOutputOptions, buildVideoFilters, getReferenceDimension, isLargeFile };

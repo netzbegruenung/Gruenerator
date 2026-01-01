@@ -1,6 +1,6 @@
-const express = require('express');
-const multer = require('multer');
-const { createLogger } = require('../../../utils/logger.js');
+import express from 'express';
+import multer from 'multer';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('imageUpload');
 
 
@@ -49,4 +49,4 @@ router.post('/', upload.single('image'), async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,5 +1,5 @@
-const axios = require('axios');
-const { createLogger } = require('../../utils/logger.js');
+import axios from 'axios';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('etherpad');
 
 
@@ -8,10 +8,10 @@ const ETHERPAD_BASE_URL = 'https://textbegruenung.de';
 const ETHERPAD_POST_PATH = '/post';
 const ETHERPAD_PAD_BASE_URL = 'https://textbegruenung.de/p';
 
-exports.createPadWithText = async (padId, text, documentType) => {
+export async function createPadWithText(padId, text, documentType) {
   try {
     // Formatiere den Dokumenttyp (Kleinbuchstaben, Leerzeichen durch Bindestriche ersetzen)
-    const formattedDocType = documentType ? 
+    const formattedDocType = documentType ?
       documentType.toLowerCase()
         .replace(/\s+/g, '-')
         .replace(/[äöüß]/g, match => {
@@ -24,8 +24,8 @@ exports.createPadWithText = async (padId, text, documentType) => {
         }) : '';
 
     // Erstelle eine formatierte padId mit Dokumenttyp
-    const formattedPadId = formattedDocType ? 
-      `${formattedDocType}-${padId}` : 
+    const formattedPadId = formattedDocType ?
+      `${formattedDocType}-${padId}` :
       padId;
 
     // Respect ep_post_data 100k character limit
@@ -77,4 +77,4 @@ exports.createPadWithText = async (padId, text, documentType) => {
     log.error('Fehler bei Etherpad-API-Aufruf:', error.response ? error.response.data : error.message);
     throw new Error('Fehler bei der Kommunikation mit Etherpad');
   }
-};
+}

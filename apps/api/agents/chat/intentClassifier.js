@@ -558,14 +558,6 @@ function isQuestionMessage(message) {
   return false;
 }
 
-module.exports = {
-  classifyIntent,
-  classifyWithAI,
-  getAvailableAgents,
-  AGENT_MAPPINGS,
-  // Legacy exports for backward compatibility
-  findKeywordMatch,
-  classifyFromContext,
-  // Web search helper
-  isQuestionMessage
-};
+export { classifyIntent, classifyWithAI, getAvailableAgents, AGENT_MAPPINGS, // Legacy exports for backward compatibility
+  findKeywordMatch, classifyFromContext, // Web search helper
+  isQuestionMessage };

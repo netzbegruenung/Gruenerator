@@ -339,20 +339,6 @@ const withErrorHandling = (fn, errorHandler, context = {}) => {
   };
 };
 
-module.exports = {
-  // Error classes
-  VectorBackendError,
-  ValidationError,
-  SearchError,
-  EmbeddingError,
-  DatabaseError,
-  AIWorkerError,
-  CacheError,
-  TimeoutError,
-  ResourceError,
-  
-  // Error handler
-  ErrorHandler,
-  createErrorHandler,
-  withErrorHandling
-};
+export { // Error classes
+  VectorBackendError, ValidationError, SearchError, EmbeddingError, DatabaseError, AIWorkerError, CacheError, TimeoutError, ResourceError, // Error handler
+  ErrorHandler, createErrorHandler, withErrorHandling };

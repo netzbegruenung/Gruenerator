@@ -3,7 +3,7 @@
  * Manages tool validation, processing, and provider-specific formatting
  */
 
-const MistralWebSearchService = require('./mistralWebSearchService');
+import MistralWebSearchService from './mistralWebSearchService.js';
 
 class ToolHandler {
   /**
@@ -339,4 +339,4 @@ class ToolHandler {
   }
 }
 
-module.exports = ToolHandler;
+export default ToolHandler;

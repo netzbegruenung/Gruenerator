@@ -1,4 +1,7 @@
-const redis = require('redis');
+import redis from 'redis';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 // Load environment variables
 require('dotenv').config({ quiet: true });
@@ -270,4 +273,4 @@ class RedisOAuthStateManager {
 // Export singleton instance
 const redisOAuthStateManager = new RedisOAuthStateManager();
 
-module.exports = redisOAuthStateManager;
+export default redisOAuthStateManager;

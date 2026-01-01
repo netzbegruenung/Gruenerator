@@ -38,5 +38,4 @@ function getIonosClient() {
   };
 }
 
-module.exports = { getIonosClient };
-
+export { getIonosClient };

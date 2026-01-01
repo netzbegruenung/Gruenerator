@@ -18,5 +18,4 @@ function toOpenAICompatibleMessages({ systemPrompt, messages }) {
   return out;
 }
 
-module.exports = { toOpenAICompatibleMessages };
-
+export { toOpenAICompatibleMessages };

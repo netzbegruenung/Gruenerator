@@ -1,18 +1,13 @@
-const express = require('express');
-const router = express.Router();
-// Import session-based auth middleware from authMiddleware
-const authMiddlewareModule = require('../../middleware/authMiddleware');
-const { createLogger } = require('../../utils/logger.js');
-const log = createLogger('antraege');
+import express from 'express';
+import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { createLogger } from '../../utils/logger.js';
+import { saveAntragToSupabase, deleteAntragById } from '../../services/antragService.js';
+import simpleAntragRouter from './antrag_simple.js';
+import experimentalAntragRouter from './experimentalRoutes.mjs';
 
+const router = express.Router();
+const log = createLogger('antraege');
 const { requireAuth } = authMiddlewareModule;
-const {
-  saveAntragToSupabase,
-  deleteAntragById
-  // Import other needed service functions here, e.g., getAntragById, getAllAntraege
-} = require('../../services/antragService');
-const simpleAntragRouter = require('./antrag_simple'); // Import the simple generator router
-const experimentalAntragRouter = require('./experimentalRoutes.mjs').default; // Import the experimental interactive generator router (ES6 default export)
 
 /**
  * Claude-API-Router
@@ -83,4 +78,4 @@ router.delete('/:antragId', requireAuth, async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router;

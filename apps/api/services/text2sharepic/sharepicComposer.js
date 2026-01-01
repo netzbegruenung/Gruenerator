@@ -5,17 +5,23 @@
  * Coordinates layout planning, component rendering, and caching.
  */
 
-const { createCanvas, registerFont } = require('canvas');
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+import { createCanvas, registerFont } from 'canvas';
 
-const { renderComponent, getCorporateDesign, CORPORATE_DESIGN } = require('./componentLibrary');
-const { getTemplate, getTemplateZonesWithBounds, CANVAS_DIMENSIONS } = require('./zoneTemplates');
-const { generateLayoutPlan, generateLayoutPlanWithAI, validateLayoutPlan } = require('../../agents/sharepic/layoutPlanner');
-const { generateLayoutWithRetry, editLayout } = require('./aiLayoutGenerator');
-const { validateAIOutput } = require('./layoutValidator');
-const imagePickerService = require('../../services/imagePickerService');
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+
+import { renderComponent, getCorporateDesign, CORPORATE_DESIGN } from './componentLibrary.js';
+import { getTemplate, getTemplateZonesWithBounds, CANVAS_DIMENSIONS } from './zoneTemplates.js';
+import { generateLayoutPlan, generateLayoutPlanWithAI, validateLayoutPlan } from '../../agents/sharepic/layoutPlanner.js';
+import { generateLayoutWithRetry, editLayout } from './aiLayoutGenerator.js';
+import { validateAIOutput } from './layoutValidator.js';
+import imagePickerService from '../../services/imagePickerService.js';
 
 // Font paths
 const FONT_PATH = path.resolve(__dirname, '../../public/fonts/GrueneTypeNeue-Regular.ttf');
@@ -651,8 +657,4 @@ async function quickGenerate(description, options = {}) {
   return composer.generateFromDescription(description, options);
 }
 
-module.exports = {
-  SharepicComposer,
-  createSharepicComposer,
-  quickGenerate
-};
+export { SharepicComposer, createSharepicComposer, quickGenerate };

@@ -5,11 +5,17 @@
  * Components are self-contained rendering units with parameters and constraints.
  */
 
-const { createCanvas, loadImage, registerFont } = require('canvas');
-const path = require('path');
-const fs = require('fs');
-const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, COLORS } = require('../../routes/sharepic/sharepic_canvas/config');
-const { createLogger } = require('../../utils/logger.js');
+import { createCanvas, loadImage, registerFont } from 'canvas';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+import path from 'path';
+import fs from 'fs';
+import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, COLORS } from '../../routes/sharepic/sharepic_canvas/config.js';
+import { createLogger } from '../../utils/logger.js';
 const log = createLogger('Components');
 
 // Register fonts on module load
@@ -794,12 +800,4 @@ if (registeredComponents.length > 0) {
   log.info(`Registered ${registeredComponents.length} components`);
 }
 
-module.exports = {
-  registerComponent,
-  getComponent,
-  listComponents,
-  renderComponent,
-  getCorporateDesign,
-  wrapText,
-  CORPORATE_DESIGN
-};
+export { registerComponent, getComponent, listComponents, renderComponent, getCorporateDesign, wrapText, CORPORATE_DESIGN };

@@ -4,7 +4,7 @@
  *
  * Usage:
  * ```javascript
- * const { rateLimitMiddleware, incrementRateLimit } = require('./middleware/rateLimitMiddleware');
+ * import { rateLimitMiddleware, incrementRateLimit } from './middleware/rateLimitMiddleware.js';
  *
  * router.post('/api/text/generate',
  *   rateLimitMiddleware('text'),  // One line adds rate limiting!
@@ -17,9 +17,9 @@
  * ```
  */
 
-const RateLimiter = require('../utils/RateLimiter');
-const rateLimitConfig = require('../config/rateLimits');
-const redisClient = require('../utils/redisClient');
+import RateLimiter from '../utils/RateLimiter.js';
+import rateLimitConfig from '../config/rateLimits.js';
+import redisClient from '../utils/redisClient.js';
 
 // Create singleton instance
 const rateLimiter = new RateLimiter(redisClient, rateLimitConfig);
@@ -189,9 +189,4 @@ function rateLimitInfo(resourceType) {
 }
 
 // Export singleton instance for direct use if needed
-module.exports = {
-  rateLimitMiddleware,
-  incrementRateLimit,
-  rateLimitInfo,
-  rateLimiter  // Export instance for advanced use cases
-};
+export { rateLimitMiddleware, incrementRateLimit, rateLimitInfo, rateLimiter };

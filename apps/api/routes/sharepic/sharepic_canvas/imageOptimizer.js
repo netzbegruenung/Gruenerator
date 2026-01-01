@@ -1,4 +1,4 @@
-const sharp = require('sharp');
+import sharp from 'sharp';
 
 /**
  * Optimizes a canvas buffer using sharp for better compression
@@ -38,4 +38,4 @@ function bufferToBase64(buffer, format = 'png') {
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
 
-module.exports = { optimizeCanvasBuffer, bufferToBase64 };
+export { optimizeCanvasBuffer, bufferToBase64 };

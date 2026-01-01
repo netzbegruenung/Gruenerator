@@ -1,7 +1,7 @@
-const fs = require('fs').promises;
-const { registerFont } = require('canvas');
-const { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH, TESTBILD_PATH, TEMP_UPLOAD_DIR  } = require('./config');
-const { createLogger } = require('../../../utils/logger.js');
+import fs from 'fs/promises';
+import { registerFont } from 'canvas';
+import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, SUNFLOWER_PATH, TESTBILD_PATH, TEMP_UPLOAD_DIR } from './config.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('fileManagement');
 
 
@@ -24,7 +24,6 @@ async function checkFiles() {
 }
 
 function registerFonts() {
-  const fs = require('fs');
 
   const fonts = [
     { path: FONT_PATH, family: 'GrueneTypeNeue', name: 'GrueneTypeNeue' },
@@ -42,7 +41,4 @@ function registerFonts() {
   }
 }
 
-module.exports = {
-  checkFiles,
-  registerFonts
-};
+export { checkFiles, registerFonts };

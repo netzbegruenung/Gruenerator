@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 /**
  * Canva Token Manager
@@ -194,4 +194,4 @@ class CanvaTokenManager {
   }
 }
 
-module.exports = CanvaTokenManager;
+export default CanvaTokenManager;

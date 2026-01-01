@@ -1,11 +1,17 @@
-const express = require('express');
+import express from 'express';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const router = express.Router();
-const path = require('path');
-const fs = require('fs');
-const { parseResponse } = require('../../../utils/campaignResponseParser');
-const { generateCampaignCanvas } = require('../sharepic_canvas/campaign_canvas');
-const { validateCampaignInputsOrThrow, ValidationError } = require('../../../utils/campaignValidator');
-const { createLogger } = require('../../../utils/logger.js');
+import path from 'path';
+import fs from 'fs';
+import { parseResponse } from '../../../utils/campaignResponseParser.js';
+import { generateCampaignCanvas } from '../sharepic_canvas/campaign_canvas.js';
+import { validateCampaignInputsOrThrow, ValidationError } from '../../../utils/campaignValidator.js';
+import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('campaign_genera');
 
 
@@ -411,4 +417,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

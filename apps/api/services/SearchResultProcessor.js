@@ -424,16 +424,4 @@ function parseAIJsonResponse(content, fallback = {}) {
     }
 }
 
-module.exports = {
-    expandResultsToChunks,
-    deduplicateResults,
-    buildReferencesMap,
-    validateAndInjectCitations,
-    renumberCitationsInOrder,
-    filterAndSortResults,
-    groupSourcesByCollection,
-    normalizeSearchResult,
-    dedupeAndDiversify,
-    summarizeReferencesForPrompt,
-    parseAIJsonResponse
-};
+export { expandResultsToChunks, deduplicateResults, buildReferencesMap, validateAndInjectCitations, renumberCitationsInOrder, filterAndSortResults, groupSourcesByCollection, normalizeSearchResult, dedupeAndDiversify, summarizeReferencesForPrompt, parseAIJsonResponse };
