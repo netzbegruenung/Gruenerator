@@ -1,29 +1,36 @@
-import express from 'express';
+/**
+ * Core authentication routes
+ * Handles login, logout, callback, status, and locale management
+ */
+
+import express, { Router, Response, NextFunction } from 'express';
 import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
-import { getOriginDomain, isAllowedDomain, buildDomainUrl, getLocaleFromDomain } from '../../utils/domainUtils.js';
-import * as chatMemory from '../../services/chat/index.js';
-const log = createLogger('authCore');
+import { getOriginDomain, isAllowedDomain, buildDomainUrl } from '../../utils/domainUtils.js';
+import * as chatMemory from '../../services/chat/ChatMemoryService.js';
+import type { AuthRequest, AuthSessionRequest, LocaleUpdateBody, AuthStatusResponse } from './types.js';
 
+const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
-const router = express.Router();
+const router: Router = express.Router();
 
 router.use(passport.session());
 
-router.use((req, res, next) => {
+// Response logging middleware for errors
+router.use((req: AuthRequest, res: Response, next: NextFunction): void => {
   const originalSend = res.send.bind(res);
   const originalJson = res.json.bind(res);
 
-  res.send = function (body) {
+  res.send = function (body: any) {
     if (res.statusCode >= 400) {
       log.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
     }
     return originalSend(body);
   };
 
-  res.json = function (body) {
+  res.json = function (body: any) {
     if (res.statusCode >= 400) {
       log.error(`[authCore] ${req.method} ${req.originalUrl} - Status: ${res.statusCode}`);
     }
@@ -33,14 +40,18 @@ router.use((req, res, next) => {
   next();
 });
 
-function isAllowedMobileRedirect(redirectUrl) {
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function isAllowedMobileRedirect(redirectUrl: string | undefined): boolean {
   if (!redirectUrl) return false;
   const lower = redirectUrl.toLowerCase();
   if (lower.startsWith('http://') || lower.startsWith('https://')) return false;
   return redirectUrl.startsWith('gruenerator://');
 }
 
-function appendQueryParam(url, key, value) {
+function appendQueryParam(url: string, key: string, value: string): string {
   try {
     const hasQuery = url.includes('?');
     const sep = hasQuery ? '&' : '?';
@@ -52,31 +63,19 @@ function appendQueryParam(url, key, value) {
   }
 }
 
-
-// Health check endpoint
-router.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
-});
-
-router.get('/test', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Auth routes are working',
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Session health check middleware
-async function checkSessionHealth(req, res, next) {
+async function checkSessionHealth(
+  req: AuthSessionRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
-    // Test session storage by attempting a write and read
     const testKey = '_session_health_test';
     const testValue = Date.now().toString();
 
-    req.session[testKey] = testValue;
+    (req.session as any)[testKey] = testValue;
 
-    // Save and verify
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Session health check timeout'));
       }, 3000);
@@ -86,9 +85,8 @@ async function checkSessionHealth(req, res, next) {
         if (err) {
           reject(err);
         } else {
-          // Verify the value was saved
-          if (req.session[testKey] === testValue) {
-            delete req.session[testKey];
+          if ((req.session as any)[testKey] === testValue) {
+            delete (req.session as any)[testKey];
             resolve();
           } else {
             reject(new Error('Session verification failed'));
@@ -100,40 +98,59 @@ async function checkSessionHealth(req, res, next) {
     next();
   } catch (error) {
     log.error('[Auth] Session health check failed:', error);
-    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
+    res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
   }
 }
 
-// Initiates the login flow - all sources now use OIDC through Keycloak
-router.get('/login', checkSessionHealth, async (req, res, next) => {
-  const source = req.query.source;
-  const { redirectTo, prompt } = req.query;
+// ============================================================================
+// Health & Test Routes
+// ============================================================================
 
-  // Store origin domain before OAuth flow for multi-domain support
+router.get('/health', (_req: AuthRequest, res: Response): void => {
+  res.status(200).json({ status: 'ok', message: 'Backend is healthy' });
+});
+
+router.get('/test', (_req: AuthRequest, res: Response): void => {
+  res.json({
+    success: true,
+    message: 'Auth routes are working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================================================
+// Login Flow
+// ============================================================================
+
+router.get('/login', checkSessionHealth, async (
+  req: AuthSessionRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const source = req.query.source as string | undefined;
+  const redirectTo = req.query.redirectTo as string | undefined;
+  const prompt = req.query.prompt as string | undefined;
+
   const originDomain = getOriginDomain(req);
   if (isAllowedDomain(originDomain)) {
     req.session.originDomain = originDomain;
     log.debug(`[Auth Login] Stored origin domain: ${originDomain}`);
   }
 
-  // Store redirect URL in session for all login types
   if (redirectTo) {
     req.session.redirectTo = redirectTo;
   }
 
-  // Store source preference for callback handling
   if (source) {
     req.session.preferredSource = source;
   }
 
-  // Handle registration requests
   if (prompt === 'register') {
     req.session.isRegistration = true;
   }
 
-  // Save session to ensure redirectTo and other params are persisted before OAuth flow
   try {
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Session save timeout before auth'));
       }, 3000);
@@ -150,49 +167,48 @@ router.get('/login', checkSessionHealth, async (req, res, next) => {
     });
   } catch (error) {
     log.error('[Auth Login] Session save error:', error);
-    return res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
+    res.redirect('/auth/error?message=session_storage_unavailable&retry=true');
+    return;
   }
 
-  let options = {
+  const options: Record<string, string> = {
     scope: 'openid profile email offline_access',
   };
 
-  // Add identity provider hint if specific source is requested
   if (source === 'netzbegruenung-login') {
     options.kc_idp_hint = 'netzbegruenung';
-    options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+    options.prompt = 'login';
   } else if (source === 'gruenes-netz-login') {
     options.kc_idp_hint = 'gruenes-netz';
-    options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+    options.prompt = 'login';
   } else if (source === 'gruene-oesterreich-login') {
     options.kc_idp_hint = 'gruene-at-login';
-    options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+    options.prompt = 'login';
   } else if (source === 'gruenerator-login') {
     options.kc_idp_hint = 'gruenerator-user';
-    // Set appropriate prompt based on registration intent
     if (prompt === 'register') {
-      options.prompt = 'register'; // Explicitly pass registration prompt to Keycloak
+      options.prompt = 'register';
     } else {
-      options.prompt = 'login'; // Force re-authentication to respect identity provider hint
+      options.prompt = 'login';
     }
   }
 
-  // openid-client handles session persistence properly
   passport.authenticate('oidc', options)(req, res, next);
 });
 
-// OIDC callback (handles all authentication sources)
+// ============================================================================
+// OIDC Callback
+// ============================================================================
+
 router.get('/callback',
   passport.authenticate('oidc', {
     failureRedirect: '/auth/error',
     failureMessage: true
   }),
-  async (req, res, next) => {
+  async (req: AuthSessionRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Get redirectTo from user object (survives session regeneration) or fallback to session
       const intendedRedirect = req.user?._redirectTo || req.session.redirectTo;
 
-      // Clean up
       if (req.user && req.user._redirectTo) {
         delete req.user._redirectTo;
       }
@@ -200,7 +216,6 @@ router.get('/callback',
       delete req.session.preferredSource;
       delete req.session.isRegistration;
 
-      // If redirect target is an allowed mobile deep link, issue a short-lived login_code
       if (intendedRedirect && isAllowedMobileRedirect(intendedRedirect)) {
         try {
           const { SignJWT } = await import('jose');
@@ -223,23 +238,19 @@ router.get('/callback',
             .setAudience('gruenerator-app-login-code')
             .sign(secret);
 
-          // Save then redirect to mobile deep link with code
           req.session.save((err) => {
             if (err) {
               log.error('[AuthCallback] Error saving session (mobile deep link):', err);
             }
             const redirectWithCode = appendQueryParam(intendedRedirect, 'code', code);
-            return res.redirect(redirectWithCode);
+            res.redirect(redirectWithCode);
           });
-          return; // Stop further processing
+          return;
         } catch (e) {
           log.error('[AuthCallback] Failed to create login_code for mobile redirect:', e);
-          // fall through to normal redirect
         }
       }
 
-      // Use stored origin domain for multi-domain support, fall back to BASE_URL
-      // Check user object first (survives session regeneration), then session
       const originDomain = req.user?._originDomain || req.session.originDomain;
       const originSource = req.user?._originDomain ? 'user._originDomain' : (req.session.originDomain ? 'session' : 'none');
       log.debug(`[AuthCallback] originDomain=${originDomain} (source: ${originSource})`);
@@ -248,12 +259,11 @@ router.get('/callback',
                        req.secure ||
                        req.headers['x-forwarded-proto'] === 'https';
 
-      // Clean up user object
       if (req.user && req.user._originDomain) {
         delete req.user._originDomain;
       }
 
-      let baseUrl;
+      let baseUrl: string;
       if (originDomain && isAllowedDomain(originDomain)) {
         baseUrl = buildDomainUrl(originDomain, '', isSecure);
         log.debug(`[AuthCallback] Using origin domain for redirect: ${baseUrl}`);
@@ -262,7 +272,7 @@ router.get('/callback',
         log.debug(`[AuthCallback] Using fallback BASE_URL: ${baseUrl}`);
       }
 
-      let absoluteRedirect;
+      let absoluteRedirect: string;
       if (intendedRedirect) {
         if (intendedRedirect.startsWith('http://') || intendedRedirect.startsWith('https://')) {
           absoluteRedirect = intendedRedirect;
@@ -275,18 +285,15 @@ router.get('/callback',
         absoluteRedirect = `${baseUrl}/profile`;
       }
 
-      // Clean up origin domain from session after use
       delete req.session.originDomain;
-
-      const redirectTo = absoluteRedirect;
 
       req.session.save((err) => {
         if (err) {
           log.error('[AuthCallback] Error saving session:', err);
         }
-        return res.redirect(redirectTo);
+        res.redirect(absoluteRedirect);
       });
-      
+
     } catch (error) {
       log.error('[AuthCallback] General error in OIDC callback:', error);
       next(error);
@@ -294,8 +301,11 @@ router.get('/callback',
   }
 );
 
-// Get authentication status
-router.get('/status', async (req, res) => {
+// ============================================================================
+// Status Routes
+// ============================================================================
+
+router.get('/status', async (req: AuthSessionRequest, res: Response): Promise<void> => {
   if (req.session && !req.user && req.session.passport?.user) {
     await new Promise(resolve => setImmediate(resolve));
   }
@@ -303,27 +313,29 @@ router.get('/status', async (req, res) => {
   const finalIsAuth = req.isAuthenticated() && req.user;
 
   if (finalIsAuth) {
-    // Ensure locale is included in user object
     const userWithLocale = {
       ...req.user,
-      locale: req.user.locale || 'de-DE'
+      locale: req.user!.locale || 'de-DE'
     };
-    return res.json({ isAuthenticated: true, user: userWithLocale });
+    res.json({ isAuthenticated: true, user: userWithLocale } as AuthStatusResponse);
+    return;
   }
-  return res.json({ isAuthenticated: false, user: null });
+  res.json({ isAuthenticated: false, user: null } as AuthStatusResponse);
 });
 
-// Simple status test route to verify routing is working
-router.get('/status-test', (req, res) => {
-  res.json({ 
+router.get('/status-test', (req: AuthRequest, res: Response): void => {
+  res.json({
     message: 'Status test route works',
     timestamp: new Date().toISOString(),
     sessionID: req.sessionID
   });
 });
 
-// Error handling route
-router.get('/error', (req, res) => {
+// ============================================================================
+// Error Route
+// ============================================================================
+
+router.get('/error', (req: AuthSessionRequest, res: Response): void => {
   const errorCode = req.query.message || 'unknown_error';
   const correlationId = req.query.correlationId || 'N/A';
   const keycloakError = req.session?.messages?.slice(-1)[0];
@@ -331,13 +343,14 @@ router.get('/error', (req, res) => {
 
   log.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}, Keycloak: ${keycloakError || 'none'}`);
 
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   res.status(401).send(`Authentication Error: ${errorCode}. Please try again or contact support with correlation ID: ${correlationId}`);
 });
 
-// Logout
-router.get('/logout', async (req, res, next) => {
-  // Clear chat memory for the user
+// ============================================================================
+// Logout Routes
+// ============================================================================
+
+router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => {
   if (req.user?.id) {
     try {
       await chatMemory.clearConversation(req.user.id);
@@ -368,8 +381,7 @@ router.get('/logout', async (req, res, next) => {
   });
 });
 
-// API endpoint for frontend-triggered logout (returns JSON instead of redirect)
-router.post('/logout', async (req, res, next) => {
+router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> => {
   const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
   const keycloakLogoutUrl = `${keycloakBaseUrl}/realms/Gruenerator/protocol/openid-connect/logout`;
 
@@ -377,7 +389,6 @@ router.post('/logout', async (req, res, next) => {
   const wasAuthenticated = req.isAuthenticated();
   const idToken = req.user?.id_token;
 
-  // Clear chat memory for the user (if authenticated)
   if (wasAuthenticated && req.user?.id) {
     try {
       await chatMemory.clearConversation(req.user.id);
@@ -387,9 +398,8 @@ router.post('/logout', async (req, res, next) => {
     }
   }
 
-  // If not authenticated, return immediate success
   if (!wasAuthenticated) {
-    return res.json({
+    res.json({
       success: true,
       message: 'Already logged out',
       sessionCleared: true,
@@ -397,18 +407,19 @@ router.post('/logout', async (req, res, next) => {
       alreadyLoggedOut: true,
       timestamp: Date.now()
     });
+    return;
   }
 
   req.logout(function(err) {
-    if (err) { 
+    if (err) {
       log.error("[Auth Core POST /logout] Passport logout error:", err);
     }
 
     req.session.destroy((destroyErr) => {
       if (destroyErr) {
         log.error("[Auth Core POST /logout] Session destruction error:", destroyErr);
-        
-        return res.status(500).json({
+
+        res.status(500).json({
           success: false,
           error: 'session_destruction_failed',
           message: 'Failed to destroy session completely',
@@ -419,19 +430,20 @@ router.post('/logout', async (req, res, next) => {
           keycloakBackgroundLogoutUrl: idToken ? `${keycloakLogoutUrl}?id_token_hint=${idToken}` : null,
           recoveryInstructions: 'Clear browser cookies manually and try again'
         });
+        return;
       }
-      
+
       res.clearCookie('gruenerator.sid', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax'
       });
-      
-      let keycloakBackgroundLogoutUrl = null;
+
+      let keycloakBackgroundLogoutUrl: string | null = null;
       if (idToken) {
         keycloakBackgroundLogoutUrl = `${keycloakLogoutUrl}?id_token_hint=${idToken}`;
       }
-      
+
       res.json({
         success: true,
         message: 'Logout successful',
@@ -448,13 +460,15 @@ router.post('/logout', async (req, res, next) => {
   });
 });
 
-// Get user profile (example protected route)
-router.get('/profile', ensureAuthenticated, (req, res) => {
+// ============================================================================
+// Profile & Locale Routes
+// ============================================================================
+
+router.get('/profile', ensureAuthenticated as any, (req: AuthRequest, res: Response): void => {
   res.json({ user: req.user || null });
 });
 
-// Get current user's locale
-router.get('/locale', ensureAuthenticated, (req, res) => {
+router.get('/locale', ensureAuthenticated as any, (req: AuthRequest, res: Response): void => {
   try {
     const userLocale = req.user?.locale || 'de-DE';
     res.json({
@@ -470,27 +484,24 @@ router.get('/locale', ensureAuthenticated, (req, res) => {
   }
 });
 
-// Update user's locale
-router.put('/locale', ensureAuthenticated, async (req, res) => {
+router.put('/locale', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { locale } = req.body;
+    const { locale } = req.body as LocaleUpdateBody;
 
-    // Validate locale
     if (!locale || !['de-DE', 'de-AT'].includes(locale)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Invalid locale. Must be de-DE or de-AT'
       });
+      return;
     }
 
-    // Update user's locale in database
     const { getProfileService } = await import('../../services/user/ProfileService.js');
     const profileService = getProfileService();
 
-    await profileService.updateProfile(req.user.id, { locale });
+    await profileService.updateProfile(req.user!.id, { locale });
 
-    // Update session user object
-    req.user.locale = locale;
+    req.user!.locale = locale;
 
     res.json({
       success: true,
@@ -507,9 +518,12 @@ router.put('/locale', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// Debug session endpoint (development only)
+// ============================================================================
+// Debug Routes (Development Only)
+// ============================================================================
+
 if (process.env.NODE_ENV !== 'production') {
-  router.get('/debug/session', (req, res) => {
+  router.get('/debug/session', (req: AuthRequest, res: Response): void => {
     res.json({
       session: {
         id: req.sessionID,
@@ -532,4 +546,4 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-export default router; 
+export default router;
