@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect, ComponentType } from 'react';
 import { Controller, Control } from 'react-hook-form';
 import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
 import Icon from './Icon';
@@ -17,6 +17,17 @@ interface MatchResult {
   value: string;
   label: string;
 }
+
+// Compatible with EnhancedSelectOption from EnhancedSelect
+interface TransformedOption {
+  value: string | number;
+  label: string;
+  subtitle?: string;
+  icon?: ComponentType<{ className?: string; size?: number }> | string;
+  [key: string]: unknown;
+}
+
+type PlatformAliasMap = typeof PLATFORM_ALIASES;
 
 interface PlatformSelectorProps {
   name?: string;
@@ -40,7 +51,7 @@ interface PlatformSelectorProps {
   iconType?: 'component' | 'react-icon' | 'function';
   isSearchable?: boolean;
   enableAutoSelect?: boolean;
-  aliasMap?: Record<string, string[]>;
+  aliasMap?: PlatformAliasMap | Record<string, string[]>;
   autoSelectDelay?: number;
   onAutoSelect?: (match: MatchResult) => void;
   [key: string]: any;
@@ -87,25 +98,31 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     console.warn('PlatformSelector in uncontrolled mode should have an onChange handler');
   }
 
-  const selectOptions = selectOptionsSource.map(option => {
-    const transformedOption: Record<string, any> = {
-      value: option.id || option.value,
-      label: option.label,
-      subtitle: option.subtitle || option.description
-    };
+  const selectOptions: TransformedOption[] = selectOptionsSource
+    .filter(option => option.id !== undefined || option.value !== undefined)
+    .map(option => {
+      const optionValue = option.id ?? option.value ?? '';
+      const transformedOption: TransformedOption = {
+        value: optionValue,
+        label: option.label,
+        subtitle: option.subtitle || option.description
+      };
 
-    if (enableIcons && option.icon) {
-      if (iconType === 'component') {
-        transformedOption.icon = () => <Icon category="platforms" name={String(option.id || option.value)} size={16} />;
-      } else if (iconType === 'react-icon') {
-        transformedOption.icon = option.icon;
-      } else if (iconType === 'function') {
-        transformedOption.icon = option.icon;
+      if (enableIcons && option.icon) {
+        if (iconType === 'component') {
+          // Create a component that renders the Icon
+          const IconComponent: ComponentType<{ className?: string; size?: number }> = (props) => (
+            <Icon category="platforms" name={String(optionValue)} size={props.size ?? 16} />
+          );
+          transformedOption.icon = IconComponent;
+        } else if (iconType === 'react-icon' || iconType === 'function') {
+          // Cast the icon to the expected type - react-icons and function icons should be compatible
+          transformedOption.icon = option.icon as ComponentType<{ className?: string; size?: number }>;
+        }
       }
-    }
 
-    return transformedOption;
-  });
+      return transformedOption;
+    });
 
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const [pendingAutoSelect, setPendingAutoSelect] = useState<string | null>(null);
@@ -113,7 +130,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   const selectRefInternal = useRef<any>(null);
 
   const filterOption = useMemo(() =>
-    enableAutoSelect ? createFilterOption(aliasMap) : undefined,
+    enableAutoSelect ? createFilterOption(aliasMap as typeof PLATFORM_ALIASES) : undefined,
     [enableAutoSelect, aliasMap]
   );
 
@@ -137,8 +154,8 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
       return;
     }
 
-    const optionsForMatching = selectOptions.map(opt => ({ value: opt.value, label: opt.label }));
-    const { bestMatch, isUniqueMatch } = findMatches(newValue, optionsForMatching, { aliases: aliasMap });
+    const optionsForMatching = selectOptions.map(opt => ({ value: String(opt.value), label: opt.label }));
+    const { bestMatch, isUniqueMatch } = findMatches(newValue, optionsForMatching, { aliases: aliasMap as Record<string, string[]> });
 
     if (isUniqueMatch && bestMatch) {
       const alreadySelected = isMulti
@@ -156,7 +173,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
             onChangeCallback(bestMatch.value);
           }
 
-          onAutoSelect?.(bestMatch);
+          onAutoSelect?.({ value: bestMatch.value ?? '', label: bestMatch.label ?? '' });
           setPendingAutoSelect(null);
 
           if (selectRefInternal.current?.clearValue) {

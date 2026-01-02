@@ -1,13 +1,15 @@
-import { useCallback, ReactNode } from 'react';
+import { JSX, useCallback, ReactNode } from 'react';
 import { motion } from 'motion/react';
 import useSwipeNavigation from '../../../hooks/useSwipeNavigation';
 import './MobileSwipeContainer.css';
 
+type PanelType = 'chat' | 'results';
+
 interface MobileSwipeContainerProps {
   chatPanel: ReactNode;
   resultsPanel: ReactNode;
-  activePanel?: 'chat' | 'results';
-  onPanelChange?: () => void;
+  activePanel?: PanelType;
+  onPanelChange?: (panel: PanelType) => void;
   inputElement?: ReactNode;
   swipeEnabled?: boolean;
 }

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, ComponentType } from 'react';
 
 /**
  * SourceTag - Flexible tag component for showing content origin or metadata
@@ -6,12 +6,12 @@ import { memo } from 'react';
 interface SourceTagProps {
   label?: string;
   variant?: 'user' | 'group' | 'custom';
-  icon?: () => void;
+  icon?: ComponentType<{ className?: string }>;
   type?: string;
-  customVariants?: Record<string, unknown>;
+  customVariants?: Record<string, string>;
 }
 
-const SourceTag = memo(({ label, variant = 'custom', icon: Icon, type, customVariants = {} }) => {
+const SourceTag = memo<SourceTagProps>(({ label, variant = 'custom', icon: Icon, type, customVariants = {} }) => {
   // Get CSS class based on variant
   const getVariantClass = () => {
     if (customVariants[variant]) {

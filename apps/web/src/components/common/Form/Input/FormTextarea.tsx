@@ -70,6 +70,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
   autocompleteDictionary = COMBINED_DICTIONARY,
   autocompleteMinChars = 3,
   autocompleteAddHashtag = true,
+  onChange,
   ...rest
 }) => {
   let storeIsStartMode = false;
@@ -153,7 +154,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                 textareaProps={textareaProps}
                 enableUrlDetection={enableUrlDetection}
                 onFieldValueChange={setFieldValue}
-                onExternalChange={rest.onChange}
+                onExternalChange={onChange}
                 dictionary={autocompleteDictionary}
                 minChars={autocompleteMinChars}
                 addHashtagOnAccept={autocompleteAddHashtag}
@@ -179,8 +180,8 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                       setFieldValue(e.target.value);
                     }
 
-                    if (rest.onChange) {
-                      rest.onChange(e.target.value);
+                    if (onChange) {
+                      onChange(e.target.value);
                     }
                   }}
                   {...textareaProps}
@@ -225,8 +226,8 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
               setFieldValue(newVal);
             }
 
-            if (rest.onChange) {
-              rest.onChange(newVal);
+            if (onChange) {
+              onChange(newVal);
             }
           }}
           {...textareaProps}

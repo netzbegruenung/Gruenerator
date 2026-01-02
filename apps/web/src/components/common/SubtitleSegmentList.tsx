@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { JSX, useState, useRef, useEffect } from 'react';
 
 import './SubtitleSegmentList.css';
 
@@ -11,26 +11,26 @@ interface SubtitleSegmentListProps {
   }[];
   currentTime?: number;
   selectedSegmentId?: number;
-  correctedSegmentIds?: unknown;
-  onSegmentClick?: () => void;
-  onTextChange?: () => void;
-  onSeek?: () => void;
-  formatTime?: () => void;
+  correctedSegmentIds?: Set<number>;
+  onSegmentClick?: (id: number) => void;
+  onTextChange?: (id: number, text: string) => void;
+  onSeek?: (time: number) => void;
+  formatTime?: (seconds: number) => string;
   columns?: number;
 }
 
 const SubtitleSegmentList = ({ segments,
   currentTime,
   selectedSegmentId,
-  correctedSegmentIds = new Set(),
+  correctedSegmentIds = new Set<number>(),
   onSegmentClick,
   onTextChange,
   onSeek,
   formatTime,
   columns = 3 }: SubtitleSegmentListProps): JSX.Element => {
-  const [editingId, setEditingId] = useState(null);
-  const inputRef = useRef(null);
-  const segmentRefs = useRef({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const getActiveSegmentId = () => {
     const active = segments.find(s => currentTime >= s.startTime && currentTime < s.endTime);
@@ -88,7 +88,7 @@ const SubtitleSegmentList = ({ segments,
         return (
           <div
             key={segment.id}
-            ref={el => segmentRefs.current[segment.id] = el}
+            ref={(el: HTMLDivElement | null) => { if (segment.id !== undefined) segmentRefs.current[segment.id] = el; }}
             className={`subtitle-segment ${isActive ? 'subtitle-segment--active' : ''} ${isSelected ? 'subtitle-segment--selected' : ''} ${isEditing ? 'subtitle-segment--editing' : ''} ${isCorrected ? 'subtitle-segment--corrected' : ''}`}
             onClick={() => handleSegmentClick(segment)}
           >

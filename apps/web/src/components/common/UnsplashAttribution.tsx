@@ -1,12 +1,20 @@
 import './UnsplashAttribution.css';
 
+interface UnsplashAttributionProps {
+  photographer: string;
+  profileUrl: string;
+  photoUrl?: string;
+  compact?: boolean;
+  className?: string;
+}
+
 const UnsplashAttribution = ({
   photographer,
   profileUrl,
   photoUrl,
   compact = false,
   className = ''
-}) => {
+}: UnsplashAttributionProps) => {
   if (!photographer) return null;
 
   if (compact) {

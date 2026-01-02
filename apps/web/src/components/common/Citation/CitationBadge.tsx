@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { JSX, useState, useRef, RefObject } from 'react';
 import useCitationStore from '../../../stores/citationStore';
 import CitationPopup from './CitationPopup';
 
@@ -9,14 +9,21 @@ import CitationPopup from './CitationPopup';
  * @param {Object} props.citation - The citation data object
  * @returns {JSX.Element} Citation badge with popup
  */
+export interface CitationData {
+  cited_text?: string;
+  document_title?: string;
+  similarity_score?: number;
+  index?: number | string;
+}
+
 interface CitationBadgeProps {
   citationIndex: string;
-  citation?: string | number;
+  citation?: CitationData;
 }
 
 const CitationBadge = ({ citationIndex, citation }: CitationBadgeProps): JSX.Element => {
   const [showPopup, setShowPopup] = useState(false);
-  const badgeRef = useRef(null);
+  const badgeRef = useRef<HTMLSpanElement>(null);
   const { setSelectedCitation } = useCitationStore();
 
   const handleClick = () => {

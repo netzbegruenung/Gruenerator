@@ -1,8 +1,21 @@
 import { useState, useEffect } from 'react';
+import type { JSX } from 'react';
 import QRCode from 'react-qr-code';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import { canShare, shareContent } from '../../../utils/shareUtils';
 import './ShareMediaModal.css';
+
+interface ShareData {
+  shareToken: string;
+  [key: string]: unknown;
+}
+
+interface ImageData {
+  image?: string;
+  type?: string;
+  metadata?: Record<string, unknown>;
+  originalImage?: string;
+}
 
 interface ShareMediaModalProps {
   isOpen: boolean;
@@ -10,15 +23,10 @@ interface ShareMediaModalProps {
   mediaType: 'video' | 'image';
   projectId?: string;
   exportToken?: string;
-  imageData: {
-    image?: string;
-    type?: string;
-    metadata?: Record<string, unknown>;
-    originalImage?: string
-  };
+  imageData?: ImageData;
   defaultTitle?: string;
-  onShareCreated?: () => void;
-  getOriginalImage?: () => void;
+  onShareCreated?: (share?: ShareData) => void;
+  getOriginalImage?: () => Promise<string | undefined> | string | undefined;
 }
 
 const ShareMediaModal = ({ isOpen,
@@ -29,7 +37,7 @@ const ShareMediaModal = ({ isOpen,
   imageData,
   defaultTitle,
   onShareCreated,
-  getOriginalImage, }: ShareMediaModalProps): JSX.Element => {
+  getOriginalImage, }: ShareMediaModalProps): JSX.Element | null => {
   const [shareTitle, setShareTitle] = useState(defaultTitle || '');
   const [copied, setCopied] = useState(false);
 
@@ -67,18 +75,18 @@ const ShareMediaModal = ({ isOpen,
         }
       } else if (mediaType === 'image' && imageData) {
         // Get the original image if a getter function was provided
-        let originalImage = imageData.originalImage;
+        let originalImage: string | undefined = imageData.originalImage;
         if (originalImage === 'pending' && getOriginalImage) {
-          originalImage = await getOriginalImage();
+          const result = getOriginalImage();
+          originalImage = result instanceof Promise ? await result : result;
         }
 
         share = await createImageShare({
           imageData: imageData.image,
           title: shareTitle || undefined,
-          type: imageData.type || undefined,
           metadata: imageData.metadata || {},
           originalImage: originalImage || undefined,
-        });
+        } as Parameters<typeof createImageShare>[0]);
       }
 
       if (share && onShareCreated) {

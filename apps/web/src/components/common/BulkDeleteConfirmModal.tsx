@@ -65,8 +65,8 @@ const BulkDeleteConfirmModal = ({
     }
   };
 
-  const getItemTypeLabel = () => {
-    const labels = {
+  const getItemTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
       'document': 'Dokument',
       'documents': 'Dokumente',
       'text': 'Text',
@@ -76,11 +76,11 @@ const BulkDeleteConfirmModal = ({
       'template': 'Vorlage',
       'templates': 'Vorlagen'
     };
-    return labels[itemType] || itemType;
+    return labels[type] || type;
   };
 
   const getSingularType = () => {
-    const singular = {
+    const singular: Record<string, string> = {
       'documents': 'document',
       'texts': 'text',
       'qas': 'notebook',
@@ -89,7 +89,7 @@ const BulkDeleteConfirmModal = ({
     return singular[itemType] || itemType;
   };
 
-  const displayType = itemCount === 1 ? getItemTypeLabel(getSingularType()) : getItemTypeLabel();
+  const displayType = itemCount === 1 ? getItemTypeLabel(getSingularType()) : getItemTypeLabel(itemType);
 
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
@@ -161,7 +161,7 @@ const BulkDeleteConfirmModal = ({
             >
               {isDeleting ? (
                 <>
-                  <Spinner size="xsmall" />
+                  <Spinner size="small" />
                   Lösche...
                 </>
               ) : (

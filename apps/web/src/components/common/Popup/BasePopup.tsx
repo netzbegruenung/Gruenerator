@@ -1,8 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import Icon from '../Icon';
 import './base-popup.css';
+
+interface BasePopupProps {
+  storageKey: string;
+  children: ReactNode | ((props: { onClose: () => void }) => ReactNode);
+  onClose?: () => void;
+  variant?: 'default' | 'slider' | 'single';
+  className?: string;
+  showCloseButton?: boolean;
+  closeOnOverlayClick?: boolean;
+  closeOnEscape?: boolean;
+}
 
 const BasePopup = ({
   storageKey,
@@ -13,7 +24,7 @@ const BasePopup = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEscape = true,
-}) => {
+}: BasePopupProps) => {
   const location = useLocation();
   const isNoHeaderFooterRoute = location.pathname.includes('-no-header-footer');
   const isAuthRoute = location.pathname.startsWith('/profile') || location.pathname.startsWith('/login');

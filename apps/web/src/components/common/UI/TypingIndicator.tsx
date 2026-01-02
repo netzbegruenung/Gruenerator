@@ -1,8 +1,8 @@
-import { motion } from 'motion/react';
+import { motion, Variants } from 'motion/react';
 import '../../../assets/styles/components/ui/TypingIndicator.css';
 
 const TypingIndicator = () => {
-  const createDotVariants = (delay) => ({
+  const createDotVariants = (delay: number): Variants => ({
     initial: {
       y: "0%",
       opacity: 0.5,

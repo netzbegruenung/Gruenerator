@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from 'react';
+import type { JSX, FormEvent, ReactNode } from 'react';
 import { BsArrowUpCircleFill } from 'react-icons/bs';
 import { FaMicrophone, FaStop } from 'react-icons/fa';
 
@@ -29,7 +29,7 @@ const ChatSubmitButton = ({ inputValue = '',
 
   const handleClick = () => {
     if (hasText) {
-      onSubmit?.({ preventDefault: () => {} });
+      onSubmit?.({ preventDefault: () => {} } as React.FormEvent);
     } else if (isVoiceRecording) {
       stopRecording?.();
     } else {

@@ -1,11 +1,18 @@
+import type { JSX } from 'react';
+
+interface ChatAction {
+  value: string;
+  label?: string;
+  style?: 'primary' | 'secondary' | 'default';
+}
 
 interface ChatActionButtonsProps {
-  actions: 'primary' | 'secondary' | 'default';
-  onAction: () => void;
+  actions: ChatAction[];
+  onAction: (action: ChatAction) => void;
   disabled?: boolean;
 }
 
-const ChatActionButtons = ({ actions, onAction, disabled }: ChatActionButtonsProps): JSX.Element => {
+const ChatActionButtons = ({ actions, onAction, disabled }: ChatActionButtonsProps): JSX.Element | null => {
   if (!actions || actions.length === 0) return null;
 
   return (

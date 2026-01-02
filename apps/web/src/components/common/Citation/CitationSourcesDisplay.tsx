@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { JSX, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -16,23 +16,57 @@ import { useNavigate } from 'react-router-dom';
  * @param {string} props.className - Additional CSS class
  * @returns {JSX.Element|null} Citation sources display or null if no sources/citations
  */
+interface Source {
+  document_id?: string;
+  document_title?: string;
+  url?: string;
+  similarity_score?: number;
+  chunk_text?: string;
+  [key: string]: unknown;
+}
+
+interface Citation {
+  document_id?: string;
+  document_title?: string;
+  url?: string;
+  similarity_score?: number;
+  cited_text?: string;
+  index?: number;
+  [key: string]: unknown;
+}
+
+interface LinkConfig {
+  type: 'none' | 'vectorDocument' | 'external';
+  linkKey?: string;
+  titleKey?: string;
+  urlKey?: string;
+}
+
 interface CitationSourcesDisplayProps {
-  sources?: unknown[];
-  citations?: unknown[];
-  additionalSources?: unknown[];
-  linkConfig?: 'none' | 'vectorDocument' | 'external';
+  sources?: Source[];
+  citations?: Citation[];
+  additionalSources?: Source[];
+  linkConfig?: LinkConfig;
   title?: string;
   className?: string;
 }
 
-const CitationSourcesDisplay = ({ }: CitationSourcesDisplayProps): JSX.Element => ({
+interface AdditionalSourceGroup {
+  document_id?: string;
+  document_title?: string;
+  url?: string;
+  chunks: string[];
+  maxScore: number;
+}
+
+const CitationSourcesDisplay = ({
   sources = [],
   citations = [],
   additionalSources = [],
   linkConfig = { type: 'none' },
   title = "Quellen und Zitate",
   className = ""
-}) => {
+}: CitationSourcesDisplayProps): JSX.Element | null => {
   const navigate = useNavigate();
 
   // Create document groups that merge sources and citations
@@ -41,9 +75,9 @@ const CitationSourcesDisplay = ({ }: CitationSourcesDisplayProps): JSX.Element =
 
     // First, process all sources to create base document groups
     sources.forEach(source => {
-      const docId = source.document_id || source[linkConfig.linkKey];
-      const docTitle = source[linkConfig.titleKey] || source.document_title;
-      const docUrl = source.url || source[linkConfig.urlKey] || null;
+      const docId = source.document_id || (linkConfig.linkKey ? source[linkConfig.linkKey] : undefined);
+      const docTitle = (linkConfig.titleKey ? source[linkConfig.titleKey] : undefined) || source.document_title;
+      const docUrl = source.url || (linkConfig.urlKey ? source[linkConfig.urlKey] : undefined) || null;
 
       if (!groupMap.has(docId)) {
         groupMap.set(docId, {
@@ -114,8 +148,8 @@ const CitationSourcesDisplay = ({ }: CitationSourcesDisplayProps): JSX.Element =
   const documentGroups = createDocumentGroups();
 
   // Group additional sources by document (dedupe by document_id)
-  const additionalGrouped = additionalSources.reduce((acc, source) => {
-    const key = source.document_id || source.document_title;
+  const additionalGrouped = additionalSources.reduce((acc: Map<string, AdditionalSourceGroup>, source) => {
+    const key = source.document_id || source.document_title || '';
     if (!acc.has(key)) {
       acc.set(key, {
         document_id: source.document_id,
@@ -126,12 +160,14 @@ const CitationSourcesDisplay = ({ }: CitationSourcesDisplayProps): JSX.Element =
       });
     }
     const group = acc.get(key);
-    group.chunks.push(source.chunk_text);
-    group.maxScore = Math.max(group.maxScore, source.similarity_score || 0);
+    if (group && source.chunk_text) {
+      group.chunks.push(source.chunk_text);
+      group.maxScore = Math.max(group.maxScore, source.similarity_score || 0);
+    }
     return acc;
-  }, new Map());
+  }, new Map<string, AdditionalSourceGroup>());
 
-  const additionalSourceGroups = Array.from(additionalGrouped.values())
+  const additionalSourceGroups: AdditionalSourceGroup[] = Array.from(additionalGrouped.values())
     .sort((a, b) => b.maxScore - a.maxScore);
 
   return (

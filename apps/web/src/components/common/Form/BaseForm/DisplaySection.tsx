@@ -17,14 +17,14 @@ import { useFormStateSelector } from '../FormStateProvider';
 
 interface DisplaySectionProps {
   title: string;
-  error?: string | null;
+  error?: string | Error | { message?: string } | null;
   value?: string | null;
   generatedContent?: GeneratedContent;
   useMarkdown?: boolean | null;
   helpContent?: HelpContent | null;
   generatedPost?: string;
-  onGeneratePost?: () => Promise<void>;
-  getExportableContent?: () => string;
+  onGeneratePost?: () => void | Promise<void>;
+  getExportableContent?: ((content: unknown) => string) | (() => string);
   displayActions?: ReactNode;
   onSave?: () => void;
   saveLoading?: boolean;
@@ -141,11 +141,19 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
   const isMixedContent = activeContent && typeof activeContent === 'object' &&
     (activeContent.sharepic || activeContent.social);
 
-  const currentExportableContent = React.useMemo(() => {
+  const currentExportableContent = React.useMemo((): string => {
     // For export, use the social content string if it's mixed content
-    return isMixedContent
-      ? (activeContent.social?.content || activeContent.content || '')
-      : activeContent;
+    if (isMixedContent) {
+      return activeContent.social?.content || activeContent.content || '';
+    }
+    // Convert to string if not already
+    if (typeof activeContent === 'string') {
+      return activeContent;
+    }
+    if (typeof activeContent === 'object' && activeContent !== null) {
+      return (activeContent as { content?: string }).content || '';
+    }
+    return '';
   }, [activeContent, isMixedContent]);
 
   const handleSaveToLibrary = React.useCallback(async () => {
@@ -161,7 +169,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
 
   const actionButtons = (
     <ActionButtons
-      content={activeContent}
       isEditing={false}
       showExport={true}
       showDownload={true}
@@ -216,14 +223,17 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
             fallbackContent={helpContent.fallbackContent}
             fallbackTips={helpContent.fallbackTips}
             layout={isStartMode ? 'cards' : 'default'}
-            features={helpContent.features}
+            features={helpContent.features as { title?: string; description?: string }[] | undefined}
           />
         </div>
       )}
       <div className="display-content">
         {hasRenderableContent ? (
           <>
-            <ErrorDisplay error={error} onDismiss={onErrorDismiss} />
+            <ErrorDisplay
+              error={typeof error === 'string' ? error : (error instanceof Error ? error.message : (error?.message ?? null))}
+              onDismiss={onErrorDismiss}
+            />
             {customRenderer ? (
               customRenderer({
                 content: activeContent,

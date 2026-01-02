@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, MouseEvent, ReactNode } from 'react';
+import { JSX, useState, useEffect, useRef, MouseEvent, ReactNode } from 'react';
 import Spinner from './Spinner';
 import '../../assets/styles/components/ui/button.css';
 
@@ -10,7 +10,7 @@ interface SubmitButtonProps {
   icon?: ReactNode;
   className?: string;
   ariaLabel?: string;
-  type?: string;
+  type?: 'button' | 'submit' | 'reset';
   statusMessage?: string;
   showStatus?: boolean;
   tabIndex?: number;

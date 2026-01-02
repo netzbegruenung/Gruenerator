@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, ReactNode, MouseEvent } from 'react';
+import { JSX, useState, useCallback, useEffect, useRef, ReactNode, MouseEvent } from 'react';
 import { IoDownloadOutline, IoShareSocialSharp, IoEllipsisVertical, IoCheckmarkOutline, IoCloseOutline, IoCopyOutline, IoOpenOutline } from "react-icons/io5";
 import { FaCloud } from "react-icons/fa";
 import { FaFileWord } from "react-icons/fa6";
@@ -375,7 +375,7 @@ const ExportDropdown = ({ content,
 
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64Content = reader.result.split(',')[1];
+        const base64Content = (reader.result as string).split(',')[1];
 
         const result = await NextcloudShareManager.upload(shareLinkId, base64Content, filename);
 
@@ -491,8 +491,8 @@ const ExportDropdown = ({ content,
             <button
               key={option.id}
               className="format-option"
-              onClick={() => {
-                option.onClick();
+              onClick={(e) => {
+                option.onClick(e);
                 setShowDropdown(false);
               }}
               disabled={option.disabled}

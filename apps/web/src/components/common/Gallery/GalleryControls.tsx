@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { JSX, useState } from 'react';
 import { HiPlus } from 'react-icons/hi';
 import SearchBar from '../../../features/search/components/SearchBar';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
@@ -6,19 +6,24 @@ import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
 import '../../../assets/styles/components/SearchBar.css';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
+interface CategoryItem {
+  id: string;
+  label: string;
+}
+
 interface GalleryControlsProps {
   searchTerm: string;
-  onSearchChange: () => void;
+  onSearchChange: (value: string) => void;
   placeholder?: string;
   contentTypes: {
     id?: string;
     label?: string
   }[];
   activeContentType?: string;
-  onContentTypeChange?: () => void;
-  categories: string | number;
+  onContentTypeChange?: (id: string) => void;
+  categories: CategoryItem[];
   selectedCategory?: string | number;
-  onCategoryChange?: () => void;
+  onCategoryChange?: (id: string) => void;
   showCategoryFilter?: boolean;
   onRefresh?: () => void;
 }

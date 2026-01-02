@@ -1,6 +1,16 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { HiOutlineTrash, HiExclamation } from 'react-icons/hi';
+
+interface DeleteWarningTooltipProps {
+  onConfirm: () => void;
+  disabled?: boolean;
+  title?: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  className?: string;
+}
 
 const DeleteWarningTooltip = ({
   onConfirm,
@@ -10,12 +20,12 @@ const DeleteWarningTooltip = ({
   confirmText = "Endgültig löschen",
   cancelText = "Abbrechen",
   className = ''
-}) => {
+}: DeleteWarningTooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [confirmStep, setConfirmStep] = useState(0); // 0: closed, 1: first warning, 2: final confirmation
-  const [style, setStyle] = useState({ opacity: 0 });
-  const triggerRef = useRef(null);
-  const tooltipRef = useRef(null);
+  const [style, setStyle] = useState<CSSProperties>({ opacity: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const updatePosition = useCallback(() => {
     if (triggerRef.current && tooltipRef.current) {

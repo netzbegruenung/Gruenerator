@@ -4,13 +4,15 @@ import type { ContentRendererProps, GeneratedContent } from '@/types/baseform';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 const FinetuneEditor = lazy(() => import('../EditMode/FinetuneEditor'));
 
-import { isReactElement, isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags, stripWrappingCodeFence } from '../utils/contentUtils';
+import { isMarkdownContent, normalizeLineBreaks, removeGruenTitleTags, stripWrappingCodeFence } from '../utils/contentUtils';
 import { CitationBadge } from '../../Citation';
-import ImageDisplay from '../../ImageDisplay';
+import ImageDisplay, { SharepicDataItem } from '../../ImageDisplay';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 
 interface Citation {
   index: string | number;
+  url?: string;
+  title?: string;
   [key: string]: unknown;
 }
 
@@ -53,7 +55,7 @@ const enhanceTextWithCitations = (text: string, citations: Citation[]): ReactNod
         <CitationBadge
           key={`citation-${i}-${citationIndex}`}
           citationIndex={citationIndex}
-          citation={citation}
+          citation={citation?.index}
         />
       );
     } else if (part) {
@@ -123,7 +125,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
             {sharepicItems.length > 1 ? (
               <ImageDisplay
                 key="multiple-sharepics"
-                sharepicData={sharepicItems}
+                sharepicData={sharepicItems as SharepicDataItem[]}
                 onEdit={mixedContent.onEditSharepic}
                 onEditModeToggle={onEditModeToggle}
                 editMode={mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode}
@@ -193,8 +195,8 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     return null;
   }
 
-  if (isReactElement(processedGeneratedContent)) {
-    return processedGeneratedContent as ReactElement;
+  if (React.isValidElement(processedGeneratedContent)) {
+    return processedGeneratedContent;
   }
 
   if (typeof contentToRender === 'string') {
@@ -237,7 +239,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
             <CitationBadge
               key={`citation-${i}-${citationIndex}`}
               citationIndex={citationIndex}
-              citation={citation}
+              citation={citation?.index}
             />
           );
         } else if (part) {
@@ -310,9 +312,13 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       );
     }
   } else {
-    let enhancedContent: ReactNode = contentToRender;
-    if (citations.length > 0 && typeof contentToRender === 'string') {
-      enhancedContent = enhanceTextWithCitations(contentToRender, citations);
+    // contentToRender is not a string at this point, render it as a string representation
+    const contentString = typeof contentToRender === 'string'
+      ? contentToRender
+      : JSON.stringify(contentToRender);
+    let enhancedContent: ReactNode = contentString;
+    if (citations.length > 0) {
+      enhancedContent = enhanceTextWithCitations(contentString, citations);
     }
 
     return (

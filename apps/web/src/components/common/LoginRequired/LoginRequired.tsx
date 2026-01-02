@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import type { JSX } from 'react';
 import LoginPage from '../../../features/auth/pages/LoginPage';
 import { getCurrentPath, buildLoginUrl } from '../../../utils/authRedirect';
 

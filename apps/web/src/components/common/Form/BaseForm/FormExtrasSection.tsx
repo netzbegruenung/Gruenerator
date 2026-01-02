@@ -111,8 +111,8 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                 {useFeatureIcons && (
                   <FeatureIcons
                     onBalancedModeClick={handleBalancedModeClick}
-                    onAttachmentClick={onAttachmentClick}
-                    onRemoveFile={onRemoveFile}
+                    onAttachmentClick={() => (onAttachmentClick as (() => void) | undefined)?.()}
+                    onRemoveFile={() => onRemoveFile?.(0)}
                     onAnweisungenClick={handleAnweisungenClick}
                     onInteractiveModeClick={handleInteractiveMode}
                     anweisungenActive={anweisungenActive}
@@ -131,7 +131,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
                 {firstExtrasChildren}
                 {showSubmitButton && (
                   <SubmitButton
-                    onClick={onSubmit}
+                    onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
                     loading={loading}
                     success={success}
                     text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}
@@ -159,8 +159,8 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
               <div className="form-extras__item">
                 <FeatureIcons
                   onBalancedModeClick={handleBalancedModeClick}
-                  onAttachmentClick={onAttachmentClick}
-                  onRemoveFile={onRemoveFile}
+                  onAttachmentClick={() => (onAttachmentClick as (() => void) | undefined)?.()}
+                  onRemoveFile={() => onRemoveFile?.(0)}
                   onAnweisungenClick={handleAnweisungenClick}
                   onInteractiveModeClick={handleInteractiveMode}
                   anweisungenActive={anweisungenActive}
@@ -183,7 +183,14 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
 
             {!useFeatureIcons && interactiveModeToggle && useInteractiveModeToggle && (
               <div className="form-extras__item">
-                <FeatureToggle {...interactiveModeToggle} className="form-feature-toggle" />
+                <FeatureToggle
+                  isActive={interactiveModeToggle.isActive}
+                  onToggle={interactiveModeToggle.onToggle}
+                  label={interactiveModeToggle.label}
+                  icon={interactiveModeToggle.icon as React.ComponentType}
+                  description={interactiveModeToggle.description}
+                  className="form-feature-toggle"
+                />
               </div>
             )}
 
@@ -196,7 +203,7 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
             {showSubmitButton && (
               <div className="form-extras__item form-extras__submit">
                 <SubmitButton
-                  onClick={onSubmit}
+                  onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
                   loading={loading}
                   success={success}
                   text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}

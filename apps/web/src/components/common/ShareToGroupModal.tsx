@@ -224,7 +224,7 @@ const ShareToGroupModal = ({
             >
               {isSharing ? (
                 <>
-                  <Spinner size="xsmall" />
+                  <Spinner size="small" />
                   Wird geteilt...
                 </>
               ) : (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { JSX, useState, useEffect, useCallback, useRef, RefObject, CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 
 interface CitationPopupProps {
@@ -7,12 +7,12 @@ interface CitationPopupProps {
     document_title?: string;
     similarity_score?: number
   };
-  badgeRef: Record<string, unknown>;
+  badgeRef: RefObject<HTMLSpanElement>;
 }
 
-const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element => {
-  const [style, setStyle] = useState({ opacity: 0 });
-  const popupRef = useRef(null);
+const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element | null => {
+  const [style, setStyle] = useState<CSSProperties>({ opacity: 0 });
+  const popupRef = useRef<HTMLSpanElement>(null);
 
   const updatePosition = useCallback(() => {
     if (!badgeRef?.current || !popupRef.current) return;
@@ -36,7 +36,7 @@ const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element 
     }
 
     setStyle({
-      position: 'fixed',
+      position: 'fixed' as const,
       top: `${top}px`,
       left: `${left}px`,
       opacity: 1,

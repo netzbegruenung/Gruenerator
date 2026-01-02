@@ -1,4 +1,5 @@
 import { HiChevronLeft } from 'react-icons/hi';
+import type { JSX } from 'react';
 import '../../assets/styles/components/ui/form-toggle-button.css';
 // FormContext removed - no edit mode needed anymore
 interface FormCollapseButtonProps {

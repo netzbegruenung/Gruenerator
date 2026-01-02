@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { JSX, useMemo, useState, useCallback } from 'react';
 import GalleryControls from './GalleryControls';
 import IndexCard from '../IndexCard';
 import { GallerySkeleton, cardAdapters } from './cards.jsx';
@@ -74,9 +74,9 @@ const GalleryContainer = ({ initialContentType,
 
     return list.map((item) => {
       const result = adapter(item, adapterOptions);
-      if (!result || !result.key) return null;
+      if (!result || !result.key || !result.props.title) return null;
       const { key, props } = result;
-      return <IndexCard key={key} {...props} />;
+      return <IndexCard key={key} title={String(props.title)} {...props} />;
     });
   };
 
@@ -134,17 +134,14 @@ const GalleryContainer = ({ initialContentType,
         <div className="gallery-main-searchbar-section">
           <GalleryControls
             searchTerm={inputValue}
-            onSearchChange={setInputValue}
+            onSearchChange={(value: string) => setInputValue(value)}
             placeholder={placeholder}
-            searchModes={activeConfig.searchModes}
-            currentSearchMode={searchMode}
-            onSearchModeChange={setSearchMode}
             contentTypes={typeOptions}
             activeContentType={contentType}
-            onContentTypeChange={handleContentTypeChange}
-            categories={categories}
+            onContentTypeChange={(id: string) => handleContentTypeChange(id)}
+            categories={categories || []}
             selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
+            onCategoryChange={(id: string) => setSelectedCategory(id)}
             showCategoryFilter={showCategoryFilter}
             onRefresh={refetch}
           />

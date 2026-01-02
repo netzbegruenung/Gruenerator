@@ -13,7 +13,20 @@ const groupIcons = {
   gruenerierte_texte: '✨',
 };
 
-const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGroup, cardRenderer, renderDefaultCard }) => {
+interface DocumentItem {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface DocumentGroupedContentProps {
+  groupedItems?: Record<string, DocumentItem[]>;
+  expandedGroups: Set<string>;
+  onToggleGroup: (groupKey: string) => void;
+  cardRenderer?: (item: DocumentItem) => React.ReactNode;
+  renderDefaultCard: (item: DocumentItem) => React.ReactNode;
+}
+
+const DocumentGroupedContent = ({ groupedItems = {}, expandedGroups, onToggleGroup, cardRenderer, renderDefaultCard }: DocumentGroupedContentProps) => {
   return (
     <div className="document-overview-grouped">
       {Object.entries(groupedItems).map(([groupKey, items]) => {

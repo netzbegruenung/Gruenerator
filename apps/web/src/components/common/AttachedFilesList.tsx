@@ -1,23 +1,42 @@
 import { HiX } from 'react-icons/hi';
+import type { JSX } from 'react';
 import { truncateWithSuffix } from '../../utils/textUtils';
 import '../../assets/styles/components/ui/AttachedFilesList.css';
 
+interface AttachedFile {
+  name: string;
+  type?: string;
+  size?: number;
+}
+
+interface FileMetadata {
+  pageCount?: number | null;
+  hasPrivacyConflict?: boolean;
+  conflictReason?: string;
+}
+
 interface AttachedFilesListProps {
-  files?: unknown[];
-  onRemoveFile?: () => void;
+  files?: AttachedFile[];
+  onRemoveFile?: (index: number) => void;
   className?: string;
-  fileMetadata?: Record<string, unknown>;
+  fileMetadata?: Record<number, FileMetadata>;
   privacyModeActive?: boolean;
   compact?: boolean;
 }
 
-const AttachedFilesList = ({ }: AttachedFilesListProps): JSX.Element => ({
- files = [], onRemoveFile, className = '', fileMetadata = {}, privacyModeActive = false, compact = false }) => {
+const AttachedFilesList = ({
+  files = [],
+  onRemoveFile,
+  className = '',
+  fileMetadata = {},
+  privacyModeActive = false,
+  compact = false
+}: AttachedFilesListProps): JSX.Element | null => {
   if (!files || files.length === 0) {
     return null;
   }
 
-  const handleRemoveFile = (index, event) => {
+  const handleRemoveFile = (index: number, event: React.MouseEvent) => {
     event.stopPropagation();
     if (onRemoveFile) {
       onRemoveFile(index);

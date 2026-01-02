@@ -1,18 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, JSX } from 'react';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import '../../assets/styles/components/popups/help.css';
 
 interface HelpDisplayProps {
   content: string;
-  tips?: string | number;
+  tips?: string[];
   forceHidden?: boolean;
   hasGeneratedContent?: boolean;
   isNewFeature?: boolean;
   featureId?: string;
   fallbackContent?: string;
-  fallbackTips?: string | number;
+  fallbackTips?: string[];
   layout?: 'default' | 'cards';
-  features: {
+  features?: {
     title?: string;
     description?: string
   }[];
@@ -27,7 +27,7 @@ const HelpDisplay = ({ content,
   fallbackContent,
   fallbackTips,
   layout = 'default',
-  features = null }: HelpDisplayProps): JSX.Element => {
+  features = null }: HelpDisplayProps): JSX.Element | null => {
   const { generatedText } = useGeneratedTextStore();
 
   const hasSeenFeature = React.useMemo(() => {

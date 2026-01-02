@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle, ChangeEvent } from 'react';
+import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle, ChangeEvent, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiArrowLeft, HiArrowRight, HiCheck } from 'react-icons/hi';
 import Button from '../../SubmitButton';
@@ -13,7 +13,7 @@ const DEFAULT_LABELS = {
 };
 
 const slideVariants = {
-  enter: (direction) => ({
+  enter: (direction: number) => ({
     y: direction > 0 ? 40 : -40,
     opacity: 0
   }),
@@ -21,21 +21,33 @@ const slideVariants = {
     y: 0,
     opacity: 1
   },
-  exit: (direction) => ({
+  exit: (direction: number) => ({
     y: direction < 0 ? 40 : -40,
     opacity: 0
   })
 };
 
+interface TypeformField {
+  name: string;
+  label: string;
+  type?: 'text' | 'textarea' | 'select';
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  rows?: number;
+  placeholder?: string;
+  options?: Array<{ value: string; label: string }>;
+}
+
 interface TypeformWizardProps {
-  fields: 'text' | 'textarea' | 'select';
-  values: Record<string, unknown>;
-  onChange: (event: React.ChangeEvent) => void;
-  errors?: Record<string, unknown>;
+  fields: TypeformField[];
+  values: Record<string, string>;
+  onChange: (event: { target: { name: string; value: string } }) => void;
+  errors?: Record<string, string>;
   disabled?: boolean;
   onComplete?: () => void;
   onBack?: () => void;
-  validateField?: () => void;
+  validateField?: (name: string, value: string) => string | null;
   labels?: {
     back?: string;
     next?: string;
@@ -46,7 +58,17 @@ interface TypeformWizardProps {
   showBackOnFirst?: boolean;
 }
 
-const TypeformWizard = forwardRef(({
+export interface TypeformWizardRef {
+  goNext: () => boolean;
+  goBack: () => boolean;
+  isFirstField: boolean;
+  isLastField: boolean;
+  currentIndex: number;
+  totalFields: number;
+  reset: () => void;
+}
+
+const TypeformWizard = forwardRef<TypeformWizardRef, TypeformWizardProps>(({
   fields,
   values,
   onChange,
@@ -61,35 +83,28 @@ const TypeformWizard = forwardRef(({
 }, ref) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(1);
-  const [fieldError, setFieldError] = useState(null);
-  const inputRef = useRef(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
 
   const labels = { ...DEFAULT_LABELS, ...customLabels };
   const currentField = fields[currentIndex];
   const isLastField = currentIndex === fields.length - 1;
   const isFirstField = currentIndex === 0;
 
-  useImperativeHandle(ref, () => ({
-    goNext: () => goNext(),
-    goBack: () => handleBack(),
-    isFirstField,
-    isLastField,
-    currentIndex,
-    totalFields: fields.length,
-    reset: () => {
-      setCurrentIndex(0);
-      setDirection(1);
-      setFieldError(null);
-    }
-  }), [isFirstField, isLastField, currentIndex, fields.length]);
-
   useEffect(() => {
-    if (inputRef.current) {
+    // Focus appropriate ref based on current field type
+    if (currentField?.type === 'select' && selectRef.current) {
+      selectRef.current.focus();
+    } else if (currentField?.type === 'textarea' && textareaRef.current) {
+      textareaRef.current.focus();
+    } else if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [currentIndex]);
+  }, [currentIndex, currentField?.type]);
 
-  const handleFieldChange = useCallback((e) => {
+  const handleFieldChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFieldError(null);
     if (onChange) {
@@ -147,17 +162,32 @@ const TypeformWizard = forwardRef(({
     return false;
   }, [isFirstField]);
 
-  const handleBack = useCallback(() => {
+  const handleBack = useCallback((): boolean => {
     if (isFirstField) {
       if (showBackOnFirst) {
         parentOnBack?.();
       }
+      return false;
     } else {
-      goBack();
+      return goBack();
     }
   }, [isFirstField, showBackOnFirst, parentOnBack, goBack]);
 
-  const handleKeyDown = useCallback((e) => {
+  useImperativeHandle(ref, () => ({
+    goNext: () => goNext(),
+    goBack: () => handleBack(),
+    isFirstField,
+    isLastField,
+    currentIndex,
+    totalFields: fields.length,
+    reset: () => {
+      setCurrentIndex(0);
+      setDirection(1);
+      setFieldError(null);
+    }
+  }), [goNext, handleBack, isFirstField, isLastField, currentIndex, fields.length]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter') {
       if (currentField?.type === 'textarea' && !e.shiftKey) {
         return;
@@ -176,7 +206,7 @@ const TypeformWizard = forwardRef(({
     if (currentField?.type === 'select') {
       return (
         <select
-          ref={inputRef}
+          ref={selectRef}
           id={currentField.name}
           name={currentField.name}
           value={value}
@@ -197,7 +227,7 @@ const TypeformWizard = forwardRef(({
     if (currentField?.type === 'textarea') {
       return (
         <textarea
-          ref={inputRef}
+          ref={textareaRef}
           id={currentField.name}
           name={currentField.name}
           value={value}

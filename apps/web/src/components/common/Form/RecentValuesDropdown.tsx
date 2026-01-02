@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, ChangeEvent, FocusEvent } from 'react';
+import { JSX, useCallback, useEffect, useMemo, ChangeEvent, FocusEvent } from 'react';
 import CreatableSelect from 'react-select/creatable';
 import FormFieldWrapper from './Input/FormFieldWrapper';
 import { useRecentValues } from '../../../hooks/useRecentValues';
@@ -97,20 +97,20 @@ const RecentValuesDropdown = ({ // Field configuration
     if (isMulti && Array.isArray(value)) {
       return value.map(v => ({
         value: v,
-        label: v
+        label: String(v)
       }));
     }
 
-    // For single select
-    if (typeof value === 'string') {
+    // For single select - convert string or number to option format
+    if (typeof value === 'string' || typeof value === 'number') {
       return {
-        value: value,
-        label: value
+        value: String(value),
+        label: String(value)
       };
     }
 
-    // If already in option format
-    return value;
+    // If already in option format, return null (shouldn't happen with current prop types)
+    return null;
   }, [value, isMulti]);
 
   /**
@@ -141,20 +141,20 @@ const RecentValuesDropdown = ({ // Field configuration
    */
   const handleBlur = useCallback(() => {
     if (onBlur) {
-      onBlur();
+      onBlur({} as React.FocusEvent);
     }
 
     // Auto-save on blur if value is new
-    if (autoSave && value && !hasRecentValue(value)) {
+    if (autoSave && value && !hasRecentValue(String(value))) {
       if (isMulti && Array.isArray(value)) {
         // Save each new value in multi-select
         value.forEach(v => {
-          if (v && !hasRecentValue(v)) {
-            saveRecentValue(v, formName);
+          if (v && !hasRecentValue(String(v))) {
+            saveRecentValue(String(v), formName || undefined);
           }
         });
       } else if (typeof value === 'string' && value.trim()) {
-        saveRecentValue(value, formName);
+        saveRecentValue(value, formName || undefined);
       }
     }
   }, [onBlur, autoSave, value, hasRecentValue, saveRecentValue, formName, isMulti]);
@@ -162,7 +162,7 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Handle creation of new option
    */
-  const handleCreate = useCallback((inputValue) => {
+  const handleCreate = useCallback((inputValue: string) => {
     const trimmedValue = inputValue.trim();
     if (!trimmedValue) return;
 
@@ -173,7 +173,7 @@ const RecentValuesDropdown = ({ // Field configuration
 
     // For multi-select, add to existing values
     if (isMulti) {
-      const currentValues = currentOption || [];
+      const currentValues = Array.isArray(currentOption) ? currentOption : [];
       handleChange([...currentValues, newOption]);
     } else {
       handleChange(newOption);
@@ -181,7 +181,7 @@ const RecentValuesDropdown = ({ // Field configuration
 
     // Save the new value immediately if autoSave is enabled
     if (autoSave) {
-      saveRecentValue(trimmedValue, formName);
+      saveRecentValue(trimmedValue, formName || undefined);
     }
   }, [handleChange, isMulti, currentOption, autoSave, saveRecentValue, formName]);
 
@@ -247,10 +247,11 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Custom components
    */
+  const selectPropsTyped = selectProps as { components?: Record<string, unknown> };
   const components = useMemo(() => ({
-    ...(selectProps?.components || {}),
+    ...(selectPropsTyped?.components || {}),
     // Could add custom components here if needed
-  }), [selectProps?.components]);
+  }), [selectPropsTyped?.components]);
 
   const selectElement = (
     <CreatableSelect
@@ -339,8 +340,10 @@ const RecentValuesDropdown = ({ // Field configuration
       error={error}
       htmlFor={name}
     >
-      {selectElement}
-      {clearButton}
+      <div className="recent-values-dropdown">
+        {selectElement}
+        {clearButton}
+      </div>
     </FormFieldWrapper>
   );
 };

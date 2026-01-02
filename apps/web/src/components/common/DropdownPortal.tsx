@@ -1,15 +1,15 @@
-import { useRef, useEffect, useCallback, useState, ReactNode } from 'react';
+import React, { JSX, useRef, useEffect, useCallback, useState, ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 interface DropdownPortalProps {
-  triggerRef: Record<string, unknown>;
+  triggerRef: RefObject<HTMLElement>;
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
   className?: string;
-  width?: 'auto' | 'trigger';
-  widthRef?: Record<string, unknown>;
-  minWidth?: number;
+  width?: 'auto' | 'trigger' | string;
+  widthRef?: RefObject<HTMLElement> | null;
+  minWidth?: number | null;
   gap?: number;
 }
 
@@ -21,9 +21,9 @@ const DropdownPortal = ({ triggerRef,
   width = 'auto',
   widthRef = null,
   minWidth = null,
-  gap = 4 }: DropdownPortalProps): JSX.Element => {
-  const [style, setStyle] = useState({ opacity: 0 });
-  const dropdownRef = useRef(null);
+  gap = 4 }: DropdownPortalProps): JSX.Element | null => {
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const updatePosition = useCallback(() => {
     if (!triggerRef?.current || !dropdownRef.current) return;
@@ -82,7 +82,7 @@ const DropdownPortal = ({ triggerRef,
     }
 
     setStyle({
-      position: 'absolute',
+      position: 'absolute' as const,
       top: `${top}px`,
       left: `${left}px`,
       width: widthRef?.current ? `${dropdownWidth}px` : (width === 'trigger' ? `${triggerRect.width}px` : width),

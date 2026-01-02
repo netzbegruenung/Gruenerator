@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef, ReactNode, MouseEvent } from 'react';
-import { IoCopyOutline, IoCheckmarkOutline } from "react-icons/io5";
+import { JSX, useState, useEffect, useRef, ReactNode, MouseEvent, createElement } from 'react';
+import { IoCopyOutline, IoCheckmarkOutline, IoCloseOutline, IoRefreshOutline } from "react-icons/io5";
 import { HiCog, HiPencil, HiSave } from "react-icons/hi";
 import '../../assets/styles/components/actions/action-buttons.css';
 import { IoArrowUndoOutline, IoArrowRedoOutline } from "react-icons/io5";
-import { getIcon } from '../../config/icons';
 import { copyFormattedContent } from '../utils/commonFunctions';
 import ExportDropdown from './ExportDropdown';
 import { useLazyAuth } from '../../hooks/useAuth';
@@ -15,7 +14,9 @@ import { hashContent } from '../../utils/contentHash';
 
 interface ActionButtonsProps {
   isEditing?: boolean;
-  // Legacy - no longer used
+  onEdit?: () => void;
+  allowEditing?: boolean;
+  hideEditButton?: boolean;
   className?: string;
   showExport?: boolean;
   showDownload?: boolean;
@@ -44,7 +45,7 @@ interface ActionButtonsProps {
   generatedContent?: unknown;
   title?: string;
   componentName?: string;
-  customExportOptions: {
+  customExportOptions?: {
     id?: string;
     label?: string;
     subtitle?: string;
@@ -348,7 +349,7 @@ const ActionButtons = ({ onEdit,
             'data-tooltip-content': "Zurücksetzen"
           })}
         >
-          {getIcon('actions', 'refresh')({ size: 16 })}
+          <IoRefreshOutline size={16} />
         </button>
       ),
       edit: showEditMode && activeContent && (onRequestEdit || onEditModeToggle) && (
@@ -368,7 +369,7 @@ const ActionButtons = ({ onEdit,
             'data-tooltip-content': isEditModeActive ? "Schließen" : "Edit Mode"
           })}
         >
-          {isEditModeActive ? getIcon('actions', 'close')({ size: 16 }) : <HiPencil size={16} />}
+          {isEditModeActive ? <IoCloseOutline size={16} /> : <HiPencil size={16} />}
         </button>
       ),
       more: (showExport || showDownload || showExportDropdown) && (

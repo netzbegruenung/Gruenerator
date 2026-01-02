@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { JSX, useRef } from 'react';
 import { SiCanva } from 'react-icons/si';
 import CopyButton from './CopyButton';
 import '../../assets/styles/components/common/canva-template-modal.css';

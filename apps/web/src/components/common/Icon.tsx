@@ -1,14 +1,14 @@
 import React from 'react';
-import { getIcon } from '../../config/icons';
+import { getIcon, type IconCategory } from '../../config/icons';
 
 interface IconProps {
-  category: string;
+  category: IconCategory;
   name: string;
   size?: number | string;
   className?: string;
   color?: string;
   'aria-label'?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

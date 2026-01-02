@@ -147,7 +147,7 @@ const TemplatePreviewModal = ({
                     src={currentImage.url}
                     alt={currentImage.title || template.title || 'Vorschau'}
                     className="template-preview-main-image"
-                    onError={(e) => { e.target.style.display = 'none'; }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   {hasMultipleImages && (
                     <button

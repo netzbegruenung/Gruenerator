@@ -1,4 +1,5 @@
 import '../../assets/styles/components/popups/welcome.css';
+import type { JSX } from 'react';
 interface WelcomePageProps {
   title: string;
   description: string;

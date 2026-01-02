@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { JSX, useState, useEffect, useCallback } from 'react';
 import { HiRefresh } from 'react-icons/hi';
 import '../../../assets/styles/components/ui/image-slider.css';
 
@@ -18,7 +18,7 @@ interface ImageSliderProps {
     src?: string;
     alt?: string
   }[];
-  onImageClick?: () => void;
+  onImageClick?: (event?: React.MouseEvent) => void;
   onLoad?: () => void;
   onError?: (error: Error) => void;
   className?: string;

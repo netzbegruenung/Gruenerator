@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, ChangeEvent } from 'react';
+import { JSX, useState, useEffect, useMemo, ChangeEvent } from 'react';
 import EnhancedSelect from '../EnhancedSelect';
 import { HiOutlineCloud, HiOutlineFolder } from 'react-icons/hi';
 import { useWolkeStore } from '../../../stores/wolkeStore';
