@@ -71,15 +71,8 @@ export interface BaseFieldProps {
   placeholder?: string;
 }
 
-/**
- * API response wrapper (matches backend pattern)
- */
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
+// ApiResponse is exported from './auth' - use that one instead
+// This avoids duplicate export conflicts
 
 /**
  * Pagination props

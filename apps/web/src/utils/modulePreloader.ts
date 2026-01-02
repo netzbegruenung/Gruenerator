@@ -187,8 +187,8 @@ class ModulePreloader {
           const delay = this.isSlowConnection ? 2000 : 100;
           if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
             (window as any).requestIdleCallback(() => resolve(loadFn()), { timeout: delay * 10 });
-          } else if (typeof window !== 'undefined' && window.scheduler?.postTask) {
-            window.scheduler.postTask(() => resolve(loadFn()), { priority: 'user-visible' });
+          } else if (typeof window !== 'undefined' && (window as any).scheduler?.postTask) {
+            (window as any).scheduler.postTask(() => resolve(loadFn()), { priority: 'user-visible' });
           } else {
             setTimeout(() => resolve(loadFn()), delay);
           }

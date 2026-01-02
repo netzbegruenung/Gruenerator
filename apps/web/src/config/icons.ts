@@ -54,7 +54,8 @@ import {
   HiQuestionMarkCircle,
   HiSpeakerphone,
   HiDownload,
-  HiLink
+  HiLink,
+  HiSparkles
 } from 'react-icons/hi';
 
 import {
@@ -87,7 +88,7 @@ export type IconType = ComponentType<IconBaseProps>;
 /**
  * Icon category types
  */
-export type IconCategory = 'platforms' | 'textTypes' | 'navigation' | 'actions' | 'ui';
+export type IconCategory = 'platforms' | 'textTypes' | 'navigation' | 'actions' | 'ui' | 'accessibility' | 'campaigns';
 
 /**
  * Platform icon names
@@ -136,6 +137,8 @@ export interface IconRegistry {
   navigation: Record<NavigationIconName, IconType>;
   actions: Record<ActionIconName, IconType>;
   ui: Record<UIIconName, IconType>;
+  accessibility: Record<string, IconType>;
+  campaigns: Record<string, IconType>;
 }
 
 /**
@@ -221,6 +224,16 @@ export const ICONS: IconRegistry = {
     caretUp: PiCaretUp,
     assistant: RiRobot3Line,
     brain: PiBrain
+  },
+
+  accessibility: {
+    altText: IoAccessibility,
+    leichteSprache: IoAccessibility
+  },
+
+  campaigns: {
+    campaign: HiSparkles,
+    sharepic: PiImageSquare
   }
 };
 

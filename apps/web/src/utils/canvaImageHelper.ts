@@ -66,7 +66,7 @@ export const fetchImageAsBase64 = async (imageUrl) => {
 
       reader.onload = () => {
         try {
-          const base64String = reader.result.split(',')[1];
+          const base64String = (reader.result as string).split(',')[1];
           resolve(base64String);
         } catch (error) {
           reject(new Error(`Failed to convert blob to base64: ${error.message}`));
@@ -208,8 +208,13 @@ export const CANVA_IMAGE_ERRORS = {
  * @param {Object} details - Additional error details
  * @returns {Error} Standardized error object
  */
-export const createCanvaImageError = (type, message, details = {}) => {
-  const error = new Error(message);
+interface CanvaImageError extends Error {
+  type: string;
+  details: Record<string, unknown>;
+}
+
+export const createCanvaImageError = (type: string, message: string, details: Record<string, unknown> = {}): CanvaImageError => {
+  const error = new Error(message) as CanvaImageError;
   error.type = type;
   error.details = details;
   return error;

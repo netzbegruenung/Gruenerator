@@ -11,7 +11,12 @@
  * @param {string} options.prompt - Prompt type (register, login)
  * @returns {string} Complete login URL
  */
-export const buildLoginUrl = (redirectTo = null, options = {}) => {
+interface LoginUrlOptions {
+  source?: string;
+  prompt?: string;
+}
+
+export const buildLoginUrl = (redirectTo: string | null = null, options: LoginUrlOptions = {}) => {
   const params = new URLSearchParams();
 
   if (options.source) {

@@ -57,7 +57,20 @@ export const fuzzyMatch = (input, target) => {
  * @param {Object} config - Configuration options
  * @returns {Object} { matches, bestMatch, isUniqueMatch }
  */
-export const findMatches = (input, options, config = {}) => {
+interface FindMatchesConfig {
+  aliases?: Record<string, string[]>;
+  threshold?: number;
+  minChars?: number;
+}
+
+interface OptionItem {
+  value?: string;
+  id?: string;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export const findMatches = (input: string, options: OptionItem[], config: FindMatchesConfig = {}) => {
   const { aliases = PLATFORM_ALIASES, threshold = 0.5, minChars = 1 } = config;
 
   if (!input || input.length < minChars) {
@@ -67,7 +80,7 @@ export const findMatches = (input, options, config = {}) => {
   const inputLower = input.toLowerCase().trim();
 
   for (const [value, aliasArray] of Object.entries(aliases)) {
-    if (aliasArray.some(alias => alias.toLowerCase() === inputLower)) {
+    if ((aliasArray as string[]).some((alias: string) => alias.toLowerCase() === inputLower)) {
       const exactMatch = options.find(opt =>
         (opt.value || opt.id) === value
       );
@@ -84,12 +97,12 @@ export const findMatches = (input, options, config = {}) => {
   const scored = options.map(option => {
     const label = option.label || '';
     const value = option.value || option.id || '';
-    const optionAliases = aliases[value] || [];
+    const optionAliases = (aliases as Record<string, string[]>)[value] || [];
 
     const scores = [
-      fuzzyMatch(input, label),
-      fuzzyMatch(input, value),
-      ...optionAliases.map(alias => fuzzyMatch(input, alias))
+      fuzzyMatch(input, label as string),
+      fuzzyMatch(input, value as string),
+      ...optionAliases.map((alias: string) => fuzzyMatch(input, alias))
     ];
 
     return {
