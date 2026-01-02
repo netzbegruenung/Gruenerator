@@ -6,6 +6,20 @@
 // Enhanced regex for detecting URLs in text - supports various URL formats
 const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
+/** URL with context information */
+export interface UrlWithContext {
+  url: string;
+  domain: string;
+  context: string;
+  position: number;
+}
+
+/** Callback type for debounced URL detection */
+export type UrlDetectionCallback = (newUrls: string[], allUrls: string[]) => void;
+
+/** URL type categories */
+export type UrlType = 'news' | 'social' | 'pdf' | 'image' | 'government' | 'webpage' | 'unknown';
+
 /**
  * Sanitizes a URL by removing unbalanced trailing punctuation
  * Handles cases where URLs are extracted from text with surrounding parentheses,
@@ -13,7 +27,7 @@ const URL_REGEX = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9(
  * @param {string} url - URL to sanitize
  * @returns {string} Sanitized URL
  */
-const sanitizeExtractedUrl = (url) => {
+const sanitizeExtractedUrl = (url: string): string => {
   if (!url) return url;
 
   let sanitized = url;
@@ -67,7 +81,7 @@ const sanitizeExtractedUrl = (url) => {
  * @param {string} text - Text to scan for URLs
  * @returns {Array<string>} Array of detected URLs
  */
-export const detectUrls = (text) => {
+export const detectUrls = (text: string): string[] => {
   if (!text || typeof text !== 'string') return [];
 
   const matches = text.match(URL_REGEX);
@@ -85,7 +99,7 @@ export const detectUrls = (text) => {
  * @param {Array<string>} processedUrls - Already processed URLs
  * @returns {Array<string>} New URLs to process
  */
-export const getNewUrls = (text, processedUrls = []) => {
+export const getNewUrls = (text: string, processedUrls: string[] = []): string[] => {
   const allUrls = detectUrls(text);
   return allUrls.filter(url => !processedUrls.includes(url));
 };
@@ -95,7 +109,7 @@ export const getNewUrls = (text, processedUrls = []) => {
  * @param {string} url - URL to create title from
  * @returns {string} Display title
  */
-export const getUrlDisplayTitle = (url) => {
+export const getUrlDisplayTitle = (url: string): string => {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace(/^www\./, '');
@@ -110,7 +124,7 @@ export const getUrlDisplayTitle = (url) => {
  * @param {string} url - URL to extract domain from
  * @returns {string} Domain name
  */
-export const getUrlDomain = (url) => {
+export const getUrlDomain = (url: string): string => {
   try {
     const urlObj = new URL(url);
     return urlObj.hostname.replace(/^www\./, '');
@@ -124,7 +138,7 @@ export const getUrlDomain = (url) => {
  * @param {string} url - URL to validate
  * @returns {boolean} True if the URL format is valid
  */
-export const isValidUrl = (url) => {
+export const isValidUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
     return ['http:', 'https:'].includes(urlObj.protocol);
@@ -138,7 +152,7 @@ export const isValidUrl = (url) => {
  * @param {string} url - URL to sanitize
  * @returns {string} Sanitized URL
  */
-export const sanitizeUrlForDisplay = (url) => {
+export const sanitizeUrlForDisplay = (url: string): string => {
   try {
     const urlObj = new URL(url);
     // Remove common tracking parameters
@@ -162,7 +176,7 @@ export const sanitizeUrlForDisplay = (url) => {
  * @param {string} text - Text to count URLs in
  * @returns {number} Number of URLs found
  */
-export const countUrls = (text) => {
+export const countUrls = (text: string): number => {
   return detectUrls(text).length;
 };
 
@@ -172,7 +186,7 @@ export const countUrls = (text) => {
  * @param {number} maxLength - Maximum length for preview
  * @returns {string} Preview text with URL indicators
  */
-export const getTextPreviewWithUrls = (text, maxLength = 150) => {
+export const getTextPreviewWithUrls = (text: string, maxLength: number = 150): string => {
   if (!text) return '';
   
   const urls = detectUrls(text);
@@ -195,9 +209,9 @@ export const getTextPreviewWithUrls = (text, maxLength = 150) => {
  * Extracts URLs and surrounding context
  * @param {string} text - Text to extract from
  * @param {number} contextLength - Characters of context around each URL
- * @returns {Array<Object>} Array of URL objects with context
+ * @returns {Array<UrlWithContext>} Array of URL objects with context
  */
-export const extractUrlsWithContext = (text, contextLength = 50) => {
+export const extractUrlsWithContext = (text: string, contextLength: number = 50): UrlWithContext[] => {
   if (!text) return [];
   
   const urls = detectUrls(text);
@@ -218,20 +232,19 @@ export const extractUrlsWithContext = (text, contextLength = 50) => {
 
 /**
  * Debounced URL detection for performance
- * @param {string} text - Text to analyze
- * @param {Function} callback - Callback to execute with detected URLs
+ * @param {UrlDetectionCallback} callback - Callback to execute with detected URLs
  * @param {number} delay - Debounce delay in milliseconds
- * @returns {Function} Cleanup function
+ * @returns {Function} Function that accepts text and returns a cleanup function
  */
-export const createDebouncedUrlDetection = (callback, delay = 1000) => {
-  let timeoutId = null;
-  let lastUrls = [];
-  
-  return (text) => {
+export const createDebouncedUrlDetection = (callback: UrlDetectionCallback, delay: number = 1000): ((text: string) => () => void) => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let lastUrls: string[] = [];
+
+  return (text: string): (() => void) => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
-    
+
     timeoutId = setTimeout(() => {
       const currentUrls = detectUrls(text);
       const newUrls = currentUrls.filter(url => !lastUrls.includes(url));
@@ -266,9 +279,9 @@ export const URL_STATUS = {
 /**
  * URL type detection based on domain patterns
  * @param {string} url - URL to analyze
- * @returns {string} Detected URL type
+ * @returns {UrlType} Detected URL type
  */
-export const detectUrlType = (url) => {
+export const detectUrlType = (url: string): UrlType => {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.toLowerCase();

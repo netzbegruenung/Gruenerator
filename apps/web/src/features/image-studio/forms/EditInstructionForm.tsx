@@ -47,7 +47,7 @@ const EditInstructionForm = ({
         <TextAreaInput
           id="edit-instruction"
           value={precisionInstruction}
-          onChange={(e) => setPrecisionInstruction(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrecisionInstruction(e.target.value)}
           placeholder={placeholder}
           rows={rows}
           maxLength={maxLength}

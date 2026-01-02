@@ -3,19 +3,59 @@ import { HiX, HiShare, HiUserGroup, HiCheck } from 'react-icons/hi';
 import { useGroups, useGroupSharing } from '../../features/groups/hooks/useGroups';
 import Spinner from './Spinner';
 
+/** Content types that can be shared to groups */
+type ShareableContentType = 'documents' | 'custom_generators' | 'notebook_collections' | 'user_documents' | 'database';
+
+/** Permission settings for shared content */
+interface SharePermissions {
+  read: boolean;
+  write: boolean;
+  collaborative: boolean;
+}
+
+/** Permission type keys */
+type PermissionType = keyof SharePermissions;
+
+/** Group data from useGroups hook */
+interface UserGroup {
+  id: string;
+  name: string;
+  isAdmin?: boolean;
+}
+
+/** Share result from API */
+interface ShareResult {
+  success?: boolean;
+  message?: string;
+}
+
+/** Share error from API */
+interface ShareError {
+  message?: string;
+}
+
+/** Props for ShareToGroupModal component */
+interface ShareToGroupModalProps {
+  /** Whether modal is open */
+  isOpen: boolean;
+  /** Close modal callback */
+  onClose: () => void;
+  /** Type of content (documents, custom_generators, notebook_collections, user_documents) */
+  contentType: ShareableContentType;
+  /** ID of content to share */
+  contentId: string;
+  /** Display title of content */
+  contentTitle: string;
+  /** Success callback */
+  onSuccess?: (message: string) => void;
+  /** Error callback */
+  onError?: (message: string) => void;
+}
+
 /**
  * ShareToGroupModal component - allows sharing content to user's groups
- * @param {Object} props
- * @param {boolean} props.isOpen - Whether modal is open
- * @param {Function} props.onClose - Close modal callback
- * @param {string} props.contentType - Type of content (documents, custom_generators, notebook_collections, user_documents)
- * @param {string} props.contentId - ID of content to share
- * @param {string} props.contentTitle - Display title of content
- * @param {Function} props.onSuccess - Success callback
- * @param {Function} props.onError - Error callback
- * @returns {JSX.Element|null} Share modal or null if not open
  */
-const ShareToGroupModal = ({
+const ShareToGroupModal: React.FC<ShareToGroupModalProps> = ({
   isOpen,
   onClose,
   contentType,
@@ -24,9 +64,9 @@ const ShareToGroupModal = ({
   onSuccess,
   onError
 }) => {
-  const modalRef = useRef(null);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [permissions, setPermissions] = useState({
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  const [permissions, setPermissions] = useState<SharePermissions>({
     read: true,
     write: false,
     collaborative: false
@@ -40,13 +80,13 @@ const ShareToGroupModal = ({
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = async (): Promise<void> => {
     if (!selectedGroupId || !contentType || !contentId) {
       onError?.('Bitte wähle eine Gruppe aus.');
       return;
@@ -56,28 +96,29 @@ const ShareToGroupModal = ({
       await shareContent(contentType, contentId, {
         permissions,
         targetGroupId: selectedGroupId,
-        onSuccess: (result) => {
+        onSuccess: (_result: ShareResult): void => {
           onSuccess?.(`"${contentTitle}" wurde erfolgreich mit der Gruppe geteilt.`);
           onClose();
         },
-        onError: (error) => {
+        onError: (error: ShareError): void => {
           onError?.(error.message || 'Fehler beim Teilen des Inhalts.');
         }
       });
-    } catch (error) {
-      onError?.(error.message || 'Fehler beim Teilen des Inhalts.');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Teilen des Inhalts.';
+      onError?.(errorMessage);
     }
   };
 
-  const handlePermissionChange = (permissionType, value) => {
+  const handlePermissionChange = (permissionType: PermissionType, value: boolean): void => {
     setPermissions(prev => ({
       ...prev,
       [permissionType]: value
     }));
   };
 
-  const getContentTypeLabel = (type) => {
-    const labels = {
+  const getContentTypeLabel = (type: ShareableContentType): string => {
+    const labels: Record<ShareableContentType, string> = {
       'documents': 'Dokument',
       'custom_generators': 'Custom Generator',
       'notebook_collections': 'Notebook',
@@ -89,7 +130,7 @@ const ShareToGroupModal = ({
 
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
-      <div className="citation-modal share-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+      <div className="citation-modal share-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="citation-modal-header">
           <div className="share-modal-title">
             <HiShare className="share-modal-icon" />
@@ -136,11 +177,11 @@ const ShareToGroupModal = ({
               <select
                 className="share-group-select"
                 value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedGroupId(e.target.value)}
                 disabled={isSharing}
               >
                 <option value="">-- Gruppe auswählen --</option>
-                {userGroups.map(group => (
+                {(userGroups as UserGroup[]).map((group: UserGroup) => (
                   <option key={group.id} value={group.id}>
                     {group.name} {group.isAdmin ? '(Admin)' : '(Mitglied)'}
                   </option>
@@ -168,7 +209,7 @@ const ShareToGroupModal = ({
                     <input
                       type="checkbox"
                       checked={permissions.read}
-                      onChange={(e) => handlePermissionChange('read', e.target.checked)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePermissionChange('read', e.target.checked)}
                       disabled={isSharing}
                     />
                     <span className="share-permission-text">
@@ -182,7 +223,7 @@ const ShareToGroupModal = ({
                     <input
                       type="checkbox"
                       checked={permissions.write}
-                      onChange={(e) => handlePermissionChange('write', e.target.checked)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePermissionChange('write', e.target.checked)}
                       disabled={isSharing}
                     />
                     <span className="share-permission-text">
@@ -196,7 +237,7 @@ const ShareToGroupModal = ({
                     <input
                       type="checkbox"
                       checked={permissions.collaborative}
-                      onChange={(e) => handlePermissionChange('collaborative', e.target.checked)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handlePermissionChange('collaborative', e.target.checked)}
                       disabled={isSharing}
                     />
                     <span className="share-permission-text">

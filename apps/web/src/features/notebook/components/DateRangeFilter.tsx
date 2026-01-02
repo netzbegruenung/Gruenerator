@@ -32,7 +32,7 @@ const DateRangeFilter = ({ label,
                     min={min as string}
                     max={dateTo || (max as string)}
                     value={dateFrom || ''}
-                    onChange={(e) => onDateFromChange(e.target.value || null)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onDateFromChange(e.target.value || null)}
                     aria-label="Von Datum"
                 />
                 <span className="notebook-date-filter-separator">bis</span>
@@ -41,7 +41,7 @@ const DateRangeFilter = ({ label,
                     min={dateFrom || (min as string)}
                     max={max as string}
                     value={dateTo || ''}
-                    onChange={(e) => onDateToChange(e.target.value || null)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onDateToChange(e.target.value || null)}
                     aria-label="Bis Datum"
                 />
                 {hasValue && onClear && (

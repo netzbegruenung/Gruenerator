@@ -8,6 +8,29 @@ import apiClient from '../../../components/utils/apiClient';
 import '../styles/ProjectSelector.css';
 import '../../../assets/styles/components/ui/button.css';
 
+interface VideoMetadata {
+    duration?: number;
+    width?: number;
+    height?: number;
+}
+
+interface Project {
+    id: string;
+    title: string;
+    thumbnail_path?: string;
+    video_metadata?: VideoMetadata;
+    last_edited_at?: string;
+    video_size?: number;
+}
+
+interface ProjectCardProps {
+    project: Project;
+    onSelect: (projectId: string) => void;
+    onDelete: (projectId: string) => Promise<void>;
+    onShare: (project: Project) => void;
+    isLoading: boolean;
+}
+
 const formatDuration = (seconds: number | undefined): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -54,21 +77,21 @@ const SkeletonGrid = () => (
     </div>
 );
 
-const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
+const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }: ProjectCardProps) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
 
-    const handleShareClick = (e) => {
+    const handleShareClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         onShare(project);
     };
 
-    const handleDeleteClick = (e) => {
+    const handleDeleteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         setConfirmDelete(true);
     };
 
-    const handleConfirmDelete = async (e) => {
+    const handleConfirmDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         try {
             await onDelete(project.id);
@@ -78,19 +101,19 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
         }
     };
 
-    const handleCancelDelete = (e) => {
+    const handleCancelDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         setConfirmDelete(false);
     };
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onSelect(project.id);
         }
     };
 
-    const handleDeleteKeyDown = (e) => {
+    const handleDeleteKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             e.stopPropagation();
@@ -201,12 +224,12 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
     );
 };
 
-const getVideoMetadata = (file) => {
+const getVideoMetadata = (file: File): Promise<VideoMetadata> => {
     return new Promise((resolve) => {
         const video = document.createElement('video');
         video.preload = 'metadata';
         video.onloadedmetadata = () => {
-            const metadata = {
+            const metadata: VideoMetadata = {
                 duration: video.duration,
                 width: video.videoWidth,
                 height: video.videoHeight
@@ -218,6 +241,26 @@ const getVideoMetadata = (file) => {
     });
 };
 
+interface UploadData {
+    originalFile: File;
+    uploadId: string;
+    metadata: VideoMetadata;
+    name: string;
+    size: number;
+    type: string;
+}
+
+interface ProjectSelectorProps {
+    onSelectProject: (projectId: string) => void;
+    onUpload: (uploadData: UploadData) => void;
+    onNewProject?: () => void;
+    loadingProjectId: string | null;
+    projects?: Project[];
+    isLoading?: boolean;
+    error?: string | null;
+    onDeleteProject?: (projectId: string) => Promise<void>;
+}
+
 const ProjectSelector = ({
     onSelectProject,
     onUpload,
@@ -227,32 +270,33 @@ const ProjectSelector = ({
     isLoading = false,
     error = null,
     onDeleteProject
-}) => {
-    const fileInputRef = React.useRef(null);
-    const [shareProject, setShareProject] = useState(null);
+}: ProjectSelectorProps) => {
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [shareProject, setShareProject] = useState<Project | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
-    const [uploadError, setUploadError] = useState(null);
-    const [currentUpload, setCurrentUpload] = useState(null);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [currentUpload, setCurrentUpload] = useState<tus.Upload | null>(null);
 
-    const handleDelete = useCallback(async (projectId) => {
+    const handleDelete = useCallback(async (projectId: string) => {
         if (onDeleteProject) {
             await onDeleteProject(projectId);
         }
     }, [onDeleteProject]);
 
-    const handleShare = useCallback((project) => {
+    const handleShare = useCallback((project: Project) => {
         setShareProject(project);
     }, []);
 
-    const startTusUpload = useCallback(async (file) => {
+    const startTusUpload = useCallback(async (file: File) => {
         try {
             setIsUploading(true);
             setUploadProgress(0);
             setUploadError(null);
 
             const metadata = await getVideoMetadata(file);
-            file.metadata = metadata;
+            const fileWithMetadata = file as File & { metadata?: VideoMetadata };
+            fileWithMetadata.metadata = metadata;
 
             const upload = new tus.Upload(file, {
                 endpoint: TUS_UPLOAD_ENDPOINT,
@@ -274,17 +318,17 @@ const ProjectSelector = ({
                 },
                 onSuccess: () => {
                     const uploadUrl = upload.url;
-                    const secureUploadUrl = uploadUrl.startsWith('http://localhost') ? uploadUrl : uploadUrl.replace('http://', 'https://');
-                    const uploadId = secureUploadUrl.split('/').pop();
+                    const secureUploadUrl = uploadUrl?.startsWith('http://localhost') ? uploadUrl : uploadUrl?.replace('http://', 'https://') ?? '';
+                    const uploadId = secureUploadUrl.split('/').pop() ?? '';
 
                     setIsUploading(false);
                     setUploadProgress(100);
                     setCurrentUpload(null);
 
                     const originalFile = upload.file as File;
-                    const metadataFromFile = (file as File & { metadata?: Record<string, unknown> }).metadata || {};
+                    const metadataFromFile = (fileWithMetadata).metadata ?? {};
 
-                    const uploadData = {
+                    const uploadData: UploadData = {
                         originalFile: originalFile,
                         uploadId,
                         metadata: metadataFromFile,
@@ -317,7 +361,7 @@ const ProjectSelector = ({
         setUploadError(null);
     }, [currentUpload]);
 
-    const onDrop = useCallback(async (acceptedFiles) => {
+    const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles?.length > 0) {
             const file = acceptedFiles[0];
             await startTusUpload(file);
@@ -335,7 +379,7 @@ const ProjectSelector = ({
         fileInputRef.current?.click();
     }, []);
 
-    const handleFileInputChange = useCallback((e) => {
+    const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             startTusUpload(file);
@@ -422,7 +466,7 @@ const ProjectSelector = ({
                                 <p className="upload-status">Video wird hochgeladen...</p>
                                 <button
                                     className="btn-secondary upload-cancel-btn"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         handleCancelUpload();
                                     }}

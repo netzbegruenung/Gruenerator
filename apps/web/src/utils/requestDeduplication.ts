@@ -1,11 +1,11 @@
 // Race Condition Prevention
-const pendingRequests = new Map();
+const pendingRequests = new Map<string, Promise<unknown>>();
 
-export const fetchWithDedup = async (key, fetcher) => {
+export const fetchWithDedup = async <T>(key: string, fetcher: () => Promise<T>): Promise<T> => {
   if (pendingRequests.has(key)) {
-    return pendingRequests.get(key);
+    return pendingRequests.get(key) as Promise<T>;
   }
-  
+
   const promise = fetcher();
   pendingRequests.set(key, promise);
   

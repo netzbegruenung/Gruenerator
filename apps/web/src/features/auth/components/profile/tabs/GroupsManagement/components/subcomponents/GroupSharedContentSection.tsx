@@ -5,7 +5,87 @@ import AddContentToGroupModal from './AddContentToGroupModal';
 import { AddTemplateModal } from '../../../../../../../../components/common/AddTemplateModal';
 import '../../../../../../../../assets/styles/features/groups/groups.css';
 
-const GroupSharedContentSection = ({
+/** Base shared content item from the API */
+interface SharedContentItemBase {
+    id: string;
+    title?: string;
+    name?: string;
+    description?: string;
+    shared_at?: string;
+    shared_by_name?: string;
+    group_permissions?: {
+        read?: boolean;
+        write?: boolean;
+        collaborative?: boolean;
+    };
+    content_preview?: string;
+    full_content?: string;
+    markdown_content?: string;
+    word_count?: number;
+    page_count?: number;
+    document_count?: number;
+    view_count?: number;
+    preview_image_url?: string;
+    thumbnail_url?: string;
+    canva_url?: string;
+    external_url?: string;
+    content_data?: {
+        originalUrl?: string;
+    };
+    slug?: string;
+}
+
+/** Group content data structure from API */
+interface GroupContent {
+    documents?: SharedContentItemBase[];
+    texts?: SharedContentItemBase[];
+    notebooks?: SharedContentItemBase[];
+    generators?: SharedContentItemBase[];
+    templates?: SharedContentItemBase[];
+}
+
+/** Share permissions for content */
+interface SharePermissions {
+    read: boolean;
+    write: boolean;
+    collaborative: boolean;
+}
+
+/** Options for sharing content to a group */
+interface ShareOptions {
+    permissions: SharePermissions;
+    targetGroupId: string;
+}
+
+/** Template data returned from AddTemplateModal */
+interface TemplateData {
+    title: string;
+    id?: string;
+    description?: string;
+}
+
+/** Error object with message property */
+interface ErrorWithMessage {
+    message: string;
+}
+
+/** Props for GroupSharedContentSection */
+interface GroupSharedContentSectionProps {
+    groupContent: GroupContent | null;
+    isLoadingGroupContent: boolean;
+    isFetchingGroupContent: boolean;
+    isAdmin: boolean;
+    onUnshare: (contentType: string, contentId: string) => void;
+    isUnsharing: boolean;
+    groupId: string;
+    onShareContent: (contentType: string, itemId: string, options: ShareOptions) => Promise<void>;
+    isSharing: boolean;
+    onRefetch?: () => Promise<unknown>;
+    onSuccessMessage?: (message: string) => void;
+    onErrorMessage?: (message: string) => void;
+}
+
+const GroupSharedContentSection: React.FC<GroupSharedContentSectionProps> = ({
     groupContent,
     isLoadingGroupContent,
     isFetchingGroupContent,
@@ -38,17 +118,18 @@ const GroupSharedContentSection = ({
         setIsTemplateModalOpen(false);
     }, []);
 
-    const handleContentShareSuccess = useCallback((count) => {
+    const handleContentShareSuccess = useCallback((count: number) => {
         onSuccessMessage?.(`${count} Inhalt(e) erfolgreich zur Gruppe hinzugefügt.`);
         onRefetch?.();
         handleCloseContentModal();
     }, [onSuccessMessage, onRefetch, handleCloseContentModal]);
 
-    const handleContentShareError = useCallback((error) => {
-        onErrorMessage?.(`Fehler beim Hinzufügen: ${error.message || error}`);
+    const handleContentShareError = useCallback((error: ErrorWithMessage | unknown) => {
+        const errorMessage = (error as ErrorWithMessage)?.message || String(error);
+        onErrorMessage?.(`Fehler beim Hinzufügen: ${errorMessage}`);
     }, [onErrorMessage]);
 
-    const handleTemplateSuccess = useCallback((template) => {
+    const handleTemplateSuccess = useCallback((template: TemplateData) => {
         onSuccessMessage?.(`Vorlage "${template.title}" erfolgreich zur Gruppe hinzugefügt.`);
         onRefetch?.();
     }, [onSuccessMessage, onRefetch]);
@@ -99,7 +180,7 @@ const GroupSharedContentSection = ({
                                 hideHeader: true,
                                 excludeTypes: ['database'],
                                 hideFilters: ['permissions'],
-                                cardStyle: 'content-default'
+                                cardStyle: 'default'
                             }}
                         />
                     </div>

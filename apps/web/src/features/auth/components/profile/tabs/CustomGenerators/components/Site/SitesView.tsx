@@ -51,7 +51,7 @@ const SitesView = ({
                 setSite(null);
                 setView('empty');
             }
-        } catch (err: unknown) {
+        } catch (err) {
             console.error('[SitesView] Error fetching site:', err);
             const axiosError = err as { response?: { data?: { error?: string } }; message?: string };
             onErrorMessage('Fehler beim Laden der Site: ' + (axiosError.response?.data?.error || axiosError.message));
@@ -67,7 +67,7 @@ const SitesView = ({
             setSite(response.data.site);
             setView('preview');
             onSuccessMessage('Site erfolgreich erstellt!');
-        } catch (err: unknown) {
+        } catch (err) {
             const axiosError = err as { response?: { data?: { error?: string } } };
             onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Erstellen der Site');
             throw err;
@@ -81,7 +81,7 @@ const SitesView = ({
             setSite(response.data.site);
             setView('preview');
             onSuccessMessage('Site erfolgreich aktualisiert!');
-        } catch (err: unknown) {
+        } catch (err) {
             const axiosError = err as { response?: { data?: { error?: string } } };
             onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Aktualisieren der Site');
             throw err;

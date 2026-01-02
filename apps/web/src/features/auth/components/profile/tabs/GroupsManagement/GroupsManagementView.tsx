@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { motion } from "motion/react";
 
@@ -18,11 +18,27 @@ import '../../../../../generators/styles/custom-generators-tab.css';
 import '../../../../../../assets/styles/features/auth/profile-layout.css';
 import '../../../../../../assets/styles/features/groups/groups.css';
 
+interface Group {
+    id: string;
+    name: string;
+    isAdmin?: boolean;
+}
+
+interface CreateGroupFormData {
+    groupName: string;
+}
+
+interface GroupsManagementViewProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+}
+
 const GroupsManagementView = ({
     isActive,
     onSuccessMessage,
     onErrorMessage
-}) => {
+}: GroupsManagementViewProps): React.ReactElement => {
     const { user } = useOptimizedAuth();
     const tabIndex = useTabIndex('PROFILE_GROUPS');
 
@@ -37,12 +53,13 @@ const GroupsManagementView = ({
         setHasInitialAutoSelection,
     } = useGroupsStore();
 
-    const createGroupFormMethods = useForm({
+    const createGroupFormMethods = useForm<CreateGroupFormData>({
         defaultValues: { groupName: '' },
         mode: 'onSubmit'
     });
     const { control: createGroupControl, reset: resetCreateGroup, handleSubmit: handleCreateGroupSubmit } = createGroupFormMethods;
-    const { Input } = useFormFields();
+    const formFields = useFormFields();
+    const Input = formFields.Input;
 
     const {
         userGroups,
@@ -53,7 +70,7 @@ const GroupsManagementView = ({
         isDeleteGroupSuccess,
     } = useGroups({ isActive });
 
-    const handleCreateGroupFormSubmit = useCallback((data) => {
+    const handleCreateGroupFormSubmit = useCallback((data: CreateGroupFormData) => {
         if (isCreatingGroup) return;
 
         const groupName = data.groupName?.trim() || 'unbenannte Gruppe';
@@ -61,13 +78,13 @@ const GroupsManagementView = ({
         onSuccessMessage('');
         onErrorMessage('');
         createGroup(groupName, {
-            onSuccess: (newGroup) => {
+            onSuccess: (newGroup: Group) => {
                 setSelectedGroup(newGroup.id);
                 setGroupDetailView('anweisungen-wissen');
                 resetCreateGroup();
                 onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
             },
-            onError: (error) => {
+            onError: (error: Error | null) => {
                 onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
             }
         });
@@ -92,7 +109,7 @@ const GroupsManagementView = ({
 
     useEffect(() => {
         if (isDeleteGroupSuccess && selectedGroupId && userGroups) {
-            const deletedGroupWasSelected = !userGroups.some(g => g.id === selectedGroupId);
+            const deletedGroupWasSelected = !userGroups.some((g: Group) => g.id === selectedGroupId);
             if (deletedGroupWasSelected) {
                 onSuccessMessage('Gruppe erfolgreich gelöscht!');
                 if (userGroups.length > 0) {
@@ -104,7 +121,7 @@ const GroupsManagementView = ({
         }
     }, [isDeleteGroupSuccess, selectedGroupId, userGroups, onSuccessMessage, setSelectedGroup]);
 
-    const handleSelectGroup = useCallback((groupId) => {
+    const handleSelectGroup = useCallback((groupId: string) => {
         if (selectedGroupId !== groupId) {
             onSuccessMessage('');
             onErrorMessage('');
@@ -131,8 +148,8 @@ const GroupsManagementView = ({
         onErrorMessage('');
     }, [userGroups, setSelectedGroup, setCurrentView, onSuccessMessage, onErrorMessage]);
 
-    const handleTabClick = useCallback((view) => {
-        setCurrentView(view);
+    const handleTabClick = useCallback((view: string) => {
+        setCurrentView(view as 'overview' | 'group' | 'create');
         if (view === 'overview') {
             setSelectedGroup(null);
         }
@@ -141,9 +158,9 @@ const GroupsManagementView = ({
         announceToScreenReader(`${view === 'overview' ? 'Übersicht' : view} ausgewählt`);
     }, [setCurrentView, setSelectedGroup, onSuccessMessage, onErrorMessage]);
 
-    const navigationItems = [
+    const navigationItems: string[] = [
         'overview',
-        ...(userGroups ? userGroups.map(g => `group-${g.id}`) : [])
+        ...(userGroups ? userGroups.map((g: Group) => `group-${g.id}`) : [])
     ];
 
     const { getItemProps } = useRovingTabindex({
@@ -171,7 +188,7 @@ const GroupsManagementView = ({
                     Übersicht
                 </button>
 
-                {userGroups && userGroups.map(group => (
+                {userGroups && userGroups.map((group: Group) => (
                     <button
                         key={group.id}
                         {...getItemProps(`group-${group.id}`)}

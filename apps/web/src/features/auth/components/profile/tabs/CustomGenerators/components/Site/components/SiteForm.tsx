@@ -125,7 +125,7 @@ const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }: 
                                 <input
                                     type="text"
                                     value={formData.subdomain}
-                                    onChange={(e) => handleChange('subdomain', e.target.value.toLowerCase())}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('subdomain', e.target.value.toLowerCase())}
                                     pattern="[a-z0-9-]+"
                                     required
                                     placeholder="deinname"

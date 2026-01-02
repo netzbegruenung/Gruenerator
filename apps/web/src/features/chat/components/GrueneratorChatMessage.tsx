@@ -12,12 +12,43 @@ import '../../../assets/styles/components/chat/gruenerator-message.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, activeResultId }) => {
+interface ProfileData {
+  avatar_robot_id?: number | string;
+  display_name?: string;
+}
+
+interface ResultData {
+  componentId?: string;
+  text?: string;
+  imageUrl?: string;
+  type?: string;
+  images?: string[];
+  sharepic?: any;
+}
+
+interface ChatMessage {
+  type: 'user' | 'assistant' | 'error';
+  content: string;
+  timestamp?: number;
+  resultData?: ResultData;
+  userName?: string;
+}
+
+interface GrueneratorChatMessageProps {
+  msg: ChatMessage;
+  index: number;
+  onEditRequest: (componentId: string) => void;
+  isEditModeActive: boolean;
+  activeResultId: string | null;
+}
+
+const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, activeResultId }: GrueneratorChatMessageProps): React.ReactElement => {
   const { user } = useOptimizedAuth();
   const { data: profile } = useProfile(user?.id);
+  const typedProfile = profile as ProfileData | undefined;
 
-  const avatarRobotId = profile?.avatar_robot_id ?? 1;
-  const displayName = profile?.display_name || '';
+  const avatarRobotId = typedProfile?.avatar_robot_id ?? 1;
+  const displayName = typedProfile?.display_name || '';
 
   const userAvatarProps = useMemo(() => {
     return getAvatarDisplayProps({
@@ -62,11 +93,12 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
       {hasResultData ? (
         <div className="gruenerator-result-content">
           {msg.resultData.sharepic && (
-            <ImageDisplay
-              sharepicData={msg.resultData.sharepic}
-              minimal={true}
-              className="gruenerator-result-sharepic"
-            />
+            <div className="gruenerator-result-sharepic">
+              <ImageDisplay
+                sharepicData={msg.resultData.sharepic}
+                minimal={true}
+              />
+            </div>
           )}
           <Suspense fallback={<span>{displayText}</span>}>
             <ReactMarkdown components={MARKDOWN_COMPONENTS}>

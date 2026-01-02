@@ -115,11 +115,13 @@ const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight =
           ref={dropdownRef}
           className="menu-dropdown-content"
           style={style}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {typeof children === 'function'
             ? children({ onClose: handleClose })
-            : React.cloneElement(children, { onClose: handleClose })
+            : React.isValidElement(children)
+              ? React.cloneElement(children, { onClose: handleClose } as React.Attributes)
+              : children
           }
         </div>,
         document.body

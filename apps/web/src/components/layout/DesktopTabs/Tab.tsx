@@ -67,7 +67,7 @@ const Tab: React.FC<TabProps> = ({
       draggable
       onClick={handleClick}
       onMouseDown={handleMiddleClick}
-      onDragStart={(e) => onDragStart(e, tab.id, index)}
+      onDragStart={(e: React.DragEvent) => onDragStart(e, tab.id, index)}
       onDragOver={(e) => { e.preventDefault(); onDragOver(e, index); }}
       onDrop={(e) => onDrop(e, index)}
       onDragEnd={onDragEnd}

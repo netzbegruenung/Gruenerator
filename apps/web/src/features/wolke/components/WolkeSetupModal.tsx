@@ -49,7 +49,7 @@ const WolkeSetupModal = ({ onClose, onSubmit }) => {
 
     return (
         <div className="wolke-modal-overlay" onClick={onClose}>
-            <div className="wolke-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="wolke-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                 <div className="wolke-modal-header">
                     <div className="wolke-modal-title">
                         <FaCloud size={20} />

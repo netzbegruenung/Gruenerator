@@ -101,9 +101,10 @@ const CampaignSharepicEditor = ({
           {[1, 2, 3, 4, 5].map(lineNum => (
             <div key={lineNum} className="editor-field">
               <FormInput
+                name={`line${lineNum}`}
                 label={`Zeile ${lineNum}`}
                 value={editedLines[`line${lineNum}`]}
-                onChange={(e) => handleLineChange(lineNum, e.target.value)}
+                onChange={(value: string) => handleLineChange(lineNum, value)}
                 placeholder={`Zeile ${lineNum} des Gedichts...`}
                 maxLength={60}
               />
@@ -121,9 +122,10 @@ const CampaignSharepicEditor = ({
 
           <div className="editor-field">
             <FormInput
+              name="customCredit"
               label="Neuer Credit-Text (optional)"
               value={editedLines.customCredit}
-              onChange={(e) => handleCustomCreditChange(e.target.value)}
+              onChange={(value: string) => handleCustomCreditChange(value)}
               placeholder="z.B. Grüne Berlin · gruene-hamburg.de"
               helpText="Leer lassen um aktuellen Text zu behalten"
             />

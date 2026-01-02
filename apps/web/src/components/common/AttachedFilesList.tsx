@@ -82,7 +82,7 @@ const AttachedFilesList = ({
             <button
               type="button"
               className="file-remove-btn"
-              onClick={(e) => handleRemoveFile(index, e)}
+              onClick={(e: React.MouseEvent) => handleRemoveFile(index, e)}
               aria-label={`${file.name} entfernen`}
             >
               <HiX />

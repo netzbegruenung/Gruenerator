@@ -239,10 +239,10 @@ const ChatUI = ({ messages = [],
               type="text"
               className="form-input"
               value={inputValue}
-              onChange={(e) => onInputChange && onInputChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onInputChange && onInputChange(e.target.value)}
               placeholder={placeholder}
               disabled={disabled}
-              onKeyDown={(e) => {
+              onKeyDown={(e: React.KeyboardEvent) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   handleSubmit(e);
@@ -253,10 +253,10 @@ const ChatUI = ({ messages = [],
             <textarea
               className="form-input"
               value={inputValue}
-              onChange={(e) => onInputChange && onInputChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onInputChange && onInputChange(e.target.value)}
               placeholder={placeholder}
               disabled={disabled}
-              onKeyDown={(e) => {
+              onKeyDown={(e: React.KeyboardEvent) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSubmit(e);

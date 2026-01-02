@@ -157,7 +157,7 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
             <input
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               placeholder="Passwort eingeben"
               className="verify-input"
               disabled={isLocked}

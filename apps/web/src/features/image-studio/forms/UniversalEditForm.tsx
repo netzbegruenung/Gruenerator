@@ -27,7 +27,7 @@ const UniversalEditForm = ({ loading = false, formErrors = {} }: UniversalEditFo
         <TextAreaInput
           id="universal-instruction"
           value={precisionInstruction}
-          onChange={(e) => setPrecisionInstruction(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrecisionInstruction(e.target.value)}
           placeholder="z.B.: 'Ersetze den Himmel durch einen Sonnenuntergang, füge Wolken hinzu, mache das Gras grüner...'"
           rows={6}
           maxLength={500}

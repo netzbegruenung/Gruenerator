@@ -227,7 +227,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
         onHide={onHide}
         isStartMode={isStartMode}
       >
-        <form onSubmit={(e) => {
+        <form onSubmit={(e: React.FormEvent) => {
           e.preventDefault();
 
           // Check if the submission was triggered by Enter key from react-select

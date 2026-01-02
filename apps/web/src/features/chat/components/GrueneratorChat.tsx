@@ -18,7 +18,7 @@ interface AttachedFile extends File {
 }
 
 interface ChatMsg {
-  type: string;
+  type: 'user' | 'assistant' | 'error';
   content: string;
   timestamp?: number;
   agent?: string;
@@ -185,7 +185,7 @@ const GrueneratorChat = () => {
     const resolved = resolveTextContent(storedContent);
     if (!resolved.trim()) return;
 
-    const storedMetadata = textStore.generatedTextMetadata?.[componentId] || {};
+    const storedMetadata = (textStore.generatedTextMetadata?.[componentId] || {}) as Record<string, unknown>;
     const metadata = {
       agent: target.agent,
       ...storedMetadata,
@@ -302,7 +302,7 @@ const GrueneratorChat = () => {
         mode="chat"
         modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
-        messages={messages}
+        messages={messages as Array<{ type: 'user' | 'assistant' | 'error'; content: string; timestamp?: number }>}
         onSubmit={handleSubmit}
         isProcessing={isLoading}
         placeholder={placeholder}

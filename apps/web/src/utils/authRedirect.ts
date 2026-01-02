@@ -35,14 +35,27 @@ export const buildLoginUrl = (redirectTo: string | null = null, options: LoginUr
   return `/login${queryString ? `?${queryString}` : ''}`;
 };
 
+interface LocationState {
+  from?: {
+    pathname: string;
+    search?: string;
+  };
+}
+
+interface LocationObject {
+  search: string;
+  pathname: string;
+  state?: LocationState;
+}
+
 /**
  * Get intended redirect URL from various sources
  * Priority: URL query params > location state > sessionStorage > default
- * @param {Location} location - React Router location object
- * @param {string} defaultRedirect - Default redirect if none found
- * @returns {string} Redirect URL
+ * @param location - React Router location object
+ * @param defaultRedirect - Default redirect if none found
+ * @returns Redirect URL
  */
-export const getIntendedRedirect = (location, defaultRedirect = '/profile') => {
+export const getIntendedRedirect = (location: LocationObject, defaultRedirect = '/profile'): string => {
   // 1. Check URL query parameters (highest priority)
   const searchParams = new URLSearchParams(location.search);
   const redirectToParam = searchParams.get('redirectTo');
@@ -72,19 +85,19 @@ export const getIntendedRedirect = (location, defaultRedirect = '/profile') => {
 
 /**
  * Get current path for use as redirectTo parameter
- * @param {Location} location - React Router location object
- * @returns {string} Current path with search params
+ * @param location - React Router location object
+ * @returns Current path with search params
  */
-export const getCurrentPath = (location) => {
+export const getCurrentPath = (location: LocationObject): string => {
   return location.pathname + (location.search || '');
 };
 
 /**
  * Check if a URL is a mobile deep-link
- * @param {string} url - URL to check
- * @returns {boolean} True if it's a mobile deep-link
+ * @param url - URL to check
+ * @returns True if it's a mobile deep-link
  */
-export const isMobileDeepLink = (url) => {
+export const isMobileDeepLink = (url: string | null | undefined): boolean => {
   if (!url) return false;
   const lower = url.toLowerCase();
   return !lower.startsWith('http://') && !lower.startsWith('https://') && url.includes('://');
@@ -92,10 +105,10 @@ export const isMobileDeepLink = (url) => {
 
 /**
  * Detect if the current request is from a mobile app
- * @param {Location} location - React Router location object
- * @returns {boolean} True if request is from mobile app
+ * @param location - React Router location object
+ * @returns True if request is from mobile app
  */
-export const isMobileAppContext = (location) => {
+export const isMobileAppContext = (location: LocationObject): boolean => {
   const searchParams = new URLSearchParams(location.search);
   const redirectTo = searchParams.get('redirectTo');
 
@@ -122,8 +135,8 @@ export const clearRedirectState = () => {
 
 /**
  * Store redirect path in sessionStorage (legacy compatibility)
- * @param {string} path - Path to store
+ * @param path - Path to store
  */
-export const storeRedirectPath = (path) => {
+export const storeRedirectPath = (path: string): void => {
   sessionStorage.setItem('redirectAfterLogin', path);
 };

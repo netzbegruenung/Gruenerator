@@ -54,7 +54,7 @@ import { useFormVisibility } from '../hooks/useFormVisibility';
 
 // Importiere die Utility-Funktionen
 import { getExportableContent } from '../utils/contentUtils';
-import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
+import { extractEditableText, type Content } from '../../../../stores/hooks/useTextEditActions';
 
 // Inline utility function (moved from classNameUtils)
 interface BaseContainerClassesParams {
@@ -251,27 +251,40 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const getFeatureState = useFormStateSelector(state => state.getFeatureState);
 
   // Configuration fallback helpers (store first, props second)
-  const getConfigValue = React.useCallback((storeConfig, propValue, key, defaultValue) => {
+  const getConfigValue = React.useCallback(<T,>(storeConfig: Record<string, T | undefined>, propValue: T | undefined, key: string, defaultValue: T): T => {
     // Priority: store[key] -> propValue -> defaultValue
     return storeConfig[key] ?? propValue ?? defaultValue;
   }, []);
 
-  const getTabIndexValue = React.useCallback((key, propValue, defaultValue) => {
-    return getConfigValue(storeTabIndexConfig, propValue, key, defaultValue);
+  const getTabIndexValue = React.useCallback(<T,>(key: string, propValue: T | undefined, defaultValue: T): T => {
+    return getConfigValue(storeTabIndexConfig as Record<string, T | undefined>, propValue, key, defaultValue);
   }, [storeTabIndexConfig, getConfigValue]);
 
   // Resolved tabIndex values with store fallbacks
-  const resolvedTabIndexes = React.useMemo(() => ({
-    featureIcons: getTabIndexValue('featureIcons', featureIconsTabIndex, {
+  interface FeatureIconsTabIndex {
+    webSearch?: number;
+    privacyMode?: number;
+    attachment?: number;
+  }
+  interface ResolvedTabIndexes {
+    featureIcons: FeatureIconsTabIndex;
+    platformSelector: number;
+    knowledgeSelector: number;
+    knowledgeSourceSelector: number;
+    documentSelector: number;
+    submitButton: number;
+  }
+  const resolvedTabIndexes: ResolvedTabIndexes = React.useMemo(() => ({
+    featureIcons: getTabIndexValue<FeatureIconsTabIndex>('featureIcons', featureIconsTabIndex, {
       webSearch: 11,
       privacyMode: 12,
       attachment: 13
     }),
-    platformSelector: getTabIndexValue('platformSelector', platformSelectorTabIndex, 12),
-    knowledgeSelector: getTabIndexValue('knowledgeSelector', knowledgeSelectorTabIndex, 14),
-    knowledgeSourceSelector: getTabIndexValue('knowledgeSourceSelector', knowledgeSourceSelectorTabIndex, 13),
-    documentSelector: getTabIndexValue('documentSelector', documentSelectorTabIndex, 15),
-    submitButton: getTabIndexValue('submitButton', submitButtonTabIndex, 17)
+    platformSelector: getTabIndexValue<number>('platformSelector', platformSelectorTabIndex, 12),
+    knowledgeSelector: getTabIndexValue<number>('knowledgeSelector', knowledgeSelectorTabIndex, 14),
+    knowledgeSourceSelector: getTabIndexValue<number>('knowledgeSourceSelector', knowledgeSourceSelectorTabIndex, 13),
+    documentSelector: getTabIndexValue<number>('documentSelector', documentSelectorTabIndex, 15),
+    submitButton: getTabIndexValue<number>('submitButton', submitButtonTabIndex, 17)
   }), [
     getTabIndexValue,
     featureIconsTabIndex,
@@ -283,12 +296,19 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   ]);
 
   // Resolved platform configuration with store fallbacks
-  const resolvedPlatformConfig = React.useMemo(() => ({
-    enabled: getConfigValue(storePlatformConfig, enablePlatformSelector, 'enabled', false),
-    options: getConfigValue(storePlatformConfig, platformOptions, 'options', []),
-    label: getConfigValue(storePlatformConfig, platformSelectorLabel, 'label', undefined),
-    placeholder: getConfigValue(storePlatformConfig, platformSelectorPlaceholder, 'placeholder', undefined),
-    helpText: getConfigValue(storePlatformConfig, platformSelectorHelpText, 'helpText', undefined)
+  interface ResolvedPlatformConfig {
+    enabled: boolean;
+    options: PlatformOption[];
+    label: string | undefined;
+    placeholder: string | undefined;
+    helpText: string | undefined;
+  }
+  const resolvedPlatformConfig: ResolvedPlatformConfig = React.useMemo(() => ({
+    enabled: getConfigValue(storePlatformConfig, enablePlatformSelector, 'enabled', false) as boolean,
+    options: getConfigValue(storePlatformConfig, platformOptions, 'options', [] as PlatformOption[]) as PlatformOption[],
+    label: getConfigValue(storePlatformConfig, platformSelectorLabel, 'label', undefined) as string | undefined,
+    placeholder: getConfigValue(storePlatformConfig, platformSelectorPlaceholder, 'placeholder', undefined) as string | undefined,
+    helpText: getConfigValue(storePlatformConfig, platformSelectorHelpText, 'helpText', undefined) as string | undefined
   }), [
     storePlatformConfig,
     getConfigValue,
@@ -300,12 +320,19 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   ]);
 
   // Resolved UI configuration with store fallbacks
-  const resolvedUIConfig = React.useMemo(() => ({
-    enableKnowledgeSelector: getConfigValue(storeUIConfig, enableKnowledgeSelector, 'enableKnowledgeSelector', false),
-    showProfileSelector: getConfigValue(storeUIConfig, showProfileSelector, 'showProfileSelector', true),
-    showImageUpload: getConfigValue(storeUIConfig, showImageUpload, 'showImageUpload', false),
-    enableEditMode: getConfigValue(storeUIConfig, enableEditMode, 'enableEditMode', false),
-    useMarkdown: getConfigValue(storeUIConfig, useMarkdown, 'useMarkdown', null)
+  interface ResolvedUIConfig {
+    enableKnowledgeSelector: boolean;
+    showProfileSelector: boolean;
+    showImageUpload: boolean;
+    enableEditMode: boolean;
+    useMarkdown: boolean | null;
+  }
+  const resolvedUIConfig: ResolvedUIConfig = React.useMemo(() => ({
+    enableKnowledgeSelector: getConfigValue(storeUIConfig, enableKnowledgeSelector, 'enableKnowledgeSelector', false) as boolean,
+    showProfileSelector: getConfigValue(storeUIConfig, showProfileSelector, 'showProfileSelector', true) as boolean,
+    showImageUpload: getConfigValue(storeUIConfig, showImageUpload, 'showImageUpload', false) as boolean,
+    enableEditMode: getConfigValue(storeUIConfig, enableEditMode, 'enableEditMode', false) as boolean,
+    useMarkdown: getConfigValue(storeUIConfig, useMarkdown, 'useMarkdown', null) as boolean | null
   }), [
     storeUIConfig,
     getConfigValue,
@@ -345,10 +372,15 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     toggleStoreFormVisibility: state.toggleFormVisibility
   }));
 
-  const {
-    error,
-    setError
-  } = useErrorHandling();
+  const errorHandling = useErrorHandling() as {
+    error: string;
+    setError: (error: string | Error | null) => void;
+    getErrorMessage: (error: string) => string;
+    handleSubmitError: (error: Error) => void;
+    clearError: () => void;
+  };
+  const error = errorHandling.error;
+  const setError = errorHandling.setError;
 
   // Use store state with prop fallbacks
   const loading = storeLoading || propLoading;
@@ -359,14 +391,14 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const attachedFiles = storeAttachedFiles.length > 0 ? storeAttachedFiles : propAttachedFiles;
   const uploadedImage = storeUploadedImage || propUploadedImage;
 
-  const value = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
+  const value = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const editableSource = useMemo(
     () => (generatedContent !== undefined && generatedContent !== null ? generatedContent : value),
     [generatedContent, value]
   );
   const editableText = useMemo(() => {
-    const extracted = extractEditableText(editableSource);
+    const extracted = extractEditableText(editableSource as Content);
     return typeof extracted === 'string' ? extracted.trim() : '';
   }, [editableSource, componentName]);
   const hasEditableContent = isStreaming || editableText.length > 0;
@@ -424,11 +456,16 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   // Handler for finetune mode toggle
 
   // Consolidated config with store fallbacks and backward compatibility
-  const resolvedSubmitConfig = React.useMemo(() => {
+  interface ResolvedSubmitConfig {
+    showButton: boolean | undefined;
+    buttonText: string | undefined;
+    buttonProps: Record<string, unknown> | undefined;
+  }
+  const resolvedSubmitConfig: ResolvedSubmitConfig = React.useMemo(() => {
     // Check store first, then props
-    const storeShowButton = getConfigValue(storeSubmitConfig, null, 'showButton', null);
-    const storeButtonText = getConfigValue(storeSubmitConfig, null, 'buttonText', null);
-    const storeButtonProps = getConfigValue(storeSubmitConfig, null, 'buttonProps', null);
+    const storeShowButton = getConfigValue(storeSubmitConfig, null, 'showButton', null) as boolean | null;
+    const storeButtonText = getConfigValue(storeSubmitConfig, null, 'buttonText', null) as string | null;
+    const storeButtonProps = getConfigValue(storeSubmitConfig, null, 'buttonProps', null) as Record<string, unknown> | null;
 
     if (submitConfig) {
       return {
@@ -448,9 +485,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
 
   // In Edit Mode, reuse the same submit button but adapt default text
   const effectiveSubmitButtonProps = React.useMemo(() => {
-    const base = resolvedSubmitConfig.buttonProps || {};
+    const base = (resolvedSubmitConfig.buttonProps || {}) as Record<string, unknown>;
     if (isEditModeActive) {
-      return { ...base, defaultText: base.defaultText || 'Verbessern' };
+      return { ...base, defaultText: (base.defaultText as string) || 'Verbessern' };
     }
     return base;
   }, [resolvedSubmitConfig.buttonProps, isEditModeActive]);
@@ -487,7 +524,12 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [proModeConfig, useProModeToggle, proModeToggle, storeProModeConfig]);
 
   // Consolidated interactiveMode config with store integration
-  const resolvedInteractiveModeConfig = React.useMemo(() => {
+  interface ResolvedInteractiveModeConfig {
+    enabled: boolean;
+    toggle: FeatureToggle | null;
+    isActive: boolean;
+  }
+  const resolvedInteractiveModeConfig: ResolvedInteractiveModeConfig = React.useMemo(() => {
     return {
       enabled: useInteractiveModeToggle,
       toggle: interactiveModeToggle,
@@ -496,7 +538,10 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [interactiveModeConfig, useInteractiveModeToggle, interactiveModeToggle]);
 
   // Use store form visibility with fallback to useFormVisibility
-  const fallbackFormVisibility = useFormVisibility(hasEditableContent, disableAutoCollapse);
+  const fallbackFormVisibility = useFormVisibility(hasEditableContent, disableAutoCollapse) as {
+    isFormVisible: boolean;
+    toggleFormVisibility: () => void;
+  };
   const isFormVisible = storeIsFormVisible !== undefined ? storeIsFormVisible : fallbackFormVisibility.isFormVisible;
   const toggleFormVisibility = toggleStoreFormVisibility || fallbackFormVisibility.toggleFormVisibility;
 
@@ -519,30 +564,33 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         ('sharepic' in generatedContent || 'social' in generatedContent);
 
       if (isMixedContent) {
-        // Store the full mixed content object
-        setGeneratedText(componentName, generatedContent);
-      } else if (typeof generatedContent === 'object' && 'content' in generatedContent) {
+        // Store mixed content as JSON string with metadata
+        setGeneratedText(componentName, JSON.stringify(generatedContent), generatedContent);
+      } else if (typeof generatedContent === 'object' && generatedContent !== null && 'content' in generatedContent) {
         // Regular object with content property - extract content
-        setGeneratedText(componentName, generatedContent.content);
+        const contentObj = generatedContent as { content?: string; metadata?: unknown };
+        setGeneratedText(componentName, contentObj.content || '', contentObj.metadata);
       } else if (typeof generatedContent === 'string') {
         // Plain string content
         setGeneratedText(componentName, generatedContent);
       } else {
-        // Any other object type - store as-is
-        setGeneratedText(componentName, generatedContent);
+        // Any other object type - store as JSON string
+        setGeneratedText(componentName, JSON.stringify(generatedContent), generatedContent);
       }
     }
   }, [generatedContent, setGeneratedText, componentName]);
 
   // Function to get exportable content
-  const getExportableContentCallback = useCallback((content) => {
+  const getExportableContentCallback = useCallback((content: GeneratedContent | string | null) => {
     return getExportableContent(content, value);
   }, [value]);
 
-  const {
-    isMobileView,
-    getDisplayTitle
-  } = useResponsive();
+  const responsiveState = useResponsive() as {
+    isMobileView: boolean;
+    updateMobileState: () => void;
+    getDisplayTitle: (title: string, isEditing: boolean, generatedContent: GeneratedContent | undefined) => string;
+  };
+  const { isMobileView, getDisplayTitle } = responsiveState;
 
   // Scroll to top when edit mode is activated on mobile
   React.useEffect(() => {
@@ -644,7 +692,12 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
       } else if (propError && typeof propError === 'object' && 'message' in propError) {
         errorMessage = (propError as { message?: string }).message || errorMessage;
       }
-      setError(propError);
+      // setError expects string | Error | null, convert ErrorValue appropriately
+      if (typeof propError === 'string' || propError instanceof Error) {
+        setError(propError);
+      } else {
+        setError(errorMessage);
+      }
       setStoreError(errorMessage);
       handleFormError(errorMessage, 'form');
     }
@@ -716,14 +769,14 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }), [title, generatedContent, isFormVisible, isEditModeActive, isStartMode]);
 
   // Handler for example prompt clicks
-  const handleExamplePromptClick = useCallback((text) => {
+  const handleExamplePromptClick = useCallback((text: ExamplePrompt) => {
     if (onExamplePromptClick) {
       onExamplePromptClick(text);
     }
   }, [onExamplePromptClick]);
 
   // Enhanced form submission with accessibility announcements
-  const handleEnhancedSubmit = async (formData) => {
+  const handleEnhancedSubmit = async (formData?: Record<string, unknown>) => {
     try {
       // In edit mode, call a registered edit handler if present
       if (isEditModeActive && typeof editSubmitHandlerRef.current === 'function') {
@@ -740,14 +793,15 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         // Add pro mode flag for backend
         useBedrock: featureState.proModeConfig?.isActive || false,
         // Include other feature states if needed
-        useWebSearchTool: featureState.webSearchConfig?.isActive || formData.useWebSearchTool || false,
-        usePrivacyMode: featureState.privacyModeConfig?.isActive || formData.usePrivacyMode || false
+        useWebSearchTool: featureState.webSearchConfig?.isActive || (formData?.useWebSearchTool as boolean) || false,
+        usePrivacyMode: featureState.privacyModeConfig?.isActive || (formData?.usePrivacyMode as boolean) || false
       };
 
-      await onSubmit(enhancedFormData);
+      await onSubmit?.(enhancedFormData);
       // Success is handled in the success useEffect above
-    } catch (error) {
-      handleFormError(error.message || 'Ein Fehler ist aufgetreten');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
+      handleFormError(errorMessage);
     }
   };
 
@@ -939,10 +993,15 @@ const BaseForm: React.FC<BaseFormProps> = (props) => {
   } = props;
 
   // Create initial state from props for the store
+  // Convert ErrorValue to string for FormStateStore compatibility
+  const errorString: string | null = propError
+    ? (typeof propError === 'string' ? propError : (propError as Error)?.message || String(propError))
+    : null;
+
   const initialFormState = React.useMemo(() => ({
     loading: propLoading || false,
     success: propSuccess || false,
-    error: propError || null,
+    error: errorString,
     formErrors: propFormErrors,
     webSearchConfig: {
       isActive: false,
@@ -987,44 +1046,54 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
     'onGeneratePost'
   ];
 
+  // Type-safe accessor for BaseFormProps
+  const getProp = (props: BaseFormProps, key: keyof BaseFormProps) => props[key];
+
   // Check non-callback props for equality
   for (const [key, value] of Object.entries(nextProps)) {
     if (callbackProps.includes(key)) continue; // Skip callback comparison
 
+    const propKey = key as keyof BaseFormProps;
+    const prevValue = getProp(prevProps, propKey);
+
     if (key === 'children') {
       // Special handling for children - compare type and key if available
-      if (React.isValidElement(prevProps[key]) && React.isValidElement(value)) {
-        if (prevProps[key].type !== value.type || prevProps[key].key !== value.key) {
+      if (React.isValidElement(prevValue) && React.isValidElement(value)) {
+        if (prevValue.type !== value.type || prevValue.key !== value.key) {
           return false;
         }
-      } else if (prevProps[key] !== value) {
+      } else if (prevValue !== value) {
         return false;
       }
     } else if (key === 'generatedContent') {
       // Deep comparison for generated content object using fast-deep-equal
       // isEqual is O(n) but much faster than JSON.stringify for large objects
-      if (!isEqual(prevProps[key], value)) {
+      if (!isEqual(prevValue, value)) {
         return false;
       }
     } else if (key === 'attachedFiles' || key === 'platformOptions') {
       // Array comparison
-      if (Array.isArray(prevProps[key]) && Array.isArray(value)) {
-        if (prevProps[key].length !== value.length) return false;
-        for (let i = 0; i < prevProps[key].length; i++) {
-          if (prevProps[key][i] !== value[i]) return false;
+      const prevArr = prevValue as unknown[] | undefined;
+      const nextArr = value as unknown[] | undefined;
+      if (Array.isArray(prevArr) && Array.isArray(nextArr)) {
+        if (prevArr.length !== nextArr.length) return false;
+        for (let i = 0; i < prevArr.length; i++) {
+          if (prevArr[i] !== nextArr[i]) return false;
         }
-      } else if (prevProps[key] !== value) {
+      } else if (prevValue !== value) {
         return false;
       }
-    } else if (typeof value === 'object' && value !== null && typeof prevProps[key] === 'object' && prevProps[key] !== null) {
+    } else if (typeof value === 'object' && value !== null && typeof prevValue === 'object' && prevValue !== null) {
       // Shallow object comparison for feature toggles, tab indices, etc.
-      const prevKeys = Object.keys(prevProps[key]);
-      const nextKeys = Object.keys(value);
+      const prevObj = prevValue as Record<string, unknown>;
+      const nextObj = value as Record<string, unknown>;
+      const prevKeys = Object.keys(prevObj);
+      const nextKeys = Object.keys(nextObj);
       if (prevKeys.length !== nextKeys.length) return false;
       for (const objKey of prevKeys) {
-        if (prevProps[key][objKey] !== value[objKey]) return false;
+        if (prevObj[objKey] !== nextObj[objKey]) return false;
       }
-    } else if (prevProps[key] !== value) {
+    } else if (prevValue !== value) {
       return false;
     }
   }

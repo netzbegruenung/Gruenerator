@@ -26,7 +26,7 @@ const GreenEditForm = ({ loading = false, formErrors = {} }: GreenEditFormProps)
         <TextAreaInput
           id="precision-instruction"
           value={precisionInstruction}
-          onChange={(e) => setPrecisionInstruction(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPrecisionInstruction(e.target.value)}
           placeholder="z.B.: 'Füge große Linden auf beiden Straßenseiten hinzu, ersetze die Parkplätze durch einen Fahrradweg mit grünem Belag, platziere Bänke unter den Bäumen...'"
           rows={4}
           maxLength={500}

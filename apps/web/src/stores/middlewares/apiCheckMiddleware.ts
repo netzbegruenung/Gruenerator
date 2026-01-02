@@ -22,17 +22,17 @@ export const apiCheckMiddleware = (config: any) => (set: any, get: any, api: any
 
   const validateAndUpdateFeatures = async () => {
     const state = get();
-    const updates = {};
+    const updates: Record<string, boolean> = {};
     let hasUpdates = false;
 
     // Check each feature that has API validation configured
     if (config.apiValidation) {
       for (const [featureKey, featureName] of Object.entries(config.apiValidation)) {
         const isCurrentlyEnabled = state[featureKey];
-        
+
         if (isCurrentlyEnabled) {
           const canAccess = await checkFeatureAccess(featureName as string);
-          
+
           if (canAccess === false) {
             console.log(`Auto-disabling ${featureKey} feature due to lack of access`);
             updates[featureKey] = false;

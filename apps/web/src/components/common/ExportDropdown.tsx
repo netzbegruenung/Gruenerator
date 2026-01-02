@@ -21,12 +21,12 @@ import { hashContent } from '../../utils/contentHash';
 import '../../assets/styles/components/actions/exportToDocument.css';
 
 interface ExportDropdownProps {
-  content: string | number;
+  content: string;
   title?: string;
   className?: string;
-  onSaveToLibrary?: () => void;
+  onSaveToLibrary?: (() => void) | null;
   saveToLibraryLoading?: boolean;
-  customExportOptions: {
+  customExportOptions?: {
     id?: string;
     label?: string;
     subtitle?: string;
@@ -62,7 +62,7 @@ const ExportDropdown = ({ content,
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
   const { submitForm, loading: docsLoading } = useApiSubmit('etherpad/create');
-  const { getGeneratedText } = useGeneratedTextStore();
+  const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
 
   const { isGenerating, generateDOCX } = useExportStore();
   const { canAccessBetaFeature } = useBetaFeatures();
@@ -133,8 +133,9 @@ const ExportDropdown = ({ content,
       }
 
       try {
-        const generatedText = getGeneratedText();
-        const contentType = generatedText?.contentType || 'universal';
+        const componentName = getComponentName();
+        const generatedTextMetadata = useGeneratedTextStore.getState().getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
+        const contentType = generatedTextMetadata?.contentType || 'universal';
 
         console.log('[Auto-save] Saving to library', { exportName, contentType });
 
@@ -152,7 +153,7 @@ const ExportDropdown = ({ content,
     } catch (error) {
       throw error;
     }
-  }, [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary, getGeneratedText]);
+  }, [canAccessBetaFeature, isAuthenticated, content, title, autoSaveToLibrary]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -491,7 +492,7 @@ const ExportDropdown = ({ content,
             <button
               key={option.id}
               className="format-option"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 option.onClick(e);
                 setShowDropdown(false);
               }}
@@ -630,7 +631,7 @@ const ExportDropdown = ({ content,
       {/* Enhanced Textbegrünung Export Popup */}
       {showPastePopup && (
         <div className="modal" role="dialog" aria-labelledby="export-modal-title" onClick={() => setShowPastePopup(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <button className="close-button" onClick={() => setShowPastePopup(false)}>
               <IoCloseOutline size={24} />
             </button>

@@ -6,8 +6,22 @@ import {
     TimelineBlock
 } from './blocks';
 
+interface ContentBlock {
+    type: 'paragraph' | 'heading2' | 'heading3' | 'heading4' | 'quote' | 'infoBox' | 'factBox' | 'callout' | 'timeline' | 'html';
+    text?: string;
+    author?: string;
+    title?: string;
+    items?: string[];
+    variant?: string;
+    content?: string;
+    facts?: Array<{ number: string; label: string }>;
+    buttonText?: string;
+    buttonHref?: string;
+    onClick?: () => void;
+}
+
 interface PageContentProps {
-    content?: unknown[] | string;
+    content?: ContentBlock[] | string;
     children?: React.ReactNode;
 }
 
@@ -71,7 +85,7 @@ const PageContent = ({ content, children }: PageContentProps) => {
                                     key={index}
                                     title={block.title}
                                     items={block.items}
-                                    variant={block.variant}
+                                    variant={block.variant as 'default' | 'success' | 'warning' | 'info'}
                                 >
                                     {block.content}
                                 </InfoBox>

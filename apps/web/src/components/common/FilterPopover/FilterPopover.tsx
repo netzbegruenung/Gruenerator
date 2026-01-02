@@ -7,7 +7,7 @@ interface FilterPopoverProps {
   isOpen: boolean;
   onClose: () => void;
   children: ReactNode;
-  anchorRef?: Record<string, unknown>;
+  anchorRef?: React.RefObject<HTMLElement>;
   title?: string;
   className?: string;
 }

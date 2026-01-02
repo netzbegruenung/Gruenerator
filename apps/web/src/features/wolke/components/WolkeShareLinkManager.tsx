@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ProfileCard from '../../../components/common/ProfileCard';
-import { NextcloudShareManager } from '../../../utils/nextcloudShareManager';
+import { NextcloudShareManager, ShareLink } from '../../../utils/nextcloudShareManager';
 import { useAutosave } from '../../../hooks/useAutosave';
 import { useWolkeStore } from '../../../stores/wolkeStore';
 import { getIcon } from '../../../config/icons';
@@ -10,7 +10,37 @@ import '../../../assets/styles/features/wolke/wolke.css';
 // Import ProfileActionButton CSS for consistent button styling
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
-const WolkeShareLinkManager = ({
+/** Result type for connection/upload test operations */
+interface TestResult {
+    success: boolean;
+    message?: string;
+}
+
+/** Props interface for WolkeShareLinkManager component */
+interface WolkeShareLinkManagerProps {
+    /** Share links array for backward compatibility - will be used if provided */
+    shareLinks?: ShareLink[];
+    /** Loading state for backward compatibility */
+    loading?: boolean;
+    /** Callback to add a new share link */
+    onAddShareLink?: (shareLink: string, label: string) => Promise<ShareLink | void>;
+    /** Callback to delete a share link by ID */
+    onDeleteShareLink?: (shareLinkId: string) => Promise<void>;
+    /** Callback to test a share link connection */
+    onTestConnection?: (shareLink: string) => Promise<TestResult>;
+    /** Callback to test file upload */
+    onTestUpload?: (shareLinkId: string, content: string, filename: string) => Promise<TestResult>;
+    /** Callback to refresh share links */
+    onRefresh?: () => void;
+    /** Callback to display success message */
+    onSuccessMessage?: (message: string) => void;
+    /** Callback to display error message */
+    onErrorMessage?: (message: string) => void;
+    /** Flag to disable store usage (for explicit prop usage) */
+    useStore?: boolean;
+}
+
+const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
     // Props for backward compatibility - will be used if provided
     shareLinks: propShareLinks,
     loading: propLoading,
@@ -91,7 +121,7 @@ const WolkeShareLinkManager = ({
         enabled: isInitialized.current,
         debounceMs: 3000, // Longer delay for external API calls
         getFieldsToTrack: () => ['newShareLink', 'newLabel'],
-        onError: (error) => {
+        onError: (error: Error) => {
             console.error('ShareLink autosave failed:', error);
         }
     });
@@ -104,7 +134,7 @@ const WolkeShareLinkManager = ({
         }
     }, [resetTracking]);
 
-    const handleSubmitShareLink = async (e) => {
+    const handleSubmitShareLink = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         const validation = NextcloudShareManager.validateShareLink(newShareLink);
@@ -142,7 +172,7 @@ const WolkeShareLinkManager = ({
         }
     };
 
-    const handleTestConnection = async (shareLink) => {
+    const handleTestConnection = async (shareLink: ShareLink) => {
         setTestingConnections(prev => new Set(prev).add(shareLink.id));
         try {
             let result;
@@ -182,7 +212,7 @@ const WolkeShareLinkManager = ({
         }
     };
 
-    const handleTestUpload = async (shareLink) => {
+    const handleTestUpload = async (shareLink: ShareLink) => {
         setUploadingFiles(prev => new Set(prev).add(shareLink.id));
 
         // Create test file content with timestamp
@@ -240,7 +270,7 @@ Kontext: ${contextLabel}
         }
     };
 
-    const handleCopyToClipboard = async (link) => {
+    const handleCopyToClipboard = async (link: string) => {
         try {
             await navigator.clipboard.writeText(link);
             const message = 'Link wurde in die Zwischenablage kopiert.';
@@ -259,7 +289,7 @@ Kontext: ${contextLabel}
         }
     };
 
-    const handleDeleteWithConfirm = async (shareLink) => {
+    const handleDeleteWithConfirm = async (shareLink: ShareLink) => {
         const contextLabel = scope === 'group' ? 'aus der Gruppe' : '';
         const confirmMessage = `Möchten Sie die Verbindung "${NextcloudShareManager.generateDisplayName(shareLink)}" ${contextLabel} wirklich löschen?`;
 
@@ -373,7 +403,7 @@ Kontext: ${contextLabel}
                                 type="url"
                                 id="shareLink"
                                 value={newShareLink}
-                                onChange={(e) => setNewShareLink(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewShareLink(e.target.value)}
                                 placeholder="https://wolke.netzbegruenung.de/s/ABC123..."
                                 required
                                 disabled={isSubmitting}
@@ -389,7 +419,7 @@ Kontext: ${contextLabel}
                                 type="text"
                                 id="label"
                                 value={newLabel}
-                                onChange={(e) => setNewLabel(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewLabel(e.target.value)}
                                 placeholder="z.B. Ortsverband, Mein Ordner, Grünerator..."
                                 disabled={isSubmitting}
                             />
@@ -427,7 +457,7 @@ Kontext: ${contextLabel}
                     }
                 >
                     <div className="wolke-share-links-list">
-                        {shareLinks.map(shareLink => (
+                        {shareLinks.map((shareLink: ShareLink) => (
                             <div key={shareLink.id} className="wolke-share-link-item">
                                 <div className="wolke-share-link-info">
                                     <div className="wolke-share-link-header">

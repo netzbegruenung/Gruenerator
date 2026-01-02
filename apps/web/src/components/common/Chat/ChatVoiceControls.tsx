@@ -4,7 +4,7 @@ import Spinner from '../Spinner';
 import useVoiceRecorder from '../../../features/voice/hooks/useVoiceRecorder';
 
 interface ChatVoiceControlsProps {
-  onTranscription?: () => void;
+  onTranscription?: (text: string, mode: 'append' | 'replace') => void;
   disabled?: boolean;
   autoSubmit?: boolean;
   onSubmit?: (event: React.FormEvent) => void;

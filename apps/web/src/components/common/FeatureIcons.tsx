@@ -304,7 +304,7 @@ const FeatureIcons = ({
             multiple
             accept=".pdf,.jpg,.jpeg,.png,.webp"
             onChange={handleFileSelect}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
             className="attachment-file-input"
             aria-hidden="true"
             disabled={isValidatingFiles}
@@ -367,7 +367,7 @@ const FeatureIcons = ({
                 <button
                   type="button"
                   className="selected-content-remove-btn"
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     toggleDocumentSelection(docId);
                   }}
@@ -388,7 +388,7 @@ const FeatureIcons = ({
                 <button
                   type="button"
                   className="selected-content-remove-btn"
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     toggleTextSelection(textId);
                   }}

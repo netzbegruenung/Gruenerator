@@ -19,17 +19,19 @@ interface FileUploadProps {
 }
 
 const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage, isCompact }: FileUploadProps): JSX.Element => {
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleClick = (event) => {
+  const handleClick = (event: React.MouseEvent<HTMLLabelElement>) => {
     event.preventDefault();
     event.stopPropagation();
     console.log('File input clicked');
-    fileInputRef.current.value = ""; // Clear the input value to ensure it always triggers the change event
-    fileInputRef.current.click();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Clear the input value to ensure it always triggers the change event
+      fileInputRef.current.click();
+    }
   };
 
-  const onFileChange = (event) => {
+  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       console.log('FileUpload - Files:', event.target.files);
       const selectedFile = event?.target?.files?.[0];

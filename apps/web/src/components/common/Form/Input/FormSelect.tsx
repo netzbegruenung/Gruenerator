@@ -113,7 +113,7 @@ function FormSelect<T extends FieldValues = FieldValues>({
             onChange: _oc2,
             onBlur: _ob2,
             ...cleanRest
-          } = rest;
+          } = rest as SelectHTMLAttributes<HTMLSelectElement> & { defaultValue?: unknown };
 
           return (
             <FormFieldWrapper

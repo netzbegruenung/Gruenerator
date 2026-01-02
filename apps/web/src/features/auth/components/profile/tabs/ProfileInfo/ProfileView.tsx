@@ -1,29 +1,86 @@
+import React, { FormEvent } from 'react';
 import { motion } from 'motion/react';
 import Spinner from '../../../../../../components/common/Spinner';
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import SettingsSection from './SettingsSection';
 
+interface User {
+  id: string;
+  email?: string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface Profile {
+  keycloak_id?: string;
+  avatar_robot_id?: string | number;
+  display_name?: string;
+  email?: string;
+  auth_email?: string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface RobotAvatarProps {
+  type: 'robot';
+  src: string;
+  alt: string;
+  robotId: number;
+}
+
+interface InitialsAvatarProps {
+  type: 'initials';
+  initials: string;
+}
+
+type AvatarProps = RobotAvatarProps | InitialsAvatarProps;
+
+interface ProfileViewProps {
+  user: User;
+  profile: Profile | undefined;
+  avatarProps: AvatarProps;
+  isLoading: boolean;
+  displayName: string;
+  setDisplayName: (value: string) => void;
+  email: string;
+  setEmail: (value: string) => void;
+  username: string;
+  setUsername: (value: string) => void;
+  errorProfile: string;
+  isErrorProfileQuery: boolean;
+  errorProfileQueryMessage: string | undefined;
+  onRetryProfileRefetch: () => void;
+  onOpenAvatarModal: () => void;
+  canManageCurrentAccount: boolean;
+  showDeleteAccountForm: boolean;
+  onToggleDeleteAccountForm: () => void;
+  deleteConfirmText: string;
+  setDeleteConfirmText: (value: string) => void;
+  deleteAccountError: string;
+  isDeletingAccount: boolean;
+  onDeleteAccountSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  igelActive: boolean;
+  onToggleIgelModus: (checked: boolean) => void;
+  isBetaFeaturesUpdating: boolean;
+  onSuccessMessage: (message: string) => void;
+}
+
 const ProfileView = ({
-  // User and profile
   user,
   profile,
   avatarProps,
   isLoading,
-  // Form state
   displayName,
   setDisplayName,
   email,
   setEmail,
   username,
   setUsername,
-  // Errors and retry
   errorProfile,
   isErrorProfileQuery,
   errorProfileQueryMessage,
   onRetryProfileRefetch,
-  // Avatar modal
   onOpenAvatarModal,
-  // Account deletion
   canManageCurrentAccount,
   showDeleteAccountForm,
   onToggleDeleteAccountForm,
@@ -32,13 +89,12 @@ const ProfileView = ({
   deleteAccountError,
   isDeletingAccount,
   onDeleteAccountSubmit,
-  // Settings/Beta features
   igelActive,
   onToggleIgelModus,
   isBetaFeaturesUpdating,
   onSuccessMessage,
-}) => {
-  const getPossessiveForm = (name) => {
+}: ProfileViewProps) => {
+  const getPossessiveForm = (name: string | undefined): string => {
     if (!name) return 'Dein';
     if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
       return `${name}'`;
@@ -61,7 +117,7 @@ const ProfileView = ({
             onClick={onOpenAvatarModal}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => {
+            onKeyDown={(e: React.KeyboardEvent) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 onOpenAvatarModal();
@@ -114,7 +170,7 @@ const ProfileView = ({
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                     placeholder="Deine E-Mail-Adresse"
                     aria-label="E-Mail"
                     disabled={isLoading}
@@ -128,7 +184,7 @@ const ProfileView = ({
                     id="displayName"
                     type="text"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
                     placeholder="Dein vollständiger Name"
                     aria-label="Name"
                     disabled={isLoading}
@@ -142,7 +198,7 @@ const ProfileView = ({
                     id="username"
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
                     placeholder="Dein Benutzername"
                     aria-label="Benutzername"
                     disabled={isLoading}
@@ -191,7 +247,7 @@ const ProfileView = ({
                     id="deleteConfirmText"
                     type="text"
                     value={deleteConfirmText}
-                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
                     placeholder="löschen"
                     aria-label="Bestätigung: löschen"
                     disabled={isDeletingAccount}

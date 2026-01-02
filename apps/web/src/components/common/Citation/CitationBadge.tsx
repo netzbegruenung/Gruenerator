@@ -14,6 +14,11 @@ export interface CitationData {
   document_title?: string;
   similarity_score?: number;
   index?: number | string;
+  title?: string;
+  url?: string;
+  source?: string;
+  content?: string;
+  [key: string]: unknown;
 }
 
 interface CitationBadgeProps {
@@ -50,7 +55,7 @@ const CitationBadge = ({ citationIndex, citation }: CitationBadgeProps): JSX.Ele
         role="button"
         tabIndex={0}
         aria-label={`Citation ${citationIndex}${citation ? `: ${citation.document_title}` : ''}`}
-        onKeyDown={(e) => {
+        onKeyDown={(e: React.KeyboardEvent) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             handleClick();

@@ -1,18 +1,18 @@
 // Text utility functions
 
-export const truncateWithSuffix = (text, maxLength, suffix = '') => {
+export const truncateWithSuffix = (text: string | null | undefined, maxLength: number, suffix = ''): string => {
   if (!text || typeof text !== 'string') return '';
-  
+
   const effectiveMaxLength = maxLength - suffix.length;
-  
+
   if (text.length <= effectiveMaxLength) {
     return text;
   }
-  
+
   return text.substring(0, effectiveMaxLength - 3) + '...';
 };
 
-export const truncateMiddle = (text, maxLength) => {
+export const truncateMiddle = (text: string | null | undefined, maxLength: number): string => {
   if (!text || typeof text !== 'string') return '';
   
   if (text.length <= maxLength) {

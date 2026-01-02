@@ -1,27 +1,50 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Player } from '@remotion/player';
+import { useCallback, useEffect, useMemo, useRef, useState, ChangeEvent, KeyboardEvent } from 'react';
+import { Player, PlayerRef } from '@remotion/player';
 import VideoComposition from './VideoComposition';
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
 import './VideoEditorPlayer.css';
+
+interface TextOverlay {
+  id: number;
+  type: 'header' | 'subheader';
+  text: string;
+  xPosition: number;
+  yPosition: number;
+  width: number;
+  startTime: number;
+  endTime: number;
+}
+
+interface VideoEditorPlayerProps {
+  className?: string;
+  subtitles?: string;
+  stylePreference?: string;
+}
+
+interface TimeUpdateEvent {
+  detail: {
+    frame: number;
+  };
+}
 
 /**
  * Video Editor Player
  * Wraps Remotion Player with store integration for timeline editing
  * Supports multiple clips via clips registry
  */
-const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
-  const playerRef = useRef(null);
-  const containerRef = useRef(null);
-  const inlineInputRef = useRef(null);
+const VideoEditorPlayer = ({ className, subtitles, stylePreference }: VideoEditorPlayerProps) => {
+  const playerRef = useRef<PlayerRef>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inlineInputRef = useRef<HTMLTextAreaElement>(null);
   const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
-  const [draggingOverlayId, setDraggingOverlayId] = useState(null);
+  const [draggingOverlayId, setDraggingOverlayId] = useState<number | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragStartPosition, setDragStartPosition] = useState({ x: 50, y: 20 });
-  const [editingOverlayId, setEditingOverlayId] = useState(null);
+  const [editingOverlayId, setEditingOverlayId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
   const [containerWidth, setContainerWidth] = useState(0);
   const [isResizingOverlay, setIsResizingOverlay] = useState(false);
-  const [resizingOverlayId, setResizingOverlayId] = useState(null);
+  const [resizingOverlayId, setResizingOverlayId] = useState<number | null>(null);
   const [resizeStartX, setResizeStartX] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(60);
   const [isOnResizeEdge, setIsOnResizeEdge] = useState(false);
@@ -71,7 +94,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     editingOverlayId
   }), [clips, segments, subtitles, stylePreference, videoUrl, textOverlays, selectedOverlayId, editingOverlayId]);
 
-  const handleTimeUpdate = useCallback((e) => {
+  const handleTimeUpdate = useCallback((e: TimeUpdateEvent) => {
     const currentFrame = e.detail.frame;
     const timeInSeconds = currentFrame / effectiveFps;
     setCurrentTime(timeInSeconds);
@@ -117,7 +140,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     }
   }, [isPlaying]);
 
-  const seekToTime = useCallback((timeInSeconds) => {
+  const seekToTime = useCallback((timeInSeconds: number) => {
     const player = playerRef.current;
     if (!player) return;
 
@@ -149,7 +172,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     );
   }, [textOverlays, currentTime]);
 
-  const findOverlayAtPosition = useCallback((clientX, clientY) => {
+  const findOverlayAtPosition = useCallback((clientX: number, clientY: number): TextOverlay | null => {
     if (!containerRef.current) return null;
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -173,7 +196,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     return null;
   }, [getVisibleOverlays]);
 
-  const checkResizeEdge = useCallback((clientX, clientY) => {
+  const checkResizeEdge = useCallback((clientX: number, clientY: number): { isOnEdge: boolean; overlay: TextOverlay | null } => {
     if (!containerRef.current) return { isOnEdge: false, overlay: null };
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -201,14 +224,14 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     return { isOnEdge: false, overlay: null };
   }, [getVisibleOverlays]);
 
-  const handleOverlayInteractionMove = useCallback((e) => {
+  const handleOverlayInteractionMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (isDraggingOverlay || isResizingOverlay) return;
 
     const { isOnEdge } = checkResizeEdge(e.clientX, e.clientY);
     setIsOnResizeEdge(isOnEdge);
   }, [isDraggingOverlay, isResizingOverlay, checkResizeEdge]);
 
-  const handleOverlayMouseDown = useCallback((e) => {
+  const handleOverlayMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const { isOnEdge, overlay: resizeOverlay } = checkResizeEdge(e.clientX, e.clientY);
 
     if (isOnEdge && resizeOverlay) {
@@ -233,7 +256,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     }
   }, [checkResizeEdge, findOverlayAtPosition]);
 
-  const handleOverlayDoubleClick = useCallback((e) => {
+  const handleOverlayDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const clickedOverlay = findOverlayAtPosition(e.clientX, e.clientY);
 
     if (clickedOverlay) {
@@ -247,7 +270,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     }
   }, [findOverlayAtPosition]);
 
-  const handleInlineInputChange = useCallback((e) => {
+  const handleInlineInputChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     setEditingText(e.target.value);
   }, []);
 
@@ -259,7 +282,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     setEditingText('');
   }, [editingOverlayId, editingText, updateTextOverlay]);
 
-  const handleInlineInputKeyDown = useCallback((e) => {
+  const handleInlineInputKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape') {
       setEditingOverlayId(null);
       setEditingText('');
@@ -275,7 +298,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
 
   const editingOverlay = editingOverlayId ? textOverlays.find(o => o.id === editingOverlayId) : null;
 
-  const handleOverlayMouseMove = useCallback((e) => {
+  const handleOverlayMouseMove = useCallback((e: MouseEvent) => {
     if (!isDraggingOverlay || !containerRef.current || !draggingOverlayId) return;
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -297,7 +320,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
     }
   }, [isDraggingOverlay, commitOverlayPosition]);
 
-  const handleResizeMouseMove = useCallback((e) => {
+  const handleResizeMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizingOverlay || !containerRef.current || !resizingOverlayId) return;
 
     const rect = containerRef.current.getBoundingClientRect();
@@ -366,7 +389,7 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
       >
         <Player
           ref={playerRef}
-          component={VideoComposition}
+          component={VideoComposition as unknown as React.ComponentType<Record<string, unknown>>}
           inputProps={inputProps}
           durationInFrames={durationInFrames}
           fps={effectiveFps}

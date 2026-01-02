@@ -10,15 +10,21 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
 const AUTO_DISMISS_TIMEOUT = 8000;
 const PREVIEW_LENGTH = 50;
 
+interface ChatAction {
+  value: string;
+  label?: string;
+  style?: 'primary' | 'secondary' | 'default';
+}
+
 interface FloatingAssistantBubbleProps {
   message?: {
     type?: string;
     content?: string;
     timestamp?: number;
-    actions?: unknown[]
+    actions?: ChatAction[]
   };
   onDismiss: () => void;
-  onActionClick?: () => void;
+  onActionClick?: (action: ChatAction) => void;
   autoDismissTimeout?: number;
   isProcessing?: boolean;
 }
@@ -59,15 +65,15 @@ const FloatingAssistantBubble = ({ message,
     }
   }, [isExpanded, startAutoDismissTimer]);
 
-  const handleDismiss = useCallback((e) => {
+  const handleDismiss = useCallback((e?: React.MouseEvent | React.KeyboardEvent) => {
     e?.stopPropagation();
     setIsVisible(false);
     setTimeout(onDismiss, 300);
   }, [onDismiss]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      handleDismiss();
+      handleDismiss(e);
     } else if ((e.key === 'Enter' || e.key === ' ') && !isExpanded) {
       e.preventDefault();
       handleToggleExpand();

@@ -1,4 +1,4 @@
-import { JSX, useState, useEffect, useMemo, ChangeEvent } from 'react';
+import { JSX, useState, useEffect, useMemo } from 'react';
 import EnhancedSelect from '../EnhancedSelect';
 import { HiOutlineCloud, HiOutlineFolder } from 'react-icons/hi';
 import { useWolkeStore } from '../../../stores/wolkeStore';
@@ -12,18 +12,20 @@ import '../../../assets/styles/components/profile/profile-action-buttons.css';
  * WolkeSelector - Component for selecting Wolke share links for Q&A collections
  * Uses EnhancedSelect with wolkeStore integration
  */
+interface WolkeShareLink {
+  id?: string;
+  label?: string;
+  display_name?: string;
+  share_link?: string;
+}
+
 interface WolkeSelectorProps {
   label?: string;
   placeholder?: string;
   helpText?: string;
   isMulti?: boolean;
-  value: {
-    id?: string;
-    label?: string;
-    display_name?: string;
-    share_link?: string
-  }[];
-  onChange: (event: React.ChangeEvent) => void;
+  value: WolkeShareLink[];
+  onChange: (selectedLinks: WolkeShareLink[]) => void;
   className?: string;
   error?: string;
   required?: boolean;

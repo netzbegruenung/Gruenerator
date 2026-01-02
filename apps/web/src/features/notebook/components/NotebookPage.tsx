@@ -12,43 +12,99 @@ import { useAuthStore } from '../../../stores/authStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 
-const NotebookPageContent = ({ config }) => {
+// Types for NotebookPage
+interface NotebookCollection {
+    id: string;
+    name: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    description?: string;
+    documentCount?: string | number;
+    externalUrl?: string;
+    linkType?: string;
+    locale?: string;
+}
+
+interface NotebookDocument {
+    title: string;
+    detail: string;
+}
+
+interface NotebookSource {
+    name?: string;
+    count?: string;
+    id?: string;
+    selected?: boolean;
+}
+
+interface ExampleQuestion {
+    icon: string;
+    text: string;
+}
+
+interface NotebookConfig {
+    id: string;
+    title: string;
+    authTitle: string;
+    collectionType: 'single' | 'multi';
+    collections: NotebookCollection[];
+    startPageTitle: string;
+    placeholder: string;
+    infoPanelDescription: string;
+    headerIcon: React.ComponentType<{ className?: string }>;
+    exampleQuestions: ExampleQuestion[];
+    documents?: NotebookDocument[];
+    sources?: NotebookSource[];
+    externalUrl?: string;
+    persistMessages?: boolean;
+    useSystemUserId?: boolean;
+    systemUserId?: string;
+}
+
+interface NotebookPageContentProps {
+    config: NotebookConfig;
+}
+
+interface NotebookPageProps {
+    configId: string;
+}
+
+const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactElement => {
     const isMulti = config.collectionType === 'multi';
     const locale = useAuthStore((state) => state.locale);
 
     // Filter collections by user locale (de-DE or de-AT)
     const localeCollections = useMemo(() => {
         if (!isMulti) return config.collections;
-        return config.collections.filter(c => !c.locale || c.locale === locale);
+        return config.collections.filter((c: NotebookCollection) => !c.locale || c.locale === locale);
     }, [isMulti, config.collections, locale]);
 
-    const [selectedIds, setSelectedIds] = useState(() =>
-        isMulti ? localeCollections.map(c => c.id) : []
+    const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+        isMulti ? localeCollections.map((c: NotebookCollection) => c.id) : []
     );
 
     const selectedCollections = useMemo(() => {
         if (isMulti) {
-            return localeCollections.filter(c => selectedIds.includes(c.id));
+            return localeCollections.filter((c: NotebookCollection) => selectedIds.includes(c.id));
         }
         return localeCollections;
     }, [isMulti, localeCollections, selectedIds]);
 
-    const sources = useMemo(() => {
+    const sources = useMemo((): NotebookSource[] | undefined => {
         if (isMulti) {
-            return localeCollections.map(c => ({
+            return localeCollections.map((c: NotebookCollection) => ({
                 id: c.id,
                 name: c.name,
-                count: c.documentCount,
+                count: String(c.documentCount || ''),
                 selected: selectedIds.includes(c.id)
             }));
         }
         return config.sources;
     }, [isMulti, localeCollections, config.sources, selectedIds]);
 
-    const handleSourceToggle = useCallback((sourceId) => {
-        setSelectedIds(prev => {
+    const handleSourceToggle = useCallback((sourceId: string) => {
+        setSelectedIds((prev: string[]) => {
             if (prev.includes(sourceId)) {
-                return prev.filter(id => id !== sourceId);
+                return prev.filter((id: string) => id !== sourceId);
             }
             return [...prev, sourceId];
         });
@@ -85,7 +141,7 @@ const NotebookPageContent = ({ config }) => {
             <div className="qa-collection-info-documents">
                 <h4>{isMulti ? 'Verfügbare Quellen:' : 'Verfügbare Dokumente:'}</h4>
                 {isMulti ? (
-                    localeCollections.map((collection) => {
+                    localeCollections.map((collection: NotebookCollection) => {
                         const CollectionIcon = collection.icon || HiDocumentText;
                         return (
                             <div key={collection.id} className="qa-multi-collection-item">
@@ -115,7 +171,7 @@ const NotebookPageContent = ({ config }) => {
                     })
                 ) : (
                     <ul>
-                        {config.documents?.map((doc, i) => (
+                        {config.documents?.map((doc: NotebookDocument, i: number) => (
                             <li key={i}>
                                 <HiDocumentText className="document-icon" />
                                 <span>{doc.title} ({doc.detail})</span>
@@ -176,7 +232,6 @@ const NotebookPageContent = ({ config }) => {
                     <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg} index={i} />
                 )}
                 infoPanelContent={isMobileView ? null : renderInfoPanel()}
-                enableVoiceInput={true}
                 hideHeader={true}
                 hideModeSelector={true}
                 singleLine={true}
@@ -192,13 +247,13 @@ const NotebookPageContent = ({ config }) => {
     );
 };
 
-const NotebookPage = ({ configId }) => {
-    const config = getNotebookConfig(configId);
+const NotebookPage = ({ configId }: NotebookPageProps): React.ReactElement => {
+    const config = getNotebookConfig(configId) as NotebookConfig;
     return <NotebookPageContent config={config} />;
 };
 
-export const createNotebookPage = (configId) => {
-    const config = getNotebookConfig(configId);
+export const createNotebookPage = (configId: string) => {
+    const config = getNotebookConfig(configId) as NotebookConfig;
     const Page = () => <NotebookPageContent config={config} />;
     return withAuthRequired(Page, { title: config.authTitle });
 };

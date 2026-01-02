@@ -224,9 +224,9 @@ export interface ExamplePromptsProps {
 // =============================================================================
 
 export interface ContentRendererProps {
-  value?: string | null;
+  value?: string | GeneratedContent | null;
   generatedContent?: GeneratedContent;
-  useMarkdown?: boolean;
+  useMarkdown?: boolean | null;
   componentName?: string;
   helpContent?: HelpContent | string | null;
   onEditModeToggle?: () => void;
@@ -413,6 +413,7 @@ export interface FormSectionProps {
 export interface BaseFormProps {
   // Core props
   title?: string | ReactNode;
+  subtitle?: string;
   children?: ReactNode | ((formControl: FormControl) => ReactNode);
   onSubmit?: (data?: Record<string, unknown>) => void | Promise<void>;
   loading?: boolean;
@@ -539,6 +540,10 @@ export interface BaseFormProps {
   platformSelectorTabIndex?: number;
   submitButtonTabIndex?: number;
   tabIndexConfig?: TabIndexConfig;
+
+  // Submit button configuration
+  submitButtonText?: string;
+  isSubmitDisabled?: boolean;
 
   // Export options
   customExportOptions?: CustomExportOption[];

@@ -49,11 +49,11 @@ const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeat
 };
 
 export const useBetaFeaturesStore = create<BetaFeaturesStore>()(persist((set, get) => ({
-  userId: null,
-  betaFeatures: {},
+  userId: null as string | null,
+  betaFeatures: {} as BetaFeatures,
   isHydrated: false,
   isUpdating: false,
-  error: null,
+  error: null as string | null,
   lastUpdatedAt: 0,
 
   // Simplified hydrate function with early return optimization
@@ -77,7 +77,7 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(persist((set, ge
         error: null,
         lastUpdatedAt: Date.now()
       });
-    } catch (e: unknown) {
+    } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Failed to hydrate beta features';
       set({ error: errorMessage, isHydrated: true });
     }
@@ -99,7 +99,7 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(persist((set, ge
 
       const confirmed = normalizeBetaFeatures(result?.betaFeatures || {});
       set({ betaFeatures: confirmed, isUpdating: false, error: null, lastUpdatedAt: Date.now() });
-    } catch (e: unknown) {
+    } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Update failed';
       set({ betaFeatures: previous, isUpdating: false, error: errorMessage });
       throw e;

@@ -50,7 +50,7 @@ const CanvaTemplateModal = ({ url,
 
   return (
     <div className="canva-template-modal-overlay" onClick={handleOverlayClick}>
-      <div className="canva-template-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+      <div className="canva-template-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <button
           className="canva-template-modal-close"
           onClick={onClose}

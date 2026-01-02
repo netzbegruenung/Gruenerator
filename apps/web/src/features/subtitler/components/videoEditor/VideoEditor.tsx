@@ -12,12 +12,20 @@ import '../../../../assets/styles/components/ui/button.css';
 import '../../styles/SubtitleEditor.css';
 import './VideoEditor.css';
 
+// Types for VideoEditor
+interface VideoMetadata {
+  duration: number;
+  width: number;
+  height: number;
+  fps: number;
+}
+
 /**
  * Video Editor Component
  * Main container for the timeline-based video editor
  * Includes player, controls, and timeline visualization
  */
-const getVideoMetadataFromFile = (file) => {
+const getVideoMetadataFromFile = (file: File): Promise<VideoMetadata> => {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -37,7 +45,7 @@ const getVideoMetadataFromFile = (file) => {
   });
 };
 
-const generateThumbnail = (videoUrl, time = 1) => {
+const generateThumbnail = (videoUrl: string, time: number = 1): Promise<string | null> => {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
@@ -67,6 +75,29 @@ const generateThumbnail = (videoUrl, time = 1) => {
   });
 };
 
+interface VideoEditorMetadata {
+  duration?: number;
+  width?: number;
+  height?: number;
+  fps?: number;
+  [key: string]: unknown;
+}
+
+interface VideoEditorProps {
+  videoUrl: string | null;
+  videoFile: File | null;
+  videoMetadata?: VideoEditorMetadata;
+  uploadId?: string;
+  onSegmentsChange?: (segments: unknown[]) => void;
+  onGenerateSubtitles?: () => void;
+  subtitles?: string;
+  isGeneratingSubtitles?: boolean;
+  stylePreference?: string;
+  heightPreference?: string;
+  onSubtitleClick?: (index: number) => void;
+  onSubtitleUpdate?: (index: number, text: string) => void;
+}
+
 const VideoEditor = ({
   videoUrl,
   videoFile,
@@ -80,7 +111,7 @@ const VideoEditor = ({
   heightPreference,
   onSubtitleClick,
   onSubtitleUpdate
-}) => {
+}: VideoEditorProps) => {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [showClipPanel, setShowClipPanel] = useState(true);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -152,10 +183,11 @@ const VideoEditor = ({
   const {
     status: exportStatus,
     progress: exportProgress,
-    downloadUrl,
+    exportToken,
     error: exportError,
     startRemotionExport,
-    resetExport
+    resetExport,
+    downloadCompletedExport
   } = useSubtitlerExportStore();
 
   const {
@@ -241,15 +273,10 @@ const VideoEditor = ({
   }, [exportStatus, resetExport]);
 
   const handleDownload = useCallback(() => {
-    if (downloadUrl) {
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = `video-export-${Date.now()}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    if (exportToken) {
+      downloadCompletedExport();
     }
-  }, [downloadUrl]);
+  }, [exportToken, downloadCompletedExport]);
 
   const handleUndo = useCallback(() => {
     undo();
@@ -259,7 +286,7 @@ const VideoEditor = ({
     redo();
   }, [redo]);
 
-  const handleAddClip = useCallback(async (file) => {
+  const handleAddClip = useCallback(async (file: File) => {
     if (!file || !file.type.startsWith('video/')) return;
 
     try {
@@ -278,7 +305,7 @@ const VideoEditor = ({
     }
   }, [addClip, setClipThumbnail]);
 
-  const handleClipFileSelect = useCallback((e) => {
+  const handleClipFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       handleAddClip(file);
@@ -286,15 +313,16 @@ const VideoEditor = ({
     e.target.value = '';
   }, [handleAddClip]);
 
-  const handleAddTextOverlay = useCallback((type) => {
+  const handleAddTextOverlay = useCallback((type: 'header' | 'subheader') => {
     addTextOverlay(type);
   }, [addTextOverlay]);
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       // Skip if user is typing in an input/textarea
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
 
@@ -338,19 +366,19 @@ const VideoEditor = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePlayPause, undo, redo]);
 
-  const handleLocalStyleChange = (styleId) => {
+  const handleLocalStyleChange = (styleId: string) => {
     setLocalStyle(styleId);
   };
 
-  const handleLocalHeightChange = (heightId) => {
+  const handleLocalHeightChange = (heightId: string) => {
     setLocalHeight(heightId);
   };
 
-  const handleLocalQualityChange = (qualityId) => {
+  const handleLocalQualityChange = (qualityId: string) => {
     setLocalQuality(qualityId);
   };
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 10);
@@ -621,7 +649,7 @@ const VideoEditor = ({
 
       {showRegenerateConfirm && (
         <div className="video-editor__confirm-overlay" onClick={() => setShowRegenerateConfirm(false)}>
-          <div className="video-editor__confirm-popup" onClick={(e) => e.stopPropagation()}>
+          <div className="video-editor__confirm-popup" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <div className="video-editor__confirm-icon">
               <FiAlertTriangle />
             </div>
@@ -656,7 +684,7 @@ const VideoEditor = ({
 
       {showExportModal && (
         <div className="video-editor__export-modal-overlay" onClick={handleCloseExportModal}>
-          <div className="video-editor__export-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="video-editor__export-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <button className="video-editor__export-modal-close" onClick={handleCloseExportModal}>
               <FiX />
             </button>

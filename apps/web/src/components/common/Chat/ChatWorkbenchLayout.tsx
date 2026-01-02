@@ -83,6 +83,7 @@ interface ChatWorkbenchLayoutProps {
   onSourceToggle?: (id: string) => void;
   filterBar?: ReactNode;
   filterButton?: ReactNode;
+  onReset?: () => void;
 }
 
 const ChatWorkbenchLayout = ({ mode,
@@ -119,7 +120,8 @@ const ChatWorkbenchLayout = ({ mode,
   sources = [],
   onSourceToggle,
   filterBar = null,
-  filterButton = null }: ChatWorkbenchLayoutProps): JSX.Element => {
+  filterButton = null,
+  onReset }: ChatWorkbenchLayoutProps): JSX.Element => {
   // Consolidated voice recording via useChatInput hook
   const {
     isVoiceRecording,

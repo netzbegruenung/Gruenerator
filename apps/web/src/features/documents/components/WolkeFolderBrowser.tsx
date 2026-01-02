@@ -4,11 +4,31 @@ import { useWolkeSync } from '../hooks/useWolkeSync';
 import { NextcloudShareManager } from '../../../utils/nextcloudShareManager';
 import './WolkeFolderBrowser.css';
 
-export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }) => {
-    const [shareLinks, setShareLinks] = useState([]);
+interface ShareLink {
+    id: string;
+    folder_name?: string;
+    share_url?: string;
+    is_active?: boolean;
+    label?: string;
+    base_url?: string;
+    share_link?: string;
+}
+
+interface FolderSelection {
+    shareId: string;
+    folderPath: string;
+}
+
+interface WolkeFolderBrowserProps {
+    onFolderSelect?: (selection: FolderSelection) => void;
+    selectedFolderId?: string | null;
+}
+
+export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }: WolkeFolderBrowserProps): React.ReactElement => {
+    const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [expandedShares, setExpandedShares] = useState(new Set());
+    const [error, setError] = useState<string | null>(null);
+    const [expandedShares, setExpandedShares] = useState<Set<string>>(new Set());
 
     const {
         syncStatuses,
@@ -37,7 +57,7 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }) => {
         }
     };
 
-    const toggleShareExpansion = (shareId) => {
+    const toggleShareExpansion = (shareId: string) => {
         setExpandedShares(prev => {
             const newSet = new Set(prev);
             if (newSet.has(shareId)) {
@@ -49,13 +69,13 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }) => {
         });
     };
 
-    const handleFolderSelect = (shareId, folderPath = '') => {
+    const handleFolderSelect = (shareId: string, folderPath = '') => {
         if (onFolderSelect) {
             onFolderSelect({ shareId, folderPath });
         }
     };
 
-    const handleSyncFolder = async (shareId, folderPath = '') => {
+    const handleSyncFolder = async (shareId: string, folderPath = '') => {
         try {
             await syncFolder(shareId, folderPath);
         } catch (error) {
@@ -63,7 +83,7 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }) => {
         }
     };
 
-    const handleToggleAutoSync = async (shareId, folderPath = '', enabled) => {
+    const handleToggleAutoSync = async (shareId: string, folderPath = '', enabled: boolean) => {
         try {
             const result = await setAutoSync(shareId, folderPath, enabled);
 
@@ -228,7 +248,7 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }) => {
                                                     <input
                                                         type="checkbox"
                                                         checked={syncStatus.auto_sync_enabled || false}
-                                                        onChange={(e) => handleToggleAutoSync(
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleToggleAutoSync(
                                                             shareLink.id,
                                                             '',
                                                             e.target.checked

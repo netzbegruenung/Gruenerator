@@ -66,7 +66,7 @@ const FormImageSelect = ({
           <div
             key={option.value}
             className={`form-image-select-card ${selectedValue === option.value ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               e.stopPropagation();
               if (!disabled) onChangeGrid(option.value);
@@ -75,7 +75,7 @@ const FormImageSelect = ({
             aria-checked={selectedValue === option.value}
             aria-label={option.label}
             tabIndex={disabled ? -1 : 0}
-            onKeyDown={(e) => {
+            onKeyDown={(e: React.KeyboardEvent) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 e.stopPropagation();

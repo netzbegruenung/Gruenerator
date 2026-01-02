@@ -32,26 +32,79 @@ import '../styles/AutoProcessingScreen.css';
 const IS_SUBTITLER_UNDER_MAINTENANCE = false;
 // ------------------------
 
-const SubtitlerPage = () => {
-  const [step, setStep] = useState('select');
-  const [originalVideoFile, setOriginalVideoFile] = useState(null); // Original File-Objekt
-  const [uploadInfo, setUploadInfo] = useState(null); // Upload-ID, Metadaten und Präferenz
-  const [cutSegments, setCutSegments] = useState(null); // Segments from VideoEditor for cutting
-  const [subtitles, setSubtitles] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState(null);
-  const [isExiting, setIsExiting] = useState(false);
+// Types for SubtitlerPage
+interface VideoMetadataFromUpload {
+  duration?: number;
+  width?: number;
+  height?: number;
+  [key: string]: unknown;
+}
+
+interface UploadData {
+  originalFile: File;
+  uploadId: string;
+  metadata: VideoMetadataFromUpload;
+  name: string;
+  size: number;
+  type: string;
+}
+
+interface UploadInfo {
+  uploadId: string;
+  metadata?: VideoMetadataFromUpload;
+  name?: string;
+  size?: number;
+  type?: string;
+  isFromProject?: boolean;
+  videoUrl?: string;
+}
+
+interface SubtitleSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+interface AutoProcessingResult {
+  projectId?: string;
+  subtitles?: string;
+}
+
+interface LoadedProject {
+  id: string;
+  title?: string;
+  subtitles?: string;
+  style_preference?: string;
+  height_preference?: string;
+  mode_preference?: string;
+  video_metadata?: Record<string, unknown>;
+  video_filename?: string;
+  video_size?: number;
+  [key: string]: unknown;
+}
+
+type EditMode = 'subtitle' | 'full-edit' | 'auto' | null;
+
+const SubtitlerPage = (): React.ReactElement => {
+  const [step, setStep] = useState<string>('select');
+  const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
+  const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
+  const [cutSegments, setCutSegments] = useState<SubtitleSegment[] | null>(null);
+  const [subtitles, setSubtitles] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isExiting, setIsExiting] = useState<boolean>(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
-  const [subtitlePreference, setSubtitlePreference] = useState('manual'); // Legacy parameter kept for backward compatibility
-  const [stylePreference, setStylePreference] = useState('shadow'); // Style preference for subtitle appearance (default: Empfohlen)
-  const [modePreference, setModePreference] = useState('manual'); // New mode preference for subtitle generation type
-  const [heightPreference, setHeightPreference] = useState('tief'); // Height preference for subtitle positioning
-  const [isProModeActive, setIsProModeActive] = useState(false);
-  const [loadedProject, setLoadedProject] = useState(null); // Track loaded project for editing
-  const [loadingProjectId, setLoadingProjectId] = useState(null); // Track which project is loading
-  const [isPreviewMode, setIsPreviewMode] = useState(false); // Track if generating subtitles for preview only (stay in cut step)
-  const [selectedEditMode, setSelectedEditMode] = useState(null); // 'subtitle' | 'full-edit' - tracks which editing mode user selected
-  const [autoSavedProjectId, setAutoSavedProjectId] = useState(null); // Track project ID from auto processing
+  const [subtitlePreference, setSubtitlePreference] = useState<string>('manual');
+  const [stylePreference, setStylePreference] = useState<string>('shadow');
+  const [modePreference, setModePreference] = useState<string>('manual');
+  const [heightPreference, setHeightPreference] = useState<string>('tief');
+  const [isProModeActive, setIsProModeActive] = useState<boolean>(false);
+  const [loadedProject, setLoadedProject] = useState<LoadedProject | null>(null);
+  const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
+  const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+  const [selectedEditMode, setSelectedEditMode] = useState<EditMode>(null);
+  const [autoSavedProjectId, setAutoSavedProjectId] = useState<string | null>(null);
 
   // Use centralized export store
   const exportStore = useSubtitlerExportStore();
@@ -87,7 +140,7 @@ const SubtitlerPage = () => {
 
   // Browser history navigation - handle back button
   useEffect(() => {
-    const handlePopState = (event) => {
+    const handlePopState = (event: PopStateEvent) => {
       if (event.state?.step) {
         const validSteps = ['select', 'mode-select', 'cut', 'edit', 'auto-processing', 'success'];
         if (validSteps.includes(event.state.step)) {
@@ -100,7 +153,7 @@ const SubtitlerPage = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const pollingIntervalRef = useRef(null); // Ref für Polling Interval
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Dynamically set baseURL based on environment
   const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
@@ -123,7 +176,7 @@ const SubtitlerPage = () => {
     };
   }, [uploadInfo?.uploadId, baseURL, exportStatus, exportToken]);
 
-  const handleUploadComplete = async (uploadData) => {
+  const handleUploadComplete = (uploadData: UploadData): void => {
     // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
     if (uploadData.originalFile instanceof File) {
       // Speichere das originale File-Objekt direkt
@@ -151,7 +204,7 @@ const SubtitlerPage = () => {
   };
 
   // Start video processing (called after cut step)
-  const handleProcessVideo = useCallback(async (segments = null) => {
+  const handleProcessVideo = useCallback(async (segments: SubtitleSegment[] | null = null) => {
     if (!uploadInfo?.uploadId) {
       setError('Keine Upload-ID vorhanden.');
       return;
@@ -191,7 +244,7 @@ const SubtitlerPage = () => {
   }, [handleProcessVideo, cutSegments]);
 
   // Handler for updating a single subtitle in the cut step
-  const handleSubtitleUpdate = useCallback((index, newText) => {
+  const handleSubtitleUpdate = useCallback((index: number, newText: string) => {
     if (!subtitles) return;
 
     const blocks = subtitles.split('\n\n');
@@ -292,7 +345,7 @@ const SubtitlerPage = () => {
 
   }, [isProcessing, uploadInfo?.uploadId, modePreference, stylePreference, isPreviewMode]); // Dependencies: run effect when isProcessing or uploadId changes
 
-  const handleExport = useCallback(async (receivedExportToken) => {
+  const handleExport = useCallback(async (receivedExportToken: string) => {
     console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
 
     // Auto-create project if one doesn't exist (for share functionality)
@@ -373,15 +426,15 @@ const SubtitlerPage = () => {
   }, [resetExport]);
 
   // New handlers for styling step
-  const handleStyleSelect = useCallback((style) => {
+  const handleStyleSelect = useCallback((style: string) => {
     setStylePreference(style);
   }, []);
 
-  const handleModeSelect = useCallback((mode) => {
+  const handleModeSelect = useCallback((mode: string) => {
     setModePreference(mode);
   }, []);
 
-  const handleHeightSelect = useCallback((height) => {
+  const handleHeightSelect = useCallback((height: string) => {
     setHeightPreference(height);
   }, []);
 
@@ -414,7 +467,7 @@ const SubtitlerPage = () => {
   }, [uploadInfo?.uploadId, user?.id]);
 
   // Handler for automatic processing completion
-  const handleAutoProcessingComplete = useCallback((result) => {
+  const handleAutoProcessingComplete = useCallback((result: AutoProcessingResult) => {
     console.log('[SubtitlerPage] Auto processing complete:', result);
     // Store the auto-saved project ID if available
     if (result.projectId) {
@@ -429,14 +482,14 @@ const SubtitlerPage = () => {
   }, []);
 
   // Handler for automatic processing error
-  const handleAutoProcessingError = useCallback((errorMsg) => {
+  const handleAutoProcessingError = useCallback((errorMsg: string) => {
     console.error('[SubtitlerPage] Auto processing error:', errorMsg);
     setError(errorMsg);
     setStep('mode-select');
   }, []);
 
   // Handler for selecting editing mode (subtitle-only vs full video editing vs auto)
-  const handleEditModeSelect = useCallback((mode) => {
+  const handleEditModeSelect = useCallback((mode: EditMode) => {
     setSelectedEditMode(mode);
 
     if (mode === 'subtitle') {
@@ -454,7 +507,7 @@ const SubtitlerPage = () => {
   }, [handleProcessVideo, handleStartAutoProcessing]);
 
   // Handler for selecting a saved project from ProjectSelector
-  const handleSelectProject = useCallback(async (projectId) => {
+  const handleSelectProject = useCallback(async (projectId: string) => {
     try {
       setError(null);
       setIsProcessing(true);
@@ -492,7 +545,7 @@ const SubtitlerPage = () => {
   }, [loadProject]);
 
   // Funktion zum Umschalten des Profi-Modus (erwartet jetzt den neuen Wert)
-  const toggleProMode = useCallback((newIsActive) => {
+  const toggleProMode = useCallback((newIsActive: boolean) => {
     setIsProModeActive(newIsActive);
   }, []);
 

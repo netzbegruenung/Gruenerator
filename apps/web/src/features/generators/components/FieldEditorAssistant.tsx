@@ -253,7 +253,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
                   type="text"
                   placeholder="Anzeigetext"
                   value={option.label || ''}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const newLabel = e.target.value;
                     const newValue = newLabel.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
                     updateOption(index, 'label', newLabel);
@@ -265,7 +265,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
                   type="text"
                   placeholder="Technischer Wert"
                   value={option.value || ''}
-                  onChange={(e) => updateOption(index, 'value', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateOption(index, 'value', e.target.value)}
                   className="form-control option-value-input"
                 />
                 <button

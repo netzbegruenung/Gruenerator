@@ -136,8 +136,8 @@ interface GalleryEditData {
     fontSize?: number;
     colorScheme?: ColorScheme;
     balkenOffset?: number[];
-    balkenGruppenOffset?: number[];
-    sunflowerOffset?: number[];
+    balkenGruppenOffset?: [number, number];
+    sunflowerOffset?: [number, number];
     credit?: string;
     veranstaltungFieldFontSizes?: VeranstaltungFieldFontSizes;
     [key: string]: any;
@@ -230,8 +230,8 @@ interface ImageStudioState {
   fontSize: number;
   balkenOffset: number[];
   colorScheme: ColorScheme;
-  balkenGruppenOffset: number[];
-  sunflowerOffset: number[];
+  balkenGruppenOffset: [number, number];
+  sunflowerOffset: [number, number];
   credit: string;
   searchTerms: string[];
   sloganAlternatives: SloganAlternative[];
@@ -504,7 +504,7 @@ const initialState: ImageStudioState = {
   // Sharepic image modifications
   fontSize: FONT_SIZES.M,
   balkenOffset: [50, -100, 50],
-  colorScheme: DEFAULT_COLORS as ColorScheme,
+  colorScheme: DEFAULT_COLORS as unknown as ColorScheme,
   balkenGruppenOffset: [0, 0],
   sunflowerOffset: [0, 0],
   credit: '',
@@ -829,8 +829,8 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   }),
 
   // Advanced editing controls
-  updateBalkenGruppenOffset: (newOffset) => set({ balkenGruppenOffset: newOffset }),
-  updateSunflowerOffset: (newOffset) => set({ sunflowerOffset: newOffset }),
+  updateBalkenGruppenOffset: (newOffset: [number, number]) => set({ balkenGruppenOffset: newOffset }),
+  updateSunflowerOffset: (newOffset: [number, number]) => set({ sunflowerOffset: newOffset }),
   updateCredit: (credit) => set({ credit }),
 
   // Slogan handling

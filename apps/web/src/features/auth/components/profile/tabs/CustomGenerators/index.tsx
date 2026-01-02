@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { Suspense, lazy } from 'react';
 
 // Hooks
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
@@ -8,10 +8,20 @@ import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 const CustomGeneratorsView = lazy(() => import('./CustomGeneratorsView'));
 
 // Loading fallback component
-const CustomGeneratorsLoadingFallback = () => (
+const CustomGeneratorsLoadingFallback = (): React.ReactElement => (
     <div className="profile-tab-loading">
     </div>
 );
+
+interface CustomGeneratorsTabContainerProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    initialTab?: string;
+    initialGeneratorId?: string | null;
+    initialQAId?: string | null;
+    onTabChange?: (tab: string) => void;
+}
 
 const CustomGeneratorsTabContainer = ({
     isActive,
@@ -21,7 +31,7 @@ const CustomGeneratorsTabContainer = ({
     initialGeneratorId = null,
     initialQAId = null,
     onTabChange
-}) => {
+}: CustomGeneratorsTabContainerProps): React.ReactElement => {
     const { user, isAuthenticated } = useOptimizedAuth();
     const { canAccessBetaFeature } = useBetaFeatures();
 

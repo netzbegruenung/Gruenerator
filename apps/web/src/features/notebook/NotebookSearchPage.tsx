@@ -59,9 +59,11 @@ const NotebookSearchPage = () => {
   }, [setGeneratedText, componentName]);
 
   // Get sources and citations from store metadata
-  const metadata = getGeneratedTextMetadata(componentName);
-  const sources = metadata?.sources || [];
-  const citations = metadata?.citations || [];
+  interface Source { [key: string]: unknown }
+  interface Citation { [key: string]: unknown }
+  const metadata = getGeneratedTextMetadata(componentName) as { sources?: Source[]; citations?: Citation[] } | null;
+  const sources = (metadata?.sources || []) as Source[];
+  const citations = (metadata?.citations || []) as Citation[];
   const linkConfig = getLinkConfig(componentName);
 
   // Render sources using shared component

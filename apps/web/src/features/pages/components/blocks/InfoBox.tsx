@@ -1,11 +1,19 @@
 
+interface InfoBoxProps {
+    title?: string;
+    children?: React.ReactNode;
+    items?: string[];
+    variant?: 'default' | 'success' | 'warning' | 'info';
+    className?: string;
+}
+
 const InfoBox = ({
     title,
     children,
     items = [],
     variant = 'default',
     className = ''
-}) => {
+}: InfoBoxProps) => {
     const variantClass = variant !== 'default' ? `info-box--${variant}` : '';
 
     return (

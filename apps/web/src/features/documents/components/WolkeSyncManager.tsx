@@ -8,8 +8,28 @@ import { getIcon } from '../../../config/icons';
 // Import ProfileActionButton CSS for consistent button styling
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
-export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, onSyncComplete }) => {
-    const [selectedFolder, setSelectedFolder] = useState(null);
+interface ShareLink {
+    id: string;
+    folder_name?: string;
+    share_url?: string;
+    label?: string;
+    base_url?: string;
+    share_link?: string;
+}
+
+interface FolderSelection {
+    shareId: string;
+    folderPath: string;
+}
+
+interface WolkeSyncManagerProps {
+    wolkeShareLinks?: ShareLink[];
+    onRefreshShareLinks?: (forceRefresh?: boolean) => void;
+    onSyncComplete?: () => void;
+}
+
+export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, onSyncComplete }: WolkeSyncManagerProps): React.ReactElement => {
+    const [selectedFolder, setSelectedFolder] = useState<FolderSelection | null>(null);
     const [showBrowser, setShowBrowser] = useState(true);
     const [shareLinksLoading, setShareLinksLoading] = useState(true);
     const navigate = useNavigate();
@@ -52,7 +72,7 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
         loading
     });
 
-    const handleFolderSelect = (folder) => {
+    const handleFolderSelect = (folder: FolderSelection) => {
         setSelectedFolder(folder);
         setShowBrowser(false);
     };
@@ -62,7 +82,7 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
         setSelectedFolder(null);
     };
 
-    const handleSyncFolder = async (shareLinkId, folderPath = '') => {
+    const handleSyncFolder = async (shareLinkId: string, folderPath = '') => {
         try {
             await syncFolder(shareLinkId, folderPath);
             // Call sync complete callback to refresh documents
@@ -198,11 +218,32 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
 };
 
 // Share links with sync toggle component
-const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComplete, refreshSyncStatuses }: { shareLinks: any[]; syncStatuses: any[]; onSyncFolder: (shareLinkId: string, folderPath: string) => Promise<void>; onSyncComplete?: () => void; refreshSyncStatuses?: () => Promise<any> }) => {
-    const [syncingFolders, setSyncingFolders] = useState(new Set());
+interface SyncStatus {
+    id?: string;
+    share_link_id?: string;
+    folder_path?: string;
+    last_synced?: string;
+    document_count?: number;
+    auto_sync_enabled?: boolean;
+    sync_status?: 'idle' | 'syncing' | 'completed' | 'failed';
+    last_sync_at?: string | null;
+    files_processed?: number;
+    files_failed?: number;
+}
+
+interface ShareLinksWithSyncProps {
+    shareLinks: ShareLink[];
+    syncStatuses: SyncStatus[];
+    onSyncFolder: (shareLinkId: string, folderPath: string) => Promise<void>;
+    onSyncComplete?: () => void;
+    refreshSyncStatuses?: () => Promise<unknown>;
+}
+
+const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComplete, refreshSyncStatuses }: ShareLinksWithSyncProps): React.ReactElement => {
+    const [syncingFolders, setSyncingFolders] = useState<Set<string>>(new Set());
     const { setAutoSync } = useWolkeSync();
 
-    const handleSyncFolder = async (shareLinkId, folderPath) => {
+    const handleSyncFolder = async (shareLinkId: string, folderPath?: string) => {
         setSyncingFolders(prev => new Set(prev).add(`${shareLinkId}-${folderPath || ''}`));
         try {
             await onSyncFolder(shareLinkId, folderPath);

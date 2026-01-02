@@ -1,13 +1,36 @@
 import useGeneratedTextStore from '../core/generatedTextStore';
 
+interface TextChange {
+  text_to_find?: string;
+  replacement_text?: string;
+  full_replace?: boolean;
+}
+
+interface ContentObject {
+  social?: { content?: string; [key: string]: unknown };
+  content?: string;
+  text?: string;
+  sharepic?: unknown;
+  metadata?: unknown;
+  [key: string]: unknown;
+}
+
+export type Content = string | ContentObject | null | undefined;
+
+interface ApplyChangesResult {
+  content: Content;
+  appliedCount: number;
+  totalCount: number;
+}
+
 // Replace all occurrences of a substring (literal) in a string
-const replaceAllLiteral = (text, search, replacement) => {
+const replaceAllLiteral = (text: string, search: string, replacement: string): string => {
   if (!search) return text;
   return text.split(search).join(replacement);
 };
 
 // Extract the editable text from mixed or plain content
-export const extractEditableText = (content) => {
+export const extractEditableText = (content: Content): string => {
   if (!content) return '';
   if (typeof content === 'string') return content;
   if (typeof content === 'object') {
@@ -19,7 +42,7 @@ export const extractEditableText = (content) => {
 };
 
 // Apply changes to a content object or string, return updated structure with metadata
-export const applyChangesToContent = (content, changes = []) => {
+export const applyChangesToContent = (content: Content, changes: TextChange[] = []): ApplyChangesResult => {
   const current = extractEditableText(content);
   if (!current) {
     return { content, appliedCount: 0, totalCount: changes.length };
@@ -74,25 +97,27 @@ export const applyChangesToContent = (content, changes = []) => {
 };
 
 // Hook exposing high-level text edit actions while keeping the store simple
-const useTextEditActions = (componentName) => {
+const useTextEditActions = (componentName: string) => {
   const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
 
-  const getEditableText = () => {
+  const getEditableText = (): string => {
     // Read directly from store to get latest value after applyEdits
     const currentContent = useGeneratedTextStore.getState().generatedTexts[componentName] || '';
     return extractEditableText(currentContent);
   };
 
-  const applyEdits = (changes) => {
+  const applyEdits = (changes: TextChange[]): { appliedCount: number; totalCount: number } => {
     // Push current state to history before applying changes
     if (storeContent) {
       pushToHistory(componentName);
     }
 
     const result = applyChangesToContent(storeContent, changes);
-    setTextWithHistory(componentName, result.content);
+    // Extract the text to store - setTextWithHistory expects a string
+    const textToStore = extractEditableText(result.content);
+    setTextWithHistory(componentName, textToStore);
     return {
       appliedCount: result.appliedCount,
       totalCount: result.totalCount

@@ -123,7 +123,7 @@ const ShareMediaModal = ({ isOpen,
 
   return (
     <div className="share-modal-overlay" onClick={onClose}>
-      <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="share-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <button className="share-modal-close" onClick={onClose}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -145,7 +145,7 @@ const ShareMediaModal = ({ isOpen,
                   id="shareTitle"
                   type="text"
                   value={shareTitle}
-                  onChange={(e) => setShareTitle(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShareTitle(e.target.value)}
                   placeholder={`Titel für ${mediaType === 'video' ? 'das geteilte Video' : 'das geteilte Bild'}`}
                 />
               </div>

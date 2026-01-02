@@ -1,5 +1,5 @@
 import React, { forwardRef, ReactNode } from 'react';
-import type { GeneratedContent, HelpContent, CustomExportOption } from '@/types/baseform';
+import type { GeneratedContent, HelpContent, CustomExportOption, ContentMetadata } from '@/types/baseform';
 import ActionButtons from '../../ActionButtons';
 import SubmitButton from '../../SubmitButton';
 import { HiCog, HiOutlineUsers } from "react-icons/hi";
@@ -14,6 +14,15 @@ import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import { useFormStateSelector } from '../FormStateProvider';
+
+// Extended content type for internal use that includes all possible properties
+interface ExtendedContent {
+  content?: string;
+  text?: string;
+  sharepic?: unknown;
+  social?: { content?: string };
+  metadata?: Record<string, unknown>;
+}
 
 interface DisplaySectionProps {
   title: string;
@@ -88,8 +97,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
   const { user } = useLazyAuth(); // Keep for other auth functionality
   const { getBetaFeatureState } = useBetaFeatures();
   const storeGeneratedText = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
-  const storeGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName));
-  const streamingContent = useGeneratedTextStore(state => state.streamingContent);
+  const storeGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName)) as ContentMetadata | null;
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const isLoading = useGeneratedTextStore(state => state.isLoading);
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
@@ -117,10 +125,11 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
       return activeContent.trim().length > 0;
     }
     if (typeof activeContent === 'object') {
-      if (activeContent.sharepic) return true;
-      if (typeof activeContent.content === 'string' && activeContent.content.trim().length > 0) return true;
-      if (typeof activeContent.text === 'string' && activeContent.text.trim().length > 0) return true;
-      if (activeContent.social?.content && typeof activeContent.social.content === 'string' && activeContent.social.content.trim().length > 0) return true;
+      const content = activeContent as ExtendedContent;
+      if (content.sharepic) return true;
+      if (typeof content.content === 'string' && content.content.trim().length > 0) return true;
+      if (typeof content.text === 'string' && content.text.trim().length > 0) return true;
+      if (content.social?.content && typeof content.social.content === 'string' && content.social.content.trim().length > 0) return true;
     }
     return false;
   }, [activeContent]);
@@ -139,19 +148,20 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
 
   // Check if activeContent is mixed content (has both social and sharepic)
   const isMixedContent = activeContent && typeof activeContent === 'object' &&
-    (activeContent.sharepic || activeContent.social);
+    (((activeContent as ExtendedContent).sharepic) || ((activeContent as ExtendedContent).social));
 
   const currentExportableContent = React.useMemo((): string => {
     // For export, use the social content string if it's mixed content
-    if (isMixedContent) {
-      return activeContent.social?.content || activeContent.content || '';
+    if (isMixedContent && typeof activeContent === 'object' && activeContent !== null) {
+      const extContent = activeContent as ExtendedContent;
+      return extContent.social?.content || extContent.content || '';
     }
     // Convert to string if not already
     if (typeof activeContent === 'string') {
       return activeContent;
     }
     if (typeof activeContent === 'object' && activeContent !== null) {
-      return (activeContent as { content?: string }).content || '';
+      return (activeContent as ExtendedContent).content || '';
     }
     return '';
   }, [activeContent, isMixedContent]);
@@ -188,7 +198,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
       saveToLibraryLoading={saveToLibraryLoading}
       exportableContent={currentExportableContent}
       generatedPost={generatedPost}
-      generatedContent={activeContent}
+      generatedContent={activeContent as string | undefined}
       title={storeGeneratedTextMetadata?.title || title}
       componentName={componentName}
       onRequestEdit={onRequestEdit}

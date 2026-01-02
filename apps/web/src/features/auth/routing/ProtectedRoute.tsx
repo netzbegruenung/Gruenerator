@@ -13,7 +13,12 @@ import { getCurrentPath } from '../../../utils/authRedirect';
  * @param {boolean} [props.adminRequired=false] - Optional: Ob der Benutzer Admin sein muss
  * @returns {JSX.Element} Die geschützten Komponenten oder eine Weiterleitung
  */
-const ProtectedRoute = ({ children, adminRequired = false }) => {
+interface ProtectedRouteProps {
+  children: ReactNode;
+  adminRequired?: boolean;
+}
+
+const ProtectedRoute = ({ children, adminRequired = false }: ProtectedRouteProps): ReactNode => {
   const { user, isAuthenticated, loading, hasCachedData } = useInstantAuth();
   const location = useLocation();
 

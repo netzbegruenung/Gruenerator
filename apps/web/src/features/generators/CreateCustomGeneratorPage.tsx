@@ -207,7 +207,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       } else {
         setError('Fehler: Die von der KI generierte Konfiguration ist unvollständig oder ungültig.');
       }
-    } catch (err: unknown) {
+    } catch (err) {
       console.error('[CreateCustom] Error during AI generation:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
       setError(aiError || `Fehler bei der KI-Generierung: ${errorMessage}`);
@@ -349,7 +349,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       if (onCompleted) {
         onCompleted({ name: dataToSave.name, slug: dataToSave.slug });
       }
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Error saving generator:", err);
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
       setError(`Fehler beim Speichern: ${errorMessage}`);

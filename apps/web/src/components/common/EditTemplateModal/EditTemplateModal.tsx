@@ -125,7 +125,7 @@ const EditTemplateModal = ({
                             id="edit-title"
                             type="text"
                             value={title}
-                            onChange={(e) => setTitle(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                             placeholder="Titel der Vorlage"
                             disabled={isSubmitting}
                         />
@@ -159,7 +159,7 @@ const EditTemplateModal = ({
                             id="edit-url"
                             type="url"
                             value={externalUrl}
-                            onChange={(e) => setExternalUrl(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalUrl(e.target.value)}
                             placeholder="https://..."
                             disabled={isSubmitting}
                         />
@@ -170,7 +170,7 @@ const EditTemplateModal = ({
                             <input
                                 type="checkbox"
                                 checked={!isPrivate}
-                                onChange={(e) => setIsPrivate(!e.target.checked)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIsPrivate(!e.target.checked)}
                                 disabled={isSubmitting}
                             />
                             <span>Öffentlich (in Galerie sichtbar)</span>

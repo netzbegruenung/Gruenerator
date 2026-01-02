@@ -7,25 +7,70 @@ import { useFormFields } from '../../../../../../../components/common/Form/hooks
 import { ProfileIconButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
-import { handleError } from '../../../../../../../components/utils/errorHandling';
+import { handleError, type ErrorState, type SetErrorFn } from '../../../../../../../components/utils/errorHandling';
+
+// Adapter to convert string-based error handler to SetErrorFn
+const createErrorAdapter = (onErrorMessage: (message: string) => void): SetErrorFn => {
+    return (error: ErrorState | null): void => {
+        if (error) {
+            onErrorMessage(error.message || error.title || 'Ein Fehler ist aufgetreten');
+        }
+    };
+};
 
 import '../../../../../../notebook/styles/notebook-creator.css';
 import '../../../../../../../assets/styles/components/ui/button.css';
 
+interface AvailableDocument {
+    id: string;
+    title?: string;
+    name?: string;
+    filename?: string;
+    file_size?: number;
+    created_at?: string;
+    status?: string;
+    ocr_text?: string;
+    [key: string]: unknown;
+}
+
+interface DocumentOption {
+    value: string;
+    label: string;
+    iconType: string;
+    subtitle: string;
+    tag: { label: string; variant: string } | null;
+    searchableContent: string;
+    document: AvailableDocument;
+    [key: string]: unknown;
+}
+
+interface NotebookFormData {
+    name: string;
+    description: string;
+}
+
+interface NotebookCreatorProps {
+    onCompleted: (result: { id?: string; name?: string }) => void;
+    onCancel: () => void;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    availableDocuments?: AvailableDocument[];
+}
+
 const STEPS = {
     DOCUMENTS: 1,
     DETAILS: 2
-};
+} as const;
 
-const formatFileSize = (bytes) => {
+const formatFileSize = (bytes: number): string => {
     if (!bytes) return '';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     if (bytes === 0) return '0 Bytes';
-    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)), 10);
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${Math.round(bytes / Math.pow(1024, i) * 10) / 10} ${sizes[i]}`;
 };
 
-const formatDate = (dateString) => {
+const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return '';
     try {
         return new Date(dateString).toLocaleDateString('de-DE', {
@@ -38,7 +83,7 @@ const formatDate = (dateString) => {
     }
 };
 
-const formatDocumentStatus = (status) => {
+const formatDocumentStatus = (status: string | undefined): string => {
     switch (status) {
         case 'completed':
             return 'Bereit';
@@ -53,7 +98,7 @@ const formatDocumentStatus = (status) => {
     }
 };
 
-const getDocumentIcon = (filename) => {
+const getDocumentIcon = (filename: string | undefined): string => {
     if (!filename) return 'document';
     const ext = filename.split('.').pop()?.toLowerCase();
     switch (ext) {
@@ -74,7 +119,7 @@ const NotebookCreator = ({
     onSuccessMessage,
     onErrorMessage,
     availableDocuments = []
-}) => {
+}: NotebookCreatorProps): React.ReactElement => {
     const { canAccessBetaFeature } = useBetaFeatures();
     const isQAEnabled = canAccessBetaFeature('notebook');
 
@@ -83,10 +128,12 @@ const NotebookCreator = ({
         isCreating: isCreatingQA
     } = useNotebookCollections({ isActive: isQAEnabled });
 
-    const [currentStep, setCurrentStep] = useState(STEPS.DOCUMENTS);
-    const [selectedDocuments, setSelectedDocuments] = useState([]);
+    const [currentStep, setCurrentStep] = useState<number>(STEPS.DOCUMENTS);
+    const [selectedDocuments, setSelectedDocuments] = useState<AvailableDocument[]>([]);
 
-    const { Input, Textarea } = useFormFields();
+    const formFields = useFormFields();
+    const Input = formFields.Input;
+    const Textarea = formFields.Textarea;
 
     const {
         control,
@@ -107,27 +154,27 @@ const NotebookCreator = ({
         }
     };
 
-    const documentOptions = availableDocuments.map(doc => {
-        const subtitle = [];
+    const documentOptions: DocumentOption[] = availableDocuments.map(doc => {
+        const subtitle: string[] = [];
         if (doc.filename) subtitle.push(doc.filename);
         if (doc.file_size) subtitle.push(formatFileSize(doc.file_size));
         if (doc.created_at) subtitle.push(`Hochgeladen: ${formatDate(doc.created_at)}`);
 
         return {
             value: doc.id,
-            label: doc.title,
+            label: doc.title || doc.name || '',
             iconType: getDocumentIcon(doc.filename),
             subtitle: subtitle.join(' • '),
             tag: doc.status ? {
                 label: formatDocumentStatus(doc.status),
                 variant: 'custom'
             } : null,
-            searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
+            searchableContent: `${doc.title || doc.name || ''} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
             document: doc
         };
     });
 
-    const handleDocumentSelectChange = (selectedOptions) => {
+    const handleDocumentSelectChange = (selectedOptions: readonly DocumentOption[] | null) => {
         const documents = selectedOptions ? selectedOptions.map(option => option.document) : [];
         setSelectedDocuments(documents);
     };
@@ -138,7 +185,7 @@ const NotebookCreator = ({
         }
     };
 
-    const handleSaveQA = async (formData) => {
+    const handleSaveQA = async (formData: NotebookFormData) => {
         try {
             const qaData = {
                 name: formData.name,
@@ -146,7 +193,7 @@ const NotebookCreator = ({
                 custom_prompt: '',
                 selectionMode: 'documents',
                 documents: selectedDocuments.map(doc => doc.id),
-                wolkeShareLinks: [],
+                wolkeShareLinks: [] as string[],
                 auto_sync: false,
                 remove_missing_on_sync: false
             };
@@ -156,7 +203,7 @@ const NotebookCreator = ({
             onCompleted({ id: createdCollection.id, name: createdCollection.name });
         } catch (error) {
             console.error('[NotebookCreator] Fehler beim Erstellen des Notebooks:', error);
-            handleError(error, onErrorMessage);
+            handleError(error, createErrorAdapter(onErrorMessage));
         }
     };
 
@@ -204,11 +251,15 @@ const NotebookCreator = ({
                                 const option = documentOptions.find(opt => opt.value === doc.id);
                                 return option || {
                                     value: doc.id,
-                                    label: doc.title,
+                                    label: doc.title || '',
+                                    iconType: 'document',
+                                    subtitle: '',
+                                    tag: null,
+                                    searchableContent: doc.title || '',
                                     document: doc
-                                };
+                                } as DocumentOption;
                             })}
-                            onChange={handleDocumentSelectChange}
+                            onChange={(newValue) => handleDocumentSelectChange(newValue as readonly DocumentOption[] | null)}
                             filterOption={() => true}
                             noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}
                             closeMenuOnSelect={false}

@@ -105,8 +105,8 @@ interface BaseFormProps {
   onControlChange?: (name: string, value: any) => void;
   isSubmitting?: boolean;
   currentSubmittingStep?: string;
-  balkenGruppenOffset?: number[];
-  sunflowerOffset?: number[];
+  balkenGruppenOffset?: [number, number];
+  sunflowerOffset?: [number, number];
   credit?: string;
   helpContent?: HelpContentType;
   hidePostTextButton?: boolean;
@@ -352,7 +352,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
           originalImage: originalImage || undefined,
         });
         alert('Sharepic erfolgreich aktualisiert!');
-      } catch (error: unknown) {
+      } catch (error) {
         console.error('Failed to update sharepic:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
         alert('Fehler beim Aktualisieren: ' + errorMessage);
@@ -660,7 +660,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
     <>
       <div className={`sharepic-base-container ${generatedContent ? 'with-content' : ''} ${currentStep === FORM_STEPS.RESULT ? 'result-step' : ''}`}>
         <div className={`form-container form-card form-card--elevated form-card--large`}>
-          <form onSubmit={(e) => {
+          <form onSubmit={(e: React.FormEvent) => {
             e.preventDefault();
             onSubmit();
           }}>

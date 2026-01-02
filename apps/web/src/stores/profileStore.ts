@@ -358,8 +358,13 @@ export const useProfileStore = create<ProfileStore>()(
         try {
           const authState = useAuthStore.getState();
           if (authState.user && profileUpdates) {
+            // Ensure locale is a valid SupportedLocale type
+            const sanitizedUpdates = {
+              ...profileUpdates,
+              locale: profileUpdates.locale as 'de-DE' | 'de-AT' | undefined
+            };
             authState.setAuthState({
-              user: { ...authState.user, ...profileUpdates },
+              user: { ...authState.user, ...sanitizedUpdates } as typeof authState.user,
               isAuthenticated: authState.isAuthenticated,
               supabaseSession: authState.supabaseSession
             });

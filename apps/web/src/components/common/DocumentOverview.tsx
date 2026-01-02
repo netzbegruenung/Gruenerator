@@ -28,7 +28,7 @@ const DEFAULT_SORT_OPTIONS = [
 ];
 
 // Types
-interface DocumentItem {
+export interface DocumentItem {
     id: string;
     title?: string;
     name?: string;
@@ -290,7 +290,7 @@ const DocumentOverview = ({
     }, [remoteSearchEnabled, searchState?.hasQuery, sortBy, sortOptions]);
 
     // Handle item deletion
-    const handleDelete = async (item) => {
+    const handleDelete = async (item: DocumentItem) => {
         const itemName = itemType === 'notebook' ? item.name : item.title;
         const confirmMessage = itemType === 'notebook'
             ? `Möchten Sie das Notebook "${itemName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
@@ -317,13 +317,13 @@ const DocumentOverview = ({
     };
 
     // Handle title editing
-    const handleTitleEdit = (item) => {
+    const handleTitleEdit = (item: DocumentItem) => {
         setEditingTitle(item.id);
         const currentTitle = itemType === 'notebook' ? item.name : item.title;
         setNewTitle(currentTitle);
     };
 
-    const handleTitleSave = async (itemId) => {
+    const handleTitleSave = async (itemId: string) => {
         const originalItem = allItems.find(item => item.id === itemId);
         const originalTitle = itemType === 'notebook' ? originalItem?.name : originalItem?.title;
 
@@ -345,7 +345,7 @@ const DocumentOverview = ({
     };
 
     // Bulk selection handlers
-    const handleSelectItem = (itemId, isSelected) => {
+    const handleSelectItem = (itemId: string, isSelected: boolean) => {
         setSelectedItemIds(prev => {
             const newSet = new Set(prev);
             if (isSelected) {
@@ -357,7 +357,7 @@ const DocumentOverview = ({
         });
     };
 
-    const handleSelectAll = (isSelected) => {
+    const handleSelectAll = (isSelected: boolean) => {
         // Only allow bulk select for non-Wolke documents
         const selectable = categoryFilteredItems.filter(item => itemType !== 'document' || item.source_type !== 'wolke');
         if (isSelected) {
@@ -409,7 +409,7 @@ const DocumentOverview = ({
     }, [allItems, remoteResults, remoteSearchEnabled, searchState.hasQuery]);
 
     // Item action handlers
-    const handleViewItem = (item) => {
+    const handleViewItem = (item: DocumentItem) => {
         if (onView) {
             onView(item);
         } else {
@@ -418,16 +418,16 @@ const DocumentOverview = ({
         }
     };
 
-    const handleEditItem = (item) => {
+    const handleEditItem = (item: DocumentItem) => {
         onEdit && onEdit(item);
     };
 
-    const handleShareItem = (item) => {
+    const handleShareItem = (item: DocumentItem) => {
         onShare && onShare(item);
     };
 
     // Handle document refresh (for processing/pending documents)
-    const handleRefreshDocument = async (item) => {
+    const handleRefreshDocument = async (item: DocumentItem) => {
         if (!onRefreshDocument) return;
 
         setRefreshing(item.id);
@@ -443,7 +443,7 @@ const DocumentOverview = ({
     };
 
     // Enhanced preview with API content fetch (document-specific)
-    const handleEnhancedPreview = async (item) => {
+    const handleEnhancedPreview = async (item: DocumentItem) => {
         if (itemType === 'notebook' || item.full_content) {
             setSelectedItem(item);
             setShowPreview(true);
@@ -478,7 +478,7 @@ const DocumentOverview = ({
     // Build action items via builder, falling back to custom actionItems if provided
 
     // Render default card
-    const renderDefaultCard = (item) => {
+    const renderDefaultCard = (item: DocumentItem) => {
         const itemTitle = itemType === 'notebook' ? item.name : item.title;
         const isDocument = itemType === 'document';
 
@@ -495,11 +495,11 @@ const DocumentOverview = ({
                             <input
                                 type="checkbox"
                                 checked={selectedItemIds.has(item.id)}
-                                onChange={(e) => {
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     e.stopPropagation();
                                     handleSelectItem(item.id, e.target.checked);
                                 }}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                             />
                         </div>
                     )}
@@ -510,18 +510,18 @@ const DocumentOverview = ({
                                 type="text"
                                 className="form-input"
                                 value={newTitle}
-                                onChange={(e) => setNewTitle(e.target.value)}
-                                onKeyDown={(e) => {
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewTitle(e.target.value)}
+                                onKeyDown={(e: React.KeyboardEvent) => {
                                     if (e.key === 'Enter') handleTitleSave(item.id);
                                     if (e.key === 'Escape') handleTitleCancel();
                                 }}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                 autoFocus
                             />
                             <div className="document-title-edit-actions">
                                 <button
                                     className="pabtn pabtn--primary pabtn--s"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         handleTitleSave(item.id);
                                     }}
@@ -530,7 +530,7 @@ const DocumentOverview = ({
                                 </button>
                                 <button
                                     className="pabtn pabtn--ghost pabtn--s"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                         e.stopPropagation();
                                         handleTitleCancel();
                                     }}
@@ -543,7 +543,7 @@ const DocumentOverview = ({
                         <div className="document-title-header">
                             <h4
                                 className={`document-card-title ${onUpdateTitle ? "editable-title" : ""} clickable-title`}
-                                onClick={(e) => {
+                                onClick={(e: React.MouseEvent) => {
                                     e.stopPropagation();
                                     if (onUpdateTitle && e.detail === 2) {
                                         // Double-click for edit
@@ -633,7 +633,7 @@ const DocumentOverview = ({
     };
 
     // Render default metadata
-    const renderDefaultMeta = (item) => {
+    const renderDefaultMeta = (item: DocumentItem) => {
         if (itemType === 'notebook') {
             return (
                 <>
@@ -678,7 +678,7 @@ const DocumentOverview = ({
     const renderDropdownContent = (item: DocumentItem, onClose?: () => void) => {
         const actions: ActionItem[] = (actionItems ? actionItems(item) : getActionItems(item, {
             itemType,
-            onViewItem: (it) => (it.status === 'completed' && itemType === 'document') ? handleEnhancedPreview(it) : handleViewItem(it),
+            onViewItem: (it: DocumentItem) => (it.status === 'completed' && itemType === 'document') ? handleEnhancedPreview(it) : handleViewItem(it),
             onEditItem: handleEditItem,
             onShareItem: handleShareItem,
             onDeleteItem: handleDelete,
@@ -714,7 +714,7 @@ const DocumentOverview = ({
                                             <button
                                                 key={subIndex}
                                                 className="menu-dropdown-item submenu-item"
-                                                onClick={(e) => {
+                                                onClick={(e: React.MouseEvent) => {
                                                     e.stopPropagation();
                                                     // Call the copy function if it exists on the subItem
                                                     if (subItem.onClick) {
@@ -740,7 +740,7 @@ const DocumentOverview = ({
                         <button
                             key={index}
                             className={`menu-dropdown-item ${action.danger ? 'danger' : ''}`}
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation();
                                 action.onClick();
                                 onClose && onClose();
@@ -831,7 +831,7 @@ const DocumentOverview = ({
                                   className="form-input search-input"
                                   placeholder={searchPlaceholder}
                                   value={searchState.searchQuery}
-                                  onChange={(e) => searchState.setSearchQuery(e.target.value)}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => searchState.setSearchQuery(e.target.value)}
                                   style={{ fontSize: '14px' }}
                               />
                           </div>
@@ -841,7 +841,7 @@ const DocumentOverview = ({
                                 <select
                                     className="form-select"
                                     value={searchState.searchMode}
-                                    onChange={(e) => searchState.setSearchMode(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => searchState.setSearchMode(e.target.value)}
                                     title="Suchmodus"
                                 >
                                     <option value="intelligent">Intelligent</option>
@@ -871,7 +871,7 @@ const DocumentOverview = ({
                             <select
                                 className="form-select"
                                 value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
                             >
                                 {[...sortOptions, ...(remoteSearchEnabled && searchState.hasQuery ? [{ value: 'similarity_score', label: 'Relevanz' }] : [])].map(option => (
                                     <option key={option.value} value={option.value}>

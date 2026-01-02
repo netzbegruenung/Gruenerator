@@ -93,8 +93,8 @@ interface TemplateResultEditPanelProps {
   fontSize?: number;
   colorScheme?: any;
   balkenOffset?: number[];
-  balkenGruppenOffset?: number[];
-  sunflowerOffset?: number[];
+  balkenGruppenOffset?: [number, number];
+  sunflowerOffset?: [number, number];
   veranstaltungFieldFontSizes?: VeranstaltungFieldFontSizes;
   handleControlChange: (name: string, value: any) => void;
   handleFieldFontSizeChange: (fieldName: string, value: number) => void;
@@ -346,14 +346,14 @@ const TemplateResultEditPanel: React.FC<TemplateResultEditPanelProps> = ({
                   <div className="advanced-control-item">
                     <h5>Gruppe</h5>
                     <BalkenGruppeControl
-                      offset={balkenGruppenOffset || [0, 0]}
+                      offset={balkenGruppenOffset || [0, 0] as [number, number]}
                       onOffsetChange={(value) => handleControlChange('balkenGruppenOffset', value)}
                     />
                   </div>
                   <div className="advanced-control-item">
                     <h5>Sonnenblume</h5>
                     <SonnenblumenControl
-                      offset={sunflowerOffset || [0, 0]}
+                      offset={sunflowerOffset || [0, 0] as [number, number]}
                       onOffsetChange={(value) => handleControlChange('sunflowerOffset', value)}
                     />
                   </div>

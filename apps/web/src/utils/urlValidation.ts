@@ -2,12 +2,17 @@
  * URL validation utilities for the application
  */
 
+interface ValidationResult {
+  isValid: boolean;
+  error?: string;
+}
+
 /**
  * Validates if a URL is properly formatted and uses allowed protocols
- * @param {string} url - The URL to validate
- * @returns {{isValid: boolean, error?: string}} Validation result
+ * @param url - The URL to validate
+ * @returns Validation result
  */
-export const validateUrl = (url) => {
+export const validateUrl = (url: string | null | undefined): ValidationResult => {
   if (!url || !url.trim()) {
     return {
       isValid: false,
@@ -61,10 +66,10 @@ export const validateUrl = (url) => {
 
 /**
  * Normalizes a URL by trimming whitespace and ensuring proper format
- * @param {string} url - The URL to normalize
- * @returns {string} Normalized URL
+ * @param url - The URL to normalize
+ * @returns Normalized URL
  */
-export const normalizeUrl = (url) => {
+export const normalizeUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   
   let normalized = url.trim();
@@ -79,10 +84,10 @@ export const normalizeUrl = (url) => {
 
 /**
  * Extracts domain name from URL for display purposes
- * @param {string} url - The URL to extract domain from
- * @returns {string} Domain name or empty string if invalid
+ * @param url - The URL to extract domain from
+ * @returns Domain name or empty string if invalid
  */
-export const extractDomain = (url) => {
+export const extractDomain = (url: string): string => {
   try {
     const urlObj = new URL(url);
     return urlObj.hostname;
@@ -93,10 +98,10 @@ export const extractDomain = (url) => {
 
 /**
  * Checks if a URL appears to be a PDF link based on the path
- * @param {string} url - The URL to check
- * @returns {boolean} True if URL appears to point to a PDF
+ * @param url - The URL to check
+ * @returns True if URL appears to point to a PDF
  */
-export const isPdfUrl = (url) => {
+export const isPdfUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
     return urlObj.pathname.toLowerCase().endsWith('.pdf');
@@ -107,10 +112,10 @@ export const isPdfUrl = (url) => {
 
 /**
  * Generates a suggested title from a URL
- * @param {string} url - The URL to generate title from
- * @returns {string} Suggested title
+ * @param url - The URL to generate title from
+ * @returns Suggested title
  */
-export const generateTitleFromUrl = (url) => {
+export const generateTitleFromUrl = (url: string): string => {
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname.replace(/^www\./, '');

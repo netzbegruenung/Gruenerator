@@ -117,7 +117,7 @@ const SubtitlePreview = ({
                 </div>
                 <textarea
                   value={segment.text}
-                  onChange={(e) => handleSubtitleEdit(segment.id, e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSubtitleEdit(segment.id, e.target.value)}
                   className="segment-text"
                   rows={2}
                 />

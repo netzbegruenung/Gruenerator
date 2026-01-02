@@ -5,10 +5,10 @@
 
 /**
  * Creates a hash from string content using the DJB2 algorithm
- * @param {string} str - Content to hash
- * @returns {string} Hash as hexadecimal string
+ * @param str - Content to hash
+ * @returns Hash as hexadecimal string
  */
-function djb2Hash(str) {
+function djb2Hash(str: string): string {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) + hash) + str.charCodeAt(i);
@@ -19,10 +19,10 @@ function djb2Hash(str) {
 
 /**
  * Strips HTML tags and normalizes whitespace for content comparison
- * @param {string} content - HTML content to normalize
- * @returns {string} Plain text content
+ * @param content - HTML content to normalize
+ * @returns Plain text content
  */
-function normalizeContent(content) {
+function normalizeContent(content: string | null | undefined): string {
   if (!content) return '';
 
   return content
@@ -39,11 +39,11 @@ function normalizeContent(content) {
 
 /**
  * Creates a hash for content comparison (includes title for better uniqueness)
- * @param {string} content - HTML content to hash
- * @param {string} [title=''] - Optional title to include in hash
- * @returns {string} Content hash
+ * @param content - HTML content to hash
+ * @param title - Optional title to include in hash
+ * @returns Content hash
  */
-export function hashContent(content, title = '') {
+export function hashContent(content: string | null | undefined, title = ''): string {
   const normalizedContent = normalizeContent(content);
   const normalizedTitle = normalizeContent(title);
   const combinedString = `${normalizedTitle}::${normalizedContent}`;
@@ -53,12 +53,17 @@ export function hashContent(content, title = '') {
 
 /**
  * Checks if two content strings are duplicates
- * @param {string} content1 - First content
- * @param {string} content2 - Second content
- * @param {string} [title1=''] - First title
- * @param {string} [title2=''] - Second title
- * @returns {boolean} True if content is duplicate
+ * @param content1 - First content
+ * @param content2 - Second content
+ * @param title1 - First title
+ * @param title2 - Second title
+ * @returns True if content is duplicate
  */
-export function isDuplicateContent(content1, content2, title1 = '', title2 = '') {
+export function isDuplicateContent(
+  content1: string | null | undefined,
+  content2: string | null | undefined,
+  title1 = '',
+  title2 = ''
+): boolean {
   return hashContent(content1, title1) === hashContent(content2, title2);
 }

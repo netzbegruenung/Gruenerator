@@ -135,7 +135,7 @@ const AddCanvaTemplateModal = ({
 
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
-      <div className="citation-modal add-template-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+      <div className="citation-modal add-template-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="citation-modal-header">
           <div className="share-modal-title">
             <HiPlus className="share-modal-icon" />
@@ -192,7 +192,7 @@ const AddCanvaTemplateModal = ({
                   <input
                     type="checkbox"
                     checked={enhancedMetadata}
-                    onChange={(e) => setEnhancedMetadata(e.target.checked)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEnhancedMetadata(e.target.checked)}
                     disabled={isProcessing}
                     className="add-template-checkbox"
                   />

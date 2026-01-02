@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, ReactNode } from 'react';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from '../../../../components/common/SubmitButton';
 import { useSharepicStore } from '../../../../stores';
@@ -13,7 +13,31 @@ import {
   ARIA_LABELS,
 } from '../../../../components/utils/constants';
 
-const SharepicBackendResult = ({
+interface SharepicFormData {
+  type?: string;
+  thema?: string;
+  details?: string;
+}
+
+interface SharepicBackendResultProps {
+  children: ReactNode;
+  onSubmit: () => void;
+  loading: boolean;
+  success: boolean;
+  fontSize: number;
+  balkenOffset: number[];
+  colorScheme: Array<{ background: string }>;
+  onControlChange: (name: string, value: unknown) => void;
+  balkenGruppenOffset: [number, number];
+  sunflowerOffset: [number, number];
+  credit: string;
+  formData: SharepicFormData;
+  generatedImage?: string | null;
+  onAltTextClick: () => void;
+  hidePostTextButton?: boolean;
+}
+
+const SharepicBackendResult: React.FC<SharepicBackendResultProps> = ({
   children,
   onSubmit,
   loading,
@@ -26,9 +50,9 @@ const SharepicBackendResult = ({
   sunflowerOffset,
   credit,
   formData,
-  generatedImage, // Add generatedImage prop to access the current sharepic
-  onAltTextClick, // Handler for alt-text button click
-  hidePostTextButton = false // Hide the "Beitragstext erstellen" button when coming from press social
+  generatedImage,
+  onAltTextClick,
+  hidePostTextButton = false
 }) => {
   const {
     isAdvancedEditingOpen,
@@ -132,7 +156,7 @@ const SharepicBackendResult = ({
                   onClick={handleSocialMediaClick}
                   text="Beitragstext erstellen"
                   className="social-media-button"
-                  ariaLabel={ARIA_LABELS.SOCIAL_MEDIA}
+                  ariaLabel="Social Media Beitragstext erstellen"
                 />
               )}
               <Button
@@ -162,9 +186,9 @@ const SharepicBackendResult = ({
           balkenOffset={balkenOffset}
           balkenGruppenOffset={balkenGruppenOffset}
           sunflowerOffset={sunflowerOffset}
-          onBalkenOffsetChange={(newOffset) => onControlChange('balkenOffset', newOffset)}
-          onBalkenGruppenOffsetChange={(newOffset) => onControlChange('balkenGruppenOffset', newOffset)}
-          onSonnenblumenOffsetChange={(newOffset) => onControlChange('sunflowerOffset', newOffset)}
+          onBalkenOffsetChange={(newOffset: number[]) => onControlChange('balkenOffset', newOffset)}
+          onBalkenGruppenOffsetChange={(newOffset: [number, number]) => onControlChange('balkenGruppenOffset', newOffset)}
+          onSonnenblumenOffsetChange={(newOffset: [number, number]) => onControlChange('sunflowerOffset', newOffset)}
         />
       )}
     </>

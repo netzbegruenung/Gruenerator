@@ -12,6 +12,15 @@ import { useProfileStore } from '../../stores/profileStore';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { hashContent } from '../../utils/contentHash';
 
+interface GeneratedContentObject {
+  content?: string;
+  social?: { content?: string };
+  sharepic?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+type GeneratedContent = string | GeneratedContentObject;
+
 interface ActionButtonsProps {
   isEditing?: boolean;
   onEdit?: () => void;
@@ -42,7 +51,7 @@ interface ActionButtonsProps {
   saveToLibraryLoading?: boolean;
   exportableContent?: string;
   generatedPost?: string;
-  generatedContent?: unknown;
+  generatedContent?: GeneratedContent;
   title?: string;
   componentName?: string;
   customExportOptions?: {
@@ -92,7 +101,10 @@ const ActionButtons = ({ onEdit,
   hideDefaultExportOptions = false }: ActionButtonsProps): JSX.Element => {
   const { isAuthenticated } = useLazyAuth();
   const { getBetaFeatureState } = useBetaFeatures();
-  const { generatedText } = useGeneratedTextStore();
+  const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
+  const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
+  const generatedText = getGeneratedText(componentName);
+  const generatedTextMetadata = getGeneratedTextMetadata(componentName) as { contentType?: string } | null;
   const undo = useGeneratedTextStore(state => state.undo);
   const redo = useGeneratedTextStore(state => state.redo);
   const [copyIcon, setCopyIcon] = useState(<IoCopyOutline size={16} />);
@@ -119,12 +131,21 @@ const ActionButtons = ({ onEdit,
   // Use generatedContent prop if available, fall back to store's generatedText
   const activeContent = generatedContent || generatedText;
 
+  // Extract string content from GeneratedContent
+  const extractStringContent = (content: GeneratedContent | undefined): string => {
+    if (!content) return '';
+    if (typeof content === 'string') return content;
+    return content.content || content.social?.content || JSON.stringify(content);
+  };
+
   const handleCopyToClipboard = async () => {
     console.log('[ActionButtons] Copy button clicked');
 
+    const contentString = extractStringContent(activeContent);
+
     // First do the copy
     await copyFormattedContent(
-      activeContent,
+      contentString,
       () => {
         setCopyIcon(<IoCheckmarkOutline size={16} />);
         setTimeout(() => {
@@ -146,9 +167,7 @@ const ActionButtons = ({ onEdit,
     }
 
     // Extract string content for hashing (handle both object and string content)
-    const contentForHash = typeof activeContent === 'string'
-      ? activeContent
-      : (activeContent.content || activeContent.social?.content || JSON.stringify(activeContent));
+    const contentForHash = contentString;
 
     const contentHash = hashContent(contentForHash, title);
     if (exportedContentHashesRef.current.has(contentHash)) {
@@ -157,7 +176,7 @@ const ActionButtons = ({ onEdit,
     }
 
     try {
-      const contentType = generatedText?.contentType || 'universal';
+      const contentType = generatedTextMetadata?.contentType || 'universal';
       console.log('[ActionButtons Auto-save] Saving to library', { contentType });
 
       // Use the same content extraction for saving
@@ -177,13 +196,14 @@ const ActionButtons = ({ onEdit,
   const isMobileView = window.innerWidth <= 768;
 
   // Helper function to detect sharepic-only content
-  const isSharepicOnlyContent = (content) => {
+  const isSharepicOnlyContent = (content: GeneratedContent | undefined): boolean => {
     if (!content || typeof content !== 'object') return false;
 
+    const contentObj = content as GeneratedContentObject;
     // Check if we have sharepic but no social content
-    const hasSharepic = content.sharepic && Object.keys(content.sharepic).length > 0;
-    const hasSocialContent = content.social?.content ||
-                            (content.content && !content.sharepic);
+    const hasSharepic = contentObj.sharepic && Object.keys(contentObj.sharepic).length > 0;
+    const hasSocialContent = contentObj.social?.content ||
+                            (contentObj.content && !contentObj.sharepic);
 
     return hasSharepic && !hasSocialContent;
   };
@@ -245,9 +265,9 @@ const ActionButtons = ({ onEdit,
   }, [canUndoState, canRedoState, activeContent, shouldHideButtons]);
 
   // Button definitions for easy reordering
-  const renderButton = (type) => {
+  const renderButton = (type: string) => {
     const exportDropdownProps = {
-      content: activeContent,
+      content: extractStringContent(activeContent),
       title,
       onSaveToLibrary: showSaveToLibrary && isAuthenticated ? onSaveToLibrary : null,
       saveToLibraryLoading,

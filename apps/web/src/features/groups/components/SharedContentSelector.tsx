@@ -13,11 +13,109 @@ import {
   HiOutlineViewList,
   HiOutlinePlus
 } from 'react-icons/hi';
+import { IconType } from 'react-icons';
 import { NotebookIcon } from '../../../config/icons';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
 import '../../../assets/styles/features/groups/shared-content-selector.css';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
+
+/** Permission flags for shared content */
+interface ContentPermissions {
+  read?: boolean;
+  write?: boolean;
+  collaborative?: boolean;
+}
+
+/** Base shared content item from the API */
+interface SharedContentItemBase {
+  id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  shared_at?: string;
+  shared_by_name?: string;
+  group_permissions?: ContentPermissions;
+  content_preview?: string;
+  full_content?: string;
+  markdown_content?: string;
+  word_count?: number;
+  page_count?: number;
+  document_count?: number;
+  view_count?: number;
+  preview_image_url?: string;
+  thumbnail_url?: string;
+  canva_url?: string;
+  external_url?: string;
+  content_data?: {
+    originalUrl?: string;
+  };
+  slug?: string;
+}
+
+/** Extended content item with UI-specific properties */
+interface ContentItem extends SharedContentItemBase {
+  contentType: 'documents' | 'user_documents' | 'notebook_collections' | 'custom_generators' | 'database';
+  icon: IconType;
+  typeLabel: string;
+}
+
+/** Document content returned from API */
+interface DocumentContent {
+  full_content: string;
+  markdown_content?: string;
+}
+
+/** Group content data structure from API */
+interface GroupContent {
+  documents?: SharedContentItemBase[];
+  texts?: SharedContentItemBase[];
+  notebooks?: SharedContentItemBase[];
+  generators?: SharedContentItemBase[];
+  templates?: SharedContentItemBase[];
+}
+
+/** Configuration for grid layout */
+interface GridConfig {
+  minCardWidth?: string;
+  aspectRatio?: 'auto' | '1:1';
+}
+
+/** Configuration options for the SharedContentSelector */
+interface SharedContentSelectorConfig {
+  title?: string;
+  description?: string;
+  contentFilter?: string | null;
+  excludeTypes?: string[];
+  hideFilters?: string[];
+  hideHeader?: boolean;
+  cardStyle?: 'default' | 'template-square';
+  gridConfig?: GridConfig;
+}
+
+/** Props for the SharedContentSelector component */
+interface SharedContentSelectorProps {
+  groupContent: GroupContent | null;
+  isLoading: boolean;
+  isAdmin: boolean;
+  onUnshare: (contentType: string, contentId: string) => void;
+  isUnsharing: boolean;
+  config?: SharedContentSelectorConfig;
+}
+
+const defaultConfig: Required<SharedContentSelectorConfig> = {
+  title: "Geteilte Inhalte",
+  description: "Hier findest du alle Inhalte, die mit dieser Gruppe geteilt wurden",
+  contentFilter: null,
+  excludeTypes: [],
+  hideFilters: [],
+  hideHeader: false,
+  cardStyle: 'default',
+  gridConfig: {
+    minCardWidth: '320px',
+    aspectRatio: 'auto'
+  }
+};
 
 /**
  * SharedContentSelector - Enhanced component for displaying and interacting with shared group content
@@ -30,20 +128,9 @@ const SharedContentSelector = ({
   isAdmin,
   onUnshare,
   isUnsharing,
-  config = {
-    title: "Geteilte Inhalte",
-    description: "Hier findest du alle Inhalte, die mit dieser Gruppe geteilt wurden",
-    contentFilter: null, // null = show all, 'database' = templates only, etc.
-    excludeTypes: [], // ['database'] = exclude templates, etc.
-    hideFilters: [], // ['contentType', 'permissions', 'sortBy']
-    hideHeader: false, // hide title/description when wrapped in profile-card
-    cardStyle: 'default', // 'default' | 'template-square'
-    gridConfig: {
-      minCardWidth: '320px', // default: '320px', templates: '280px'
-      aspectRatio: 'auto' // 'auto' | '1:1'
-    }
-  }
-}) => {
+  config: configProp = {}
+}: SharedContentSelectorProps) => {
+  const config = { ...defaultConfig, ...configProp };
   const navigate = useNavigate();
 
   // UI State
@@ -55,17 +142,17 @@ const SharedContentSelector = ({
   const [sortOrder, setSortOrder] = useState('desc');
 
   // Modal state for document preview
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Refs for preloading
-  const hoverTimeoutRef = useRef(null);
-  const intersectionObserverRef = useRef(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
 
   // Document content caching utilities
-  const getCachedContent = useCallback((documentId) => {
+  const getCachedContent = useCallback((documentId: string): DocumentContent | null => {
     try {
       const cached = sessionStorage.getItem(`doc_content_${documentId}`);
       if (cached) {
@@ -83,7 +170,7 @@ const SharedContentSelector = ({
     return null;
   }, []);
 
-  const setCachedContent = useCallback((documentId, content) => {
+  const setCachedContent = useCallback((documentId: string, content: DocumentContent) => {
     try {
       const cacheData = {
         content,
@@ -95,21 +182,21 @@ const SharedContentSelector = ({
     }
   }, []);
 
-  const isCached = useCallback((documentId) => {
+  const isCached = useCallback((documentId: string): boolean => {
     return getCachedContent(documentId) !== null;
   }, [getCachedContent]);
 
   // Flatten all content into single array for unified handling
-  const allContent = useMemo(() => {
+  const allContent = useMemo((): ContentItem[] => {
     if (!groupContent) return [];
 
-    let content = [];
+    const content: ContentItem[] = [];
 
     // Add documents
     if (groupContent.documents &&
         (!config.contentFilter || config.contentFilter === 'documents') &&
         !(config.excludeTypes && config.excludeTypes.includes('documents'))) {
-      content.push(...groupContent.documents.map(item => ({
+      content.push(...groupContent.documents.map((item): ContentItem => ({
         ...item,
         contentType: 'documents',
         icon: HiDocumentText,
@@ -121,7 +208,7 @@ const SharedContentSelector = ({
     if (groupContent.texts &&
         (!config.contentFilter || config.contentFilter === 'user_documents') &&
         !(config.excludeTypes && config.excludeTypes.includes('user_documents'))) {
-      content.push(...groupContent.texts.map(item => ({
+      content.push(...groupContent.texts.map((item): ContentItem => ({
         ...item,
         contentType: 'user_documents',
         icon: HiDocumentText,
@@ -133,10 +220,10 @@ const SharedContentSelector = ({
     if (groupContent.notebooks &&
         (!config.contentFilter || config.contentFilter === 'notebook_collections') &&
         !(config.excludeTypes && config.excludeTypes.includes('notebook_collections'))) {
-      content.push(...groupContent.notebooks.map(item => ({
+      content.push(...groupContent.notebooks.map((item): ContentItem => ({
         ...item,
         contentType: 'notebook_collections',
-        icon: NotebookIcon,
+        icon: NotebookIcon as IconType,
         typeLabel: 'Notebook'
       })));
     }
@@ -145,7 +232,7 @@ const SharedContentSelector = ({
     if (groupContent.generators &&
         (!config.contentFilter || config.contentFilter === 'custom_generators') &&
         !(config.excludeTypes && config.excludeTypes.includes('custom_generators'))) {
-      content.push(...groupContent.generators.map(item => ({
+      content.push(...groupContent.generators.map((item): ContentItem => ({
         ...item,
         contentType: 'custom_generators',
         icon: HiCollection,
@@ -157,7 +244,7 @@ const SharedContentSelector = ({
     if (groupContent.templates &&
         (!config.contentFilter || config.contentFilter === 'database') &&
         !(config.excludeTypes && config.excludeTypes.includes('database'))) {
-      content.push(...groupContent.templates.map(item => ({
+      content.push(...groupContent.templates.map((item): ContentItem => ({
         ...item,
         contentType: 'database',
         icon: HiCollection,
@@ -236,7 +323,7 @@ const SharedContentSelector = ({
   }, [allContent, searchQuery, contentTypeFilter, permissionFilter, sortBy, sortOrder]);
 
   // Fetch document content from API
-  const fetchDocumentContent = useCallback(async (documentId) => {
+  const fetchDocumentContent = useCallback(async (documentId: string): Promise<DocumentContent> => {
     const response = await apiClient.get(`/documents/${documentId}/content`);
     const data = response.data;
 
@@ -247,7 +334,7 @@ const SharedContentSelector = ({
   }, []);
 
   // Enhanced preview with cache-first approach
-  const handleEnhancedPreview = async (item) => {
+  const handleEnhancedPreview = async (item: ContentItem) => {
     // Show modal immediately with basic info for instant feedback
     setSelectedItem(item);
     setShowPreview(true);
@@ -257,7 +344,7 @@ const SharedContentSelector = ({
     const cachedContent = getCachedContent(item.id);
     if (cachedContent) {
       // Use cached content immediately - no loading state needed
-      const enhancedItem = {
+      const enhancedItem: ContentItem = {
         ...item,
         ...cachedContent
       };
@@ -275,7 +362,7 @@ const SharedContentSelector = ({
       setCachedContent(item.id, content);
 
       // Update the selected item with the fetched content
-      const enhancedItem = {
+      const enhancedItem: ContentItem = {
         ...item,
         ...content
       };
@@ -290,7 +377,7 @@ const SharedContentSelector = ({
   };
 
   // Silent preloading for hover/viewport optimization
-  const preloadDocumentContent = useCallback(async (documentId) => {
+  const preloadDocumentContent = useCallback(async (documentId: string) => {
     // Don't preload if already cached
     if (isCached(documentId)) return;
 
@@ -304,7 +391,7 @@ const SharedContentSelector = ({
   }, [fetchDocumentContent, isCached, setCachedContent]);
 
   // Handle content click - navigate based on content type
-  const handleContentClick = (item) => {
+  const handleContentClick = (item: ContentItem) => {
     switch (item.contentType) {
       case 'user_documents':
         // Navigate to collaborative editor
@@ -322,7 +409,7 @@ const SharedContentSelector = ({
         // Show document in modal popup
         handleEnhancedPreview(item);
         break;
-      case 'database':
+      case 'database': {
         // Open template (Canva URL) in new tab - prefer original URL
         const templateUrl = item.content_data?.originalUrl || item.canva_url || item.external_url;
         if (templateUrl) {
@@ -331,13 +418,14 @@ const SharedContentSelector = ({
           console.warn('Template has no URL to open:', item);
         }
         break;
+      }
       default:
         console.warn('Unknown content type:', item.contentType);
     }
   };
 
   // Handle edit action
-  const handleEdit = (item, event) => {
+  const handleEdit = (item: ContentItem, event: React.MouseEvent) => {
     event.stopPropagation();
 
     const permissions = item.group_permissions || {};
@@ -350,7 +438,7 @@ const SharedContentSelector = ({
   };
 
   // Handle unshare action
-  const handleUnshare = (item, event) => {
+  const handleUnshare = (item: ContentItem, event: React.MouseEvent) => {
     event.stopPropagation();
 
     if (!isAdmin) {
@@ -365,7 +453,7 @@ const SharedContentSelector = ({
   };
 
   // Hover handlers for preloading
-  const handleItemHover = useCallback((item) => {
+  const handleItemHover = useCallback((item: ContentItem) => {
     // Only preload documents
     if (item.contentType !== 'documents') return;
 
@@ -458,7 +546,7 @@ const SharedContentSelector = ({
   }, [filteredContent, preloadDocumentContent]);
 
   // Format date
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
@@ -467,7 +555,7 @@ const SharedContentSelector = ({
   };
 
   // Get permission badges
-  const getPermissionBadges = (permissions: { read?: boolean; write?: boolean; collaborative?: boolean } = {}) => (
+  const getPermissionBadges = (permissions: ContentPermissions = {}) => (
     <div className="shared-content-permissions">
       <span className={`permission-badge ${permissions.read ? 'active' : ''}`}>
         Lesen
@@ -482,7 +570,7 @@ const SharedContentSelector = ({
   );
 
   // Format date helper
-  const formatDateDetailed = (dateString) => {
+  const formatDateDetailed = (dateString: string) => {
     return new Date(dateString).toLocaleString('de-DE', {
       year: 'numeric',
       month: '2-digit',
@@ -603,7 +691,7 @@ const SharedContentSelector = ({
                 className="search-input"
                 placeholder="Inhalte durchsuchen..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               />
             </div>
 
@@ -613,7 +701,7 @@ const SharedContentSelector = ({
                 <select
                   className="filter-select"
                   value={contentTypeFilter}
-                  onChange={(e) => setContentTypeFilter(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setContentTypeFilter(e.target.value)}
                 >
                   <option value="all">Alle Typen</option>
                   <option value="documents">Dokumente</option>
@@ -625,7 +713,7 @@ const SharedContentSelector = ({
                 <select
                   className="filter-select"
                   value={permissionFilter}
-                  onChange={(e) => setPermissionFilter(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPermissionFilter(e.target.value)}
                 >
                   <option value="all">Alle Berechtigungen</option>
                   <option value="read">Nur Lesen</option>
@@ -638,7 +726,7 @@ const SharedContentSelector = ({
                 <select
                   className="filter-select"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
                 >
                   <option value="shared_at">Geteilt am</option>
                   <option value="title">Titel</option>
@@ -743,7 +831,7 @@ const SharedContentSelector = ({
                       <div className="shared-content-actions">
                         <button
                           className="shared-content-action view"
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             handleContentClick(item);
                           }}
@@ -754,7 +842,7 @@ const SharedContentSelector = ({
                         {canEdit && (
                           <button
                             className="shared-content-action edit"
-                            onClick={(e) => handleEdit(item, e)}
+                            onClick={(e: React.MouseEvent) => handleEdit(item, e)}
                             title="Bearbeiten"
                           >
                             <HiOutlinePencil />
@@ -763,7 +851,7 @@ const SharedContentSelector = ({
                         {isAdmin && (
                           <button
                             className="shared-content-action delete"
-                            onClick={(e) => handleUnshare(item, e)}
+                            onClick={(e: React.MouseEvent) => handleUnshare(item, e)}
                             disabled={isUnsharing}
                             title="Aus Gruppe entfernen"
                           >
@@ -805,7 +893,7 @@ const SharedContentSelector = ({
                       <div className="shared-content-actions">
                         <button
                           className="shared-content-action view"
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             handleContentClick(item);
                           }}
@@ -816,7 +904,7 @@ const SharedContentSelector = ({
                         {canEdit && (
                           <button
                             className="shared-content-action edit"
-                            onClick={(e) => handleEdit(item, e)}
+                            onClick={(e: React.MouseEvent) => handleEdit(item, e)}
                             title="Bearbeiten"
                           >
                             <HiOutlinePencil />
@@ -825,7 +913,7 @@ const SharedContentSelector = ({
                         {isAdmin && (
                           <button
                             className="shared-content-action delete"
-                            onClick={(e) => handleUnshare(item, e)}
+                            onClick={(e: React.MouseEvent) => handleUnshare(item, e)}
                             disabled={isUnsharing}
                             title="Aus Gruppe entfernen"
                           >

@@ -93,7 +93,7 @@ const BulkDeleteConfirmModal = ({
 
   return (
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
-      <div className="citation-modal bulk-delete-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+      <div className="citation-modal bulk-delete-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="citation-modal-header">
           <div className="bulk-delete-modal-title">
             <HiExclamationCircle className="bulk-delete-warning-icon" />
@@ -132,7 +132,7 @@ const BulkDeleteConfirmModal = ({
               type="text"
               className={`form-input bulk-delete-confirmation-input ${isConfirmValid ? 'valid' : ''}`}
               value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="löschen"
               disabled={isDeleting}

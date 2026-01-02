@@ -1,6 +1,11 @@
 import SiteForm from './SiteForm';
 
-const SiteCreator = ({ onSubmit, onCancel }) => {
+interface SiteCreatorProps {
+    onSubmit: (data: Record<string, unknown>) => Promise<void>;
+    onCancel: () => void;
+}
+
+const SiteCreator = ({ onSubmit, onCancel }: SiteCreatorProps): React.ReactElement => {
     return <SiteForm isCreating={true} onSubmit={onSubmit} onCancel={onCancel} />;
 };
 

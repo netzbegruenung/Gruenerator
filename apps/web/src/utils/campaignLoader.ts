@@ -3,15 +3,34 @@
  * Loads campaign configurations from individual JSON files
  */
 
-let cachedManifest = null;
-let cachedCampaigns = new Map();
-let manifestLoadingPromise = null;
+interface Manifest {
+  campaigns: string[];
+  [key: string]: unknown;
+}
+
+interface Campaign {
+  id?: string;
+  active?: boolean;
+  order?: number;
+  variants?: CampaignVariant[];
+  form?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface CampaignVariant {
+  order?: number;
+  [key: string]: unknown;
+}
+
+let cachedManifest: Manifest | null = null;
+let cachedCampaigns = new Map<string, Campaign | null>();
+let manifestLoadingPromise: Promise<Manifest> | null = null;
 
 /**
  * Load campaign manifest from public/campaigns/manifest.json
- * @returns {Promise<Object>} Manifest object with list of campaign IDs
+ * @returns Manifest object with list of campaign IDs
  */
-async function loadManifest() {
+async function loadManifest(): Promise<Manifest> {
   if (cachedManifest) {
     return cachedManifest;
   }
@@ -43,10 +62,10 @@ async function loadManifest() {
 
 /**
  * Load a specific campaign configuration
- * @param {string} campaignId - Campaign identifier
- * @returns {Promise<Object|null>} Campaign object or null if not found
+ * @param campaignId - Campaign identifier
+ * @returns Campaign object or null if not found
  */
-async function loadCampaignConfig(campaignId) {
+async function loadCampaignConfig(campaignId: string): Promise<Campaign | null> {
   if (cachedCampaigns.has(campaignId)) {
     return cachedCampaigns.get(campaignId);
   }
@@ -70,9 +89,9 @@ async function loadCampaignConfig(campaignId) {
 
 /**
  * Get all active campaigns
- * @returns {Promise<Array>} Array of campaign objects
+ * @returns Array of campaign objects
  */
-export async function getActiveCampaigns() {
+export async function getActiveCampaigns(): Promise<Campaign[]> {
   const manifest = await loadManifest();
   const campaignIds = manifest.campaigns || [];
 
@@ -86,19 +105,19 @@ export async function getActiveCampaigns() {
 
 /**
  * Get a specific campaign by ID
- * @param {string} campaignId - Campaign identifier
- * @returns {Promise<Object|null>} Campaign object or null if not found
+ * @param campaignId - Campaign identifier
+ * @returns Campaign object or null if not found
  */
-export async function getCampaign(campaignId) {
+export async function getCampaign(campaignId: string): Promise<Campaign | null> {
   return await loadCampaignConfig(campaignId);
 }
 
 /**
  * Get all variants for a campaign
- * @param {string} campaignId - Campaign identifier
- * @returns {Promise<Array>} Array of variant objects
+ * @param campaignId - Campaign identifier
+ * @returns Array of variant objects
  */
-export async function getCampaignVariants(campaignId) {
+export async function getCampaignVariants(campaignId: string): Promise<CampaignVariant[]> {
   const campaign = await getCampaign(campaignId);
   if (!campaign) {
     return [];
@@ -108,10 +127,10 @@ export async function getCampaignVariants(campaignId) {
 
 /**
  * Get form configuration for a campaign
- * @param {string} campaignId - Campaign identifier
- * @returns {Promise<Object|null>} Form configuration object
+ * @param campaignId - Campaign identifier
+ * @returns Form configuration object
  */
-export async function getCampaignFormConfig(campaignId) {
+export async function getCampaignFormConfig(campaignId: string): Promise<Record<string, unknown> | null> {
   const campaign = await getCampaign(campaignId);
   return campaign?.form || null;
 }
@@ -119,7 +138,7 @@ export async function getCampaignFormConfig(campaignId) {
 /**
  * Clear cached campaigns (useful for testing or forcing refresh)
  */
-export function clearCampaignCache() {
+export function clearCampaignCache(): void {
   cachedManifest = null;
   cachedCampaigns.clear();
   manifestLoadingPromise = null;
