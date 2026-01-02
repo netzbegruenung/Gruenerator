@@ -1,15 +1,21 @@
-import type { JSX, ChangeEvent } from 'react';
-import { Controller } from 'react-hook-form';
+import type { JSX } from 'react';
+import { Controller, Control } from 'react-hook-form';
 import FormFieldWrapper from './FormFieldWrapper';
 import '../../../../assets/styles/components/form/form-image-select.css';
+
+interface ImageOption {
+  value: string | number;
+  label: string;
+  imageUrl: string;
+}
 
 interface FormImageSelectProps {
   name: string;
   label?: string;
-  options: string | number;
-  control?: Record<string, unknown>;
+  options?: ImageOption[];
+  control?: Control<any>;
   value?: string | number;
-  onChange?: (event: React.ChangeEvent) => void;
+  onChange?: (value: string | number) => void;
   required?: boolean;
   disabled?: boolean;
   helpText?: string;
@@ -26,7 +32,7 @@ interface FormImageSelectProps {
   imageProps?: Record<string, unknown>;
 }
 
-const FormImageSelect = ({ }: FormImageSelectProps): JSX.Element => ({
+const FormImageSelect = ({
   name,
   label,
   options = [],
@@ -43,8 +49,7 @@ const FormImageSelect = ({ }: FormImageSelectProps): JSX.Element => ({
   aspectRatio = '4 / 5',
   showLabel = false,
   imageProps = {},
-  ...rest
-}) => {
+}: FormImageSelectProps): JSX.Element => {
   const renderImageGrid = (selectedValue, onChange) => {
     return (
       <div
