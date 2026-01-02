@@ -306,7 +306,7 @@ const AddTemplateModal = ({
                                             <img
                                                 src={previewData.thumbnail_url}
                                                 alt="Vorschau"
-                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                             />
                                         </div>
                                     )}

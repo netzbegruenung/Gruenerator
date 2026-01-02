@@ -1,4 +1,4 @@
-import { useState, FormEvent, ReactNode } from 'react';
+import { JSX, useState, FormEvent, ReactNode } from 'react';
 import { motion } from 'motion/react';
 import useChatInput from './hooks/useChatInput';
 import AttachedFilesList from '../AttachedFilesList';
@@ -24,40 +24,52 @@ const DEFAULT_FEATURES = [
 
 const DEFAULT_TIP = "Starte z.\u00a0B. mit: „Schreib einen Instagram-Post über Solarenergie\"";
 
+interface AttachedFile {
+  name: string;
+  type?: string;
+  size?: number;
+}
+
+interface ExampleQuestion {
+  icon?: string;
+  text?: string;
+}
+
+interface Feature {
+  title?: string;
+  description?: string;
+}
+
+interface Source {
+  name?: string;
+  count?: string;
+  id?: string;
+  selected?: boolean;
+}
+
 interface ChatStartPageProps {
   title?: string;
   placeholder?: string;
   inputValue?: string;
-  onInputChange?: () => void;
-  onSubmit: (event: React.FormEvent) => void;
+  onInputChange?: (value: string) => void;
+  onSubmit: (value: string | React.FormEvent) => void;
   disabled?: boolean;
   enableFileUpload?: boolean;
-  onFileSelect?: () => void;
-  attachedFiles?: unknown[];
-  onRemoveFile?: () => void;
-  exampleQuestions: {
-    icon?: string;
-    text?: string
-  }[];
+  onFileSelect?: (files: File[]) => void;
+  attachedFiles?: AttachedFile[];
+  onRemoveFile?: (index: number) => void;
+  exampleQuestions?: ExampleQuestion[];
   variant?: 'default' | 'gruenerator';
   showFeatures?: boolean;
   showTip?: boolean;
-  features: {
-    title?: string;
-    description?: string
-  }[];
+  features?: Feature[];
   tipText?: string;
   isVoiceRecording?: boolean;
   isVoiceProcessing?: boolean;
   startRecording?: () => void;
   stopRecording?: () => void;
-  sources: {
-    name?: string;
-    count?: string;
-    id?: string;
-    selected?: boolean
-  }[];
-  onSourceToggle?: () => void;
+  sources?: Source[];
+  onSourceToggle?: (id: string) => void;
   filterBar?: ReactNode;
   filterButton?: ReactNode;
 }
@@ -105,17 +117,19 @@ const ChatStartPage = ({ title = "Was möchtest du wissen?",
   const startRecording = hasExternalVoice ? externalStartRecording : internalChatInput.startRecording;
   const stopRecording = hasExternalVoice ? externalStopRecording : internalChatInput.stopRecording;
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent | React.KeyboardEvent) => {
     event.preventDefault();
     const trimmedValue = (inputValue || '').trim();
     if (!trimmedValue || disabled) return;
     onSubmit(trimmedValue);
   };
 
-  const handleKeyDown = (event) => handleEnterKeySubmit(event, handleSubmit);
+  const handleKeyDown = (event: React.KeyboardEvent) => handleEnterKeySubmit(event, handleSubmit);
 
-  const handleExampleClick = (text) => {
-    onInputChange && onInputChange(text);
+  const handleExampleClick = (text: string | undefined) => {
+    if (text) {
+      onInputChange?.(text);
+    }
   };
 
   const containerClass = isGruenerator

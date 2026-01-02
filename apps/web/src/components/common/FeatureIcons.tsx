@@ -1,10 +1,10 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { JSX, useState, useRef, useMemo, useCallback } from 'react';
 import '../../assets/styles/components/ui/FeatureIcons.css';
 import { HiGlobeAlt, HiPaperClip, HiLightningBolt, HiPlusCircle, HiClipboardList, HiAnnotation, HiDocument, HiX } from 'react-icons/hi';
 import { HiRocketLaunch, HiSparkles } from 'react-icons/hi2';
 import GrueneratorGPTIcon from './GrueneratorGPTIcon';
 import AttachedFilesList from './AttachedFilesList';
-import ContentSelector from './ContentSelector';
+import ContentSelector, { type AttachedFile } from './ContentSelector';
 import { getPDFPageCount } from '../../utils/fileAttachmentUtils';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
 import { useInstructionsStatusForType } from '../../features/auth/hooks/useInstructionsStatus';
@@ -16,13 +16,13 @@ interface FeatureIconsProps {
   // Feature toggle props removed - now using store
   onBalancedModeClick?: () => void;
   // Optional callback for backward compatibility
-  onAttachmentClick?: () => void;
-  onRemoveFile?: () => void;
+  onAttachmentClick?: (files: File[]) => void;
+  onRemoveFile?: (index: number) => void;
   onAnweisungenClick: () => void;
   onInteractiveModeClick?: () => void;
   anweisungenActive?: boolean;
   interactiveModeActive?: boolean;
-  attachedFiles?: unknown[];
+  attachedFiles?: AttachedFile[];
   attachmentActive?: boolean;
   className?: string;
   tabIndex?: {
@@ -41,7 +41,7 @@ interface FeatureIconsProps {
   hideLoginPrompt?: boolean;
 }
 
-const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
+const FeatureIcons = ({
   // Feature toggle props removed - now using store
   onBalancedModeClick, // Keep for backward compatibility
   onAttachmentClick,
@@ -64,10 +64,10 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
   onPrivacyInfoClick,
   showWebSearchInfoLink = false,
   onWebSearchInfoClick,
-  instructionType = null,
+  instructionType = undefined,
   noBorder = false,
   hideLoginPrompt = false
-}) => {
+}: FeatureIconsProps): JSX.Element | null => {
   // Use store for feature toggles with selective subscriptions
   const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
   const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
@@ -78,21 +78,21 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
   const togglePrivacyMode = useGeneratorSelectionStore(state => state.togglePrivacyMode);
   const toggleProMode = useGeneratorSelectionStore(state => state.toggleProMode);
   const toggleUltraMode = useGeneratorSelectionStore(state => state.toggleUltraMode);
-  const [clickedIcon, setClickedIcon] = useState(null);
+  const [clickedIcon, setClickedIcon] = useState<string | null>(null);
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
-  const [validationError, setValidationError] = useState(null);
-  const [fileMetadata, setFileMetadata] = useState({});
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [fileMetadata, setFileMetadata] = useState<Record<number, { pageCount: number | null }>>({});
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Unified dropdown state - only ONE dropdown can be open at a time
-  const [activeDropdown, setActiveDropdown] = useState(null); // 'balanced' | 'content' | 'anweisungen' | null
+  const [activeDropdown, setActiveDropdown] = useState<'balanced' | 'content' | 'anweisungen' | null>(null);
 
   // Refs
-  const featureIconsRef = useRef(null);
-  const balancedContainerRef = useRef(null);
-  const contentContainerRef = useRef(null);
-  const contentDropdownRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const featureIconsRef = useRef<HTMLDivElement>(null);
+  const balancedContainerRef = useRef<HTMLDivElement>(null);
+  const contentContainerRef = useRef<HTMLDivElement>(null);
+  const contentDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Get user authentication
   const { user } = useAuth();
@@ -128,7 +128,7 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
   }, [attachedFiles.length, selectedDocumentIds.length, selectedTextIds.length]);
 
   // Smart dropdown toggle - ensures only one dropdown is open at a time
-  const handleDropdownToggle = useCallback((dropdownName) => {
+  const handleDropdownToggle = useCallback((dropdownName: 'balanced' | 'content' | 'anweisungen') => {
     setActiveDropdown(prev => {
       // If clicking same dropdown, close it
       if (prev === dropdownName) return null;
@@ -137,7 +137,7 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
     });
   }, []);
 
-  const handleIconClick = (event, type, callback) => {
+  const handleIconClick = (event: React.MouseEvent, type: string, callback?: () => void) => {
     event.preventDefault();
     event.stopPropagation();
     setClickedIcon(type);
@@ -153,7 +153,7 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
   };
 
   // File processing logic
-  const processFiles = useCallback(async (files) => {
+  const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) {
       return;
     }
@@ -163,7 +163,7 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
     setIsValidatingFiles(true);
 
     try {
-      const metadata = {};
+      const metadata: Record<number, { pageCount: number | null }> = {};
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -194,8 +194,8 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
     }
   }, [onAttachmentClick]);
 
-  const handleFileSelect = async (event) => {
-    const files = Array.from(event.target.files);
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []) as File[];
     await processFiles(files);
     event.target.value = '';
   };
@@ -257,7 +257,7 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
             tabIndex={tabIndex.balancedMode}
             type="button"
             onClick={(event) => {
-              handleIconClick(event, 'balanced');
+              handleIconClick(event, 'balanced', undefined);
               handleDropdownToggle('balanced');
             }}
           >
@@ -278,7 +278,7 @@ const FeatureIcons = ({ }: FeatureIconsProps): JSX.Element => ({
           <button
             className={`feature-icon-button ${(totalContentCount > 0 || useAutomaticSearch) ? 'active' : ''} ${clickedIcon === 'content' ? 'clicked' : ''}`}
             onClick={(event) => {
-              handleIconClick(event, 'content');
+              handleIconClick(event, 'content', undefined);
               handleDropdownToggle('content');
             }}
             aria-label="Inhalt"

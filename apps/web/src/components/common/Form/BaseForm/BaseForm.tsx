@@ -635,9 +635,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   // Handle errors separately to avoid dependency loops
   useEffect(() => {
     if (propError && propError !== storeError) {
-      setError(propError);
-      setStoreError(propError);
-      // Convert ErrorValue to string for handleFormError
+      // Convert ErrorValue to string for all error handlers
       let errorMessage = 'Ein Fehler ist aufgetreten';
       if (typeof propError === 'string') {
         errorMessage = propError;
@@ -646,7 +644,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
       } else if (propError && typeof propError === 'object' && 'message' in propError) {
         errorMessage = (propError as { message?: string }).message || errorMessage;
       }
-      handleFormError(errorMessage);
+      setError(propError);
+      setStoreError(errorMessage);
+      handleFormError(errorMessage, 'form');
     }
   }, [propError, storeError, setError, setStoreError, handleFormError]);
 
@@ -671,11 +671,11 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     enhanceFocusVisibility();
 
     const labelledElements = [
-      { element: document.querySelector('.submit-button'), label: BUTTON_LABELS.SUBMIT },
-      { element: document.querySelector('.generate-post-button'), label: BUTTON_LABELS.GENERATE_TEXT },
-      { element: document.querySelector('.copy-button'), label: BUTTON_LABELS.COPY },
-      { element: document.querySelector('.edit-button'), label: BUTTON_LABELS.EDIT },
-    ].filter(item => item.element !== null);
+      { element: document.querySelector('.submit-button') as HTMLElement | null, label: BUTTON_LABELS.SUBMIT },
+      { element: document.querySelector('.generate-post-button') as HTMLElement | null, label: BUTTON_LABELS.GENERATE_TEXT },
+      { element: document.querySelector('.copy-button') as HTMLElement | null, label: BUTTON_LABELS.COPY },
+      { element: document.querySelector('.edit-button') as HTMLElement | null, label: BUTTON_LABELS.EDIT },
+    ].filter((item): item is { element: HTMLElement; label: string } => item.element !== null);
 
     if (labelledElements.length > 0) {
       addAriaLabelsToElements(labelledElements);
@@ -701,14 +701,14 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [testAccessibility, children]);
 
   // Berechne den Anzeigetitel (memoized for performance)
-  const displayTitle = React.useMemo(() =>
-    getDisplayTitle('', false, generatedContent),
-    [getDisplayTitle, generatedContent]
-  );
+  const displayTitle = React.useMemo(() => {
+    const computedTitle = getDisplayTitle('', false, generatedContent);
+    return typeof computedTitle === 'string' ? computedTitle : '';
+  }, [getDisplayTitle, generatedContent]);
 
   // Berechne die Klassennamen für den Container (memoized for performance)
   const baseContainerClasses = React.useMemo(() => getBaseContainerClasses({
-    title,
+    title: typeof title === 'string' ? title : undefined,
     generatedContent,
     isFormVisible,
     isEditModeActive,
@@ -816,7 +816,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
               <FormSection
                 ref={formSectionRef}
                 title={typeof title === 'string' ? title : undefined}
-                onSubmit={isEditModeActive && onEditSubmit ? onEditSubmit : (useModernForm ? handleEnhancedSubmit : onSubmit)}
+                onSubmit={isEditModeActive && onEditSubmit ? (() => onEditSubmit('')) : (useModernForm ? handleEnhancedSubmit : onSubmit)}
                 isFormVisible={isFormVisible}
                 isMultiStep={isMultiStep}
                 onBack={onBack}

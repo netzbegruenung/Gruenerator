@@ -1,4 +1,4 @@
-import type { ReactNode, MouseEvent } from 'react';
+import type { JSX, ReactNode, MouseEvent } from 'react';
 import './FloatingActionButton.css';
 
 interface FloatingActionButtonProps {

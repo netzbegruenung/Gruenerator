@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, forwardRef, useImperativeHandle, lazy } from 'react';
+import React, { useState, useCallback, useRef, forwardRef, useImperativeHandle, lazy } from 'react';
 import { HiOutlineDocumentAdd, HiOutlineTrash, HiRefresh, HiDocumentText, HiClock, HiCheckCircle, HiExclamationCircle, HiEye, HiX, HiOutlineLink, HiOutlineCloudDownload } from 'react-icons/hi';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useDocumentsStore } from '../../stores/documentsStore';
@@ -27,8 +27,44 @@ const ACCEPTED_FILE_TYPES = [
   'text/markdown'
 ];
 
+// Types
+interface DocumentType {
+  id: string;
+  title: string;
+  status: string;
+  page_count?: number;
+  ocr_text?: string;
+  [key: string]: unknown;
+}
+
+interface DocumentPreviewProps {
+  document: DocumentType;
+}
+
+interface DocumentUploadProps {
+  groupId?: string | null;
+  onUploadComplete?: ((result: unknown) => void) | null;
+  onDeleteComplete?: ((documentId: string) => void) | null;
+  showTitle?: boolean;
+  showDocumentsList?: boolean;
+  forceShowUploadForm?: boolean;
+  showAsModal?: boolean;
+  className?: string;
+}
+
+export interface DocumentUploadRef {
+  showUploadForm: () => void;
+  hideUploadForm: () => void;
+}
+
+interface WolkeFile {
+  name: string;
+  shareLinkId: string;
+  [key: string]: unknown;
+}
+
 // Document Preview Component
-const DocumentPreview = ({ document }) => {
+const DocumentPreview = ({ document }: DocumentPreviewProps) => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewText, setPreviewText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -64,7 +100,7 @@ const DocumentPreview = ({ document }) => {
         title="Text-Vorschau anzeigen"
         disabled={loading}
       >
-        {loading ? <Spinner size="xsmall" /> : <HiEye />}
+        {loading ? <Spinner size="small" /> : <HiEye />}
       </button>
 
       {showPreview && (
@@ -106,14 +142,14 @@ const DocumentPreview = ({ document }) => {
   );
 };
 
-const DocumentUpload = forwardRef(({
+const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   groupId = null,
   onUploadComplete = null,
   onDeleteComplete = null,
   showTitle = true,
-  showDocumentsList = true, // New prop to control document list visibility
-  forceShowUploadForm = false, // New prop to force upload form to be visible
-  showAsModal = false, // New prop to show upload form as modal
+  showDocumentsList = true,
+  forceShowUploadForm = false,
+  showAsModal = false,
   className = ''
 }, ref) => {
   console.log('[DocumentUpload] Component mounted/re-rendered with props:', {
@@ -297,7 +333,7 @@ const DocumentUpload = forwardRef(({
 
       try {
         console.log('[DocumentUpload] Starting file upload process...');
-        const result = await uploadDocument(selectedFile, uploadTitle.trim(), groupId, ocrMethod);
+        const result = await uploadDocument(selectedFile, uploadTitle.trim(), groupId);
         console.log('[DocumentUpload] File upload successful, hiding form and calling onUploadComplete');
         resetForm();
 
@@ -663,7 +699,7 @@ const DocumentUpload = forwardRef(({
                   >
                     {isUploading ? (
                       <>
-                        <Spinner size="xsmall" />
+                        <Spinner size="small" />
                         {uploadMode === 'file' ? 'Wird hochgeladen...' :
                          uploadMode === 'url' ? 'Website wird verarbeitet...' :
                          'Wolke-Dateien werden importiert...'}
@@ -863,7 +899,7 @@ const DocumentUpload = forwardRef(({
                 >
                   {isUploading ? (
                     <>
-                      <Spinner size="xsmall" />
+                      <Spinner size="small" />
                       {uploadMode === 'file' ? 'Wird hochgeladen...' :
                        uploadMode === 'url' ? 'Website wird verarbeitet...' :
                        'Wolke-Dateien werden importiert...'}

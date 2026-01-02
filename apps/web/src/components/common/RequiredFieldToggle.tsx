@@ -1,10 +1,10 @@
-import type { ChangeEvent } from 'react';
+import type { JSX } from 'react';
 import * as Switch from '@radix-ui/react-switch';
 import '../../assets/styles/components/ui/RequiredFieldToggle.css';
 
 interface RequiredFieldToggleProps {
   checked?: boolean;
-  onChange?: (event: React.ChangeEvent) => void;
+  onChange?: (checked: boolean) => void;
   disabled?: boolean;
   label?: string;
   showLabel?: boolean;
@@ -15,7 +15,7 @@ const RequiredFieldToggle = ({ checked = false,
   disabled = false,
   label = 'Pflichtfeld',
   showLabel = true }: RequiredFieldToggleProps): JSX.Element => {
-  const handleToggle = (newChecked) => {
+  const handleToggle = (newChecked: boolean): void => {
     if (!disabled && onChange) {
       onChange(newChecked);
     }

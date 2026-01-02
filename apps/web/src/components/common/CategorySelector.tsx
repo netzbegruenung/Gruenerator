@@ -1,15 +1,5 @@
+import type { JSX } from 'react';
 
-/**
- * Reusable category selector component with button-style selection
- * @param {Object} props - Component props
- * @param {Array} props.categories - Array of category objects with id, label, icon?, disabled?
- * @param {string} props.activeCategory - Currently active category ID
- * @param {Function} props.onCategoryChange - Callback when category changes
- * @param {string} props.className - Optional additional CSS class
- * @param {boolean} props.showIcons - Whether to display icons
- * @param {string} props.badgeText - Text for disabled items badge
- * @returns {JSX.Element} Category selector component
- */
 interface CategorySelectorProps {
   categories: {
     id?: string;
@@ -18,7 +8,7 @@ interface CategorySelectorProps {
     disabled?: boolean
   }[];
   activeCategory: string;
-  onCategoryChange: () => void;
+  onCategoryChange: (categoryId: string) => void;
   className?: string;
   showIcons?: boolean;
   badgeText?: string;

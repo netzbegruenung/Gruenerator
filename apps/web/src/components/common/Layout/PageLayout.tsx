@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy, useState, ReactNode } from 'react';
+import { JSX, useEffect, Suspense, lazy, useState, ReactNode } from 'react';
 import Header from '../../layout/Header/Header';
 import { isDesktopApp } from '../../../utils/platform';
 
@@ -61,7 +61,7 @@ const PageLayout = ({ children, darkMode, toggleDarkMode, showHeaderFooter = tru
   // Web layout with header and footer
   return (
     <>
-      <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      <Header />
       <main className="content-wrapper">{children}</main>
       {showFooter && (
         <Suspense fallback={<div style={{ height: '80px' }} />}>

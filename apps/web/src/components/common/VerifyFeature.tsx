@@ -1,10 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import type { JSX, ReactNode, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../assets/styles/components/actions/verify.css';
+
 interface EyeIconProps {
   closed?: boolean;
 }
+
+interface VerifyFeatureProps {
+  feature: string;
+  children?: ReactNode;
+  onVerified?: () => void;
+  onCancel?: () => void;
+}
+
+// Stub functions for feature verification - implement backend support as needed
+const verifyPassword = async (_password: string, _feature: string): Promise<boolean> => {
+  // TODO: Implement actual password verification via backend
+  console.warn('verifyPassword is not yet implemented');
+  return false;
+};
+
+const isFeatureVerified = (_feature: string): boolean => {
+  // TODO: Implement actual feature verification check
+  return false;
+};
 
 const EyeIcon = ({ closed }: EyeIconProps): JSX.Element => (
   <svg
@@ -31,21 +51,20 @@ const EyeIcon = ({ closed }: EyeIconProps): JSX.Element => (
   </svg>
 );
 
-export default function VerifyFeature({ feature, children, onVerified, onCancel }) {
+export default function VerifyFeature({ feature, children, onVerified, onCancel }: VerifyFeatureProps): JSX.Element | ReactNode {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [lockoutTime, setLockoutTime] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
-  const { verifyPassword, isFeatureVerified } = useAuth();
   const navigate = useNavigate();
 
   const MAX_ATTEMPTS = 3;
   const LOCKOUT_DURATION = 300; // 5 Minuten in Sekunden
 
   useEffect(() => {
-    let timer;
+    let timer: ReturnType<typeof setInterval>;
     if (lockoutTime > 0) {
       timer = setInterval(() => {
         setLockoutTime(prev => {
@@ -61,7 +80,7 @@ export default function VerifyFeature({ feature, children, onVerified, onCancel 
     return () => clearInterval(timer);
   }, [lockoutTime]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 

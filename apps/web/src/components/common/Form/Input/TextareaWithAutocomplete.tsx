@@ -1,5 +1,6 @@
-import { useCallback, ComponentType } from 'react';
+import { JSX, useCallback, ComponentType, ChangeEvent, KeyboardEvent, RefCallback, MutableRefObject } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
+import { ControllerRenderProps, FieldError } from 'react-hook-form';
 import { useTextAutocomplete, COMBINED_DICTIONARY } from '../../../../hooks/useTextAutocomplete';
 import '../../../../assets/styles/components/form/form-inputs.css';
 
@@ -10,8 +11,8 @@ import '../../../../assets/styles/components/form/form-inputs.css';
  * caused by component recreation on re-renders.
  */
 interface TextareaWithAutocompleteProps {
-  field: string | number;
-  error?: Record<string, unknown>;
+  field: ControllerRenderProps<Record<string, unknown>, string>;
+  error?: FieldError;
   textareaId?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -22,16 +23,16 @@ interface TextareaWithAutocompleteProps {
   tabIndex?: number;
   textareaProps?: Record<string, unknown>;
   enableUrlDetection?: boolean;
-  onFieldValueChange?: () => void;
-  onExternalChange?: () => void;
+  onFieldValueChange?: (value: string) => void;
+  onExternalChange?: (value: string) => void;
   dictionary?: string[];
   minChars?: number;
   addHashtagOnAccept?: boolean;
   showCharacterCount?: boolean;
-  CharacterCount?: ComponentType;
+  CharacterCount?: ComponentType<{ value: string | undefined }>;
 }
 
-const TextareaWithAutocomplete = ({ }: TextareaWithAutocompleteProps): JSX.Element => ({
+const TextareaWithAutocomplete = ({
   field,
   error,
   textareaId,
@@ -46,21 +47,22 @@ const TextareaWithAutocomplete = ({ }: TextareaWithAutocompleteProps): JSX.Eleme
   enableUrlDetection = false,
   onFieldValueChange,
   onExternalChange,
-  // Autocomplete options
   dictionary = COMBINED_DICTIONARY,
   minChars = 3,
   addHashtagOnAccept = true,
-  // Character count
   showCharacterCount = false,
   CharacterCount
-}) => {
-  const autocomplete = useTextAutocomplete(field.value || '', field.onChange, {
+}: TextareaWithAutocompleteProps): JSX.Element => {
+  // Cast field.value to string since we know it's a text field
+  const fieldValue = (field.value as string) || '';
+
+  const autocomplete = useTextAutocomplete(fieldValue, field.onChange, {
     dictionary,
     minChars,
     addHashtagOnAccept
   });
 
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
     autocomplete.handleChange(e);
 
     if (enableUrlDetection && onFieldValueChange) {
@@ -72,14 +74,14 @@ const TextareaWithAutocomplete = ({ }: TextareaWithAutocompleteProps): JSX.Eleme
     }
   }, [autocomplete, enableUrlDetection, onFieldValueChange, onExternalChange]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     autocomplete.handleKeyDown(e);
-    if (textareaProps.onKeyDown) {
-      textareaProps.onKeyDown(e);
+    const onKeyDown = textareaProps.onKeyDown as ((e: KeyboardEvent<HTMLTextAreaElement>) => void) | undefined;
+    if (onKeyDown) {
+      onKeyDown(e);
     }
   }, [autocomplete, textareaProps]);
 
-  // Always apply wrapper class to ensure proper styling for ghost text
   const hasActiveSuggestion = !!autocomplete.suggestionSuffix;
 
   return (
@@ -91,13 +93,14 @@ const TextareaWithAutocomplete = ({ }: TextareaWithAutocompleteProps): JSX.Eleme
         </div>
       )}
       <TextareaAutosize
-        {...field}
+        name={field.name}
+        value={fieldValue}
+        onBlur={field.onBlur}
         ref={(el) => {
-          // Combine refs: react-hook-form ref and autocomplete ref
           if (typeof field.ref === 'function') {
-            field.ref(el);
-          } else if (field.ref) {
-            field.ref.current = el;
+            (field.ref as RefCallback<HTMLTextAreaElement>)(el);
+          } else if (field.ref && typeof field.ref === 'object') {
+            (field.ref as MutableRefObject<HTMLTextAreaElement | null>).current = el;
           }
           autocomplete.textareaRef.current = el;
         }}
@@ -116,7 +119,7 @@ const TextareaWithAutocomplete = ({ }: TextareaWithAutocompleteProps): JSX.Eleme
       {hasActiveSuggestion && (
         <span className="textarea-autocomplete-hint">Tab um zu akzeptieren</span>
       )}
-      {CharacterCount && <CharacterCount value={field.value} />}
+      {CharacterCount && <CharacterCount value={fieldValue} />}
     </div>
   );
 };

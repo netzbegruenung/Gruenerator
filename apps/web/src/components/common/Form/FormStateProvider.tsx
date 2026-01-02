@@ -467,24 +467,24 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
         return state.tabIndexConfig[key] ?? fallback;
       },
 
-      getPlatformConfig: (key, fallback) => {
+      getPlatformConfig: <T,>(key: string, fallback: T): T => {
         const state = get();
-        return state.platformConfig[key] ?? fallback;
+        return (state.platformConfig[key] as T) ?? fallback;
       },
 
-      getSubmitConfig: (key, fallback) => {
+      getSubmitConfig: <T,>(key: string, fallback: T): T => {
         const state = get();
-        return state.submitConfig[key] ?? fallback;
+        return (state.submitConfig[key] as T) ?? fallback;
       },
 
-      getUIConfig: (key, fallback) => {
+      getUIConfig: <T,>(key: string, fallback: T): T => {
         const state = get();
-        return state.uiConfig[key] ?? fallback;
+        return (state.uiConfig[key] as T) ?? fallback;
       },
 
-      getHelpConfig: (key, fallback) => {
+      getHelpConfig: <T,>(key: string, fallback: T): T => {
         const state = get();
-        return state.helpConfig[key] ?? fallback;
+        return (state.helpConfig[key] as T) ?? fallback;
       }
     }))
   );
@@ -497,14 +497,14 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
  * @param {Object} props.initialState - Initial state for the form store
  * @param {string} props.formId - Unique identifier for this form instance (for debugging)
  */
-export const FormStateProvider = ({ children, initialState = {}, formId = 'default' }) => {
+export const FormStateProvider = ({ children, initialState = {}, formId = 'default' }: FormStateProviderProps) => {
   // Create a unique store instance for this form
   const store = useMemo(() => {
     const storeInstance = createFormStateStore(initialState);
 
     // Add debug info in development
     if (process.env.NODE_ENV === 'development') {
-      storeInstance.formId = formId;
+      (storeInstance as FormStateStoreType & { formId?: string }).formId = formId;
     }
 
     return storeInstance;

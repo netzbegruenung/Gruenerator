@@ -22,7 +22,7 @@ interface FeatureIconsTabIndex {
 
 interface FormSectionProps {
   title?: string;
-  onSubmit: () => void;
+  onSubmit: ((data?: Record<string, unknown>) => void | Promise<void>) | (() => void);
   isFormVisible: boolean;
   isMultiStep?: boolean;
   onBack?: () => void;
@@ -31,7 +31,7 @@ interface FormSectionProps {
   submitButtonProps?: Record<string, unknown>;
   interactiveModeToggle?: FeatureToggle;
   useInteractiveModeToggle?: boolean;
-  onAttachmentClick?: (files: File[]) => void;
+  onAttachmentClick?: ((files: File[]) => void) | ((files?: File[]) => void);
   onRemoveFile?: (index: number) => void;
   enablePlatformSelector?: boolean;
   platformOptions?: PlatformOption[];
@@ -337,7 +337,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
       )}
 
       {/* Contextual tip - shown below example prompts */}
-      {contextualTip && <InputTip tip={contextualTip} />}
+      {contextualTip && <InputTip tip={{ text: contextualTip.text, icon: typeof contextualTip.icon === 'string' ? contextualTip.icon : undefined }} />}
       </div>
     </div>
   );

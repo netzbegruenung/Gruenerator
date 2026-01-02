@@ -1,4 +1,4 @@
-import type { ReactNode, FormEvent } from 'react';
+import type { JSX, ReactNode, FormEvent } from 'react';
 import { motion } from 'motion/react';
 import ChatUI from './ChatUI';
 import ChatStartPage from './ChatStartPage';
@@ -10,20 +10,57 @@ import ChatFileUploadButton from './ChatFileUploadButton';
 import { handleEnterKeySubmit } from './utils/chatMessageUtils';
 import '../../../assets/styles/components/chat/chat-workbench.css';
 
+interface ChatMessage {
+  type: 'user' | 'assistant' | 'error';
+  content: string;
+  timestamp?: number;
+  userName?: string;
+  quotedText?: string;
+  attachments?: Array<{ type?: string; name: string }>;
+  actions?: Array<{ value: string; label?: string }>;
+  isEditResult?: boolean;
+  editSummary?: string;
+}
+
+interface AttachedFile {
+  name: string;
+  type?: string;
+  size?: number;
+}
+
+interface WorkbenchModeConfig {
+  label?: string;
+  icon?: React.ComponentType;
+  title?: string;
+  description?: string;
+}
+
+interface Source {
+  name?: string;
+  count?: string;
+  id?: string;
+  selected?: boolean;
+}
+
+interface ExampleQuestion {
+  icon?: string;
+  text?: string;
+}
+
 interface ChatWorkbenchLayoutProps {
   mode: string;
-  modes: Record<string, unknown>;
-  onModeChange: () => void;
+  modes: Record<string, WorkbenchModeConfig>;
+  onModeChange: (mode: string) => void;
   title?: string | number;
   headerContent?: ReactNode;
-  messages: 'user' | 'assistant' | 'error';
-  onSubmit?: (event: React.FormEvent) => void;
+  messages: ChatMessage[];
+  onSubmit?: (value: string | React.FormEvent) => void;
   isProcessing?: boolean;
   placeholder?: string;
   inputValue?: string;
-  onInputChange?: () => void;
+  onInputChange?: (value: string) => void;
   disabled?: boolean;
-  renderMessage?: () => void;
+  renderMessage?: (message: ChatMessage, index: number) => ReactNode;
   rightPanelContent?: ReactNode;
   rightPanelFooter?: ReactNode;
   infoPanelContent?: ReactNode;
@@ -32,25 +69,18 @@ interface ChatWorkbenchLayoutProps {
   isEditModeActive?: boolean;
   hideModeSelector?: boolean;
   hideHeader?: boolean;
-  onVoiceRecorderTranscription?: () => void;
+  onVoiceRecorderTranscription?: (text: string) => void;
+  autoSubmitVoice?: boolean;
   enableFileUpload?: boolean;
-  onFileSelect?: () => void;
-  attachedFiles?: unknown[];
-  onRemoveFile?: () => void;
+  onFileSelect?: (files: File[]) => void;
+  attachedFiles?: AttachedFile[];
+  onRemoveFile?: (index: number) => void;
   singleLine?: boolean;
   showStartPage?: boolean;
   startPageTitle?: string;
-  exampleQuestions: {
-    icon?: string;
-    text?: string
-  }[];
-  sources: {
-    name?: string;
-    count?: string;
-    id?: string;
-    selected?: boolean
-  }[];
-  onSourceToggle?: () => void;
+  exampleQuestions?: ExampleQuestion[];
+  sources?: Source[];
+  onSourceToggle?: (id: string) => void;
   filterBar?: ReactNode;
   filterButton?: ReactNode;
 }
@@ -106,14 +136,14 @@ const ChatWorkbenchLayout = ({ mode,
     onFileSelect
   });
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (event: React.FormEvent | React.KeyboardEvent) => {
     event.preventDefault();
     const trimmedValue = (inputValue || '').trim();
     if (!trimmedValue || disabled) return;
-    onSubmit(trimmedValue);
+    onSubmit?.(trimmedValue);
   };
 
-  const handleKeyDown = (event) => handleEnterKeySubmit(event, handleSubmit);
+  const handleKeyDown = (event: React.KeyboardEvent) => handleEnterKeySubmit(event, handleSubmit);
 
   const renderModeSelector = () => (
     <ModeSelector

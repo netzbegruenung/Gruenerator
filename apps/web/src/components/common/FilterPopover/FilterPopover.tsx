@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { JSX, useEffect, useState, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import useClickOutside from '../../../hooks/useClickOutside';
 import './FilterPopover.css';

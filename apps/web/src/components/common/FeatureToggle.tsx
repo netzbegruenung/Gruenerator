@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import type { JSX, ComponentType } from 'react';
 import * as Switch from '@radix-ui/react-switch';
 import '../../assets/styles/components/ui/FeatureToggle.css';
 

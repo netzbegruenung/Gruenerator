@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import type { JSX, ChangeEvent } from 'react';
 import { HiDocument, HiClipboardList, HiLightningBolt, HiUpload, HiX, HiCheck, HiFolder } from 'react-icons/hi';
 import { useShallow } from 'zustand/react/shallow';
 import { useGeneratorSelectionStore } from '../../stores/core/generatorSelectionStore';
@@ -6,14 +7,21 @@ import { useAuth } from '../../hooks/useAuth';
 import AttachedFilesList from './AttachedFilesList';
 import '../../assets/styles/components/ui/ContentSelector.css';
 
+export interface AttachedFile {
+  name: string;
+  size?: number;
+  type?: string;
+  [key: string]: unknown;
+}
+
 /**
  * ContentSelector - Simple file and text selector with popup
  */
 interface ContentSelectorProps {
   disabled?: boolean;
-  onAttachmentClick?: () => void;
-  onRemoveFile?: () => void;
-  attachedFiles?: unknown[];
+  onAttachmentClick?: (files: File[]) => void;
+  onRemoveFile?: (index: number) => void;
+  attachedFiles?: AttachedFile[];
   onDropdownClose?: () => void;
 }
 
@@ -21,9 +29,9 @@ const ContentSelector = ({ disabled = false,
   onAttachmentClick,
   onRemoveFile,
   attachedFiles = [],
-  onDropdownClose }: ContentSelectorProps): JSX.Element => {
+  onDropdownClose }: ContentSelectorProps): JSX.Element | null => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     availableTexts,
@@ -61,8 +69,8 @@ const ContentSelector = ({ disabled = false,
     [enableDocuments, availableDocuments]
   );
 
-  const handleFileSelect = (event) => {
-    const files = Array.from(event.target.files);
+  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files ? Array.from(event.target.files) : [];
     if (files.length > 0 && onAttachmentClick) {
       onAttachmentClick(files);
     }

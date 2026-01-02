@@ -1,13 +1,14 @@
-import { useRef } from 'react';
+import { JSX, useRef } from 'react';
 import { HiX } from 'react-icons/hi';
 
 interface FileUploadProps {
-  handleChange: () => void;
+  handleChange: (file: File | null) => void;
   error?: string;
   allowedTypes?: string[];
   loading?: boolean;
-  file?: Record<string, unknown>;
+  file?: File | null;
   label?: string;
+  tabIndex?: number;
 }
 
 const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = "Datei auswählen" }: FileUploadProps): JSX.Element => {

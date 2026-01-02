@@ -1,5 +1,5 @@
 
-const formatDate = (value) => {
+const formatDate = (value: string | Date | null | undefined): string => {
   if (!value) return '';
   try {
     return new Date(value).toLocaleDateString('de-DE');
@@ -8,7 +8,11 @@ const formatDate = (value) => {
   }
 };
 
-export const GallerySkeleton = ({ className }) => (
+interface GallerySkeletonProps {
+  className?: string;
+}
+
+export const GallerySkeleton = ({ className }: GallerySkeletonProps) => (
   <div className={`gallery-item-card skeleton${className ? ` ${className}` : ''}`}>
     <div className="skeleton-line skeleton-title" />
     <div className="skeleton-line skeleton-text" />
@@ -16,7 +20,42 @@ export const GallerySkeleton = ({ className }) => (
   </div>
 );
 
-export const cardAdapters = {
+interface CardAdapterOptions {
+  onTagClick?: (tag: string) => void;
+  onOpenPreview?: (item: GalleryItem) => void;
+}
+
+interface CardAdapterResult {
+  key: string;
+  props: Record<string, unknown>;
+}
+
+interface GalleryItem {
+  id: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  created_at?: string;
+  type?: string;
+  slug?: string;
+  tags?: string[];
+  template_type?: string;
+  thumbnail_url?: string;
+  external_url?: string;
+  content_data?: {
+    content?: string;
+    caption?: string;
+    originalUrl?: string;
+  };
+  metadata?: {
+    author_name?: string;
+    contact_email?: string;
+  };
+}
+
+type CardAdapter = (item: GalleryItem, options?: CardAdapterOptions) => CardAdapterResult | null;
+
+export const cardAdapters: Record<string, CardAdapter> = {
   antraege: (item) => {
     const tags = Array.isArray(item.tags) ? item.tags.slice(0, 3) : [];
     const hasMoreTags = Array.isArray(item.tags) && item.tags.length > 3;
@@ -27,9 +66,9 @@ export const cardAdapters = {
     };
 
     return {
-      key: item.id,
+      key: String(item.id),
       props: {
-        title: item.title,
+        title: item.title || '',
         description: item.description || '',
         meta: item.created_at ? `Erstellt am: ${formatDate(item.created_at)}` : '',
         tags: hasMoreTags ? [...tags, '...'] : tags,
@@ -39,9 +78,9 @@ export const cardAdapters = {
     };
   },
   generators: (item) => ({
-    key: item.id,
+    key: String(item.id),
     props: {
-      title: item.name || item.title,
+      title: item.name || item.title || '',
       description: item.description || item.content_data?.content || '',
       meta: item.created_at ? `Erstellt am: ${formatDate(item.created_at)}` : '',
       onClick: () => {
@@ -56,10 +95,10 @@ export const cardAdapters = {
     const preview = String(rawText).slice(0, 180);
 
     return {
-      key: item.id,
+      key: String(item.id),
       props: {
-        title: item.title,
-        description: rawText ? `${preview}${rawText.length > 180 ? '...' : ''}` : '',
+        title: item.title || '',
+        description: rawText ? `${preview}${String(rawText).length > 180 ? '...' : ''}` : '',
         meta: item.type ? `${item.type} · ${formatDate(item.created_at)}` : formatDate(item.created_at),
         className: 'pr-card'
       }
@@ -74,8 +113,8 @@ export const cardAdapters = {
     const authorName = item.metadata?.author_name || '';
     const authorEmail = item.metadata?.contact_email || '';
 
-    const handleClick = options.onOpenPreview
-      ? () => options.onOpenPreview(item)
+    const handleClick = options?.onOpenPreview
+      ? () => options.onOpenPreview?.(item)
       : () => {
           if (typeof window === 'undefined') return;
           const url = item.content_data?.originalUrl || item.external_url;
@@ -85,14 +124,14 @@ export const cardAdapters = {
         };
 
     return {
-      key: item.id,
+      key: String(item.id),
       props: {
         title: item.title || 'Unbenannte Vorlage',
         description: item.description || '',
         meta: templateType || '',
         tags,
         thumbnailUrl: item.thumbnail_url || '',
-        onTagClick: options.onTagClick,
+        onTagClick: options?.onTagClick,
         onClick: handleClick,
         className: 'vorlagen-card',
         authorName,
@@ -101,9 +140,9 @@ export const cardAdapters = {
     };
   },
   default: (item) => ({
-    key: item.id,
+    key: String(item.id),
     props: {
-      title: item.title,
+      title: item.title || '',
       description: item.description || '',
       meta: item.created_at ? formatDate(item.created_at) : ''
     }

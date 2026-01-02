@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useEffect, useMemo, FormEvent, ReactNode } from 'react';
+import { JSX, lazy, Suspense, useRef, useEffect, useMemo, FormEvent, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import './ChatUI.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
@@ -13,28 +13,44 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 
+interface ChatMessage {
+  type: 'user' | 'assistant' | 'error';
+  content: string;
+  timestamp?: number;
+  userName?: string;
+  quotedText?: string;
+  attachments?: Array<{ type?: string; name: string }>;
+  actions?: Array<{ value: string; label?: string }>;
+}
+
+interface AttachedFile {
+  name: string;
+  type?: string;
+  size?: number;
+}
+
 interface ChatUIProps {
-  messages: 'user' | 'assistant' | 'error';
-  onSubmit?: (event: React.FormEvent) => void;
+  messages: ChatMessage[];
+  onSubmit?: (value: string | React.FormEvent) => void;
   isProcessing?: boolean;
   placeholder?: string;
   inputValue?: string;
-  onInputChange?: () => void;
+  onInputChange?: (value: string) => void;
   disabled?: boolean;
-  renderInput?: () => void;
-  renderMessage?: () => void;
+  renderInput?: () => ReactNode;
+  renderMessage?: (message: ChatMessage, index: number) => ReactNode;
   children?: ReactNode;
   className?: string;
   fullScreen?: boolean;
   showHeader?: boolean;
   headerTitle?: string;
   onClose?: () => void;
-  onVoiceRecorderTranscription?: () => void;
+  onVoiceRecorderTranscription?: (text: string) => void;
   autoSubmitVoice?: boolean;
   enableFileUpload?: boolean;
-  onFileSelect?: () => void;
-  attachedFiles?: unknown[];
-  onRemoveFile?: () => void;
+  onFileSelect?: (files: File[]) => void;
+  attachedFiles?: AttachedFile[];
+  onRemoveFile?: (index: number) => void;
   singleLine?: boolean;
   // Voice recording props from parent (optional)
   isVoiceRecording?: boolean;
@@ -70,12 +86,12 @@ const ChatUI = ({ messages = [],
   isVoiceProcessing: externalIsVoiceProcessing,
   startRecording: externalStartRecording,
   stopRecording: externalStopRecording }: ChatUIProps): JSX.Element => {
-  const chatContainerRef = useRef(null);
-  const lastMessageIndexRef = useRef(0);
-  const scrollTimeoutRef = useRef(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const lastMessageIndexRef = useRef<number>(0);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { user } = useOptimizedAuth();
-  const { data: profile } = useProfile(user?.id);
+  const { data: profile } = useProfile(user?.id) as { data: { avatar_robot_id?: number; display_name?: string } | null };
 
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
   const displayName = profile?.display_name || '';
@@ -148,13 +164,13 @@ const ChatUI = ({ messages = [],
     }
   }, [messages, isProcessing]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || disabled) return;
     onSubmit && onSubmit(inputValue);
   };
 
-  const defaultRenderMessage = (msg, index) => {
+  const defaultRenderMessage = (msg: ChatMessage, index: number) => {
     return (
       <motion.div
         key={msg.timestamp || index}

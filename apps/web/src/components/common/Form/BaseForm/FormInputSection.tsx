@@ -1,9 +1,8 @@
 import React, { forwardRef, memo, ReactNode } from 'react';
-import { FormProvider, Control, FieldValues, UseFormReturn } from 'react-hook-form';
+import { FormProvider, Control, FieldValues, useForm } from 'react-hook-form';
 import SubmitButton from '../../SubmitButton';
 import PlatformSelector from '../../../common/PlatformSelector';
 import FileUpload from '../../../common/FileUpload';
-import { useBaseForm } from '../hooks';
 import type { FormInputSectionProps, PlatformOption, FormControl } from '@/types/baseform';
 
 const hasFormErrors = (formErrors: Record<string, string> = {}): boolean =>
@@ -54,10 +53,8 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors as Record<string, string>));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
 
-  const modernForm = useBaseForm({
-    defaultValues,
-    validationRules,
-    enableLegacyMode: true
+  const modernForm = useForm({
+    defaultValues
   });
 
   const handleFormChange = (name: string, value: unknown): void => {
@@ -76,10 +73,14 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
           {typeof children === 'function'
             ? children({
                 control: modernForm.control,
-                errors: modernForm.errors,
-                formData: modernForm.formData,
-                handleChange: handleFormChange,
-                ...modernForm
+                register: modernForm.register,
+                setValue: modernForm.setValue,
+                getValues: modernForm.getValues,
+                formState: {
+                  errors: modernForm.formState.errors,
+                  isDirty: modernForm.formState.isDirty,
+                  isValid: modernForm.formState.isValid
+                }
               } as FormControl)
             : children
           }
@@ -111,9 +112,9 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
           {showImageUpload && (
             <div className="form-inputs__image-upload">
               <FileUpload
-                handleChange={onImageChange}
+                handleChange={(file: File | null) => onImageChange?.(file)}
                 allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
-                file={uploadedImage}
+                file={uploadedImage instanceof File ? uploadedImage : null}
                 loading={loading}
                 label="Bild für Sharepic (optional)"
               />
@@ -136,7 +137,7 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
             )}
             {showSubmitButton && (
               <SubmitButton
-                onClick={onSubmit}
+                onClick={(e: React.MouseEvent) => { e.preventDefault(); onSubmit?.(); }}
                 loading={loading}
                 success={success}
                 text={isMultiStep ? (nextButtonText || 'Weiter') : ((submitButtonProps as Record<string, string>)?.defaultText || "Grünerieren")}

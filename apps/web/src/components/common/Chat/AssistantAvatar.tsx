@@ -1,4 +1,5 @@
 import { AssistantIcon } from '../../../config/icons';
+import type { JSX } from 'react';
 
 interface AssistantAvatarProps {
   avatarProps?: {

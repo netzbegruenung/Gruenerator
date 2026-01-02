@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useEffect, useMemo } from 'react';
+import { JSX, lazy, Suspense, useState, useCallback, useEffect, useMemo, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 const Select = lazy(() => import('react-select'));
 import { HiRefresh, HiExclamationCircle, HiCheck, HiTemplate } from 'react-icons/hi';
@@ -7,18 +7,52 @@ import * as canvaUtils from '../../../components/utils/canvaUtils';
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import './CanvaSelector.css';
 
+interface CanvaDesign {
+  id: string;
+  title?: string;
+  thumbnail_url?: string;
+  created_at?: string;
+  relevanceScore?: number;
+  [key: string]: unknown;
+}
+
+interface CanvaDesignSelection {
+  type: string;
+  design: CanvaDesign;
+  imageUrl: string;
+  title: string;
+}
+
+interface DesignOption {
+  value: string;
+  label: string;
+  design: CanvaDesign;
+  thumbnail_url: string;
+  created_at?: string;
+}
+
+interface FormatOptionLabelContext {
+  context: 'menu' | 'value';
+}
+
 interface CanvaSelectorProps {
-  onImageSelect: () => void;
+  onImageSelect: (selection: CanvaDesignSelection) => void;
   selectedImageId?: string;
   loading?: boolean;
   variant?: 'dropdown' | 'grid';
 }
 
+interface CanvaConnectionStatus {
+  connected: boolean;
+  user: unknown;
+  loading: boolean;
+}
+
 const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoading, variant = 'dropdown' }: CanvaSelectorProps): JSX.Element => {
   const { isAuthenticated } = useOptimizedAuth();
-  const [selectedDesign, setSelectedDesign] = useState(null);
+  const [selectedDesign, setSelectedDesign] = useState<CanvaDesign | null>(null);
   const [currentSearchTerm, setCurrentSearchTerm] = useState('');
-  const [canvaConnectionStatus, setCanvaConnectionStatus] = useState({
+  const [canvaConnectionStatus, setCanvaConnectionStatus] = useState<CanvaConnectionStatus>({
     connected: false,
     user: null,
     loading: true
@@ -30,7 +64,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
         const status = await canvaUtils.checkCanvaConnectionStatus(isAuthenticated);
         setCanvaConnectionStatus({
           connected: status.connected,
-          user: status.user,
+          user: status.canva_user,
           loading: false
         });
       } catch (error) {
@@ -59,7 +93,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
     isLoading: designsLoading,
     error: designsError,
     refetch: refetchDesigns
-  } = useQuery({
+  } = useQuery<CanvaDesign[]>({
     queryKey: ['canva-designs-for-alttext', isAuthenticated, canvaConnectionStatus.connected],
     queryFn: () => canvaUtils.fetchRecentCanvaDesigns(canvaConnectionStatus.connected, isAuthenticated, 50),
     enabled: isAuthenticated && canvaConnectionStatus.connected && !canvaConnectionStatus.loading,
@@ -67,7 +101,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
     refetchOnWindowFocus: false
   });
 
-  const calculateRelevanceScore = useCallback((design, searchTerm) => {
+  const calculateRelevanceScore = useCallback((design: CanvaDesign, searchTerm: string): number => {
     if (!searchTerm) return 0;
 
     const title = (design.title || '').toLowerCase();
@@ -86,7 +120,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
     return score;
   }, []);
 
-  const designOptions = useMemo(() => {
+  const designOptions = useMemo((): DesignOption[] => {
     let filteredDesigns = designs.filter(design =>
       design.thumbnail_url && design.thumbnail_url !== ''
     );
@@ -99,13 +133,13 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
           ...design,
           relevanceScore: calculateRelevanceScore(design, searchTerm)
         }))
-        .filter(design => design.relevanceScore > 0)
-        .sort((a, b) => b.relevanceScore - a.relevanceScore);
+        .filter(design => (design.relevanceScore ?? 0) > 0)
+        .sort((a, b) => (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0));
     } else {
       filteredDesigns = filteredDesigns.sort((a, b) => {
         const aDate = new Date(a.created_at || 0);
         const bDate = new Date(b.created_at || 0);
-        return bDate - aDate;
+        return bDate.getTime() - aDate.getTime();
       });
     }
 
@@ -113,15 +147,17 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
       value: design.id,
       label: design.title || 'Untitled Design',
       design: design,
-      thumbnail_url: design.thumbnail_url,
+      thumbnail_url: design.thumbnail_url || '',
       created_at: design.created_at
     }));
   }, [designs, currentSearchTerm, calculateRelevanceScore]);
 
-  const handleDesignSelect = useCallback(async (designOrOption) => {
-    if (externalLoading) return;
+  const handleDesignSelect = useCallback(async (designOrOption: DesignOption | CanvaDesign | null) => {
+    if (externalLoading || !designOrOption) return;
 
-    const design = designOrOption.design || designOrOption;
+    const design: CanvaDesign = ('design' in designOrOption && designOrOption.design)
+      ? designOrOption.design
+      : designOrOption as CanvaDesign;
     if (!design.thumbnail_url) return;
 
     setSelectedDesign(design);
@@ -131,7 +167,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
         type: 'canva',
         design: design,
         imageUrl: design.thumbnail_url,
-        title: design.title
+        title: design.title || ''
       });
     } catch (error) {
       console.error('[CanvaSelector] Error selecting design:', error);
@@ -139,7 +175,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
     }
   }, [onImageSelect, externalLoading]);
 
-  const formatOptionLabel = useCallback((option, { context }) => {
+  const formatOptionLabel = useCallback((option: DesignOption, { context }: FormatOptionLabelContext) => {
     if (context === 'menu') {
       return (
         <div className="canva-option">
@@ -223,7 +259,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designsError) {
-    const errorContent = (
+    const errorContent: ReactElement = (
       <div className="canva-selector-message error">
         <HiExclamationCircle className="icon" />
         <h4>Fehler beim Laden</h4>
@@ -254,7 +290,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designsLoading) {
-    const loadingContent = (
+    const loadingContent: ReactElement = (
       <div className="canva-selector-loading">
         <div className="loading-spinner"></div>
         <p>Lade deine Canva-Designs...</p>
@@ -277,7 +313,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designs.length === 0) {
-    const emptyContent = (
+    const emptyContent: ReactElement = (
       <div className="canva-selector-message">
         <HiTemplate className="icon" />
         <h4>Keine Designs gefunden</h4>

@@ -1,12 +1,20 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, ReactNode, ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import '../../assets/styles/components/ui/menu-dropdown.css';
 
-const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight = true }) => {
+interface MenuDropdownProps {
+  trigger: ReactNode;
+  children: ReactNode | ((props: { onClose: () => void }) => ReactNode);
+  onClose?: () => void;
+  className?: string;
+  alignRight?: boolean;
+}
+
+const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight = true }: MenuDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [style, setStyle] = useState({ opacity: 0 });
-  const triggerRef = useRef(null);
-  const dropdownRef = useRef(null);
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const updatePosition = useCallback(() => {
     if (!triggerRef.current || !dropdownRef.current) return;

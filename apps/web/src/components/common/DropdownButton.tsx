@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { JSX, useState, useRef, useEffect, useCallback, CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { HiChevronDown, HiGlobe } from 'react-icons/hi';
@@ -26,10 +26,10 @@ const DropdownButton = ({
   variant = 'navigation'
 }: DropdownButtonProps): JSX.Element => {
   const [isOpen, setIsOpen] = useState(false);
-  const [style, setStyle] = useState({ opacity: 0 });
-  const triggerRef = useRef(null);
-  const dropdownRef = useRef(null);
-  const closeTimeoutRef = useRef(null);
+  const [style, setStyle] = useState<CSSProperties>({ opacity: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Count available options: Custom Grünerator is always available
   const optionCount = 1 + (showNotebook ? 1 : 0) + (showSite ? 1 : 0);

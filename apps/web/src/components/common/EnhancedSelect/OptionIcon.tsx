@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, ComponentType, ReactNode } from 'react';
 import { FaBrain } from 'react-icons/fa';
 import { HiDocument, HiDocumentText } from 'react-icons/hi';
 
@@ -6,14 +6,19 @@ import { HiDocument, HiDocumentText } from 'react-icons/hi';
  * OptionIcon - Standardized icon rendering for select options
  * Supports both direct icon components and icon type strings with built-in mappings
  */
-interface OptionIconProps {
-  icon?: string | number;
-  iconType?: string;
-  size?: number;
-  config?: Record<string, unknown>;
+interface OptionIconConfig {
+  className?: string;
+  [key: string]: unknown;
 }
 
-const OptionIcon = memo(({ icon: Icon, iconType, size = 16, config = {} }) => {
+interface OptionIconProps {
+  icon?: ComponentType<{ className?: string; size?: number }> | string | ReactNode;
+  iconType?: string;
+  size?: number;
+  config?: OptionIconConfig;
+}
+
+const OptionIcon = memo<OptionIconProps>(({ icon: Icon, iconType, size = 16, config = {} }) => {
   const iconClass = config.className || "option-icon";
 
   // If direct icon component is provided, use it

@@ -25,35 +25,26 @@ const CopyButton = ({
   const isMobileView = window.innerWidth <= 768;
 
   const handleCopy = async () => {
+    const onSuccess = () => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    };
+    const onError = (error: unknown) => {
+      console.error('Fehler beim Kopieren:', error);
+    };
+
     if (directContent) {
       try {
         await navigator.clipboard.writeText(directContent);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
+        onSuccess();
       } catch (error) {
-        console.error('Fehler beim Kopieren:', error);
+        onError(error);
       }
     } else if (content) {
-      await copyFormattedContent(
-        content,
-        () => {
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 2000);
-        },
-        (error: unknown) => {
-          console.error('Fehler beim Kopieren:', error);
-        }
-      );
+      await copyFormattedContent(content, onSuccess, onError);
     } else {
-      await copyFormattedContent(
-        () => {
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 2000);
-        },
-        (error: unknown) => {
-          console.error('Fehler beim Kopieren:', error);
-        }
-      );
+      // Old signature without content - uses generatedText from store
+      await copyFormattedContent(onSuccess, onError, undefined);
     }
   };
 

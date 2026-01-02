@@ -1,19 +1,15 @@
-import { useRef, useCallback } from 'react';
+import { JSX, useRef, useCallback, ComponentType } from 'react';
 
-/**
- * Universal mode selector component for switching between different chat/interface modes
- * @param {Object} props - Component props
- * @param {string} props.currentMode - Currently active mode
- * @param {Object} props.modes - Object with mode keys and their config: { modeKey: { label, icon, title } }
- * @param {Function} props.onModeChange - Callback when mode changes
- * @param {Function} props.onReviewMode - Callback when long press triggers review mode
- * @param {string} props.className - Additional CSS class
- * @param {boolean} props.disabled - Whether selector is disabled
- */
+interface ModeConfig {
+  label?: string;
+  icon?: ComponentType;
+  title?: string;
+}
+
 interface ModeSelectorProps {
   currentMode: string;
-  modes: unknown;
-  onModeChange: () => void;
+  modes: Record<string, ModeConfig>;
+  onModeChange: (mode: string) => void;
   onReviewMode?: () => void;
   className?: string;
   disabled?: boolean;
@@ -26,8 +22,8 @@ const ModeSelector = ({ currentMode,
   className = '',
   disabled = false }: ModeSelectorProps): JSX.Element => {
   const modeKeys = Object.keys(modes);
-  const longPressTimer = useRef(null);
-  const isLongPress = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPress = useRef<boolean>(false);
 
   // For two modes, use toggle behavior. For more than two, cycle through all
   const handleModeToggle = () => {

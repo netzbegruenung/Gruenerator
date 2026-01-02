@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { JSX, useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { HiX, HiCheck, HiDownload } from 'react-icons/hi';
 import { FaInstagram, FaFacebook, FaTwitter, FaLinkedin } from 'react-icons/fa';
 import { IoShareOutline, IoCopyOutline } from 'react-icons/io5';

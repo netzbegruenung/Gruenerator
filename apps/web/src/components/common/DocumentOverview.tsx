@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HiOutlineTrash, HiOutlineSearch, HiOutlineDocumentText, HiOutlinePencil, HiOutlineEye, HiRefresh, HiDotsVertical, HiExclamationCircle, HiShare, HiClipboard, HiChevronRight } from 'react-icons/hi';
 import { NotebookIcon } from '../../config/icons';
 import Spinner from './Spinner';
@@ -27,45 +27,138 @@ const DEFAULT_SORT_OPTIONS = [
     { value: 'word_count', label: 'Wortanzahl' }
 ];
 
+// Types
+interface DocumentItem {
+    id: string;
+    title?: string;
+    name?: string;
+    status?: string;
+    source_type?: string;
+    description?: string;
+    custom_prompt?: string;
+    preview_image_url?: string;
+    thumbnail_url?: string;
+    document_count?: number;
+    is_public?: boolean;
+    created_at?: string;
+    updated_at?: string;
+    view_count?: number;
+    similarity_score?: number;
+    markdown_content?: string;
+    full_content?: string;
+    content_preview?: string;
+    ocr_text?: string;
+    [key: string]: unknown;
+}
+
+interface SortOption {
+    value: string;
+    label: string;
+}
+
+interface EmptyStateConfig {
+    noDocuments?: string;
+    createMessage?: string;
+}
+
+interface WolkeShareLink {
+    id: string;
+    [key: string]: unknown;
+}
+
+interface SubMenuItem {
+    label: string;
+    description?: string;
+    onClick?: (onClose?: () => void) => void;
+}
+
+interface ActionItem {
+    separator?: boolean;
+    show?: boolean;
+    label?: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    onClick?: () => void;
+    danger?: boolean;
+    loading?: boolean;
+    submenu?: boolean;
+    submenuItems?: SubMenuItem[];
+}
+
+interface DocumentOverviewProps {
+    documents?: DocumentItem[];
+    items?: DocumentItem[];
+    loading?: boolean;
+    onFetch?: () => void;
+    onDelete?: (id: string, item: DocumentItem) => Promise<void>;
+    onBulkDelete?: (ids: string[]) => Promise<void>;
+    onUpdateTitle?: (id: string, title: string) => Promise<void>;
+    onEdit?: (item: DocumentItem) => void;
+    onView?: (item: DocumentItem) => void;
+    onRefreshDocument?: (id: string) => Promise<void>;
+    onShare?: (item: DocumentItem) => void;
+    documentTypes?: Record<string, unknown>;
+    itemType?: 'document' | 'notebook';
+    searchFields?: string[];
+    sortOptions?: SortOption[];
+    cardRenderer?: (item: DocumentItem) => React.ReactNode;
+    metaRenderer?: (item: DocumentItem) => React.ReactNode;
+    actionItems?: (item: DocumentItem) => ActionItem[];
+    emptyStateConfig?: EmptyStateConfig;
+    searchPlaceholder?: string;
+    onSuccessMessage?: (message: string) => void;
+    onErrorMessage?: (message: string) => void;
+    title?: string;
+    showRefreshButton?: boolean;
+    headerActions?: React.ReactNode;
+    enableBulkSelect?: boolean;
+    enableGrouping?: boolean;
+    enableLocalSearch?: boolean;
+    remoteSearchEnabled?: boolean;
+    onRemoteSearch?: (query: string, mode: string) => void;
+    isRemoteSearching?: boolean;
+    remoteResults?: DocumentItem[];
+    onClearRemoteSearch?: () => void;
+    remoteSearchDefaultMode?: 'intelligent' | 'fulltext';
+    wolkeShareLinks?: WolkeShareLink[];
+}
+
 const DocumentOverview = ({
-    documents = [], // backward compatibility - will also accept 'items'
-    items, // new generic prop for any type of items
+    documents = [],
+    items,
     loading = false,
     onFetch,
     onDelete,
-    onBulkDelete, // new prop for bulk delete functionality
+    onBulkDelete,
     onUpdateTitle,
     onEdit,
     onView,
-    onRefreshDocument, // for document-specific refresh functionality
-    onShare, // for Q&A sharing functionality
+    onRefreshDocument,
+    onShare,
     documentTypes = {},
-    itemType = 'document', // 'document' (default) or 'notebook'
-    searchFields = DEFAULT_SEARCH_FIELDS, // configurable search fields
-    sortOptions = DEFAULT_SORT_OPTIONS, // configurable sort options
-    cardRenderer, // optional custom card content renderer
-    metaRenderer, // optional custom metadata renderer
-    actionItems, // configurable dropdown menu items
+    itemType = 'document',
+    searchFields = DEFAULT_SEARCH_FIELDS,
+    sortOptions = DEFAULT_SORT_OPTIONS,
+    cardRenderer,
+    metaRenderer,
+    actionItems,
     emptyStateConfig = {},
     searchPlaceholder = "Dokumente durchsuchen...",
     onSuccessMessage,
     onErrorMessage,
     title = "Dokumente",
     showRefreshButton = true,
-    headerActions, // custom action buttons/elements to render in header
-    enableBulkSelect = true, // new prop to enable/disable bulk selection
-    enableGrouping = false, // new prop to enable/disable source grouping
-    enableLocalSearch = true, // when false, hides internal search bar (use external search UI)
-    // Remote search integration (full-text / intelligent)
+    headerActions,
+    enableBulkSelect = true,
+    enableGrouping = false,
+    enableLocalSearch = true,
     remoteSearchEnabled = false,
-    onRemoteSearch, // (query, mode) => void
+    onRemoteSearch,
     isRemoteSearching = false,
     remoteResults = [],
     onClearRemoteSearch,
-    remoteSearchDefaultMode = 'intelligent', // 'intelligent' | 'fulltext'
-    // NEW: Wolke share links for cloud documents
+    remoteSearchDefaultMode = 'intelligent',
     wolkeShareLinks = []
-}) => {
+}: DocumentOverviewProps) => {
     // Support both 'documents' (backward compatibility) and 'items' props
     const allItems = items || documents;
 
@@ -115,7 +208,7 @@ const DocumentOverview = ({
             return [{ value: 'all', label: 'Alle Dokumente (0)', icon: '📄' }];
         }
 
-        const counts = allItems.reduce((acc, item) => {
+        const counts = allItems.reduce<Record<string, number>>((acc, item) => {
             if (itemType === 'document') {
                 const sourceType = item.source_type || 'manual';
                 acc[sourceType] = (acc[sourceType] || 0) + 1;
@@ -176,7 +269,7 @@ const DocumentOverview = ({
     }, [filteredItems, selectedCategory, itemType]);
 
     // Bulk selection state
-    const [selectedItemIds, setSelectedItemIds] = useState(new Set());
+    const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
@@ -303,9 +396,9 @@ const DocumentOverview = ({
     // Reset selection when items change
     useEffect(() => {
         setSelectedItemIds(prev => {
-            const newSet = new Set();
+            const newSet = new Set<string>();
             const activeItems = remoteSearchEnabled && searchState.hasQuery ? (remoteResults || []) : allItems;
-            const currentIds = new Set((activeItems || []).map(item => item.id));
+            const currentIds = new Set<string>((activeItems || []).map(item => item.id));
             prev.forEach(id => {
                 if (currentIds.has(id)) {
                     newSet.add(id);
@@ -497,7 +590,7 @@ const DocumentOverview = ({
                             alt={`Vorschau von ${itemTitle}`}
                             className="document-preview-image"
                             onError={(e) => {
-                                e.target.style.display = 'none';
+                                (e.target as HTMLImageElement).style.display = 'none';
                             }}
                             loading="lazy"
                         />
@@ -582,8 +675,8 @@ const DocumentOverview = ({
     };
 
     // Render dropdown menu content
-    const renderDropdownContent = (item, onClose) => {
-        const actions = (actionItems ? actionItems(item) : getActionItems(item, {
+    const renderDropdownContent = (item: DocumentItem, onClose?: () => void) => {
+        const actions: ActionItem[] = (actionItems ? actionItems(item) : getActionItems(item, {
             itemType,
             onViewItem: (it) => (it.status === 'completed' && itemType === 'document') ? handleEnhancedPreview(it) : handleViewItem(it),
             onEditItem: handleEditItem,
@@ -656,7 +749,7 @@ const DocumentOverview = ({
                         >
                             {action.loading ? (
                                 <>
-                                    <Spinner size="xsmall" />
+                                    <Spinner size="small" />
                                     {action.label}...
                                 </>
                             ) : (
@@ -762,7 +855,10 @@ const DocumentOverview = ({
                             <EnhancedSelect
                                 options={categoryOptions}
                                 value={categoryOptions.find(opt => opt.value === selectedCategory)}
-                                onChange={(selectedOption) => setSelectedCategory(selectedOption?.value || 'all')}
+                                onChange={(selectedOption) => {
+                                    const option = selectedOption as { value: string; label: string } | null;
+                                    setSelectedCategory(option?.value || 'all');
+                                }}
                                 enableIcons={true}
                                 placeholder="Kategorie wählen..."
                                 className="category-filter-select"

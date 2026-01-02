@@ -1,25 +1,31 @@
-import { useCallback, ChangeEvent } from 'react';
+import { JSX, useCallback } from 'react';
 import '../../../assets/styles/components/ui/SegmentedControl.css';
+
+// Define step interface
+interface SegmentedStep {
+  value: string | number;
+  label: string;
+  disabled?: boolean;
+}
 
 // Define the SegmentedControl component
 interface SegmentedControlProps {
-  steps: string | number;
+  steps: SegmentedStep[];
   currentValue?: string | number;
-  onChange: (event: React.ChangeEvent) => void;
+  onChange: (value: string | number) => void;
   disabled?: boolean;
-  // Optional?: unknown;
-  // <-- Add prop type for the label
+  label?: string;
   ariaLabel?: string;
 }
 
-const SegmentedControl = ({ }: SegmentedControlProps): JSX.Element => ({
-  steps = [], // Array of { value, label, disabled? }
+const SegmentedControl = ({
+  steps = [],
   currentValue,
   onChange,
-  disabled = false, // Overall disabled state
-  label, // <-- New prop for the label text
+  disabled = false,
+  label,
   ariaLabel = 'Select option',
-}) => {
+}: SegmentedControlProps): JSX.Element => {
 
   // Handle button click
   const handleClick = useCallback((value, stepDisabled) => {

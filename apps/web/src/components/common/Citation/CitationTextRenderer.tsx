@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import CitationBadge from './CitationBadge';
+import { JSX, lazy, Suspense } from 'react';
+import CitationBadge, { CitationData } from './CitationBadge';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -13,7 +13,7 @@ const ReactMarkdown = lazy(() => import('react-markdown'));
  */
 interface CitationTextRendererProps {
   text?: string;
-  citations?: unknown[];
+  citations?: CitationData[];
   className?: string;
 }
 
@@ -30,9 +30,11 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
   let match;
 
   // Create a lookup map for citations by index
-  const citationMap = new Map();
+  const citationMap = new Map<string, CitationData>();
   citations.forEach(citation => {
-    citationMap.set(citation.index.toString(), citation);
+    if (citation.index !== undefined) {
+      citationMap.set(citation.index.toString(), citation);
+    }
   });
 
   while ((match = citationMarkerPattern.exec(text)) !== null) {

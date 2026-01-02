@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import type { JSX, ChangeEvent } from 'react';
 import { Controller } from 'react-hook-form';
 import FormFieldWrapper from './FormFieldWrapper';
 import '../../../../assets/styles/components/form/form-image-select.css';

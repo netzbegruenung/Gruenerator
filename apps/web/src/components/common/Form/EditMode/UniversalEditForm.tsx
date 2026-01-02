@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'motion/react';
+import { JSX, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { motion, HTMLMotionProps } from 'motion/react';
 import ChatUI from '../../Chat/ChatUI';
 import ChatWorkbenchLayout from '../../Chat/ChatWorkbenchLayout';
 import { MESSAGE_MOTION_PROPS, MARKDOWN_COMPONENTS } from '../../Chat/utils/chatMessageUtils';
@@ -18,6 +18,19 @@ import ReactMarkdown from 'react-markdown';
 import { IoClose } from 'react-icons/io5';
 import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 
+interface EditMessage {
+  type: 'user' | 'assistant' | 'error';
+  content: string;
+  timestamp: number;
+  isEditResult?: boolean;
+  editSummary?: string;
+}
+
+interface ProfileData {
+  display_name?: string;
+  [key: string]: unknown;
+}
+
 interface UniversalEditFormProps {
   componentName: string;
   onClose?: () => void;
@@ -29,7 +42,8 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
 
   const { user } = useOptimizedAuth();
   const { data: profile } = useProfile(user?.id);
-  const displayName = profile?.display_name || '';
+  const profileData = profile as ProfileData | null;
+  const displayName = profileData?.display_name || '';
   const setForceShrunk = useHeaderStore((state) => state.setForceShrunk);
 
   // Mobile detection with stabilization to prevent flicker during keyboard events
@@ -77,9 +91,9 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
   }, [isFocusMode]);
 
   // Desktop messages (summaries)
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<EditMessage[]>([]);
   // Mobile messages (full text as content)
-  const [mobileMessages, setMobileMessages] = useState([]);
+  const [mobileMessages, setMobileMessages] = useState<EditMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const initializedRef = useRef(false);
@@ -133,7 +147,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       const greeting = firstName ? `Hey ${firstName}! ` : '';
       const currentText = extractEditableText(storeContent);
 
-      const initialMobileMessages = [
+      const initialMobileMessages: EditMessage[] = [
         {
           type: 'assistant',
           content: `${greeting}Beschreibe kurz, was wir verbessern sollen.`,
@@ -158,13 +172,16 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
   }, [stableIsMobileView, isSharepicOnly, displayName, storeContent]);
 
   // Custom message renderer for mobile - shows full text for edit results
-  const renderMobileEditMessage = useCallback((msg, index) => {
+  const renderMobileEditMessage = useCallback((msg: EditMessage, index: number): ReactNode => {
     if (msg.type === 'assistant' && msg.isEditResult) {
       return (
         <motion.div
           key={msg.timestamp || index}
           className="chat-message assistant edit-result-message"
-          {...MESSAGE_MOTION_PROPS}
+          initial={{ opacity: 0, y: 2, scale: 0.995 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: "easeOut" } }}
+          transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
         >
           <ActionButtons
             generatedContent={msg.content}
@@ -172,6 +189,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
             showUndo={false}
             showRedo={false}
             className="edit-message-actions"
+            customExportOptions={[]}
           />
           <div className="edit-result-content">
             <div className="edit-result-text">
@@ -189,7 +207,10 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       <motion.div
         key={msg.timestamp || index}
         className={`chat-message ${msg.type}`}
-        {...MESSAGE_MOTION_PROPS}
+        initial={{ opacity: 0, y: 2, scale: 0.995 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -1, scale: 0.995, transition: { duration: 0.2, ease: "easeOut" } }}
+        transition={{ type: "tween", ease: "easeOut", duration: 0.35 }}
       >
         <div className="chat-message-content">
           <ReactMarkdown components={MARKDOWN_COMPONENTS}>
@@ -212,7 +233,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       syncToInstruction(trimmed);
     }
 
-    const userMsg = { type: 'user', content: trimmed, timestamp: Date.now() };
+    const userMsg: EditMessage = { type: 'user', content: trimmed, timestamp: Date.now() };
     // Add user message to appropriate message list
     if (stableIsMobileView) {
       setMobileMessages(prev => [...prev, userMsg]);
@@ -223,7 +244,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
 
     const currentText = getEditableText();
     if (!currentText) {
-      const errorMsg = { type: 'error', content: 'Kein Text vorhanden, den ich verbessern kann.', timestamp: Date.now() };
+      const errorMsg: EditMessage = { type: 'error', content: 'Kein Text vorhanden, den ich verbessern kann.', timestamp: Date.now() };
       if (stableIsMobileView) {
         setMobileMessages(prev => [...prev, errorMsg]);
       } else {
@@ -271,7 +292,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       const changes = data?.changes || [];
 
       if (!Array.isArray(changes) || changes.length === 0) {
-        const noChangesMsg = { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() };
+        const noChangesMsg: EditMessage = { type: 'assistant', content: 'Keine konkreten Änderungen vorgeschlagen. Präzisiere gern, was verändert werden soll.', timestamp: Date.now() };
         if (stableIsMobileView) {
           setMobileMessages(prev => [...prev, noChangesMsg]);
         } else {
@@ -281,7 +302,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
         const result = applyEdits(changes);
 
         if (result.appliedCount === 0) {
-          const errorMsg = {
+          const errorMsg: EditMessage = {
             type: 'error',
             content: 'Die Änderungen konnten nicht angewendet werden. Der Text wurde möglicherweise bereits verändert. Bitte versuche es erneut oder formuliere die Änderung anders.',
             timestamp: Date.now()
@@ -295,19 +316,21 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
           // Partial success - on mobile, show the updated text anyway
           if (stableIsMobileView) {
             const updatedText = getEditableText();
-            setMobileMessages(prev => [...prev, {
+            const partialMsg: EditMessage = {
               type: 'assistant',
-              content: updatedText,
+              content: updatedText || '',
               timestamp: Date.now(),
               isEditResult: true,
               editSummary: `⚠️ Nur ${result.appliedCount} von ${result.totalCount} Änderungen angewendet`
-            }]);
+            };
+            setMobileMessages(prev => [...prev, partialMsg]);
           } else {
-            setMessages(prev => [...prev, {
+            const partialDesktopMsg: EditMessage = {
               type: 'assistant',
               content: `⚠️ Nur ${result.appliedCount} von ${result.totalCount} Änderungen konnten angewendet werden. Einige Textpassagen wurden möglicherweise bereits verändert.`,
               timestamp: Date.now()
-            }]);
+            };
+            setMessages(prev => [...prev, partialDesktopMsg]);
           }
         } else {
           let summary = response?.data?.summary;
@@ -348,25 +371,27 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
           // Mobile: show full updated text, Desktop: show summary
           if (stableIsMobileView) {
             const updatedText = getEditableText();
-            const editSummary = `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet`;
-            setMobileMessages(prev => [...prev, {
+            const editSummaryText = `✅ ${changes.length} ${changes.length === 1 ? 'Änderung' : 'Änderungen'} angewendet`;
+            const successMobileMsg: EditMessage = {
               type: 'assistant',
-              content: updatedText,
+              content: updatedText || '',
               timestamp: Date.now(),
               isEditResult: true,
-              editSummary
-            }]);
+              editSummary: editSummaryText
+            };
+            setMobileMessages(prev => [...prev, successMobileMsg]);
             // Highlight the changed area and update stats
-            highlightChangedArea(currentText, updatedText);
+            highlightChangedArea(currentText, updatedText || '');
             setChangeCount(prev => prev + changes.length);
           } else {
-            setMessages(prev => [...prev, { type: 'assistant', content: summary, timestamp: Date.now() }]);
+            const successDesktopMsg: EditMessage = { type: 'assistant', content: summary, timestamp: Date.now() };
+            setMessages(prev => [...prev, successDesktopMsg]);
           }
         }
       }
     } catch (e) {
-      const errText = e?.response?.data?.error || e.message || 'Fehler bei der Verarbeitung';
-      const errorMsg = { type: 'error', content: errText, timestamp: Date.now() };
+      const errText = (e as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error || (e as Error).message || 'Fehler bei der Verarbeitung';
+      const errorMsg: EditMessage = { type: 'error', content: errText, timestamp: Date.now() };
       if (stableIsMobileView) {
         setMobileMessages(prev => [...prev, errorMsg]);
       } else {

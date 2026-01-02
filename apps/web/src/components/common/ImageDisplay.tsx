@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, JSX } from 'react';
 import { HiDownload } from 'react-icons/hi';
 import '../../assets/styles/components/common/image-display.css';
 import CopyButton from './CopyButton';
@@ -20,9 +20,25 @@ import SharepicShareModal from './SharepicShareModal';
  * @param {Function} props.onEdit - Callback function when edit button is clicked (optional)
  * @returns {JSX.Element} ImageDisplay component
  */
+export interface SharepicDataItem {
+  text?: string;
+  image?: string;
+  type?: string;
+  canvaTemplateUrl?: string;
+  canvaPreviewImage?: string;
+  previewImage?: string;
+  slogans?: string[];
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  line4?: string;
+  line5?: string;
+  [key: string]: unknown;
+}
+
 interface ImageDisplayProps {
-  sharepicData: string | number;
-  onEdit?: () => void;
+  sharepicData: SharepicDataItem | SharepicDataItem[];
+  onEdit?: (sharepic: SharepicDataItem) => void;
   showEditButton?: boolean;
   title?: string;
   downloadButtonText?: string;
@@ -30,7 +46,7 @@ interface ImageDisplayProps {
   enableKiLabel?: boolean;
   enableCanvaEdit?: boolean;
   canvaTemplateUrl?: string;
-  onSharepicUpdate?: () => void;
+  onSharepicUpdate?: (data: SharepicDataItem | SharepicDataItem[]) => void;
   minimal?: boolean;
   onEditModeToggle?: () => void;
   editMode?: string;
@@ -54,7 +70,7 @@ const ImageDisplay = ({ sharepicData,
   editMode,
   socialContent,
   selectedPlatforms = [],
-  fullscreenMode = false }: ImageDisplayProps): JSX.Element => {
+  fullscreenMode = false }: ImageDisplayProps): JSX.Element | null => {
   // Determine if we have multiple sharepics
   const isMultiple = Array.isArray(sharepicData);
   const sharepicItems = isMultiple ? sharepicData.filter(Boolean) : [sharepicData];

@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, memo, forwardRef } from 'react';
+import { lazy, Suspense, useCallback, memo, forwardRef, ComponentType, ReactNode } from 'react';
+import type { Props as ReactSelectProps, GroupBase, StylesConfig, MultiValueProps, PlaceholderProps } from 'react-select';
 const Select = lazy(() => import('react-select'));
 const CreatableSelect = lazy(() => import('react-select/creatable'));
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
@@ -29,14 +30,43 @@ import '../../../assets/styles/components/ui/react-select.css';
  *   metadata?: object
  * }
  */
-interface EnhancedSelectProps {
+
+interface EnhancedSelectOption {
+  value: string | number;
+  label: string;
+  selectedLabel?: string;
+  icon?: ComponentType<{ className?: string; size?: number }> | string;
+  iconType?: string;
+  tag?: {
+    label: string;
+    type?: string;
+    variant?: string;
+    icon?: ComponentType;
+  };
+  subtitle?: string;
+  searchableContent?: string;
+  metadata?: {
+    isSpecialMode?: boolean;
+    [key: string]: unknown;
+  };
+  // Allow additional properties for extensibility
+  [key: string]: unknown;
+}
+
+interface IconConfig {
+  size?: number;
+  className?: string;
+  [key: string]: unknown;
+}
+
+interface EnhancedSelectProps extends Omit<ReactSelectProps<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>, 'options' | 'formatOptionLabel'> {
   // Enhanced functionality
   enableTags?: boolean;
   enableIcons?: boolean;
   enableSubtitles?: boolean;
   tagVariants?: Record<string, unknown>;
-  iconConfig?: Record<string, unknown>;
-  placeholderIcon?: () => void;
+  iconConfig?: IconConfig;
+  placeholderIcon?: ComponentType<{ className?: string }> | null;
   // Creatable functionality
   isCreatable?: boolean;
   // Form wrapper
@@ -45,13 +75,17 @@ interface EnhancedSelectProps {
   required?: boolean;
   error?: string;
   // Standard react-select
-  options: 'user' | 'group' | 'custom';
-  formatOptionLabel?: () => void;
+  options?: EnhancedSelectOption[];
+  formatOptionLabel?: (option: EnhancedSelectOption, meta: { context: 'menu' | 'value' }) => ReactNode;
   className?: string;
   classNamePrefix?: string;
+  styles?: StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>;
+  inputId?: string;
+  components?: Record<string, ComponentType<unknown>>;
 }
 
-const EnhancedSelect = forwardRef(({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const EnhancedSelect = forwardRef<any, EnhancedSelectProps>(({
   // Enhanced functionality props
   enableTags = false,
   enableIcons = false,
@@ -75,11 +109,13 @@ const EnhancedSelect = forwardRef(({
   className = '',
   classNamePrefix = 'react-select',
   components: customComponents = {},
+  styles: customStyles,
+  inputId,
   ...selectProps
 }, ref) => {
 
   // Internal formatOptionLabel that handles enhanced features
-  const internalFormatOptionLabel = useCallback((option, { context }) => {
+  const internalFormatOptionLabel = useCallback((option: EnhancedSelectOption, { context }: { context: 'menu' | 'value' }) => {
     // If custom formatOptionLabel is provided, use it first
     if (customFormatOptionLabel) {
       return customFormatOptionLabel(option, { context });
@@ -96,7 +132,7 @@ const EnhancedSelect = forwardRef(({
             <OptionIcon
               icon={option.icon}
               iconType={option.iconType}
-              size={iconConfig.size || 16}
+              size={iconConfig?.size || 16}
               config={iconConfig}
             />
           )}
@@ -120,7 +156,7 @@ const EnhancedSelect = forwardRef(({
   }, [customFormatOptionLabel, enableTags, enableIcons, enableSubtitles, tagVariants, iconConfig]);
 
   // Custom Placeholder to show icon if provided
-  const CustomPlaceholder = useCallback((props) => {
+  const CustomPlaceholder = useCallback((props: { children: ReactNode }) => {
     const { children } = props;
     const Icon = placeholderIcon;
 
@@ -135,7 +171,7 @@ const EnhancedSelect = forwardRef(({
   }, [placeholderIcon]);
 
   // Custom MultiValueLabel to show icons in selected chips
-  const CustomMultiValueLabel = useCallback((props) => {
+  const CustomMultiValueLabel = useCallback((props: { data: EnhancedSelectOption }) => {
     const { data } = props;
     const Icon = data.icon;
     const isSpecialMode = data.metadata?.isSpecialMode || false;
@@ -143,7 +179,7 @@ const EnhancedSelect = forwardRef(({
 
     return (
       <div className={`react-select__multi-value__label-wrapper ${isSpecialMode ? 'special-mode' : ''}`}>
-        {enableIcons && Icon && (
+        {enableIcons && Icon && typeof Icon === 'function' && (
           <Icon className="react-select__multi-value__icon" />
         )}
         <span>{displayLabel}</span>
@@ -159,9 +195,9 @@ const EnhancedSelect = forwardRef(({
   };
 
   // Enhanced styles for multi-value chips
-  const enhancedStyles = {
+  const enhancedStyles: StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>> = {
     multiValue: (base, state) => {
-      const isSpecialMode = state.data?.metadata?.isSpecialMode || false;
+      const isSpecialMode = (state.data as EnhancedSelectOption)?.metadata?.isSpecialMode || false;
       if (isSpecialMode) {
         return {
           ...base,
@@ -173,7 +209,7 @@ const EnhancedSelect = forwardRef(({
       return base;
     },
     multiValueLabel: (base, state) => {
-      const isSpecialMode = state.data?.metadata?.isSpecialMode || false;
+      const isSpecialMode = (state.data as EnhancedSelectOption)?.metadata?.isSpecialMode || false;
       if (isSpecialMode) {
         return {
           ...base,
@@ -188,15 +224,18 @@ const EnhancedSelect = forwardRef(({
   const SelectComponent = isCreatable ? CreatableSelect : Select;
 
   // Merge enhanced styles with user-provided styles
-  const mergedStyles = {
+  const mergedStyles: StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>> = {
     ...enhancedStyles,
-    ...selectProps.styles,
+    ...customStyles,
     // Merge functions for overlapping style keys
-    ...(selectProps.styles && Object.keys(selectProps.styles).reduce((acc, key) => {
-      if (enhancedStyles[key] && typeof enhancedStyles[key] === 'function' && typeof selectProps.styles[key] === 'function') {
-        acc[key] = (base, state) => {
-          const enhancedStyle = enhancedStyles[key](base, state);
-          return selectProps.styles[key](enhancedStyle, state);
+    ...(customStyles && Object.keys(customStyles).reduce<Record<string, unknown>>((acc, key) => {
+      const styleKey = key as keyof StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>;
+      const enhancedStyleFn = enhancedStyles[styleKey];
+      const customStyleFn = customStyles[styleKey];
+      if (enhancedStyleFn && typeof enhancedStyleFn === 'function' && typeof customStyleFn === 'function') {
+        acc[key] = (base: unknown, state: unknown) => {
+          const enhancedStyle = (enhancedStyleFn as (b: unknown, s: unknown) => unknown)(base, state);
+          return (customStyleFn as (b: unknown, s: unknown) => unknown)(enhancedStyle, state);
         };
       }
       return acc;
@@ -230,7 +269,7 @@ const EnhancedSelect = forwardRef(({
       helpText={helpText}
       required={required}
       error={error}
-      htmlFor={selectProps.inputId}
+      htmlFor={inputId}
     >
       {selectElement}
     </FormFieldWrapper>

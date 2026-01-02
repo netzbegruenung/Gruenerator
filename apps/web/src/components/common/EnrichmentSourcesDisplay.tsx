@@ -1,4 +1,5 @@
 import { HiDocument, HiGlobeAlt, HiLink, HiLightningBolt, HiSearch } from 'react-icons/hi';
+import type { JSX } from 'react';
 import './EnrichmentSourcesDisplay.css';
 
 /**

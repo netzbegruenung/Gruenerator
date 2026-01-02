@@ -1,7 +1,12 @@
 import { motion } from "motion/react";
 import '../../../assets/styles/components/ui/profile-skeleton.css';
 
-const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
+interface ProfileTabSkeletonProps {
+  type?: 'default' | 'list' | 'form' | 'tabs';
+  itemCount?: number;
+}
+
+const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }: ProfileTabSkeletonProps) => {
   // Gemeinsamer Shimmer-Effekt für alle Skeleton-Elemente
   const shimmer = {
     initial: {
@@ -15,7 +20,7 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
         ease: "linear"
       }
     }
-  };
+  } as const;
 
   // Verschiedene Skeletons basierend auf dem Typ
   const renderSkeleton = () => {
@@ -23,7 +28,7 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
       case 'list':
         return (
           <div className="profile-skeleton-list">
-            {Array(itemCount).fill().map((_, index) => (
+            {Array(itemCount).fill(null).map((_, index) => (
               <motion.div
                 key={index}
                 className="profile-skeleton-list-item"
@@ -51,7 +56,7 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
               initial="initial"
               animate="animate"
             ></motion.div>
-            {Array(4).fill().map((_, index) => (
+            {Array(4).fill(null).map((_, index) => (
               <div key={index} className="profile-skeleton-form-group">
                 <motion.div
                   className="profile-skeleton-label"
@@ -81,7 +86,7 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
         return (
           <div className="profile-skeleton-tabs">
             <div className="profile-skeleton-tabs-navigation">
-              {Array(3).fill().map((_, index) => (
+              {Array(3).fill(null).map((_, index) => (
                 <motion.div
                   key={index}
                   className="profile-skeleton-tab"
@@ -111,7 +116,7 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }) => {
               animate="animate"
             ></motion.div>
             <div className="profile-skeleton-content">
-              {Array(itemCount).fill().map((_, index) => (
+              {Array(itemCount).fill(null).map((_, index) => (
                 <motion.div
                   key={index}
                   className="profile-skeleton-block"

@@ -1,20 +1,20 @@
-import type { ReactNode, MouseEvent } from 'react';
+import type { JSX, ReactNode, MouseEvent } from 'react';
 import '../../assets/styles/components/common/index-card.css';
 
-interface IndexCardProps {
+export interface IndexCardProps {
   title: string;
   description?: string;
   meta?: ReactNode;
   tags?: string[];
   headerActions?: ReactNode;
-  onClick?: (event: React.MouseEvent) => void;
+  onClick?: (event: React.MouseEvent | React.KeyboardEvent) => void;
   className?: string;
   variant?: 'default' | 'elevated' | 'subtle';
   thumbnailUrl?: string;
   imageAlt?: string;
   authorName?: string;
   authorEmail?: string;
-  onTagClick?: () => void;
+  onTagClick?: (tag: string) => void;
 }
 
 const IndexCard = ({ title,
