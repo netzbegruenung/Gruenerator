@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { FormInput } from '../../../../components/common/Form/Input';
 import './campaign-sharepic-editor.css';
 
@@ -140,22 +139,6 @@ const CampaignSharepicEditor = ({
       </div>
     </div>
   );
-};
-
-CampaignSharepicEditor.propTypes = {
-  sharepics: PropTypes.arrayOf(PropTypes.shape({
-    line1: PropTypes.string,
-    line2: PropTypes.string,
-    line3: PropTypes.string,
-    line4: PropTypes.string,
-    line5: PropTypes.string,
-    image: PropTypes.string,
-    creditText: PropTypes.string
-  })).isRequired,
-  activeIndex: PropTypes.number.isRequired,
-  onEditedLinesChange: PropTypes.func,
-  regenerationError: PropTypes.string,
-  onClearError: PropTypes.func
 };
 
 CampaignSharepicEditor.defaultProps = {

@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import { LazyMotion, m, AnimatePresence } from 'motion/react';
 
 import '../../../../assets/styles/components/actions/slogan-alternatives.css';
@@ -77,38 +76,3 @@ export const SloganAlternativesDisplay = ({
   );
 };
 
-SloganAlternativesDisplay.propTypes = {
-  currentSlogan: PropTypes.oneOfType([
-    PropTypes.shape({
-      line1: PropTypes.string,
-      line2: PropTypes.string,
-      line3: PropTypes.string
-    }),
-    PropTypes.shape({
-      quote: PropTypes.string
-    }),
-    PropTypes.shape({
-      header: PropTypes.string,
-      subheader: PropTypes.string,
-      body: PropTypes.string
-    })
-  ]).isRequired,
-  alternatives: PropTypes.arrayOf(
-    PropTypes.oneOfType([
-      PropTypes.shape({
-        line1: PropTypes.string,
-        line2: PropTypes.string,
-        line3: PropTypes.string
-      }),
-      PropTypes.shape({
-        quote: PropTypes.string
-      }),
-      PropTypes.shape({
-        header: PropTypes.string,
-        subheader: PropTypes.string,
-        body: PropTypes.string
-      })
-    ])
-  ).isRequired,
-  onSloganSelect: PropTypes.func.isRequired
-};

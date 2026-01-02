@@ -76,7 +76,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   const [error, setError] = useState<string | null>(null);
   const [completionData, setCompletionData] = useState<CompletionData | null>(null);
   const { user } = useOptimizedAuth();
-  
+
   // React Hook Form setup
   const {
     control,
@@ -90,10 +90,10 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     defaultValues: INITIAL_FORM_DATA,
     mode: 'onChange'
   });
-  
+
   // Watch slug for debouncing and processing
   const watchedSlug = watch('slug');
-  
+
   // Effect to process slug input
   useEffect(() => {
     if (watchedSlug) {
@@ -101,7 +101,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
         .toLowerCase()
         .replace(/\s+/g, '-')
         .replace(/[^a-z0-9-]/g, '');
-      
+
       if (processedSlug !== watchedSlug) {
         setValue('slug', processedSlug);
         setSlugAvailabilityError(null);
@@ -109,9 +109,9 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       }
     }
   }, [watchedSlug, setValue]);
-  
-  const { 
-    submitForm: submitAIGeneration, 
+
+  const {
+    submitForm: submitAIGeneration,
     loading: aiLoading,
     error: aiError,
     resetSuccess: resetAISuccess
@@ -190,7 +190,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
 
     try {
       const generatedConfig = await submitAIGeneration({ description: aiDescription });
-      
+
       if (generatedConfig && generatedConfig.name && generatedConfig.slug && generatedConfig.fields && generatedConfig.prompt) {
         // Reset form with generated data
         reset({
@@ -219,7 +219,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   const startAddField = () => {
     const currentFields = getValues('fields');
     if (currentFields.length < 5) {
-      setEditingFieldIndex(null); 
+      setEditingFieldIndex(null);
       setIsEditingField(true);
     }
   };
@@ -255,7 +255,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   // Validation - only handle special cases not covered by React Hook Form
   const validateStep = async () => {
     setError(null);
-    
+
     // Special validations that React Hook Form doesn't handle
     switch (currentStep) {
       case STEPS.BASICS:
@@ -269,22 +269,22 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
           return false;
         }
         return true;
-        
+
       case STEPS.FIELDS:
         if (isEditingField) {
           setError('Bitte schließe zuerst den Feld-Editor (Speichern oder Abbrechen).');
           return false;
         }
         return true;
-        
+
       // case STEPS.DOCUMENTS:
         // Documents are optional, so always valid
         // return true;
-        
+
       case STEPS.PROMPT:
       case STEPS.REVIEW:
         return true;
-        
+
       default:
         return true;
     }
@@ -343,7 +343,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       if (!result.success) {
         throw new Error(result.message || 'Fehler beim Speichern des Generators.');
       }
-      
+
       setCompletionData({ name: dataToSave.name, slug: dataToSave.slug });
       // Notify parent immediately so it can refresh lists
       if (onCompleted) {
@@ -383,7 +383,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               control={control}
               rules={{ required: 'Der Name des Grünerators darf nicht leer sein.' }}
             />
-            
+
             <FormInput
               name="slug"
               label="URL-Pfad"
@@ -401,7 +401,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               className={slugAvailabilityError ? 'error-input' : ''}
             />
             {/* Inline validation message is reflected via helpText and input styling */}
-            
+
             <FormInput
               name="title"
               label="Titel"
@@ -410,7 +410,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               control={control}
               rules={{ required: 'Der Titel darf nicht leer sein.' }}
             />
-            
+
             <FormTextarea
               name="description"
               label="Beschreibung"
@@ -456,7 +456,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               </ul>
             )}
             {isEditingField && (
-              <FieldEditorAssistant 
+              <FieldEditorAssistant
                 initialFieldData={editingFieldIndex !== null ? currentFields[editingFieldIndex] : null}
                 onSave={handleSaveField}
                 onCancel={handleCancelEdit}
@@ -522,7 +522,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
                           <div className="list-group-item__title">
                             {field.label}
                             <span className="list-group-item__badge badge--field">
-                              {field.type === 'textarea' ? 'Langer Text' : 
+                              {field.type === 'textarea' ? 'Langer Text' :
                                field.type === 'select' ? 'Auswahlfeld' : 'Kurzer Text'}
                             </span>
                             {field.required && (
@@ -592,7 +592,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
 
   // Otherwise, render the FormSection with the current step
   return (
-    <FormStateProvider 
+    <FormStateProvider
       initialState={{
         loading: isGeneratingWithAI,
         formErrors: { general: error },
@@ -620,4 +620,4 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   );
 };
 
-export default CreateCustomGeneratorPage; 
+export default CreateCustomGeneratorPage;

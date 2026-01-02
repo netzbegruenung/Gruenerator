@@ -67,7 +67,7 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
         type="number"
         label="Gewünschte Redezeit (in Minuten)"
         placeholder="1-5"
-        rules={{ 
+        rules={{
           required: 'Redezeit ist ein Pflichtfeld',
           min: { value: 1, message: 'Die Redezeit muss mindestens 1 Minute betragen' },
           max: { value: 5, message: 'Die Redezeit darf maximal 5 Minuten betragen' }
@@ -81,4 +81,4 @@ const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
 
 RedeForm.displayName = 'RedeForm';
 
-export default RedeForm; 
+export default RedeForm;

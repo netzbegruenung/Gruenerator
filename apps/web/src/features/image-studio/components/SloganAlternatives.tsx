@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 
 import '../../../assets/styles/components/actions/slogan-alternatives.css';
 
@@ -66,9 +65,3 @@ export const SloganAlternativesDisplay = ({ currentSlogan, alternatives, onSloga
   );
 };
 
-SloganAlternativesDisplay.propTypes = {
-  currentSlogan: PropTypes.object.isRequired,
-  alternatives: PropTypes.array.isRequired,
-  onSloganSelect: PropTypes.func.isRequired,
-  loading: PropTypes.bool
-};

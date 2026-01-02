@@ -53,9 +53,9 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   // Handle document selection/deselection
   const handleDocumentToggle = (document) => {
     if (disabled) return;
-    
+
     const isSelected = selectedDocumentIds.includes(document.id);
-    
+
     if (isSelected) {
       // Remove document
       if (compact && onRemoveDocument) {
@@ -102,7 +102,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
       <div className="auth-error-message">
         <HiExclamationCircle />
         {error}
-        <button 
+        <button
           onClick={clearError}
           className="icon-button style-as-link"
           style={{ marginLeft: 'auto' }}
@@ -215,13 +215,13 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
               <HiX />
             </button>
           </div>
-          
+
           <div className="documents-grid">
             {availableDocuments.map((document) => {
               const isSelected = selectedDocumentIds.includes(document.id);
               return (
-                <div 
-                  key={document.id} 
+                <div
+                  key={document.id}
                   className={`document-option ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
                   onClick={() => handleDocumentToggle(document)}
                 >
@@ -236,14 +236,14 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="document-details">
                     <span className="document-pages">{document.page_count} Seiten</span>
                     <span className="document-date">
                       {new Date(document.created_at).toLocaleDateString('de-DE')}
                     </span>
                   </div>
-                  
+
                   <div className="document-filename">
                     {document.filename}
                   </div>
@@ -257,7 +257,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
       {/* Help Text */}
       <div className="document-selector-help">
         <p className="help-text">
-          <strong>Tipp:</strong> Ausgewählte Dokumente werden als Wissensquelle für diesen Generator verwendet. 
+          <strong>Tipp:</strong> Ausgewählte Dokumente werden als Wissensquelle für diesen Generator verwendet.
           Claude kann während der Texterstellung auf Inhalte aus diesen Dokumenten zugreifen und sie zitieren.
         </p>
       </div>

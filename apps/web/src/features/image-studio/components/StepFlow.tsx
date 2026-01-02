@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
-import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiArrowLeft, HiCog, HiArrowRight, HiX, HiPhotograph } from 'react-icons/hi';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -496,7 +495,6 @@ const StepFlow = ({ onBack: parentOnBack, onComplete, imageLimitData }) => {
           )}
         </AnimatePresence>
 
-
         {imageLimitData && imageLimitData.count >= 8 && (
           <div className={`image-limit-indicator ${!imageLimitData.canGenerate ? 'image-limit-indicator--blocked' : ''}`}>
             <span className="image-limit-indicator__text">
@@ -512,15 +510,6 @@ const StepFlow = ({ onBack: parentOnBack, onComplete, imageLimitData }) => {
       </div>
     </div>
   );
-};
-
-StepFlow.propTypes = {
-  onBack: PropTypes.func,
-  onComplete: PropTypes.func,
-  imageLimitData: PropTypes.shape({
-    count: PropTypes.number,
-    canGenerate: PropTypes.bool
-  })
 };
 
 export default StepFlow;

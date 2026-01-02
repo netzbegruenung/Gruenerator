@@ -164,4 +164,4 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = ({
   );
 };
 
-export default GeneratorStartScreen; 
+export default GeneratorStartScreen;

@@ -1,5 +1,5 @@
 import React from 'react';
-import PropTypes from 'prop-types';
+
 import { FaDownload } from 'react-icons/fa';
 
 const DownloadButton = ({ imageUrl, buttonText = "Sharepic herunterladen", downloadFilename = "sharepic.png" }) => (
@@ -8,10 +8,6 @@ const DownloadButton = ({ imageUrl, buttonText = "Sharepic herunterladen", downl
   </a>
 );
 
-DownloadButton.propTypes = {
-  imageUrl: PropTypes.string.isRequired,
-  buttonText: PropTypes.string,
-  downloadFilename: PropTypes.string
-};
+
 
 export default DownloadButton;

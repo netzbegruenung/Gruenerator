@@ -1,17 +1,16 @@
 import React, { useCallback } from 'react';
-import PropTypes from 'prop-types';
 import { HiCog, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import Button from '../../../../components/common/SubmitButton';
 import { useSharepicStore } from '../../../../stores';
 import AdvancedEditingSection from '../../dreizeilen/components/AdvancedEditingSection';
 
-import { 
-  ColorSchemeControl, 
-  FontSizeControl, 
+import {
+  ColorSchemeControl,
+  FontSizeControl,
   CreditControl,
 } from '../../../../components/utils/ImageModificationForm';
-import { 
-  ARIA_LABELS, 
+import {
+  ARIA_LABELS,
 } from '../../../../components/utils/constants';
 
 const SharepicBackendResult = ({
@@ -31,7 +30,7 @@ const SharepicBackendResult = ({
   onAltTextClick, // Handler for alt-text button click
   hidePostTextButton = false // Hide the "Beitragstext erstellen" button when coming from press social
 }) => {
-  const { 
+  const {
     isAdvancedEditingOpen,
     toggleAdvancedEditing,
   } = useSharepicStore();
@@ -42,7 +41,6 @@ const SharepicBackendResult = ({
     url.searchParams.append('details', formData.details || '');
     window.open(url.toString(), '_blank');
   }, [formData]);
-
 
   return (
     <>
@@ -171,27 +169,6 @@ const SharepicBackendResult = ({
       )}
     </>
   );
-};
-
-SharepicBackendResult.propTypes = {
-  children: PropTypes.node.isRequired,
-  onSubmit: PropTypes.func.isRequired,
-  loading: PropTypes.bool.isRequired,
-  success: PropTypes.bool,
-  fontSize: PropTypes.number.isRequired,
-  balkenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
-  colorScheme: PropTypes.arrayOf(PropTypes.shape({
-    background: PropTypes.string.isRequired,
-    text: PropTypes.string.isRequired
-  })).isRequired,
-  onControlChange: PropTypes.func.isRequired,
-  balkenGruppenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
-  sunflowerOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
-  credit: PropTypes.string,
-  formData: PropTypes.object.isRequired,
-  generatedImage: PropTypes.string, // Base64 encoded image for alt text generation
-  onAltTextClick: PropTypes.func.isRequired, // Handler for alt-text button click
-  hidePostTextButton: PropTypes.bool, // Hide the "Beitragstext erstellen" button when coming from press social
 };
 
 export default SharepicBackendResult;

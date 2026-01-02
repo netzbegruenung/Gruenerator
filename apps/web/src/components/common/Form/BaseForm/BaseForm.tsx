@@ -98,7 +98,6 @@ const FormToggleButtonFAB = React.memo<FormToggleButtonFABProps>(({ onClick }) =
   </motion.button>
 ));
 
-
 /**
  * Internal BaseForm component that uses the FormStateProvider context
  */
@@ -350,7 +349,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     error,
     setError
   } = useErrorHandling();
-  
+
   // Use store state with prop fallbacks
   const loading = storeLoading || propLoading;
   const success = storeSuccess || propSuccess;
@@ -359,7 +358,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const useFeatureIcons = storeUseFeatureIcons || propUseFeatureIcons;
   const attachedFiles = storeAttachedFiles.length > 0 ? storeAttachedFiles : propAttachedFiles;
   const uploadedImage = storeUploadedImage || propUploadedImage;
-  
+
   const value = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
   const editableSource = useMemo(
@@ -503,7 +502,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
 
   // Direct store access instead of useContentManagement
   const setGeneratedText = useGeneratedTextStore(state => state.setGeneratedText);
-  
+
   // Initialize with initial content if needed
   useEffect(() => {
     if (initialContent && !value) {
@@ -518,7 +517,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
       const isMixedContent = typeof generatedContent === 'object' &&
         generatedContent !== null &&
         ('sharepic' in generatedContent || 'social' in generatedContent);
-      
+
       if (isMixedContent) {
         // Store the full mixed content object
         setGeneratedText(componentName, generatedContent);
@@ -539,7 +538,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const getExportableContentCallback = useCallback((content) => {
     return getExportableContent(content, value);
   }, [value]);
-  
+
   const {
     isMobileView,
     getDisplayTitle
@@ -553,9 +552,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [isEditModeActive, isMobileView]);
 
   // Enhanced accessibility hook with Phase 5 features
-  const { 
-    setupKeyboardNav, 
-    handleFormError, 
+  const {
+    setupKeyboardNav,
+    handleFormError,
     handleFormSuccess,
     registerFormElement,
     getAccessibilityPreferences,
@@ -667,10 +666,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     }
   }, [formErrors, handleFormError]);
 
-
-
-
-
   // Verbessere Barrierefreiheit
   useEffect(() => {
     enhanceFocusVisibility();
@@ -700,14 +695,14 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
       const timer = setTimeout(() => {
         testAccessibility();
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [testAccessibility, children]);
 
   // Berechne den Anzeigetitel (memoized for performance)
-  const displayTitle = React.useMemo(() => 
-    getDisplayTitle('', false, generatedContent), 
+  const displayTitle = React.useMemo(() =>
+    getDisplayTitle('', false, generatedContent),
     [getDisplayTitle, generatedContent]
   );
 
@@ -735,7 +730,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         await editSubmitHandlerRef.current();
         return;
       }
-      
+
       // Get current feature states from the store
       const featureState = getFeatureState();
 
@@ -748,7 +743,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         useWebSearchTool: featureState.webSearchConfig?.isActive || formData.useWebSearchTool || false,
         usePrivacyMode: featureState.privacyModeConfig?.isActive || formData.usePrivacyMode || false
       };
-      
+
       await onSubmit(enhancedFormData);
       // Success is handled in the success useEffect above
     } catch (error) {
@@ -974,7 +969,7 @@ const BaseForm: React.FC<BaseFormProps> = (props) => {
   }), []); // Only use initial values on mount
 
   return (
-    <FormStateProvider 
+    <FormStateProvider
       formId={componentName}
       initialState={initialFormState}
     >
@@ -1037,4 +1032,4 @@ const areEqual = (prevProps: BaseFormProps, nextProps: BaseFormProps): boolean =
   return true;
 };
 
-export default React.memo(BaseForm, areEqual); 
+export default React.memo(BaseForm, areEqual);

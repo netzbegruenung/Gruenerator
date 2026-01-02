@@ -11,4 +11,4 @@ const GeneratorCardSkeleton: React.FC = () => {
   );
 };
 
-export default GeneratorCardSkeleton; 
+export default GeneratorCardSkeleton;

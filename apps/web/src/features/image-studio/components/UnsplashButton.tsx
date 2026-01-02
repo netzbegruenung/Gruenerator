@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import { FaUnsplash } from 'react-icons/fa';
 
 const UnsplashButton = ({ searchTerms }) => {
@@ -24,10 +23,6 @@ const UnsplashButton = ({ searchTerms }) => {
       unsplash
     </button>
   );
-};
-
-UnsplashButton.propTypes = {
-  searchTerms: PropTypes.arrayOf(PropTypes.string)
 };
 
 export default UnsplashButton;

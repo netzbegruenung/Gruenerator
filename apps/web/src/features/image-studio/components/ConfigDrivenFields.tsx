@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
 
@@ -71,25 +70,6 @@ const ConfigDrivenFields = ({
       })}
     </div>
   );
-};
-
-ConfigDrivenFields.propTypes = {
-  fields: PropTypes.arrayOf(PropTypes.shape({
-    name: PropTypes.string.isRequired,
-    type: PropTypes.oneOf(['text', 'textarea', 'number']),
-    label: PropTypes.string,
-    placeholder: PropTypes.string,
-    required: PropTypes.bool,
-    rows: PropTypes.number,
-    maxLength: PropTypes.number,
-    minLength: PropTypes.number
-  })).isRequired,
-  values: PropTypes.object.isRequired,
-  onChange: PropTypes.func.isRequired,
-  errors: PropTypes.object,
-  disabled: PropTypes.bool,
-  className: PropTypes.string,
-  hideLabels: PropTypes.bool
 };
 
 export default ConfigDrivenFields;

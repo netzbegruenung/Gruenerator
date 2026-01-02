@@ -164,7 +164,6 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     }
   }, [canUseSharepic, watchPlatforms, setValue]);
 
-
   const handleImageChange = useCallback((file: File | null) => {
     setUploadedImage(file);
   }, []);
@@ -270,7 +269,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         if (data.zitatgeber) queryParts.push(data.zitatgeber);
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
-      
+
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
       // Add custom prompt from user instructions (simplified)
@@ -376,7 +375,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
           // Add edit handler for sharepics
           onEditSharepic: handleEditSharepic
         };
-        
+
         setSocialMediaContent(finalContent);
         setGeneratedText(componentName, finalContent, finalContent.metadata);
         setTimeout(resetSuccess, 3000);
@@ -392,8 +391,6 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     setSocialMediaContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
-
-  
 
   const handleAttachmentClick = useCallback(async (files) => {
     try {
@@ -431,13 +428,13 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         }
       }
     }
-    
+
     // Create unique editing session ID
     const editingSessionId = `sharepic-edit-${Date.now()}`;
-    
+
     try {
       let imageSessionId = null;
-      
+
       // Upload image to backend Redis storage if available
       if (sharepicData.image) {
         try {
@@ -469,20 +466,20 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         imageSessionId: imageSessionId, // Store session ID instead of image
         hasOriginalImage: !!sharepicData.originalImage
       };
-      
+
       // Add size check before storing in sessionStorage
       const dataToStore = JSON.stringify({
         source: 'presseSocial',
         data: sessionData,
         timestamp: Date.now()
       });
-      
+
       // Check size (sessionStorage typically has 5-10MB limit)
       if (dataToStore.length > 1000000) { // 1MB safety limit
         console.error('[PresseSocialGenerator] Session data too large:', dataToStore.length, 'bytes');
         throw new Error('Session data too large for storage');
       }
-      
+
       sessionStorage.setItem(editingSessionId, dataToStore);
     } catch (error) {
       console.error('[PresseSocialGenerator] Error preparing edit session:', error);
@@ -498,7 +495,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         timestamp: Date.now()
       }));
     }
-    
+
     // Open Image Studio in new tab with editing session
     const url = new URL(window.location.origin + '/image-studio/templates');
     url.searchParams.append('editSession', editingSessionId);
@@ -699,7 +696,6 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
       </AnimatePresence>
     </>
   );
-  
 
   return (
     <ErrorBoundary>
@@ -758,4 +754,4 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
   );
 };
 
-export default PresseSocialGenerator; 
+export default PresseSocialGenerator;

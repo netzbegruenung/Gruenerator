@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import PropTypes from 'prop-types';
 import SubtitleStylingService from '../utils/subtitleStylingService';
 import { useAuthStore } from '../../../stores/authStore';
 
@@ -111,7 +110,7 @@ const LiveSubtitlePreview = ({
           padding: '0.2em 0.4em',
           borderRadius: '0.1em'
         };
-      
+
       case 'standard':
       default:
         return {
@@ -176,26 +175,4 @@ const LiveSubtitlePreview = ({
   );
 };
 
-LiveSubtitlePreview.propTypes = {
-  editableSubtitles: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    startTime: PropTypes.number.isRequired,
-    endTime: PropTypes.number.isRequired,
-    text: PropTypes.string.isRequired
-  })).isRequired,
-  currentTimeInSeconds: PropTypes.number.isRequired,
-  videoMetadata: PropTypes.shape({
-    width: PropTypes.number.isRequired,
-    height: PropTypes.number.isRequired,
-    duration: PropTypes.number
-  }),
-  stylePreference: PropTypes.oneOf([
-    'standard', 'clean', 'shadow', 'tanne',
-    'gj_clean', 'gj_shadow', 'gj_lavendel', 'gj_hellgruen',
-    'at_standard', 'at_clean', 'at_shadow', 'at_gruen'
-  ]),
-  heightPreference: PropTypes.oneOf(['standard', 'tief']),
-  subtitlePreference: PropTypes.oneOf(['manual', 'word'])
-};
-
-export default LiveSubtitlePreview; 
+export default LiveSubtitlePreview;

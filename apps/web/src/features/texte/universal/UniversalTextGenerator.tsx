@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import PropTypes from 'prop-types';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import PlatformSelector from '../../../components/common/PlatformSelector';
@@ -286,8 +285,4 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   );
 };
 
-UniversalTextGenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
-};
-
-export default UniversalTextGenerator; 
+export default UniversalTextGenerator;

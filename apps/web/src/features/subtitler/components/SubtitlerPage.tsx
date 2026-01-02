@@ -73,7 +73,6 @@ const SubtitlerPage = () => {
   // Get user and Igel mode status from auth store
   const { user, igelModus } = useAuthStore();
 
-
   // Browser history navigation - push state when step changes
   const isInitialMount = useRef(true);
   useEffect(() => {
@@ -239,7 +238,7 @@ const SubtitlerPage = () => {
         try {
           // Verwende axios direkt mit baseURL und füge modePreference, stylePreference, und heightPreference als Query-Parameter hinzu
           const resultResponse = await axios.get(`${baseURL}/subtitler/result/${currentUploadId}`, {
-              params: { 
+              params: {
                 subtitlePreference: modePreference, // Use modePreference in polling
                 stylePreference, // Include style preference in polling
                 heightPreference // Include height preference in polling
@@ -331,7 +330,7 @@ const SubtitlerPage = () => {
 
   const handleReset = useCallback(() => {
     setIsExiting(true);
-    
+
     // Send cleanup signal before reset (das neue System übernimmt automatisch)
     if (uploadInfo?.uploadId) {
       console.log(`[SubtitlerPage] Manual cleanup on reset for uploadId: ${uploadInfo.uploadId}`);
@@ -339,16 +338,16 @@ const SubtitlerPage = () => {
       fetch(`${baseURL}/subtitler/cleanup/${uploadInfo.uploadId}`, { method: 'DELETE' })
         .catch(error => console.warn('[SubtitlerPage] Cleanup request failed:', error));
     }
-    
+
     // Clear any active polling interval on reset
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
-    
+
     // Reset export store
     resetExport();
-    
+
     setTimeout(() => {
       setStep('select');
       setOriginalVideoFile(null);
@@ -492,7 +491,6 @@ const SubtitlerPage = () => {
     }
   }, [loadProject]);
 
-
   // Funktion zum Umschalten des Profi-Modus (erwartet jetzt den neuen Wert)
   const toggleProMode = useCallback((newIsActive) => {
     setIsProModeActive(newIsActive);
@@ -509,7 +507,7 @@ const SubtitlerPage = () => {
             {step === 'mode-select' && !isProcessing && (
               <h1 className="subtitler-title">Grünerator Reel-Studio</h1>
             )}
-            
+
             {error && (
               <div className="error-message">
                 {error}

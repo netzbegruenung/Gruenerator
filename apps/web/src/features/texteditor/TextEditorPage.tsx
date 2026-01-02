@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import PropTypes from 'prop-types';
 import BaseForm from '../../components/common/BaseForm';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { FormTextarea } from '../../components/common/Form/Input';
@@ -168,10 +167,6 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
       </div>
     </ErrorBoundary>
   );
-};
-
-AITextImproverGenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
 };
 
 export default AITextImproverGenerator;

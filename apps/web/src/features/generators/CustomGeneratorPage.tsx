@@ -117,7 +117,6 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatorConfig]);
 
-
   useEffect(() => {
     const fetchGeneratorConfig = async () => {
       if (!slug) return;
@@ -360,4 +359,4 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   );
 };
 
-export default CustomGeneratorPage; 
+export default CustomGeneratorPage;

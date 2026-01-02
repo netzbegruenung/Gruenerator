@@ -39,7 +39,7 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
         type="number"
         label={FORM_LABELS.CHARACTER_COUNT}
         placeholder="1000-3500"
-        rules={{ 
+        rules={{
           required: 'Zeichenanzahl ist ein Pflichtfeld',
           min: { value: 1000, message: 'Die Zeichenanzahl muss mindestens 1.000 betragen' },
           max: { value: 3500, message: 'Die Zeichenanzahl darf maximal 3.500 betragen' }
@@ -53,4 +53,4 @@ const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
 
 WahlprogrammForm.displayName = 'WahlprogrammForm';
 
-export default WahlprogrammForm; 
+export default WahlprogrammForm;

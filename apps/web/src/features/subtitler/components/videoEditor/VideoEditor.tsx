@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import PropTypes from 'prop-types';
 import { FiPlay, FiPause, FiScissors, FiRotateCcw, FiRotateCw, FiType, FiRefreshCw, FiAlertTriangle, FiPlus, FiFilm, FiDownload, FiX, FiCheck } from 'react-icons/fi';
 import { HiCog } from 'react-icons/hi';
 import Spinner from '../../../../components/common/Spinner';
@@ -712,25 +711,6 @@ const VideoEditor = ({
       )}
     </div>
   );
-};
-
-VideoEditor.propTypes = {
-  videoUrl: PropTypes.string.isRequired,
-  videoFile: PropTypes.object,
-  videoMetadata: PropTypes.shape({
-    duration: PropTypes.number.isRequired,
-    width: PropTypes.number.isRequired,
-    height: PropTypes.number.isRequired
-  }).isRequired,
-  uploadId: PropTypes.string,
-  onSegmentsChange: PropTypes.func,
-  onGenerateSubtitles: PropTypes.func,
-  subtitles: PropTypes.string,
-  isGeneratingSubtitles: PropTypes.bool,
-  stylePreference: PropTypes.string,
-  heightPreference: PropTypes.string,
-  onSubtitleClick: PropTypes.func,
-  onSubtitleUpdate: PropTypes.func
 };
 
 export default VideoEditor;

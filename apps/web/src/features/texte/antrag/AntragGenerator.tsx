@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import PropTypes from 'prop-types';
 import BaseForm from '../../../components/common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -422,10 +421,6 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       </div>
     </ErrorBoundary>
   );
-};
-
-AntragGenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
 };
 
 export default AntragGenerator;
