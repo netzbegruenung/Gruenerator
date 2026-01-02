@@ -1,4 +1,4 @@
-import { config } from '../config.js';
+import { config } from '../config.ts';
 
 /**
  * Generate a comprehensive system prompt that explains how to use the MCP tools

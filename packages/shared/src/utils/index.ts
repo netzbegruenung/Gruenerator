@@ -7,4 +7,12 @@ export {
   tokenizeQuery,
   generateQueryVariants,
   containsNormalized
-} from './textNormalization.js';
+} from './textNormalization.ts';
+
+// String distance and similarity utilities
+export {
+  levenshteinDistance,
+  normalizeForNameMatch,
+  calculateNameSimilarity,
+  findBestMatch
+} from './stringDistance.ts';

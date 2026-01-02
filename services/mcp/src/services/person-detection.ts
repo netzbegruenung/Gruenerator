@@ -3,7 +3,11 @@
  * Detects when a query is about a specific German MP (Abgeordneter)
  */
 
-import { getBundestagMCPClient } from './bundestag-client.js';
+import { getBundestagMCPClient } from './bundestag-client.ts';
+import {
+    normalizeForNameMatch,
+    calculateNameSimilarity as sharedCalculateNameSimilarity
+} from '@gruenerator/shared/utils';
 
 let mpCache = new Map();
 let cacheLastUpdated = 0;
@@ -195,53 +199,13 @@ class PersonDetectionService {
     }
 
     calculateNameSimilarity(name1, name2) {
-        const n1 = this.normalizeForCache(name1);
-        const n2 = this.normalizeForCache(name2);
-
-        if (n1.includes(n2) || n2.includes(n1)) {
-            const shorter = n1.length < n2.length ? n1 : n2;
-            const longer = n1.length >= n2.length ? n1 : n2;
-            return shorter.length / longer.length * 0.95;
-        }
-
-        const maxLen = Math.max(n1.length, n2.length);
-        if (maxLen === 0) return 1.0;
-
-        const distance = this.levenshteinDistance(n1, n2);
-        return 1 - (distance / maxLen);
-    }
-
-    levenshteinDistance(s1, s2) {
-        const m = s1.length;
-        const n = s2.length;
-        const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-
-        for (let i = 0; i <= m; i++) dp[i][0] = i;
-        for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-        for (let i = 1; i <= m; i++) {
-            for (let j = 1; j <= n; j++) {
-                const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
-                dp[i][j] = Math.min(
-                    dp[i - 1][j] + 1,
-                    dp[i][j - 1] + 1,
-                    dp[i - 1][j - 1] + cost
-                );
-            }
-        }
-        return dp[m][n];
+        // Use shared utility from @gruenerator/shared/utils
+        return sharedCalculateNameSimilarity(name1, name2);
     }
 
     normalizeForCache(name) {
-        return (name || '')
-            .toLowerCase()
-            .replace(/ä/g, 'ae')
-            .replace(/ö/g, 'oe')
-            .replace(/ü/g, 'ue')
-            .replace(/ß/g, 'ss')
-            .replace(/[^a-z\s]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
+        // Use shared utility from @gruenerator/shared/utils
+        return normalizeForNameMatch(name);
     }
 
     async ensureCachePopulated() {

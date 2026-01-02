@@ -1,18 +1,16 @@
 import { z } from 'zod';
-import { config } from '../config.js';
-import { searchCollection, hybridSearchCollection, textSearchCollection } from '../qdrant/client.js';
-import { generateEmbedding } from '../embeddings.js';
+import { config, COLLECTION_KEYS } from '../config.ts';
+import { searchCollection, hybridSearchCollection, textSearchCollection } from '../qdrant/client.ts';
+import { generateEmbedding } from '../embeddings.ts';
 import {
   getCachedEmbedding,
   cacheEmbedding,
   getCachedSearch,
   cacheSearch,
   getCacheStats
-} from '../utils/cache.js';
-import { getEnrichedPersonSearch } from '../services/enriched-person-search.js';
-
-// All available collection keys for validation
-const COLLECTION_KEYS = ['oesterreich', 'deutschland', 'bundestagsfraktion', 'gruene-de', 'gruene-at', 'kommunalwiki', 'boell-stiftung', 'examples'];
+} from '../utils/cache.ts';
+import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
+import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
 
 export const searchTool = {
   name: 'gruenerator_search',
@@ -229,29 +227,6 @@ Suche mit Filter (NACH Aufruf von gruenerator_get_filters):
     }
   }
 };
-
-/**
- * Build Qdrant filter from metadata filters
- * Supports: primary_category, content_type, subcategories, region, country
- */
-function buildQdrantFilter(filters) {
-  if (!filters) return null;
-
-  const must = [];
-  const filterKeys = ['primary_category', 'content_type', 'subcategories', 'region', 'country', 'platform'];
-
-  for (const key of filterKeys) {
-    const value = filters[key];
-    if (value) {
-      must.push({
-        key,
-        match: { value }
-      });
-    }
-  }
-
-  return must.length > 0 ? { must } : null;
-}
 
 /**
  * Format enriched person search result for MCP response

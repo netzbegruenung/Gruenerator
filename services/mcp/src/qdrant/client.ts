@@ -1,5 +1,5 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { config } from '../config.js';
+import { config } from '../config.ts';
 import { generateQueryVariants, tokenizeQuery, normalizeQuery } from '@gruenerator/shared/utils';
 
 // Import shared search algorithms

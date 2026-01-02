@@ -14,16 +14,16 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 console.log('[Boot] Dependencies loaded');
 
 console.log('[Boot] Loading config...');
-import { config, validateConfig } from './config.js';
-import { searchTool, cacheStatsTool } from './tools/search.js';
-import { clientConfigTool } from './clients/config.js';
-import { filtersTool } from './tools/filters.js';
-import { personSearchTool } from './tools/person-search.js';
-import { examplesSearchTool } from './tools/examples-search.js';
-import { getCacheStats } from './utils/cache.js';
-import { info, error, logSearch, getStats } from './utils/logger.js';
-import { getCollectionResources, getCollectionResource, getServerInfoResource, readServerInfoResource } from './resources/collections.js';
-import { getSystemPromptResource } from './resources/system-prompt.js';
+import { config, validateConfig } from './config.ts';
+import { searchTool, cacheStatsTool } from './tools/search.ts';
+import { clientConfigTool } from './clients/config.ts';
+import { filtersTool } from './tools/filters.ts';
+import { personSearchTool } from './tools/person-search.ts';
+import { examplesSearchTool } from './tools/examples-search.ts';
+import { getCacheStats } from './utils/cache.ts';
+import { info, error, logSearch, getStats } from './utils/logger.ts';
+import { getCollectionResources, getCollectionResource, getServerInfoResource, readServerInfoResource } from './resources/collections.ts';
+import { getSystemPromptResource } from './resources/system-prompt.ts';
 console.log('[Boot] Config loaded');
 
 // Konfiguration validieren
