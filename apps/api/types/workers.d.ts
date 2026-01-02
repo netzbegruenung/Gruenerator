@@ -1,3 +1,39 @@
+// Re-export all worker types from the workers/types.ts module
+// This file is kept for backwards compatibility with existing imports
+
+export type {
+  AIWorkerResult,
+  AIRequestData,
+  AIRequestOptions,
+  AIResponseMetadata,
+  AIWorkerPool,
+  WorkerMessage,
+  WorkerRequestMessage,
+  WorkerResponseMessage,
+  WorkerErrorMessage,
+  WorkerProgressMessage,
+  WorkerInstance,
+  PendingRequest,
+  WorkerPoolStats,
+  WorkerConfig,
+  WorkerConfigRoot,
+  Message,
+  MessageContent,
+  Tool,
+  ToolCall,
+  ContentBlock,
+  FileMetadata,
+  DocumentReference,
+  ProviderAdapter,
+  ProviderAdapters,
+  RateLimitConfig,
+  RetryConfig,
+  MessagingConfig,
+  DebugConfig,
+  LoggingConfig,
+} from '../workers/types.js';
+
+// Legacy interface names for backwards compatibility
 export interface AIWorkerRequest {
   type: string;
   messages?: Array<{
@@ -15,30 +51,5 @@ export interface AIWorkerRequest {
       description: string;
       input_schema: Record<string, unknown>;
     }>;
-  };
-}
-
-export interface AIWorkerResult {
-  success: boolean;
-  content?: string;
-  error?: string;
-  stop_reason?: string;
-  tool_calls?: Array<{
-    id: string;
-    name: string;
-    input: Record<string, unknown>;
-  }>;
-  raw_content_blocks?: Array<{
-    type: string;
-    text?: string;
-  }>;
-}
-
-export interface AIWorkerPool {
-  processRequest(request: AIWorkerRequest): Promise<AIWorkerResult>;
-  getStats(): {
-    activeWorkers: number;
-    queueLength: number;
-    totalProcessed: number;
   };
 }

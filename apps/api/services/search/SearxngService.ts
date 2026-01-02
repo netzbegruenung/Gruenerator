@@ -75,7 +75,7 @@ class SearxngService {
    */
   private async initializeRedis(): Promise<void> {
     try {
-      const { default: redisClient } = await import('../../utils/redisClient.js');
+      const { redisClient } = await import('../../utils/redis/index.js');
 
       await redisClient.ping();
       this.redisClient = redisClient;

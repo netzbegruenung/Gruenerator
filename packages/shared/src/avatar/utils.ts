@@ -4,7 +4,7 @@ import {
   DEFAULT_ROBOT_ID,
   type AvatarDisplayProps,
   type AvatarProfile,
-} from './types';
+} from './types.js';
 
 const DEFAULT_BASE_URL = 'https://gruenerator.eu';
 

@@ -1,2 +1,2 @@
-export * from './storage';
-export * from './auth';
+export * from './storage.js';
+export * from './auth.js';

@@ -34,6 +34,8 @@ export interface Intent {
   params: Record<string, unknown>;
   /** Confidence score (0-1) for this intent classification */
   confidence: number;
+  /** Allow dynamic access for additional properties */
+  [key: string]: unknown;
 }
 
 /**

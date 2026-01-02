@@ -7,4 +7,4 @@ export {
   tokenizeQuery,
   generateQueryVariants,
   containsNormalized
-} from './textNormalization';
+} from './textNormalization.js';

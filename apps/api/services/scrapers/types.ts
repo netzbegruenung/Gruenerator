@@ -161,8 +161,8 @@ export interface OparlEndpoint {
 export interface OparlPaper {
   /** Paper ID */
   id: string;
-  /** Paper name/title */
-  name: string;
+  /** Paper name/title (optional - may not be present in API response) */
+  name?: string;
   /** Reference number */
   reference?: string;
   /** Publication date */

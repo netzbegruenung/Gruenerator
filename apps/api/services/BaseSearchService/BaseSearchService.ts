@@ -83,10 +83,11 @@ export class BaseSearchService {
     this.chunkMultiplier = searchConfig.chunkMultiplier;
 
     // Initialize error handler
+    const logLevel = (options.logLevel || loggingConfig.level || 'error') as 'error' | 'warn' | 'info' | 'debug';
     this.errorHandler = createErrorHandler(this.serviceName, {
       enableTelemetry: options.enableTelemetry !== false && loggingConfig.enableTelemetry,
-      logLevel: options.logLevel || loggingConfig.level
-    });
+      logLevel
+    }) as ErrorHandler;
 
     // Initialize cache for search results
     const cacheConfig = vectorConfig.getCacheConfig((options.cacheType || 'baseService') as 'searchResults' | 'baseService');
@@ -488,7 +489,42 @@ export class BaseSearchService {
    * @protected
    */
   validateSearchParams(params: SearchParams): ValidatedSearchParams {
-    return InputValidator.validateSearchParams(params);
+    // Handle already-structured params (with userId, filters, options)
+    if ('userId' in params && 'filters' in params && 'options' in params) {
+      return params as unknown as ValidatedSearchParams;
+    }
+
+    // Convert flat params to SearchParamsInput format for InputValidator
+    // Extract documentIds with proper typing
+    const documentIds = params.filters?.documentIds as string[] | undefined;
+    const groupId = (params.group_id || params.filters?.group_id) as string | undefined;
+
+    const inputParams = {
+      query: params.query,
+      user_id: params.userId || '',
+      limit: params.limit || params.options?.limit,
+      threshold: params.options?.threshold,
+      mode: params.mode as string | undefined,
+      documentIds,
+      group_id: groupId
+    };
+
+    const validated = InputValidator.validateSearchParams(inputParams);
+
+    // Transform to ValidatedSearchParams structure expected by BaseSearchService
+    return {
+      query: validated.query,
+      userId: validated.user_id || null,
+      filters: {
+        documentIds: validated.documentIds,
+        group_id: validated.group_id
+      },
+      options: {
+        limit: validated.limit,
+        threshold: validated.threshold ?? this.defaultThreshold,
+        useCache: true
+      }
+    };
   }
 
   /**
@@ -841,7 +877,16 @@ export class BaseSearchService {
    */
   createErrorResponse(error: Error, query = ''): SearchResponse {
     if (error instanceof ValidationError) {
-      return InputValidator.createSafeErrorResponse(error);
+      const safeError = InputValidator.createSafeErrorResponse(error);
+      return {
+        success: false,
+        error: safeError.error,
+        message: safeError.message,
+        code: safeError.code,
+        results: [],
+        query: query.trim(),
+        searchType: 'error'
+      };
     }
 
     if (error instanceof SearchError) {
@@ -1088,7 +1133,7 @@ export class BaseSearchService {
    * Validate search parameters
    */
   validate(params: SearchParams): ValidatedSearchParams {
-    return InputValidator.validateSearchParams(params);
+    return this.validateSearchParams(params);
   }
 
   /**

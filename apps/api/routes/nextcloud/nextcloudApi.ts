@@ -1,9 +1,9 @@
-import express, { Request, Response, Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { createLogger } from '../../utils/logger.js';
-import type { NextcloudShareLink, ShareLinkUpdates } from '../../utils/integrations/nextcloud/types.js';
+import type { ShareLinkUpdates } from '../../utils/integrations/nextcloud/types.js';
 
 const log = createLogger('nextcloud');
 
@@ -13,7 +13,7 @@ interface AuthenticatedUser {
     name?: string;
 }
 
-interface AuthRequest extends Request {
+interface AuthenticatedRequest extends Request {
     user?: AuthenticatedUser;
 }
 
@@ -39,15 +39,15 @@ interface UpdateShareLinkBody {
     is_active?: boolean;
 }
 
-const router: Router = express.Router();
+const router: Router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth as any);
 
 /**
  * Get Nextcloud integration status
  * GET /api/nextcloud/status
  */
-router.get('/status', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/status', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -80,7 +80,7 @@ router.get('/status', async (req: AuthRequest, res: Response): Promise<void> => 
  * Get user's Nextcloud share links
  * GET /api/nextcloud/share-links
  */
-router.get('/share-links', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/share-links', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -111,7 +111,7 @@ router.get('/share-links', async (req: AuthRequest, res: Response): Promise<void
  * Save a new Nextcloud share link
  * POST /api/nextcloud/share-links
  */
-router.post('/share-links', async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/share-links', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -193,7 +193,7 @@ router.post('/share-links', async (req: AuthRequest, res: Response): Promise<voi
  * Delete a Nextcloud share link
  * DELETE /api/nextcloud/share-links/:id
  */
-router.delete('/share-links/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+router.delete('/share-links/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -237,7 +237,7 @@ router.delete('/share-links/:id', async (req: AuthRequest, res: Response): Promi
  * Test connection to a Nextcloud share
  * POST /api/nextcloud/test-connection
  */
-router.post('/test-connection', async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/test-connection', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -282,7 +282,7 @@ router.post('/test-connection', async (req: AuthRequest, res: Response): Promise
  * Upload file to a Nextcloud share
  * POST /api/nextcloud/upload
  */
-router.post('/upload', async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/upload', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -352,7 +352,7 @@ router.post('/upload', async (req: AuthRequest, res: Response): Promise<void> =>
  * Upload test file to a Nextcloud share
  * POST /api/nextcloud/upload-test
  */
-router.post('/upload-test', async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/upload-test', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -434,7 +434,7 @@ router.post('/upload-test', async (req: AuthRequest, res: Response): Promise<voi
  * Get share information (list files)
  * GET /api/nextcloud/share-links/:id/info
  */
-router.get('/share-links/:id/info', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/share-links/:id/info', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -477,7 +477,7 @@ router.get('/share-links/:id/info', async (req: AuthRequest, res: Response): Pro
  * Update share link
  * PUT /api/nextcloud/share-links/:id
  */
-router.put('/share-links/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+router.put('/share-links/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -535,7 +535,7 @@ router.put('/share-links/:id', async (req: AuthRequest, res: Response): Promise<
  * Debug route to check database state
  * GET /api/nextcloud/debug/database-state
  */
-router.get('/debug/database-state', async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/debug/database-state', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user?.id;
         if (!userId) {

@@ -165,13 +165,13 @@ export function handleAIWorkerError(res: Response, routePath: string, aiResult: 
  */
 export function withErrorHandler(
   handler: (req: Request, res: Response, next?: NextFunction) => Promise<void>,
-  routePath: string
+  routePath?: string
 ): (req: Request, res: Response, next: NextFunction) => Promise<void> {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       await handler(req, res, next);
     } catch (error) {
-      handleRouteError(error as Error, routePath, res, req);
+      handleRouteError(error as Error, routePath || req.originalUrl || 'unknown', res, req);
     }
   };
 }

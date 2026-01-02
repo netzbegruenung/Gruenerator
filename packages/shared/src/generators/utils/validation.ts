@@ -11,8 +11,8 @@ import type {
   LeichteSpracheRequest,
   TextImproverRequest,
   ValidationResult,
-} from '../types';
-import { VALIDATION_MESSAGES } from '../constants';
+} from '../types.js';
+import { VALIDATION_MESSAGES } from '../constants.js';
 
 /**
  * Validates a PresseSocial generator request.

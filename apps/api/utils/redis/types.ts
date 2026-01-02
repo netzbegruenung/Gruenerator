@@ -14,12 +14,8 @@ export type RedisClient = RedisClientType;
  * Rate limiter configuration
  */
 export interface RateLimiterConfig {
-  // Resource configuration
-  resources: {
-    [resourceType: string]: {
-      [userType: string]: ResourceLimitConfig;
-    };
-  };
+  // Resource configuration - flexible to accept any structure with resource limits
+  resources: Record<string, Record<string, ResourceLimitConfig>>;
 
   // General settings
   redisKeyPrefix: string;

@@ -3,7 +3,8 @@
  * Handles detection of missing information and generation of clarification questions
  */
 
-import * as chatMemory from '../../services/chat/index.js';
+import * as chatMemory from '../../services/chat/ChatMemoryService.js';
+import type { RequestType } from '../../config/antragQuestions.js';
 
 /**
  * Type definitions
@@ -528,7 +529,7 @@ export async function generateAntragQuestions(context: Record<string, unknown>, 
   const { getQuestionsForType } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
 
-  return getQuestionsForType(requestType as string, 1);
+  return getQuestionsForType(requestType as RequestType, 1);
 }
 
 /**
@@ -587,7 +588,7 @@ export async function analyzeAnswersForFollowup(
   const { hasFollowUpQuestions } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
 
-  return hasFollowUpQuestions(requestType as string);
+  return hasFollowUpQuestions(requestType as RequestType);
 }
 
 /**
@@ -601,7 +602,7 @@ export async function generateFollowUpQuestions(context: Record<string, unknown>
   const { getQuestionsForType } = await import('../../config/antragQuestions.js');
   const { requestType } = context;
 
-  return getQuestionsForType(requestType as string, 2);
+  return getQuestionsForType(requestType as RequestType, 2);
 }
 
 /**

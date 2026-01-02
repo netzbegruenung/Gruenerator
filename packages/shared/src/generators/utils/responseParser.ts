@@ -3,7 +3,7 @@
  * Parses various API response formats into a consistent structure.
  */
 
-import type { GeneratorResponse, GeneratorResult } from '../types';
+import type { GeneratorResponse, GeneratorResult } from '../types.js';
 
 /**
  * Parses various API response formats into a consistent GeneratorResult.

@@ -13,7 +13,7 @@ import type {
   KiTypeConfig,
   KiStyleVariant,
   GreenEditInfrastructure,
-} from './types';
+} from './types.js';
 
 // ============================================================================
 // TYPE CONFIGURATIONS

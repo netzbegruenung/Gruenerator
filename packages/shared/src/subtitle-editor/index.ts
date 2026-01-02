@@ -12,7 +12,7 @@ export type {
   SubtitleEditorActions,
   SubtitleStyleOption,
   SubtitleHeightOption,
-} from './subtitle-types';
+} from './subtitle-types.js';
 
 export {
   SUBTITLE_STYLE_OPTIONS,
@@ -25,7 +25,7 @@ export {
   getStyleOption,
   getHeightOption,
   getStyleConfig,
-} from './subtitle-constants';
+} from './subtitle-constants.js';
 
 export {
   parseSubtitlesText,
@@ -39,4 +39,4 @@ export {
   validateSegment,
   cloneSegments,
   segmentsEqual,
-} from './subtitle-utils';
+} from './subtitle-utils.js';

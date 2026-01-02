@@ -1,1 +1,1 @@
-export { useAuth, useIsAuthenticated, useUser } from './useAuth';
+export { useAuth, useIsAuthenticated, useUser } from './useAuth.js';

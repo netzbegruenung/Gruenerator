@@ -3,7 +3,7 @@
  * Platform configurations and mappings
  */
 
-import type { SharePlatform, PlatformConfig } from './types';
+import type { SharePlatform, PlatformConfig } from './types.js';
 
 /**
  * Platform configurations for social media sharing

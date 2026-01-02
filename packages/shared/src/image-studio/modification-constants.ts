@@ -12,8 +12,8 @@ import type {
   GroupedFontSizes,
   ModificationControlsConfig,
   DreizeilenColorScheme,
-} from './modification-types';
-import type { VeranstaltungFontSizes } from './types';
+} from './modification-types.js';
+import type { VeranstaltungFontSizes } from './types.js';
 
 // ============================================================================
 // BRAND COLORS

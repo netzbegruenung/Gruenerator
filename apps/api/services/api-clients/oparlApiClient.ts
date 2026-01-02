@@ -59,14 +59,21 @@ export interface OparlPaper {
     id?: string;
     name?: string;
     fileName?: string;
+    accessUrl?: string;
+    downloadUrl?: string;
+    mimeType?: string;
     [key: string]: unknown;
   };
   auxiliaryFile?: Array<{
     id?: string;
     name?: string;
     fileName?: string;
+    accessUrl?: string;
+    downloadUrl?: string;
+    mimeType?: string;
     [key: string]: unknown;
   }>;
+  date?: string;
   [key: string]: unknown;
 }
 

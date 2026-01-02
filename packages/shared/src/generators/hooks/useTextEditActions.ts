@@ -1,4 +1,4 @@
-import { useGeneratedTextStore } from '../../stores/generatedTextStore';
+import { useGeneratedTextStore } from '../../stores/generatedTextStore.js';
 
 export interface EditChange {
   text_to_find?: string;

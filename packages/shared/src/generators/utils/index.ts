@@ -3,8 +3,8 @@
  * Barrel export for all utility functions.
  */
 
-export { parseGeneratorResponse, extractContent } from './responseParser';
-export { parseGeneratorError, getErrorMessage } from './errorMessages';
+export { parseGeneratorResponse, extractContent } from './responseParser.js';
+export { parseGeneratorError, getErrorMessage } from './errorMessages.js';
 export {
   validatePresseSocialRequest,
   validateAntragRequest,
@@ -14,4 +14,4 @@ export {
   validateTextImproverRequest,
   isNonEmpty,
   getFirstError,
-} from './validation';
+} from './validation.js';

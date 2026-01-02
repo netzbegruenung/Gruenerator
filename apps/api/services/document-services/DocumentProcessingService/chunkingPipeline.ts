@@ -4,7 +4,7 @@
  */
 
 import { mistralEmbeddingService } from '../../mistral/index.js';
-import { smartChunkDocument } from '../textChunker.js';
+import { smartChunkDocument } from '../TextChunker/index.js';
 import type { ChunkingOptions, ChunkAndEmbedResult } from './types.js';
 
 /**

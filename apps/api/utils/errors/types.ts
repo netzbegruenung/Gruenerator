@@ -23,6 +23,7 @@ export type ErrorCode =
   | 'DATABASE_ERROR'
   | 'CACHE_ERROR'
   | 'RESOURCE_ERROR'
+  | 'NOT_IMPLEMENTED'
   | 'UNKNOWN_ERROR';
 
 /**

@@ -126,6 +126,32 @@ export class SubtitlerProjectService {
     }
   }
 
+  /**
+   * Get project by ID only (without user verification)
+   * Use with caution - only for internal operations where user context is not available
+   */
+  async getProjectById(projectId: string): Promise<SubtitlerProject | null> {
+    await this.ensureInitialized();
+
+    try {
+      const query = `
+                SELECT id, title, status, video_path, video_filename, video_size, video_metadata,
+                       thumbnail_path, subtitled_video_path, subtitles, style_preference, height_preference, mode_preference,
+                       created_at, updated_at, last_edited_at, export_count
+                FROM subtitler_projects
+                WHERE id = $1
+            `;
+
+      const result = await this.postgres.queryOne(query, [projectId]);
+
+      return result ? (result as unknown as SubtitlerProject) : null;
+
+    } catch (error: any) {
+      console.error('[SubtitlerProjectService] Failed to get project by id:', error);
+      throw new Error(`Failed to retrieve project: ${error.message}`);
+    }
+  }
+
   async findProjectByVideoFilename(userId: string, videoFilename: string): Promise<Partial<SubtitlerProject> | null> {
     await this.ensureInitialized();
 
@@ -188,7 +214,7 @@ export class SubtitlerProjectService {
 
       // Mark upload as promoted to prevent cleanup
       try {
-        const { markUploadAsPromoted } = await import('../../routes/subtitler/services/tusService.js');
+        const { markUploadAsPromoted } = await import('./tusService.js');
         markUploadAsPromoted(uploadId);
       } catch (promoteError: any) {
         console.warn('[SubtitlerProjectService] Could not mark upload as promoted:', promoteError.message);

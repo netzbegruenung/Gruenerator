@@ -9,7 +9,7 @@ import type {
   SubtitleStyleOption,
   SubtitleHeightOption,
   SubtitleModificationParams,
-} from './subtitle-types';
+} from './subtitle-types.js';
 
 /**
  * Available subtitle style options (Core 4)

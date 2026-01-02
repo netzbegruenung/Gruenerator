@@ -3,7 +3,7 @@
  * Shared constants for sharepic generation across web and mobile.
  */
 
-import type { SharepicType, SharepicTypeOption } from './types';
+import type { SharepicType, SharepicTypeOption } from './types.js';
 
 /** All available sharepic type options */
 export const SHAREPIC_TYPES: readonly SharepicTypeOption[] = [

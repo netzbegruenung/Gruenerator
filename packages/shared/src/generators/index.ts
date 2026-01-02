@@ -47,7 +47,7 @@ export type {
   GeneratorResult,
   GeneratorError,
   ValidationResult,
-} from './types';
+} from './types.js';
 
 // Constants
 export {
@@ -66,7 +66,7 @@ export {
   type TextTypeOption,
   type AccessibilityModeOption,
   type TextImproverActionOption,
-} from './constants';
+} from './constants.js';
 
 // Utilities
 export {
@@ -82,7 +82,7 @@ export {
   validateTextImproverRequest,
   isNonEmpty,
   getFirstError,
-} from './utils';
+} from './utils/index.js';
 
 // Hooks
 export {
@@ -95,7 +95,7 @@ export {
   type EditChange,
   type ApplyChangesResult,
   type UseTextEditActionsReturn,
-} from './hooks';
+} from './hooks/index.js';
 
 // Re-export store for convenience
 export {
@@ -106,4 +106,4 @@ export {
   type GeneratedTextState,
   type GeneratedTextActions,
   type GeneratedTextStore,
-} from '../stores/generatedTextStore';
+} from '../stores/generatedTextStore.js';

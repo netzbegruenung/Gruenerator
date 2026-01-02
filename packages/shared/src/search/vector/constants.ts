@@ -3,7 +3,7 @@
  * Shared configuration values for vector search across API and MCP
  */
 
-import type { HybridConfig, QualityConfig } from './types';
+import type { HybridConfig, QualityConfig } from './types.js';
 
 /**
  * Default hybrid search configuration

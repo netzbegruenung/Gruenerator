@@ -4,7 +4,7 @@
  */
 
 import type { WebSearchState } from '../types.js';
-import { DocumentSearchService } from '../../../../services/document-services/index.js';
+import { DocumentSearchService } from '../../../../services/document-services/DocumentSearchService/index.js';
 
 const documentSearchService = new DocumentSearchService();
 

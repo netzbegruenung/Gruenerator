@@ -16,6 +16,7 @@ export interface UserProfile {
   chat_color?: string;
   beta_features: Record<string, boolean>;
   user_defaults: Record<string, Record<string, any>>;
+  locale?: 'de-DE' | 'de-AT';
 
   // Feature flags
   igel_modus: boolean;

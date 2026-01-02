@@ -1,9 +1,30 @@
 /**
- * Chat Services - Barrel Export
+ * Chat Services Module Exports
  *
- * Exports all chat-related services and types
+ * Barrel export file for chat-related services.
+ * Provides unified API surface for external consumers.
  */
 
-export * from './ChatMemoryService.js';
-export * from './RecentValuesService.js';
-export * from './types.js';
+// ChatMemoryService - Redis-based conversation memory
+export {
+  getConversation,
+  addMessage,
+  clearConversation,
+  getConversationStats,
+  setPendingRequest,
+  getPendingRequest,
+  clearPendingRequest,
+  acquirePendingLock,
+  releasePendingLock,
+  hasPendingRequest,
+  healthCheck,
+  setExperimentalSession,
+  getExperimentalSession,
+  updateExperimentalSession,
+  deleteExperimentalSession,
+  getUserExperimentalSessions,
+  cleanupExpiredSessions
+} from './ChatMemoryService.js';
+
+// Re-export types
+export type * from './types.js';

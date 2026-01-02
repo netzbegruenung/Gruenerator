@@ -7,14 +7,14 @@
  */
 
 import { useState, useCallback } from 'react';
-import { mediaApi } from '../api';
-import { DEFAULT_PAGINATION } from '../constants';
+import { mediaApi } from '../api/index.js';
+import { DEFAULT_PAGINATION } from '../constants.js';
 import type {
   MediaItem,
   MediaFilters,
   MediaPagination,
   MediaListResponse,
-} from '../types';
+} from '../types.js';
 
 interface UseMediaLibraryOptions {
   initialFilters?: MediaFilters;

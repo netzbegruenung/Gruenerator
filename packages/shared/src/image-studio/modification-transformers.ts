@@ -10,13 +10,13 @@ import type {
   GroupedFontSizes,
   DreizeilenColorScheme,
   BarColor,
-} from './modification-types';
-import type { CanvasGenerationRequest, VeranstaltungFontSizes, ColorScheme } from './types';
+} from './modification-types.js';
+import type { CanvasGenerationRequest, VeranstaltungFontSizes, ColorScheme } from './types.js';
 import {
   VERANSTALTUNG_BASE_FONT_SIZES,
   GROUPED_FONT_SIZE_FIELDS,
   BRAND_COLORS,
-} from './modification-constants';
+} from './modification-constants.js';
 
 // ============================================================================
 // COLOR UTILITIES

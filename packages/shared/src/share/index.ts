@@ -20,7 +20,7 @@ export type {
   ShareListResponse,
   DeleteShareResponse,
   PlatformSections,
-} from './types';
+} from './types.js';
 
 // Constants
 export {
@@ -29,7 +29,7 @@ export {
   DEFAULT_SHARE_PLATFORMS,
   SHARE_LIMITS,
   SHARE_STATUS_LABELS,
-} from './constants';
+} from './constants.js';
 
 // Utils
 export {
@@ -41,7 +41,7 @@ export {
   getSubtitlerShareUrl,
   getBaseUrl,
   getPlatformShareUrl,
-} from './utils';
+} from './utils/index.js';
 
 // API
 export {
@@ -54,7 +54,7 @@ export {
   getShareInfo,
   deleteShare,
   shareApi,
-} from './api';
+} from './api/index.js';
 
 // Hooks / Store
-export { useShareStore } from './hooks';
+export { useShareStore } from './hooks/index.js';

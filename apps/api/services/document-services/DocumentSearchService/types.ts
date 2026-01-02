@@ -84,8 +84,8 @@ export interface DocumentSearchOptions extends SearchOptions {
     recallLimit?: number;
     /** Minimum quality score threshold */
     qualityMin?: number;
-    /** Search mode: vector, hybrid, or text */
-    mode?: 'vector' | 'hybrid' | 'text';
+    /** Search mode: vector, hybrid, text, or keyword (alias for text) */
+    mode?: 'vector' | 'hybrid' | 'text' | 'keyword';
 }
 
 /**

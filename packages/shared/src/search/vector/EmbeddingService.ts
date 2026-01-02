@@ -3,8 +3,8 @@
  * Shared between API and MCP for consistent embedding generation
  */
 
-import type { EmbeddingOptions, BatchEmbeddingOptions } from './types';
-import { EMBEDDING_DEFAULTS } from './constants';
+import type { EmbeddingOptions, BatchEmbeddingOptions } from './types.js';
+import { EMBEDDING_DEFAULTS } from './constants.js';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/embeddings';
 

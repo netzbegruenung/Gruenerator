@@ -3,8 +3,8 @@
  * Platform-agnostic API calls using the global API client
  */
 
-import { getGlobalApiClient } from '../../api/client';
-import { MEDIA_ENDPOINTS } from '../constants';
+import { getGlobalApiClient } from '../../api/client.js';
+import { MEDIA_ENDPOINTS } from '../constants.js';
 import type {
   MediaFilters,
   MediaListResponse,
@@ -13,7 +13,7 @@ import type {
   MediaUpdateParams,
   MediaUpdateResponse,
   MediaDeleteResponse,
-} from '../types';
+} from '../types.js';
 
 /**
  * Fetch media library with filters

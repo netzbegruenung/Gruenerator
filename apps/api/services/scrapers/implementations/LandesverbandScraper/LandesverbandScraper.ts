@@ -10,7 +10,7 @@ import { getQdrantInstance } from '../../../../database/services/QdrantService/i
 import { scrollDocuments, batchDelete } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
-import { getSourceById, getSourcesByType, getSourcesByLandesverband, LANDESVERBAENDE_CONFIG } from '../../../../config/landesverbaendeConfig.js';
+import { getSourceById, getSourcesByType, getSourcesByLandesverband, LANDESVERBAENDE_CONFIG, type SourceType } from '../../../../config/landesverbaendeConfig.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -323,7 +323,7 @@ export class LandesverbandScraper extends BaseScraper {
     let sources = (LANDESVERBAENDE_CONFIG as any).sources;
 
     if (sourceType) {
-      sources = getSourcesByType(sourceType);
+      sources = getSourcesByType(sourceType as SourceType);
     }
 
     if (landesverband) {
@@ -397,20 +397,24 @@ export class LandesverbandScraper extends BaseScraper {
   }
 
   /**
-   * Clear specific source (delegates to QdrantOperations)
+   * Clear specific source using batch delete
    */
   async clearSource(sourceId: string): Promise<void> {
     this.log(`Clearing source: ${sourceId}`);
-    await this.qdrantOps.clearSource(sourceId);
+    const filter = {
+      must: [{ key: 'source_id', match: { value: sourceId } }]
+    };
+    await batchDelete(this.qdrantClient, this.config.collectionName, filter);
     this.log(`Source ${sourceId} cleared`);
   }
 
   /**
-   * Clear entire collection (delegates to QdrantOperations)
+   * Clear entire collection using batch delete
    */
   async clearCollection(): Promise<void> {
     this.log('Clearing entire collection...');
-    await this.qdrantOps.clearCollection();
+    // Delete all points by using an empty filter with must_not condition that never matches
+    await batchDelete(this.qdrantClient, this.config.collectionName, {});
     this.log('Collection cleared');
   }
 

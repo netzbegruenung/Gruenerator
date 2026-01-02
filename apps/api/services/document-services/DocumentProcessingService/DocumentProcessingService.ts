@@ -4,7 +4,7 @@
  */
 
 import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
-import { getQdrantDocumentService } from '../DocumentSearchService.js';
+import { getQdrantDocumentService } from '../DocumentSearchService/index.js';
 import type {
   UploadedFile,
   FileUploadResult,

@@ -3,7 +3,7 @@
  * HTTP methods for share CRUD operations
  */
 
-import { apiRequest } from '../../api/client';
+import { apiRequest } from '../../api/client.js';
 import type {
   Share,
   ShareResponse,
@@ -13,7 +13,7 @@ import type {
   CreateImageShareParams,
   UpdateImageShareParams,
   ShareMediaType,
-} from '../types';
+} from '../types.js';
 
 /**
  * API endpoints for sharing

@@ -1,1 +1,1 @@
-export { useMediaPickerStore, useMediaPicker } from './mediaPickerStore';
+export { useMediaPickerStore, useMediaPicker } from './mediaPickerStore.js';

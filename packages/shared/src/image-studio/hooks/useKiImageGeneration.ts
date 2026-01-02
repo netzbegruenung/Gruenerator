@@ -4,15 +4,15 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getGlobalApiClient } from '../../api/client';
+import { getGlobalApiClient } from '../../api/client.js';
 import type {
   KiCreateRequest,
   KiEditRequest,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
   ImageStudioKiType,
-} from '../types';
-import { KI_TYPE_CONFIGS } from '../constants';
+} from '../types.js';
+import { KI_TYPE_CONFIGS } from '../constants.js';
 
 /**
  * Error messages for KI generation

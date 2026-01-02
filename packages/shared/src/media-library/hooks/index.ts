@@ -1,2 +1,2 @@
-export { useMediaLibrary } from './useMediaLibrary';
-export { useMediaUpload } from './useMediaUpload';
+export { useMediaLibrary } from './useMediaLibrary.js';
+export { useMediaUpload } from './useMediaUpload.js';

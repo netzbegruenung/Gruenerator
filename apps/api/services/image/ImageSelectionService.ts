@@ -102,6 +102,10 @@ class ImageSelectionService {
     };
   }
 
+  getCatalog(): ImageCatalog | null {
+    return this.imageCatalog;
+  }
+
   clearCache(): void {
     console.log('[ImageSelectionService] Cache clear requested (no cache in LangGraph version)');
   }

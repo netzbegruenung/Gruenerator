@@ -23,6 +23,7 @@ export const ERROR_TYPES: Record<ErrorCode, string> = {
   DATABASE_ERROR: 'Datenbankfehler',
   CACHE_ERROR: 'Cache-Fehler',
   RESOURCE_ERROR: 'Ressourcen erschöpft',
+  NOT_IMPLEMENTED: 'Funktion nicht implementiert',
   UNKNOWN_ERROR: 'Unbekannter Fehler'
 };
 
