@@ -1,9 +1,9 @@
 import express from 'express';
 import multer from 'multer';
 import { createCanvas, loadImage } from 'canvas';
-import { COLORS } from './config.js';
-import { checkFiles, registerFonts } from './fileManagement.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { COLORS } from '../../../services/sharepic/canvas/config.js';
+import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('imagine_label_c');
 

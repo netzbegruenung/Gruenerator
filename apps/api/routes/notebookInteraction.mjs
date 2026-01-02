@@ -10,7 +10,7 @@ import { getPostgresInstance } from '../database/services/PostgresService.js';
 import { NotebookQdrantHelper } from '../database/services/NotebookQdrantHelper.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 const { requireAuth } = authMiddleware;
-import { notebookQAService } from '../services/NotebookQAService.js';
+import { notebookQAService } from '../services/notebook/index.js';
 import { createLogger } from '../utils/logger.js';
 import {
     getSystemCollectionConfig,

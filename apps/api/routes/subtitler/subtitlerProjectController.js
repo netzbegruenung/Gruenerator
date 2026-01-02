@@ -5,7 +5,7 @@ import fs from 'fs';
 const fsPromises = fs.promises;
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
-import { saveOrUpdateProject } from './services/projectSavingService.js';
+import { saveOrUpdateProject } from '../../services/subtitler/projectSavingService.js';
 
 const log = createLogger('subtitler-projects');
 
@@ -13,7 +13,7 @@ let projectService = null;
 
 async function getProjectService() {
     if (!projectService) {
-        const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
+        const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
         projectService = getSubtitlerProjectService();
         await projectService.ensureInitialized();
     }

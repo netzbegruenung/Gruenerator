@@ -1,5 +1,5 @@
 import express from 'express';
-import redisClient from '../../utils/redisClient.js';
+import redisClient from '../../utils/redis/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('editSession');
 

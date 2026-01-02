@@ -1,9 +1,9 @@
 import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getProfileService } from '../../services/ProfileService.mjs';
-import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
+import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { KeycloakApiClient } from '../../utils/keycloakApiClient.js';
+import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('userProfile');
 

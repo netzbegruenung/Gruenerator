@@ -1,5 +1,5 @@
 import express from 'express';
-import { OffboardingService } from '../../services/offboardingService.js';
+import { OffboardingService } from '../../services/admin/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { createRequire } from 'module';

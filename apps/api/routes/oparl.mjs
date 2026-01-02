@@ -1,8 +1,8 @@
 import express from 'express';
-import oparlApiClient from '../services/oparlApiClient.js';
+import oparlApiClient from '../services/api-clients/oparlApiClient';
 import { oparlScraperService } from '../services/scrapers/implementations/OparlScraper/index.js';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import passport from '../config/passportSetup.mjs';
+import passport from '../config/passportSetup.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('oparl');

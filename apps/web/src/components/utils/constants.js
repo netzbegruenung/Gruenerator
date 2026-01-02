@@ -301,8 +301,7 @@ export const HEADER_TEXT = {
       { LINK: '/antragsgenerator', TEXT: 'Anträge', ICON: 'PiFileText' },
       { LINK: '/pressemitteilung', TEXT: 'Pressemitteilungen', ICON: 'PiNewspaper' },
       { LINK: '/socialmedia', TEXT: 'Social Media', ICON: 'PiInstagramLogo' },
-      { LINK: '/rede', TEXT: 'Politische Rede', ICON: 'PiMicrophone' },
-      { LINK: '/antragsversteher', TEXT: 'Antrags-Erklärer', ICON: 'PiLightbulb' }
+      { LINK: '/rede', TEXT: 'Politische Rede', ICON: 'PiMicrophone' }
     ],
     GPTS: [
       { LINK: 'https://chat.openai.com/g/g-Xd3HrGped-wahlprufstein-grunerator', TEXT: 'Wahlprüfstein', ICON: 'PiFile' },

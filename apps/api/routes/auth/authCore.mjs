@@ -1,14 +1,10 @@
 import express from 'express';
-import passport from '../../config/passportSetup.mjs';
+import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import { createRequire } from 'module';
 import { createLogger } from '../../utils/logger.js';
 import { getOriginDomain, isAllowedDomain, buildDomainUrl, getLocaleFromDomain } from '../../utils/domainUtils.js';
+import * as chatMemory from '../../services/chat/index.js';
 const log = createLogger('authCore');
-
-
-const require = createRequire(import.meta.url);
-const chatMemory = require('../../services/chatMemoryService');
 
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 

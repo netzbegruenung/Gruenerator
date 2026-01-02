@@ -63,19 +63,17 @@ export {
   type WebContentMetadata
 } from './indexing.js';
 
-// Search functions
+// Search filter utilities (kept for backward compatibility and random sampling)
 export {
-  searchDocuments,
-  searchGrundsatzDocuments,
-  searchBundestagDocuments,
-  searchGrueneDeDocuments,
-  searchGrueneAtDocuments,
-  searchContentExamples,
-  searchSocialMediaExamples,
   buildContentExampleFilter,
   buildSocialMediaFilter,
   extractMultiFieldContent
 } from './search.js';
+
+// Deprecated search functions removed - use QdrantService methods instead
+// searchDocuments -> QdrantService.searchDocuments()
+// searchContentExamples -> QdrantService.searchContentExamples()
+// searchSocialMediaExamples -> QdrantService.searchSocialMediaExamples()
 
 // Deletion functions
 export {

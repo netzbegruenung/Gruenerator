@@ -1,7 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import { createPadWithText } from './etherpadService.js';
-import { generateSecureId } from '../../utils/securityUtils.js';
+import { generateSecureId } from '../../utils/validation/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('etherpad');
 

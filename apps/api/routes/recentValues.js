@@ -7,7 +7,7 @@ const log = createLogger('recentValues');
 import { saveRecentValue,
   getRecentValues,
   clearRecentValues,
-  getFieldTypesWithCounts } from '../services/RecentValuesService.js';
+  getFieldTypesWithCounts } from '../services/chat/index.js';
 
 /**
  * POST /api/recent-values

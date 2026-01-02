@@ -10,7 +10,7 @@ import {
     generateQueryVariants,
     normalizeQuery,
     tokenizeQuery
-} from '../../../../utils/textNormalization.js';
+} from '../../../../services/text/index.js';
 import { vectorSearch } from './vectorSearch.js';
 import type {
     HybridSearchOptions,

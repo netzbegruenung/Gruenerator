@@ -1,5 +1,5 @@
 import express from 'express';
-import { createAuthenticatedRouter } from '../../utils/createAuthenticatedRouter.js';
+import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
@@ -18,15 +18,15 @@ import { classifyIntent, isQuestionMessage } from '../../agents/chat/intentClass
 import { extractParameters, analyzeParameterConfidence } from '../../agents/chat/parameterExtractor.js';
 import { handleInformationRequest, isWebSearchConfirmation, getWebSearchQuestion } from '../../agents/chat/informationRequestHandler.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
-import { processGraphRequest } from '../../agents/langgraph/promptProcessor.js';
-import { withErrorHandler } from '../../utils/errorHandler.js';
+import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
+import { withErrorHandler } from '../../utils/errors/index.js';
 import { generateSharepicForChat } from './services/sharepicGenerationService.js';
 import { generateImagineForChat } from './services/imagineGenerationService.js';
-import * as chatMemory from '../../services/chatMemoryService.js';
-import { trimMessagesToTokenLimit } from '../../utils/tokenCounter.js';
+import * as chatMemory from '../../services/chat/index.js';
+import { trimMessagesToTokenLimit } from '../../services/counters/index.js';
 import DocumentQnAService from '../../services/documentQnAService.js';
-import SharepicImageManager from '../../services/sharepicImageManager.js';
-import redisClient from '../../utils/redisClient.js';
+import TemporaryImageStorage from '../../services/image/TemporaryImageStorage.js';
+import redisClient from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
 import crypto from 'crypto';
 import { localizePlaceholders } from '../../utils/localizationHelper.js';
@@ -307,12 +307,12 @@ router.post('/', withErrorHandler(async (req, res) => {
         }
       }
 
-      // Store images temporarily for sharepic generation via SharepicImageManager
+      // Store images temporarily for sharepic generation via TemporaryImageStorage
       if (imageAttachments.length > 0) {
         try {
           const sharepicImageManager = req.app.locals.sharepicImageManager;
           if (!sharepicImageManager) {
-            log.error('[GrueneratorChat] SharepicImageManager not initialized');
+            log.error('[GrueneratorChat] TemporaryImageStorage not initialized');
           } else {
             for (const img of imageAttachments) {
               await sharepicImageManager.storeForRequest(requestId, userId, img);

@@ -6,8 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const router = express.Router();
-import { markdownForExport, isMarkdownContent } from '../utils/markdownService.js';
-import { sanitizeFilename as sanitizeFilenameCentral } from '../utils/securityUtils.js';
+import { markdownForExport, isMarkdownContent } from '../services/markdown/index.js';
+import { sanitizeFilename as sanitizeFilenameCentral } from '../utils/validation/index.js';
 import { PRIMARY_DOMAIN } from '../utils/domainUtils.js';
 import path from 'path';
 import fs from 'fs/promises';

@@ -12,7 +12,7 @@ import { vectorConfig } from '../../config/vectorConfig.js';
 import {
   detectContentType,
   detectMarkdownStructure,
-} from '../../utils/contentTypeDetector.js';
+} from '../content/index.js';
 import type { ChunkMetadata } from './types.js';
 
 class ChunkQualityService {

@@ -3,7 +3,7 @@
  * Handles detection of missing information and generation of clarification questions
  */
 
-import * as chatMemory from '../../services/chatMemoryService.js';
+import * as chatMemory from '../../services/chat/index.js';
 
 /**
  * Web search confirmation detection

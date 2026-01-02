@@ -5,7 +5,7 @@ import fs from 'fs';
 const fsPromises = fs.promises;
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redisClient.js';
+import redisClient from '../../utils/redis/index.js';
 
 const log = createLogger('subtitler-share');
 
@@ -23,7 +23,7 @@ async function getShareService() {
 
 async function getProjectService() {
     if (!projectService) {
-        const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
+        const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
         projectService = getSubtitlerProjectService();
         await projectService.ensureInitialized();
     }

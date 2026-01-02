@@ -6,7 +6,7 @@
 
 import path from 'path';
 import { mistralEmbeddingService } from '../mistral/index.js';
-import { smartChunkDocument } from '../document-services/textChunker.js';
+import { smartChunkDocument } from '../document-services/index.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import { vectorConfig } from '../../config/vectorConfig.js';

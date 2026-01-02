@@ -1811,7 +1811,7 @@ router.post('/:groupId/wolke/test-connection', ensureAuthenticated, async (req, 
     }
 
     // Import NextcloudApiClient for testing
-    const { default: NextcloudApiClient } = await import('../../services/nextcloudApiClient.js');
+    const { default: NextcloudApiClient } = await import('../../services/api-clients/nextcloudApiClient');
     
     // Test connection
     const client = new NextcloudApiClient(shareLink);
@@ -1868,7 +1868,7 @@ router.post('/:groupId/wolke/upload-test', ensureAuthenticated, async (req, res)
     }
 
     // Import NextcloudApiClient for upload
-    const { default: NextcloudApiClient } = await import('../../services/nextcloudApiClient.js');
+    const { default: NextcloudApiClient } = await import('../../services/api-clients/nextcloudApiClient');
     
     // Upload the file
     const client = new NextcloudApiClient(shareLink.share_link);

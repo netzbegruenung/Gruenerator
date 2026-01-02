@@ -7,12 +7,12 @@
 import * as cheerio from 'cheerio';
 import { BaseScraper } from '../base/BaseScraper.js';
 import type { ScraperResult } from '../types.js';
-import { smartChunkDocument } from '../../document-services/textChunker.js';
+import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { scrollDocuments, batchUpsert, batchDelete, getCollectionStats } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
-import { generatePointId } from '../../../utils/hashUtils.js';
+import { generatePointId } from '../../../utils/validation/index.js';
 import { ocrService } from '../../OcrService/index.js';
 import { extractMainContent } from '../utils/contentExtractor.js';
 import { extractTitle, removeUnwantedElements } from '../utils/htmlCleaner.js';

@@ -1,6 +1,6 @@
 import { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import bedrockClient from '../awsBedrockClient.js';
-import ToolHandler from '../../services/toolHandler.js';
+import ToolHandler from '../../services/tools/index.js';
 import config from '../worker.config.js';
 import { mergeMetadata } from './adapterUtils.js';
 

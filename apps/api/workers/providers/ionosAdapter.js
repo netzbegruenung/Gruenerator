@@ -1,6 +1,6 @@
 import { getIonosClient } from '../clients/ionosClient.js';
 import { mergeMetadata } from './adapterUtils.js';
-import ToolHandler from '../../services/toolHandler.js';
+import ToolHandler from '../../services/tools/index.js';
 
 async function execute(requestId, data) {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;

@@ -2,7 +2,7 @@ import { Worker } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import config from './worker.config.js';
-import PrivacyCounter from '../utils/privacyCounter.js';
+import { PrivacyCounter } from '../services/counters/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

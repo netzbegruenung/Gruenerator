@@ -1,7 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import multer from 'multer';
-import mistralVoiceService from './mistralVoiceService.js';
+import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('voice');
 

@@ -3,11 +3,11 @@ import multer from 'multer';
 import { createCanvas, loadImage } from 'canvas';
 import fs from 'fs/promises';
 
-import { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } from './config.js';
-import { isValidHexColor, getDefaultColor } from './utils.js';
-import { checkFiles, registerFonts } from './fileManagement.js';
-import { validateParams } from './paramValidation.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { TESTBILD_PATH, params, SUNFLOWER_PATH, COLORS } from '../../../services/sharepic/canvas/config.js';
+import { isValidHexColor, getDefaultColor } from '../../../services/sharepic/canvas/utils.js';
+import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
+import { validateParams } from '../../../services/sharepic/canvas/paramValidation.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('dreizeilen_canv');
 

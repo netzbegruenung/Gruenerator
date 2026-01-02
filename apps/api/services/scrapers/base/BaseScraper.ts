@@ -3,7 +3,7 @@
  * Provides common functionality: Qdrant storage, embedding generation, chunking, deduplication
  */
 
-import { generateContentHash } from '../../../utils/hashUtils.js';
+import { generateContentHash } from '../../../utils/validation/index.js';
 import type { ScraperConfig, ScraperResult, ScrapedDocument } from '../types.js';
 
 /**

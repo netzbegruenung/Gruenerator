@@ -4,7 +4,7 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
-import { cleanTextForEmbedding } from '../../../utils/textCleaning.js';
+import { cleanTextForEmbedding } from '../../text/index.js';
 import { estimateTokens } from './validation.js';
 import { GERMAN_SEPARATORS } from './germanLanguageRules.js';
 import type { Chunk, ChunkingOptions, LangChainChunkerOptions } from './types.js';

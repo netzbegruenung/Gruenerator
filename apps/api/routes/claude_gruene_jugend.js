@@ -1,6 +1,6 @@
 import express from 'express';
 const router = express.Router();
-import { processGraphRequest } from '../agents/langgraph/promptProcessor.js';
+import { processGraphRequest } from '../agents/langgraph/PromptProcessor.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_gruene_j');
 

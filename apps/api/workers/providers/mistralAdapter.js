@@ -1,5 +1,5 @@
 import { mergeMetadata } from './adapterUtils.js';
-import ToolHandler from '../../services/toolHandler.js';
+import ToolHandler from '../../services/tools/index.js';
 import mistralClient from '../mistralClient.js';
 import { connectionMetrics } from '../mistralClient.js';
 

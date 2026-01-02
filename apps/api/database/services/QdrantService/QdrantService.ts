@@ -46,9 +46,6 @@ import {
 } from './indexing.js';
 
 import {
-  searchDocuments as searchDocs,
-  searchContentExamples as searchContent,
-  searchSocialMediaExamples as searchSocial,
   buildContentExampleFilter,
   buildSocialMediaFilter,
   type DocumentSearchOptions,
@@ -85,6 +82,9 @@ import {
   type RandomSocialMediaOptions
 } from './random.js';
 
+import { QdrantOperations } from './operations/index.js';
+import type { HybridSearchResponse } from './operations/types.js';
+
 const log = createLogger('Qdrant');
 
 dotenv.config({ path: undefined });
@@ -95,6 +95,7 @@ dotenv.config({ path: undefined });
  */
 export class QdrantService {
   client: QdrantClient | null = null;
+  operations: QdrantOperations | null = null;
   isConnected: boolean = false;
   isInitializing: boolean = false;
   initPromise: Promise<void> | null = null;
@@ -235,6 +236,8 @@ export class QdrantService {
         log
       );
 
+      this.operations = new QdrantOperations(this.client);
+
       this.isConnected = true;
       this.isInitializing = false;
       this.lastHealthCheck = Date.now();
@@ -367,6 +370,169 @@ export class QdrantService {
     }
   }
 
+  // ============ Private Helper Methods ============
+
+  /**
+   * Build Qdrant filter for document searches
+   * @private
+   */
+  private _buildDocumentFilter(options: DocumentSearchOptions): Record<string, unknown> {
+    const filter: { must?: Array<Record<string, unknown>> } = { must: [] };
+
+    if (options.userId) {
+      filter.must!.push({ key: 'user_id', match: { value: options.userId } });
+    }
+
+    if (options.documentIds && options.documentIds.length > 0) {
+      filter.must!.push({
+        key: 'document_id',
+        match: { any: options.documentIds }
+      });
+    }
+
+    if (options.section) {
+      filter.must!.push({ key: 'section', match: { value: options.section } });
+    }
+
+    return filter.must!.length > 0 ? filter : {};
+  }
+
+  /**
+   * Build Qdrant filter for content example searches
+   * @private
+   */
+  private _buildContentFilter(options: ContentExampleSearchOptions): Record<string, unknown> {
+    const filter: { must?: Array<Record<string, unknown>> } = { must: [] };
+
+    if (options.contentType) {
+      filter.must!.push({ key: 'type', match: { value: options.contentType } });
+    }
+    if (options.categories?.length) {
+      filter.must!.push({ key: 'categories', match: { any: options.categories } });
+    }
+    if (options.tags?.length) {
+      filter.must!.push({ key: 'tags', match: { any: options.tags } });
+    }
+
+    return filter.must!.length > 0 ? filter : {};
+  }
+
+  /**
+   * Build Qdrant filter for social media searches
+   * @private
+   */
+  private _buildSocialMediaFilter(options: SocialMediaSearchOptions): Record<string, unknown> {
+    const filter: { must?: Array<Record<string, unknown>> } = { must: [] };
+
+    if (options.platform) {
+      filter.must!.push({ key: 'platform', match: { value: options.platform } });
+    }
+    if (options.country) {
+      filter.must!.push({ key: 'country', match: { value: options.country } });
+    }
+
+    return filter.must!.length > 0 ? filter : {};
+  }
+
+  /**
+   * Format QdrantOperations results to SearchResponse format
+   * @private
+   */
+  private _formatSearchResults(results: Array<{ id: string | number; score: number; payload: Record<string, unknown> }>, type: 'document' | 'content' | 'social'): SearchResponse<SearchResult | ContentExampleResult | SocialMediaResult> {
+    if (type === 'document') {
+      const formattedResults: SearchResult[] = results.map(hit => ({
+        id: hit.id,
+        score: hit.score,
+        document_id: hit.payload.document_id as string,
+        chunk_text: hit.payload.chunk_text as string,
+        chunk_index: hit.payload.chunk_index as number,
+        metadata: (hit.payload.metadata as Record<string, unknown>) || {},
+        user_id: hit.payload.user_id as string,
+        title: hit.payload.title as string | null,
+        filename: hit.payload.filename as string | null,
+        url: hit.payload.url as string | null,
+        section: hit.payload.section as string | null,
+        published_at: hit.payload.published_at as string | null
+      }));
+
+      return {
+        success: true,
+        results: formattedResults,
+        total: formattedResults.length
+      };
+    } else if (type === 'content') {
+      const formattedResults: ContentExampleResult[] = results.map(hit => ({
+        id: String(hit.id),
+        score: hit.score,
+        title: hit.payload.title as string,
+        content: hit.payload.content as string,
+        type: hit.payload.type as string,
+        categories: hit.payload.categories as string[],
+        tags: hit.payload.tags as string[],
+        description: hit.payload.description as string,
+        content_data: hit.payload.content_data as Record<string, unknown>,
+        metadata: hit.payload.metadata as Record<string, unknown>,
+        created_at: hit.payload.created_at as string,
+        similarity_score: hit.score
+      }));
+
+      return {
+        success: true,
+        results: formattedResults,
+        total: formattedResults.length
+      };
+    } else {
+      const formattedResults: SocialMediaResult[] = results.map(hit => ({
+        id: hit.id,
+        score: hit.score,
+        content: hit.payload.content as string,
+        platform: hit.payload.platform as string,
+        country: hit.payload.country as string | null,
+        source_account: hit.payload.source_account as string | null,
+        created_at: hit.payload.created_at as string
+      }));
+
+      return {
+        success: true,
+        results: formattedResults,
+        total: formattedResults.length
+      };
+    }
+  }
+
+  /**
+   * Format hybrid search results to SearchResponse format
+   * @private
+   */
+  private _formatHybridResults(hybridResult: HybridSearchResponse): SearchResponse<SearchResult> {
+    const formattedResults: SearchResult[] = hybridResult.results.map(hit => ({
+      id: hit.id,
+      score: hit.score,
+      document_id: hit.payload.document_id as string,
+      chunk_text: hit.payload.chunk_text as string,
+      chunk_index: hit.payload.chunk_index as number,
+      metadata: {
+        ...(hit.payload.metadata as Record<string, unknown> || {}),
+        hybridScore: hit.score,
+        vectorScore: hit.originalVectorScore,
+        textScore: hit.originalTextScore,
+        fusionMethod: hybridResult.metadata.fusionMethod
+      },
+      user_id: hit.payload.user_id as string,
+      title: hit.payload.title as string | null,
+      filename: hit.payload.filename as string | null,
+      url: hit.payload.url as string | null,
+      section: hit.payload.section as string | null,
+      published_at: hit.payload.published_at as string | null
+    }));
+
+    return {
+      success: true,
+      results: formattedResults,
+      total: formattedResults.length
+    };
+  }
+
   // ============ Indexing Methods ============
 
   async indexDocumentChunks(
@@ -478,12 +644,22 @@ export class QdrantService {
 
   async searchDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
     await this.ensureConnected();
-    return searchDocs(
-      this.client!,
-      options.collection || this.collections.documents,
+
+    const filter = this._buildDocumentFilter(options);
+    const collection = options.collection || this.collections.documents;
+
+    const results = await this.operations!.searchWithQuality(
+      collection,
       queryVector,
-      options
+      filter,
+      {
+        limit: options.limit || 10,
+        threshold: options.threshold || 0.3,
+        withPayload: true
+      }
     );
+
+    return this._formatSearchResults(results, 'document') as SearchResponse<SearchResult>;
   }
 
   async searchGrundsatzDocuments(queryVector: number[], options: DocumentSearchOptions = {}): Promise<SearchResponse<SearchResult>> {
@@ -516,22 +692,40 @@ export class QdrantService {
 
   async searchContentExamples(queryVector: number[], options: ContentExampleSearchOptions = {}): Promise<SearchResponse<ContentExampleResult>> {
     await this.ensureConnected();
-    return searchContent(
-      this.client!,
+
+    const filter = this._buildContentFilter(options);
+
+    const results = await this.operations!.searchWithQuality(
       this.collections.content_examples,
       queryVector,
-      options
+      filter,
+      {
+        limit: options.limit || 10,
+        threshold: options.threshold || 0.3,
+        withPayload: true
+      }
     );
+
+    return this._formatSearchResults(results, 'content') as SearchResponse<ContentExampleResult>;
   }
 
   async searchSocialMediaExamples(queryVector: number[], options: SocialMediaSearchOptions = {}): Promise<SearchResponse<SocialMediaResult>> {
     await this.ensureConnected();
-    return searchSocial(
-      this.client!,
+
+    const filter = this._buildSocialMediaFilter(options);
+
+    const results = await this.operations!.searchWithQuality(
       this.collections.social_media_examples,
       queryVector,
-      options
+      filter,
+      {
+        limit: options.limit || 10,
+        threshold: options.threshold || 0.3,
+        withPayload: true
+      }
     );
+
+    return this._formatSearchResults(results, 'social') as SearchResponse<SocialMediaResult>;
   }
 
   async searchFacebookExamples(queryVector: number[], options: Omit<SocialMediaSearchOptions, 'platform'> = {}): Promise<SearchResponse<SocialMediaResult>> {
@@ -540,6 +734,42 @@ export class QdrantService {
 
   async searchInstagramExamples(queryVector: number[], options: Omit<SocialMediaSearchOptions, 'platform'> = {}): Promise<SearchResponse<SocialMediaResult>> {
     return this.searchSocialMediaExamples(queryVector, { ...options, platform: 'instagram' });
+  }
+
+  /**
+   * Perform hybrid search combining vector and keyword search (NEW FEATURE!)
+   * Uses RRF (Reciprocal Rank Fusion) or weighted fusion to combine results
+   * @param queryVector - Query embedding vector
+   * @param query - Text query for keyword search
+   * @param options - Search options
+   * @returns Combined search results with metadata
+   */
+  async hybridSearchDocuments(
+    queryVector: number[],
+    query: string,
+    options: DocumentSearchOptions = {}
+  ): Promise<SearchResponse<SearchResult>> {
+    await this.ensureConnected();
+
+    const filter = this._buildDocumentFilter(options);
+    const collection = options.collection || this.collections.documents;
+
+    const hybridResult = await this.operations!.hybridSearch(
+      collection,
+      queryVector,
+      query,
+      filter,
+      {
+        limit: options.limit || 10,
+        threshold: options.threshold || 0.3,
+        vectorWeight: 0.7,
+        textWeight: 0.3,
+        useRRF: true,
+        withPayload: true
+      }
+    );
+
+    return this._formatHybridResults(hybridResult);
   }
 
   // ============ Deletion Methods ============

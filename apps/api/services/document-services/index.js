@@ -11,12 +11,15 @@
  * } from '../services/document-services/index.js'
  */
 
-// Core Services (via wrapper files)
-export * from './documentProcessingService.js';
-export * from './DocumentSearchService.js';
-export * from './documentQnAService.js';
-export * from './postgresDocumentService.js';
-export * from './documentContentService.js';
+// Core Services (directly from folder structure)
+export * from './DocumentProcessingService/index.js';
+export * from './DocumentSearchService/index.js';
+export { default as DocumentSearchServiceDefault } from './DocumentSearchService/index.js';
+export * from './DocumentQnAService/index.js';
+export { default as DocumentQnAServiceDefault } from './DocumentQnAService/index.js';
+export * from './PostgresDocumentService/index.js';
+export { default as PostgresDocumentServiceDefault } from './PostgresDocumentService/index.js';
+export * from './DocumentContentService/index.js';
 
 // TextChunker (utility)
-export * from './textChunker.js';
+export * from './TextChunker/index.js';

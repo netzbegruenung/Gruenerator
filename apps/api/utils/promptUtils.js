@@ -10,59 +10,6 @@ const HTML_FORMATTING_INSTRUCTIONS = `
 - KEINEN Markdown verwenden.
 `;
 
-/**
- * Checks if a custom prompt is structured (contains instruction/knowledge headers)
- * @param {string} customPrompt - The custom prompt to check
- * @returns {boolean} True if the prompt is structured
- */
-const isStructuredPrompt = (customPrompt) => {
-  if (!customPrompt || typeof customPrompt !== 'string') {
-    return false;
-  }
-  
-  return customPrompt.includes('Der User gibt dir folgende Anweisungen') || 
-         customPrompt.includes('Der User stellt dir folgendes, wichtiges Wissen');
-};
-
-/**
- * Formats user content based on whether the custom prompt is structured or legacy
- * @param {object} params - Parameters object
- * @param {string} params.customPrompt - The custom prompt from the user
- * @param {string} params.baseContent - Base content to append
- * @param {string} params.currentDate - Current date string
- * @param {string} params.additionalInfo - Additional information to include
- * @returns {string} Formatted user content
- */
-const formatUserContent = ({ customPrompt, baseContent, currentDate, additionalInfo = '' }) => {
-  if (!customPrompt) {
-    return baseContent;
-  }
-  
-  const structured = isStructuredPrompt(customPrompt);
-  
-  if (structured) {
-    // Strukturierte Anweisungen und Wissen direkt verwenden
-    return `${customPrompt}
-
----
-
-Aktuelles Datum: ${currentDate}
-
-${additionalInfo}
-
-${baseContent}`;
-  } else {
-    // Legacy: Bei benutzerdefiniertem Prompt diesen verwenden
-    return `Benutzerdefinierter Prompt: ${customPrompt}
-
-Aktuelles Datum: ${currentDate}
-
-${additionalInfo}
-
-${baseContent}`;
-  }
-};
-
 const PLATFORM_SPECIFIC_GUIDELINES = {
   facebook: {
     maxLength: 600,
@@ -150,37 +97,6 @@ const PLATFORM_SPECIFIC_GUIDELINES = {
 
 
 
-const MARKDOWN_CHAT_INSTRUCTIONS = `
-**Formatierung und Stil der Chat-Antwort:**
-Bitte formatiere deine Antwort als Markdown und beachte folgende Punkte für einen natürlichen Chat-Verlauf:
-
-1.  **Schreibe wie ein Mensch in einem Messenger (z.B. Signal, WhatsApp):**
-    *   Formuliere kurze, prägnante Nachrichtenblöcke.
-    *   Jeder Block sollte idealerweise nur wenige Sätze (z.B. 2-5 Sätze) umfassen und einen abgeschlossenen Gedanken oder eine klare Information enthalten.
-    *   Vermeide lange, verschachtelte Sätze. Bevorzuge einfache und direkte Sprache.
-
-2.  **Natürliche Aufteilung mit '%%%MSG_SPLIT%%%':**
-    *   Wenn deine gesamte Antwort mehrere solcher kurzen Gedankengänge oder Informationsblöcke enthält, trenne diese bitte mit dem speziellen Trenner \`%%%MSG_SPLIT%%%\`
-        Jeder so getrennte Teil wird als eigene Chat-Nachricht angezeigt.
-    *   Setze den Trenner dort, wo ein natürlicher Übergang zu einer neuen Nachricht sinnvoll ist. Teile keine Sätze oder unmittelbare Gedankengänge.
-    *   Beispiel:
-        "Hallo! Das ist der erste Gedanke. Er ist kurz und bündig.
-        %%%MSG_SPLIT%%%
-        Hier kommt der zweite Punkt. Auch dieser ist leicht verständlich.
-        %%%MSG_SPLIT%%%
-        Und das ist eine abschließende Bemerkung."
-
-3.  **Qualität vor strikter Kürze:**
-    *   Das Ziel sind gut lesbare, natürliche Chat-Nachrichten.
-    *   Wenn ein Gedanke für die Klarheit etwas mehr Länge benötigt, ist das in Ordnung. Eine etwas längere, aber kohärente Nachricht ist besser als ein unnatürlicher Schnitt.
-    *   Verwende den Trenner \`%%%MSG_SPLIT%%%\` nur, wenn es wirklich thematische oder logische Pausen gibt, die eine neue Nachricht rechtfertigen.
-        Wenn deine Antwort von Natur aus kurz ist und keine Aufteilung benötigt, verwende den Trenner nicht.
-
-4.  **Markdown-Nutzung:**
-    *   Verwende Markdown für Hervorhebungen (Fett, Kursiv), Listen und ggf. sehr einfache Überschriften (z.B. \`###\`), um die Lesbarkeit zu verbessern.
-    *   KEIN HTML in dieser Chat-Antwort verwenden.
-`;
-
 const MARKDOWN_FORMATTING_INSTRUCTIONS = `
 **Formatierung:**
 Nutze Markdown: **fett**, - Listen. Kein HTML.
@@ -227,47 +143,6 @@ Organisiere deine Erkenntnisse thematisch basierend auf dem, was du TATSÄCHLICH
 Erstelle ein VOLLSTÄNDIGES DOSSIER, das alle verfügbaren Informationen zu dem angefragten Thema aus den Grünen-Dokumenten umfasst.
 `;
 
-const JSON_OUTPUT_FORMATTING_INSTRUCTIONS = `
-**KRITISCH WICHTIG: JSON Formatierungsregeln für die Antwort:**
-Du MUSST deine Antwort im folgenden JSON-Format geben. Das JSON MUSS absolut valide sein, sonst schlägt die Verarbeitung fehl.
-
-ESCAPING IST ZWINGEND ERFORDERLICH:
-Alle String-Werte innerhalb des JSON, insbesondere die Felder "response" und "newText", müssen korrekt escaped sein.
-
-KONKRETE ESCAPING-REGELN:
-- Zeilenumbrüche (Enter/Return) müssen als '\\\\n' dargestellt werden (Backslash gefolgt von n)
-- Anführungszeichen (") innerhalb von Strings müssen als '\\\\\\"' escaped werden  
-- Tabulatoren müssen als '\\\\t' dargestellt werden
-- Carriage Returns müssen als '\\\\r' dargestellt werden
-- Backslashes (\\\\) müssen als '\\\\\\\\' (doppelter Backslash) escaped werden
-- NIEMALS unescapte Zeilenumbrüche, Tabs oder andere Steuerzeichen in JSON-Strings verwenden
-
-FEHLERHAFTE Beispiele (NIEMALS so machen):
-❌ "response": "Text mit
-unescaptem Zeilenumbruch"
-❌ "response": "Text mit	Tab"
-❌ "response": "Text mit "Anführungszeichen""
-
-KORREKTE Beispiele:
-✅ "response": "Text mit\\\\nescaptem Zeilenumbruch"
-✅ "response": "Text mit\\\\tTab"  
-✅ "response": "Text mit \\\\\\"Anführungszeichen\\\\\\""
-
-Vollständiges korrektes Beispiel:
-"Dies ist Zeile 1.\\\\nDies ist Zeile 2 mit einem \\\\\\"Zitat\\\\\\" und einem Backslash \\\\\\\\."
-
-Das JSON-Objekt muss folgende Struktur haben:
-{
-  "response": "Hier deine Erklärung der Änderungen oder deine Antwort, formatiert für die Chat-Anzeige gemäß ${MARKDOWN_CHAT_INSTRUCTIONS}. Der eigentliche bearbeitete Text gehört NICHT hierher, sondern ausschließlich in das Feld 'newText'. (Achte auf korrektes Escaping für JSON, z.B. Zeilenumbrüche als \\\\n)",
-  "textAdjustment": {
-    "type": "selected", // oder "full", je nach Anwendungsfall
-    "newText": "WICHTIG: Hier NUR REINER TEXT ohne HTML-Tags! Der Text wird in einen Quill-Editor eingefügt, der seine eigene Formatierung handhabt. Verwende NIEMALS HTML-Tags wie <p>, <strong>, <br> etc. in diesem Feld. Für Zeilenumbrüche verwende \\\\n im JSON-String. Beispiel: 'Das ist Zeile 1.\\\\nDas ist Zeile 2.' (Achte auf korrektes JSON-Escaping)"
-    // "oldText": null, // nur bei type "full" relevant
-  }
-}
-Stelle sicher, dass der Platzhalter ${MARKDOWN_CHAT_INSTRUCTIONS} NICHT in deiner finalen JSON-Antwort enthalten ist, sondern dass du dessen Anweisungen für das 'response'-Feld befolgst. Das 'newText'-Feld muss reiner Text ohne HTML-Tags sein.
-`;
-
 // Tool definition for document search - used by AI endpoints with tool capability
 const SEARCH_DOCUMENTS_TOOL = {
   name: 'search_documents',
@@ -286,46 +161,6 @@ const SEARCH_DOCUMENTS_TOOL = {
       }
     },
     required: ['query']
-  }
-};
-
-// Tool definition to provide a stable references map for Mistral citations
-const PROVIDE_REFERENCES_TOOL = {
-  name: 'provide_references',
-  description: 'Provide a stable map of references derived from prior document searches so the model can cite them.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      ids: {
-        type: 'array',
-        items: { type: 'integer' },
-        description: 'Optional list of reference IDs to include; if omitted, include all available.'
-      }
-    },
-    required: []
-  }
-};
-
-// Tool definition for web search - used by AI endpoints with tool capability
-const WEB_SEARCH_TOOL = {
-  type: "web_search_20250305",
-  name: "web_search",
-  description: "Führt eine Websuche durch, um aktuelle Informationen oder spezifische Fragen zu beantworten, die nicht aus dem gegebenen Text oder allgemeinem Wissen beantwortet werden können. Nutze dies, wenn externe Informationen benötigt werden.",
-  max_uses: 3,
-  input_schema: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description: "Die Suchanfrage für die Websuche"
-      }
-    },
-    required: ["query"]
-  },
-  user_location: {
-    type: "approximate",
-    country: "DE",
-    timezone: "Europe/Berlin"
   }
 };
 
@@ -890,25 +725,4 @@ function sanitizeMarkdownForDisplay(text) {
   return out;
 }
 
-// Attachment-aware system prompt enhancement
-const ATTACHMENT_INSTRUCTIONS = `
-Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext und Referenz für deine Antwort:
-- Analysiere den Inhalt der Dokumente sorgfältig
-- Beziehe relevante Informationen in deine Erstellung mit ein
-- Wenn du Inhalte aus den Dokumenten verwendest, weise darauf hin
-- Die Dokumente dienen als Hintergrundinformation und Kontext für deine Aufgabe`;
-
-/**
- * Enhances system prompt with attachment-aware instructions
- * @param {string} baseSystemPrompt - Original system prompt
- * @param {boolean} hasAttachments - Whether attachments are present
- * @returns {string} Enhanced system prompt
- */
-const enhanceSystemPromptWithAttachments = (baseSystemPrompt, hasAttachments) => {
-  if (!hasAttachments) {
-    return baseSystemPrompt;
-  }
-  return baseSystemPrompt + ATTACHMENT_INSTRUCTIONS;
-};
-
-export { HTML_FORMATTING_INSTRUCTIONS, PLATFORM_SPECIFIC_GUIDELINES, MARKDOWN_CHAT_INSTRUCTIONS, MARKDOWN_FORMATTING_INSTRUCTIONS, COMPREHENSIVE_DOSSIER_INSTRUCTIONS, JSON_OUTPUT_FORMATTING_INSTRUCTIONS, SEARCH_DOCUMENTS_TOOL, PROVIDE_REFERENCES_TOOL, WEB_SEARCH_TOOL, TITLE_GENERATION_INSTRUCTION, ATTACHMENT_INSTRUCTIONS, extractCitationsFromText, processAIResponseWithCitations, isStructuredPrompt, formatUserContent, detectContentType, generateSmartTitle, extractTitleFromResponse, processResponseWithTitle, sanitizeMarkdownForDisplay, enhanceSystemPromptWithAttachments };
+export { HTML_FORMATTING_INSTRUCTIONS, PLATFORM_SPECIFIC_GUIDELINES, MARKDOWN_FORMATTING_INSTRUCTIONS, COMPREHENSIVE_DOSSIER_INSTRUCTIONS, SEARCH_DOCUMENTS_TOOL, TITLE_GENERATION_INSTRUCTION, processAIResponseWithCitations, processResponseWithTitle };

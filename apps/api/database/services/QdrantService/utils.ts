@@ -9,4 +9,4 @@
 export {
     stringToNumericHash as stringToNumericId,
     chunkToNumericId
-} from '../../../utils/hashUtils.js';
+} from '../../../utils/validation/index.js';
