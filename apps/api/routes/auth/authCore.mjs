@@ -484,7 +484,7 @@ router.put('/locale', ensureAuthenticated, async (req, res) => {
     }
 
     // Update user's locale in database
-    const { getProfileService } = await import('../../services/ProfileService.mjs');
+    const { getProfileService } = await import('../../services/user/ProfileService.js');
     const profileService = getProfileService();
 
     await profileService.updateProfile(req.user.id, { locale });

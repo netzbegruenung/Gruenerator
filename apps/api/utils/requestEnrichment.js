@@ -4,9 +4,9 @@
  * Handles URL detection, attachment processing, web search, and document aggregation
  */
 
-import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from './urlDetection.js';
+import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from '../services/content/index.js';
 import { processAndBuildAttachments } from '../services/attachments/index.js';
-import { extractLocaleFromRequest } from './localizationHelper.js';
+import { extractLocaleFromRequest } from '../services/localization/index.js';
 import { getQdrantDocumentService } from '../services/DocumentSearchService.js';
 
 import { createRequire } from 'module';

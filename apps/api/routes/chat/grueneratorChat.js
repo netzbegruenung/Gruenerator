@@ -29,8 +29,8 @@ import TemporaryImageStorage from '../../services/image/TemporaryImageStorage.js
 import redisClient from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
 import crypto from 'crypto';
-import { localizePlaceholders } from '../../utils/localizationHelper.js';
-import { detectSimpleMessage, generateSimpleResponse } from '../../utils/simpleMessageDetector.js';
+import { localizePlaceholders } from '../../services/localization/index.js';
+import { detectSimpleMessage, generateSimpleResponse } from '../../services/chat/simple-messages/index.js';
 
 // Configuration constants - centralized for easy maintenance
 const CONFIG = {

@@ -35,3 +35,19 @@ export interface GermanPatterns {
   germanQuotes: boolean;
   months: boolean;
 }
+
+/**
+ * URL detection result
+ */
+export interface UrlDetectionResult {
+  urls: string[];
+  uniqueCount: number;
+}
+
+/**
+ * Attachment with URL information
+ */
+export interface AttachmentWithUrl {
+  url?: string;
+  type?: string;
+}
