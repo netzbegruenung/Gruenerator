@@ -3,8 +3,8 @@
  * Provides read-only access to collection metadata and documents
  */
 
-import { config } from '../config.js';
-import { getCollectionInfo } from '../qdrant/client.js';
+import { config } from '../config.ts';
+import { getCollectionInfo } from '../qdrant/client.ts';
 
 /**
  * Get all available collections as MCP resources

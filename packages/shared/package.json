@@ -24,8 +24,8 @@
       "require": "./src/hooks/index.ts"
     },
     "./utils": {
-      "import": "./src/utils/index.js",
-      "require": "./src/utils/index.js"
+      "import": "./src/utils/index.ts",
+      "require": "./src/utils/index.ts"
     },
     "./generators": {
       "import": "./src/generators/index.ts",
@@ -36,8 +36,16 @@
       "require": "./src/search/index.ts"
     },
     "./search/vector": {
-      "import": "./src/search/vector/index.js",
-      "require": "./src/search/vector/index.js"
+      "import": "./src/search/vector/index.ts",
+      "require": "./src/search/vector/index.ts"
+    },
+    "./search/collections": {
+      "import": "./src/search/collections/index.ts",
+      "require": "./src/search/collections/index.ts"
+    },
+    "./search/filters": {
+      "import": "./src/search/filters/index.ts",
+      "require": "./src/search/filters/index.ts"
     },
     "./avatar": {
       "import": "./src/avatar/index.ts",

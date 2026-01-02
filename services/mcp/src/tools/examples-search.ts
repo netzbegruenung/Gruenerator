@@ -4,10 +4,12 @@
  */
 
 import { z } from 'zod';
-import { getQdrantClient } from '../qdrant/client.js';
-import { generateEmbedding } from '../embeddings.js';
+import { getQdrantClient } from '../qdrant/client.ts';
+import { generateEmbedding } from '../embeddings.ts';
+import { getQdrantCollectionName } from '@gruenerator/shared/search/collections';
+import { buildQdrantFilter } from '@gruenerator/shared/search/filters';
 
-const COLLECTION_NAME = 'social_media_examples';
+const COLLECTION_NAME = getQdrantCollectionName('examples') || 'social_media_examples';
 const DEFAULT_THRESHOLD = 0.15;
 
 export const examplesSearchTool = {
@@ -57,22 +59,12 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       const qdrant = await getQdrantClient();
       const embedding = await generateEmbedding(query);
 
-      // Build filter
-      const filter = { must: [] };
+      // Build filter using shared utility
+      const filterParams = {};
+      if (platform !== 'all') filterParams.platform = platform;
+      if (country !== 'all') filterParams.country = country;
 
-      if (platform !== 'all') {
-        filter.must.push({
-          key: 'platform',
-          match: { value: platform }
-        });
-      }
-
-      if (country !== 'all') {
-        filter.must.push({
-          key: 'country',
-          match: { value: country }
-        });
-      }
+      const filter = buildQdrantFilter(filterParams);
 
       // Search in Qdrant
       const searchParams = {
@@ -82,7 +74,7 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
         score_threshold: DEFAULT_THRESHOLD
       };
 
-      if (filter.must.length > 0) {
+      if (filter) {
         searchParams.filter = filter;
       }
 

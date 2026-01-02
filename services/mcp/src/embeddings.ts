@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config } from './config.ts';
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/embeddings';
 

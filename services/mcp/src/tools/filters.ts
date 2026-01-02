@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { config } from '../config.js';
-import { getFieldValueCounts } from '../qdrant/client.js';
+import { config } from '../config.ts';
+import { getFieldValueCounts } from '../qdrant/client.ts';
 
 /**
  * Tool to discover available filter values for a collection

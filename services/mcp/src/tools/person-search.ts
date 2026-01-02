@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { getEnrichedPersonSearch } from '../services/enriched-person-search.js';
+import { getEnrichedPersonSearch } from '../services/enriched-person-search.ts';
 
 export const personSearchTool = {
   name: 'gruenerator_person_search',

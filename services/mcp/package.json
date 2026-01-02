@@ -3,14 +3,16 @@
   "version": "2.0.0",
   "description": "Gruenerator MCP Server - Suche in Grünen Parteiprogrammen (DE/AT)",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/index.ts",
   "bin": {
-    "gruenerator-mcp": "./src/index.js"
+    "gruenerator-mcp": "./src/index.ts"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test": "node --test src/**/*.test.js"
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "keywords": [
     "mcp",
@@ -31,6 +33,13 @@
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
     "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   },
   "engines": {
     "node": ">=18.0.0"
