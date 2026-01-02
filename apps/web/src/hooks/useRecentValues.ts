@@ -74,7 +74,7 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
     try {
       const response = await apiClient.get(`/recent-values/${fieldType}?limit=${limit}`, {
         skipAuthRedirect: true
-      });
+      } as any);
 
       if (response.data?.success && response.data?.data) {
         const values = response.data.data.map(item => item.field_value);
@@ -120,7 +120,7 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
         formName
       }, {
         skipAuthRedirect: true
-      });
+      } as any);
 
       if (response.data?.success) {
         // Update local state optimistically
@@ -153,7 +153,7 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
     try {
       const response = await apiClient.delete(`/recent-values/${fieldType}`, {
         skipAuthRedirect: true
-      });
+      } as any);
 
       if (response.data?.success) {
         setRecentValues([]);

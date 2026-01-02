@@ -10,8 +10,8 @@ interface SharepicAttachment {
   [key: string]: any;
 }
 
-interface SharepicRequestData {
-  type?: string;
+interface UnifiedSharepicRequestData {
+  type: string;
   thema: string;
   details?: string;
   name?: string;
@@ -20,6 +20,15 @@ interface SharepicRequestData {
   usePrivacyMode?: boolean;
   provider?: string | null;
   useBedrock?: boolean;
+}
+
+interface DefaultSharepicRequestData {
+  thema: string;
+  details?: string;
+  customPrompt?: string | null;
+  attachments?: SharepicAttachment[];
+  usePrivacyMode?: boolean;
+  provider?: string | null;
 }
 
 interface SharepicResult {
@@ -54,7 +63,18 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateSharepic = useCallback(async (thema, details, uploadedImage = null, sharepicType = 'dreizeilen', zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null, useProMode = false) => {
+  const generateSharepic = useCallback(async (
+    thema: string,
+    details?: string,
+    uploadedImage: File | Blob | null = null,
+    sharepicType: SharepicType = 'dreizeilen',
+    zitatAuthor: string | null = null,
+    customPrompt: string | null = null,
+    attachments: SharepicAttachment[] | null = null,
+    usePrivacyMode = false,
+    provider: string | null = null,
+    useProMode = false
+  ): Promise<SharepicResult | SharepicResult[]> => {
     setLoading(true);
     setError(null);
 
@@ -62,7 +82,7 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
       // Route to appropriate generation function based on type
       switch (sharepicType) {
         case 'default':
-          return await generateDefaultSharepics(thema, details, customPrompt, attachments, usePrivacyMode, provider, useProMode);
+          return await generateDefaultSharepics(thema, details, customPrompt, attachments, usePrivacyMode, provider);
         case 'quote':
           return await generateUnifiedSharepic('zitat', thema, details, uploadedImage, zitatAuthor, customPrompt, attachments, usePrivacyMode, provider, useProMode);
         case 'quote_pure':
@@ -76,9 +96,10 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
           return await generateUnifiedSharepic('dreizeilen', thema, details, uploadedImage, null, customPrompt, attachments, usePrivacyMode, provider, useProMode);
       }
 
-    } catch (err) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Sharepic-Generierung';
       console.error('[useSharepicGeneration] Error generating sharepic:', err);
-      setError(err.message || 'Fehler bei der Sharepic-Generierung');
+      setError(errorMessage);
       throw err;
     } finally {
       setLoading(false);
@@ -86,8 +107,19 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
   }, []);
 
   // Unified sharepic generation function - handles all types via single backend endpoint
-  const generateUnifiedSharepic = useCallback(async (type, thema, details, uploadedImage = null, zitatAuthor = null, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null, useProMode = false) => {
-    const requestData = {
+  const generateUnifiedSharepic = useCallback(async (
+    type: string,
+    thema: string,
+    details?: string,
+    uploadedImage: File | Blob | null = null,
+    zitatAuthor: string | null = null,
+    customPrompt: string | null = null,
+    attachments: SharepicAttachment[] | null = null,
+    usePrivacyMode = false,
+    provider: string | null = null,
+    useProMode = false
+  ): Promise<SharepicResult> => {
+    const requestData: UnifiedSharepicRequestData = {
       type,
       thema,
       details
@@ -178,9 +210,16 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
   }, []);
 
 
-  const generateDefaultSharepics = useCallback(async (thema, details, customPrompt = null, attachments = null, usePrivacyMode = false, provider = null) => {
+  const generateDefaultSharepics = useCallback(async (
+    thema: string,
+    details?: string,
+    customPrompt: string | null = null,
+    attachments: SharepicAttachment[] | null = null,
+    usePrivacyMode = false,
+    provider: string | null = null
+  ): Promise<SharepicResult[]> => {
     // Prepare request data
-    const requestData = {
+    const requestData: DefaultSharepicRequestData = {
       thema,
       details
     };

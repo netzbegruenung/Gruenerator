@@ -31,7 +31,7 @@ export const apiCheckMiddleware = (config: any) => (set: any, get: any, api: any
         const isCurrentlyEnabled = state[featureKey];
         
         if (isCurrentlyEnabled) {
-          const canAccess = await checkFeatureAccess(featureName);
+          const canAccess = await checkFeatureAccess(featureName as string);
           
           if (canAccess === false) {
             console.log(`Auto-disabling ${featureKey} feature due to lack of access`);

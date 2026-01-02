@@ -8,14 +8,14 @@ import {
   DEFAULT_COLORS,
 } from '../components/utils/constants';
 
-// Color scheme type
-interface ColorScheme {
+// Color scheme type - can be either an object or array of background objects
+type ColorScheme = { background: string }[] | {
   primary?: string;
   secondary?: string;
   background?: string;
   text?: string;
   [key: string]: string | undefined;
-}
+};
 
 // Slogan structure
 interface Slogan {
@@ -52,7 +52,7 @@ interface SharepicState {
   body: string;
   description: string;
   mood: string;
-  fontSize: string;
+  fontSize: number;
   balkenOffset: number[];
   colorScheme: ColorScheme;
   balkenGruppenOffset: number[];
@@ -351,9 +351,8 @@ const useSharepicStore = create<SharepicStore>((set, get) => ({
   // Load sharepic data for cross-component editing
   loadSharepicForEditing: (sharepicData, source = 'presseSocial') => {
     console.log('[SharepicStore] Loading sharepic for editing:', { sharepicData, source });
-    
-    const state = get();
-    const newState = {
+
+    const newState: Partial<SharepicState> = {
       editingSource: source,
       originalSharepicData: sharepicData,
       generatedImageSrc: sharepicData.image,
@@ -363,15 +362,15 @@ const useSharepicStore = create<SharepicStore>((set, get) => ({
     // Map sharepic data to store fields based on type
     if (sharepicData.type === 'info') {
       // Parse the text back into Info fields
-      const lines = sharepicData.text.split('\n').filter(line => line.trim());
+      const lines = sharepicData.text.split('\n').filter((line: string) => line.trim());
       newState.type = 'Info';
       newState.header = lines[0] || '';
       newState.subheader = lines[1] || '';
       newState.body = lines.slice(2).join('\n') || '';
     } else if (sharepicData.type === 'quote' || sharepicData.type === 'quote_pure') {
       // Parse quote data - handle both quoted and unquoted formats
-      let quoteMatch = sharepicData.text.match(/^"(.*)" - (.*)$/);
-      
+      let quoteMatch: (string | null)[] | null = sharepicData.text.match(/^"(.*)" - (.*)$/);
+
       if (!quoteMatch) {
         // Try without quotes - fallback to splitting by " - "
         const lastDashIndex = sharepicData.text.lastIndexOf(' - ');
@@ -381,15 +380,15 @@ const useSharepicStore = create<SharepicStore>((set, get) => ({
           quoteMatch = [null, quote, name]; // Simulate regex match array
         }
       }
-      
+
       if (quoteMatch) {
         newState.type = sharepicData.type === 'quote_pure' ? 'Zitat_Pure' : 'Zitat';
-        newState.quote = quoteMatch[1];
-        newState.name = quoteMatch[2];
+        newState.quote = quoteMatch[1] || '';
+        newState.name = quoteMatch[2] || '';
       }
     } else if (sharepicData.type === 'dreizeilen') {
       // Parse three-line data
-      const lines = sharepicData.text.split('\n').filter(line => line.trim());
+      const lines = sharepicData.text.split('\n').filter((line: string) => line.trim());
       newState.type = 'Dreizeilen';
       newState.line1 = lines[0] || '';
       newState.line2 = lines[1] || '';

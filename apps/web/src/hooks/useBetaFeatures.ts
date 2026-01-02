@@ -2,8 +2,48 @@ import React, { useEffect } from 'react';
 import { useOptimizedAuth } from './useAuth';
 import { useBetaFeaturesStore } from '../stores/betaFeaturesStore';
 
+// Types for beta features store
+interface BetaFeaturesState {
+  betaFeatures: Record<string, boolean>;
+  isHydrated: boolean;
+  isUpdating: boolean;
+  error: string | null;
+  userId: string | null;
+  toggle: (featureKey: string, enabled: boolean) => Promise<void>;
+  hydrate: (userId: string) => Promise<void>;
+}
+
+interface BetaFeatureConfig {
+  key: string;
+  label: string;
+  isAdminOnly: boolean;
+  devOnly?: boolean;
+  defaultEnabled?: boolean;
+  isProfileSetting?: boolean;
+}
+
+interface UseBetaFeaturesOptions {
+  // Add any options here if needed in the future
+}
+
+interface UseBetaFeaturesReturn {
+  betaFeatures: Record<string, boolean>;
+  isLoading: boolean;
+  isError: boolean;
+  error: string | null;
+  getBetaFeatureState: (key: string) => boolean;
+  canAccessBetaFeature: (featureKey: string) => boolean;
+  shouldShowTab: (featureKey: string) => boolean;
+  getAvailableFeatures: () => BetaFeatureConfig[];
+  updateUserBetaFeatures: (featureKey: string, isEnabled: boolean) => Promise<void>;
+  isAdmin: boolean;
+  adminOnlyFeatures: string[];
+  isUpdating: boolean;
+  updateError: string | null;
+}
+
 // Beta features configuration - single source of truth
-const BETA_FEATURES_CONFIG = [
+const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
@@ -26,17 +66,17 @@ const BETA_FEATURES_CONFIG = [
 const ADMIN_ONLY_FEATURES = BETA_FEATURES_CONFIG.filter(f => f.isAdminOnly).map(f => f.key);
 
 // Unified hook for managing beta features using Zustand store
-export const useBetaFeatures = (options = {}) => {
+export const useBetaFeatures = (_options: UseBetaFeaturesOptions = {}): UseBetaFeaturesReturn => {
   const { user } = useOptimizedAuth();
-  
+
   // Split selectors to prevent unnecessary re-renders
-  const betaFeatures = useBetaFeaturesStore(state => state.betaFeatures);
-  const isHydrated = useBetaFeaturesStore(state => state.isHydrated);
-  const isUpdating = useBetaFeaturesStore(state => state.isUpdating);
-  const error = useBetaFeaturesStore(state => state.error);
-  const toggle = useBetaFeaturesStore(state => state.toggle);
-  const storeUserId = useBetaFeaturesStore(state => state.userId);
-  const hydrate = useBetaFeaturesStore(state => state.hydrate);
+  const betaFeatures = useBetaFeaturesStore((state: BetaFeaturesState) => state.betaFeatures);
+  const isHydrated = useBetaFeaturesStore((state: BetaFeaturesState) => state.isHydrated);
+  const isUpdating = useBetaFeaturesStore((state: BetaFeaturesState) => state.isUpdating);
+  const error = useBetaFeaturesStore((state: BetaFeaturesState) => state.error);
+  const toggle = useBetaFeaturesStore((state: BetaFeaturesState) => state.toggle);
+  const storeUserId = useBetaFeaturesStore((state: BetaFeaturesState) => state.userId);
+  const hydrate = useBetaFeaturesStore((state: BetaFeaturesState) => state.hydrate);
 
   // Ensure hydration when user changes - now includes hydrate in dependencies
   useEffect(() => {
@@ -50,7 +90,7 @@ export const useBetaFeatures = (options = {}) => {
   const isAdmin = React.useMemo(() => user?.is_admin === true, [user?.is_admin]);
   
   // Helper functions - memoized with stable dependencies
-  const getBetaFeatureState = React.useCallback((key) => {
+  const getBetaFeatureState = React.useCallback((key: string): boolean => {
     if (betaFeatures?.[key] !== undefined) {
       return !!betaFeatures[key];
     }
@@ -58,7 +98,7 @@ export const useBetaFeatures = (options = {}) => {
     return featureConfig?.defaultEnabled ?? false;
   }, [betaFeatures]);
   
-  const canAccessBetaFeature = React.useCallback((featureKey) => {
+  const canAccessBetaFeature = React.useCallback((featureKey: string): boolean => {
     const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
 
     if (isAdminOnlyFeature && !isAdmin) {
@@ -77,7 +117,7 @@ export const useBetaFeatures = (options = {}) => {
     return featureConfig?.defaultEnabled ?? false;
   }, [betaFeatures, isAdmin]);
 
-  const shouldShowTab = React.useCallback((featureKey) => {
+  const shouldShowTab = React.useCallback((featureKey: string): boolean => {
     const isAdminOnlyFeature = ADMIN_ONLY_FEATURES.includes(featureKey);
 
     if (isAdminOnlyFeature && !isAdmin) {
@@ -96,7 +136,7 @@ export const useBetaFeatures = (options = {}) => {
     return featureConfig?.defaultEnabled ?? false;
   }, [betaFeatures, isAdmin]);
 
-  const getAvailableFeatures = React.useCallback(() => {
+  const getAvailableFeatures = React.useCallback((): BetaFeatureConfig[] => {
     const isDev = import.meta.env.DEV;
     return BETA_FEATURES_CONFIG.filter(feature =>
       (!feature.isAdminOnly || isAdmin) &&
@@ -105,7 +145,7 @@ export const useBetaFeatures = (options = {}) => {
     );
   }, [isAdmin]);
 
-  const updateUserBetaFeatures = React.useCallback((featureKey, isEnabled) => toggle(featureKey, isEnabled), [toggle]);
+  const updateUserBetaFeatures = React.useCallback((featureKey: string, isEnabled: boolean): Promise<void> => toggle(featureKey, isEnabled), [toggle]);
 
   return {
     // Data

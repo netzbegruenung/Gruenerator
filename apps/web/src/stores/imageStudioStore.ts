@@ -62,12 +62,39 @@ interface SloganAlternative {
   [key: string]: string | undefined;
 }
 
+// Stock image attribution
+interface StockImageAttributionData {
+  photographer: string;
+  profileUrl: string;
+  photoUrl: string;
+}
+
 // Stock image interface
 interface StockImage {
   filename: string;
-  attribution?: string;
+  attribution?: StockImageAttributionData;
   category?: string;
   url?: string;
+  alt_text?: string;
+  [key: string]: any;
+}
+
+// Selected image (Unsplash format)
+interface SelectedImageData {
+  urls: {
+    regular: string;
+    small: string;
+    thumb?: string;
+    full?: string;
+    raw?: string;
+  };
+  alt_description?: string;
+  user?: {
+    name: string;
+    links?: {
+      html: string;
+    };
+  };
   [key: string]: any;
 }
 
@@ -141,7 +168,7 @@ interface PreloadedImageResult {
 interface FormDataUpdate {
   loading?: boolean;
   generatedImageSrc?: string | null;
-  selectedImage?: string | null;
+  selectedImage?: SelectedImageData | null;
   balkenOffset?: number[];
   colorScheme?: ColorScheme;
   fontSize?: number;
@@ -176,6 +203,7 @@ interface ImageStudioState {
 
   // Sharepic form data
   thema: string;
+  details: string;
   line1: string;
   line2: string;
   line3: string;
@@ -252,7 +280,7 @@ interface ImageStudioState {
   // Image State
   uploadedImage: File | Blob | null;
   file: File | Blob | null;
-  selectedImage: string | null;
+  selectedImage: SelectedImageData | null;
   generatedImageSrc: string | null;
   unsplashImages: any[];
 
@@ -290,7 +318,7 @@ interface ImageStudioState {
   isLoadingStockImages: boolean;
   stockImagesError: string | null;
   selectedStockImage: StockImage | null;
-  stockImageAttribution: string | null;
+  stockImageAttribution: StockImageAttributionData | null;
   stockImageCategory: string | null;
 
   // Parallel preload state
@@ -331,7 +359,7 @@ interface ImageStudioActions {
   setUploadedImage: (image: File | Blob | null) => void;
 
   // Image handling
-  setSelectedImage: (image: string | null) => void;
+  setSelectedImage: (image: SelectedImageData | null) => void;
   setGeneratedImage: (src: string | null) => void;
   setUnsplashImages: (images: any[]) => void;
 
@@ -450,6 +478,7 @@ const initialState: ImageStudioState = {
 
   // Sharepic form data
   thema: '',
+  details: '',
   line1: '',
   line2: '',
   line3: '',
@@ -908,7 +937,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
 
     set({
       selectedStockImage: image,
-      stockImageAttribution: image.attribution || null
+      stockImageAttribution: image.attribution ?? null
     });
 
     try {
@@ -1214,3 +1243,14 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
 }));
 
 export default useImageStudioStore;
+
+// Export types for use in components
+export type {
+  VeranstaltungFieldFontSizes,
+  StockImageAttributionData,
+  SelectedImageData,
+  StockImage,
+  SloganAlternative,
+  ColorScheme,
+  ImageStudioStore
+};

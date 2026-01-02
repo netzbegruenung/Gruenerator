@@ -118,7 +118,7 @@ export const useUrlCrawler = (initialUrls = []) => {
     const results = await Promise.allSettled(crawlPromises);
     
     const successfulCrawls = results
-      .filter(r => r.status === 'fulfilled' && r.value)
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value)
       .map(r => r.value);
 
     console.log(`[useUrlCrawler] Successfully crawled ${successfulCrawls.length} of ${newUrls.length} URLs`);

@@ -3,7 +3,24 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const KEYBOARD_THRESHOLD = 0.75;
 const DEBOUNCE_MS = 150;
 
-const useKeyboardFocus = (options = {}) => {
+interface UseKeyboardFocusOptions {
+  enabled?: boolean;
+  mobileOnly?: boolean;
+  mobileBreakpoint?: number;
+  onKeyboardOpen?: (keyboardHeight: number) => void;
+  onKeyboardClose?: () => void;
+}
+
+interface UseKeyboardFocusReturn {
+  isKeyboardOpen: boolean;
+  isFocusMode: boolean;
+  keyboardHeight: number;
+  toggleFocusMode: () => void;
+  exitFocusMode: () => void;
+  enterFocusMode: () => void;
+}
+
+const useKeyboardFocus = (options: UseKeyboardFocusOptions = {}): UseKeyboardFocusReturn => {
   const {
     enabled = true,
     mobileOnly = true,
@@ -15,8 +32,8 @@ const useKeyboardFocus = (options = {}) => {
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const timeoutRef = useRef(null);
-  const initialHeightRef = useRef(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialHeightRef = useRef<number | null>(null);
 
   const isMobile = useCallback(() => {
     if (typeof window === 'undefined') return false;

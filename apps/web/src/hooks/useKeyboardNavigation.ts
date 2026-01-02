@@ -179,10 +179,10 @@ export const useModalFocus = ({
 
       if (event.shiftKey && document.activeElement === firstFocusable) {
         event.preventDefault();
-        lastFocusable?.focus();
+        (lastFocusable as HTMLElement)?.focus();
       } else if (!event.shiftKey && document.activeElement === lastFocusable) {
         event.preventDefault();
-        firstFocusable?.focus();
+        (firstFocusable as HTMLElement)?.focus();
       }
     }
 

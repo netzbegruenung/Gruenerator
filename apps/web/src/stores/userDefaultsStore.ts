@@ -2,6 +2,28 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import apiClient from '../components/utils/apiClient';
 
+// Types
+interface UserDefaults {
+  [generator: string]: {
+    [key: string]: unknown;
+  };
+}
+
+interface UserDefaultsState {
+  defaults: UserDefaults;
+  isHydrated: boolean;
+  isLoading: boolean;
+}
+
+interface UserDefaultsActions {
+  hydrate: () => Promise<void>;
+  getDefault: <T = unknown>(generator: string, key: string, defaultValue?: T) => T;
+  setDefault: (generator: string, key: string, value: unknown) => Promise<void>;
+  reset: () => void;
+}
+
+type UserDefaultsStore = UserDefaultsState & UserDefaultsActions;
+
 /**
  * User Defaults Store
  *
@@ -14,7 +36,7 @@ import apiClient from '../components/utils/apiClient';
  *   "pressemitteilung": { "interactiveMode": false }
  * }
  */
-export const useUserDefaultsStore = create(
+export const useUserDefaultsStore = create<UserDefaultsStore>()(
   persist(
     (set, get) => ({
       defaults: {},
@@ -35,8 +57,9 @@ export const useUserDefaultsStore = create(
             isHydrated: true,
             isLoading: false
           });
-        } catch (error) {
-          console.warn('[userDefaultsStore] Failed to hydrate:', error.message);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.warn('[userDefaultsStore] Failed to hydrate:', errorMessage);
           set({ isHydrated: true, isLoading: false });
         }
       },
@@ -44,14 +67,14 @@ export const useUserDefaultsStore = create(
       /**
        * Get a default value for a generator
        */
-      getDefault: (generator, key, defaultValue = null) => {
-        return get().defaults?.[generator]?.[key] ?? defaultValue;
+      getDefault: <T = unknown>(generator: string, key: string, defaultValue: T = null as T): T => {
+        return (get().defaults?.[generator]?.[key] as T) ?? defaultValue;
       },
 
       /**
        * Set a default value (optimistic update + API call)
        */
-      setDefault: async (generator, key, value) => {
+      setDefault: async (generator: string, key: string, value: unknown) => {
         const prev = get().defaults;
 
         // Optimistic update
@@ -71,8 +94,9 @@ export const useUserDefaultsStore = create(
             key,
             value
           });
-        } catch (error) {
-          console.error('[userDefaultsStore] Failed to save default:', error.message);
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error('[userDefaultsStore] Failed to save default:', errorMessage);
           // Rollback on error
           set({ defaults: prev });
           throw error;

@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import apiClient from '../components/utils/apiClient';
 
+interface UseInteractiveGeneratorOptions {
+  generatorType?: string;
+  baseEndpoint?: string;
+}
+
 /**
  * Hook for managing interactive text generation flow
  *
@@ -16,9 +21,9 @@ import apiClient from '../components/utils/apiClient';
 const useInteractiveGenerator = ({
   generatorType,
   baseEndpoint = '/antraege/experimental'
-} = {}) => {
+}: UseInteractiveGeneratorOptions = {}) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   /**
    * Initiate a new interactive session

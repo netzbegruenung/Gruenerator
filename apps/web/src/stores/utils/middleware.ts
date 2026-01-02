@@ -1,51 +1,81 @@
-import { create } from 'zustand'
-import { subscribeWithSelector, devtools, persist } from 'zustand/middleware'
+import { create, StateCreator } from 'zustand'
+import { subscribeWithSelector, devtools, persist, PersistOptions } from 'zustand/middleware'
 import { immer } from 'zustand/middleware/immer'
+
+interface BaseStoreOptions<T> {
+  name?: string
+  enablePersist?: boolean
+  enableDevtools?: boolean
+  persistOptions?: Partial<PersistOptions<T>>
+}
 
 /**
  * Base store creator with common middleware
- * @param {Function} storeConfig - Store configuration function
- * @param {Object} options - Options for middleware
- * @returns {Function} Zustand store hook
+ * @param storeConfig - Store configuration function
+ * @param options - Options for middleware
+ * @returns Zustand store hook
  */
-export const createBaseStore = (storeConfig, options = {}) => {
-  const { 
-    name = 'store', 
-    enablePersist = false, 
+export const createBaseStore = <T extends object>(
+  storeConfig: StateCreator<T, [['zustand/immer', never]], []>,
+  options: BaseStoreOptions<T> = {}
+) => {
+  const {
+    name = 'store',
+    enablePersist = false,
     enableDevtools = true,
     persistOptions = {}
   } = options
-  
-  let store = storeConfig
-  
-  // Immer für einfachere nested state updates
-  store = immer(store)
-  
-  // DevTools für Debugging (nur in development)
-  if (enableDevtools && process.env.NODE_ENV === 'development') {
-    store = devtools(store, { 
-      name: `Gruenerator-${name}`,
-      enabled: true
-    })
+
+  // Build middleware chain based on options
+  // Note: Order matters - immer should be innermost
+  if (enablePersist && enableDevtools && process.env.NODE_ENV === 'development') {
+    return create<T>()(
+      subscribeWithSelector(
+        persist(
+          devtools(
+            immer(storeConfig),
+            { name: `Gruenerator-${name}`, enabled: true }
+          ),
+          { name: `gruenerator-${name}`, ...persistOptions } as PersistOptions<T>
+        )
+      )
+    )
   }
-  
-  // Persistence wenn gewünscht
+
   if (enablePersist) {
-    store = persist(store, {
-      name: `gruenerator-${name}`,
-      ...persistOptions
-    })
+    return create<T>()(
+      subscribeWithSelector(
+        persist(
+          immer(storeConfig),
+          { name: `gruenerator-${name}`, ...persistOptions } as PersistOptions<T>
+        )
+      )
+    )
   }
-  
-  // Selector subscriptions für bessere Performance
-  store = subscribeWithSelector(store)
-  
-  return create(store)
+
+  if (enableDevtools && process.env.NODE_ENV === 'development') {
+    return create<T>()(
+      subscribeWithSelector(
+        devtools(
+          immer(storeConfig),
+          { name: `Gruenerator-${name}`, enabled: true }
+        )
+      )
+    )
+  }
+
+  return create<T>()(
+    subscribeWithSelector(
+      immer(storeConfig)
+    )
+  )
 }
 
 /**
  * Simple store creator without middleware (für einfache Stores)
  */
-export const createSimpleStore = (storeConfig) => {
-  return create(storeConfig)
+export const createSimpleStore = <T extends object>(
+  storeConfig: StateCreator<T>
+) => {
+  return create<T>()(storeConfig)
 } 

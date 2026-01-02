@@ -2,6 +2,20 @@ import { useQuery } from '@tanstack/react-query';
 import { useOptimizedAuth } from './useAuth';
 import apiClient from '../components/utils/apiClient';
 
+// Types for generation limit data
+interface GenerationLimitData {
+  canGenerate: boolean;
+  remaining: number;
+  limit: number;
+  unlimited: boolean;
+  resetAt?: string;
+  resourceType: string;
+}
+
+interface BulkLimitData {
+  [resourceType: string]: GenerationLimitData;
+}
+
 /**
  * Universal React Query hook for managing generation limits across any resource type
  * Replaces the old useImageGenerationLimit with a universal, reusable approach
@@ -29,11 +43,11 @@ import apiClient from '../components/utils/apiClient';
  * console.log(`Remaining: ${limit?.remaining}/${limit?.limit}`);
  */
 export const useGenerationLimit = (resourceType: string) => {
-  const { user, isAuthenticated } = useOptimizedAuth();
+  const { user } = useOptimizedAuth();
 
-  return useQuery({
+  return useQuery<GenerationLimitData>({
     queryKey: ['generationLimit', resourceType, user?.id || 'anonymous'],
-    queryFn: async () => {
+    queryFn: async (): Promise<GenerationLimitData> => {
       const response = await apiClient.get(`/rate-limit/${resourceType}`);
       const data = response.data;
 
@@ -41,16 +55,16 @@ export const useGenerationLimit = (resourceType: string) => {
         throw new Error(data.error || 'Failed to get generation limit status');
       }
 
-      return data.data;
+      return data.data as GenerationLimitData;
     },
     enabled: true, // Always enabled - works for both authenticated and anonymous users
     refetchOnWindowFocus: true, // Refetch when user returns to tab
     refetchOnMount: true, // Refetch on component mount
     staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes (renamed from cacheTime in v5)
     retry: (failureCount, error) => {
       // Don't retry on client errors (4xx)
-      if (error.message.includes('400') || error.message.includes('401')) {
+      if (error instanceof Error && (error.message.includes('400') || error.message.includes('401'))) {
         return false;
       }
       // Retry up to 3 times on network/server errors
@@ -75,9 +89,9 @@ export const useGenerationLimit = (resourceType: string) => {
 export const useMultipleGenerationLimits = (resourceTypes: string[]) => {
   const { user } = useOptimizedAuth();
 
-  return useQuery({
+  return useQuery<BulkLimitData>({
     queryKey: ['generationLimitBulk', resourceTypes, user?.id || 'anonymous'],
-    queryFn: async () => {
+    queryFn: async (): Promise<BulkLimitData> => {
       const response = await apiClient.post('/rate-limit/bulk', { resourceTypes });
       const data = response.data;
 
@@ -85,7 +99,7 @@ export const useMultipleGenerationLimits = (resourceTypes: string[]) => {
         throw new Error(data.error || 'Failed to get bulk limit status');
       }
 
-      return data.data;
+      return data.data as BulkLimitData;
     },
     enabled: resourceTypes && resourceTypes.length > 0,
     refetchOnWindowFocus: true,
@@ -104,7 +118,7 @@ export const useMultipleGenerationLimits = (resourceTypes: string[]) => {
  * const remaining = useRemainingGenerations('text');
  * if (remaining === 0) showLoginPrompt();
  */
-export const useRemainingGenerations = (resourceType) => {
+export const useRemainingGenerations = (resourceType: string): number | null => {
   const { data: limit } = useGenerationLimit(resourceType);
 
   if (!limit) return null;
@@ -125,7 +139,7 @@ export const useRemainingGenerations = (resourceType) => {
  *   alert('Limit reached! Please login.');
  * }
  */
-export const useCanGenerate = (resourceType) => {
+export const useCanGenerate = (resourceType: string): boolean | null => {
   const { data: limit } = useGenerationLimit(resourceType);
 
   if (!limit) return null;
