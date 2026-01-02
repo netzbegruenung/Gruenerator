@@ -45,7 +45,7 @@ const TemplateLinkModal = ({ template, onClose, onSubmit }) => {
 
     return (
         <div className="citation-modal-overlay" onClick={onClose}>
-            <div className="citation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="citation-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                 <div className="citation-modal-header">
                     <div className="share-modal-title">
                         <HiExternalLink className="share-modal-icon" />

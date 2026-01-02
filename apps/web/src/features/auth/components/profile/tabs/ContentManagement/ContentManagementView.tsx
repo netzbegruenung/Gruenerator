@@ -19,8 +19,22 @@ import { useTabNavigation } from '../../../../../../hooks/useTabNavigation';
 import { useMessageHandling } from '../../../../../../hooks/useMessageHandling';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 
-// Utils
-import * as documentAndTextUtils from '../../../../../../components/utils/documentAndTextUtils';
+type ShareableContentType = 'documents' | 'custom_generators' | 'notebook_collections' | 'user_documents' | 'database';
+
+interface ShareContent {
+    type: ShareableContentType;
+    id: string;
+    title: string;
+}
+
+interface ContentManagementViewProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    initialTab?: string;
+    canvaSubsection?: string;
+    onTabChange?: (tab: string, subsection?: string) => void;
+}
 
 const ContentManagementView = ({
     isActive,
@@ -29,7 +43,7 @@ const ContentManagementView = ({
     initialTab = 'inhalte',
     canvaSubsection = 'overview',
     onTabChange
-}) => {
+}: ContentManagementViewProps): React.ReactElement => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
 
@@ -49,7 +63,7 @@ const ContentManagementView = ({
     const { currentTab, handleTabClick, setCurrentTab } = useTabNavigation(
         initialTab === 'dokumente' || initialTab === 'texte' ? 'inhalte' : initialTab,
         availableTabs,
-        (tabKey) => {
+        (tabKey: string) => {
             clearMessages();
             onTabChange?.(tabKey);
         }
@@ -58,7 +72,7 @@ const ContentManagementView = ({
     // Sync tab state with URL changes
     useEffect(() => {
         const normalizedTab = initialTab === 'dokumente' || initialTab === 'texte' ? 'inhalte' : initialTab;
-        setCurrentTab(prevTab => {
+        setCurrentTab((prevTab: string) => {
             if (prevTab !== normalizedTab) {
                 return normalizedTab;
             }
@@ -78,7 +92,7 @@ const ContentManagementView = ({
         setCurrentCanvaSubsection(canvaSubsection);
     }, [canvaSubsection]);
 
-    const handleCanvaSubsectionChange = useCallback((subsection) => {
+    const handleCanvaSubsectionChange = useCallback((subsection: string) => {
         setCurrentCanvaSubsection(subsection);
         // Notify parent about the subsection change for URL updates
         onTabChange?.('canva', subsection);
@@ -90,10 +104,10 @@ const ContentManagementView = ({
 
     // Modal state for sharing
     const [showShareModal, setShowShareModal] = useState(false);
-    const [shareContent, setShareContent] = useState(null);
+    const [shareContent, setShareContent] = useState<ShareContent | null>(null);
 
     // Share functionality
-    const handleShareToGroup = useCallback(async (contentType, contentId, contentTitle) => {
+    const handleShareToGroup = useCallback(async (contentType: ShareableContentType, contentId: string, contentTitle: string) => {
         // Standard sharing logic
         setShareContent({
             type: contentType,
@@ -108,17 +122,14 @@ const ContentManagementView = ({
         setShareContent(null);
     };
 
-    const handleShareSuccess = (message) => {
+    const handleShareSuccess = (message: string) => {
         onSuccessMessage(message);
         handleCloseShareModal();
     };
 
-    const handleShareError = (error) => {
+    const handleShareError = (error: string) => {
         onErrorMessage(error);
     };
-
-    const createShareAction = useCallback((contentType) =>
-        documentAndTextUtils.createShareAction(contentType, handleShareToGroup), [handleShareToGroup]);
 
     // =====================================================================
     // RENDER METHODS
@@ -132,7 +143,9 @@ const ContentManagementView = ({
                     isActive={isActive}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
-                    onShareToGroup={createShareAction('documents')}
+                    onShareToGroup={(contentType: string, contentId: string, contentTitle: string) => {
+                        handleShareToGroup(contentType as ShareableContentType, contentId, contentTitle);
+                    }}
                 />
             );
         }
@@ -165,7 +178,12 @@ const ContentManagementView = ({
                     onErrorMessage={onErrorMessage}
                     initialSubsection={currentCanvaSubsection}
                     onSubsectionChange={handleCanvaSubsectionChange}
-                    onShareToGroup={handleShareToGroup}
+                    onShareToGroup={(contentType: string, content: unknown) => {
+                        const contentData = content as { id?: string; title?: string } | undefined;
+                        if (contentData?.id) {
+                            handleShareToGroup(contentType as ShareableContentType, contentData.id, contentData.title || '');
+                        }
+                    }}
                 />
             );
         }

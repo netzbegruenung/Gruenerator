@@ -35,7 +35,7 @@ const ClipPanel = () => {
             className={`clip-panel__item ${activeClipId === clip.id ? 'clip-panel__item--active' : ''}`}
             onClick={() => setActiveClip(clip.id)}
             draggable
-            onDragStart={(e) => handleDragStart(e, clip.id)}
+            onDragStart={(e: React.DragEvent) => handleDragStart(e, clip.id)}
           >
             <div
               className="clip-panel__thumbnail"
@@ -51,7 +51,7 @@ const ClipPanel = () => {
             {clipCount > 1 && (
               <button
                 className="clip-panel__delete"
-                onClick={(e) => handleRemoveClip(e, clip.id)}
+                onClick={(e: React.MouseEvent) => handleRemoveClip(e, clip.id)}
                 title="Clip entfernen"
                 aria-label="Clip entfernen"
               >

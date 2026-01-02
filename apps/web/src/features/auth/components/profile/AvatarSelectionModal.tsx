@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 
-const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }) => {
+interface AvatarSelectionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentAvatarId: number;
+  onSelect: (robotId: number) => void;
+}
+
+const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: AvatarSelectionModalProps): React.ReactElement | null => {
   const [selectedId, setSelectedId] = useState(currentAvatarId);
   const shouldReduceMotion = useReducedMotion();
 
@@ -34,7 +41,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }) =>
 
   // ESC key handler
   useEffect(() => {
-    const handleEscape = (event) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isOpen) {
         onClose();
       }
@@ -46,7 +53,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }) =>
     }
   }, [isOpen, onClose]);
 
-  const handleSelect = (robotId) => {
+  const handleSelect = (robotId: number) => {
     setSelectedId(robotId);
     onSelect(robotId);
 
@@ -56,7 +63,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }) =>
     }, 300);
   };
 
-  const handleKeyDown = (event, robotId) => {
+  const handleKeyDown = (event: React.KeyboardEvent, robotId: number) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       handleSelect(robotId);
@@ -115,7 +122,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }) =>
             animate="open"
             exit="closed"
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <motion.div
               className="avatar-modal-header"
@@ -149,7 +156,7 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }) =>
                   whileTap={shouldReduceMotion ? {} : { scale: 0.995 }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   onClick={() => handleSelect(robotId)}
-                  onKeyDown={(e) => handleKeyDown(e, robotId)}
+                  onKeyDown={(e: React.KeyboardEvent) => handleKeyDown(e, robotId)}
                   aria-label={`Roboter Avatar ${robotId} auswählen`}
                   type="button"
                   tabIndex={0}

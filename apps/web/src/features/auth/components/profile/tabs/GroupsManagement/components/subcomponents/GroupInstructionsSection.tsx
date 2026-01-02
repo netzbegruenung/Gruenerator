@@ -1,6 +1,21 @@
 import { HiInformationCircle } from 'react-icons/hi';
+import type { Control } from 'react-hook-form';
 import { InstructionsGrid } from '../../../../../../../../components/common/InstructionFields';
 import '../../../../../../../../assets/styles/features/groups/groups.css';
+
+interface GroupData {
+    isAdmin?: boolean;
+    [key: string]: unknown;
+}
+
+interface GroupInstructionsSectionProps {
+    data: GroupData | null;
+    control: Control<Record<string, unknown>>;
+    GROUP_MAX_CONTENT_LENGTH: number;
+    enabledFields?: string[];
+    onAddField: (field: string) => void;
+    onRemoveField: (field: string) => void;
+}
 
 const GroupInstructionsSection = ({
     data,
@@ -9,7 +24,7 @@ const GroupInstructionsSection = ({
     enabledFields = [],
     onAddField,
     onRemoveField
-}) => {
+}: GroupInstructionsSectionProps): React.ReactElement => {
     const isAdmin = data?.isAdmin;
 
     return (

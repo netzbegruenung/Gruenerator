@@ -67,8 +67,6 @@ const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
 const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
-const SurveyIndex = lazy(() => import('../features/umfragen'));
-const SurveyPage = lazy(() => import('../features/umfragen').then(module => ({ default: module.SurveyPage })));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
 const MediaLibraryPage = lazy(() => import('../features/media-library/MediaLibraryPage').then(m => ({ default: m.default })));
@@ -138,8 +136,6 @@ export const GrueneratorenBundle = {
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
-  SurveyIndex: SurveyIndex,
-  SurveyPage: SurveyPage,
   TextEditor: TextEditorPage
 } as const;
 
@@ -192,8 +188,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   // Grünerator Chat Route
   { path: '/chat', component: GrueneratorenBundle.Chat },
-  // Survey Routes
-  { path: '/umfragen', component: GrueneratorenBundle.SurveyIndex },
   // Text Editor
   { path: '/texteditor', component: GrueneratorenBundle.TextEditor },
   // Apps Download Page

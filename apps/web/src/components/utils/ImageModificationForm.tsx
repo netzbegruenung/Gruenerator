@@ -12,6 +12,70 @@ export interface FontSizeControlProps {
   isQuoteType?: boolean;
 }
 
+interface FreeFontSizeControlProps {
+  fontSize?: number;
+  onControlChange: (name: string, value: number) => void;
+  min?: number;
+  max?: number;
+  isQuoteType?: boolean;
+}
+
+interface GroupedFontSizeControlProps {
+  fontSizes?: Record<string, number>;
+  onControlChange: (key: string, value: number) => void;
+}
+
+interface InputWithFontSizeProps {
+  label: string;
+  name: string;
+  value: string | number;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  fontSizePx?: number;
+  baseFontSize?: number;
+  onFontSizeChange?: (name: string, value: number) => void;
+  placeholder?: string;
+  type?: string;
+  disabled?: boolean;
+}
+
+interface BalkenOffsetControlProps {
+  balkenOffset: number[];
+  onControlChange: (name: string, value: number[]) => void;
+}
+
+interface ColorSchemeControlProps {
+  colorScheme: Array<{ background: string }>;
+  onControlChange: (name: string, value: unknown) => void;
+}
+
+interface CrossControlBaseProps {
+  title: string;
+  description: string;
+  offset: [number, number];
+  onOffsetChange: (offset: [number, number]) => void;
+  step: number;
+}
+
+interface OffsetControlProps {
+  offset: [number, number];
+  onOffsetChange: (offset: [number, number]) => void;
+}
+
+interface CreditControlProps {
+  credit: string;
+  onControlChange: (name: string, value: string) => void;
+}
+
+interface ImageModificationFormProps {
+  fontSize: number;
+  balkenOffset: number[];
+  colorScheme: Array<{ background: string }>;
+  balkenGruppenOffset: [number, number];
+  sunflowerOffset: [number, number];
+  credit: string;
+  onControlChange: (name: string, value: unknown) => void;
+}
+
 export const FontSizeControl = ({ fontSize, onControlChange, isQuoteType = false }: FontSizeControlProps): JSX.Element => {
   const [showSlider, setShowSlider] = useState(false);
 
@@ -49,7 +113,7 @@ export const FontSizeControl = ({ fontSize, onControlChange, isQuoteType = false
             min={effectiveMin}
             max={effectiveMax}
             value={Math.max(effectiveMin, Math.min(effectiveMax, fontSize))}
-            onChange={(e) => onControlChange('fontSize', parseInt(e.target.value, 10))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onControlChange('fontSize', parseInt(e.target.value, 10))}
             className="font-size-slider"
           />
         )}
@@ -58,7 +122,7 @@ export const FontSizeControl = ({ fontSize, onControlChange, isQuoteType = false
   );
 };
 
-export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max = 110, isQuoteType = false }) => {
+export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max = 110, isQuoteType = false }: FreeFontSizeControlProps): JSX.Element => {
   const effectiveMin = isQuoteType ? 45 : min;
   const effectiveMax = isQuoteType ? 80 : max;
 
@@ -69,7 +133,7 @@ export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max =
         min={effectiveMin}
         max={effectiveMax}
         value={Math.max(effectiveMin, Math.min(effectiveMax, fontSize))}
-        onChange={(e) => onControlChange('fontSize', parseInt(e.target.value, 10))}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onControlChange('fontSize', parseInt(e.target.value, 10))}
         className="font-size-slider"
       />
       <span className="font-size-value">{fontSize}px</span>
@@ -80,7 +144,7 @@ export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max =
 export const GroupedFontSizeControl = ({
   fontSizes = { main: 100, circle: 100, footer: 100 },
   onControlChange
-}) => {
+}: GroupedFontSizeControlProps): JSX.Element => {
   const groups = [
     { key: 'main', label: 'Haupttext' },
     { key: 'circle', label: 'Datum-Kreis' },
@@ -100,7 +164,7 @@ export const GroupedFontSizeControl = ({
               min={min}
               max={max}
               value={fontSizes[key] || 100}
-              onChange={(e) => onControlChange(key, parseInt(e.target.value, 10))}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onControlChange(key, parseInt(e.target.value, 10))}
               className="font-size-slider"
             />
             <span className="font-size-value">{fontSizes[key] || 100}%</span>
@@ -122,18 +186,18 @@ export const InputWithFontSize = ({
   placeholder = '',
   type = 'text',
   disabled = false
-}) => {
+}: InputWithFontSizeProps): JSX.Element => {
   const minPx = Math.round(baseFontSize * 0.7);
   const maxPx = Math.round(baseFontSize * 1.3);
   const currentPx = fontSizePx ?? baseFontSize;
 
-  const handleTextChange = (e) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     if (onChange) {
-      onChange({ target: { name, value: e.target.value } });
+      onChange({ target: { name, value: e.target.value } } as React.ChangeEvent<HTMLInputElement>);
     }
   };
 
-  const handleSliderChange = (e) => {
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     if (onFontSizeChange) {
       onFontSizeChange(name, parseInt(e.target.value, 10));
     }
@@ -167,10 +231,10 @@ export const InputWithFontSize = ({
   );
 };
 
-export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
+export const BalkenOffsetControl = ({ balkenOffset, onControlChange }: BalkenOffsetControlProps): JSX.Element => {
   console.log('BalkenOffsetControl rendered with:', balkenOffset); // Debugging
 
-  const handleOffsetChange = (index, direction) => {
+  const handleOffsetChange = (index: number, direction: number): void => {
     console.log('handleOffsetChange called:', index, direction); // Debugging
     if (!Array.isArray(balkenOffset)) {
       console.warn('Invalid balkenOffset:', balkenOffset);
@@ -187,7 +251,7 @@ export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
       {Array.isArray(balkenOffset) && balkenOffset.map((offset, index) => (
         <div key={index} className="balken-offset-control-item">
           <div className="balken-offset-buttons">
-            <button onClick={(e) => {
+            <button onClick={(e: React.MouseEvent) => {
               console.log('Left button clicked for index:', index); // Debugging
               e.preventDefault();
               e.stopPropagation();
@@ -196,7 +260,7 @@ export const BalkenOffsetControl = ({ balkenOffset, onControlChange }) => {
               <FaChevronLeft />
             </button>
             <span>{offset}px</span>
-            <button onClick={(e) => {
+            <button onClick={(e: React.MouseEvent) => {
               console.log('Right button clicked for index:', index); // Debugging
               e.preventDefault();
               e.stopPropagation();
@@ -215,8 +279,8 @@ BalkenOffsetControl.defaultProps = {
   balkenOffset: SHAREPIC_GENERATOR.DEFAULT_BALKEN_OFFSET,
 };
 
-export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
-  const handleColorChange = (lineIndex, value) => {
+export const ColorSchemeControl = ({ colorScheme, onControlChange }: ColorSchemeControlProps): JSX.Element => {
+  const handleColorChange = (lineIndex: number, value: string): void => {
     const newScheme = colorScheme.map((line, idx) =>
       idx === lineIndex ? { background: value } : line
     );
@@ -246,7 +310,7 @@ export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
               <input
                 type="color"
                 value={line.background}
-                onChange={(e) => handleColorChange(idx, e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleColorChange(idx, e.target.value)}
                 className="color-input"
               />
             </label>
@@ -257,9 +321,9 @@ export const ColorSchemeControl = ({ colorScheme, onControlChange }) => {
   );
 };
 
-const CrossControlBase = ({ title, description, offset, onOffsetChange, step }) => {
-  const handleMove = (direction) => {
-    const newOffset = [...offset];
+const CrossControlBase = ({ title, description, offset, onOffsetChange, step }: CrossControlBaseProps): JSX.Element => {
+  const handleMove = (direction: 'up' | 'down' | 'left' | 'right'): void => {
+    const newOffset: [number, number] = [offset[0], offset[1]];
     switch (direction) {
       case 'up':
         newOffset[1] -= step;
@@ -296,7 +360,7 @@ const CrossControlBase = ({ title, description, offset, onOffsetChange, step }) 
   );
 };
 
-export const BalkenGruppeControl = ({ offset, onOffsetChange }) => (
+export const BalkenGruppeControl = ({ offset, onOffsetChange }: OffsetControlProps): JSX.Element => (
   <CrossControlBase
     title={IMAGE_MODIFICATION.LABELS.BALKEN_GRUPPE_TITLE}
     description={IMAGE_MODIFICATION.LABELS.BALKEN_GRUPPE_DESCRIPTION}
@@ -306,7 +370,7 @@ export const BalkenGruppeControl = ({ offset, onOffsetChange }) => (
   />
 );
 
-export const SonnenblumenControl = ({ offset, onOffsetChange }) => (
+export const SonnenblumenControl = ({ offset, onOffsetChange }: OffsetControlProps): JSX.Element => (
   <CrossControlBase
     title={IMAGE_MODIFICATION.LABELS.SUNFLOWER_TITLE}
     description={IMAGE_MODIFICATION.LABELS.SUNFLOWER_DESCRIPTION}
@@ -316,13 +380,13 @@ export const SonnenblumenControl = ({ offset, onOffsetChange }) => (
   />
 );
 
-export const CreditControl = ({ credit, onControlChange }) => (
+export const CreditControl = ({ credit, onControlChange }: CreditControlProps): JSX.Element => (
   <div className="credit-control">
     <input
       type="text"
       id="credit"
       value={credit}
-      onChange={(e) => onControlChange('credit', e.target.value)}
+      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onControlChange('credit', e.target.value)}
       placeholder="www.gruene-musterdorf.de"
     />
   </div>
@@ -336,9 +400,9 @@ const ImageModificationForm = ({
   sunflowerOffset,
   credit,
   onControlChange
-}) => {
-  const handleBalkenGruppeOffsetChange = (newOffset) => {
-    const offsetDiff = [
+}: ImageModificationFormProps): JSX.Element => {
+  const handleBalkenGruppeOffsetChange = (newOffset: [number, number]): void => {
+    const offsetDiff: [number, number] = [
       newOffset[0] - balkenGruppenOffset[0],
       newOffset[1] - balkenGruppenOffset[1]
     ];
@@ -350,7 +414,7 @@ const ImageModificationForm = ({
     ]);
   };
 
-  const handleSunflowerOffsetChange = (newOffset) => {
+  const handleSunflowerOffsetChange = (newOffset: [number, number]): void => {
     onControlChange('sunflowerOffset', newOffset);
   };
 

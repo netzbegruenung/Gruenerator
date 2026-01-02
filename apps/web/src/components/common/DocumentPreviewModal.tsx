@@ -39,7 +39,7 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         <div className="document-preview-header">
           <h3>{itemTitle}</h3>

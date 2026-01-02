@@ -82,7 +82,7 @@ const SearchBar = ({ onSearch,
           <input
             type="text"
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
             className="search-input"
             placeholder={placeholder}
             aria-label="Suchfeld"

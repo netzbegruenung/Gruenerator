@@ -50,7 +50,7 @@ const CreateGroupForm = ({ onCancel, onSuccess }) => {
           <TextInput
             id="groupName"
             value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
             placeholder="z.B. OV Musterdorf, Bundestagsbüro Mustermann"
             aria-required="true"
             required

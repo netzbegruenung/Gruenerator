@@ -249,7 +249,7 @@ const Header = () => {
                                 <li key={subItem.id} role="none">
                                     <Link
                                         to={subItem.path}
-                                        onClick={(e) => handleLinkClick(e)}
+                                        onClick={(e: React.MouseEvent) => handleLinkClick(e)}
                                         role="menuitem"
                                         tabIndex={0}
                                     >
@@ -267,7 +267,7 @@ const Header = () => {
                 <li key={item.id} role="none">
                     <Link
                         to={item.path}
-                        onClick={(e) => handleLinkClick(e)}
+                        onClick={(e: React.MouseEvent) => handleLinkClick(e)}
                         role="menuitem"
                         tabIndex={0}
                     >
@@ -308,10 +308,10 @@ const Header = () => {
                             <li key={key}
                                 className="header-dropdown"
                                 onMouseEnter={() => handleMouseEnter(key)}
-                                onMouseLeave={(e) => handleMouseLeave(e)}
+                                onMouseLeave={(e: React.MouseEvent<HTMLLIElement>) => handleMouseLeave(e)}
                                 onFocus={() => handleFocus(key)}
                                 onBlur={handleBlur}
-                                onKeyDown={(e) => handleKeyDown(e, key)}
+                                onKeyDown={(e: React.KeyboardEvent<HTMLLIElement>) => handleKeyDown(e, key)}
                                 tabIndex={0}
                                 aria-haspopup="true"
                                 aria-expanded={activeDropdown === key}
@@ -340,7 +340,7 @@ const Header = () => {
                         {/* Render direct menu items like Suche */}
                         {Object.values(directMenuItems).map((item: MenuItemType) => (
                             <li key={item.id} className={`header-direct-item header-${item.id}`}>
-                                <Link to={item.path} onClick={(e) => handleLinkClick(e)} className="header-nav-item">
+                                <Link to={item.path} onClick={(e: React.MouseEvent) => handleLinkClick(e)} className="header-nav-item">
                                     {/* Display icon for direct items - use class for styling */}
                                     {item.icon && <item.icon aria-hidden="true" className="header-direct-item-icon" />}
                                     <span>{item.title}</span>

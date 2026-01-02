@@ -105,7 +105,7 @@ const DocumentPreview = ({ document }: DocumentPreviewProps) => {
 
       {showPreview && (
         <div className="document-preview-overlay" onClick={() => setShowPreview(false)}>
-          <div className="document-preview-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="document-preview-modal" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <div className="document-preview-header">
               <h4>Text-Vorschau: {document.title}</h4>
               <button
@@ -231,7 +231,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, [showUploadForm, isFormVisible]);
 
   // Validate file
-  const validateFile = useCallback((file) => {
+  const validateFile = useCallback((file: File): string | null => {
     if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
       return 'Nur PDF, Word (DOCX), PowerPoint (PPTX), Bilder (PNG, JPG, AVIF) und Textdateien sind erlaubt.';
     }
@@ -245,7 +245,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, []);
 
   // Handle URL input changes
-  const handleUrlChange = useCallback((url) => {
+  const handleUrlChange = useCallback((url: string) => {
     setUrlInput(url);
 
     // Auto-generate title if URL is valid and title is empty
@@ -262,7 +262,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, [uploadTitle, clearError]);
 
   // Handle file selection
-  const handleFileSelect = useCallback((files) => {
+  const handleFileSelect = useCallback((files: File[]) => {
     const file = files[0];
     if (!file) return;
 
@@ -281,7 +281,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, [validateFile, clearError]);
 
   // Handle drag events
-  const handleDrag = useCallback((e) => {
+  const handleDrag = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === 'dragenter' || e.type === 'dragover') {
@@ -292,23 +292,23 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, []);
 
   // Handle drop
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
 
-    const files = Array.from(e.dataTransfer.files);
+    const files = Array.from(e.dataTransfer.files) as File[];
     handleFileSelect(files);
   }, [handleFileSelect]);
 
   // Handle file input change
-  const handleInputChange = useCallback((e) => {
-    const files = Array.from(e.target.files);
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[];
     handleFileSelect(files);
   }, [handleFileSelect]);
 
   // Handle Wolke file selection
-  const handleWolkeFilesSelected = (files) => {
+  const handleWolkeFilesSelected = (files: WolkeFile[]) => {
     setSelectedWolkeFiles(files);
     // Always auto-generate title based on selection
     if (files.length === 1) {
@@ -418,7 +418,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, [user, progressivePreload]);
 
   // Handle delete
-  const handleDelete = async (documentId, documentTitle) => {
+  const handleDelete = async (documentId: string, documentTitle: string) => {
     if (!window.confirm(`Möchten Sie das Dokument "${documentTitle}" wirklich löschen?`)) {
       return;
     }
@@ -436,7 +436,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   };
 
   // Handle refresh
-  const handleRefresh = async (documentId) => {
+  const handleRefresh = async (documentId: string) => {
     try {
       await refreshDocument(documentId);
     } catch (error) {
@@ -445,7 +445,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   };
 
   // Get status icon
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
         return <HiCheckCircle className="text-green-500" />;
@@ -460,7 +460,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   };
 
   // Get status text
-  const getStatusText = (status) => {
+  const getStatusText = (status: string): string => {
     switch (status) {
       case 'completed':
         return 'Verarbeitet';
@@ -512,7 +512,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
           {console.log('[DocumentUpload] Rendering upload form because isFormVisible is true. forceShowUploadForm:', forceShowUploadForm, 'showUploadForm:', showUploadForm)}
           {showAsModal ? (
             /* Modal Upload Form */
-            <div className="document-preview-overlay" onClick={(e) => {
+            <div className="document-preview-overlay" onClick={(e: React.MouseEvent) => {
               if (e.target === e.currentTarget) {
                 if (forceShowUploadForm) {
                   // When controlled by parent, notify parent to close
@@ -625,7 +625,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                           type="url"
                           className="form-input"
                           value={urlInput}
-                          onChange={(e) => handleUrlChange(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleUrlChange(e.target.value)}
                           placeholder="https://example.com/article"
                           disabled={isUploading}
                         />
@@ -662,7 +662,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                         type="text"
                         className="form-input"
                         value={uploadTitle}
-                        onChange={(e) => setUploadTitle(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUploadTitle(e.target.value)}
                         placeholder="Geben Sie einen aussagekräftigen Titel ein..."
                         disabled={isUploading}
                       />
@@ -824,7 +824,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                       type="url"
                       className="form-input"
                       value={urlInput}
-                      onChange={(e) => handleUrlChange(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleUrlChange(e.target.value)}
                       placeholder="https://example.com/article"
                       disabled={isUploading}
                     />
@@ -861,7 +861,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                     type="text"
                     className="form-input"
                     value={uploadTitle}
-                    onChange={(e) => setUploadTitle(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUploadTitle(e.target.value)}
                     placeholder="Geben Sie einen aussagekräftigen Titel ein..."
                     disabled={isUploading}
                   />

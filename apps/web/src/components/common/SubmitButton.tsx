@@ -19,6 +19,7 @@ interface SubmitButtonProps {
     limit?: number
   };
   iconOnly?: boolean;
+  disabled?: boolean;
 }
 
 const SubmitButton = ({ onClick,
@@ -33,7 +34,8 @@ const SubmitButton = ({ onClick,
   showStatus = false,
   tabIndex,
   imageLimitInfo,
-  iconOnly = false }: SubmitButtonProps): JSX.Element => {
+  iconOnly = false,
+  disabled }: SubmitButtonProps): JSX.Element => {
   const [internalSuccess, setInternalSuccess] = useState(false);
   const timerRef = useRef(null);
 
@@ -90,7 +92,7 @@ const SubmitButton = ({ onClick,
       className={`btn-primary ${className} ${loading ? 'btn-loading' : ''} ${internalSuccess ? 'btn-success' : ''} ${iconOnly ? 'btn-icon-only' : ''}`}
       aria-busy={loading}
       aria-label={ariaLabel || text}
-      disabled={loading}
+      disabled={loading || disabled}
       tabIndex={tabIndex}
     >
       {loading && <Spinner size="small" white />}

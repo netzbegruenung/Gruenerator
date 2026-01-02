@@ -560,7 +560,7 @@ const DocumentsSection = ({
                                         id="deleteConfirmText"
                                         type="text"
                                         value={deleteConfirmText}
-                                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
                                         placeholder="alles löschen"
                                         aria-label="Bestätigung: alles löschen"
                                         disabled={isDeletingAll}

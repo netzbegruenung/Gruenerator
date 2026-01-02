@@ -32,10 +32,12 @@ interface GroupData {
         description?: string;
     };
     joinToken?: string;
+    [key: string]: unknown;
 }
 
 interface TabIndexConfig {
     groupDetailTabs: number;
+    groupNameEdit?: number;
 }
 
 interface GroupDetailSectionProps {
@@ -372,7 +374,7 @@ const GroupDetailSection = memo(({
                         saveGroupDescription={saveGroupDescription}
                         confirmDeleteGroup={confirmDeleteGroup}
                         isActive={isActive}
-                        tabIndex={tabIndex}
+                        tabIndex={{ ...tabIndex, groupNameEdit: tabIndex.groupNameEdit ?? 0 }}
                     />
                 )}
 
@@ -380,7 +382,7 @@ const GroupDetailSection = memo(({
                     <FormProvider {...formMethods}>
                         <GroupInstructionsSection
                             data={data}
-                            control={control}
+                            control={control as unknown as import('react-hook-form').Control<Record<string, unknown>>}
                             GROUP_MAX_CONTENT_LENGTH={GROUP_MAX_CONTENT_LENGTH}
                             enabledFields={enabledFields}
                             onAddField={handleAddField}
@@ -394,11 +396,13 @@ const GroupDetailSection = memo(({
                         groupContent={groupContent}
                         isLoadingGroupContent={isLoadingGroupContent}
                         isFetchingGroupContent={isFetchingGroupContent}
-                        isAdmin={data?.isAdmin}
-                        onUnshare={unshareContent}
+                        isAdmin={data?.isAdmin ?? false}
+                        onUnshare={(contentType: string, contentId: string) => unshareContent(contentType, contentId)}
                         isUnsharing={isUnsharing}
                         groupId={groupId}
-                        onShareContent={shareContent}
+                        onShareContent={async (contentType: string, itemId: string, options: { permissions: { read: boolean; write: boolean; collaborative: boolean }; targetGroupId: string }) => {
+                            shareContent(contentType, itemId, options);
+                        }}
                         isSharing={isSharing}
                         onRefetch={refetchGroupContent}
                         onSuccessMessage={onSuccessMessage}
@@ -408,7 +412,7 @@ const GroupDetailSection = memo(({
 
                 {groupDetailView === 'wolke' && (
                     <GroupWolkeSection
-                        isAdmin={data?.isAdmin}
+                        isAdmin={data?.isAdmin ?? false}
                         permissions={permissions}
                     />
                 )}

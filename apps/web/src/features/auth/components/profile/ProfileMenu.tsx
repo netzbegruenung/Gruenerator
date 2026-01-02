@@ -1,10 +1,39 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaFolder, FaUsers, FaCogs, FaChevronDown, FaChevronUp, FaClipboardList, FaLayerGroup } from 'react-icons/fa';
+import type { IconType } from 'react-icons';
 import { SiCanva } from 'react-icons/si';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 
-const PROFILE_MENU_ITEMS = [
+interface MenuItem {
+  key: string;
+  label: string;
+  path: string;
+  betaFeature?: string;
+  icon: IconType;
+  hasSubmenu?: boolean;
+}
+
+interface Generator {
+  id: string;
+  slug?: string;
+  name?: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
+}
+
+interface ProfileMenuProps {
+  onNavigate?: () => void;
+  variant?: 'dropdown' | 'sidebar';
+  className?: string;
+  customGenerators?: Generator[];
+  groups?: Group[];
+}
+
+const PROFILE_MENU_ITEMS: MenuItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers, hasSubmenu: true },
   { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/grueneratoren', icon: FaCogs, hasSubmenu: true },
   { key: 'inhalte', label: 'Dateien und Inhalte', path: '/profile/inhalte', icon: FaFolder },
@@ -19,10 +48,10 @@ const ProfileMenu = ({
   className = '',
   customGenerators = [],
   groups = []
-}) => {
+}: ProfileMenuProps): React.ReactElement => {
   const location = useLocation();
   const { shouldShowTab } = useBetaFeatures();
-  const [expandedSubmenu, setExpandedSubmenu] = useState(null);
+  const [expandedSubmenu, setExpandedSubmenu] = useState<string | null>(null);
 
   const filteredItems = PROFILE_MENU_ITEMS.filter(item => {
     if (item.betaFeature) {
@@ -31,7 +60,7 @@ const ProfileMenu = ({
     return true;
   });
 
-  const isActive = (path) => {
+  const isActive = (path: string): boolean => {
     if (path === '/profile') {
       return location.pathname === '/profile';
     }
@@ -44,7 +73,7 @@ const ProfileMenu = ({
     }
   };
 
-  const toggleSubmenu = (key, e) => {
+  const toggleSubmenu = (key: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setExpandedSubmenu(expandedSubmenu === key ? null : key);
@@ -62,7 +91,7 @@ const ProfileMenu = ({
             <div key={item.key} className="profile-menu-item-with-submenu">
               <button
                 className={`profile-menu-item profile-menu-item-expandable ${isActive(item.path) ? 'profile-menu-item--active' : ''}`}
-                onClick={(e) => toggleSubmenu(item.key, e)}
+                onClick={(e: React.MouseEvent) => toggleSubmenu(item.key, e)}
                 aria-expanded={isExpanded}
               >
                 {item.icon && <item.icon className="profile-menu-icon" />}

@@ -2,11 +2,15 @@ import type { JSX, ComponentType } from 'react';
 import * as Switch from '@radix-ui/react-switch';
 import '../../assets/styles/components/ui/FeatureToggle.css';
 
+interface IconProps {
+  className?: string;
+}
+
 interface FeatureToggleProps {
   isActive: boolean;
   onToggle?: (checked: boolean) => void;
   label: string;
-  icon: ComponentType;
+  icon: ComponentType<IconProps>;
   description?: string;
   className?: string;
   tabIndex?: number;

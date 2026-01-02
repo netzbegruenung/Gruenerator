@@ -107,7 +107,7 @@ const NavMenu = ({ open, onClose }: NavMenuProps) => {
             <span
               className="nav-menu__submenu-trigger"
               onClick={() => handleSubmenuClick(item.id)}
-              onKeyDown={(e) => commonHandleMenuInteraction(e, 'keydown', () => handleSubmenuClick(item.id))}
+              onKeyDown={(e: React.KeyboardEvent) => commonHandleMenuInteraction(e, 'keydown', () => handleSubmenuClick(item.id))}
               tabIndex={0}
               role="button"
               aria-haspopup="true"
@@ -176,7 +176,7 @@ const NavMenu = ({ open, onClose }: NavMenuProps) => {
         <div key={key} className="nav-menu__dropdown">
           <span
             onClick={() => handleDropdownClick(key)}
-            onKeyDown={(e) => handleKeyDown(e, key)}
+            onKeyDown={(e: React.KeyboardEvent) => handleKeyDown(e, key)}
             tabIndex={0}
             role="button"
             aria-haspopup="true"

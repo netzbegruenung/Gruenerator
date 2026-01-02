@@ -54,6 +54,62 @@ interface BulkDeleteResult {
     failed?: number;
 }
 
+interface CanvaDesignInput {
+    id: string;
+    canva_id: string;
+    title?: string;
+    canva_url?: string;
+    external_url?: string;
+    content_data?: { originalUrl?: string };
+    source?: string;
+    saved_as_template?: boolean;
+    preview_image_url?: string;
+    thumbnail_url?: string;
+    type?: string;
+    updated_at?: string;
+    created_at?: string;
+    owner?: { display_name?: string };
+    [key: string]: unknown;
+}
+
+interface CanvaLogoConfig {
+    src: string;
+    alt: string;
+    className: string;
+    height: string;
+    width: string;
+    minHeight: string;
+    poweredByMessage: string;
+    showPoweredBy?: boolean;
+    usage?: string;
+    brandMessage?: string;
+    minimumPadding?: string;
+    maintainAspectRatio?: boolean;
+    allowColorChange?: boolean;
+}
+
+interface TemplateMetadataBadge {
+    type: string;
+    text: string;
+    className: string;
+    style?: React.CSSProperties;
+    title?: string;
+}
+
+interface TemplateMetadataItem {
+    type: string;
+    text: string;
+    className: string;
+}
+
+interface TemplateMetadataConfig {
+    isCanvaDesign: boolean;
+    isAlreadySaved: boolean;
+    hasUserLink: boolean;
+    badges: TemplateMetadataBadge[];
+    metadata: TemplateMetadataItem[];
+}
+
 const CanvaSection = ({
     isActive,
     onSuccessMessage,
@@ -89,7 +145,7 @@ const CanvaSection = ({
     const { currentTab: currentSubsection, handleTabClick: handleSubsectionClick } = useTabNavigation(
         initialSubsection,
         availableSubsections,
-        (subsectionKey) => {
+        (subsectionKey: string) => {
             onSubsectionChange?.(subsectionKey);
         }
     );
@@ -136,7 +192,7 @@ const CanvaSection = ({
             return await getCanvaState().checkConnectionStatus();
         } catch (error) {
             console.error('[CanvaSection] Error checking Canva connection:', error);
-            onErrorMessage?.(error.message);
+            onErrorMessage?.(error instanceof Error ? error.message : 'Unbekannter Fehler');
         }
     };
 
@@ -147,10 +203,11 @@ const CanvaSection = ({
             await getCanvaState().fetchDesigns();
         } catch (error) {
             console.error('[CanvaSection] Error fetching Canva designs:', error);
-            if (error.message.includes('abgelaufen')) {
+            const errorMessage = error instanceof Error ? error.message : '';
+            if (errorMessage.includes('abgelaufen')) {
                 onErrorMessage?.('Canva-Verbindung abgelaufen. Bitte verbinde dich erneut.');
             } else {
-                onErrorMessage?.(error.message);
+                onErrorMessage?.(errorMessage || 'Unbekannter Fehler');
             }
         }
     };
@@ -167,21 +224,21 @@ const CanvaSection = ({
         }
     }, [canvaLoading]);
 
-    const handleSaveCanvaTemplate = useCallback(async (canvaDesign) => {
+    const handleSaveCanvaTemplate = useCallback(async (canvaDesign: CanvaTemplate & { canva_id?: string }) => {
         try {
-            await getCanvaState().saveTemplate(canvaDesign);
+            await getCanvaState().saveTemplate(canvaDesign as CanvaDesignInput);
 
             // Refresh templates query after successful save
             templatesQuery.refetch();
 
         } catch (error) {
             console.error('[CanvaSection] Error saving Canva template:', error);
-            onErrorMessage(error.message);
+            onErrorMessage(error instanceof Error ? error.message : 'Unbekannter Fehler');
         }
     }, [onErrorMessage, templatesQuery]);
 
     // Template handlers - prefer original URL for opening
-    const handleEditTemplate = (template) => {
+    const handleEditTemplate = (template: CanvaTemplate) => {
         const url = template.content_data?.originalUrl || template.canva_url || template.external_url;
         if (url) {
             window.open(url, '_blank');
@@ -292,16 +349,16 @@ const CanvaSection = ({
 
     // Custom meta renderer for templates
     const renderTemplateMetadata = (template: CanvaTemplate) => {
-        const config = canvaUtils.getTemplateMetadataConfig(template, savedCanvaDesigns);
+        const config = canvaUtils.getTemplateMetadataConfig(template, savedCanvaDesigns) as TemplateMetadataConfig;
 
         return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
-                {config.badges.map((badge, index) => (
+                {config.badges.map((badge: TemplateMetadataBadge, index: number) => (
                     <span key={index} className={badge.className} style={badge.style} title={badge.title}>
                         {badge.text}
                     </span>
                 ))}
-                {config.metadata.map((meta, index) => (
+                {config.metadata.map((meta: TemplateMetadataItem, index: number) => (
                     <span key={index} className={meta.className}>
                         {meta.text}
                     </span>
@@ -310,7 +367,7 @@ const CanvaSection = ({
         );
     };
 
-    const createShareAction = useCallback((contentType) =>
+    const createShareAction = useCallback((contentType: string) =>
         documentAndTextUtils.createShareAction(contentType, onShareToGroup), [onShareToGroup]);
 
     // CANVA CONSTANTS
@@ -375,7 +432,7 @@ const CanvaSection = ({
             ] : [])
         ];
 
-        const logoConfig = canvaUtils.getCanvaLogoConfig('medium', 'subtab');
+        const logoConfig = canvaUtils.getCanvaLogoConfig('medium', 'subtab') as CanvaLogoConfig;
 
         return (
             <div
@@ -467,7 +524,7 @@ const CanvaSection = ({
     );
 
     // Render Canva Login Required message for unauthenticated users
-    const renderCanvaLoginRequired = (featureName) => (
+    const renderCanvaLoginRequired = (featureName: string) => (
         <ProfileCard title={featureName}>
             <div className="login-required-card">
                 <div className="login-required-header">

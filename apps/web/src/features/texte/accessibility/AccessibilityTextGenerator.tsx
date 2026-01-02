@@ -222,7 +222,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
           imageBase64 = await fileToBase64(uploadedImage);
           imageContext = `Bild: ${uploadedImage.name}`;
         } else if (imageSource === 'canva' && hasCanvaImage && selectedCanvaDesign) {
-          const conversionResult = await convertCanvaDesignToBase64(selectedCanvaDesign.design);
+          const conversionResult = await convertCanvaDesignToBase64(selectedCanvaDesign.design as { thumbnail_url?: string; title?: string; id?: string; [key: string]: unknown });
           imageBase64 = conversionResult.base64;
           imageContext = `Canva Design: ${selectedCanvaDesign.title || 'Untitled'}`;
         } else {

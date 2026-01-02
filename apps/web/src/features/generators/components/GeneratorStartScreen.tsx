@@ -119,7 +119,7 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = ({
             className="description-input" // Keep original class for some styles, but visuals are now on wrapper
             minRows={2} // Set minimum rows instead of fixed rows or min-height
             value={aiDescription}
-            onChange={(e) => onDescriptionChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onDescriptionChange(e.target.value)}
             placeholder="Beispiel: Ein Grünerator für Social-Media-Posts über Radwege in meiner Stadt, der nach Zielgruppe und Anlass fragt..."
             aria-label="Beschreibung für den KI-Grünerator"
             aria-describedby={error ? "start-screen-error" : undefined}

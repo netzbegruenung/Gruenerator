@@ -58,7 +58,7 @@ const ProfileInfoTabContainer = ({
 
   const igelActive = getBetaFeatureState('igel');
 
-  const handleToggleIgelModus = async (checked) => {
+  const handleToggleIgelModus = async (checked: boolean) => {
     await updateUserBetaFeatures('igel', checked);
     onSuccessMessage(`Igel-Modus ${checked ? 'aktiviert' : 'deaktiviert'}.`);
   };
@@ -82,10 +82,10 @@ const ProfileInfoTabContainer = ({
       if (!user) throw new Error('Nicht angemeldet');
       return await profileApiService.updateProfile(profileData);
     },
-    onSuccess: (updatedProfile) => {
+    onSuccess: (updatedProfile: Profile) => {
       console.log('[ProfileInfo] Update success, updatedProfile:', updatedProfile);
       if (user?.id && updatedProfile) {
-        const newProfileData = (oldData) => ({ ...oldData, ...updatedProfile });
+        const newProfileData = (oldData: Profile | undefined) => ({ ...oldData, ...updatedProfile });
         queryClient.setQueryData(['profileData', user.id], newProfileData);
         // Manually sync to profileStore for components not using useProfile
         const currentData = queryClient.getQueryData(['profileData', user.id]);
@@ -103,7 +103,7 @@ const ProfileInfoTabContainer = ({
   });
 
   const updateAvatarMutation = useMutation({
-    mutationFn: async (avatarRobotId) => {
+    mutationFn: async (avatarRobotId: string | number) => {
       if (!user) throw new Error('Nicht angemeldet');
       return await profileApiService.updateAvatar(avatarRobotId);
     },
@@ -165,7 +165,7 @@ const ProfileInfoTabContainer = ({
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
       await Promise.race([updateProfile(profileUpdateData), timeoutPromise]);
       setErrorProfile('');
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Auto-save error:', error);
       const errorMessage = error instanceof Error ? error.message : '';
       if (errorMessage === 'Save timeout') {
@@ -181,15 +181,21 @@ const ProfileInfoTabContainer = ({
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
     getFieldsToTrack: () => ['displayName', 'username', 'email'],
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error('Profile autosave failed:', error);
       setErrorProfile('Automatisches Speichern fehlgeschlagen.');
     },
   });
 
+  interface FormFields {
+    displayName: string;
+    username: string;
+    email: string;
+  }
+
   useEffect(() => {
     if (!profile || !user) return;
-    const formFields = initializeProfileFormFields(profile, user);
+    const formFields: FormFields = initializeProfileFormFields(profile, user) as FormFields;
     if (!isInitialized.current) {
       setDisplayName(formFields.displayName);
       setUsername(formFields.username);
@@ -227,7 +233,7 @@ const ProfileInfoTabContainer = ({
         });
         window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { avatarRobotId: robotId } }));
       }, 100);
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('[Avatar] update failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Fehler beim Aktualisieren des Avatars.';
       onErrorProfileMessage(errorMessage);
@@ -261,7 +267,7 @@ const ProfileInfoTabContainer = ({
       if (result.success) {
         onSuccessMessage('Konto erfolgreich gelöscht. Sie werden automatisch weitergeleitet...');
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Account deletion error:', error);
       const msg = error instanceof Error ? error.message : 'Fehler beim Löschen des Kontos.';
       setDeleteAccountError(msg);
@@ -315,7 +321,7 @@ const ProfileInfoTabContainer = ({
         <Suspense fallback={<div>Lade Avatare…</div>}>
           <AvatarSelectionModal
             isOpen={showAvatarModal}
-            currentAvatarId={avatarRobotId}
+            currentAvatarId={typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)}
             onSelect={handleAvatarSelect}
             onClose={() => setShowAvatarModal(false)}
           />

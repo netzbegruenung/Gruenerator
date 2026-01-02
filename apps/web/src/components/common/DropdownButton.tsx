@@ -186,7 +186,7 @@ const DropdownButton = ({
           ref={dropdownRef}
           className="dropdown-button-content"
           style={style}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           role="menu"

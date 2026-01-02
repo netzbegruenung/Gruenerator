@@ -173,7 +173,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                   maxLength={maxLength}
                   className={`${textareaClassName} ${error ? 'error-input' : ''}`.trim()}
                   tabIndex={tabIndex}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
                     field.onChange(e);
 
                     if (enableUrlDetection) {
@@ -195,7 +195,8 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
     );
   }
 
-  const value = useSimpleFormStore((state) => state.fields[name] ?? defaultValue);
+  const rawValue = useSimpleFormStore((state) => state.fields[name]);
+  const value = (rawValue as string) ?? defaultValue;
   const setField = useSimpleFormStore((state) => state.setField);
 
   return (
@@ -218,7 +219,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
           className={textareaClassName}
           value={value}
           tabIndex={tabIndex}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             const newVal = e.target.value;
             setField(name, newVal);
 

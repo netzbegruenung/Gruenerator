@@ -53,11 +53,13 @@ interface Source {
   url: string;
   title: string;
   content_snippets?: string;
+  [key: string]: unknown;
 }
 
 interface SourceRecommendation {
   title: string;
   summary: string;
+  [key: string]: unknown;
 }
 
 interface SourceListProps {
@@ -240,7 +242,7 @@ const SearchPage = () => {
               <div className="analysis-container">
                 <div className="analysis-actions">
                   <ActionButtons
-                    content={webResults.summary.text}
+                    generatedContent={webResults.summary.text}
                     onEdit={() => {}}
                     isEditing={false}
                     allowEditing={false}
@@ -262,8 +264,8 @@ const SearchPage = () => {
                 {searchMode === 'web' && citations.length > 0 && (
                   <div className="citation-sources-section">
                     <CitationSourcesDisplay
-                      sources={citationSources}
-                      citations={citations}
+                      sources={citationSources as any[]}
+                      citations={citations as any[]}
                       linkConfig={{ type: 'none' }}
                       title="🔗 Quellen der Zusammenfassung"
                       className="search-citation-sources"
@@ -313,7 +315,7 @@ const SearchPage = () => {
             <div className="dossier-container">
               <div className="analysis-actions">
                 <ActionButtons
-                  content={dossier}
+                  generatedContent={dossier}
                   onEdit={() => {}}
                   isEditing={false}
                   allowEditing={false}
@@ -334,8 +336,8 @@ const SearchPage = () => {
               {searchMode === 'deep' && citations.length > 0 && (
                 <div className="citation-sources-section">
                   <CitationSourcesDisplay
-                    sources={citationSources}
-                    citations={citations}
+                    sources={citationSources as any[]}
+                    citations={citations as any[]}
                     linkConfig={{ type: 'none' }}
                     title="🔗 Quellen des Dossiers"
                     className="search-citation-sources"
@@ -350,9 +352,9 @@ const SearchPage = () => {
                 {Object.entries(categorizedSources).map(([category, sources]) => (
                   <SourceList
                     key={category}
-                    sources={sources}
+                    sources={sources as Source[]}
                     title={category}
-                    recommendations={sourceRecommendations}
+                    recommendations={sourceRecommendations as SourceRecommendation[]}
                   />
                 ))}
               </div>
@@ -366,11 +368,7 @@ const SearchPage = () => {
             <div className="analysis-container">
               <div className="analysis-actions">
                 <ActionButtons
-                  content={formatExportContent({
-                    analysis,
-                    sourceRecommendations,
-                    unusedSources: results
-                  })}
+                  generatedContent={analysis}
                   onEdit={() => {}}
                   isEditing={false}
                   allowEditing={false}
@@ -384,17 +382,17 @@ const SearchPage = () => {
             <div className="sources-section">
               {usedSources.length > 0 && (
                 <SourceList
-                  sources={usedSources}
+                  sources={usedSources as Source[]}
                   title="Verwendete Quellen"
-                  recommendations={sourceRecommendations}
+                  recommendations={sourceRecommendations as SourceRecommendation[]}
                 />
               )}
 
               {unusedSources.length > 0 && (
                 <SourceList
-                  sources={unusedSources}
+                  sources={unusedSources as Source[]}
                   title="Ergänzende Informationen"
-                  recommendations={sourceRecommendations}
+                  recommendations={sourceRecommendations as SourceRecommendation[]}
                 />
               )}
             </div>

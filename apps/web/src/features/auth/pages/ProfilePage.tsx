@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, lazy, Suspense, useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { motion, useReducedMotion } from 'motion/react';
+import { useState, useEffect, useCallback, lazy, Suspense, useRef, ReactNode } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { motion, useReducedMotion, Transition } from 'motion/react';
 
 // Hooks from useProfileData (centralized business logic)
 import { useOptimizedAuth } from '../../../hooks/useAuth';
@@ -30,6 +30,22 @@ const GroupsManagementTab = lazy(() => import('../components/profile/tabs/Groups
 const ContentManagementTab = lazy(() => import('../components/profile/tabs/ContentManagement'));
 const CustomGeneratorsTab = lazy(() => import('../components/profile/CustomGeneratorsTab'));
 
+// Type definitions
+interface TabButtonProps {
+  activeTab: string;
+  tabKey: string;
+  onClick: (tabKey: string) => void;
+  onMouseEnter?: (tabKey: string) => void;
+  className?: string;
+  children: ReactNode;
+  underlineTransition?: Transition;
+  tabIndex?: number;
+  registerRef?: (key: string, ref: HTMLButtonElement | null) => void;
+  ariaSelected?: boolean;
+}
+
+type TabMapping = Record<string, string>;
+
 // Reusable TabButton component
 const TabButton = ({
   activeTab,
@@ -42,7 +58,7 @@ const TabButton = ({
   tabIndex: tabIndexProp,
   registerRef,
   ariaSelected
-}) => {
+}: TabButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const showUnderline = activeTab === tabKey || isHovered;
 
@@ -120,7 +136,7 @@ const ProfilePage = () => {
   const { data: profile, isLoading: isLoadingProfile } = useProfile();
 
   // Generate TAB_MAPPING from PROFILE_MENU_ITEMS
-  const TAB_MAPPING = PROFILE_MENU_ITEMS.reduce((acc, item) => {
+  const TAB_MAPPING: TabMapping = PROFILE_MENU_ITEMS.reduce<TabMapping>((acc, item) => {
     const urlPath = item.path.replace('/profile/', '') || 'profil';
     acc[urlPath === '' ? 'profil' : urlPath] = item.key;
     return acc;
@@ -129,7 +145,7 @@ const ProfilePage = () => {
   TAB_MAPPING['integrationen'] = 'integrationen';
 
   // Reverse mapping for internal tab names to URL paths
-  const REVERSE_TAB_MAPPING = PROFILE_MENU_ITEMS.reduce((acc, item) => {
+  const REVERSE_TAB_MAPPING: TabMapping = PROFILE_MENU_ITEMS.reduce<TabMapping>((acc, item) => {
     const urlPath = item.path.replace('/profile/', '') || 'profil';
     acc[item.key] = urlPath === '' ? 'profil' : urlPath;
     return acc;
@@ -139,14 +155,14 @@ const ProfilePage = () => {
   const activeTab = tab ? (TAB_MAPPING[tab] || 'profile') : 'profile';
 
   // UI State Management
-  const [hoveredTab, setHoveredTab] = useState(null);
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
   // Message states
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   // Tab change handler with bubble animation
-  const handleTabChange = useCallback((tabName) => {
+  const handleTabChange = useCallback((tabName: string) => {
     setSuccessMessage('');
     setErrorMessage('');
 
@@ -246,34 +262,38 @@ const ProfilePage = () => {
 
   // Message timeout handling
   useEffect(() => {
-    let successTimer;
+    let successTimer: ReturnType<typeof setTimeout> | undefined;
     if (successMessage) {
       successTimer = setTimeout(() => setSuccessMessage(''), 5000);
     }
-    return () => clearTimeout(successTimer);
+    return () => {
+      if (successTimer) clearTimeout(successTimer);
+    };
   }, [successMessage]);
 
   useEffect(() => {
-    let errorTimer;
+    let errorTimer: ReturnType<typeof setTimeout> | undefined;
     if (errorMessage) {
       errorTimer = setTimeout(() => setErrorMessage(''), 7000);
     }
-    return () => clearTimeout(errorTimer);
+    return () => {
+      if (errorTimer) clearTimeout(errorTimer);
+    };
   }, [errorMessage]);
 
   // Message handlers
-  const handleSuccessMessage = useCallback((message) => {
+  const handleSuccessMessage = useCallback((message: string) => {
     setErrorMessage('');
     setSuccessMessage(message);
   }, []);
 
-  const handleErrorMessage = useCallback((message) => {
+  const handleErrorMessage = useCallback((message: string) => {
     setSuccessMessage('');
     setErrorMessage(message);
   }, []);
 
   // Handle tab changes for content management tab
-  const handleContentSubtabChange = useCallback((tabKey, subsection = null) => {
+  const handleContentSubtabChange = useCallback((tabKey: string, subsection: string | null = null) => {
     if (activeTab !== 'inhalte') return;
 
     // Build the appropriate URL based on the active tab

@@ -96,7 +96,7 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
           return await generateUnifiedSharepic('dreizeilen', thema, details, uploadedImage, null, customPrompt, attachments, usePrivacyMode, provider, useProMode);
       }
 
-    } catch (err: unknown) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Sharepic-Generierung';
       console.error('[useSharepicGeneration] Error generating sharepic:', err);
       setError(errorMessage);

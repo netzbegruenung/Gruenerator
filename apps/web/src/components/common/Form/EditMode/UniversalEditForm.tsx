@@ -26,6 +26,28 @@ interface EditMessage {
   editSummary?: string;
 }
 
+interface EditChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// Convert from store format (EditChatMessage) to local format (EditMessage)
+const fromStoreMessages = (messages: EditChatMessage[]): EditMessage[] =>
+  messages.map(msg => ({
+    type: msg.role,
+    content: msg.content,
+    timestamp: Date.now()
+  }));
+
+// Convert from local format (EditMessage) to store format (EditChatMessage)
+const toStoreMessages = (messages: EditMessage[]): EditChatMessage[] =>
+  messages
+    .filter(msg => msg.type !== 'error') // Store doesn't support 'error' type
+    .map(msg => ({
+      role: msg.type as 'user' | 'assistant',
+      content: msg.content
+    }));
+
 interface ProfileData {
   display_name?: string;
   [key: string]: unknown;
@@ -101,7 +123,11 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
 
   const editableText = extractEditableText(storeContent) || '';
   const hasEditableText = editableText.trim().length > 0;
-  const hasSharepic = Boolean(storeContent && typeof storeContent === 'object' && storeContent.sharepic);
+  // Check for sharepic in content (storeContent may be JSON string or object)
+  const parsedContent = storeContent && typeof storeContent === 'string' && storeContent.startsWith('{')
+    ? (() => { try { return JSON.parse(storeContent); } catch { return null; } })()
+    : null;
+  const hasSharepic = Boolean(parsedContent && typeof parsedContent === 'object' && 'sharepic' in parsedContent);
   const isSharepicOnly = hasSharepic && !hasEditableText;
 
   useEffect(() => {
@@ -112,7 +138,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       const existingMessages = useGeneratedTextStore.getState().getEditChat(componentName);
 
       if (existingMessages.length > 0) {
-        setMessages(existingMessages);
+        setMessages(fromStoreMessages(existingMessages));
       } else {
         const firstName = displayName ? displayName.split(' ')[0] : '';
         const greeting = firstName ? `Hey ${firstName}! ` : '';
@@ -133,7 +159,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       return;
     }
     if (initializedRef.current && messages.length > 0) {
-      useGeneratedTextStore.getState().setEditChat(componentName, messages);
+      useGeneratedTextStore.getState().setEditChat(componentName, toStoreMessages(messages));
     }
   }, [messages, componentName, isSharepicOnly]);
 
@@ -477,9 +503,9 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
                 style={{ flex: 1, minWidth: 0, margin: 0, fontSize: '16px' }}
                 inputMode="text"
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
                 placeholder="Was möchtest du verbessern?"
-                onKeyDown={(e) => {
+                onKeyDown={(e: React.KeyboardEvent) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     e.stopPropagation();

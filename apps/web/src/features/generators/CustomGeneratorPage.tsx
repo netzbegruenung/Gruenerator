@@ -141,7 +141,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
         } else {
           setError('Generator nicht gefunden.');
         }
-      } catch (err: unknown) {
+      } catch (err) {
         console.error('Error fetching generator config:', err);
         const axiosError = err as { response?: { status?: number } };
         if (axiosError.response?.status === 404) {

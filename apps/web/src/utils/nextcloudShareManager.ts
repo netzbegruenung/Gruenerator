@@ -1,6 +1,76 @@
 import apiClient from '../components/utils/apiClient';
 
 /**
+ * Interface for a Nextcloud share link record
+ */
+export interface ShareLink {
+    id: string;
+    user_id?: string;
+    share_link?: string;
+    label?: string;
+    base_url?: string;
+    share_token?: string;
+    folder_name?: string;
+    is_active?: boolean;
+    created_at?: string;
+    updated_at?: string;
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    [key: string]: any;
+}
+
+/**
+ * Interface for share link updates
+ */
+export interface ShareLinkUpdate {
+    label?: string;
+    share_link?: string;
+    base_url?: string;
+    share_token?: string;
+    is_active?: boolean;
+}
+
+/**
+ * Interface for share link validation result
+ */
+export interface ShareLinkValidationResult {
+    isValid: boolean;
+    shareToken?: string;
+    baseUrl?: string;
+    error: string | null;
+}
+
+/**
+ * Interface for parsed share link components
+ */
+export interface ParsedShareLink {
+    baseUrl: string;
+    shareToken: string;
+    fullPath: string;
+}
+
+/**
+ * Interface for usage statistics
+ */
+export interface UsageStats {
+    totalLinks: number;
+    activeLinks: number;
+    inactiveLinks: number;
+    oldestLink: Date | null;
+    newestLink: Date | null;
+}
+
+/**
+ * Interface for API response data
+ */
+interface ApiResponseData {
+    success?: boolean;
+    shareLinks?: ShareLink[];
+    shareLink?: ShareLink;
+    message?: string;
+    [key: string]: unknown;
+}
+
+/**
  * NextcloudShareManager - Frontend utility for managing Nextcloud share links
  * This mirrors the backend functionality but calls API endpoints instead of direct DB access
  */
@@ -8,10 +78,10 @@ export class NextcloudShareManager {
     /**
      * Get all share links for the current user
      */
-    static async getShareLinks() {
+    static async getShareLinks(): Promise<ShareLink[]> {
         try {
-            const response = await apiClient.get('/nextcloud/share-links');
-            
+            const response = await apiClient.get<ApiResponseData>('/nextcloud/share-links');
+
             if (response.data && response.data.success) {
                 return response.data.shareLinks || [];
             } else {
@@ -19,80 +89,84 @@ export class NextcloudShareManager {
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error getting share links:', error);
-            throw new Error(`Fehler beim Laden der Wolke-Links: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Laden der Wolke-Links: ${message}`);
         }
     }
 
     /**
      * Get a specific share link by ID
      */
-    static async getShareLinkById(shareLinkId) {
+    static async getShareLinkById(shareLinkId: string): Promise<ShareLink> {
         try {
             // Backend does not expose /nextcloud/share-links/:id; fetch all and filter
-            const response = await apiClient.get('/nextcloud/share-links');
+            const response = await apiClient.get<ApiResponseData>('/nextcloud/share-links');
             if (!(response.data && response.data.success)) {
                 throw new Error('Failed to load share links');
             }
-            const shareLinks = response.data.shareLinks || [];
-            const link = shareLinks.find(l => String(l.id) === String(shareLinkId));
+            const shareLinks: ShareLink[] = response.data.shareLinks || [];
+            const link = shareLinks.find((l: ShareLink) => String(l.id) === String(shareLinkId));
             if (!link) {
                 throw new Error('Share link not found');
             }
             return link;
         } catch (error) {
             console.error('[NextcloudShareManager] Error getting share link by ID:', error);
-            throw new Error(`Fehler beim Laden des Wolke-Links: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Laden des Wolke-Links: ${message}`);
         }
     }
 
     /**
      * Save a new share link
      */
-    static async saveShareLink(shareLink, label = '', baseUrl = '', shareToken = '') {
+    static async saveShareLink(shareLink: string, label = '', baseUrl = '', shareToken = ''): Promise<ShareLink> {
         try {
-            const response = await apiClient.post('/nextcloud/share-links', {
+            const response = await apiClient.post<ApiResponseData>('/nextcloud/share-links', {
                 shareLink: shareLink.trim(),
                 label: label.trim(),
                 baseUrl,
                 shareToken
             });
-            
-            if (response.data && response.data.success) {
+
+            if (response.data && response.data.success && response.data.shareLink) {
                 return response.data.shareLink;
             } else {
                 throw new Error('Failed to save share link');
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error saving share link:', error);
-            throw new Error(`Fehler beim Speichern des Wolke-Links: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Speichern des Wolke-Links: ${message}`);
         }
     }
 
     /**
      * Update a share link
      */
-    static async updateShareLink(shareLinkId, updates) {
+    static async updateShareLink(shareLinkId: string, updates: ShareLinkUpdate): Promise<ShareLink> {
         try {
-            const response = await apiClient.put(`/nextcloud/share-links/${shareLinkId}`, updates);
-            
-            if (response.data && response.data.success) {
+            const response = await apiClient.put<ApiResponseData>(`/nextcloud/share-links/${shareLinkId}`, updates);
+
+            if (response.data && response.data.success && response.data.shareLink) {
                 return response.data.shareLink;
             } else {
                 throw new Error('Failed to update share link');
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error updating share link:', error);
-            throw new Error(`Fehler beim Aktualisieren des Wolke-Links: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Aktualisieren des Wolke-Links: ${message}`);
         }
     }
 
     /**
      * Delete a share link
      */
-    static async deleteShareLink(shareLinkId) {
+    static async deleteShareLink(shareLinkId: string): Promise<{ success: boolean; deletedId: string }> {
         try {
-            const response = await apiClient.delete(`/nextcloud/share-links/${shareLinkId}`);
-            
+            const response = await apiClient.delete<ApiResponseData>(`/nextcloud/share-links/${shareLinkId}`);
+
             if (response.data && response.data.success) {
                 return { success: true, deletedId: shareLinkId };
             } else {
@@ -100,19 +174,20 @@ export class NextcloudShareManager {
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error deleting share link:', error);
-            throw new Error(`Fehler beim Löschen des Wolke-Links: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Löschen des Wolke-Links: ${message}`);
         }
     }
 
     /**
      * Test connection to a share link
      */
-    static async testConnection(shareLink) {
+    static async testConnection(shareLink: string): Promise<ApiResponseData> {
         try {
-            const response = await apiClient.post('/nextcloud/test-connection', {
+            const response = await apiClient.post<ApiResponseData>('/nextcloud/test-connection', {
                 shareLink: shareLink.trim()
             });
-            
+
             if (response.data && response.data.success) {
                 return response.data;
             } else {
@@ -120,21 +195,22 @@ export class NextcloudShareManager {
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error testing connection:', error);
-            throw new Error(`Fehler beim Testen der Verbindung: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Testen der Verbindung: ${message}`);
         }
     }
 
     /**
      * Upload a test file to a share link
      */
-    static async uploadTest(shareLinkId, content, filename = 'gruenerator-test.txt') {
+    static async uploadTest(shareLinkId: string, content: string, filename = 'gruenerator-test.txt'): Promise<ApiResponseData> {
         try {
-            const response = await apiClient.post('/nextcloud/upload-test', {
+            const response = await apiClient.post<ApiResponseData>('/nextcloud/upload-test', {
                 shareLinkId,
                 content,
                 filename
             });
-            
+
             if (response.data && response.data.success) {
                 return response.data;
             } else {
@@ -142,7 +218,8 @@ export class NextcloudShareManager {
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error uploading test file:', error);
-            throw new Error(`Fehler beim Test-Upload: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Test-Upload: ${message}`);
         }
     }
 
@@ -150,14 +227,14 @@ export class NextcloudShareManager {
      * Upload a file to a share link (non-test endpoint)
      * Maintains compatibility with older utility usage
      */
-    static async upload(shareLinkId, content, filename = 'file.txt') {
+    static async upload(shareLinkId: string, content: string, filename = 'file.txt'): Promise<ApiResponseData> {
         try {
-            const response = await apiClient.post('/nextcloud/upload', {
+            const response = await apiClient.post<ApiResponseData>('/nextcloud/upload', {
                 shareLinkId,
                 content,
                 filename
             });
-            
+
             if (response.data) {
                 return response.data;
             } else {
@@ -165,14 +242,15 @@ export class NextcloudShareManager {
             }
         } catch (error) {
             console.error('[NextcloudShareManager] Error uploading file:', error);
-            throw new Error(`Fehler beim Upload: ${error.message}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Fehler beim Upload: ${message}`);
         }
     }
 
     /**
      * Validate share link format
      */
-    static validateShareLink(shareLink) {
+    static validateShareLink(shareLink: string): ShareLinkValidationResult {
         if (!shareLink || typeof shareLink !== 'string') {
             return {
                 isValid: false,
@@ -182,7 +260,7 @@ export class NextcloudShareManager {
 
         try {
             const urlObj = new URL(shareLink);
-            
+
             // Check if it matches Nextcloud share pattern
             const sharePattern = /\/s\/[A-Za-z0-9]+/;
             if (!sharePattern.test(urlObj.pathname)) {
@@ -207,7 +285,7 @@ export class NextcloudShareManager {
                 baseUrl: `${urlObj.protocol}//${urlObj.host}`,
                 error: null
             };
-        } catch (error) {
+        } catch {
             return {
                 isValid: false,
                 error: 'Ungültiges URL-Format'
@@ -218,25 +296,20 @@ export class NextcloudShareManager {
     /**
      * Get usage statistics
      */
-    static async getUsageStats() {
+    static async getUsageStats(): Promise<UsageStats> {
         try {
             const shareLinks = await this.getShareLinks();
-            
-            const oldestLinkTime = shareLinks.length > 0 ?
-                Math.min(...shareLinks.map(link => new Date(link.created_at).getTime())) : null;
-            const newestLinkTime = shareLinks.length > 0 ?
-                Math.max(...shareLinks.map(link => new Date(link.created_at).getTime())) : null;
 
-            const stats: {
-                totalLinks: number;
-                activeLinks: number;
-                inactiveLinks: number;
-                oldestLink: Date | null;
-                newestLink: Date | null;
-            } = {
+            const linksWithDates = shareLinks.filter((link: ShareLink) => link.created_at);
+            const oldestLinkTime = linksWithDates.length > 0 ?
+                Math.min(...linksWithDates.map((link: ShareLink) => new Date(link.created_at!).getTime())) : null;
+            const newestLinkTime = linksWithDates.length > 0 ?
+                Math.max(...linksWithDates.map((link: ShareLink) => new Date(link.created_at!).getTime())) : null;
+
+            const stats: UsageStats = {
                 totalLinks: shareLinks.length,
-                activeLinks: shareLinks.filter(link => link.is_active).length,
-                inactiveLinks: shareLinks.filter(link => !link.is_active).length,
+                activeLinks: shareLinks.filter((link: ShareLink) => link.is_active).length,
+                inactiveLinks: shareLinks.filter((link: ShareLink) => !link.is_active).length,
                 oldestLink: oldestLinkTime ? new Date(oldestLinkTime) : null,
                 newestLink: newestLinkTime ? new Date(newestLinkTime) : null
             };
@@ -251,11 +324,11 @@ export class NextcloudShareManager {
     /**
      * Parse share link to extract components
      */
-    static parseShareLink(shareLink) {
+    static parseShareLink(shareLink: string): ParsedShareLink | null {
         try {
             const urlObj = new URL(shareLink);
             const pathMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
-            
+
             if (!pathMatch) {
                 return null;
             }
@@ -274,14 +347,16 @@ export class NextcloudShareManager {
     /**
      * Generate display name for a share link
      */
-    static generateDisplayName(shareLink, fallback = 'Unbenannte Verbindung') {
+    static generateDisplayName(shareLink: ShareLink, fallback = 'Unbenannte Verbindung'): string {
         if (shareLink.label && shareLink.label.trim()) {
             return shareLink.label.trim();
         }
 
-        const parsed = this.parseShareLink(shareLink.share_link);
-        if (parsed) {
-            return `${parsed.baseUrl.replace(/^https?:\/\//, '')} (${parsed.shareToken})`;
+        if (shareLink.share_link) {
+            const parsed = this.parseShareLink(shareLink.share_link);
+            if (parsed) {
+                return `${parsed.baseUrl.replace(/^https?:\/\//, '')} (${parsed.shareToken})`;
+            }
         }
 
         return fallback;
@@ -290,7 +365,7 @@ export class NextcloudShareManager {
     /**
      * Generate display URL for sharing
      */
-    static generateDisplayUrl(shareLink) {
+    static generateDisplayUrl(shareLink: ShareLink): string {
         if (shareLink.share_link) {
             return shareLink.share_link.replace(/^https?:\/\//, '');
         }

@@ -1,22 +1,75 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { HiX, HiDocumentText, HiCollection } from 'react-icons/hi';
+import type { IconType } from 'react-icons';
 import { profileApiService } from '../../../../../../services/profileApiService';
 import { useDocumentsStore } from '../../../../../../../../stores/documentsStore';
 import { ICONS } from '../../../../../../../../config/icons';
 import '../../../../../../../../assets/styles/features/groups/add-content-modal.css';
 
-const CONTENT_TABS = [
+// Type definitions
+interface ContentItem {
+    id: string;
+    title?: string;
+    name?: string;
+    description?: string;
+    filename?: string;
+}
+
+interface ContentTab {
+    id: TabId;
+    label: string;
+    icon: IconType;
+    contentType: string;
+}
+
+type TabId = 'documents' | 'texts' | 'generators' | 'notebooks' | 'templates';
+
+interface ContentState {
+    documents: ContentItem[];
+    texts: ContentItem[];
+    generators: ContentItem[];
+    notebooks: ContentItem[];
+    templates: ContentItem[];
+}
+
+interface SelectedItemsState {
+    [key: string]: string[];
+}
+
+interface SharePermissions {
+    read: boolean;
+    write: boolean;
+    collaborative: boolean;
+}
+
+interface ShareOptions {
+    permissions: SharePermissions;
+    targetGroupId: string;
+}
+
+interface AddContentToGroupModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    groupId: string;
+    onShareContent: (contentType: string, itemId: string, options: ShareOptions) => Promise<void>;
+    isSharing?: boolean;
+    onSuccess?: (count: number) => void;
+    onError?: (error: { message: string } | unknown) => void;
+    initialContentType?: 'templates' | 'content' | string;
+}
+
+const CONTENT_TABS: ContentTab[] = [
     { id: 'documents', label: 'Dokumente', icon: HiDocumentText, contentType: 'documents' },
     { id: 'texts', label: 'Texte', icon: HiDocumentText, contentType: 'user_documents' },
     { id: 'generators', label: 'Generatoren', icon: HiCollection, contentType: 'custom_generators' },
-    { id: 'notebooks', label: 'Notebooks', icon: ICONS.actions.notebook, contentType: 'notebook_collections' },
+    { id: 'notebooks', label: 'Notebooks', icon: ICONS.actions.notebook as IconType, contentType: 'notebook_collections' },
     { id: 'templates', label: 'Vorlagen', icon: HiCollection, contentType: 'database' }
 ];
 
-const READ_ONLY_PERMISSIONS = { read: true, write: false, collaborative: false };
+const READ_ONLY_PERMISSIONS: SharePermissions = { read: true, write: false, collaborative: false };
 
-const AddContentToGroupModal = ({
+const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     isOpen,
     onClose,
     groupId,
@@ -26,11 +79,11 @@ const AddContentToGroupModal = ({
     onError,
     initialContentType
 }) => {
-    const [activeTab, setActiveTab] = useState('documents');
-    const [selectedItems, setSelectedItems] = useState({});
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [content, setContent] = useState({
+    const [activeTab, setActiveTab] = useState<TabId>('documents');
+    const [selectedItems, setSelectedItems] = useState<SelectedItemsState>({});
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [content, setContent] = useState<ContentState>({
         documents: [],
         texts: [],
         generators: [],
@@ -58,11 +111,11 @@ const AddContentToGroupModal = ({
             setIsLoading(true);
             try {
                 const [docs, texts, generators, notebooks, templates] = await Promise.all([
-                    profileApiService.getAvailableDocuments().catch(() => []),
-                    profileApiService.getUserTexts().catch(() => []),
-                    profileApiService.getCustomGenerators().catch(() => []),
-                    profileApiService.getNotebookCollections().catch(() => []),
-                    profileApiService.getUserTemplates().catch(() => [])
+                    profileApiService.getAvailableDocuments().catch((): ContentItem[] => []),
+                    profileApiService.getUserTexts().catch((): ContentItem[] => []),
+                    profileApiService.getCustomGenerators().catch((): ContentItem[] => []),
+                    profileApiService.getNotebookCollections().catch((): ContentItem[] => []),
+                    profileApiService.getUserTemplates().catch((): ContentItem[] => [])
                 ]);
 
                 setContent({
@@ -82,7 +135,7 @@ const AddContentToGroupModal = ({
         loadContent();
     }, [isOpen]);
 
-    const handleToggleItem = useCallback((tabId, itemId) => {
+    const handleToggleItem = useCallback((tabId: TabId, itemId: string) => {
         setSelectedItems(prev => {
             const tabSelections = prev[tabId] || [];
             const isSelected = tabSelections.includes(itemId);
@@ -90,17 +143,17 @@ const AddContentToGroupModal = ({
             return {
                 ...prev,
                 [tabId]: isSelected
-                    ? tabSelections.filter(id => id !== itemId)
+                    ? tabSelections.filter((id: string) => id !== itemId)
                     : [...tabSelections, itemId]
             };
         });
     }, []);
 
-    const handleSelectAll = useCallback((tabId) => {
+    const handleSelectAll = useCallback((tabId: TabId) => {
         const items = content[tabId] || [];
-        const allIds = items.map(item => item.id);
+        const allIds = items.map((item: ContentItem) => item.id);
         const currentSelections = selectedItems[tabId] || [];
-        const allSelected = allIds.length > 0 && allIds.every(id => currentSelections.includes(id));
+        const allSelected = allIds.length > 0 && allIds.every((id: string) => currentSelections.includes(id));
 
         setSelectedItems(prev => ({
             ...prev,
@@ -109,7 +162,7 @@ const AddContentToGroupModal = ({
     }, [content, selectedItems]);
 
     const totalSelectedCount = useMemo(() => {
-        return Object.values(selectedItems).reduce((sum, arr) => sum + arr.length, 0);
+        return Object.values(selectedItems).reduce((sum: number, arr: string[]) => sum + arr.length, 0);
     }, [selectedItems]);
 
     const handleShare = useCallback(async () => {
@@ -149,13 +202,13 @@ const AddContentToGroupModal = ({
         }
     }, [selectedItems, totalSelectedCount, onShareContent, groupId, onSuccess, onError]);
 
-    const handleBackdropClick = useCallback((e) => {
+    const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget) {
             onClose();
         }
     }, [onClose]);
 
-    const handleKeyDown = useCallback((e) => {
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Escape') {
             onClose();
         }
@@ -174,9 +227,9 @@ const AddContentToGroupModal = ({
 
     if (!isOpen) return null;
 
-    const currentItems = content[activeTab] || [];
-    const currentSelections = selectedItems[activeTab] || [];
-    const allSelected = currentItems.length > 0 && currentItems.every(item => currentSelections.includes(item.id));
+    const currentItems: ContentItem[] = content[activeTab] || [];
+    const currentSelections: string[] = selectedItems[activeTab] || [];
+    const allSelected = currentItems.length > 0 && currentItems.every((item: ContentItem) => currentSelections.includes(item.id));
 
     const modalContent = (
         <div className="add-content-modal-backdrop" onClick={handleBackdropClick}>
@@ -232,7 +285,7 @@ const AddContentToGroupModal = ({
                                 </label>
                             </div>
                             <div className="add-content-modal-list">
-                                {currentItems.map(item => {
+                                {currentItems.map((item: ContentItem) => {
                                     const isSelected = currentSelections.includes(item.id);
                                     const title = item.title || item.name || 'Ohne Titel';
                                     const description = item.description || item.filename || '';

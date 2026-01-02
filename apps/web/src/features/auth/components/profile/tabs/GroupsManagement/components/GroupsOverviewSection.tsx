@@ -2,12 +2,29 @@ import { motion } from "motion/react";
 import { HiPlus } from 'react-icons/hi';
 import HelpTooltip from '../../../../../../../components/common/HelpTooltip';
 
+interface Group {
+    id: string;
+    name: string;
+    isAdmin?: boolean;
+}
+
+interface TabIndexConfig {
+    createGroupButton?: number;
+}
+
+interface GroupsOverviewSectionProps {
+    userGroups: Group[] | null | undefined;
+    isCreatingGroup: boolean;
+    onCreateNew: () => void;
+    tabIndex: TabIndexConfig;
+}
+
 const GroupsOverviewSection = ({
     userGroups,
     isCreatingGroup,
     onCreateNew,
     tabIndex
-}) => {
+}: GroupsOverviewSectionProps): React.ReactElement => {
     return (
         <motion.div
             className="group-overview-container"

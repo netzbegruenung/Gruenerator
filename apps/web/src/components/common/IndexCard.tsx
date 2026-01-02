@@ -99,7 +99,7 @@ const IndexCard = ({ title,
         {authorName && (
           <div className="index-card__author">
             {authorEmail ? (
-              <a href={`mailto:${authorEmail}`} onClick={(e) => e.stopPropagation()}>
+              <a href={`mailto:${authorEmail}`} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                 {authorName}
               </a>
             ) : (

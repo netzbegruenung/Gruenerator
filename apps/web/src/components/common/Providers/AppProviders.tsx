@@ -1,7 +1,14 @@
 // SharepicGeneratorProvider removed - using useSharepicStore directly
 // FormProvider removed - using generatedTextStore directly
 
-const AppProviders = ({ children, withSharepic = false, pathname }) => {
+interface AppProvidersProps {
+  children: React.ReactNode;
+  withSharepic?: boolean;
+  withForm?: boolean;
+  pathname?: string;
+}
+
+const AppProviders = ({ children, withSharepic = false, pathname }: AppProvidersProps) => {
   let wrapped = children;
 
   // FormProvider removed - no global form state needed anymore

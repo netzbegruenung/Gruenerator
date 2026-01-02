@@ -1,22 +1,41 @@
+interface Citation {
+  index: number | string;
+  [key: string]: unknown;
+}
+
+interface TextPart {
+  type: 'text';
+  content: string;
+}
+
+interface CitationPart {
+  type: 'citation';
+  citationIndex: string;
+  citation: Citation | undefined;
+  key: string;
+}
+
+type ProcessedPart = TextPart | CitationPart;
+
 /**
  * Process text containing citation markers and prepare data for rendering
- * @param {string} text - Text containing citation markers (⚡CITE1⚡, ⚡CITE2⚡, etc.)
- * @param {Array} citations - Array of citation objects
- * @returns {Array} Array of objects with type and data for rendering
+ * @param text - Text containing citation markers
+ * @param citations - Array of citation objects
+ * @returns Array of objects with type and data for rendering
  */
-export const processCitationText = (text, citations = []) => {
-  if (!text || typeof text !== 'string') return [{ type: 'text', content: text }];
-  
-  // Pattern to match citation markers: ⚡CITE1⚡, ⚡CITE2⚡, etc.
+export const processCitationText = (text: string | null | undefined, citations: Citation[] = []): ProcessedPart[] => {
+  if (!text || typeof text !== 'string') return [{ type: 'text', content: text || '' }];
+
+  // Pattern to match citation markers
   const citationMarkerPattern = /⚡CITE(\d+)⚡/g;
-  
-  const parts = [];
+
+  const parts: ProcessedPart[] = [];
   let lastIndex = 0;
-  let match;
-  
+  let match: RegExpExecArray | null;
+
   // Create a lookup map for citations by index
-  const citationMap = new Map();
-  citations.forEach(citation => {
+  const citationMap = new Map<string, Citation>();
+  citations.forEach((citation) => {
     citationMap.set(citation.index.toString(), citation);
   });
   
@@ -60,11 +79,11 @@ export const processCitationText = (text, citations = []) => {
 
 /**
  * Convert citation markers back to simple bracketed numbers for display
- * @param {string} text - Text containing citation markers
- * @returns {string} Text with [1], [2] format citations
+ * @param text - Text containing citation markers
+ * @returns Text with [1], [2] format citations
  */
-export const convertCitationMarkersToNumbers = (text) => {
-  if (!text || typeof text !== 'string') return text;
+export const convertCitationMarkersToNumbers = (text: string | null | undefined): string => {
+  if (!text || typeof text !== 'string') return text || '';
   
   // Replace ⚡CITE1⚡ with [1], ⚡CITE2⚡ with [2], etc.
   return text.replace(/⚡CITE(\d+)⚡/g, '[$1]');
@@ -72,15 +91,15 @@ export const convertCitationMarkersToNumbers = (text) => {
 
 /**
  * Extract citation indices from text containing citation markers
- * @param {string} text - Text containing citation markers
- * @returns {Array} Array of citation indices as strings
+ * @param text - Text containing citation markers
+ * @returns Array of citation indices as strings
  */
-export const extractCitationIndices = (text) => {
+export const extractCitationIndices = (text: string | null | undefined): string[] => {
   if (!text || typeof text !== 'string') return [];
-  
+
   const citationMarkerPattern = /⚡CITE(\d+)⚡/g;
-  const indices = [];
-  let match;
+  const indices: string[] = [];
+  let match: RegExpExecArray | null;
   
   while ((match = citationMarkerPattern.exec(text)) !== null) {
     indices.push(match[1]);
@@ -91,10 +110,10 @@ export const extractCitationIndices = (text) => {
 
 /**
  * Check if text contains citation markers
- * @param {string} text - Text to check
- * @returns {boolean} True if text contains citation markers
+ * @param text - Text to check
+ * @returns True if text contains citation markers
  */
-export const hasCitationMarkers = (text) => {
+export const hasCitationMarkers = (text: string | null | undefined): boolean => {
   if (!text || typeof text !== 'string') return false;
   return /⚡CITE\d+⚡/.test(text);
 };

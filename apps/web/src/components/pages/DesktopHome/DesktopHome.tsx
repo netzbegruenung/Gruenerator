@@ -47,7 +47,8 @@ const FeatureCard = ({ title, route, icon, iconCategory, onClick }) => {
 };
 
 const DesktopHome = () => {
-  const firstName = useAuthStore(state => state.profile?.first_name);
+  const displayName = useAuthStore(state => state.user?.display_name);
+  const firstName = displayName?.split(' ')[0];
   const navigate = useNavigate();
 
   return (

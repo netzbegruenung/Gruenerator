@@ -1,9 +1,0 @@
-.survey-container {
-  min-height: calc(100vh - var(--header-height, 60px) - var(--footer-height, 100px));
-  padding: var(--spacing-medium);
-}
-
-.survey-container > div[data-heyform-id] {
-  width: 100%;
-  min-height: 600px;
-}

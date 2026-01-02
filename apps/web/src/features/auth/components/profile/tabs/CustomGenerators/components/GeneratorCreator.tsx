@@ -7,12 +7,19 @@ import CreateCustomGeneratorPage from '../../../../../../generators/CreateCustom
 // Common components
 import { ProfileIconButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 
+interface GeneratorCreatorProps {
+    onCompleted: (result: { name: string; slug: string }) => void;
+    onCancel: () => void;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+}
+
 const GeneratorCreator = ({
     onCompleted,
     onCancel,
     onSuccessMessage,
     onErrorMessage
-}) => {
+}: GeneratorCreatorProps): React.ReactElement => {
 
     return (
         <motion.div

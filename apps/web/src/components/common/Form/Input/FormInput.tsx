@@ -48,7 +48,8 @@ const FormInput: React.FC<FormInputProps> = ({
   const inputClassName = `form-input ${className}`.trim();
 
   if (!control) {
-    const value = useSimpleFormStore((state) => state.fields[name] ?? defaultValue);
+    const rawValue = useSimpleFormStore((state) => state.fields[name]);
+    const value = (rawValue as string) ?? defaultValue;
     const setField = useSimpleFormStore((state) => state.setField);
 
     return (
@@ -68,7 +69,7 @@ const FormInput: React.FC<FormInputProps> = ({
           className={inputClassName}
           value={value}
           tabIndex={tabIndex}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             const newVal = e.target.value;
             setField(name, newVal);
             if (rest.onChange) {
@@ -104,7 +105,7 @@ const FormInput: React.FC<FormInputProps> = ({
             disabled={disabled}
             className={`${inputClassName} ${error ? 'error-input' : ''}`.trim()}
             tabIndex={tabIndex}
-            onChange={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
               const value = e.target.value;
               field.onChange(value);
               if (rest.onChange) {

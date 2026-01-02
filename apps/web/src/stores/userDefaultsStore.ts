@@ -57,7 +57,7 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
             isHydrated: true,
             isLoading: false
           });
-        } catch (error: unknown) {
+        } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.warn('[userDefaultsStore] Failed to hydrate:', errorMessage);
           set({ isHydrated: true, isLoading: false });
@@ -94,7 +94,7 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
             key,
             value
           });
-        } catch (error: unknown) {
+        } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error('[userDefaultsStore] Failed to save default:', errorMessage);
           // Rollback on error

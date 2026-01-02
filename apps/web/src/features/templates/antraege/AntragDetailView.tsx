@@ -35,7 +35,7 @@ const AntragDetailView = ({ antrag, onClose }) => {
     <div className="antrag-detail-overlay" onClick={onClose}>
       {/* Use the content class, prevent closing when clicking inside content */}
       {/* CSS class '.antrag-detail-content' will get updated padding/radius */}
-      <div className="antrag-detail-content" onClick={(e) => e.stopPropagation()}>
+      <div className="antrag-detail-content" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         {/* Keep the close 'X' button */}
         <button className="antrag-detail-close-icon" onClick={onClose} aria-label="Schließen">
           &times; {/* HTML entity for 'X' */}

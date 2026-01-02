@@ -3,17 +3,45 @@ import React from 'react';
 // Auth Backend URL aus Environment Variable oder Fallback zu aktuellem Host
 const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+interface KnowledgeSource {
+  type: 'user' | 'group' | 'neutral';
+  name?: string;
+  [key: string]: unknown;
+}
+
+interface Instructions {
+  antrag?: string;
+  social?: string;
+  [key: string]: string | undefined;
+}
+
+interface GroupDetails {
+  instructions?: {
+    custom_antrag_prompt?: string;
+    custom_social_prompt?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+interface KnowledgeItem {
+  [key: string]: unknown;
+}
+
+interface KnowledgeFormNoticeParams {
+  source: KnowledgeSource;
+  isLoadingGroupDetails: boolean;
+  isInstructionsActive: boolean;
+  instructions: Instructions;
+  instructionType: 'antrag' | 'social';
+  groupDetailsData?: GroupDetails | null;
+  availableKnowledge?: KnowledgeItem[];
+}
+
 /**
  * Creates a form notice element for knowledge/instruction status
- * @param {Object} params - Parameters for creating the notice
- * @param {Object} params.source - Knowledge source from store
- * @param {boolean} params.isLoadingGroupDetails - Whether group details are loading
- * @param {boolean} params.isInstructionsActive - Whether instructions are active
- * @param {Object} params.instructions - User instructions object
- * @param {string} params.instructionType - Type of instruction ('antrag' or 'social')
- * @param {Object} params.groupDetailsData - Group details data
- * @param {Array} params.availableKnowledge - Available knowledge items
- * @returns {JSX.Element|null} Form notice element or null
+ * @param params - Parameters for creating the notice
+ * @returns Form notice element or null
  */
 export const createKnowledgeFormNotice = ({
   source,
@@ -23,7 +51,7 @@ export const createKnowledgeFormNotice = ({
   instructionType,
   groupDetailsData,
   availableKnowledge,
-}) => {
+}: KnowledgeFormNoticeParams): React.ReactElement | null => {
   if (source.type === 'group' && isLoadingGroupDetails) {
     return null;
   }

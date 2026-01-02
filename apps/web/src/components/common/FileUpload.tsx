@@ -54,7 +54,7 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = 
               <span
                 role="button"
                 onClick={handleRemoveFile}
-                onKeyDown={(e) => {
+                onKeyDown={(e: React.KeyboardEvent) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     handleRemoveFile(e);

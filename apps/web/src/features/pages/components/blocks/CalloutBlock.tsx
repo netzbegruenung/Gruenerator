@@ -1,4 +1,13 @@
 
+interface CalloutBlockProps {
+    title?: string;
+    text?: string;
+    buttonText?: string;
+    buttonHref?: string;
+    onClick?: () => void;
+    className?: string;
+}
+
 const CalloutBlock = ({
     title,
     text,
@@ -6,7 +15,7 @@ const CalloutBlock = ({
     buttonHref,
     onClick,
     className = ''
-}) => {
+}: CalloutBlockProps) => {
     return (
         <div className={`callout-block ${className}`}>
             {title && (

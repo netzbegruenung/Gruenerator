@@ -71,7 +71,7 @@ const HelpTooltip = ({ children, className = '' }: HelpTooltipProps) => {
         className="help-tooltip-trigger"
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
-        onClick={(e) => {
+        onClick={(e: React.MouseEvent) => {
           e.preventDefault();
           setIsVisible((p) => !p);
         }}

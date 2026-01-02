@@ -12,18 +12,18 @@ const COMPRESSION_OPTIONS = {
 
 /**
  * Prüft ob eine Datei ein Bild ist
- * @param {File} file - Die zu prüfende Datei
- * @returns {boolean}
+ * @param file - Die zu prüfende Datei
+ * @returns boolean
  */
-const isImage = (file) => {
+const isImage = (file: File | null | undefined): boolean => {
   return file && file.type.startsWith('image/');
 };
 
 /**
  * Detect if browser supports WebP
- * @returns {boolean}
+ * @returns boolean
  */
-const supportsWebP = () => {
+const supportsWebP = (): boolean => {
   if (typeof window === 'undefined') return false;
 
   const canvas = document.createElement('canvas');
@@ -80,9 +80,10 @@ export const compressImage = async (imageFile: File, customOptions: CompressionO
     });
 
     return compressedFile;
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as Error;
     console.error('Fehler bei der Bildkomprimierung:', error);
-    throw new Error(`Bildkomprimierung fehlgeschlagen: ${error.message}`);
+    throw new Error(`Bildkomprimierung fehlgeschlagen: ${err.message}`);
   }
 };
 
@@ -113,11 +114,11 @@ export const processImageForUpload = async (file: File, options: CompressionOpti
 
 /**
  * Erstellt eine FormData-Instanz mit dem komprimierten Bild
- * @param {File} file - Die Bilddatei
- * @param {string} fieldName - Der Feldname für FormData (default: 'image')
- * @returns {Promise<FormData>}
+ * @param file - Die Bilddatei
+ * @param fieldName - Der Feldname für FormData (default: 'image')
+ * @returns FormData
  */
-export const createImageFormData = async (file, fieldName = 'image') => {
+export const createImageFormData = async (file: File, fieldName = 'image'): Promise<FormData> => {
   try {
     const processedImage = await processImageForUpload(file);
     const formData = new FormData();

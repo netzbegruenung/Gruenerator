@@ -267,7 +267,7 @@ const AddTemplateModal = ({
                                     <input
                                         type="url"
                                         value={canvaUrl}
-                                        onChange={(e) => setCanvaUrl(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCanvaUrl(e.target.value)}
                                         placeholder="https://www.canva.com/design/..."
                                         disabled={isLoadingPreview}
                                     />
@@ -316,7 +316,7 @@ const AddTemplateModal = ({
                                             <input
                                                 type="text"
                                                 value={title}
-                                                onChange={(e) => setTitle(e.target.value)}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                                                 placeholder="Titel der Vorlage"
                                             />
                                         </div>
@@ -339,7 +339,7 @@ const AddTemplateModal = ({
                                             <input
                                                 type="text"
                                                 value={authorName}
-                                                onChange={(e) => setAuthorName(e.target.value)}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAuthorName(e.target.value)}
                                                 placeholder="Name des Erstellers"
                                             />
                                         </div>
@@ -348,7 +348,7 @@ const AddTemplateModal = ({
                                             <input
                                                 type="email"
                                                 value={contactEmail}
-                                                onChange={(e) => setContactEmail(e.target.value)}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContactEmail(e.target.value)}
                                                 placeholder="email@example.com"
                                             />
                                         </div>
@@ -363,7 +363,7 @@ const AddTemplateModal = ({
                                 <input
                                     type="text"
                                     value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                                     placeholder="Titel der Vorlage"
                                 />
                             </div>
@@ -386,7 +386,7 @@ const AddTemplateModal = ({
                                 <input
                                     type="url"
                                     value={externalUrl}
-                                    onChange={(e) => setExternalUrl(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setExternalUrl(e.target.value)}
                                     placeholder="https://..."
                                 />
                             </div>
@@ -395,7 +395,7 @@ const AddTemplateModal = ({
                                 <input
                                     type="text"
                                     value={authorName}
-                                    onChange={(e) => setAuthorName(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAuthorName(e.target.value)}
                                     placeholder="Name des Erstellers"
                                 />
                             </div>
@@ -404,7 +404,7 @@ const AddTemplateModal = ({
                                 <input
                                     type="email"
                                     value={contactEmail}
-                                    onChange={(e) => setContactEmail(e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContactEmail(e.target.value)}
                                     placeholder="email@example.com"
                                 />
                             </div>

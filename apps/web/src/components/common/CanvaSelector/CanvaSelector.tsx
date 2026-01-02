@@ -155,8 +155,8 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   const handleDesignSelect = useCallback(async (designOrOption: DesignOption | CanvaDesign | null) => {
     if (externalLoading || !designOrOption) return;
 
-    const design: CanvaDesign = ('design' in designOrOption && designOrOption.design)
-      ? designOrOption.design
+    const design: CanvaDesign = 'design' in designOrOption
+      ? (designOrOption as DesignOption).design
       : designOrOption as CanvaDesign;
     if (!design.thumbnail_url) return;
 
@@ -436,51 +436,53 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
         helpText="Suche und wähle ein Design aus deinem Canva-Konto"
         htmlFor="canva-design-select"
       >
-        <div className="canva-selector-dropdown__header">
-          <Suspense fallback={<div>Loading...</div>}>
-            <Select
-              inputId="canva-design-select"
-              classNamePrefix="canva-select"
-              className="canva-select"
-              options={designOptions}
-              value={selectedOption}
-              onChange={handleDesignSelect}
-              formatOptionLabel={formatOptionLabel}
-              placeholder="Canva-Design suchen und auswählen..."
-              isDisabled={externalLoading}
-              isSearchable={true}
-              isClearable={true}
-              filterOption={() => true}
-              onInputChange={(inputValue) => {
-                setCurrentSearchTerm(inputValue);
-              }}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-              noOptionsMessage={() => {
-                if (currentSearchTerm && currentSearchTerm.trim()) {
-                  return `Keine Designs für "${currentSearchTerm}" gefunden`;
-                }
-                return 'Keine Designs verfügbar';
-              }}
-            />
-          </Suspense>
+        <div className="canva-selector-dropdown__content">
+          <div className="canva-selector-dropdown__header">
+            <Suspense fallback={<div>Loading...</div>}>
+              <Select
+                inputId="canva-design-select"
+                classNamePrefix="canva-select"
+                className="canva-select"
+                options={designOptions}
+                value={selectedOption}
+                onChange={handleDesignSelect}
+                formatOptionLabel={formatOptionLabel}
+                placeholder="Canva-Design suchen und auswählen..."
+                isDisabled={externalLoading}
+                isSearchable={true}
+                isClearable={true}
+                filterOption={() => true}
+                onInputChange={(inputValue) => {
+                  setCurrentSearchTerm(inputValue);
+                }}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                noOptionsMessage={() => {
+                  if (currentSearchTerm && currentSearchTerm.trim()) {
+                    return `Keine Designs für "${currentSearchTerm}" gefunden`;
+                  }
+                  return 'Keine Designs verfügbar';
+                }}
+              />
+            </Suspense>
 
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="canva-refresh-button"
-            title="Designs aktualisieren"
-            disabled={designsLoading}
-          >
-            <HiRefresh className={designsLoading ? 'spinning' : ''} />
-          </button>
-        </div>
-
-        {designsLoading && (
-          <div className="canva-selector-dropdown__loading">
-            Lade Canva-Designs...
+            <button
+              type="button"
+              onClick={handleRefresh}
+              className="canva-refresh-button"
+              title="Designs aktualisieren"
+              disabled={designsLoading}
+            >
+              <HiRefresh className={designsLoading ? 'spinning' : ''} />
+            </button>
           </div>
-        )}
+
+          {designsLoading && (
+            <div className="canva-selector-dropdown__loading">
+              Lade Canva-Designs...
+            </div>
+          )}
+        </div>
       </FormFieldWrapper>
     </div>
   );

@@ -98,10 +98,10 @@ const SubtitleSegmentList = ({ segments,
                 type="text"
                 className="subtitle-segment__input"
                 value={segment.text}
-                onChange={(e) => onTextChange?.(segment.id, e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onTextChange?.(segment.id, e.target.value)}
                 onBlur={handleInputBlur}
                 onKeyDown={handleInputKeyDown}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
               />
             ) : (
               <span className="subtitle-segment__text">{segment.text}</span>

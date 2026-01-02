@@ -3,13 +3,39 @@
  * Maps question types and answers to appropriate emojis for a more playful UX
  */
 
+type QuestionType =
+  | 'scope'
+  | 'audience'
+  | 'committee'
+  | 'tone'
+  | 'structure'
+  | 'facts'
+  | 'measures'
+  | 'stakeholders'
+  | 'timeline'
+  | 'justification'
+  | 'goals'
+  | 'budget'
+  | 'legal_basis'
+  | 'clarification'
+  | 'priority'
+  | 'background'
+  | 'info_goal'
+  | 'format'
+  | 'main_topic'
+  | 'debate_focus'
+  | 'data_focus'
+  | 'sub_questions'
+  | 'political_context'
+  | 'specificity';
+
 /**
  * Get emoji for a question based on its type/category
- * @param {string} questionType - The type/category of the question
- * @returns {string} Emoji character
+ * @param questionType - The type/category of the question
+ * @returns Emoji character
  */
-export function getQuestionEmoji(questionType) {
-  const emojiMap = {
+export function getQuestionEmoji(questionType: string): string {
+  const emojiMap: Record<string, string> = {
     // Core categories
     scope: '🎯',           // Target/focus
     audience: '🏛️',       // Government building
@@ -46,10 +72,10 @@ export function getQuestionEmoji(questionType) {
 
 /**
  * Get emoji for yes/no answers
- * @param {string} answer - The answer text ("Ja" or "Nein")
- * @returns {string} Emoji character
+ * @param answer - The answer text ("Ja" or "Nein")
+ * @returns Emoji character
  */
-export function getYesNoEmoji(answer) {
+export function getYesNoEmoji(answer: string): string {
   const normalizedAnswer = answer.toLowerCase().trim();
 
   if (normalizedAnswer.startsWith('ja')) {
@@ -64,11 +90,11 @@ export function getYesNoEmoji(answer) {
 
 /**
  * Get contextual emoji for answer options based on question type
- * @param {string} questionType - The type/category of the question
- * @param {string} optionText - The text of the answer option
- * @returns {string} Emoji character or empty string
+ * @param questionType - The type/category of the question
+ * @param optionText - The text of the answer option
+ * @returns Emoji character or empty string
  */
-export function getAnswerOptionEmoji(questionType, optionText) {
+export function getAnswerOptionEmoji(questionType: string, optionText: string | null | undefined): string {
   if (!optionText) return '';
 
   const lowerOption = optionText.toLowerCase();
@@ -115,11 +141,11 @@ export function getAnswerOptionEmoji(questionType, optionText) {
 
 /**
  * Get emoji for question round indicator
- * @param {number} round - The round number
- * @returns {string} Emoji character
+ * @param round - The round number
+ * @returns Emoji character
  */
-export function getRoundEmoji(round) {
-  const roundEmojis = {
+export function getRoundEmoji(round: number): string {
+  const roundEmojis: Record<number, string> = {
     1: '1️⃣',
     2: '2️⃣',
     3: '3️⃣'
@@ -130,10 +156,10 @@ export function getRoundEmoji(round) {
 
 /**
  * Progress completion emoji
- * @param {number} percentage - Completion percentage (0-100)
- * @returns {string} Emoji character
+ * @param percentage - Completion percentage (0-100)
+ * @returns Emoji character
  */
-export function getProgressEmoji(percentage) {
+export function getProgressEmoji(percentage: number): string {
   if (percentage === 100) return '✅';
   if (percentage >= 75) return '🟢';
   if (percentage >= 50) return '🟡';

@@ -27,7 +27,7 @@ const slideVariants = {
   })
 };
 
-interface TypeformField {
+export interface TypeformField {
   name: string;
   label: string;
   type?: 'text' | 'textarea' | 'select';

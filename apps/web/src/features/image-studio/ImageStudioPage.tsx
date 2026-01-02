@@ -91,6 +91,20 @@ interface ImageStudioPageProps {
   showHeaderFooter?: boolean;
 }
 
+// Slogan alternative type for text generation results
+interface SloganAlternative {
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  quote?: string;
+  header?: string;
+  subheader?: string;
+  body?: string;
+}
+
+// URL type map keys
+type UrlTypeMapKey = 'dreizeilen' | 'zitat' | 'zitat-pure' | 'info' | 'veranstaltung' | 'text2sharepic' | 'ki' | 'green-edit' | 'ally-maker' | 'universal-edit' | 'pure-create' | 'ki-sharepic';
+
 // Sub-component: Category Selector (Templates / KI Create / KI Edit / Vorlagen)
 const ImageStudioCategorySelector: React.FC = () => {
   const navigate = useNavigate();
@@ -102,7 +116,7 @@ const ImageStudioCategorySelector: React.FC = () => {
     return displayName.split(' ')[0] || '';
   }, [user]);
 
-  const handleCategorySelect = useCallback((cat, subcat) => {
+  const handleCategorySelect = useCallback((cat: string | null, subcat: string | null) => {
     setCategory(cat, subcat);
     if (cat === IMAGE_STUDIO_CATEGORIES.KI && subcat) {
       navigate(`/image-studio/ki/${subcat}`);
@@ -111,7 +125,7 @@ const ImageStudioCategorySelector: React.FC = () => {
     }
   }, [setCategory, navigate]);
 
-  const startOptions = [
+  const startOptions: StartOption[] = [
     { id: 'templates', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Templates', description: 'Sharepics mit vorgefertigten Designs', Icon: PiLayout, previewImage: '/imagine/previews/templates-preview.jpg' },
     { id: 'ki-create', category: IMAGE_STUDIO_CATEGORIES.KI, subcategory: KI_SUBCATEGORIES.CREATE, label: 'Mit KI Generieren', description: 'Neue Bilder aus Text erstellen', Icon: HiSparkles, previewImage: KI_SUBCATEGORY_CONFIG[KI_SUBCATEGORIES.CREATE]?.previewImage },
     { id: 'ki-edit', category: IMAGE_STUDIO_CATEGORIES.KI, subcategory: KI_SUBCATEGORIES.EDIT, label: 'Mit KI Editieren', description: 'Bestehende Bilder mit KI bearbeiten', Icon: HiPencilAlt, previewImage: KI_SUBCATEGORY_CONFIG[KI_SUBCATEGORIES.EDIT]?.previewImage },
@@ -135,7 +149,7 @@ const ImageStudioCategorySelector: React.FC = () => {
               onClick={() => !option.isComingSoon && handleCategorySelect(option.category, option.subcategory)}
               role="button"
               tabIndex={option.isComingSoon ? -1 : 0}
-              onKeyDown={(e) => e.key === 'Enter' && !option.isComingSoon && handleCategorySelect(option.category, option.subcategory)}
+              onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && !option.isComingSoon && handleCategorySelect(option.category, option.subcategory)}
             >
               {option.isComingSoon && <span className="coming-soon-badge">Coming Soon</span>}
               {option.previewImage ? (
@@ -180,18 +194,18 @@ const ImageStudioTypeSelector: React.FC = () => {
   // Wait for category to be set
   if (!category) return null;
 
-  const handleTypeSelect = useCallback((selectedType) => {
+  const handleTypeSelect = useCallback((selectedType: string) => {
     setType(selectedType);
-    const config = getTypeConfig(selectedType);
+    const config = getTypeConfig(selectedType) as TypeConfig | null;
     const urlSegment = config?.urlSlug || selectedType;
     navigate(`/image-studio/${config?.category || category}/${urlSegment}`);
     goToNextStep();
   }, [setType, navigate, category, goToNextStep]);
 
-  const handleVariantSelect = useCallback((selectedType, selectedVariant) => {
+  const handleVariantSelect = useCallback((selectedType: string, selectedVariant: string) => {
     setType(selectedType);
     updateFormData({ variant: selectedVariant });
-    const config = getTypeConfig(selectedType);
+    const config = getTypeConfig(selectedType) as TypeConfig | null;
     const urlSegment = config?.urlSlug || selectedType;
     navigate(`/image-studio/${config?.category || category}/${urlSegment}`);
     goToNextStep();
@@ -210,7 +224,7 @@ const ImageStudioTypeSelector: React.FC = () => {
           </div>
           <div className="type-options-grid type-options-grid--variants">
             {variants.map((variant) => (
-              <div key={variant.value} className="type-card type-card--image" onClick={() => handleVariantSelect(IMAGE_STUDIO_TYPES.PURE_CREATE, variant.value)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleVariantSelect(IMAGE_STUDIO_TYPES.PURE_CREATE, variant.value)}>
+              <div key={variant.value} className="type-card type-card--image" onClick={() => handleVariantSelect(IMAGE_STUDIO_TYPES.PURE_CREATE, variant.value)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleVariantSelect(IMAGE_STUDIO_TYPES.PURE_CREATE, variant.value)}>
                 <img src={variant.imageUrl} alt={variant.label} className="type-card__image" />
                 <h3>{variant.label}</h3>
               </div>
@@ -235,13 +249,13 @@ const ImageStudioTypeSelector: React.FC = () => {
             {filteredTypes.map((config) => {
               const Icon = config.icon || HiPhotograph;
               return config.previewImage ? (
-                <div key={config.id} className={`type-card type-card--image no-overlay ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleTypeSelect(config.id)}>
+                <div key={config.id} className={`type-card type-card--image no-overlay ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleTypeSelect(config.id)}>
                   {config.isBeta && <span className="beta-badge">Beta</span>}
                   <img src={config.previewImage} alt={config.label} className="type-card__image" />
                   <h3>{config.label}</h3>
                 </div>
               ) : (
-                <div key={config.id} className={`type-card ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleTypeSelect(config.id)}>
+                <div key={config.id} className={`type-card ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleTypeSelect(config.id)}>
                   {config.isBeta && <span className="beta-badge">Beta</span>}
                   <div className="type-icon"><Icon /></div>
                   <h3>{config.label}</h3>
@@ -267,13 +281,13 @@ const ImageStudioTypeSelector: React.FC = () => {
           {typesInCategory.map((config) => {
             const Icon = config.icon || HiPhotograph;
             return config.previewImage ? (
-              <div key={config.id} className={`type-card type-card--image ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleTypeSelect(config.id)}>
+              <div key={config.id} className={`type-card type-card--image ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleTypeSelect(config.id)}>
                 {config.isBeta && <span className="beta-badge">Beta</span>}
                 <img src={config.previewImage} alt={config.label} className="type-card__image" />
                 <h3>{config.label}</h3>
               </div>
             ) : (
-              <div key={config.id} className={`type-card ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && handleTypeSelect(config.id)}>
+              <div key={config.id} className={`type-card ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleTypeSelect(config.id)}>
                 {config.isBeta && <span className="beta-badge">Beta</span>}
                 <div className="type-icon"><Icon /></div>
                 <h3>{config.label}</h3>
@@ -329,7 +343,7 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({ type, c
       return (
         <div className="form-field-wrapper">
           <h3><label htmlFor="purePrompt">Bildbeschreibung</label></h3>
-          <textarea id="purePrompt" name="purePrompt" value={purePrompt} onChange={(e) => updateFormData({ purePrompt: e.target.value })} placeholder="Beschreibe das Bild, das du erstellen möchtest..." rows={4} className={`form-textarea ${formErrors.purePrompt ? 'error-input' : ''}`} />
+          <textarea id="purePrompt" name="purePrompt" value={purePrompt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateFormData({ purePrompt: e.target.value })} placeholder="Beschreibe das Bild, das du erstellen möchtest..." rows={4} className={`form-textarea ${formErrors.purePrompt ? 'error-input' : ''}`} />
           {formErrors.purePrompt && <span className="error-message">{formErrors.purePrompt}</span>}
         </div>
       );
@@ -339,12 +353,12 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({ type, c
         <>
           <div className="form-field-wrapper">
             <h3><label htmlFor="sharepicPrompt">Bildbeschreibung</label></h3>
-            <textarea id="sharepicPrompt" name="sharepicPrompt" value={sharepicPrompt} onChange={(e) => updateFormData({ sharepicPrompt: e.target.value })} placeholder="Beschreibe das Bild..." rows={4} className={`form-textarea ${formErrors.sharepicPrompt ? 'error-input' : ''}`} />
+            <textarea id="sharepicPrompt" name="sharepicPrompt" value={sharepicPrompt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateFormData({ sharepicPrompt: e.target.value })} placeholder="Beschreibe das Bild..." rows={4} className={`form-textarea ${formErrors.sharepicPrompt ? 'error-input' : ''}`} />
             {formErrors.sharepicPrompt && <span className="error-message">{formErrors.sharepicPrompt}</span>}
           </div>
           <div className="form-field-wrapper">
             <h3><label htmlFor="imagineTitle">Titel</label></h3>
-            <input type="text" id="imagineTitle" name="imagineTitle" value={imagineTitle} onChange={(e) => updateFormData({ imagineTitle: e.target.value })} placeholder="Titel für das Sharepic..." className="form-input" />
+            <input type="text" id="imagineTitle" name="imagineTitle" value={imagineTitle} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFormData({ imagineTitle: e.target.value })} placeholder="Titel für das Sharepic..." className="form-input" />
           </div>
         </>
       );
@@ -450,7 +464,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
       }
     } else if (urlType) {
       // URL: /image-studio/ki/green-edit (actual type)
-      const mappedType = URL_TYPE_MAP[urlType] || urlType;
+      const mappedType = (urlType in URL_TYPE_MAP ? URL_TYPE_MAP[urlType as UrlTypeMapKey] : urlType) || urlType;
       if (mappedType && TYPE_CONFIG[mappedType] && !type) {
         setCategory(TYPE_CONFIG[mappedType].category, TYPE_CONFIG[mappedType].subcategory);
         setType(mappedType);
@@ -690,13 +704,13 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
   }
 
   const fileUploadProps = {
-    handleChange: (file) => updateFormData({ uploadedImage: file }),
+    handleChange: (file: File | string | null) => updateFormData({ uploadedImage: file }),
     file: uploadedImage,
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
     alternativesButtonProps: {
       isExpanded: isAlternativesExpanded,
       onClick: () => setIsAlternativesExpanded(!isAlternativesExpanded),
-      onSloganSelect: (selected) => {
+      onSloganSelect: (selected: SloganAlternative) => {
         updateFormData({
           line1: selected.line1 || '',
           line2: selected.line2 || '',
@@ -706,7 +720,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
     }
   };
 
-  const handleControlChange = (name, value) => {
+  const handleControlChange = (name: string, value: string | number | boolean) => {
     updateFormData({ [name]: value });
   };
 

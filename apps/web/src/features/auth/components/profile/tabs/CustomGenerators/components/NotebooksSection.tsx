@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from "motion/react";
-import { HiInformationCircle, HiPlus, HiTrash, HiPencil } from 'react-icons/hi';
+import { HiInformationCircle } from 'react-icons/hi';
+import type { UseQueryResult } from '@tanstack/react-query';
 
 // Common components
 import Spinner from '../../../../../../../components/common/Spinner';
@@ -17,7 +18,41 @@ import { useRovingTabindex } from '../../../../../../../hooks/useKeyboardNavigat
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 
 // Utils
-import { handleError } from '../../../../../../../components/utils/errorHandling';
+import { handleError, type ErrorState, type SetErrorFn } from '../../../../../../../components/utils/errorHandling';
+
+// Adapter to convert string-based error handler to SetErrorFn
+const createErrorAdapter = (onErrorMessage: (message: string) => void): SetErrorFn => {
+    return (error: ErrorState | null): void => {
+        if (error) {
+            onErrorMessage(error.message || error.title || 'Ein Fehler ist aufgetreten');
+        }
+    };
+};
+
+interface NotebookCollection {
+    id: string;
+    name?: string;
+    description?: string;
+    document_count?: number;
+    created_at?: string;
+    [key: string]: unknown;
+}
+
+interface QAQueryResult {
+    isLoading?: boolean;
+    data?: NotebookCollection[];
+    error?: Error | null;
+    refetch?: () => void;
+}
+
+interface NotebooksSectionProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    onNotebookSelect: (qaId: string) => void;
+    notebookCollections: NotebookCollection[];
+    qaQuery: QAQueryResult;
+}
 
 const NotebooksSection = ({
     isActive,
@@ -26,7 +61,7 @@ const NotebooksSection = ({
     onNotebookSelect,
     notebookCollections,
     qaQuery
-}) => {
+}: NotebooksSectionProps): React.ReactElement => {
     // Beta features check
     const { canAccessBetaFeature } = useBetaFeatures();
     const isQAEnabled = canAccessBetaFeature('notebook');
@@ -46,13 +81,13 @@ const NotebooksSection = ({
     useEffect(() => {
         if (qaError) {
             console.error('[NotebooksSection] Fehler beim Laden der Notebooks:', qaError);
-            handleError(qaError, onErrorMessage);
+            handleError(qaError, createErrorAdapter(onErrorMessage));
         }
     }, [qaError, onErrorMessage]);
 
     // Delete handler
-    const handleDeleteQA = async (qaId) => {
-        const qa = notebookCollections.find(q => q.id === qaId);
+    const handleDeleteQA = async (qaId: string) => {
+        const qa = notebookCollections.find((q: NotebookCollection) => q.id === qaId);
         if (!qa) return;
 
         if (!window.confirm(`Möchten Sie das Notebook "${qa.name}" wirklich löschen?`)) {
@@ -64,13 +99,13 @@ const NotebooksSection = ({
             onSuccessMessage('Notebook erfolgreich gelöscht.');
         } catch (error) {
             console.error('[NotebooksSection] Fehler beim Löschen des Notebooks:', error);
-            handleError(error, onErrorMessage);
+            handleError(error, createErrorAdapter(onErrorMessage));
         }
     };
 
     // Navigation items for roving tabindex
-    const navigationItems = [
-        ...(notebookCollections ? notebookCollections.map(q => `qa-${q.id}`) : []),
+    const navigationItems: string[] = [
+        ...(notebookCollections ? notebookCollections.map((q: NotebookCollection) => `qa-${q.id}`) : []),
         'create-new'
     ];
 

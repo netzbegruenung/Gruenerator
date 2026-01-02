@@ -4,12 +4,44 @@
  * Handles image extraction and conversion from Canva designs for Alt Text generation
  */
 
+interface CanvaDesign {
+  thumbnail_url?: string;
+  title?: string;
+  id?: string;
+  [key: string]: unknown;
+}
+
+interface ConversionResult {
+  base64: string;
+  metadata: {
+    source: string;
+    designId: string | undefined;
+    title: string | undefined;
+    thumbnailUrl: string | undefined;
+    conversionMethod: string;
+    convertedAt: string;
+  };
+}
+
+interface ImagePreviewOptions {
+  width?: number;
+  height?: number;
+  format?: string;
+}
+
+interface ImageSizeValidation {
+  isValid: boolean;
+  sizeMB: number;
+  maxSizeMB: number;
+  message: string;
+}
+
 /**
  * Converts an image URL to base64 string
- * @param {string} imageUrl - URL of the image to convert
- * @returns {Promise<string>} Base64 encoded string (without data URL prefix)
+ * @param imageUrl - URL of the image to convert
+ * @returns Base64 encoded string (without data URL prefix)
  */
-export const imageUrlToBase64 = async (imageUrl) => {
+export const imageUrlToBase64 = async (imageUrl: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
 
@@ -23,15 +55,16 @@ export const imageUrlToBase64 = async (imageUrl) => {
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
 
-        ctx.drawImage(img, 0, 0);
+        ctx?.drawImage(img, 0, 0);
 
         const dataURL = canvas.toDataURL('image/png');
 
         const base64String = dataURL.split(',')[1];
 
         resolve(base64String);
-      } catch (error) {
-        reject(new Error(`Failed to convert image to base64: ${error.message}`));
+      } catch (error: unknown) {
+        const err = error as Error;
+        reject(new Error(`Failed to convert image to base64: ${err.message}`));
       }
     };
 
@@ -45,10 +78,10 @@ export const imageUrlToBase64 = async (imageUrl) => {
 
 /**
  * Converts an image URL to base64 using fetch (alternative method for CORS issues)
- * @param {string} imageUrl - URL of the image to convert
- * @returns {Promise<string>} Base64 encoded string (without data URL prefix)
+ * @param imageUrl - URL of the image to convert
+ * @returns Base64 encoded string (without data URL prefix)
  */
-export const fetchImageAsBase64 = async (imageUrl) => {
+export const fetchImageAsBase64 = async (imageUrl: string): Promise<string> => {
   try {
     const response = await fetch(imageUrl, {
       mode: 'cors',
@@ -68,8 +101,9 @@ export const fetchImageAsBase64 = async (imageUrl) => {
         try {
           const base64String = (reader.result as string).split(',')[1];
           resolve(base64String);
-        } catch (error) {
-          reject(new Error(`Failed to convert blob to base64: ${error.message}`));
+        } catch (error: unknown) {
+          const err = error as Error;
+          reject(new Error(`Failed to convert blob to base64: ${err.message}`));
         }
       };
 
@@ -79,17 +113,18 @@ export const fetchImageAsBase64 = async (imageUrl) => {
 
       reader.readAsDataURL(blob);
     });
-  } catch (error) {
-    throw new Error(`Failed to fetch image: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    throw new Error(`Failed to fetch image: ${err.message}`);
   }
 };
 
 /**
  * Converts Canva design data to image base64 with fallback methods
- * @param {Object} canvaDesign - Canva design object from API
- * @returns {Promise<Object>} Object containing base64 data and metadata
+ * @param canvaDesign - Canva design object from API
+ * @returns Object containing base64 data and metadata
  */
-export const convertCanvaDesignToBase64 = async (canvaDesign) => {
+export const convertCanvaDesignToBase64 = async (canvaDesign: CanvaDesign): Promise<ConversionResult> => {
   const { thumbnail_url, title, id } = canvaDesign;
 
   if (!thumbnail_url) {
@@ -104,18 +139,20 @@ export const convertCanvaDesignToBase64 = async (canvaDesign) => {
   try {
     base64Data = await imageUrlToBase64(thumbnail_url);
     conversionMethod = 'canvas';
-  } catch (canvasError) {
-    console.warn(`[canvaImageHelper] Canvas method failed, trying fetch method:`, canvasError.message);
+  } catch (canvasError: unknown) {
+    const canvasErr = canvasError as Error;
+    console.warn(`[canvaImageHelper] Canvas method failed, trying fetch method:`, canvasErr.message);
 
     try {
       base64Data = await fetchImageAsBase64(thumbnail_url);
       conversionMethod = 'fetch';
-    } catch (fetchError) {
+    } catch (fetchError: unknown) {
+      const fetchErr = fetchError as Error;
       console.error(`[canvaImageHelper] Both conversion methods failed:`, {
-        canvas: canvasError.message,
-        fetch: fetchError.message
+        canvas: canvasErr.message,
+        fetch: fetchErr.message
       });
-      throw new Error(`Failed to convert image: ${fetchError.message}`);
+      throw new Error(`Failed to convert image: ${fetchErr.message}`);
     }
   }
 
@@ -136,10 +173,10 @@ export const convertCanvaDesignToBase64 = async (canvaDesign) => {
 
 /**
  * Validates if a Canva design has a usable image
- * @param {Object} canvaDesign - Canva design object
- * @returns {boolean} True if design has a valid image
+ * @param canvaDesign - Canva design object
+ * @returns True if design has a valid image
  */
-export const hasValidImage = (canvaDesign) => {
+export const hasValidImage = (canvaDesign: CanvaDesign | null | undefined): boolean => {
   if (!canvaDesign || typeof canvaDesign !== 'object') {
     return false;
   }
@@ -160,10 +197,10 @@ export const hasValidImage = (canvaDesign) => {
 
 /**
  * Preprocesses Canva designs to filter out those without valid images
- * @param {Array} designs - Array of Canva design objects
- * @returns {Array} Filtered array of designs with valid images
+ * @param designs - Array of Canva design objects
+ * @returns Filtered array of designs with valid images
  */
-export const filterDesignsWithValidImages = (designs) => {
+export const filterDesignsWithValidImages = (designs: CanvaDesign[] | null | undefined): CanvaDesign[] => {
   if (!Array.isArray(designs)) {
     return [];
   }
@@ -173,14 +210,11 @@ export const filterDesignsWithValidImages = (designs) => {
 
 /**
  * Creates a preview URL for a Canva design image with optional size parameters
- * @param {Object} canvaDesign - Canva design object
- * @param {Object} options - Options for image preview
- * @param {number} options.width - Desired width
- * @param {number} options.height - Desired height
- * @param {string} options.format - Image format (optional)
- * @returns {string} Preview URL
+ * @param canvaDesign - Canva design object
+ * @param options - Options for image preview
+ * @returns Preview URL
  */
-export const getCanvaImagePreviewUrl = (canvaDesign, options = {}) => {
+export const getCanvaImagePreviewUrl = (canvaDesign: CanvaDesign, options: ImagePreviewOptions = {}): string | null => {
   const { thumbnail_url } = canvaDesign;
 
   if (!hasValidImage(canvaDesign)) {
@@ -222,10 +256,10 @@ export const createCanvaImageError = (type: string, message: string, details: Re
 
 /**
  * Estimates the size of a base64 string in MB
- * @param {string} base64String - Base64 encoded string
- * @returns {number} Size in megabytes
+ * @param base64String - Base64 encoded string
+ * @returns Size in megabytes
  */
-export const estimateBase64Size = (base64String) => {
+export const estimateBase64Size = (base64String: string | null | undefined): number => {
   if (!base64String || typeof base64String !== 'string') {
     return 0;
   }
@@ -238,11 +272,11 @@ export const estimateBase64Size = (base64String) => {
 
 /**
  * Validates if a base64 image is within size limits for Claude API
- * @param {string} base64String - Base64 encoded string
- * @param {number} maxSizeMB - Maximum size in MB (default: 5MB)
- * @returns {Object} Validation result
+ * @param base64String - Base64 encoded string
+ * @param maxSizeMB - Maximum size in MB (default: 5MB)
+ * @returns Validation result
  */
-export const validateImageSize = (base64String, maxSizeMB = 5) => {
+export const validateImageSize = (base64String: string | null | undefined, maxSizeMB = 5): ImageSizeValidation => {
   const sizeMB = estimateBase64Size(base64String);
 
   return {

@@ -7,10 +7,68 @@ import VideoComposition from './VideoComposition';
 import SubtitleSegmentList from '../../../../components/common/SubtitleSegmentList';
 import './Timeline.css';
 
+// Types
+interface ParsedSubtitle {
+  id: number;
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
+interface TextOverlay {
+  id: number;
+  text: string;
+  startTime: number;
+  endTime: number;
+}
+
+interface DraggingOverlay {
+  id: number;
+  startX: number;
+  originalStartTime: number;
+  duration: number;
+  trackRect: DOMRect;
+}
+
+interface ResizingOverlay {
+  id: number;
+  edge: 'left' | 'right';
+  startX: number;
+  originalStartTime: number;
+  originalEndTime: number;
+  trackRect: DOMRect;
+}
+
+interface TouchReorderState {
+  index: number;
+  segmentId: number;
+  startX: number;
+  startY: number;
+  moved: boolean;
+}
+
+interface ContextMenuState {
+  segmentId: number;
+  index: number;
+  x: number;
+  y: number;
+}
+
+interface EditingSubtitle extends ParsedSubtitle {
+  index: number;
+}
+
+interface TimelineProps {
+  subtitles: string;
+  onSubtitleClick?: (index: number, sub: ParsedSubtitle) => void;
+  onSubtitleUpdate?: (index: number, text: string) => void;
+  onOverlayDoubleClick?: (overlay: TextOverlay) => void;
+}
+
 /**
  * Parse subtitle time string "M:SS.F" to seconds
  */
-const parseSubtitleTime = (timeStr) => {
+const parseSubtitleTime = (timeStr: string): number => {
   const match = timeStr.match(/(\d+):(\d{2})\.(\d)/);
   if (!match) return 0;
   const [, mins, secs, tenths] = match;
@@ -20,7 +78,7 @@ const parseSubtitleTime = (timeStr) => {
 /**
  * Parse subtitle string into array of {id, startTime, endTime, text}
  */
-const parseSubtitles = (subtitleString) => {
+const parseSubtitles = (subtitleString: string): ParsedSubtitle[] => {
   if (!subtitleString) return [];
 
   return subtitleString.split('\n\n')
@@ -48,32 +106,31 @@ const parseSubtitles = (subtitleString) => {
  * Timeline Component
  * Visual representation of video segments with playhead and drag-drop reordering
  */
-const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubleClick }) => {
-  const timelineRef = useRef(null);
+const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubleClick }: TimelineProps) => {
+  const timelineRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedSegmentIndex, setDraggedSegmentIndex] = useState(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState(null);
-  const [editingSubtitle, setEditingSubtitle] = useState(null);
+  const [draggedSegmentIndex, setDraggedSegmentIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [editingSubtitle, setEditingSubtitle] = useState<EditingSubtitle | null>(null);
   const [editText, setEditText] = useState('');
-  const [draggingOverlay, setDraggingOverlay] = useState(null);
-  const [resizingOverlay, setResizingOverlay] = useState(null);
+  const [draggingOverlay, setDraggingOverlay] = useState<DraggingOverlay | null>(null);
+  const [resizingOverlay, setResizingOverlay] = useState<ResizingOverlay | null>(null);
   const [isSubtitlesExpanded, setIsSubtitlesExpanded] = useState(false);
-  const editInputRef = useRef(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Mobile touch state
   const [isTouching, setIsTouching] = useState(false);
-  const [touchReorder, setTouchReorder] = useState(null);
-  const [contextMenu, setContextMenu] = useState(null);
-  const longPressTimer = useRef(null);
+  const [touchReorder, setTouchReorder] = useState<TouchReorderState | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Mobile detection
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
 
   // Preview popup state
-  const [previewFrame, setPreviewFrame] = useState(null);
+  const [previewFrame, setPreviewFrame] = useState<number | null>(null);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 });
   const [showPreview, setShowPreview] = useState(false);
-  const thumbnailRef = useRef(null);
 
   const {
     clips,
@@ -116,18 +173,6 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     };
   }, [clips]);
 
-  // Error handling for thumbnail
-  useEffect(() => {
-    const ref = thumbnailRef.current;
-    if (!ref || !showPreview) return;
-
-    const handleError = (e) => {
-      console.error('Thumbnail error:', e.detail?.error);
-    };
-
-    ref.addEventListener('error', handleError);
-    return () => ref.removeEventListener('error', handleError);
-  }, [showPreview]);
 
   const calculatePlayheadPosition = useCallback(() => {
     if (composedDuration === 0) return 0;
@@ -147,7 +192,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     return 100;
   }, [currentTime, segments, composedDuration]);
 
-  const handleTimelineClick = useCallback((e) => {
+  const handleTimelineClick = useCallback((e: React.MouseEvent | MouseEvent) => {
     if (!timelineRef.current) return;
 
     const rect = timelineRef.current.getBoundingClientRect();
@@ -158,7 +203,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     setCurrentTime(Math.max(0, Math.min(newTime, composedDuration)));
   }, [composedDuration, setCurrentTime]);
 
-  const handlePlayheadDrag = useCallback((e) => {
+  const handlePlayheadDrag = useCallback((e: MouseEvent) => {
     if (!isDragging || !timelineRef.current || draggedSegmentIndex !== null) return;
 
     const rect = timelineRef.current.getBoundingClientRect();
@@ -176,9 +221,9 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     setShowPreview(true);
   }, [isDragging, composedDuration, setCurrentTime, compositionFps, draggedSegmentIndex]);
 
-  const handleMouseDown = useCallback((e) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Don't preventDefault if clicking on a draggable segment - it blocks HTML5 drag
-    const isDraggableSegment = e.target.closest('[draggable="true"]');
+    const isDraggableSegment = (e.target as HTMLElement).closest('[draggable="true"]');
     if (!isDraggableSegment) {
       e.preventDefault();
     }
@@ -204,8 +249,8 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
   }, [isDragging, handlePlayheadDrag, handleMouseUp]);
 
   // Touch handlers for playhead scrubbing
-  const handleTouchStart = useCallback((e) => {
-    if (e.target.closest('[draggable="true"]') || e.target.closest('.timeline__segment')) return;
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('[draggable="true"]') || (e.target as HTMLElement).closest('.timeline__segment')) return;
     e.preventDefault();
     setIsTouching(true);
 
@@ -217,7 +262,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     setCurrentTime(newTime);
   }, [composedDuration, setCurrentTime]);
 
-  const handleTouchMove = useCallback((e) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isTouching || !timelineRef.current) return;
     e.preventDefault();
 
@@ -232,23 +277,23 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     setIsTouching(false);
   }, []);
 
-  const handleSegmentClick = useCallback((e, segmentId) => {
+  const handleSegmentClick = useCallback((e: React.MouseEvent, segmentId: number) => {
     e.stopPropagation();
     selectSegment(segmentId);
   }, [selectSegment]);
 
-  const handleDeleteSegment = useCallback((e, segmentId) => {
+  const handleDeleteSegment = useCallback((e: React.MouseEvent, segmentId: number) => {
     e.stopPropagation();
     deleteSegment(segmentId);
   }, [deleteSegment]);
 
-  const handleDragStart = useCallback((e, index) => {
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     e.stopPropagation();
     setDraggedSegmentIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
     // Find parent segment and use it as drag preview
-    const segment = e.currentTarget.closest('.timeline__segment');
+    const segment = (e.currentTarget as HTMLElement).closest('.timeline__segment');
     if (segment) {
       segment.classList.add('timeline__segment--dragging');
       // Set the whole segment as drag image
@@ -260,15 +305,15 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     }
   }, []);
 
-  const handleDragEnd = useCallback((e) => {
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
     // Find parent segment and remove dragging class
-    const segment = e.currentTarget.closest('.timeline__segment');
+    const segment = (e.currentTarget as HTMLElement).closest('.timeline__segment');
     if (segment) segment.classList.remove('timeline__segment--dragging');
     setDraggedSegmentIndex(null);
     setDropTargetIndex(null);
   }, []);
 
-  const handleDragOver = useCallback((e, index) => {
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
     if (draggedSegmentIndex !== null && draggedSegmentIndex !== index) {
@@ -276,12 +321,12 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     }
   }, [draggedSegmentIndex]);
 
-  const handleDragLeave = useCallback((e) => {
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDropTargetIndex(null);
   }, []);
 
-  const handleDrop = useCallback((e, targetIndex) => {
+  const handleDrop = useCallback((e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -305,7 +350,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
   }, [draggedSegmentIndex, reorderSegments, clips, addSegmentFromClip]);
 
   // Handle drop on the entire timeline track (for adding new clips)
-  const handleTrackDrop = useCallback((e) => {
+  const handleTrackDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const clipId = e.dataTransfer.getData('application/clip-id');
     if (clipId && clips[clipId]) {
@@ -313,7 +358,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     }
   }, [clips, addSegmentFromClip]);
 
-  const handleTrackDragOver = useCallback((e) => {
+  const handleTrackDragOver = useCallback((e: React.DragEvent) => {
     // Allow drop if it's a clip
     if (e.dataTransfer.types.includes('application/clip-id')) {
       e.preventDefault();
@@ -321,7 +366,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
   }, []);
 
   // Touch-based segment reordering handlers
-  const handleSegmentTouchStart = useCallback((e, index, segmentId) => {
+  const handleSegmentTouchStart = useCallback((e: React.TouchEvent, index: number, segmentId: number) => {
     const touch = e.touches[0];
     setTouchReorder({
       index,
@@ -345,7 +390,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     }, 500);
   }, []);
 
-  const handleSegmentTouchMove = useCallback((e) => {
+  const handleSegmentTouchMove = useCallback((e: React.TouchEvent) => {
     // Cancel long-press if user moves
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -358,7 +403,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
 
     if (deltaX > 20) {
       e.preventDefault();
-      setTouchReorder(prev => ({ ...prev, moved: true }));
+      setTouchReorder(prev => prev ? { ...prev, moved: true } : null);
       const rect = timelineRef.current.getBoundingClientRect();
       const percent = (touch.clientX - rect.left) / rect.width;
       const targetIndex = Math.min(segments.length - 1, Math.max(0, Math.floor(percent * segments.length)));
@@ -440,26 +485,26 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
   }, [resizing, handleResizeMove, handleResizeEnd]);
   */
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubtitleEdit = useCallback((index, sub) => {
+  const handleSubtitleEdit = useCallback((index: number, sub: ParsedSubtitle) => {
     setEditingSubtitle({ index, ...sub });
     setEditText(sub.text);
     setCurrentTime(sub.startTime);
   }, [setCurrentTime]);
 
-  const handleOverlayClick = useCallback((e, overlay) => {
+  const handleOverlayClick = useCallback((e: React.MouseEvent, overlay: TextOverlay) => {
     e.preventDefault();
     e.stopPropagation();
     selectOverlay(overlay.id);
     setCurrentTime(overlay.startTime);
   }, [selectOverlay, setCurrentTime]);
 
-  const handleOverlayDragStart = useCallback((e, overlay) => {
+  const handleOverlayDragStart = useCallback((e: React.MouseEvent, overlay: TextOverlay) => {
     e.stopPropagation();
     if (!timelineRef.current) return;
 
@@ -474,7 +519,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     selectOverlay(overlay.id);
   }, [selectOverlay]);
 
-  const handleOverlayDragMove = useCallback((e) => {
+  const handleOverlayDragMove = useCallback((e: MouseEvent) => {
     if (!draggingOverlay || !timelineRef.current) return;
 
     const deltaX = e.clientX - draggingOverlay.startX;
@@ -507,7 +552,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     };
   }, [draggingOverlay, handleOverlayDragMove, handleOverlayDragEnd]);
 
-  const handleOverlayResizeStart = useCallback((e, overlay, edge) => {
+  const handleOverlayResizeStart = useCallback((e: React.MouseEvent, overlay: TextOverlay, edge: 'left' | 'right') => {
     e.stopPropagation();
     e.preventDefault();
     if (!timelineRef.current) return;
@@ -525,7 +570,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     document.body.classList.add('resizing-overlay');
   }, [selectOverlay]);
 
-  const handleOverlayResizeMove = useCallback((e) => {
+  const handleOverlayResizeMove = useCallback((e: MouseEvent) => {
     if (!resizingOverlay || !timelineRef.current) return;
 
     const deltaX = e.clientX - resizingOverlay.startX;
@@ -582,7 +627,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     setEditText('');
   }, []);
 
-  const handleEditKeyDown = useCallback((e) => {
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleEditSave();
@@ -643,7 +688,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                     className="timeline__subtitle-marker"
                     style={{ left: `${startPercent}%`, width: `${widthPercent}%` }}
                     title={sub.text}
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.preventDefault();
                       e.stopPropagation();
                       handleSubtitleEdit(index, sub);
@@ -691,12 +736,12 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 className={`timeline__overlay-marker ${isSelected ? 'timeline__overlay-marker--selected' : ''} ${isDragging ? 'timeline__overlay-marker--dragging' : ''} ${resizingOverlay?.id === overlay.id ? 'timeline__overlay-marker--resizing' : ''}`}
                 style={{ left: `${startPercent}%`, width: `${Math.max(widthPercent, 2)}%` }}
                 title={`Text: ${overlay.text}`}
-                onClick={(e) => handleOverlayClick(e, overlay)}
+                onClick={(e: React.MouseEvent) => handleOverlayClick(e, overlay)}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   onOverlayDoubleClick?.(overlay);
                 }}
-                onMouseDown={(e) => {
+                onMouseDown={(e: React.MouseEvent) => {
                   if (!(e.target as HTMLElement).classList.contains('timeline__overlay-resize-handle')) {
                     handleOverlayDragStart(e, overlay);
                   }
@@ -704,13 +749,13 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
               >
                 <div
                   className="timeline__overlay-resize-handle timeline__overlay-resize-handle--left"
-                  onMouseDown={(e) => handleOverlayResizeStart(e, overlay, 'left')}
+                  onMouseDown={(e: React.MouseEvent) => handleOverlayResizeStart(e, overlay, 'left')}
                 />
                 <span className="timeline__overlay-label">T</span>
                 <span className="timeline__overlay-text">{overlay.text}</span>
                 <div
                   className="timeline__overlay-resize-handle timeline__overlay-resize-handle--right"
-                  onMouseDown={(e) => handleOverlayResizeStart(e, overlay, 'right')}
+                  onMouseDown={(e: React.MouseEvent) => handleOverlayResizeStart(e, overlay, 'right')}
                 />
               </div>
             );
@@ -764,7 +809,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                   backgroundColor: `${clipColor}22`,
                   borderColor: clipColor
                 } as React.CSSProperties}
-                onClick={(e) => handleSegmentClick(e, segment.id)}
+                onClick={(e: React.MouseEvent) => handleSegmentClick(e, segment.id)}
                 onTouchStart={(e) => handleSegmentTouchStart(e, index, segment.id)}
                 onTouchMove={handleSegmentTouchMove}
                 onTouchEnd={handleSegmentTouchEnd}
@@ -776,11 +821,11 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 {/* DISABLED: Edge resize handles
                 <div
                   className="timeline__segment-resize-handle timeline__segment-resize-handle--left"
-                  onMouseDown={(e) => handleResizeStart(e, segment, index, 'left')}
+                  onMouseDown={(e: React.MouseEvent) => handleResizeStart(e, segment, index, 'left')}
                 />
                 <div
                   className="timeline__segment-resize-handle timeline__segment-resize-handle--right"
-                  onMouseDown={(e) => handleResizeStart(e, segment, index, 'right')}
+                  onMouseDown={(e: React.MouseEvent) => handleResizeStart(e, segment, index, 'right')}
                 />
                 */}
 
@@ -789,7 +834,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                     className="timeline__segment-drag-handle"
                     title="Ziehen zum Verschieben"
                     draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragStart={(e: React.DragEvent) => handleDragStart(e, index)}
                     onDragEnd={handleDragEnd}
                   >
                     <FiMove />
@@ -817,7 +862,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 {segments.length > 1 && selectedSegmentId === segment.id && (
                   <button
                     className="timeline__segment-delete"
-                    onClick={(e) => handleDeleteSegment(e, segment.id)}
+                    onClick={(e: React.MouseEvent) => handleDeleteSegment(e, segment.id)}
                     aria-label="Segment löschen"
                     title="Segment löschen"
                   >
@@ -883,7 +928,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
         >
           <div
             className={`timeline__edit-popup ${isMobile ? 'timeline__edit-popup--bottom-sheet' : ''}`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="timeline__edit-popup-header">
               <span className="timeline__edit-popup-time">
@@ -901,7 +946,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
               ref={editInputRef}
               className="timeline__edit-popup-input"
               value={editText}
-              onChange={(e) => setEditText(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditText(e.target.value)}
               onKeyDown={handleEditKeyDown}
               rows={2}
             />
@@ -942,7 +987,6 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
             }}
           >
             <Thumbnail
-              ref={thumbnailRef}
               component={VideoComposition as unknown as React.ComponentType<Record<string, unknown>>}
               frameToDisplay={safeFrame}
               compositionWidth={width}

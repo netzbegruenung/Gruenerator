@@ -26,7 +26,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   const handleDOCXDownload = useCallback(async () => {
     try {
       // Preprocess content to ensure consistent formatting for export
-      const formattedContent = extractFormattedText(content);
+      const formattedContent = await extractFormattedText(content);
       await generateDOCX(formattedContent, title);
     } catch (error) {
       console.error('DOCX download failed:', error);

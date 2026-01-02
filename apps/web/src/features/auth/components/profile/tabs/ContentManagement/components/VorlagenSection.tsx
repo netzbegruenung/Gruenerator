@@ -1,14 +1,40 @@
 import React, { useState, useCallback } from 'react';
 import { HiPlus, HiExternalLink, HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff, HiOutlinePencil } from 'react-icons/hi';
 
-import DocumentOverview from '../../../../../../../components/common/DocumentOverview';
+import DocumentOverview, { type DocumentItem } from '../../../../../../../components/common/DocumentOverview';
 import AddTemplateModal from '../../../../../../../components/common/AddTemplateModal/AddTemplateModal';
 import EditTemplateModal from '../../../../../../../components/common/EditTemplateModal';
 import { useUserTemplates } from '../../../../../hooks/useProfileData';
 
-const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }) => {
+interface Template extends DocumentItem {
+    id: string;
+    title: string;
+    is_private?: boolean;
+    template_type?: string;
+    external_url?: string;
+    content_data?: {
+        originalUrl?: string;
+    };
+}
+
+interface ActionItem {
+    icon?: React.ComponentType<{ className?: string }>;
+    label?: string;
+    onClick?: () => void;
+    loading?: boolean;
+    danger?: boolean;
+    separator?: boolean;
+}
+
+interface VorlagenSectionProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+}
+
+const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: VorlagenSectionProps): React.ReactElement => {
     const [showAddModal, setShowAddModal] = useState(false);
-    const [editingTemplate, setEditingTemplate] = useState(null);
+    const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
 
     const {
         query: templatesQuery,
@@ -17,12 +43,13 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         updateTemplate
     } = useUserTemplates({ isActive });
 
-    const { data: templates = [], isLoading } = templatesQuery;
+    const { data: templatesData = [], isLoading } = templatesQuery;
+    const templates = templatesData as Template[];
 
-    const [deletingId, setDeletingId] = useState(null);
-    const [togglingVisibilityId, setTogglingVisibilityId] = useState(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
 
-    const handleDeleteWithConfirm = useCallback(async (template) => {
+    const handleDeleteWithConfirm = useCallback(async (template: Template) => {
         if (!window.confirm(`Möchtest du die Vorlage "${template.title}" wirklich löschen?`)) {
             return;
         }
@@ -31,31 +58,33 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }) => {
             await deleteTemplate(template.id);
             onSuccessMessage('Vorlage wurde gelöscht.');
         } catch (error) {
-            onErrorMessage('Fehler beim Löschen: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            onErrorMessage('Fehler beim Löschen: ' + errorMessage);
         } finally {
             setDeletingId(null);
         }
     }, [deleteTemplate, onSuccessMessage, onErrorMessage]);
 
-    const handleToggleVisibility = useCallback(async (template) => {
+    const handleToggleVisibility = useCallback(async (template: Template) => {
         const newIsPrivate = !template.is_private;
         setTogglingVisibilityId(template.id);
         try {
             await updateTemplateVisibility(template.id, newIsPrivate);
             onSuccessMessage(newIsPrivate ? 'Vorlage ist jetzt privat.' : 'Vorlage wurde veröffentlicht.');
         } catch (error) {
-            onErrorMessage('Fehler beim Ändern der Sichtbarkeit: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            onErrorMessage('Fehler beim Ändern der Sichtbarkeit: ' + errorMessage);
         } finally {
             setTogglingVisibilityId(null);
         }
     }, [updateTemplateVisibility, onSuccessMessage, onErrorMessage]);
 
-    const handleSaveTemplate = useCallback(async (templateId, data) => {
+    const handleSaveTemplate = useCallback(async (templateId: string, data: Partial<Template>) => {
         await updateTemplate(templateId, data);
     }, [updateTemplate]);
 
-    const getTemplateActionItems = useCallback((template) => {
-        const actions = [];
+    const getTemplateActionItems = useCallback((template: Template): ActionItem[] => {
+        const actions: ActionItem[] = [];
 
         actions.push({
             icon: HiOutlinePencil,
@@ -91,7 +120,7 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }) => {
         return actions;
     }, [deletingId, togglingVisibilityId, handleDeleteWithConfirm, handleToggleVisibility]);
 
-    const renderTemplateMetadata = (template) => (
+    const renderTemplateMetadata = (template: Template) => (
         <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
             {template.template_type && (
                 <span className="document-type">

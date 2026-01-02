@@ -28,7 +28,9 @@ const HelpDisplay = ({ content,
   fallbackTips,
   layout = 'default',
   features = null }: HelpDisplayProps): JSX.Element | null => {
-  const { generatedText } = useGeneratedTextStore();
+  // Check if any generated text exists in the store
+  const generatedTexts = useGeneratedTextStore(state => state.generatedTexts);
+  const hasAnyGeneratedText = Object.values(generatedTexts).some(text => text && text.length > 0);
 
   const hasSeenFeature = React.useMemo(() => {
     if (!featureId || !isNewFeature) return false;
@@ -48,7 +50,7 @@ const HelpDisplay = ({ content,
 
   const isHidden = forceHidden ||
                    hasGeneratedContent ||
-                   (generatedText && generatedText.length > 0);
+                   hasAnyGeneratedText;
 
   if (!displayContent || isHidden) {
     return null;

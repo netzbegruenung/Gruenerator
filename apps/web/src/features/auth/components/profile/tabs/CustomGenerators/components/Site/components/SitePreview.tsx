@@ -2,7 +2,27 @@ import ProfileCard from '../../../../../../../../../components/common/ProfileCar
 import ProfileActionButton from '../../../../../../../../../components/profile/actions/ProfileActionButton';
 import { getSiteUrl, getSitesDomain } from '../utils/siteConfig';
 
-const SitePreview = ({ site, onEdit, onPublish }) => {
+interface Site {
+    id: string;
+    site_title?: string;
+    subdomain?: string;
+    is_published?: boolean;
+    tagline?: string;
+    bio?: string;
+    contact_email?: string;
+    social_links?: Record<string, string>;
+    visit_count?: number;
+    last_published?: string;
+}
+
+interface SitePreviewProps {
+    site: Site | null;
+    onEdit: () => void;
+    onPublish: () => void;
+}
+
+const SitePreview = ({ site, onEdit, onPublish }: SitePreviewProps): React.ReactElement | null => {
+    if (!site) return null;
     return (
         <>
             <div className="profile-header-section">

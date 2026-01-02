@@ -1,21 +1,48 @@
 /**
  * useKeyboardNavigation Hook
- * 
+ *
  * Provides keyboard navigation patterns for tabs, lists, and other navigable components.
  * Supports arrow keys, Tab/Shift+Tab, Enter/Space activation, and Escape handling.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, RefObject } from 'react';
+
+// Type for the item refs map
+type ItemRefsMap = Record<string, HTMLElement>;
+
+/**
+ * Options for useVerticalTabNavigation hook
+ */
+interface UseVerticalTabNavigationOptions {
+  items: string[];
+  activeItem: string;
+  onItemSelect: (item: string) => void;
+  loop?: boolean;
+  horizontal?: boolean;
+  containerRef?: RefObject<HTMLElement>;
+}
+
+/**
+ * Options for useModalFocus hook
+ */
+interface UseModalFocusOptions {
+  isOpen: boolean;
+  modalRef: RefObject<HTMLElement>;
+  initialFocusRef?: RefObject<HTMLElement>;
+  returnFocusRef?: RefObject<HTMLElement>;
+}
+
+/**
+ * Options for useRovingTabindex hook
+ */
+interface UseRovingTabindexOptions {
+  items: string[];
+  defaultActiveItem?: string;
+}
 
 /**
  * Hook for vertical tab navigation with arrow keys
- * @param {Object} options Configuration options
- * @param {string[]} options.items - Array of item identifiers
- * @param {string} options.activeItem - Currently active item
- * @param {Function} options.onItemSelect - Callback when item is selected
- * @param {boolean} options.loop - Whether to loop at start/end (default: true)
- * @param {boolean} options.horizontal - Use left/right instead of up/down (default: false)
- * @param {string} options.containerRef - Ref to the container element
+ * @param {UseVerticalTabNavigationOptions} options Configuration options
  * @returns {Object} Handlers and utilities for keyboard navigation
  */
 export const useVerticalTabNavigation = ({
@@ -25,11 +52,11 @@ export const useVerticalTabNavigation = ({
   loop = true,
   horizontal = false,
   containerRef
-}) => {
-  const itemRefs = useRef({});
+}: UseVerticalTabNavigationOptions) => {
+  const itemRefs = useRef<ItemRefsMap>({});
 
   // Get next/previous item index
-  const getNextIndex = useCallback((currentIndex, direction) => {
+  const getNextIndex = useCallback((currentIndex: number, direction: number): number => {
     const maxIndex = items.length - 1;
     let nextIndex = currentIndex + direction;
 
@@ -44,7 +71,7 @@ export const useVerticalTabNavigation = ({
   }, [items.length, loop]);
 
   // Handle keyboard navigation
-  const handleKeyDown = useCallback((event) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
     const currentIndex = items.indexOf(activeItem);
     if (currentIndex === -1) return;
 
@@ -106,7 +133,7 @@ export const useVerticalTabNavigation = ({
   }, [activeItem]);
 
   // Register item ref
-  const registerItemRef = useCallback((item, ref) => {
+  const registerItemRef = useCallback((item: string, ref: HTMLElement | null) => {
     if (ref) {
       itemRefs.current[item] = ref;
     } else {
@@ -117,18 +144,14 @@ export const useVerticalTabNavigation = ({
   return {
     handleKeyDown,
     registerItemRef,
-    tabIndex: (item) => item === activeItem ? 0 : -1,
-    ariaSelected: (item) => item === activeItem
+    tabIndex: (item: string): 0 | -1 => item === activeItem ? 0 : -1,
+    ariaSelected: (item: string): boolean => item === activeItem
   };
 };
 
 /**
  * Hook for modal focus management
- * @param {Object} options Configuration options
- * @param {boolean} options.isOpen - Whether modal is open
- * @param {React.RefObject} options.modalRef - Ref to modal container
- * @param {React.RefObject} options.initialFocusRef - Ref to element to focus on open
- * @param {React.RefObject} options.returnFocusRef - Ref to element to return focus on close
+ * @param {UseModalFocusOptions} options Configuration options
  * @returns {Object} Focus management utilities
  */
 export const useModalFocus = ({
@@ -136,14 +159,14 @@ export const useModalFocus = ({
   modalRef,
   initialFocusRef,
   returnFocusRef
-}) => {
-  const previousActiveElement = useRef(null);
+}: UseModalFocusOptions) => {
+  const previousActiveElement = useRef<Element | null>(null);
 
   // Store and restore focus
   useEffect(() => {
     if (isOpen) {
       previousActiveElement.current = document.activeElement;
-      
+
       // Focus initial element or first focusable element
       setTimeout(() => {
         if (initialFocusRef?.current) {
@@ -151,38 +174,38 @@ export const useModalFocus = ({
         } else {
           const firstFocusable = modalRef.current?.querySelector(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          );
+          ) as HTMLElement | null;
           firstFocusable?.focus();
         }
       }, 0);
     } else if (previousActiveElement.current) {
       // Return focus to previous element or specified return element
-      const elementToFocus = returnFocusRef?.current || previousActiveElement.current;
+      const elementToFocus = returnFocusRef?.current || previousActiveElement.current as HTMLElement;
       if (elementToFocus && document.body.contains(elementToFocus)) {
-        elementToFocus.focus();
+        (elementToFocus as HTMLElement).focus();
       }
       previousActiveElement.current = null;
     }
   }, [isOpen, modalRef, initialFocusRef, returnFocusRef]);
 
   // Trap focus within modal
-  const handleKeyDown = useCallback((event) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!isOpen || !modalRef.current) return;
 
     if (event.key === 'Tab') {
       const focusableElements = modalRef.current.querySelectorAll(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
-      const focusableArray = Array.from(focusableElements);
+      const focusableArray = Array.from(focusableElements) as HTMLElement[];
       const firstFocusable = focusableArray[0];
       const lastFocusable = focusableArray[focusableArray.length - 1];
 
       if (event.shiftKey && document.activeElement === firstFocusable) {
         event.preventDefault();
-        (lastFocusable as HTMLElement)?.focus();
+        lastFocusable?.focus();
       } else if (!event.shiftKey && document.activeElement === lastFocusable) {
         event.preventDefault();
-        (firstFocusable as HTMLElement)?.focus();
+        firstFocusable?.focus();
       }
     }
 
@@ -209,8 +232,8 @@ export const useModalFocus = ({
  * @param {string} targetId - ID of element to skip to
  * @returns {Object} Skip link handlers
  */
-export const useSkipLink = (targetId) => {
-  const handleSkipClick = useCallback((event) => {
+export const useSkipLink = (targetId: string) => {
+  const handleSkipClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     const target = document.getElementById(targetId);
     if (target) {
@@ -228,18 +251,16 @@ export const useSkipLink = (targetId) => {
 
 /**
  * Hook for roving tabindex pattern
- * @param {Object} options Configuration options
- * @param {string[]} options.items - Array of item identifiers
- * @param {string} options.defaultActiveItem - Default active item
+ * @param {UseRovingTabindexOptions} options Configuration options
  * @returns {Object} Roving tabindex utilities
  */
-export const useRovingTabindex = ({ items, defaultActiveItem }) => {
-  const [activeItem, setActiveItem] = useState(defaultActiveItem || items[0]);
-  const itemRefs = useRef({});
+export const useRovingTabindex = ({ items, defaultActiveItem }: UseRovingTabindexOptions) => {
+  const [activeItem, setActiveItem] = useState<string>(defaultActiveItem || items[0]);
+  const itemRefs = useRef<ItemRefsMap>({});
 
-  const handleKeyDown = useCallback((event) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
     const currentIndex = items.indexOf(activeItem);
-    let nextItem = null;
+    let nextItem: string | null = null;
 
     switch (event.key) {
       case 'ArrowRight':
@@ -274,7 +295,7 @@ export const useRovingTabindex = ({ items, defaultActiveItem }) => {
     }
   }, [activeItem, items]);
 
-  const registerItemRef = useCallback((item, ref) => {
+  const registerItemRef = useCallback((item: string, ref: HTMLElement | null) => {
     if (ref) {
       itemRefs.current[item] = ref;
     } else {
@@ -282,8 +303,8 @@ export const useRovingTabindex = ({ items, defaultActiveItem }) => {
     }
   }, []);
 
-  const getItemProps = useCallback((item) => ({
-    ref: (ref) => registerItemRef(item, ref),
+  const getItemProps = useCallback((item: string) => ({
+    ref: (ref: HTMLElement | null) => registerItemRef(item, ref),
     tabIndex: item === activeItem ? 0 : -1,
     onKeyDown: handleKeyDown,
     onClick: () => setActiveItem(item),

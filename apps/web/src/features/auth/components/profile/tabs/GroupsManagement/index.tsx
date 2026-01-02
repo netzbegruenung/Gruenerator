@@ -5,16 +5,22 @@ import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 
 const GroupsManagementView = lazy(() => import('./GroupsManagementView'));
 
-const GroupsManagementLoadingFallback = () => (
+const GroupsManagementLoadingFallback = (): React.ReactElement => (
     <div className="profile-tab-loading">
     </div>
 );
+
+interface GroupsManagementTabContainerProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+}
 
 const GroupsManagementTabContainer = ({
     isActive,
     onSuccessMessage,
     onErrorMessage
-}) => {
+}: GroupsManagementTabContainerProps): React.ReactElement | null => {
     const { user } = useOptimizedAuth();
     const { canAccessBetaFeature, isLoading: isBetaLoading } = useBetaFeatures();
 

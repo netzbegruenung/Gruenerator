@@ -1,12 +1,25 @@
 // marked imported dynamically
 import { isMarkdownContent } from '../common/Form/utils/contentUtils';
 
+interface Source {
+  title?: string;
+  url?: string;
+  summary?: string;
+  [key: string]: unknown;
+}
+
+interface ExportContentParams {
+  analysis: string;
+  sourceRecommendations?: Source[];
+  unusedSources?: Source[];
+}
+
 /**
  * Converts markdown to HTML if needed, otherwise returns original content
- * @param {string} content - Content that may be markdown
- * @returns {string} HTML content or original content if not markdown
+ * @param content - Content that may be markdown
+ * @returns HTML content or original content if not markdown
  */
-const processMarkdownContent = async (content) => {
+const processMarkdownContent = async (content: string | null | undefined): Promise<string> => {
   if (!content) return '';
   
   // Check if content is markdown
@@ -17,9 +30,7 @@ const processMarkdownContent = async (content) => {
     // Convert markdown to HTML
     return marked(content, {
       breaks: true,      // Convert line breaks to <br>
-      gfm: true,        // GitHub Flavored Markdown
-      headerIds: false, // Don't add IDs to headers
-      mangle: false     // Don't mangle autolinks
+      gfm: true        // GitHub Flavored Markdown
     });
   }
   
@@ -30,7 +41,7 @@ const processMarkdownContent = async (content) => {
 /**
  * Formatiert den Export-Content für Etherpad mit HTML
  */
-export const formatExportContent = async ({ analysis, sourceRecommendations = [], unusedSources = [] }) => {
+export const formatExportContent = async ({ analysis, sourceRecommendations = [], unusedSources = [] }: ExportContentParams): Promise<string> => {
   // Hauptanalyse als HTML
   let content = analysis;
 

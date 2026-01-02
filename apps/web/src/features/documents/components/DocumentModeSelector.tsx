@@ -1,6 +1,14 @@
 import { HiFolder } from 'react-icons/hi';
 import FeatureToggle from '../../../components/common/FeatureToggle';
 
+interface DocumentModeSelectorProps {
+    currentMode?: 'wolke' | 'manual';
+    onModeChange?: (mode: 'wolke' | 'manual') => void;
+    loading?: boolean;
+    disabled?: boolean;
+    disabledMessage?: string | null;
+}
+
 /**
  * DocumentModeSelector - Toggle between Wolke and Manual document modes
  */
@@ -10,10 +18,10 @@ const DocumentModeSelector = ({
     loading = false,
     disabled = false,
     disabledMessage = null
-}) => {
+}: DocumentModeSelectorProps): React.ReactElement => {
     const isWolkeMode = currentMode === 'wolke';
 
-    const handleToggle = (useWolke) => {
+    const handleToggle = (useWolke: boolean) => {
         if (loading) return;
 
         // If trying to enable Wolke but it's disabled, prevent the toggle

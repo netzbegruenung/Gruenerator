@@ -98,7 +98,7 @@ const detectArchitecture = () => {
   return 'x64'; // Default fallback
 };
 
-const formatDate = (dateString) => {
+const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('de-DE', {
     year: 'numeric',
     month: 'long',
@@ -106,12 +106,12 @@ const formatDate = (dateString) => {
   });
 };
 
-const formatSize = (bytes) => {
+const formatSize = (bytes: number): string => {
   const mb = bytes / (1024 * 1024);
   return `${mb.toFixed(1)} MB`;
 };
 
-const getAssetLabel = (filename) => {
+const getAssetLabel = (filename: string): string => {
   const lower = filename.toLowerCase();
   if (lower.includes('.msi')) return 'Windows Installer (.msi)';
   if (lower.includes('.exe') && lower.includes('setup')) return 'Windows Setup (.exe)';
@@ -125,24 +125,45 @@ const getAssetLabel = (filename) => {
   return filename;
 };
 
-const getAssetArchitecture = (filename) => {
+const getAssetArchitecture = (filename: string): string => {
   const lower = filename.toLowerCase();
   if (lower.includes('aarch64') || lower.includes('arm64')) return 'arm64';
   if (lower.includes('x64') || lower.includes('x86_64') || lower.includes('amd64')) return 'x64';
   return 'x64'; // Default
 };
 
-const categorizeAssets = (assets) => {
+interface ReleaseAsset {
+  id?: number | string;
+  name: string;
+  browser_download_url: string;
+  size: number;
+}
+
+interface CategorizedAssets {
+  windows: ReleaseAsset[];
+  macos: ReleaseAsset[];
+  linux: ReleaseAsset[];
+}
+
+const categorizeAssets = (assets: ReleaseAsset[] | undefined): CategorizedAssets => {
   if (!assets) return { windows: [], macos: [], linux: [] };
 
   return {
-    windows: assets.filter(a => /\.(exe|msi)$/i.test(a.name)),
-    macos: assets.filter(a => /\.dmg$/i.test(a.name) || a.name.toLowerCase().includes('darwin') || a.name.toLowerCase().includes('macos')),
-    linux: assets.filter(a => /\.(appimage|deb|rpm)$/i.test(a.name))
+    windows: assets.filter((a: ReleaseAsset) => /\.(exe|msi)$/i.test(a.name)),
+    macos: assets.filter((a: ReleaseAsset) => /\.dmg$/i.test(a.name) || a.name.toLowerCase().includes('darwin') || a.name.toLowerCase().includes('macos')),
+    linux: assets.filter((a: ReleaseAsset) => /\.(appimage|deb|rpm)$/i.test(a.name))
   };
 };
 
-const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform, userArchitecture }) => {
+interface PlatformSectionProps {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  assets: ReleaseAsset[];
+  isCurrentPlatform: boolean;
+  userArchitecture: string;
+}
+
+const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform, userArchitecture }: PlatformSectionProps): React.ReactElement | null => {
   if (!assets || assets.length === 0) return null;
 
   // Sort assets to put the user's architecture first

@@ -1,10 +1,56 @@
+import React, { useMemo } from 'react';
 import { AbsoluteFill, Sequence, Video, useCurrentFrame, useVideoConfig } from 'remotion';
-import { useMemo } from 'react';
+
+// Types for VideoComposition
+interface Clip {
+  url: string;
+  fps?: number;
+  [key: string]: unknown;
+}
+
+interface ClipsMap {
+  [clipId: string]: Clip;
+}
+
+interface Segment {
+  id: string;
+  clipId: string;
+  start: number;
+  end: number;
+}
+
+interface TextOverlay {
+  id: number;
+  type: 'header' | 'subheader';
+  text: string;
+  xPosition: number;
+  yPosition: number;
+  width: number;
+  startTime: number;
+  endTime: number;
+}
+
+interface VideoCompositionProps {
+  clips: ClipsMap;
+  segments: Segment[];
+  subtitles: string;
+  stylePreference?: string;
+  videoUrl: string;
+  textOverlays?: TextOverlay[];
+  selectedOverlayId?: number | null;
+  editingOverlayId?: number | null;
+}
+
+interface ParsedSubtitle {
+  startTime: number;
+  endTime: number;
+  text: string;
+}
 
 /**
  * Parse subtitle time string "M:SS.F" to seconds
  */
-const parseSubtitleTime = (timeStr) => {
+const parseSubtitleTime = (timeStr: string): number => {
   const match = timeStr.match(/(\d+):(\d{2})\.(\d)/);
   if (!match) return 0;
   const [, mins, secs, tenths] = match;
@@ -14,7 +60,7 @@ const parseSubtitleTime = (timeStr) => {
 /**
  * Parse subtitle string into array of {startTime, endTime, text}
  */
-const parseSubtitles = (subtitleString) => {
+const parseSubtitles = (subtitleString: string): ParsedSubtitle[] => {
   if (!subtitleString) return [];
 
   return subtitleString.split('\n\n')
@@ -65,7 +111,16 @@ const TEXT_OVERLAY_STYLES = {
  * Renders video segments in sequence using Remotion primitives
  * Each segment references a clip from the clips registry
  */
-const VideoComposition = ({ clips, segments, subtitles, stylePreference = 'shadow', videoUrl, textOverlays = [], selectedOverlayId = null, editingOverlayId = null }) => {
+const VideoComposition = ({
+  clips,
+  segments,
+  subtitles,
+  stylePreference = 'shadow',
+  videoUrl,
+  textOverlays = [],
+  selectedOverlayId = null,
+  editingOverlayId = null
+}: VideoCompositionProps): React.ReactElement => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -74,10 +129,10 @@ const VideoComposition = ({ clips, segments, subtitles, stylePreference = 'shado
   // For backward compatibility: if no clips provided but videoUrl exists, create a default clip lookup
   const getClipUrl = useMemo(() => {
     if (clips && Object.keys(clips).length > 0) {
-      return (clipId) => clips[clipId]?.url || null;
+      return (clipId: string): string | null => clips[clipId]?.url || null;
     }
     // Fallback for legacy single-video mode
-    return () => videoUrl;
+    return (): string => videoUrl;
   }, [clips, videoUrl]);
 
   const getSubtitleStyle = useMemo(() => {

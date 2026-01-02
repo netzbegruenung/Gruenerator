@@ -5,7 +5,7 @@
  * fuzzy name matching and deduplication.
  */
 
-import { foldUmlauts } from './textNormalization.ts';
+import { foldUmlauts } from './textNormalization';
 
 /**
  * Calculate the Levenshtein (edit) distance between two strings.

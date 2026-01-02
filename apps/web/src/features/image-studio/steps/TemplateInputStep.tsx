@@ -6,6 +6,7 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import Button from '../../../components/common/SubmitButton';
 import ConfigDrivenFields from '../components/ConfigDrivenFields';
 import { TypeformWizard } from '../../../components/common/Form';
+import type { TypeformField } from '../../../components/common/Form';
 import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
 import './TemplateInputStep.css';
@@ -81,7 +82,7 @@ const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, ty
         transition={{ duration: 0.3 }}
       >
         <TypeformWizard
-          fields={fieldConfig?.inputFields || []}
+          fields={(fieldConfig?.inputFields || []) as TypeformField[]}
           values={values}
           onChange={handleChange}
           errors={formErrors}

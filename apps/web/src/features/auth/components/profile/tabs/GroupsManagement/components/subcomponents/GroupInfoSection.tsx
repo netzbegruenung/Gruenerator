@@ -3,6 +3,60 @@ import DeleteWarningTooltip from '../../../../../../../../components/common/Dele
 import GroupMembersList from '../../../../../../../../features/groups/components/GroupMembersList';
 import { ProfileActionButton } from '../../../../../../../../components/profile/actions/ProfileActionButton';
 
+interface GroupInfo {
+    id?: string;
+    name?: string;
+    description?: string;
+}
+
+interface GroupData {
+    antragInstructionsEnabled?: boolean;
+    socialInstructionsEnabled?: boolean;
+    isAdmin?: boolean;
+    membership?: {
+        role?: string;
+    };
+    antragPrompt?: string;
+    socialPrompt?: string;
+    universalPrompt?: string;
+    redePrompt?: string;
+    buergeranfragenPrompt?: string;
+    gruenejugendPrompt?: string;
+    groupInfo?: GroupInfo;
+    joinToken?: string;
+    [key: string]: unknown;
+}
+
+interface TabIndexConfig {
+    groupNameEdit: number;
+    groupDetailTabs?: number;
+}
+
+interface GroupInfoSectionProps {
+    data: GroupData | undefined;
+    groupId: string;
+    isEditingName: boolean;
+    editedGroupName: string;
+    setEditedGroupName: (name: string) => void;
+    isEditingDescription: boolean;
+    editedGroupDescription: string;
+    setEditedGroupDescription: (description: string) => void;
+    isUpdatingGroupName: boolean;
+    isDeletingGroup: boolean;
+    joinLinkCopied: boolean;
+    getJoinUrl: () => string;
+    copyJoinLink: () => void;
+    startEditingName: () => void;
+    cancelEditingName: () => void;
+    saveGroupName: () => void;
+    startEditingDescription: () => void;
+    cancelEditingDescription: () => void;
+    saveGroupDescription: () => void;
+    confirmDeleteGroup: () => void;
+    isActive: boolean;
+    tabIndex: TabIndexConfig;
+}
+
 const GroupInfoSection = ({
     data,
     groupId,
@@ -26,7 +80,7 @@ const GroupInfoSection = ({
     confirmDeleteGroup,
     isActive,
     tabIndex
-}) => {
+}: GroupInfoSectionProps) => {
     return (
         <>
             {/* Group Header */}
@@ -39,7 +93,7 @@ const GroupInfoSection = ({
                                     <input
                                         type="text"
                                         value={editedGroupName}
-                                        onChange={(e) => setEditedGroupName(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedGroupName(e.target.value)}
                                         className="group-name-edit-input"
                                         placeholder="Gruppenname"
                                         maxLength={100}
@@ -49,7 +103,7 @@ const GroupInfoSection = ({
                                     />
                                     <textarea
                                         value={editedGroupDescription}
-                                        onChange={(e) => setEditedGroupDescription(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditedGroupDescription(e.target.value)}
                                         className="form-textarea"
                                         placeholder="Beschreibung der Gruppe (optional)..."
                                         maxLength={500}

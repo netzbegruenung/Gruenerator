@@ -14,7 +14,94 @@ import '../../../assets/styles/components/ui/spinner.css';
 import '../../../assets/styles/components/actions/action-buttons.css';
 import '../styles/SubtitleEditor.css';
 
-const SubtitleEditor = ({
+// Type definitions
+interface SubtitleSegment {
+  id: number;
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
+interface VideoMetadata {
+  width: number;
+  height: number;
+  duration: number;
+}
+
+interface LoadedProject {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface FallbackButtonData {
+  url?: string;
+  filename?: string;
+}
+
+interface CorrectionItem {
+  id: number;
+  corrected: string;
+}
+
+interface CorrectionResponse {
+  hasCorrections: boolean;
+  corrections: CorrectionItem[];
+}
+
+interface StyleOptionPreview extends React.CSSProperties {
+  backgroundColor: string;
+  color: string;
+  textShadow: string;
+  padding: string;
+  borderRadius: string;
+}
+
+interface StyleOption {
+  id: string;
+  name: string;
+  isRecommended?: boolean;
+  preview: StyleOptionPreview;
+}
+
+interface HeightOption {
+  id: string;
+  name: string;
+  subtitle: string;
+}
+
+interface QualityOption {
+  id: string;
+  name: string;
+  subtitle: string;
+}
+
+interface UploadVideoMetadata {
+  duration?: number;
+  width?: number;
+  height?: number;
+  [key: string]: unknown;
+}
+
+interface SubtitleEditorProps {
+  videoFile?: File | Blob | null;
+  videoUrl?: string | null;
+  subtitles: string;
+  uploadId: string;
+  subtitlePreference: string;
+  stylePreference?: string;
+  heightPreference?: string;
+  onStyleChange?: (styleId: string) => void;
+  onHeightChange?: (heightId: string) => void;
+  onExportSuccess?: (token: string) => void;
+  isExporting?: boolean;
+  onExportComplete?: () => void;
+  loadedProject?: LoadedProject | null;
+  videoMetadataFromUpload?: UploadVideoMetadata | null;
+  videoFilename?: string | null;
+  videoSize?: number | null;
+}
+
+const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   videoFile,
   videoUrl: videoUrlProp,
   subtitles,
@@ -33,7 +120,7 @@ const SubtitleEditor = ({
   videoSize = null
 }) => {
   // Style options configuration with preview styling
-  const styleOptions = [
+  const styleOptions: StyleOption[] = [
     {
       id: 'shadow',
       name: 'Empfohlen',
@@ -81,12 +168,12 @@ const SubtitleEditor = ({
     }
   ];
 
-  const heightOptions = [
+  const heightOptions: HeightOption[] = [
     { id: 'tief', name: 'Tiefer', subtitle: 'Standard' },
     { id: 'standard', name: 'Mittig', subtitle: 'Etwa auf 40% Höhe' }
   ];
 
-  const qualityOptions = [
+  const qualityOptions: QualityOption[] = [
     { id: 'normal', name: 'Standard', subtitle: 'Perfekt für Reels' },
     { id: 'hd', name: 'Volle Qualität', subtitle: 'Dauert länger' }
   ];
@@ -105,17 +192,17 @@ const SubtitleEditor = ({
     setLocalHeight(heightPreference);
   }, [heightPreference]);
 
-  const handleLocalStyleChange = (styleId) => {
+  const handleLocalStyleChange = (styleId: string): void => {
     setLocalStyle(styleId);
     onStyleChange?.(styleId);
   };
 
-  const handleLocalHeightChange = (heightId) => {
+  const handleLocalHeightChange = (heightId: string): void => {
     setLocalHeight(heightId);
     onHeightChange?.(heightId);
   };
 
-  const handleLocalQualityChange = (qualityId) => {
+  const handleLocalQualityChange = (qualityId: string): void => {
     setLocalQuality(qualityId);
   };
   // Use the centralized export store
@@ -136,21 +223,21 @@ const SubtitleEditor = ({
   // Get user locale and user ID for Austria-specific styling and project exports
   const locale = useAuthStore((state) => state.locale);
   const user = useAuthStore((state) => state.user);
-  const videoRef = useRef(null);
-  const segmentRefs = useRef({});
-  const [videoUrl, setVideoUrl] = useState(null);
-  const [editableSubtitles, setEditableSubtitles] = useState([]);
-  const [error, setError] = useState(null);
-  const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState(0);
-  const [videoMetadata, setVideoMetadata] = useState(null);
-  const [showFallbackButton, setShowFallbackButton] = useState(null);
-  const [selectedSegmentId, setSelectedSegmentId] = useState(null);
-  const [videoDuration, setVideoDuration] = useState(0);
-  const [showStyling, setShowStyling] = useState(false);
-  const [correctedSegmentIds, setCorrectedSegmentIds] = useState(new Set());
-  const [correctionMessage, setCorrectionMessage] = useState(null);
-  const [isVideoVisible, setIsVideoVisible] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const segmentRefs = useRef<Record<number, HTMLElement>>({});
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [editableSubtitles, setEditableSubtitles] = useState<SubtitleSegment[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState<number>(0);
+  const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
+  const [showFallbackButton, setShowFallbackButton] = useState<FallbackButtonData | string | null>(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [showStyling, setShowStyling] = useState<boolean>(false);
+  const [correctedSegmentIds, setCorrectedSegmentIds] = useState<Set<number>>(new Set());
+  const [correctionMessage, setCorrectionMessage] = useState<string | null>(null);
+  const [isVideoVisible, setIsVideoVisible] = useState<boolean>(true);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   // Use subtitle correction hook
   const {
@@ -183,16 +270,16 @@ const SubtitleEditor = ({
   }, [exportStatus, exportToken, exportError, onExportSuccess, onExportComplete]);
 
   // Emoji detection function
-  const detectEmojis = (text) => {
+  const detectEmojis = (text: string): boolean => {
     const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
     return emojiRegex.test(text);
   };
 
   // Function to wrap emojis in spans for styling
-  const formatTextWithEmojis = (text) => {
+  const formatTextWithEmojis = (text: string): string => {
     const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
 
-    return text.replace(emojiRegex, (emoji) => `<span class="emoji-transparent">${emoji}</span>`);
+    return text.replace(emojiRegex, (emoji: string) => `<span class="emoji-transparent">${emoji}</span>`);
   };
 
   // Validiere Props und erstelle Video-URL
@@ -353,9 +440,9 @@ const SubtitleEditor = ({
   };
 
   // Timeline handlers
-  const scrubTimeoutRef = useRef(null);
+  const scrubTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleTimelineSeek = useCallback((timeInSeconds) => {
+  const handleTimelineSeek = useCallback((timeInSeconds: number): void => {
     if (!videoRef.current) return;
 
     const video = videoRef.current;
@@ -363,7 +450,9 @@ const SubtitleEditor = ({
     setCurrentTimeInSeconds(timeInSeconds);
 
     // Debounce: only trigger frame refresh after scrubbing stops
-    clearTimeout(scrubTimeoutRef.current);
+    if (scrubTimeoutRef.current) {
+      clearTimeout(scrubTimeoutRef.current);
+    }
     scrubTimeoutRef.current = setTimeout(() => {
       if (video.paused) {
         video.play()
@@ -373,14 +462,14 @@ const SubtitleEditor = ({
     }, 50);
   }, []);
 
-  const scrollToSegment = useCallback((segmentId) => {
+  const scrollToSegment = useCallback((segmentId: number): void => {
     const element = segmentRefs.current[segmentId];
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, []);
 
-  const handleSegmentClick = useCallback((segmentId) => {
+  const handleSegmentClick = useCallback((segmentId: number): void => {
     setSelectedSegmentId(segmentId);
     const segment = editableSubtitles.find(s => s.id === segmentId);
     if (segment && videoRef.current) {
@@ -388,7 +477,7 @@ const SubtitleEditor = ({
     }
   }, [editableSubtitles]);
 
-  const handleTextChange = useCallback((segmentId, newText) => {
+  const handleTextChange = useCallback((segmentId: number, newText: string): void => {
     setEditableSubtitles(prev =>
       prev.map(segment =>
         segment.id === segmentId ? { ...segment, text: newText } : segment
@@ -419,12 +508,12 @@ const SubtitleEditor = ({
     );
   }
 
-  const adjustTextareaHeight = (element) => {
+  const adjustTextareaHeight = (element: HTMLElement): void => {
     element.style.height = 'auto';
     element.style.height = element.scrollHeight + 'px';
   };
 
-  const handleSubtitleEdit = (id, newText, event) => {
+  const handleSubtitleEdit = (id: number, newText: string, event: React.ChangeEvent<HTMLTextAreaElement>): void => {
     setEditableSubtitles(prev =>
       prev.map(segment =>
         segment.id === id ? { ...segment, text: newText } : segment
@@ -436,14 +525,14 @@ const SubtitleEditor = ({
     }
   };
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const wholeSeconds = Math.floor(seconds % 60);
     const fractionalSecond = Math.floor((seconds % 1) * 10); // Single decimal place
     return `${mins}:${wholeSeconds.toString().padStart(2, '0')}.${fractionalSecond}`;
   };
 
-  const handleExport = async (maxResolution = null) => {
+  const handleExport = async (maxResolution: number | null = null): Promise<void> => {
     if (!uploadId || !editableSubtitles.length) {
        setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
        return;
@@ -479,7 +568,13 @@ const SubtitleEditor = ({
       });
 
       // Use the centralized store for export
-      await startExport(subtitlesText, {
+      // Map SubtitleSegment[] to Subtitle[] format expected by the store
+      const subtitlesForExport = editableSubtitles.map(segment => ({
+        start: segment.startTime,
+        end: segment.endTime,
+        text: segment.text
+      }));
+      await startExport(subtitlesForExport, {
         uploadId,
         subtitlePreference,
         stylePreference: localStyle,
@@ -490,14 +585,15 @@ const SubtitleEditor = ({
         userId: user?.id || null
       });
 
-    } catch (error) {
-      console.error('[SubtitleEditor] Export initiation error:', error);
-      setError(error.message || 'Fehler beim Starten des Exports');
+    } catch (err) {
+      console.error('[SubtitleEditor] Export initiation error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Starten des Exports';
+      setError(errorMessage);
     }
   };
 
   // Handle saving project
-  const handleSaveProject = async () => {
+  const handleSaveProject = async (): Promise<void> => {
     if (!uploadId || !editableSubtitles.length) {
       setError('Keine Daten zum Speichern vorhanden.');
       return;
@@ -530,6 +626,12 @@ const SubtitleEditor = ({
       } else {
         // Create new project
         console.log('[SubtitleEditor] Creating new project with uploadId:', uploadId);
+        // Convert videoMetadataFromUpload to the expected format
+        const formattedVideoMetadata = videoMetadataFromUpload ? {
+          duration: videoMetadataFromUpload.duration ?? 0,
+          width: videoMetadataFromUpload.width ?? 0,
+          height: videoMetadataFromUpload.height ?? 0
+        } : undefined;
         const projectData = {
           uploadId,
           subtitles: subtitlesText,
@@ -537,27 +639,28 @@ const SubtitleEditor = ({
           stylePreference: localStyle,
           heightPreference: localHeight,
           modePreference: subtitlePreference,
-          videoMetadata: videoMetadataFromUpload || {},
+          videoMetadata: formattedVideoMetadata,
           videoFilename: videoFilename || 'video.mp4',
           videoSize: videoSize || 0
         };
         await saveProject(projectData);
       }
-    } catch (error) {
-      console.error('[SubtitleEditor] Save project error:', error);
-      setError(error.message || 'Fehler beim Speichern des Projekts');
+    } catch (err) {
+      console.error('[SubtitleEditor] Save project error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Speichern des Projekts';
+      setError(errorMessage);
     }
   };
 
   // Handle AI correction of subtitles
-  const handleCorrection = async () => {
+  const handleCorrection = async (): Promise<void> => {
     if (!editableSubtitles.length) return;
 
     try {
       setError(null);
       setCorrectionMessage(null);
 
-      const response = await correctSubtitles(editableSubtitles);
+      const response = await correctSubtitles(editableSubtitles) as CorrectionResponse;
 
       if (!response.hasCorrections) {
         setCorrectionMessage('Keine Korrekturen notwendig');
@@ -566,9 +669,9 @@ const SubtitleEditor = ({
       }
 
       // Apply corrections to subtitles
-      const correctedIds = new Set(response.corrections.map(c => c.id));
+      const correctedIds = new Set<number>(response.corrections.map((c: CorrectionItem) => c.id));
       setEditableSubtitles(prev => prev.map(segment => {
-        const correction = response.corrections.find(c => c.id === segment.id);
+        const correction = response.corrections.find((c: CorrectionItem) => c.id === segment.id);
         if (correction) {
           return { ...segment, text: correction.corrected };
         }
@@ -585,9 +688,10 @@ const SubtitleEditor = ({
         setCorrectionMessage(null);
       }, 2000);
 
-    } catch (error) {
-      console.error('[SubtitleEditor] Correction error:', error);
-      setError(error.message || 'Fehler bei der KI-Korrektur');
+    } catch (err) {
+      console.error('[SubtitleEditor] Correction error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der KI-Korrektur';
+      setError(errorMessage);
     }
   };
 
@@ -619,11 +723,11 @@ const SubtitleEditor = ({
       {showFallbackButton && (
         <div className="download-fallback">
           <div className="fallback-message">
-            <p>⚠️ Automatischer Download fehlgeschlagen?</p>
+            <p>Automatischer Download fehlgeschlagen?</p>
             <div className="fallback-buttons">
               <a
-                href={showFallbackButton.url || showFallbackButton}
-                download={showFallbackButton.filename}
+                href={typeof showFallbackButton === 'string' ? showFallbackButton : (showFallbackButton.url || '')}
+                download={typeof showFallbackButton === 'string' ? undefined : showFallbackButton.filename}
                 className="btn-primary"
                 onClick={() => setShowFallbackButton(null)}
                 target="_blank"

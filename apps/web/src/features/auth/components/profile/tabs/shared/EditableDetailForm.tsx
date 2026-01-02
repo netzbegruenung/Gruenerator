@@ -46,7 +46,7 @@ const EditableDetailForm = ({ entityType,
     onSave,
     onCancel,
     isLoading,
-    disabled = false }: EditableDetailFormProps): JSX.Element => {
+    disabled = false }: EditableDetailFormProps): React.ReactElement => {
     const isGenerator = entityType === 'generator';
 
     const renderGeneratorFields = () => (
@@ -61,7 +61,7 @@ const EditableDetailForm = ({ entityType,
                     type="text"
                     className="form-input"
                     value={getDisplayValue('title')}
-                    onChange={(e) => updateField('title', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('title', e.target.value)}
                     placeholder="Grünerator Titel"
                     disabled={disabled}
                     required
@@ -77,7 +77,7 @@ const EditableDetailForm = ({ entityType,
                     id="edit-description"
                     className="form-textarea"
                     value={getDisplayValue('description')}
-                    onChange={(e) => updateField('description', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField('description', e.target.value)}
                     placeholder="Beschreibung des Grünerators"
                     disabled={disabled}
                     maxLength={500}
@@ -94,7 +94,7 @@ const EditableDetailForm = ({ entityType,
                     type="email"
                     className="form-input"
                     value={getDisplayValue('contact_email')}
-                    onChange={(e) => updateField('contact_email', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('contact_email', e.target.value)}
                     placeholder="kontakt@beispiel.de"
                     disabled={disabled}
                 />
@@ -108,7 +108,7 @@ const EditableDetailForm = ({ entityType,
                     id="edit-prompt"
                     className="form-textarea"
                     value={getDisplayValue('prompt')}
-                    onChange={(e) => updateField('prompt', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField('prompt', e.target.value)}
                     placeholder="Prompt-Vorlage für AI"
                     disabled={disabled}
                     style={{ minHeight: '200px' }}
@@ -144,7 +144,7 @@ const EditableDetailForm = ({ entityType,
                     type="text"
                     className="form-input"
                     value={getDisplayValue('name')}
-                    onChange={(e) => updateField('name', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('name', e.target.value)}
                     placeholder="Notebook Name"
                     disabled={disabled}
                     required
@@ -160,7 +160,7 @@ const EditableDetailForm = ({ entityType,
                     id="edit-description"
                     className="form-textarea"
                     value={getDisplayValue('description') || ''}
-                    onChange={(e) => updateField('description', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField('description', e.target.value)}
                     placeholder="Notebook Beschreibung"
                     disabled={disabled}
                     maxLength={500}
@@ -176,7 +176,7 @@ const EditableDetailForm = ({ entityType,
                     id="edit-custom-prompt"
                     className="form-textarea"
                     value={getDisplayValue('custom_prompt') || ''}
-                    onChange={(e) => updateField('custom_prompt', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField('custom_prompt', e.target.value)}
                     placeholder="Spezielle Anweisungen für dieses Notebook"
                     disabled={disabled}
                     style={{ minHeight: '150px' }}
@@ -228,7 +228,7 @@ interface FormBuilderSectionProps {
 /**
  * Form builder section for generator form schema editing
  */
-const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuilderSectionProps): JSX.Element => {
+const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuilderSectionProps): React.ReactElement => {
     const fields: FormField[] = formSchema?.fields || [];
 
     // Add form field
@@ -323,14 +323,14 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuil
                             type="text"
                             className="form-input"
                             value={field.label}
-                            onChange={(e) => updateFormField(index, { label: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFormField(index, { label: e.target.value })}
                             placeholder="Feldbezeichnung"
                             disabled={disabled}
                         />
                         <select
                             className="form-input"
                             value={field.type}
-                            onChange={(e) => updateFormField(index, { type: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateFormField(index, { type: e.target.value })}
                             disabled={disabled}
                         >
                             <option value="text">Kurzer Text</option>
@@ -357,7 +357,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuil
                         type="text"
                         className="form-input field-placeholder-input"
                         value={field.placeholder || ''}
-                        onChange={(e) => updateFormField(index, { placeholder: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFormField(index, { placeholder: e.target.value })}
                         placeholder="Platzhaltertext (optional)"
                         disabled={disabled}
                     />
@@ -371,7 +371,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuil
                                         className="form-input option-label-input"
                                         placeholder="Anzeigetext"
                                         value={option.label || ''}
-                                        onChange={(e) => {
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                             const newLabel = e.target.value;
 
                                             // Check if value has been manually edited
@@ -395,7 +395,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuil
                                         className="form-input option-value-input"
                                         placeholder="Technischer Wert"
                                         value={option.value || ''}
-                                        onChange={(e) => updateOption(index, optIndex, 'value', e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateOption(index, optIndex, 'value', e.target.value)}
                                         disabled={disabled}
                                     />
                                     <ProfileIconButton

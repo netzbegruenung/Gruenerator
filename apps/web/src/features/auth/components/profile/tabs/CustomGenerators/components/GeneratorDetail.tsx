@@ -78,7 +78,7 @@ const GeneratorDetail = ({
     const editableDetail = useEditableDetail({
         entityId: generatorId,
         entity: generator,
-        updateFn: updateGenerator,
+        updateFn: updateGenerator as ((id: string, data: unknown) => Promise<unknown>) | undefined,
         onSuccessMessage,
         onErrorMessage,
         entityType: 'generator'

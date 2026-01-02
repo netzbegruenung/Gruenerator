@@ -10,6 +10,8 @@ import { useGeneratorSelectionStore } from '../../../../stores/core/generatorSel
 import type { FormExtrasSectionProps, FeatureToggle as FeatureToggleType, TabIndexConfig } from '@/types/baseform';
 import '../../../../assets/styles/components/ui/FormExtras.css';
 
+import type { AttachedFile } from '../../ContentSelector';
+
 interface FeatureIconsTabIndex {
   webSearch?: number;
   balancedMode?: number;
@@ -53,9 +55,9 @@ const FormExtrasSection: React.FC<FormExtrasSectionProps> = ({
   const success = useFormStateSelector(state => state.success);
   const useInteractiveModeToggleStore = useFormStateSelector(state => state.interactiveModeConfig?.enabled || false);
   const useFeatureIcons = useFormStateSelector(state => state.useFeatureIcons);
-  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles);
+  const storeAttachedFiles = useFormStateSelector(state => state.attachedFiles) as AttachedFile[];
 
-  const finalAttachedFiles = attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles;
+  const finalAttachedFiles = (attachedFiles.length > 0 ? attachedFiles : storeAttachedFiles) as AttachedFile[];
 
   const currentGeneratedContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
 

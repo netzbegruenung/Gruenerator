@@ -20,11 +20,11 @@ export const PLATFORM_ALIASES = {
 
 /**
  * Fuzzy match score between input and target
- * @param {string} input - User input to match
- * @param {string} target - Target string to match against
- * @returns {number} Score from 0 to 1 (1 = exact match)
+ * @param input - User input to match
+ * @param target - Target string to match against
+ * @returns Score from 0 to 1 (1 = exact match)
  */
-export const fuzzyMatch = (input, target) => {
+export const fuzzyMatch = (input: string | null | undefined, target: string | null | undefined): number => {
   if (!input || !target) return 0;
 
   const inputLower = input.toLowerCase().trim();
@@ -123,13 +123,18 @@ export const findMatches = (input: string, options: OptionItem[], config: FindMa
   };
 };
 
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
 /**
  * Create filter option function for react-select
- * @param {Object} aliases - Alias map (defaults to PLATFORM_ALIASES)
- * @returns {Function} Filter function for react-select
+ * @param aliases - Alias map (defaults to PLATFORM_ALIASES)
+ * @returns Filter function for react-select
  */
-export const createFilterOption = (aliases = PLATFORM_ALIASES) => {
-  return (option, inputValue) => {
+export const createFilterOption = (aliases: Record<string, string[]> = PLATFORM_ALIASES) => {
+  return (option: FilterOption, inputValue: string): boolean => {
     if (!inputValue) return true;
 
     const optionData = {
@@ -144,11 +149,11 @@ export const createFilterOption = (aliases = PLATFORM_ALIASES) => {
 
 /**
  * Check if input exactly matches an alias
- * @param {string} input - User input
- * @param {Object} aliases - Alias map
- * @returns {string|null} Matched platform value or null
+ * @param input - User input
+ * @param aliases - Alias map
+ * @returns Matched platform value or null
  */
-export const getExactAliasMatch = (input, aliases = PLATFORM_ALIASES) => {
+export const getExactAliasMatch = (input: string | null | undefined, aliases: Record<string, string[]> = PLATFORM_ALIASES): string | null => {
   if (!input) return null;
 
   const inputLower = input.toLowerCase().trim();
@@ -165,15 +170,15 @@ export const getExactAliasMatch = (input, aliases = PLATFORM_ALIASES) => {
 /**
  * Detect platform mentions in text content
  * Scans text for platform names and aliases, returns detected platform IDs
- * @param {string} text - Text content to scan
- * @param {Object} aliases - Alias map (defaults to PLATFORM_ALIASES)
- * @returns {string[]} Array of detected platform IDs
+ * @param text - Text content to scan
+ * @param aliases - Alias map (defaults to PLATFORM_ALIASES)
+ * @returns Array of detected platform IDs
  */
-export const detectPlatformsInText = (text, aliases = PLATFORM_ALIASES) => {
+export const detectPlatformsInText = (text: string | null | undefined, aliases: Record<string, string[]> = PLATFORM_ALIASES): string[] => {
   if (!text) return [];
 
   const textLower = text.toLowerCase();
-  const detectedPlatforms = new Set();
+  const detectedPlatforms = new Set<string>();
 
   for (const [platformId, platformAliases] of Object.entries(aliases)) {
     const platformLower = platformId.toLowerCase();

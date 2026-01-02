@@ -187,7 +187,7 @@ const CanvaOverview = memo(({
                                     }}
                                     role="button"
                                     tabIndex={0}
-                                    onKeyDown={(e) => {
+                                    onKeyDown={(e: React.KeyboardEvent) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
                                             e.preventDefault();
                                             if (design.canva_url) {
@@ -221,7 +221,7 @@ const CanvaOverview = memo(({
                         <a
                             href="#"
                             className="canva-view-all-link"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                                 e.preventDefault();
                                 onNavigateToSubtab?.('vorlagen');
                             }}

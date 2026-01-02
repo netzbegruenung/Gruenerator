@@ -34,7 +34,7 @@ const SelectAllCheckbox = ({
         type="checkbox"
         id="select-all-checkbox"
         checked={allSelected}
-        onChange={(e) => onToggleAll?.(e.target.checked)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onToggleAll?.(e.target.checked)}
       />
     </div>
   );

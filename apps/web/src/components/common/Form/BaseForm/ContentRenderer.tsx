@@ -97,7 +97,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     ? normalizeLineBreaks(stripWrappingCodeFence(removeGruenTitleTags(rawContent)))
     : rawContent;
 
-  const metadata = getGeneratedTextMetadata(componentName);
+  const metadata = getGeneratedTextMetadata(componentName) as { citations?: Citation[] } | null;
   const citations: Citation[] = metadata?.citations || [];
 
   if (isMixedContent && mixedContent) {

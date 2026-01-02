@@ -14,7 +14,7 @@ export type {
   QdrantTextCondition,
   FilterSpec,
   CommonFilterField
-} from './types.ts';
+} from './types';
 
 // Filter builder utilities
 export {
@@ -27,4 +27,4 @@ export {
   textMatch,
   rangeMatch,
   hasConditions
-} from './QdrantFilterBuilder.ts';
+} from './QdrantFilterBuilder';

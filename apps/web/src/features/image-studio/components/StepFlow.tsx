@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HiArrowLeft, HiCog, HiArrowRight, HiX, HiPhotograph } from 'react-icons/hi';
-import useImageStudioStore from '../../../stores/imageStudioStore';
+import useImageStudioStore, { StockImage } from '../../../stores/imageStudioStore';
 import { useStepFlow } from '../hooks/useStepFlow';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import StepFlowSloganStep from './StepFlowSloganStep';
@@ -12,8 +12,82 @@ import Button from '../../../components/common/SubmitButton';
 
 import '../../../assets/styles/components/image-studio/typeform-fields.css';
 
+// Type definitions for form fields
+interface FieldOption {
+  value: string;
+  label: string;
+}
+
+interface FormField {
+  name: string;
+  label: string;
+  type?: 'text' | 'textarea' | 'select';
+  placeholder?: string;
+  helpText?: string;
+  subtitle?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  rows?: number;
+  options?: FieldOption[];
+}
+
+// Flow step types
+interface BaseFlowStep {
+  id: string;
+  stepTitle: string;
+  stepSubtitle?: string | null;
+  afterComplete?: 'generateText' | 'generateImage' | 'parallelPreload' | null;
+}
+
+interface InputFlowStep extends BaseFlowStep {
+  type: 'input';
+  field: FormField;
+}
+
+interface ImageUploadFlowStep extends BaseFlowStep {
+  type: 'image_upload';
+}
+
+interface SloganFlowStep extends BaseFlowStep {
+  type: 'slogan';
+}
+
+type FlowStep = InputFlowStep | ImageUploadFlowStep | SloganFlowStep;
+
+// Component props interfaces
+interface StepFlowInputStepProps {
+  field: FormField | undefined;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onNext: () => void;
+  onBack: () => void;
+  isLastInput: boolean;
+  loading: boolean;
+  error: string | null;
+  direction: number;
+}
+
+interface StepFlowImageUploadStepProps {
+  onNext: () => void;
+  onBack: () => void;
+  direction: number;
+}
+
+interface StepFlowProps {
+  onBack?: () => void;
+  onComplete?: () => void;
+  imageLimitData?: {
+    count: number;
+    canGenerate: boolean;
+  } | null;
+}
+
+// Animation variant type
+type AnimationDirection = number;
+
 const slideVariants = {
-  enter: (direction) => ({
+  enter: (direction: AnimationDirection) => ({
     y: direction > 0 ? 40 : -40,
     opacity: 0
   }),
@@ -21,13 +95,13 @@ const slideVariants = {
     y: 0,
     opacity: 1
   },
-  exit: (direction) => ({
+  exit: (direction: AnimationDirection) => ({
     y: direction < 0 ? 40 : -40,
     opacity: 0
   })
 };
 
-const StepFlowInputStep = ({
+const StepFlowInputStep: React.FC<StepFlowInputStepProps> = ({
   field,
   value,
   onChange,
@@ -38,16 +112,23 @@ const StepFlowInputStep = ({
   error,
   direction
 }) => {
-  const inputRef = useRef(null);
-  const [fieldError, setFieldError] = useState(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (inputRef.current) {
+    // Focus the appropriate input based on field type
+    if (field?.type === 'textarea' && textareaRef.current) {
+      textareaRef.current.focus();
+    } else if (field?.type === 'select' && selectRef.current) {
+      selectRef.current.focus();
+    } else if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, [field?.name]);
+  }, [field?.name, field?.type]);
 
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFieldError(null);
     onChange(e);
   }, [onChange]);
@@ -70,7 +151,7 @@ const StepFlowInputStep = ({
     onNext();
   }, [field, value, onNext]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       if (field?.type === 'textarea' && !e.shiftKey) {
         return;
@@ -100,7 +181,7 @@ const StepFlowInputStep = ({
       <div className="typeform-input-wrapper">
         {field?.type === 'textarea' ? (
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             id={field.name}
             name={field.name}
             value={value}
@@ -113,7 +194,7 @@ const StepFlowInputStep = ({
           />
         ) : field?.type === 'select' ? (
           <select
-            ref={inputRef}
+            ref={selectRef}
             id={field?.name}
             name={field?.name}
             value={value}
@@ -122,7 +203,7 @@ const StepFlowInputStep = ({
             className={`typeform-select ${hasError ? 'error-input' : ''}`}
           >
             <option value="">{field?.placeholder || 'Bitte wählen...'}</option>
-            {field?.options?.map((opt) => (
+            {field?.options?.map((opt: FieldOption) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
@@ -183,7 +264,7 @@ const IMAGE_SOURCE_TABS = [
   { value: 'stock', label: 'Stock Bilder' }
 ];
 
-const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
+const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNext, onBack, direction }) => {
   const {
     uploadedImage,
     updateFormData,
@@ -194,12 +275,12 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
     resetStockImageState
   } = useImageStudioStore();
 
-  const fileInputRef = useRef(null);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(() =>
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragActive, setIsDragActive] = useState<boolean>(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(() =>
     uploadedImage ? URL.createObjectURL(uploadedImage) : null
   );
-  const isNewUploadRef = useRef(false);
+  const isNewUploadRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (uploadedImage) {
@@ -210,25 +291,25 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
     setPreviewUrl(null);
   }, [uploadedImage]);
 
-  const handleDragEnter = useCallback((e) => {
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(true);
   }, []);
 
-  const handleDragLeave = useCallback((e) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.currentTarget.contains(e.relatedTarget)) return;
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setIsDragActive(false);
   }, []);
 
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
-  const handleFileSelect = useCallback((file) => {
+  const handleFileSelect = useCallback((file: File | undefined) => {
     if (!file) return;
 
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
@@ -239,7 +320,7 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
     setTimeout(() => onNext(), 50);
   }, [updateFormData, onNext]);
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragActive(false);
@@ -248,7 +329,7 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
     handleFileSelect(file);
   }, [handleFileSelect]);
 
-  const handleFileInputChange = useCallback((e) => {
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     handleFileSelect(file);
     e.target.value = '';
@@ -267,7 +348,7 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
     setTimeout(() => onNext(), 50);
   }, [onNext]);
 
-  const handleTabChange = useCallback((tab) => {
+  const handleTabChange = useCallback((tab: 'upload' | 'stock' | 'unsplash') => {
     setImageSourceTab(tab);
   }, [setImageSourceTab]);
 
@@ -293,7 +374,7 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
           <div
             className={`typeform-upload-area ${isDragActive ? 'typeform-upload-area--active' : ''}`}
             onClick={handleUploadClick}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleUploadClick()}
+            onKeyDown={(e: React.KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && handleUploadClick()}
             role="button"
             tabIndex={0}
             aria-label="Bild hochladen"
@@ -403,7 +484,7 @@ const StepFlowImageUploadStep = ({ onNext, onBack, direction }) => {
   );
 };
 
-const StepFlow = ({ onBack: parentOnBack, onComplete, imageLimitData }) => {
+const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, imageLimitData }) => {
   const { handleChange, updateFormData, name } = useImageStudioStore();
   const { user } = useOptimizedAuth();
 

@@ -137,7 +137,7 @@ const ContentSelector = ({ disabled = false,
       {/* Selection Popup */}
       {isPopupOpen && (
         <div className="content-selector__popup-overlay" onClick={() => setIsPopupOpen(false)}>
-          <div className="content-selector__popup" onClick={(e) => e.stopPropagation()}>
+          <div className="content-selector__popup" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <div className="content-selector__popup-header">
               <h3>Inhalte auswählen</h3>
               <button

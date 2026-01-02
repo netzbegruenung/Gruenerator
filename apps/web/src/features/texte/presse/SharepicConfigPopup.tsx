@@ -43,7 +43,7 @@ const SharepicConfigPopup = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             <div className="sharepic-config-header">
               <h3>Sharepic konfigurieren</h3>

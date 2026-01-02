@@ -181,7 +181,8 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
   }
 
   // Zustand fallback controlled component
-  const value = useSimpleFormStore((state) => state.fields[String(name)] ?? defaultValue);
+  const rawValue = useSimpleFormStore((state) => state.fields[String(name)]);
+  const value = (rawValue as string) ?? defaultValue;
   const setField = useSimpleFormStore((state) => state.setField);
 
   return (
@@ -206,7 +207,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
           className={autoInputClassName}
           value={value}
           style={undefined}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             let newVal = e.target.value;
             if (autoFormat) {
               newVal = formatText(newVal, true);

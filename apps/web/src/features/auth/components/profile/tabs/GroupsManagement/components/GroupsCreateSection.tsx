@@ -1,4 +1,31 @@
 import { motion } from "motion/react";
+import type { Control } from 'react-hook-form';
+
+interface TabIndexConfig {
+    groupNameInput?: number;
+    createSubmitButton?: number;
+    createCancelButton?: number;
+}
+
+interface GroupsCreateSectionProps {
+    control: Control<{ groupName: string }>;
+    Input: React.ComponentType<{
+        name: string;
+        type: string;
+        label: string;
+        placeholder: string;
+        rules?: Record<string, unknown>;
+        disabled?: boolean;
+        control: Control<{ groupName: string }>;
+        tabIndex?: number;
+    }>;
+    isCreatingGroup: boolean;
+    isCreateGroupError: boolean;
+    createGroupError: Error | null;
+    onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+    onCancel: () => void;
+    tabIndex: TabIndexConfig;
+}
 
 const GroupsCreateSection = ({
     control,
@@ -9,7 +36,7 @@ const GroupsCreateSection = ({
     onSubmit,
     onCancel,
     tabIndex
-}) => {
+}: GroupsCreateSectionProps): React.ReactElement => {
     return (
         <motion.div
             className="group-create-container"

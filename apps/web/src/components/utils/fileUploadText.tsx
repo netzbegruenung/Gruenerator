@@ -2,7 +2,13 @@ import { useRef, useEffect } from 'react';
 import { FiUpload, FiFile } from 'react-icons/fi';
 import useTextFileUpload from '../hooks/useTextFileUpload';
 
-const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }) => {
+interface FileUploadTextProps {
+  onFileSelect?: (file: File) => void;
+  allowedTypes: string[];
+  maxSize: number;
+}
+
+const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }: FileUploadTextProps) => {
   console.log('FileUpload_Text wird gerendert');
 
   const {
@@ -17,7 +23,7 @@ const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }) => {
     handleDrop,
   } = useTextFileUpload(allowedTypes, maxSize);
 
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (file && onFileSelect) {
@@ -28,7 +34,7 @@ const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }) => {
 
   const handleClick = () => {
     console.log('Datei-Auswahl-Dialog geöffnet');
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
   };
 
   console.log('FileUpload_Text wird gerendert mit Zuständen:', {
@@ -48,7 +54,7 @@ const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }) => {
       <input
         type="file"
         ref={fileInputRef}
-        onChange={(e) => handleFileChange(e.target.files[0])}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(e.target.files?.[0] || null)}
         accept={allowedTypes.join(',')}
         style={{ display: 'none' }}
       />

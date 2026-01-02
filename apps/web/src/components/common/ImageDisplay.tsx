@@ -520,7 +520,7 @@ const ImageDisplay = ({ sharepicData,
               <>
                 <button
                   className="lightbox-nav lightbox-prev"
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     setActiveImageIndex(prev => (prev - 1 + sharepicItems.length) % sharepicItems.length);
                   }}
@@ -530,7 +530,7 @@ const ImageDisplay = ({ sharepicData,
                 </button>
                 <button
                   className="lightbox-nav lightbox-next"
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
                     setActiveImageIndex(prev => (prev + 1) % sharepicItems.length);
                   }}

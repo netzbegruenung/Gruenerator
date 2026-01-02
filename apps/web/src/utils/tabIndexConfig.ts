@@ -277,17 +277,25 @@ export const TAB_INDEX_CONFIG = {
     overviewButton: 1100,
     createNewLink: 1110,
     generatorNavButton: 1120, // Base for dynamic generator nav buttons
-    
+
     // Generator overview (1200-1299)
     generatorCard: 1200, // Base for generator cards
     openButton: 1210,
     deleteButton: 1220,
-    
+
     // Generator detail (1300-1399)
     manageDocsButton: 1300,
     documentSelector: 1310,
     removeDocButton: 1320,
     backButton: 1330
+  },
+
+  // Profile Page - Labor Tab
+  PROFILE_LABOR: {
+    // Main content (1100-1199)
+    featureToggle: 1100,
+    settingInput: 1110,
+    actionButton: 1120
   },
 
   // Home Page
@@ -303,16 +311,20 @@ export const TAB_INDEX_CONFIG = {
   }
 };
 
+type SectionName = 'FORM' | 'FEATURES' | 'SELECTORS' | 'CONDITIONAL' | 'ACTIONS' | 'PROFILE' | 'SPECIAL';
+type RangeName = keyof typeof TAB_INDEX_RANGES;
+type PageType = keyof typeof TAB_INDEX_CONFIG;
+
 // Helper functions for working with tabIndex values
 export const TabIndexHelpers = {
   /**
    * Get tabIndex by section and position (NEW - for 100-gap system)
-   * @param {string} section - The section name (FORM, FEATURES, SELECTORS, etc.)
-   * @param {number} position - Position within section (0-based, multiplied by 10)
-   * @returns {number} Calculated tabIndex value
+   * @param section - The section name (FORM, FEATURES, SELECTORS, etc.)
+   * @param position - Position within section (0-based, multiplied by 10)
+   * @returns Calculated tabIndex value
    */
-  getBySection: (section, position = 0) => {
-    const sectionStarts = {
+  getBySection: (section: SectionName, position = 0): number => {
+    const sectionStarts: Record<SectionName, number> = {
       FORM: 100,
       FEATURES: 400,
       SELECTORS: 500,
@@ -321,22 +333,22 @@ export const TabIndexHelpers = {
       PROFILE: 1000,
       SPECIAL: 2000
     };
-    
+
     if (!sectionStarts[section]) {
       console.warn(`Unknown section: ${section}`);
       return 100; // Default to form field range
     }
-    
+
     return sectionStarts[section] + (position * 10);
   },
 
   /**
    * Check if tabIndex is in valid range (NEW - for 100-gap system)
-   * @param {number} tabIndex - The tabIndex to check
-   * @param {string} rangeName - The range name from TAB_INDEX_RANGES
-   * @returns {boolean} Whether the index is in the specified range
+   * @param tabIndex - The tabIndex to check
+   * @param rangeName - The range name from TAB_INDEX_RANGES
+   * @returns Whether the index is in the specified range
    */
-  isInRange: (tabIndex, rangeName) => {
+  isInRange: (tabIndex: number, rangeName: RangeName): boolean => {
     const range = TAB_INDEX_RANGES[rangeName];
     if (!range) {
       console.warn(`Unknown range: ${rangeName}`);
@@ -347,30 +359,30 @@ export const TabIndexHelpers = {
 
   /**
    * Get tabIndex for conditional elements (AnimatePresence, etc.)
-   * @param {number} baseIndex - The base tabIndex value
-   * @param {boolean} isVisible - Whether the element is currently visible
-   * @returns {number|undefined} tabIndex value or undefined if not visible
+   * @param baseIndex - The base tabIndex value
+   * @param isVisible - Whether the element is currently visible
+   * @returns tabIndex value or undefined if not visible
    */
-  getConditional: (baseIndex, isVisible) => isVisible ? baseIndex : undefined,
+  getConditional: (baseIndex: number, isVisible: boolean): number | undefined => isVisible ? baseIndex : undefined,
 
   /**
    * Get sequential tabIndex values starting from a base (UPDATED for 100-gap system)
-   * @param {number} startIndex - Starting tabIndex value
-   * @param {number} count - Number of sequential values needed
-   * @returns {number[]} Array of sequential tabIndex values with 10-gaps
+   * @param startIndex - Starting tabIndex value
+   * @param count - Number of sequential values needed
+   * @returns Array of sequential tabIndex values with 10-gaps
    */
-  getSequential: (startIndex, count) => 
+  getSequential: (startIndex: number, count: number): number[] =>
     Array.from({ length: count }, (_, i) => startIndex + (i * 10)),
 
   /**
    * Get tabIndex for form elements with offset
-   * @param {string} pageType - The page type key from TAB_INDEX_CONFIG
-   * @param {string} elementKey - The element key within the page config
-   * @param {number} offset - Optional offset to add
-   * @returns {number} Calculated tabIndex value
+   * @param pageType - The page type key from TAB_INDEX_CONFIG
+   * @param elementKey - The element key within the page config
+   * @param offset - Optional offset to add
+   * @returns Calculated tabIndex value
    */
-  getWithOffset: (pageType, elementKey, offset = 0) => {
-    const config = TAB_INDEX_CONFIG[pageType];
+  getWithOffset: (pageType: PageType, elementKey: string, offset = 0): number => {
+    const config = TAB_INDEX_CONFIG[pageType] as Record<string, number>;
     if (!config || !config[elementKey]) {
       console.warn(`TabIndex not found for ${pageType}.${elementKey}`);
       return 100; // Default to form field range instead of 1
@@ -380,12 +392,12 @@ export const TabIndexHelpers = {
 
   /**
    * Validate that tabIndex values don't conflict with reserved ranges (UPDATED)
-   * @param {number} tabIndex - The tabIndex to validate
-   * @returns {boolean} Whether the tabIndex is valid
+   * @param tabIndex - The tabIndex to validate
+   * @returns Whether the tabIndex is valid
    */
-  isValidTabIndex: (tabIndex) => {
+  isValidTabIndex: (tabIndex: number): boolean => {
     // Check if it's in any of the defined ranges
-    return Object.values(TAB_INDEX_RANGES).some(range => 
+    return Object.values(TAB_INDEX_RANGES).some(range =>
       tabIndex >= range.start && tabIndex <= range.end
     );
   }

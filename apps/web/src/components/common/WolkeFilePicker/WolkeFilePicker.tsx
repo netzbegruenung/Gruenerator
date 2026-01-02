@@ -206,7 +206,7 @@ const WolkeFilePicker = ({
 
     if (shareLinksLoading) {
         return (
-            <div className="wolke-file-picker-overlay" onClick={(e) => {
+            <div className="wolke-file-picker-overlay" onClick={(e: React.MouseEvent) => {
                 if (e.target === e.currentTarget) onCancel();
             }}>
                 <div className="wolke-file-picker" onClick={e => e.stopPropagation()}>
@@ -227,7 +227,7 @@ const WolkeFilePicker = ({
 
     if (shareLinksError) {
         return (
-            <div className="wolke-file-picker-overlay" onClick={(e) => {
+            <div className="wolke-file-picker-overlay" onClick={(e: React.MouseEvent) => {
                 if (e.target === e.currentTarget) onCancel();
             }}>
                 <div className="wolke-file-picker" onClick={e => e.stopPropagation()}>
@@ -248,7 +248,7 @@ const WolkeFilePicker = ({
 
     if (shareLinks.length === 0) {
         return (
-            <div className="wolke-file-picker-overlay" onClick={(e) => {
+            <div className="wolke-file-picker-overlay" onClick={(e: React.MouseEvent) => {
                 if (e.target === e.currentTarget) onCancel();
             }}>
                 <div className="wolke-file-picker" onClick={e => e.stopPropagation()}>
@@ -334,7 +334,7 @@ const WolkeFilePicker = ({
                                 type="text"
                                 placeholder="Dateien durchsuchen..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                             />
                         </div>
 
@@ -439,7 +439,7 @@ const WolkeFilePicker = ({
     }
 
     return (
-        <div className="wolke-file-picker-overlay" onClick={(e) => {
+        <div className="wolke-file-picker-overlay" onClick={(e: React.MouseEvent) => {
             if (e.target === e.currentTarget) onCancel();
         }}>
             <div className="wolke-file-picker" onClick={e => e.stopPropagation()}>

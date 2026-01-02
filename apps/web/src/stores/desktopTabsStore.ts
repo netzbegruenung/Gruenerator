@@ -57,8 +57,8 @@ export const useDesktopTabsStore = create<TabsState & TabsActions>()(
   subscribeWithSelector(
     immer((set, get) => ({
       tabs: [initialTab],
-      activeTabId: initialTab.id,
-      draggedTabId: null,
+      activeTabId: initialTab.id as string | null,
+      draggedTabId: null as string | null,
       maxTabs: MAX_TABS,
 
       createTab: (route = DEFAULT_TAB_ROUTE, title = DEFAULT_TAB_TITLE) => {

@@ -169,7 +169,7 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
 };
 
 const MediaLibraryPage: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading } = useOptimizedAuth();
+  const { isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const {
     items,
     pagination,

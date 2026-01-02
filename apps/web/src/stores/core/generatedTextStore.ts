@@ -1,7 +1,66 @@
 import { create } from 'zustand';
 
+// Types for edit chat messages
+interface EditChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// Link configuration for vector documents
+interface LinkConfig {
+  type: 'vectorDocument' | 'none';
+  basePath?: string;
+  linkKey?: string;
+  titleKey?: string;
+}
+
+// Content type that can be stored (string or structured content with sharepic data)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const useGeneratedTextStore = create<any>((set, get) => ({
+type StoredContent = string | Record<string, any>;
+
+// Store state interface
+interface GeneratedTextStoreState {
+  // State - stores can contain strings or structured content (e.g., sharepic data)
+  generatedTexts: Record<string, StoredContent>;
+  generatedTextMetadata: Record<string, unknown | null>;
+  quillInstances: Record<string, unknown>;
+  editChats: Record<string, EditChatMessage[]>;
+  isLoading: boolean;
+  isStreaming: boolean;
+  history: Record<string, StoredContent[]>;
+  historyIndex: Record<string, number>;
+  maxHistorySize: number;
+
+  // Getters
+  getGeneratedText: (componentName: string) => string;
+  getGeneratedTextMetadata: (componentName: string) => unknown | null;
+  getLinkConfig: (componentName: string) => LinkConfig;
+  getQuillInstance: (componentName: string) => unknown | null;
+  getEditChat: (componentName: string) => EditChatMessage[];
+  canUndo: (componentName: string) => boolean;
+  canRedo: (componentName: string) => boolean;
+
+  // Setters - accepts string or structured content
+  setGeneratedText: (componentName: string, text: StoredContent, metadata?: unknown | null) => void;
+  setTextWithHistory: (componentName: string, text: StoredContent, metadata?: unknown | null) => void;
+  setGeneratedTextMetadata: (componentName: string, metadata: unknown) => void;
+  setIsLoading: (loading: boolean) => void;
+  setIsStreaming: (streaming: boolean) => void;
+  setQuillInstance: (componentName: string, instance: unknown) => void;
+  setEditChat: (componentName: string, messages: EditChatMessage[]) => void;
+
+  // Actions
+  clearGeneratedText: (componentName: string) => void;
+  clearAllGeneratedTexts: () => void;
+  clearEditChat: (componentName: string) => void;
+  updateText: (componentName: string, text: string) => void;
+  pushToHistory: (componentName: string) => void;
+  undo: (componentName: string) => void;
+  redo: (componentName: string) => void;
+  clearHistory: (componentName: string) => void;
+}
+
+const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
   // Store generated text by component/generator type
   generatedTexts: {},
   // Store metadata (like sources) by component type
@@ -21,10 +80,16 @@ const useGeneratedTextStore = create<any>((set, get) => ({
   maxHistorySize: 50, // Configurable history limit
   
   // Get generated text for a specific component
+  // Extracts string from stored content (handles both string and structured content)
   getGeneratedText: (componentName) => {
     const state = get();
-    const content = state.generatedTexts[componentName] || '';
-    return content;
+    const content = state.generatedTexts[componentName];
+    if (!content) return '';
+    if (typeof content === 'string') return content;
+    // Extract text from structured content
+    return (content as Record<string, unknown>).text as string
+      || (content as Record<string, unknown>).content as string
+      || '';
   },
   
   // Get metadata for a specific component
@@ -110,7 +175,7 @@ const useGeneratedTextStore = create<any>((set, get) => ({
 
   // Get link configuration for a specific component type
   getLinkConfig: (componentName) => {
-    const linkConfigs = {
+    const linkConfigs: Record<string, LinkConfig> = {
       'ask': {
         type: 'vectorDocument',
         basePath: '/documents',

@@ -13,6 +13,8 @@ import {
   openPlatformShare,
   hasPlatformShareUrl
 } from '../../utils/shareUtils';
+
+type SharePlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
 import '../../assets/styles/components/ui/button.css';
 import '../../assets/styles/components/common/sharepic-share-modal.css';
 
@@ -65,7 +67,7 @@ const SharepicShareModal = ({ isOpen,
 
   const platformTexts = useMemo(() => {
     if (!socialContent) return {};
-    const socialPlatforms = selectedPlatforms.filter(p => p !== 'sharepic' && p !== 'pressemitteilung');
+    const socialPlatforms = selectedPlatforms.filter(p => p !== 'sharepic' && p !== 'pressemitteilung') as SharePlatform[];
     const parsed = parsePlatformSections(socialContent, socialPlatforms);
     return parsed;
   }, [socialContent, selectedPlatforms]);
@@ -195,7 +197,7 @@ const SharepicShareModal = ({ isOpen,
 
   return (
     <div className="sharepic-share-overlay" onClick={handleOverlayClick}>
-      <div className="sharepic-share-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
+      <div className="sharepic-share-modal" ref={modalRef} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <div className="sharepic-share-header">
           <div className="sharepic-share-title">
             <IoShareOutline className="sharepic-share-icon" />

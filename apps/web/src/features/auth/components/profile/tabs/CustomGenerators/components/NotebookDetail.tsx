@@ -1,14 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from "motion/react";
 import { HiInformationCircle } from 'react-icons/hi';
+import type { UseQueryResult } from '@tanstack/react-query';
 
 // Common components
 import { ProfileIconButton, ProfileActionButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 import EditableDetailForm from '../../shared/EditableDetailForm';
 import useEditableDetail from '../../shared/useEditableDetail';
 import NotebookEditor from '../../../../../../notebook/components/NotebookEditor';
-import { handleError } from '../../../../../../../components/utils/errorHandling';
+import { handleError, type ErrorState } from '../../../../../../../components/utils/errorHandling';
 import NextcloudShareManager from '../../../../../../../utils/nextcloudShareManager';
+
+// Adapter to convert string-based error handler to SetErrorFn
+const createErrorAdapter = (onErrorMessage: (message: string) => void) => {
+    return (error: ErrorState | null): void => {
+        if (error) {
+            onErrorMessage(error.message || error.title || 'Ein Fehler ist aufgetreten');
+        }
+    };
+};
 
 // Import ProfileActionButton CSS
 import '../../../../../../../assets/styles/components/profile/profile-action-buttons.css';
@@ -17,7 +27,75 @@ import '../../../../../../../assets/styles/components/profile/profile-action-but
 import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 
-const NotebookDetail = ({
+// Type definitions
+interface WolkeShareLink {
+    id: string;
+    share_link?: string;
+    label?: string;
+}
+
+interface NotebookDocument {
+    id: string;
+    title?: string;
+    name?: string;
+}
+
+interface NotebookCollection {
+    id: string;
+    name?: string;
+    description?: string;
+    custom_prompt?: string;
+    selection_mode?: 'documents' | 'wolke';
+    wolke_share_links?: WolkeShareLink[];
+    documents?: NotebookDocument[];
+    document_count?: number;
+    created_at?: string;
+    view_count?: number;
+    last_accessed?: string;
+    auto_sync?: boolean;
+    remove_missing_on_sync?: boolean;
+    [key: string]: unknown;
+}
+
+interface WolkeLinkDetail {
+    id: string;
+    share_link?: string;
+    label?: string;
+}
+
+interface QAData {
+    name: string;
+    description?: string;
+    custom_prompt?: string;
+    selectionMode: 'documents' | 'wolke';
+    documents?: NotebookDocument[];
+    wolkeShareLinks?: WolkeShareLink[];
+    auto_sync?: boolean;
+    remove_missing_on_sync?: boolean;
+}
+
+interface AvailableDocument {
+    id: string;
+    title?: string;
+    name?: string;
+    filename?: string;
+}
+
+interface NotebookDetailProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    qaId: string;
+    onBack: () => void;
+    onViewQA: (qaId: string) => void;
+    notebookCollections: NotebookCollection[];
+    qaQuery?: {
+        query?: UseQueryResult<NotebookCollection[], Error>;
+    };
+    availableDocuments: AvailableDocument[];
+}
+
+const NotebookDetail: React.FC<NotebookDetailProps> = ({
     isActive,
     onSuccessMessage,
     onErrorMessage,
@@ -56,7 +134,7 @@ const NotebookDetail = ({
     });
 
     // Save handler for editing via QACreator (includes document or Wolke selection)
-    const handleSaveQAEdit = async (qaData) => {
+    const handleSaveQAEdit = async (qaData: QAData) => {
         onErrorMessage('');
         onSuccessMessage('');
         try {
@@ -73,7 +151,7 @@ const NotebookDetail = ({
             onSuccessMessage('Notebook erfolgreich aktualisiert.');
             editableDetail.cancelEdit();
         } catch (error) {
-            handleError(error, onErrorMessage);
+            handleError(error, createErrorAdapter(onErrorMessage));
         }
     };
 
@@ -85,14 +163,14 @@ const NotebookDetail = ({
             // Refresh collections list silently
             qaQuery?.query?.refetch && qaQuery.query.refetch();
         } catch (error) {
-            handleError(error, onErrorMessage);
+            handleError(error, createErrorAdapter(onErrorMessage));
         }
     };
 
     // Wolke link details (for display)
-    const [wolkeLinksDetails, setWolkeLinksDetails] = useState([]);
-    const [wolkeLoading, setWolkeLoading] = useState(false);
-    const [wolkeError, setWolkeError] = useState('');
+    const [wolkeLinksDetails, setWolkeLinksDetails] = useState<WolkeLinkDetail[]>([]);
+    const [wolkeLoading, setWolkeLoading] = useState<boolean>(false);
+    const [wolkeError, setWolkeError] = useState<string>('');
 
     useEffect(() => {
         let cancelled = false;
@@ -110,8 +188,8 @@ const NotebookDetail = ({
             try {
                 setWolkeLoading(true);
                 setWolkeError('');
-                const ids = qa.wolke_share_links.map(l => l.id);
-                const results = await Promise.allSettled(ids.map(id => NextcloudShareManager.getShareLinkById(id)));
+                const ids = qa.wolke_share_links.map((l: WolkeShareLink) => l.id);
+                const results = await Promise.allSettled(ids.map((id: string) => NextcloudShareManager.getShareLinkById(id)));
                 if (cancelled) return;
                 const details = results
                     .map(r => (r.status === 'fulfilled' ? r.value : null))
@@ -127,7 +205,7 @@ const NotebookDetail = ({
         }
         loadWolkeLinks();
         return () => { cancelled = true; };
-    }, [qa?.id, qa?.selection_mode, Array.isArray(qa?.wolke_share_links) ? qa.wolke_share_links.map(l => l.id).join(',') : '']);
+    }, [qa?.id, qa?.selection_mode, Array.isArray(qa?.wolke_share_links) ? qa.wolke_share_links.map((l: WolkeShareLink) => l.id).join(',') : '']);
 
     // Handle delete QA
     const handleDeleteQA = async () => {
@@ -305,7 +383,7 @@ const NotebookDetail = ({
                             <div>
                                 <h4>Verwendete Dokumente</h4>
                                 <div className="qa-documents-list">
-                                    {qa.documents.map((doc, index) => (
+                                    {qa.documents.map((doc: NotebookDocument, index: number) => (
                                         <div key={doc.id || index} className="qa-document-item">
                                             <HiInformationCircle className="document-icon" />
                                             <span>{doc.title || doc.name || `Dokument ${index + 1}`}</span>

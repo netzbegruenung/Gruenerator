@@ -15,16 +15,44 @@ interface FilterDropdownButtonProps {
   className?: string;
 }
 
+interface NormalizedCollection {
+  id?: string;
+  name?: string | null;
+}
+
+interface FilterValueItem {
+  value: string;
+  count?: number;
+}
+
+interface FilterField {
+  field: string;
+  label: string;
+  type: string;
+  values: (string | FilterValueItem)[];
+  min?: unknown;
+  max?: unknown;
+  activeValue?: string[] | { date_from?: string; date_to?: string } | null;
+}
+
+interface FilterGroup {
+  collectionId?: string;
+  collectionName?: string | null;
+  loading: boolean;
+  fields: FilterField[];
+}
+
 const FilterDropdownButton = ({ collectionId,
     collectionIds,
     collections,
     disabled = false,
     className = '' }: FilterDropdownButtonProps): JSX.Element => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [expandedCollections, setExpandedCollections] = useState({});
-    const dropdownRef = useRef(null);
+    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [expandedCollections, setExpandedCollections] = useState<Record<string, boolean>>({});
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const toggleCollection = (collectionId) => {
+    const toggleCollection = (collectionId: string | undefined): void => {
+        if (!collectionId) return;
         setExpandedCollections(prev => ({
             ...prev,
             [collectionId]: !prev[collectionId]
@@ -43,15 +71,15 @@ const FilterDropdownButton = ({ collectionId,
         activeFilters
     } = useNotebookStore();
 
-    const normalizedCollections = useMemo(() => {
+    const normalizedCollections = useMemo((): NormalizedCollection[] => {
         if (collections && collections.length > 0) {
             return collections;
         }
         if (collectionIds && collectionIds.length > 0) {
-            return collectionIds.map(id => ({ id, name: null }));
+            return collectionIds.map(id => ({ id, name: null as string | null }));
         }
         if (collectionId) {
-            return [{ id: collectionId, name: null }];
+            return [{ id: collectionId, name: null as string | null }];
         }
         return [];
     }, [collectionId, collectionIds, collections]);
@@ -67,8 +95,8 @@ const FilterDropdownButton = ({ collectionId,
     }, [normalizedCollections, fetchFilterValues]);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        const handleClickOutside = (event: MouseEvent): void => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         };
@@ -90,8 +118,8 @@ const FilterDropdownButton = ({ collectionId,
         return count;
     }, [normalizedCollections, getFiltersForCollection, activeFilters]);
 
-    const filterGroups = useMemo(() => {
-        const groups = [];
+    const filterGroups = useMemo((): FilterGroup[] => {
+        const groups: FilterGroup[] = [];
         normalizedCollections.forEach(collection => {
             const filterValues = getFilterValuesForCollection(collection.id);
             const loading = isLoadingFilters(collection.id);
@@ -109,7 +137,7 @@ const FilterDropdownButton = ({ collectionId,
             if (!filterValues) return;
 
             const collectionActiveFilters = getFiltersForCollection(collection.id);
-            const fields = Object.entries(filterValues as Record<string, { label?: string; type?: string; values?: unknown[]; min?: unknown; max?: unknown }>)
+            const fields: FilterField[] = Object.entries(filterValues as Record<string, { label?: string; type?: string; values?: (string | FilterValueItem)[]; min?: unknown; max?: unknown }>)
                 .map(([field, config]) => ({
                     field,
                     label: config.label || field,
@@ -117,7 +145,7 @@ const FilterDropdownButton = ({ collectionId,
                     values: config.values || [],
                     min: config.min,
                     max: config.max,
-                    activeValue: collectionActiveFilters[field]
+                    activeValue: collectionActiveFilters[field] as FilterField['activeValue']
                 }))
                 .filter(group => group.type === 'date_range' || group.values.length > 0);
 
@@ -133,7 +161,7 @@ const FilterDropdownButton = ({ collectionId,
         return groups;
     }, [normalizedCollections, filterValuesCache, loadingFilters, activeFilters, getFilterValuesForCollection, getFiltersForCollection, isLoadingFilters]);
 
-    const handleChipClick = (collectionIdParam, field, value) => {
+    const handleChipClick = (collectionIdParam: string | undefined, field: string, value: string | { date_from?: string; date_to?: string }): void => {
         setActiveFilter(collectionIdParam, field, value);
     };
 
@@ -195,8 +223,8 @@ const FilterDropdownButton = ({ collectionId,
                     </div>
                     <div className="notebook-filter-dropdown-content">
                         {filterGroups.map((group, groupIndex) => {
-                            const isExpanded = expandedCollections[group.collectionId] === true;
-                            const hasActiveFilters = group.fields?.some(f => f.activeValue);
+                            const isExpanded = group.collectionId ? expandedCollections[group.collectionId] === true : false;
+                            const hasActiveFilters = group.fields?.some((f: FilterField) => f.activeValue);
 
                             return (
                                 <div key={group.collectionId || groupIndex} className="notebook-filter-dropdown-collection">
@@ -223,28 +251,31 @@ const FilterDropdownButton = ({ collectionId,
                                                     <div className="notebook-filter-skeleton-chip" />
                                                 </div>
                                             ) : (
-                                                group.fields.map(({ field, label, type, values, min, max, activeValue }) => (
+                                                group.fields.map(({ field, label, type, values, min, max, activeValue }: FilterField) => {
+                                                    const dateActiveValue = activeValue as { date_from?: string; date_to?: string } | undefined;
+                                                    const arrayActiveValue = activeValue as string[] | undefined;
+                                                    return (
                                                     <div key={`${group.collectionId}-${field}`} className="notebook-filter-group">
                                                         {type === 'date_range' ? (
                                                             <DateRangeFilter
                                                                 label={label}
                                                                 min={min}
                                                                 max={max}
-                                                                dateFrom={activeValue?.date_from}
-                                                                dateTo={activeValue?.date_to}
-                                                                onDateFromChange={(value) => handleChipClick(group.collectionId, field, { date_from: value, date_to: activeValue?.date_to })}
-                                                                onDateToChange={(value) => handleChipClick(group.collectionId, field, { date_from: activeValue?.date_from, date_to: value })}
+                                                                dateFrom={dateActiveValue?.date_from}
+                                                                dateTo={dateActiveValue?.date_to}
+                                                                onDateFromChange={(value: string) => handleChipClick(group.collectionId, field, { date_from: value, date_to: dateActiveValue?.date_to })}
+                                                                onDateToChange={(value: string) => handleChipClick(group.collectionId, field, { date_from: dateActiveValue?.date_from, date_to: value })}
                                                                 onClear={() => setActiveFilter(group.collectionId, field, null)}
                                                             />
                                                         ) : (
                                                             <>
                                                                 <span className="notebook-filter-group-label">{label}</span>
                                                                 <div className="notebook-filter-chips">
-                                                                    {values.map(item => {
+                                                                    {values.map((item: string | FilterValueItem) => {
                                                                         const isObject = typeof item === 'object' && item !== null;
-                                                                        const displayValue = isObject ? item.value : item;
-                                                                        const count = isObject ? item.count : null;
-                                                                        const isActive = activeValue?.includes(displayValue);
+                                                                        const displayValue = isObject ? (item as FilterValueItem).value : item as string;
+                                                                        const count = isObject ? (item as FilterValueItem).count : null;
+                                                                        const isActive = arrayActiveValue?.includes(displayValue);
                                                                         return (
                                                                             <button
                                                                                 key={displayValue}
@@ -254,7 +285,7 @@ const FilterDropdownButton = ({ collectionId,
                                                                             >
                                                                                 {isActive && <HiCheck className="notebook-filter-chip-check" />}
                                                                                 <span>{displayValue}</span>
-                                                                                {count !== null && (
+                                                                                {count !== null && count !== undefined && (
                                                                                     <span className="notebook-filter-chip-count">({count})</span>
                                                                                 )}
                                                                             </button>
@@ -264,7 +295,7 @@ const FilterDropdownButton = ({ collectionId,
                                                             </>
                                                         )}
                                                     </div>
-                                                ))
+                                                )})
                                             )}
                                         </div>
                                     )}

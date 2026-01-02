@@ -1,9 +1,11 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { GiHedgehog } from 'react-icons/gi';
+import { IconType } from 'react-icons';
 import { NotebookIcon, getIcon } from '../../../../../../config/icons';
 import FeatureToggle from '../../../../../../components/common/FeatureToggle';
 import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
-import { useAuthStore } from '../../../../../../stores/authStore';
+import { useAuthStore, SupportedLocale } from '../../../../../../stores/authStore';
 import {
     HiOutlineExternalLink,
     HiOutlineDatabase,
@@ -14,11 +16,34 @@ import {
     HiOutlineChat
 } from 'react-icons/hi';
 
-const LocaleSelector = () => {
+interface SettingsSectionProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    igelActive: boolean;
+    onToggleIgelModus: (checked: boolean) => void;
+    isBetaFeaturesUpdating: boolean;
+}
+
+interface BetaFeatureUIConfig {
+    title: string;
+    description: string;
+    checked: boolean;
+    setter: (value: boolean) => Promise<void>;
+    featureName: string;
+    checkboxLabel: string;
+    linkTo?: string;
+    linkText?: string;
+    icon: IconType | React.ComponentType;
+}
+
+type BetaViewKey = typeof BETA_VIEWS[keyof typeof BETA_VIEWS];
+
+const LocaleSelector: React.FC = () => {
     const { locale, updateLocale } = useAuthStore();
 
-    const handleLocaleChange = async (event) => {
-        const newLocale = event.target.value;
+    const handleLocaleChange = async (event: React.ChangeEvent<HTMLSelectElement>): Promise<void> => {
+        const newLocale = event.target.value as SupportedLocale;
         const success = await updateLocale(newLocale);
         if (!success) {
             console.error('Failed to update locale');
@@ -55,7 +80,7 @@ const BETA_VIEWS = {
     VIDEO_EDITOR: 'videoEditor',
 };
 
-const SettingsSection = ({
+const SettingsSection: React.FC<SettingsSectionProps> = ({
     isActive,
     onSuccessMessage,
     onErrorMessage,
@@ -70,14 +95,14 @@ const SettingsSection = ({
         isAdmin
     } = useBetaFeatures();
 
-    const getBetaFeatureConfig = (viewKey) => {
+    const getBetaFeatureConfig = (viewKey: BetaViewKey): BetaFeatureUIConfig | null => {
         switch (viewKey) {
             case BETA_VIEWS.DATABASE:
                 return {
                     title: 'Texte & Vorlagen',
                     description: 'Zugang zur Datenbank mit Texten und Vorlagen für deine Arbeit.',
                     checked: getBetaFeatureState('database'),
-                    setter: (value) => updateUserBetaFeatures('database', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('database', value),
                     featureName: 'Datenbank',
                     checkboxLabel: '\'Texte & Vorlagen\'-Tab (Datenbank) anzeigen und Funktionalität aktivieren',
                     linkTo: '/datenbank',
@@ -89,7 +114,7 @@ const SettingsSection = ({
                     title: 'Kollaborative Bearbeitung',
                     description: 'Arbeite in Echtzeit mit anderen an Dokumenten und Texten.',
                     checked: getBetaFeatureState('collab'),
-                    setter: (value) => updateUserBetaFeatures('collab', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('collab', value),
                     featureName: 'Kollaborative Bearbeitung',
                     checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
                     icon: HiOutlineUsers
@@ -99,7 +124,7 @@ const SettingsSection = ({
                     title: 'Notebooks',
                     description: 'Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
                     checked: getBetaFeatureState('notebook'),
-                    setter: (value) => updateUserBetaFeatures('notebook', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('notebook', value),
                     featureName: 'Notebooks',
                     checkboxLabel: 'Notebooks aktivieren',
                     icon: NotebookIcon
@@ -109,7 +134,7 @@ const SettingsSection = ({
                     title: 'Canva Integration',
                     description: 'Erweiterte Canva-Integration mit Zugriff auf deine Designs, Vorlagen und Assets. Synchronisiere deine Canva-Inhalte und nutze sie direkt in der Grünerator-Plattform.',
                     checked: getBetaFeatureState('canva'),
-                    setter: (value) => updateUserBetaFeatures('canva', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('canva', value),
                     featureName: 'Canva Integration',
                     checkboxLabel: 'Canva-Tab in Texte & Grafik anzeigen und Funktionalität aktivieren',
                     icon: HiOutlinePhotograph
@@ -119,7 +144,7 @@ const SettingsSection = ({
                     title: 'Auto-Speichern bei Export',
                     description: 'Speichere jeden Export (PDF, DOCX, Etherpad, Wolke, Kopieren) automatisch in deiner Textbibliothek. Verhindert doppelte Speicherungen innerhalb der gleichen Sitzung.',
                     checked: getBetaFeatureState('autoSaveOnExport'),
-                    setter: (value) => updateUserBetaFeatures('autoSaveOnExport', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('autoSaveOnExport', value),
                     featureName: 'Auto-Speichern bei Export',
                     checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
                     icon: HiSave
@@ -129,7 +154,7 @@ const SettingsSection = ({
                     title: 'KI-Sharepic',
                     description: 'KI-gestützte Sharepic-Erstellung aus natürlicher Sprache. Beschreibe einfach, was du möchtest, und die KI erstellt automatisch das passende Sharepic.',
                     checked: getBetaFeatureState('aiSharepic'),
-                    setter: (value) => updateUserBetaFeatures('aiSharepic', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('aiSharepic', value),
                     featureName: 'KI-Sharepic',
                     checkboxLabel: 'KI-Sharepic im Image Studio aktivieren',
                     linkTo: '/image-studio',
@@ -141,7 +166,7 @@ const SettingsSection = ({
                     title: 'Grünerator Chat',
                     description: 'Interaktiver Chat-Assistent für direkte Gespräche mit dem Grünerator. Stelle Fragen und erhalte KI-gestützte Antworten.',
                     checked: getBetaFeatureState('chat'),
-                    setter: (value) => updateUserBetaFeatures('chat', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('chat', value),
                     featureName: 'Grünerator Chat',
                     checkboxLabel: 'Grünerator Chat aktivieren',
                     linkTo: '/chat',
@@ -153,7 +178,7 @@ const SettingsSection = ({
                     title: 'Gruppen',
                     description: 'Erstelle und verwalte Gruppen für gemeinsames Arbeiten. Teile Anweisungen, Wissen und Inhalte mit deinem Team oder Verband.',
                     checked: getBetaFeatureState('groups'),
-                    setter: (value) => updateUserBetaFeatures('groups', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('groups', value),
                     featureName: 'Gruppen',
                     checkboxLabel: 'Gruppen-Tab im Profil anzeigen und Funktionalität aktivieren',
                     linkTo: '/profile/groups',
@@ -165,7 +190,7 @@ const SettingsSection = ({
                     title: 'Website Generator',
                     description: 'Generiere JSON-Inhalte für WordPress Landing Pages. Ideal für Kandidat*innen, die eine professionelle politische Website erstellen möchten.',
                     checked: getBetaFeatureState('website'),
-                    setter: (value) => updateUserBetaFeatures('website', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('website', value),
                     featureName: 'Website Generator',
                     checkboxLabel: 'Website Generator aktivieren',
                     linkTo: '/website',
@@ -177,7 +202,7 @@ const SettingsSection = ({
                     title: 'Vorlagen & Galerie',
                     description: 'Zugang zu deinen persönlichen Vorlagen und der öffentlichen Vorlagen-Galerie.',
                     checked: getBetaFeatureState('vorlagen'),
-                    setter: (value) => updateUserBetaFeatures('vorlagen', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('vorlagen', value),
                     featureName: 'Vorlagen & Galerie',
                     checkboxLabel: 'Meine Vorlagen und Vorlagen-Galerie aktivieren',
                     linkTo: '/profile/inhalte/vorlagen',
@@ -189,7 +214,7 @@ const SettingsSection = ({
                     title: 'Video Editor',
                     description: 'Volle Video-Bearbeitung im Reel-Studio: Video schneiden, Text-Overlays und Untertitel.',
                     checked: getBetaFeatureState('videoEditor'),
-                    setter: (value) => updateUserBetaFeatures('videoEditor', value),
+                    setter: (value: boolean) => updateUserBetaFeatures('videoEditor', value),
                     featureName: 'Video Editor',
                     checkboxLabel: 'Volle Video-Bearbeitung im Reel-Studio aktivieren',
                     linkTo: '/reel',

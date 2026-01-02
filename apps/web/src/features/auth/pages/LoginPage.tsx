@@ -19,7 +19,7 @@ const LOGIN_PROVIDERS = {
 };
 
 // Helper function to extract page name from pathname for context
-const getPageName = (pathname, t) => {
+const getPageName = (pathname: string, t: (key: string) => string): string => {
   const pathSegments = pathname.split('/').filter(Boolean);
   if (pathSegments.length === 0) return t('pages.this_page');
 
@@ -80,7 +80,7 @@ const LoginPage = ({ mode = 'standalone',
   // Handle ESC key to close modal
   useEffect(() => {
     if (mode === 'required') {
-      const handleEsc = (event) => {
+      const handleEsc = (event: KeyboardEvent) => {
         if (event.keyCode === 27) {
           handleClose();
         }

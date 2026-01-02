@@ -7,10 +7,19 @@ import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
 const ContentManagementView = lazy(() => import('./ContentManagementView'));
 
 // Loading fallback component
-const ContentManagementLoadingFallback = () => (
+const ContentManagementLoadingFallback = (): React.ReactElement => (
     <div className="profile-tab-loading">
     </div>
 );
+
+interface ContentManagementTabContainerProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    initialTab?: string;
+    canvaSubsection?: string;
+    onTabChange?: (tab: string, subsection?: string) => void;
+}
 
 const ContentManagementTabContainer = ({
     isActive,
@@ -19,7 +28,7 @@ const ContentManagementTabContainer = ({
     initialTab = 'inhalte',
     canvaSubsection = 'overview',
     onTabChange
-}) => {
+}: ContentManagementTabContainerProps): React.ReactElement => {
     const { user } = useOptimizedAuth();
 
     // Early return for non-authenticated users

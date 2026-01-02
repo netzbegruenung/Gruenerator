@@ -1,10 +1,22 @@
 import { HiInformationCircle } from 'react-icons/hi';
 import WolkeShareLinkManager from '../../../../../../../../features/wolke/components/WolkeShareLinkManager';
 
+interface WolkePermissions {
+    canAddLinks?: boolean;
+    canDeleteLinks?: boolean;
+    canSync?: boolean;
+    isAdmin?: boolean;
+}
+
+interface GroupWolkeSectionProps {
+    isAdmin: boolean;
+    permissions?: WolkePermissions;
+}
+
 const GroupWolkeSection = ({
     isAdmin,
     permissions
-}) => {
+}: GroupWolkeSectionProps): React.ReactElement => {
     return (
         <>
             {/* Read-only notification for non-admin members */}
@@ -21,10 +33,8 @@ const GroupWolkeSection = ({
             )}
 
             <div className="group-content-card">
-                <WolkeShareLinkManager
-                    useStore={true}
-                    readOnly={!permissions.canAddLinks || !permissions.canDeleteLinks}
-                />
+                {/* WolkeShareLinkManager gets permissions from the store when useStore=true */}
+                <WolkeShareLinkManager useStore={true} />
             </div>
         </>
     );

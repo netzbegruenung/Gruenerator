@@ -63,7 +63,16 @@ interface Site {
 
 interface NotebookCollection {
     id: string;
-    name: string;
+    name?: string;
+    [key: string]: unknown;
+}
+
+interface AvailableDocument {
+    id: string;
+    title?: string;
+    name?: string;
+    filename?: string;
+    [key: string]: unknown;
 }
 
 const CustomGeneratorsView = ({
@@ -256,7 +265,7 @@ const CustomGeneratorsView = ({
             setSite(response.data.site);
             setView('site-view');
             onSuccessMessage('Site erfolgreich erstellt!');
-        } catch (err: unknown) {
+        } catch (err) {
             const axiosError = err as { response?: { data?: { error?: string } } };
             onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Erstellen der Site');
             throw err;
@@ -269,7 +278,7 @@ const CustomGeneratorsView = ({
             setSite(response.data.site);
             setView('site-view');
             onSuccessMessage('Site erfolgreich aktualisiert!');
-        } catch (err: unknown) {
+        } catch (err) {
             const axiosError = err as { response?: { data?: { error?: string } } };
             onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Aktualisieren der Site');
             throw err;
@@ -342,8 +351,13 @@ const CustomGeneratorsView = ({
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
                         onNotebookSelect={handleNotebookSelect}
-                        notebookCollections={notebookCollections}
-                        qaQuery={qaQuery}
+                        notebookCollections={notebookCollections as NotebookCollection[]}
+                        qaQuery={{
+                            isLoading: qaQuery.query?.isLoading,
+                            data: qaQuery.query?.data as NotebookCollection[] | undefined,
+                            error: qaQuery.query?.error,
+                            refetch: qaQuery.query?.refetch
+                        }}
                     />
                 );
 
@@ -388,9 +402,11 @@ const CustomGeneratorsView = ({
                         qaId={selectedQAId}
                         onBack={handleBackToNotebooks}
                         onViewQA={handleViewQA}
-                        notebookCollections={notebookCollections}
-                        qaQuery={qaQuery}
-                        availableDocuments={availableDocuments.data}
+                        notebookCollections={notebookCollections as NotebookCollection[]}
+                        qaQuery={{
+                            query: qaQuery.query as import('@tanstack/react-query').UseQueryResult<NotebookCollection[], Error>
+                        }}
+                        availableDocuments={(Array.isArray(availableDocuments.data) ? availableDocuments.data : []) as AvailableDocument[]}
                     />
                 );
 
@@ -412,7 +428,7 @@ const CustomGeneratorsView = ({
                         onCancel={handleBackToNotebooks}
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
-                        availableDocuments={Array.isArray(availableDocuments.data) ? availableDocuments.data : []}
+                        availableDocuments={(Array.isArray(availableDocuments.data) ? availableDocuments.data : []) as AvailableDocument[]}
                     />
                 );
 
