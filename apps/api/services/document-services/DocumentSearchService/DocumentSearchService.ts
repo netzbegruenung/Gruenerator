@@ -16,7 +16,7 @@ import { BaseSearchService } from '../../BaseSearchService/index.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 // @ts-ignore - JavaScript module without types
-import { InputValidator } from '../../../utils/inputValidation.js';
+import { InputValidator } from '../../../utils/validation/index.js';
 // @ts-ignore - JavaScript module without types
 import { vectorConfig } from '../../../config/vectorConfig.js';
 // @ts-ignore - JavaScript module without types

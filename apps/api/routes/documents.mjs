@@ -7,9 +7,9 @@ import {
   getDocumentProcessingService,
   getDocumentContentService
 } from '../services/document-services/index.js';
-import { getWolkeSyncService } from '../services/wolkeSyncService.js';
+import { getWolkeSyncService } from '../services/sync/index.js';
 import path from 'path';
-import passport from '../config/passportSetup.mjs';
+import passport from '../config/passportSetup.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('documents');
 

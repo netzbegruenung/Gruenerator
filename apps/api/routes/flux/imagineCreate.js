@@ -2,11 +2,11 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { FluxImageService } from '../../services/flux/index.js';
-import ImageGenerationCounter from '../../utils/imageGenerationCounter.js';
-import redisClient from '../../utils/redisClient.js';
+import { ImageGenerationCounter } from '../../services/counters/index.js';
+import redisClient from '../../utils/redis/index.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
-import { composeImagineCreate, FLUX_WIDTH, FLUX_HEIGHT } from '../../services/imagineCanvasService.js';
+import { composeImagineCreate, FLUX_WIDTH, FLUX_HEIGHT } from '../../services/image/ImagineCanvasRenderer.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imagineCreate');

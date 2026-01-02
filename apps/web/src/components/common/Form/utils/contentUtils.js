@@ -28,7 +28,6 @@ export const getBaseContainerClasses = ({
   const classes = [
     'base-container',
     isEditing ? 'editing-mode' : '',
-    title === "Grünerator Antragscheck" ? 'antragsversteher-base' : '',
     generatedContent && (
       typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
     ) ? 'has-generated-content' : '',

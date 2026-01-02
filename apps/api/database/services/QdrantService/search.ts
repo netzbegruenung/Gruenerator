@@ -235,6 +235,8 @@ function buildDocumentFilter(options: DocumentSearchOptions): QdrantFilter | und
 
 /**
  * Search for similar documents using vector similarity
+ * @deprecated Use QdrantService.searchDocuments() or QdrantOperations.searchWithQuality()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collection - Collection name to search in
  * @param queryVector - Query embedding vector
@@ -247,6 +249,7 @@ export async function searchDocuments(
     queryVector: number[],
     options: DocumentSearchOptions = {}
 ): Promise<SearchResponse<SearchResult>> {
+    logger.warn('[DEPRECATED] searchDocuments() in search.ts is deprecated. Use QdrantService.searchDocuments() instead.');
     try {
         const {
             limit = 10,
@@ -288,6 +291,8 @@ export async function searchDocuments(
 
 /**
  * Search grundsatz documents
+ * @deprecated Use QdrantService.searchGrundsatzDocuments()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collections - Collections object with collection names
  * @param queryVector - Query embedding vector
@@ -300,11 +305,14 @@ export async function searchGrundsatzDocuments(
     queryVector: number[],
     options: DocumentSearchOptions = {}
 ): Promise<SearchResponse<SearchResult>> {
+    logger.warn('[DEPRECATED] searchGrundsatzDocuments() in search.ts is deprecated. Use QdrantService.searchGrundsatzDocuments() instead.');
     return await searchDocuments(client, collections.grundsatz_documents, queryVector, options);
 }
 
 /**
  * Search bundestag documents
+ * @deprecated Use QdrantService.searchBundestagDocuments()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collections - Collections object with collection names
  * @param queryVector - Query embedding vector
@@ -317,11 +325,14 @@ export async function searchBundestagDocuments(
     queryVector: number[],
     options: DocumentSearchOptions = {}
 ): Promise<SearchResponse<SearchResult>> {
+    logger.warn('[DEPRECATED] searchBundestagDocuments() in search.ts is deprecated. Use QdrantService.searchBundestagDocuments() instead.');
     return await searchDocuments(client, collections.bundestag_content, queryVector, options);
 }
 
 /**
  * Search gruene.de documents
+ * @deprecated Use QdrantService.searchGrueneDeDocuments()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collections - Collections object with collection names
  * @param queryVector - Query embedding vector
@@ -334,11 +345,14 @@ export async function searchGrueneDeDocuments(
     queryVector: number[],
     options: DocumentSearchOptions = {}
 ): Promise<SearchResponse<SearchResult>> {
+    logger.warn('[DEPRECATED] searchGrueneDeDocuments() in search.ts is deprecated. Use QdrantService.searchGrueneDeDocuments() instead.');
     return await searchDocuments(client, collections.gruene_de_documents, queryVector, options);
 }
 
 /**
  * Search gruene.at documents
+ * @deprecated Use QdrantService.searchGrueneAtDocuments()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collections - Collections object with collection names
  * @param queryVector - Query embedding vector
@@ -351,11 +365,14 @@ export async function searchGrueneAtDocuments(
     queryVector: number[],
     options: DocumentSearchOptions = {}
 ): Promise<SearchResponse<SearchResult>> {
+    logger.warn('[DEPRECATED] searchGrueneAtDocuments() in search.ts is deprecated. Use QdrantService.searchGrueneAtDocuments() instead.');
     return await searchDocuments(client, collections.gruene_at_documents, queryVector, options);
 }
 
 /**
  * Search content examples using vector similarity
+ * @deprecated Use QdrantService.searchContentExamples() or QdrantOperations.searchWithQuality()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collection - Collection name
  * @param queryVector - Query embedding vector
@@ -368,6 +385,7 @@ export async function searchContentExamples(
     queryVector: number[],
     options: ContentExampleSearchOptions = {}
 ): Promise<SearchResponse<ContentExampleResult>> {
+    logger.warn('[DEPRECATED] searchContentExamples() in search.ts is deprecated. Use QdrantService.searchContentExamples() instead.');
     try {
         const { limit = 10, threshold = 0.3 } = options;
         const filter = buildContentExampleFilter(options);
@@ -413,6 +431,8 @@ export async function searchContentExamples(
 
 /**
  * Search social media examples with platform and country filtering (multitenancy)
+ * @deprecated Use QdrantService.searchSocialMediaExamples() or QdrantOperations.searchWithQuality()
+ * This function will be removed in the next release.
  * @param client - Qdrant client instance
  * @param collection - Collection name
  * @param queryVector - Query embedding vector
@@ -425,6 +445,7 @@ export async function searchSocialMediaExamples(
     queryVector: number[],
     options: SocialMediaSearchOptions = {}
 ): Promise<SearchResponse<SocialMediaResult>> {
+    logger.warn('[DEPRECATED] searchSocialMediaExamples() in search.ts is deprecated. Use QdrantService.searchSocialMediaExamples() instead.');
     try {
         const { limit = 10, threshold = 0.3 } = options;
         const filter = buildSocialMediaFilter(options);

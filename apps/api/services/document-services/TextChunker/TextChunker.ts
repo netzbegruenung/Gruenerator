@@ -3,7 +3,7 @@
  * Provides smart chunking with page markers, sentence alignment, and structure awareness
  */
 
-import { cleanTextForEmbedding } from '../../../utils/textCleaning.js';
+import { cleanTextForEmbedding } from '../../text/index.js';
 import { LangChainChunker } from './langchainIntegration.js';
 import { hierarchicalChunkDocument } from './structureAwareChunking.js';
 import { splitTextByPageMarkers, buildPageRangesFromRaw } from './pageMarkerProcessing.js';

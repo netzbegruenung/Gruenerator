@@ -6,7 +6,7 @@ const router = express.Router();
 import { markdownToHtml, 
   markdownToPlainText, 
   markdownForExport, 
-  isMarkdownContent } from '../utils/markdownService.js';
+  isMarkdownContent } from '../services/markdown/index.js';
 
 /**
  * POST /api/markdown/to-html

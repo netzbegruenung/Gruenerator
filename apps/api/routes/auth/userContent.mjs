@@ -1,12 +1,12 @@
 import express from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getProfileService } from '../../services/ProfileService.mjs';
-import { getUserKnowledgeService } from '../../services/userKnowledgeService.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
+import { getKnowledgeService as getUserKnowledgeService } from '../../services/user/KnowledgeService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
 import { mistralEmbeddingService } from '../../services/mistral/index.js';
-import { smartChunkDocument } from '../../services/document-services/textChunker.js';
+import { smartChunkDocument } from '../../services/document-services/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('userContent');
 

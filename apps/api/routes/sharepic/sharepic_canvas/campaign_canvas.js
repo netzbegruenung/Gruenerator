@@ -9,8 +9,8 @@ const router = express.Router();
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
 import fs from 'fs';
-import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } from './config.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH } from '../../../services/sharepic/canvas/config.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('campaign_canvas');
 

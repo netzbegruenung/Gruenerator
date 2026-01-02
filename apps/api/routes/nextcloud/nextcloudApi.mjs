@@ -1,7 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { NextcloudShareManager } from '../../utils/nextcloudShareManager.js';
-import NextcloudApiClient from '../../services/nextcloudApiClient.js';
+import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
+import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('nextcloud');
 

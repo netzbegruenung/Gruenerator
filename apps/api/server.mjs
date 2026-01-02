@@ -26,7 +26,7 @@ import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 const require = createRequire(import.meta.url);
 
 // Dynamic import for passport after dotenv is loaded
-const passport = (await import('./config/passportSetup.mjs')).default;
+const passport = (await import('./config/passportSetup.js')).default;
 
 // Load CommonJS modules using createRequire
 const routesModule = await import('./routes.js');
@@ -216,14 +216,12 @@ if (cluster.isMaster) {
   }
 
   try {
-    const { createRequire } = await import('module');
-    const require = createRequire(import.meta.url);
-    const SharepicImageManager = require('./services/sharepicImageManager.js');
-    const sharepicImageManager = new SharepicImageManager(redisClient);
-    app.locals.sharepicImageManager = sharepicImageManager;
-    log.debug('SharepicImageManager initialized');
+    const { default: TemporaryImageStorage } = await import('./services/image/TemporaryImageStorage.js');
+    const temporaryImageStorage = new TemporaryImageStorage(redisClient);
+    app.locals.sharepicImageManager = temporaryImageStorage;
+    log.debug('TemporaryImageStorage initialized');
   } catch (error) {
-    log.warn(`SharepicImageManager init failed: ${error.message}`);
+    log.warn(`TemporaryImageStorage init failed: ${error.message}`);
   }
 
   try {
@@ -236,7 +234,7 @@ if (cluster.isMaster) {
   }
 
   try {
-    const { getProfileService } = await import('./services/ProfileService.mjs');
+    const { getProfileService } = await import('./services/user/ProfileService.js');
     const profileService = getProfileService();
     await profileService.init();
     log.debug('ProfileService initialized');

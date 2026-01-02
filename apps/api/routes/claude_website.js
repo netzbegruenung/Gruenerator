@@ -1,8 +1,8 @@
-import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js';
+import { createAuthenticatedRouter } from '../utils/keycloak/index.js';
 import { createLogger } from '../utils/logger.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-import imagePickerService from '../services/imagePickerService.js';
+import imagePickerService from '../services/image/ImageSelectionService.js';
 const log = createLogger('claude_website');
 
 const router = createAuthenticatedRouter();

@@ -13,8 +13,8 @@ import { createLogger } from '../../utils/logger.js';
 import {
   initiateInteractiveGenerator,
   continueInteractiveGenerator
-} from '../../agents/langgraph/simpleInteractiveGenerator.mjs';
-import { getExperimentalSession } from '../../services/chatMemoryService.js';
+} from '../../agents/langgraph/simpleInteractiveGenerator.js';
+import { getExperimentalSession } from '../../services/chat/index.js';
 
 const router = express.Router();
 const log = createLogger('experimentalRoutes');

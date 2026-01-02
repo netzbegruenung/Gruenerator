@@ -1,8 +1,8 @@
 import { Anthropic } from '@anthropic-ai/sdk';
-import ToolHandler from '../../services/toolHandler.js';
+import ToolHandler from '../../services/tools/index.js';
 import config from '../worker.config.js';
 import { mergeMetadata } from './adapterUtils.js';
-import * as typeProfiles from '../../utils/typeProfiles.js';
+import * as typeProfiles from '../../config/typeProfiles.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
@@ -27,24 +27,9 @@ async function execute(requestId, data) {
   };
 
   const headers = {};
-  if (type === 'antragsversteher' && betas?.includes('pdfs-2024-09-25')) {
-    headers['anthropic-beta'] = 'pdfs-2024-09-25';
-  }
 
   if (messages) {
-    if (type === 'antragsversteher' && fileMetadata?.usePromptCaching) {
-      requestConfig.messages = messages.map(message => ({
-        ...message,
-        content: message.content.map(block => {
-          if (block.type === 'document' && block.source?.type === 'file') {
-            return { ...block, cache_control: { type: 'ephemeral' } };
-          }
-          return block;
-        })
-      }));
-    } else {
-      requestConfig.messages = messages;
-    }
+    requestConfig.messages = messages;
   } else if (prompt) {
     requestConfig.messages = [{ role: 'user', content: prompt }];
   }

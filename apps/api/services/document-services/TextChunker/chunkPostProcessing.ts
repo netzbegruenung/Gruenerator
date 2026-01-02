@@ -4,7 +4,7 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
-import { detectContentType, detectMarkdownStructure, extractPageNumber } from '../../../utils/contentTypeDetector.js';
+import { detectContentType, detectMarkdownStructure, extractPageNumber } from '../../content/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
   sentenceSegments,

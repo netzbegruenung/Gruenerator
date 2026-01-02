@@ -1,8 +1,8 @@
 import express from 'express';
-import passport from '../../config/passportSetup.mjs';
+import passport from '../../config/passportSetup.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
-import CanvaApiClient from '../../services/canvaApiClient.js';
-import CanvaTokenManager from '../../utils/canvaTokenManager.js';
+import CanvaApiClient from '../../services/api-clients/canvaApiClient';
+import CanvaTokenManager from '../../utils/integrations/canva/index.js';
 import { createLogger } from '../../utils/logger.js';
 const log = createLogger('canva');
 

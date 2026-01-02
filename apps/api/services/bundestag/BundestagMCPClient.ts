@@ -4,6 +4,13 @@
  * instead of directly calling the DIP API
  */
 
+import type {
+  PersonSearchParams,
+  DrucksachenSearchParams,
+  AktivitaetenSearchParams,
+  SearchResult
+} from './types.js';
+
 const BUNDESTAG_MCP_URL = process.env.BUNDESTAG_MCP_URL || 'https://bundestagapi.moritz-waechter.de';
 const REQUEST_TIMEOUT = 30000;
 
@@ -36,46 +43,6 @@ interface MCPResponse {
         code: number;
         message: string;
     };
-}
-
-/**
- * Person search parameters
- */
-interface PersonSearchParams {
-    query?: string;
-    fraktion?: string;
-    wahlperiode?: number;
-    limit?: number;
-}
-
-/**
- * Drucksachen (document) search parameters
- */
-interface DrucksachenSearchParams {
-    query?: string;
-    urheber?: string;
-    drucksachetyp?: string;
-    wahlperiode?: number;
-    limit?: number;
-}
-
-/**
- * Activities search parameters
- */
-interface AktivitaetenSearchParams {
-    person_id?: string | number;
-    aktivitaetsart?: string;
-    wahlperiode?: number;
-    limit?: number;
-}
-
-/**
- * Generic search result structure
- */
-interface SearchResult {
-    documents?: any[];
-    results?: any[];
-    [key: string]: any;
 }
 
 class BundestagMCPClient {
@@ -211,9 +178,5 @@ function getBundestagMCPClient(): BundestagMCPClient {
 
 export {
     BundestagMCPClient,
-    getBundestagMCPClient,
-    type PersonSearchParams,
-    type DrucksachenSearchParams,
-    type AktivitaetenSearchParams,
-    type SearchResult
+    getBundestagMCPClient
 };

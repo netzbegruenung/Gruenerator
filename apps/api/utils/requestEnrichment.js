@@ -5,7 +5,7 @@
  */
 
 import { extractUrlsFromContent, filterNewUrls, getUrlDomain } from './urlDetection.js';
-import { processAndBuildAttachments } from './attachmentUtils.js';
+import { processAndBuildAttachments } from '../services/attachments/index.js';
 import { extractLocaleFromRequest } from './localizationHelper.js';
 import { getQdrantDocumentService } from '../services/DocumentSearchService.js';
 

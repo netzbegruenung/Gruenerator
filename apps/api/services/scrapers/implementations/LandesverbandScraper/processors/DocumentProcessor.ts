@@ -4,7 +4,7 @@
  * Handles: validation, age filter, deduplication, chunking, embedding, storage
  */
 
-import { smartChunkDocument } from '../../../../document-services/textChunker.js';
+import { smartChunkDocument } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { scrollDocuments, batchDelete, batchUpsert } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';

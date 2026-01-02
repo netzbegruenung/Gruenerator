@@ -4,8 +4,8 @@
  */
 
 import express from 'express';
-import ImageGenerationCounter from '../utils/imageGenerationCounter.js';
-import redisClient from '../utils/redisClient.js';
+import { ImageGenerationCounter } from '../services/counters/index.js';
+import redisClient from '../utils/redis/index.js';
 import { requireAuth } from '../middleware/authMiddleware.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('imageGeneration');

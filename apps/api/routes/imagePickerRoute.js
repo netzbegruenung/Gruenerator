@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 import path from 'path';
-import imagePickerService from '../services/imagePickerService.js';
+import imagePickerService from '../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../utils/unsplashAttribution.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('imagePicker');

@@ -9,23 +9,23 @@ const router = express.Router();
 import path from 'path';
 import fs from 'fs';
 const fsPromises = fs.promises;
-import { ffmpeg } from './services/ffmpegWrapper.js';
-import { getVideoMetadata, cleanupFiles } from './services/videoUploadService.js';
-import { transcribeVideo } from './services/transcriptionService.js';
-import { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup, getOriginalFilename } from './services/tusService.js';
-import redisClient from '../../utils/redisClient.js';
+import { ffmpeg } from '../../services/subtitler/ffmpegWrapper.js';
+import { getVideoMetadata, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
+import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
+import { getFilePathFromUploadId, checkFileExists, markUploadAsProcessed, scheduleImmediateCleanup, getOriginalFilename } from '../../services/subtitler/tusService.js';
+import redisClient from '../../utils/redis/index.js';
 import { v4 as uuidv4 } from 'uuid';
-import AssSubtitleService from './services/assSubtitleService.js';
-import { generateDownloadToken, processDirectDownload, processChunkedDownload, processSubtitleSegments } from './services/downloadUtils.js';
-import { calculateFontSizing } from './services/subtitleSizingService.js';
-import { saveToExistingProject, autoSaveProject } from './services/projectSavingService.js';
-import { getCompressionStatus } from './services/backgroundCompressionService.js';
-import { ffmpegPool } from './services/ffmpegPool.js';
+import AssSubtitleService from '../../services/subtitler/assSubtitleService.js';
+import { generateDownloadToken, processDirectDownload, processChunkedDownload, processSubtitleSegments } from '../../services/subtitler/downloadUtils.js';
+import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
+import { saveToExistingProject, autoSaveProject } from '../../services/subtitler/projectSavingService.js';
+import { getCompressionStatus } from '../../services/subtitler/backgroundCompressionService.js';
+import { ffmpegPool } from '../../services/subtitler/ffmpegPool.js';
 import { createLogger } from '../../utils/logger.js';
-import { correctSubtitlesViaAI } from './services/subtitleCorrectionService.js';
-import * as hwaccel from './services/hwaccelUtils.js';
-import { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } from './services/ffmpegExportUtils.js';
-import { processRemotionExport } from './services/remotionExportService.js';
+import { correctSubtitlesViaAI } from '../../services/subtitler/subtitleCorrectionService.js';
+import * as hwaccel from '../../services/subtitler/hwaccelUtils.js';
+import { calculateScaleFilter, buildFFmpegOutputOptions, buildVideoFilters } from '../../services/subtitler/ffmpegExportUtils.js';
+import { processRemotionExport } from '../../services/subtitler/remotionExportService.js';
 
 const log = createLogger('subtitler');
 
@@ -517,7 +517,7 @@ router.post('/export', async (req, res) => {
     // Try to get video from project first if projectId and userId are provided
     if (projectId && userId) {
       try {
-        const { getSubtitlerProjectService } = await import('../../services/subtitlerProjectService.js');
+        const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
         const projectService = getSubtitlerProjectService();
         await projectService.ensureInitialized();
 
@@ -1085,7 +1085,7 @@ router.post('/export-remotion', async (req, res) => {
 
 // ===== AUTOMATIC PROCESSING ENDPOINTS =====
 
-import { processVideoAutomatically, getAutoProgress } from './services/autoProcessingService.js';
+import { processVideoAutomatically, getAutoProgress } from '../../services/subtitler/autoProcessingService.js';
 
 /**
  * Start automatic video processing

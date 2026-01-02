@@ -17,7 +17,7 @@ const router = express.Router();
 import { createSharepicComposer } from '../../services/text2sharepic/index.js';
 import { listTemplates, getTemplate } from '../../services/text2sharepic/zoneTemplates.js';
 import { listComponents, getCorporateDesign } from '../../services/text2sharepic/componentLibrary.js';
-import { generateLayoutPlan } from '../../agents/sharepic/layoutPlanner.js';
+import { generateLayoutPlan } from '../../services/text2sharepic/LayoutPlanner.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { createRequire } from 'module';

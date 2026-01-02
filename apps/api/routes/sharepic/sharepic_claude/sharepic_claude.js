@@ -1,7 +1,7 @@
 import express from 'express';
 import prompts from '../../../prompts/sharepic/index.js';
 import { createLogger } from '../../../utils/logger.js';
-import { generateDefaultSharepics } from '../../../services/defaultSharepicService.js';
+import { generateDefaultSharepics } from '../../../services/image/sharepic/index.js';
 
 const router = express.Router();
 const log = createLogger('sharepic_claude');

@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
     log.debug(`[UnifiedSearch] Normal search: "${query}" (userId: ${userId}, summary: ${includeSummary})`);
 
     // Dynamic import of the LangGraph search function
-    const { runWebSearch } = await import('../../agents/langgraph/webSearchGraph.mjs');
+    const { runWebSearch } = await import('../../agents/langgraph/WebSearchGraph/index.js');
 
     // Prepare search options
     const searchOptions = {
@@ -171,7 +171,7 @@ router.post('/deep-research', async (req, res) => {
     log.debug(`[UnifiedSearch] Deep research: "${query}" (userId: ${userId})`);
 
     // Dynamic import of the LangGraph search function
-    const { runWebSearch } = await import('../../agents/langgraph/webSearchGraph.mjs');
+    const { runWebSearch } = await import('../../agents/langgraph/WebSearchGraph/index.js');
 
     // Track performance metrics
     const performanceMetrics = {

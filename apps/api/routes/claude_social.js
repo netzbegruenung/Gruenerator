@@ -1,5 +1,5 @@
 import express from 'express';
-import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js';
+import { createAuthenticatedRouter } from '../utils/keycloak/index.js';
 import { createRequire } from 'module';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_social');
@@ -7,7 +7,7 @@ const log = createLogger('claude_social');
 
 // Use createRequire for CommonJS modules
 const require = createRequire(import.meta.url);
-import { processGraphRequest } from '../agents/langgraph/promptProcessor.js';
+import { processGraphRequest } from '../agents/langgraph/PromptProcessor.js';
 
 // Create authenticated router
 const router = createAuthenticatedRouter();

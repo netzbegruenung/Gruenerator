@@ -4,7 +4,7 @@
  */
 
 import { vectorConfig } from '../config/vectorConfig.js';
-import { TimeoutError, ResourceError, createErrorHandler } from './errorHandling.js';
+import { TimeoutError, ResourceError, createErrorHandler } from './errors/index.js';
 
 /**
  * Generic batch processor for async operations

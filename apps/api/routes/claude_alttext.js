@@ -1,4 +1,4 @@
-import { createAuthenticatedRouter } from '../utils/createAuthenticatedRouter.js';
+import { createAuthenticatedRouter } from '../utils/keycloak/index.js';
 import { createLogger } from '../utils/logger.js';
 const log = createLogger('claude_alttext');
 

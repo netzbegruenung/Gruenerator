@@ -1,12 +1,11 @@
 import express from 'express';
 import authMiddlewareModule from '../middleware/authMiddleware.js';
-import { DocumentSearchService } from '../services/document-services/DocumentSearchService.js';
-import passport from '../config/passportSetup.mjs';
+import { DocumentSearchService } from '../services/document-services/index.js';
+import passport from '../config/passportSetup.js';
 import { createLogger } from '../utils/logger.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   SEARCH_DOCUMENTS_TOOL,
-  extractCitationsFromText,
   processAIResponseWithCitations
 } from '../utils/promptUtils.js';
 

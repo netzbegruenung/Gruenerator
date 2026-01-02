@@ -5,9 +5,9 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
-import { registerFonts } from './fileManagement.js';
-import { COLORS } from './config.js';
-import { optimizeCanvasBuffer, bufferToBase64 } from './imageOptimizer.js';
+import { registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
+import { COLORS } from '../../../services/sharepic/canvas/config.js';
+import { optimizeCanvasBuffer, bufferToBase64 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('veranstaltung_canvas');
 

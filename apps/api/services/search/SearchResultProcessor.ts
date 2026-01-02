@@ -1,9 +1,10 @@
 /**
  * SearchResultProcessor - Shared utilities for processing search results
  *
- * Consolidates duplicate logic from:
- * - notebookInteraction.mjs (expandResultsWithCollection, deduplication, citations)
- * - notebookGraph.mjs (expandSearchResultsToChunks, buildReferencesMap, validateAndInjectCitations)
+ * Consolidates search result processing logic:
+ * - Expansion and deduplication
+ * - Citation and reference building
+ * - Source grouping by collection
  */
 
 import type {
