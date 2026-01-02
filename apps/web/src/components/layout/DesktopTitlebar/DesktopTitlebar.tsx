@@ -1,4 +1,4 @@
-import { Suspense, lazy, Component } from 'react';
+import { Suspense, lazy, Component, ReactNode } from 'react';
 import { isDesktopApp } from '../../../utils/platform';
 import ProfileButton from '../Header/ProfileButton';
 import '../../../assets/styles/components/layout/profile-dropdown.css';
@@ -7,15 +7,23 @@ import './desktop-titlebar.css';
 // Lazy load TabBar so it doesn't crash the titlebar if it fails
 const TabBar = lazy(() => import('../DesktopTabs/TabBar').catch(() => ({ default: () => null })));
 
+interface TabBarErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface TabBarErrorBoundaryState {
+  hasError: boolean;
+}
+
 // Error boundary to catch TabBar errors
-class TabBarErrorBoundary extends Component {
-  state = { hasError: false };
+class TabBarErrorBoundary extends Component<TabBarErrorBoundaryProps, TabBarErrorBoundaryState> {
+  state: TabBarErrorBoundaryState = { hasError: false };
 
   static getDerivedStateFromError() {
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[TabBar] Error:', error, errorInfo);
   }
 

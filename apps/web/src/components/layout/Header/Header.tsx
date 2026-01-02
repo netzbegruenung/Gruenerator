@@ -1,10 +1,10 @@
-//header.js
+//header.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import NavMenu from './NavMenu';
 import ProfileButton from './ProfileButton';
 import useAccessibility from '../../hooks/useAccessibility';
-import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles } from './menuData';
+import { getMenuItems, getDirectMenuItems, MenuItem, menuStyles, type MenuItemType, type MenuSection } from './menuData';
 import Icon from '../../common/Icon';
 
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
@@ -27,7 +27,7 @@ const Header = () => {
     const isAustrian = locale === 'de-AT';
 
     const [menuActive, setMenuActive] = useState(false);
-    const [activeDropdown, setActiveDropdown] = useState(null);
+    const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
     const [scrolled, setScrolled] = useState(false);
     const [darkMode, setDarkMode] = useState(() =>
         document.documentElement.getAttribute('data-theme') === 'dark'
@@ -46,9 +46,9 @@ const Header = () => {
         return () => observer.disconnect();
     }, []);
     const { announce } = useAccessibility();
-    const headerRef = useRef(null);
-    const closeTimeoutRef = useRef(null);
-    const openTimeoutRef = useRef(null);
+    const headerRef = useRef<HTMLElement>(null);
+    const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const openTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Memoize menu items to prevent unnecessary recalculations
     const menuItems = useMemo(() => getMenuItems(
@@ -98,7 +98,7 @@ const Header = () => {
         setMenuActive(false);
     };
 
-    const handleMouseEnter = (dropdown) => {
+    const handleMouseEnter = (dropdown: string) => {
         // Clear any pending timeouts
         if (closeTimeoutRef.current) {
             clearTimeout(closeTimeoutRef.current);
@@ -114,7 +114,7 @@ const Header = () => {
         setActiveDropdown(dropdown);
     };
 
-    const handleMouseLeave = (event) => {
+    const handleMouseLeave = (event: React.MouseEvent<HTMLLIElement>) => {
         // Get the dropdown container element
         const dropdownContainer = event.currentTarget;
         const relatedTarget = event.relatedTarget;
@@ -126,7 +126,7 @@ const Header = () => {
         }
 
         // Check if we're moving to another element
-        if (relatedTarget && relatedTarget instanceof Node) {
+        if (relatedTarget && relatedTarget instanceof Element) {
             // Check if still within the dropdown container or its children
             if (dropdownContainer && dropdownContainer.contains(relatedTarget)) {
                 // Still within dropdown, don't close
@@ -150,11 +150,11 @@ const Header = () => {
         }, 100); // Reduced from 200ms for better UX
     };
 
-    const handleFocus = (dropdown) => {
+    const handleFocus = (dropdown: string) => {
         setActiveDropdown(dropdown);
     };
 
-    const handleBlur = (event) => {
+    const handleBlur = (event: React.FocusEvent<HTMLLIElement>) => {
         // Use setTimeout to allow focus to move to dropdown items
         setTimeout(() => {
             const currentTarget = event.currentTarget;
@@ -165,7 +165,7 @@ const Header = () => {
         }, 150);
     };
 
-    const handleKeyDown = (event, dropdown) => {
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLLIElement>, dropdown: string) => {
         const { key } = event;
 
         // Handle Enter and Space to toggle dropdown
@@ -196,7 +196,7 @@ const Header = () => {
         }
     };
 
-    const handleLinkClick = (event) => {
+    const handleLinkClick = (event: React.MouseEvent) => {
         // Prevent event bubbling
         event.stopPropagation();
 
@@ -205,8 +205,9 @@ const Header = () => {
         setMenuActive(false);
 
         // Force blur any focused dropdown elements to clear focus-within state
-        if (document.activeElement && document.activeElement.closest('.header-dropdown')) {
-            document.activeElement.blur();
+        const activeEl = document.activeElement as HTMLElement | null;
+        if (activeEl && activeEl.closest?.('.header-dropdown')) {
+            activeEl.blur?.();
         }
 
         // Clear any potential hover states by forcing a layout recalculation
@@ -222,9 +223,9 @@ const Header = () => {
         }
     };
 
-    const renderDropdownContent = (menuType) => {
+    const renderDropdownContent = (menuType: keyof typeof menuItems) => {
         const menu = menuItems[menuType];
-        return menu.items.map((item) => {
+        return menu.items.map((item: MenuItemType) => {
             // Handle items with sub-menus
             if (item.hasSubmenu && item.items) {
                 return (
@@ -232,7 +233,7 @@ const Header = () => {
                         <span
                             className="submenu-trigger"
                             role="menuitem"
-                            tabIndex="0"
+                            tabIndex={0}
                             aria-haspopup="true"
                         >
                             <MenuItem item={item} />
@@ -250,7 +251,7 @@ const Header = () => {
                                         to={subItem.path}
                                         onClick={(e) => handleLinkClick(e)}
                                         role="menuitem"
-                                        tabIndex="0"
+                                        tabIndex={0}
                                     >
                                         <MenuItem item={subItem} />
                                     </Link>
@@ -268,7 +269,7 @@ const Header = () => {
                         to={item.path}
                         onClick={(e) => handleLinkClick(e)}
                         role="menuitem"
-                        tabIndex="0"
+                        tabIndex={0}
                     >
                         <MenuItem item={item} />
                     </Link>
@@ -303,7 +304,7 @@ const Header = () => {
                 </label>
                 <nav className={`header-nav ${menuActive ? 'active' : ''}`} id="nav" aria-label="Hauptnavigation">
                     <ul>
-                        {Object.entries(menuItems).map(([key, menu]) => (
+                        {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][]).map(([key, menu]) => (
                             <li key={key}
                                 className="header-dropdown"
                                 onMouseEnter={() => handleMouseEnter(key)}
@@ -311,7 +312,7 @@ const Header = () => {
                                 onFocus={() => handleFocus(key)}
                                 onBlur={handleBlur}
                                 onKeyDown={(e) => handleKeyDown(e, key)}
-                                tabIndex="0"
+                                tabIndex={0}
                                 aria-haspopup="true"
                                 aria-expanded={activeDropdown === key}
                                 role="button"
@@ -337,7 +338,7 @@ const Header = () => {
                             </li>
                         ))}
                         {/* Render direct menu items like Suche */}
-                        {Object.values(directMenuItems).map(item => (
+                        {Object.values(directMenuItems).map((item: MenuItemType) => (
                             <li key={item.id} className={`header-direct-item header-${item.id}`}>
                                 <Link to={item.path} onClick={(e) => handleLinkClick(e)} className="header-nav-item">
                                     {/* Display icon for direct items - use class for styling */}

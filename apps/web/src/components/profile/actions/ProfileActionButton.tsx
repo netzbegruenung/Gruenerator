@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { JSX, MouseEvent } from 'react';
 import { ICONS } from '../../../config/icons';
 import { SiCanva } from 'react-icons/si';
 

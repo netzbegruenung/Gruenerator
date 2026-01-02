@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { JSX, Suspense, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppProviders from '../common/Providers/AppProviders';
 import PageLayout from '../common/Layout/PageLayout';

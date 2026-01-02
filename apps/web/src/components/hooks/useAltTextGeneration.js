@@ -7,16 +7,18 @@ import useApiSubmit from './useApiSubmit';
 const useAltTextGeneration = () => {
   const { loading, success, error, submitForm, resetState, resetSuccess } = useApiSubmit('/claude_alttext');
 
-  const generateAltTextForImage = async (imageBase64, imageDescription = null) => {
+  const generateAltTextForImage = async (imageBase64, imageDescription = null, features = {}) => {
     console.log('[useAltTextGeneration] Starting alt text generation:', {
       hasImageBase64: !!imageBase64,
       imageBase64Length: imageBase64?.length || 0,
-      hasImageDescription: !!imageDescription
+      hasImageDescription: !!imageDescription,
+      features
     });
 
     const formData = {
       imageBase64,
-      imageDescription
+      imageDescription,
+      ...features
     };
 
     try {

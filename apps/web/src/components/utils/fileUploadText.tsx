@@ -70,8 +70,4 @@ const FileUpload_Text = ({ onFileSelect, allowedTypes, maxSize }) => {
   );
 };
 
-FileUpload_
-
-FileUpload_
-
 export default FileUpload_Text;

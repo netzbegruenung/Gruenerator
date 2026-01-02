@@ -1,19 +1,47 @@
-import React from 'react';
+import React, { ReactNode, ErrorInfo } from 'react';
 
 import '../assets/styles/components/error-boundary.css';
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+// Extended Error interface for server errors with additional metadata
+interface ServerError extends Error {
+  originalError?: {
+    message?: string;
+    response?: {
+      data?: {
+        errorCode?: string;
+        errorType?: string;
+      };
+    };
+  };
+  errorId?: string;
+  timestamp?: number;
+}
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode | ((error: ServerError | null, errorInfo: ErrorInfo | null) => ReactNode);
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: ServerError | null;
+  errorInfo: ErrorInfo | null;
+  copied: boolean;
+  isChunkError: boolean;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null, copied: false, isChunkError: false };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     const isChunkError = ErrorBoundary.isChunkLoadError(error);
     return { hasError: true, error, isChunkError };
   }
 
-  static isChunkLoadError(error) {
+  static isChunkLoadError(error: Error | null): boolean {
     return (
       error?.message?.includes('Failed to fetch dynamically imported module') ||
       error?.message?.includes('Loading chunk') ||
@@ -22,7 +50,7 @@ class ErrorBoundary extends React.Component {
     );
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
 
     // Handle chunk load errors with auto-reload
@@ -40,7 +68,7 @@ class ErrorBoundary extends React.Component {
     this.logErrorToService(error, errorInfo);
   }
 
-  logErrorToService(error, errorInfo) {
+  logErrorToService(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
     // Hier könnte ein Aufruf zu einem Fehlerprotokollierungsdienst erfolgen
   }
@@ -159,7 +187,9 @@ class ErrorBoundary extends React.Component {
 
           <div className="error-actions">
             {this.props.fallback ? (
-              this.props.fallback(this.state.error, this.state.errorInfo)
+              typeof this.props.fallback === 'function'
+                ? this.props.fallback(this.state.error, this.state.errorInfo)
+                : this.props.fallback
             ) : (
               <>
                 <button onClick={() => window.location.reload()}>Seite neu laden</button>

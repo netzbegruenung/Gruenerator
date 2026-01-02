@@ -1,15 +1,21 @@
-import { useRef } from 'react';
+import { JSX, useRef } from 'react';
 
 import { FaUpload } from 'react-icons/fa';
 
+interface UnsplashImage {
+  photographerName?: string;
+  [key: string]: unknown;
+}
+
 interface FileUploadProps {
-  loading: boolean;
-  file?: Record<string, unknown>;
-  handleChange: () => void;
+  loading?: boolean;
+  file?: File | null;
+  handleChange?: (file: File) => void;
   error?: string;
-  allowedTypes: unknown[];
-  selectedUnsplashImage?: Record<string, unknown>;
+  allowedTypes?: string[];
+  selectedUnsplashImage?: UnsplashImage | null;
   isCompact?: boolean;
+  buttonText?: string;
 }
 
 const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selectedUnsplashImage, isCompact }: FileUploadProps): JSX.Element => {
