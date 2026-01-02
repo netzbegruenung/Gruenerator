@@ -21,7 +21,7 @@ import {
   HTML_FORMATTING_INSTRUCTIONS,
   TITLE_GENERATION_INSTRUCTION,
   PLATFORM_SPECIFIC_GUIDELINES
-} from '../../utils/promptUtils.js';
+} from '../../utils/prompt/index.js';
 import { localizePromptObject, extractLocaleFromRequest } from '../../services/localization/index.js';
 
 // Import types
@@ -50,7 +50,7 @@ async function logGeneration(data: {
 }): Promise<void> {
   try {
     if (!generationStatsService) {
-      const module = await import('../../database/services/GenerationStatsService.js');
+      const module = await import('../../database/services/GenerationStatsService/index.js');
       generationStatsService = module.getGenerationStatsService();
     }
     await generationStatsService.logGeneration(data);
@@ -684,7 +684,8 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
     }
 
     // Assemble prompt using enriched state
-    const promptResult = await assemblePromptGraphAsync(enrichedState);
+    // Note: EnrichedState is compatible with PromptAssemblyState at runtime
+    const promptResult = await assemblePromptGraphAsync(enrichedState as any);
     console.log(`[promptProcessor] LangGraph assembly complete for ${routeType}`);
 
     // Prepare AI Worker payload

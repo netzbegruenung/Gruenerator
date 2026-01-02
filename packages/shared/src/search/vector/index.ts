@@ -4,10 +4,10 @@
  */
 
 // Types
-export * from './types';
+export * from './types.js';
 
 // Constants
-export * from './constants';
+export * from './constants.js';
 
 // Core algorithms
 export {
@@ -18,7 +18,7 @@ export {
   determineFusionStrategy,
   applyQualityBoost,
   calculateTextSearchScore,
-} from './HybridSearch';
+} from './HybridSearch.js';
 
 // Quality scoring
 export {
@@ -27,7 +27,7 @@ export {
   searchWithQuality,
   calculateChunkQuality,
   getQualityStats,
-} from './QualityScoring';
+} from './QualityScoring.js';
 
 // Intent detection
 export {
@@ -38,7 +38,7 @@ export {
   detectDocumentScope,
   QueryIntentService,
   queryIntentService,
-} from './IntentDetection';
+} from './IntentDetection.js';
 
 // Chunk context
 export {
@@ -47,12 +47,12 @@ export {
   mergeContextText,
   getContextWindow,
   expandResultsWithContext,
-} from './ChunkContext';
-export type { ChunkContextOptions, QdrantClientLike } from './ChunkContext';
+} from './ChunkContext.js';
+export type { ChunkContextOptions, QdrantClientLike } from './ChunkContext.js';
 
 // Embedding service
 export {
   EmbeddingService,
   createEmbeddingService,
-} from './EmbeddingService';
-export type { MistralClient } from './EmbeddingService';
+} from './EmbeddingService.js';
+export type { MistralClient } from './EmbeddingService.js';

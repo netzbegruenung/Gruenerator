@@ -4,12 +4,12 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getGlobalApiClient } from '../../api/client';
+import { getGlobalApiClient } from '../../api/client.js';
 import {
   SHAREPIC_ENDPOINT,
   DEFAULT_SHAREPICS_ENDPOINT,
   SHAREPIC_TYPE_MAP,
-} from '../constants';
+} from '../constants.js';
 import type {
   SharepicType,
   SharepicGenerationOptions,
@@ -17,7 +17,7 @@ import type {
   SharepicRequest,
   SharepicResponse,
   DefaultSharepicsResponse,
-} from '../types';
+} from '../types.js';
 
 export interface UseSharepicGenerationOptions {
   /** Callback when generation succeeds */

@@ -4,17 +4,17 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getGlobalApiClient } from '../../api/client';
+import { getGlobalApiClient } from '../../api/client.js';
 import type {
   ImageStudioTemplateType,
   CanvasGenerationRequest,
-} from '../types';
-import { getTypeConfig, getCanvasEndpoint } from '../constants';
+} from '../types.js';
+import { getTypeConfig, getCanvasEndpoint } from '../constants.js';
 import {
   validateCanvasInput,
   validateCanvasResponse,
   ERROR_MESSAGES,
-} from '../utils/validation';
+} from '../utils/validation.js';
 
 export interface UseImageStudioCanvasOptions {
   onSuccess?: (imageBase64: string) => void;

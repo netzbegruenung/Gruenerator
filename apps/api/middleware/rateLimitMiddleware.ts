@@ -21,9 +21,10 @@ import { Response, NextFunction } from 'express';
 import { RateLimiter, redisClient } from '../utils/redis/index.js';
 import rateLimitConfig from '../config/rateLimits.js';
 import { RateLimitRequest, RateLimitMiddlewareOptions } from './types.js';
+import type { RateLimiterConfig } from '../utils/redis/types.js';
 
 // Create singleton instance
-const rateLimiter = new RateLimiter(redisClient, rateLimitConfig);
+const rateLimiter = new RateLimiter(redisClient, rateLimitConfig as unknown as RateLimiterConfig);
 
 /**
  * Create rate limit middleware for a specific resource type

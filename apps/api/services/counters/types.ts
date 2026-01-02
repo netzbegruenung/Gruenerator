@@ -2,8 +2,6 @@
  * Counter Service Types
  */
 
-import type { Redis } from 'ioredis';
-
 /**
  * Message object for token counting
  */
@@ -44,6 +42,13 @@ export interface ImageGenerationResult extends ImageGenerationStatus {
 }
 
 /**
- * Redis client type (ioredis)
+ * Redis client type - any redis-like client with get/set/incr/expire/del methods
+ * Using union type to be compatible with redis package's return types
  */
-export type RedisClient = Redis;
+export interface RedisClient {
+  get(key: string): Promise<string | null | {}>;
+  set(key: string, value: string | number, ...args: unknown[]): Promise<unknown>;
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<unknown>;
+  del(key: string): Promise<number>;
+}

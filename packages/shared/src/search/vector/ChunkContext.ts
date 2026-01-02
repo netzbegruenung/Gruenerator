@@ -3,7 +3,7 @@
  * Provides fuller context for LLM answers
  */
 
-import type { VectorSearchResult, ChunkContext, QdrantFilter } from './types';
+import type { VectorSearchResult, ChunkContext, QdrantFilter } from './types.js';
 
 export interface ChunkContextOptions {
   /** Number of chunks before and after the target chunk */

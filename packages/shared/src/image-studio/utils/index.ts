@@ -2,4 +2,4 @@
  * Image Studio Utils
  */
 
-export * from './validation';
+export * from './validation.js';

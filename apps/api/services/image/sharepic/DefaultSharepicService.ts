@@ -12,6 +12,9 @@ import type {
   DefaultSharepic
 } from './types.js';
 
+// Cast type for compatibility with sharepicGenerationService
+type ExpressRequest = Parameters<typeof generateSharepicForChat>[0];
+
 /**
  * Generate 3 default sharepics: dreizeilen (with AI image), quote_pure, and info
  * @param expressReq - Express request object
@@ -26,14 +29,16 @@ export async function generateDefaultSharepics(
 
   try {
     // Generate all 3 types in parallel using existing chat service
+    // Cast to ExpressRequest since Request is a superset
+    const req = expressReq as ExpressRequest;
     const [dreizeilenResult, quotePureResult, infoResult] = await Promise.all([
-      generateSharepicForChat(expressReq, 'dreizeilen', requestBody),
-      generateSharepicForChat(expressReq, 'zitat_pure', {
+      generateSharepicForChat(req, 'dreizeilen', requestBody),
+      generateSharepicForChat(req, 'zitat_pure', {
         ...requestBody,
         name: 'Die Grünen', // Default author for quote_pure
         preserveName: true // Preserve the default name
       }),
-      generateSharepicForChat(expressReq, 'info', requestBody)
+      generateSharepicForChat(req, 'info', requestBody)
     ]);
 
     console.log('[DefaultSharepicService] All 3 default sharepics generated successfully');

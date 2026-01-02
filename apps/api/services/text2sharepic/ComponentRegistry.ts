@@ -7,7 +7,7 @@
 import { registerFont } from 'canvas';
 import fs from 'fs';
 import type { CanvasRenderingContext2D } from 'canvas';
-import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, COLORS } from '../../routes/sharepic/sharepic_canvas/config.js';
+import { FONT_PATH, PTSANS_REGULAR_PATH, PTSANS_BOLD_PATH, COLORS } from '../sharepic/canvas/config.js';
 import { createLogger } from '../../utils/logger.js';
 import type { ComponentDefinition, Bounds, CorporateDesign } from './types.js';
 

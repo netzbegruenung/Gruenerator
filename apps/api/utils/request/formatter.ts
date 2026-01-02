@@ -5,7 +5,7 @@
  * Handles success responses, error responses, and metadata standardization
  */
 
-import { processResponseWithTitle } from '../promptUtils.js';
+import { processResponseWithTitle } from '../prompt/index.js';
 import type { Response } from 'express';
 import type {
   AIWorkerResult,

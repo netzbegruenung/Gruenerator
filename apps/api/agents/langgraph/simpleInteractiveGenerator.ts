@@ -47,7 +47,7 @@ import {
   setExperimentalSession,
   getExperimentalSession,
   updateExperimentalSession
-} from '../../services/chat/index.js';
+} from '../../services/chat/ChatMemoryService.js';
 import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 import { getQuestionsForType } from '../../config/antragQuestions.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
@@ -450,7 +450,9 @@ async function generateFinalResult({
   };
 
   // Apply document enrichment
-  const enrichedContext = await enrichRequest(enrichmentRequest, userId) as EnrichedContext;
+  // Note: enrichRequest returns EnrichedState which has a different document format,
+  // but we only use the knowledge array from it, so the cast is safe
+  const enrichedContext = await enrichRequest(enrichmentRequest, userId) as unknown as EnrichedContext;
 
   // Build knowledge array
   const knowledgeItems: string[] = [];

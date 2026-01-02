@@ -6,4 +6,4 @@ export {
   deleteMedia,
   searchMedia,
   mediaApi,
-} from './mediaApi';
+} from './mediaApi.js';

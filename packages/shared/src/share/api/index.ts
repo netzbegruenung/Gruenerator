@@ -12,4 +12,4 @@ export {
   getShareInfo,
   deleteShare,
   shareApi,
-} from './shareApi';
+} from './shareApi.js';

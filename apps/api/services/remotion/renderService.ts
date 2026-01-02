@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getBundle } from './bundle.js';
 import { loadAllFonts, getAllFontPaths, FONTS_DIR } from './fonts.js';
 import { createLogger } from '../../utils/logger.js';
-import redisClient from '../../utils/redis/index.js';
+import { redisClient } from '../../utils/redis/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

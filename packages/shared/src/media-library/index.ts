@@ -26,7 +26,7 @@ export type {
   MediaUploadResponse,
   MediaUpdateResponse,
   MediaDeleteResponse,
-} from './types';
+} from './types.js';
 
 // Constants
 export {
@@ -39,7 +39,7 @@ export {
   MEDIA_LIMITS,
   UPLOAD_SOURCE_LABELS,
   MEDIA_TYPE_LABELS,
-} from './constants';
+} from './constants.js';
 
 // API
 export {
@@ -50,11 +50,11 @@ export {
   deleteMedia,
   searchMedia,
   mediaApi,
-} from './api';
+} from './api/index.js';
 
 // Hooks
-export { useMediaLibrary } from './hooks/useMediaLibrary';
-export { useMediaUpload } from './hooks/useMediaUpload';
+export { useMediaLibrary } from './hooks/useMediaLibrary.js';
+export { useMediaUpload } from './hooks/useMediaUpload.js';
 
 // Stores
-export { useMediaPickerStore, useMediaPicker } from './stores/mediaPickerStore';
+export { useMediaPickerStore, useMediaPicker } from './stores/mediaPickerStore.js';

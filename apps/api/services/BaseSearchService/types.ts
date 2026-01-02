@@ -36,6 +36,10 @@ export interface SearchParams {
   userId?: string;
   filters?: SearchFilters;
   options?: SearchOptions;
+  /** Flat parameter support for backwards compatibility */
+  limit?: number;
+  group_id?: string | null;
+  mode?: 'vector' | 'hybrid' | 'text' | 'keyword';
 }
 
 export interface ValidatedSearchParams {
@@ -274,23 +278,30 @@ export interface ErrorHandlerOptions {
   logLevel?: string;
 }
 
+/**
+ * ErrorHandler interface compatible with the class from utils/errors/handlers
+ * The handle method can return any error-like response structure
+ */
 export interface ErrorHandler {
   handle(error: Error, context: {
     operation: string;
     query?: string;
     userId?: string | null;
     returnResponse?: boolean;
-  }): SearchResponse;
+    [key: string]: unknown;
+  }): any;
 }
 
 // ============ Service Options ============
+
+export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
 export interface BaseSearchServiceOptions {
   serviceName?: string;
   defaultLimit?: number;
   defaultThreshold?: number;
   enableTelemetry?: boolean;
-  logLevel?: string;
+  logLevel?: LogLevel;
   cacheType?: string;
   cacheSize?: number;
   cacheTTL?: number;

@@ -13,7 +13,7 @@ export type {
   SharepicResult,
   DefaultSharepicsResponse,
   SharepicResponse,
-} from './types';
+} from './types.js';
 
 // Constants
 export {
@@ -24,8 +24,8 @@ export {
   getSharepicTypeOption,
   sharepicTypeSupportsImage,
   sharepicTypeRequiresAuthor,
-} from './constants';
+} from './constants.js';
 
 // Hooks
-export { useSharepicGeneration } from './hooks';
-export type { UseSharepicGenerationOptions, UseSharepicGenerationReturn } from './hooks';
+export { useSharepicGeneration } from './hooks/index.js';
+export type { UseSharepicGenerationOptions, UseSharepicGenerationReturn } from './hooks/index.js';

@@ -43,7 +43,8 @@ export class ImageGenerationCounter {
       const today = this.getTodayDateString();
       const redisKey = `image_generation:${userId}:${today}`;
 
-      const count = await this.redis.get(redisKey);
+      const countResult = await this.redis.get(redisKey);
+      const count = typeof countResult === 'string' ? countResult : null;
       const currentCount = parseInt(count || '0') || 0;
       const remaining = Math.max(0, this.DAILY_LIMIT - currentCount);
       const canGenerate = remaining > 0;

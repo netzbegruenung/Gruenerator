@@ -4,9 +4,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getGlobalApiClient } from '../../api/client';
-import { useGeneratedTextStore } from '../../stores/generatedTextStore';
-import { findUsedSources, formatAnalysisText } from '../utils/sourceUtils';
+import { getGlobalApiClient } from '../../api/client.js';
+import { useGeneratedTextStore } from '../../stores/generatedTextStore.js';
+import { findUsedSources, formatAnalysisText } from '../utils/sourceUtils.js';
 import type {
   SearchResult,
   WebSearchResponse,
@@ -16,7 +16,7 @@ import type {
   Citation,
   SourceReference,
   UseSearchReturn,
-} from '../types';
+} from '../types.js';
 
 const SEARCH_ENDPOINTS = {
   SEARCH: '/search',

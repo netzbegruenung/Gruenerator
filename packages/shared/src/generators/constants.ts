@@ -3,7 +3,7 @@
  * Shared constants for text generators across web and mobile platforms.
  */
 
-import type { SocialPlatform, AntragRequestType, UniversalTextType, AccessibilityMode, TextImproverAction } from './types';
+import type { SocialPlatform, AntragRequestType, UniversalTextType, AccessibilityMode, TextImproverAction } from './types.js';
 
 // API Endpoints
 export const GENERATOR_ENDPOINTS = {

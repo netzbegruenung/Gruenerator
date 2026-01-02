@@ -4,9 +4,9 @@
  */
 
 // Web search types and hooks
-export * from './types';
-export * from './hooks';
-export * from './utils';
+export * from './types.js';
+export * from './hooks/index.js';
+export * from './utils/index.js';
 
 // Vector search infrastructure (for API and MCP)
-export * as vector from './vector';
+export * as vector from './vector/index.js';

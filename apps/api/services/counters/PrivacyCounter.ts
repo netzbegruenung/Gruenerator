@@ -55,7 +55,8 @@ export class PrivacyCounter {
 
     try {
       const redisKey = `privacy_mode:${userId}:counter`;
-      const count = await this.redis.get(redisKey);
+      const countResult = await this.redis.get(redisKey);
+      const count = typeof countResult === 'string' ? countResult : null;
       return parseInt(count || '0') || 0;
     } catch (error) {
       console.error('[PrivacyCounter] Error getting count:', error);

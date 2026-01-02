@@ -668,7 +668,7 @@ class NotebookQdrantHelper {
             }
 
             // Import COMPREHENSIVE_DOSSIER_INSTRUCTIONS
-            const { COMPREHENSIVE_DOSSIER_INSTRUCTIONS } = await import('../../utils/promptUtils.js');
+            const { COMPREHENSIVE_DOSSIER_INSTRUCTIONS } = await import('../../utils/prompt/index.js');
 
             // Create the system Grundsatz collection using centralized config
             const systemCollectionData: NotebookCollectionData = {

@@ -3,7 +3,7 @@
  * Provides backward-compatible exports for all chat agent functionality
  */
 
-// Main classification functions
+// Intent Classification
 export {
   classifyIntent,
   classifyWithAI,
@@ -14,7 +14,76 @@ export {
   isQuestionMessage
 } from './IntentClassifier.js';
 
-// Type exports
+// Information Request Handler
+export {
+  handleInformationRequest,
+  checkForMissingInformation,
+  generateInformationQuestion,
+  extractRequestedInformation,
+  completePendingRequest,
+  createInformationRequest,
+  generateAntragQuestions,
+  analyzeAnswersForFollowup,
+  generateFollowUpQuestions,
+  extractStructuredAnswers,
+  isWebSearchConfirmation,
+  getWebSearchQuestion
+} from './InformationRequestHandler.js';
+
+// Information Request Handler Types
+export type {
+  FieldConfig,
+  RequiredFieldsConfig,
+  MissingFieldInfo,
+  InformationRequestResponse,
+  PendingRequest,
+  RequestContext,
+  ClassifiedIntent,
+  StructuredAnswers,
+  QuestionConfig,
+  HandlerResult
+} from './InformationRequestHandler.js';
+
+// Parameter Extraction
+export {
+  extractParameters,
+  analyzeParameterConfidence,
+  extractQuoteAuthor,
+  extractTheme,
+  extractDetails,
+  extractPlatforms,
+  extractTextForm,
+  extractStyle,
+  extractStructure,
+  determineRequestType,
+  extractLines,
+  detectImagineMode,
+  extractImagineSubject,
+  extractImagineVariant,
+  extractImagineTitle,
+  extractEditAction
+} from './ParameterExtractor/index.js';
+
+// Parameter Extraction Types
+export type {
+  BaseParameters,
+  ExtractedParameters,
+  SocialMediaParameters,
+  GrueneJugendParameters,
+  AntragParameters,
+  SharepicParameters,
+  ZitatParameters,
+  DreiZeilenParameters,
+  ImagineParameters,
+  UniversalParameters,
+  LeichteSpracheParameters,
+  AuthorExtractionResult,
+  VariantResult,
+  LinesExtractionResult,
+  ConfidenceAnalysis
+} from './ParameterExtractor/index.js';
+
+// Core Type exports
 export type {
   AgentMapping,
   AgentMappings,

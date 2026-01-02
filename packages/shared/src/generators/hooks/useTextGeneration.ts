@@ -4,10 +4,10 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getGlobalApiClient } from '../../api/client';
-import { parseGeneratorResponse } from '../utils/responseParser';
-import { parseGeneratorError } from '../utils/errorMessages';
-import type { GeneratorResult, GeneratorError, BaseGeneratorRequest } from '../types';
+import { getGlobalApiClient } from '../../api/client.js';
+import { parseGeneratorResponse } from '../utils/responseParser.js';
+import { parseGeneratorError } from '../utils/errorMessages.js';
+import type { GeneratorResult, GeneratorError, BaseGeneratorRequest } from '../types.js';
 
 export interface UseTextGenerationOptions {
   /** API endpoint path (e.g., '/claude_social') */

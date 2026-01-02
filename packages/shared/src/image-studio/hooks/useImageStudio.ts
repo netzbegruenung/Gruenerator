@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { getGlobalApiClient } from '../../api/client';
+import { getGlobalApiClient } from '../../api/client.js';
 import type {
   ImageStudioTemplateType,
   TextGenerationRequest,
@@ -14,18 +14,18 @@ import type {
   UseImageStudioOptions,
   UseImageStudioReturn,
   ImageStudioFormData,
-} from '../types';
+} from '../types.js';
 import {
   getTypeConfig,
   getTextEndpoint,
   mapTextResponse,
-} from '../constants';
+} from '../constants.js';
 import {
   validateTextGenerationInput,
   validateTextResponse,
   ERROR_MESSAGES,
-} from '../utils/validation';
-import { useImageStudioCanvas } from './useImageStudioCanvas';
+} from '../utils/validation.js';
+import { useImageStudioCanvas } from './useImageStudioCanvas.js';
 
 /**
  * Main hook for image-studio functionality

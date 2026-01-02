@@ -7,11 +7,11 @@ export {
   parsePlatformSections,
   getPlatformDisplayName,
   hasPlatformShareUrl,
-} from './platformTextParser';
+} from './platformTextParser.js';
 
 export {
   getShareUrl,
   getSubtitlerShareUrl,
   getBaseUrl,
   getPlatformShareUrl,
-} from './urlGenerator';
+} from './urlGenerator.js';

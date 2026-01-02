@@ -52,18 +52,20 @@ export const subdomainHandler = async (req: SubdomainRequest, res: Response, nex
             console.log(`[SubdomainHandler] Looking up user site for subdomain: ${subdomain}`);
             req.subdomain = subdomain;
 
-            const result = await db.query<UserSiteData>(
+            const result = await db.query(
                 'SELECT * FROM user_sites WHERE subdomain = $1 AND is_published = true',
-                [subdomain]
-            );
+                [subdomain],
+                { table: 'user_sites' }
+            ) as UserSiteData[];
 
-            if (result.data && result.data.length > 0) {
+            if (result && result.length > 0) {
                 console.log(`[SubdomainHandler] ✓ Found published site for subdomain: ${subdomain}`);
-                req.siteData = result.data[0];
+                req.siteData = result[0];
 
                 await db.query(
                     'UPDATE user_sites SET visit_count = visit_count + 1 WHERE id = $1',
-                    [result.data[0].id]
+                    [result[0].id],
+                    { table: 'user_sites' }
                 );
             } else {
                 console.log(`[SubdomainHandler] ✗ No published site found for subdomain: ${subdomain}`);

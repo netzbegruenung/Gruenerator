@@ -81,10 +81,12 @@ export interface VariantConfig {
   defaultTextColor: string;
 }
 
+export type ImagineVariant = 'light-top' | 'green-bottom' | 'realistic-top' | 'realistic-bottom' | 'pixel-top' | 'pixel-bottom' | 'editorial';
+
 export interface ImagineComposeOptions {
   title: string;
   titleColor?: string;
-  variant?: 'light-top' | 'green-bottom';
+  variant?: ImagineVariant;
   outputWidth?: number;
   outputHeight?: number;
 }

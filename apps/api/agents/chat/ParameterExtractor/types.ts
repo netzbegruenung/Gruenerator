@@ -43,6 +43,8 @@ export interface BaseParameters {
   _parameterConfidence?: ParameterConfidence;
   /** Sources for parameters */
   _parameterSources?: ParameterSources;
+  /** Allow index signature for dynamic access */
+  [key: string]: unknown;
 }
 
 /**

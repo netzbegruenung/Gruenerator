@@ -7,7 +7,7 @@ export {
   useTextGeneration,
   type UseTextGenerationOptions,
   type UseTextGenerationReturn,
-} from './useTextGeneration';
+} from './useTextGeneration.js';
 
 export {
   useTextEditActions,
@@ -16,4 +16,4 @@ export {
   type EditChange,
   type ApplyChangesResult,
   type UseTextEditActionsReturn,
-} from './useTextEditActions';
+} from './useTextEditActions.js';

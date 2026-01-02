@@ -128,7 +128,7 @@ function requireCanvaScopes(requiredScopes: string[]) {
         throw new Error(`Profile not found for user: ${req.user!.id}`);
       }
 
-      const userScopes = (profile.canva_scopes as string[]) || [];
+      const userScopes = ((profile as any).canva_scopes as string[]) || [];
       const missingScopes = requiredScopes.filter(scope => !userScopes.includes(scope));
 
       if (missingScopes.length > 0) {

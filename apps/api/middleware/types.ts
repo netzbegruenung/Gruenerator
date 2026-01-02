@@ -12,11 +12,10 @@ import type CanvaApiClient from '../services/api-clients/canvaApiClient.js';
 
 /**
  * Base authenticated request with user attached
+ * Extends Express Request to maintain compatibility with router handlers
  */
 export interface AuthenticatedRequest extends Request {
   user?: UserProfile;
-  isAuthenticated?: () => boolean;
-  session?: any;
   mobileAuth?: boolean;
   jwtToken?: any;
 }
@@ -52,7 +51,7 @@ export interface RateLimitRequest extends AuthenticatedRequest {
 /**
  * Request with subdomain information
  */
-export interface SubdomainRequest extends Request {
+export interface SubdomainRequest extends AuthenticatedRequest {
   subdomain?: string;
   siteData?: UserSiteData;
 }
@@ -63,15 +62,20 @@ export interface SubdomainRequest extends Request {
 
 /**
  * Rate limit status information
+ * Compatible with RateLimitStatus from redis/types
  */
 export interface RateLimitStatus {
   canGenerate: boolean;
-  count: number;
-  limit: number;
-  remaining: number;
-  window: string;
+  count?: number;
+  limit?: number;
+  remaining?: number;
+  window?: string;
   unlimited?: boolean;
-  error?: string;
+  error?: string | boolean;
+  resourceType?: string;
+  userType?: string;
+  identifier?: string;
+  development?: boolean;
 }
 
 /**
@@ -80,6 +84,8 @@ export interface RateLimitStatus {
 export interface UserSiteData {
   id: string;
   subdomain: string;
+  name: string;
+  settings: Record<string, unknown>;
   is_published: boolean;
   visit_count: number;
   [key: string]: any;
@@ -104,15 +110,22 @@ export interface CanvaRateLimitOptions {
 
 /**
  * Database health status
+ * Compatible with HealthStatus from PostgresService
  */
 export interface DatabaseHealth {
-  status: 'connecting' | 'schema_sync' | 'initializing' | 'ready' | 'error';
+  status: 'connecting' | 'schema_sync' | 'initializing' | 'ready' | 'error' | 'healthy';
   isHealthy: boolean;
   isInitialized: boolean;
   lastError: string | null;
   pool?: {
-    total: number;
-    idle: number;
-    waiting: number;
-  };
+    total?: number;
+    idle?: number;
+    waiting?: number;
+    active?: number;
+    maxConnections?: number;
+    totalCount?: number;
+    idleCount?: number;
+    waitingCount?: number;
+    initialized?: boolean;
+  } | null;
 }

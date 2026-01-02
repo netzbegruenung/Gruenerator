@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import type { ApiConfig } from '../types/auth';
+import type { ApiConfig } from '../types/auth.js';
 
 export type AuthMode = 'cookie' | 'bearer';
 

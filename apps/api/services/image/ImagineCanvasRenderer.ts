@@ -1,6 +1,6 @@
 import { createCanvas, loadImage, Canvas, CanvasRenderingContext2D, Image } from 'canvas';
-import { checkFiles, registerFonts } from '../../routes/sharepic/sharepic_canvas/fileManagement.js';
-import { COLORS } from '../../routes/sharepic/sharepic_canvas/config.js';
+import { checkFiles, registerFonts } from '../sharepic/canvas/fileManagement.js';
+import { COLORS } from '../sharepic/canvas/config.js';
 import { createLogger } from '../../utils/logger.js';
 import type {
   BrandColors,

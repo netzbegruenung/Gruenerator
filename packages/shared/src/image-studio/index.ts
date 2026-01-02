@@ -45,7 +45,7 @@ export type {
   UseImageStudioReturn,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
-} from './types';
+} from './types.js';
 
 // Constants
 export {
@@ -75,8 +75,8 @@ export {
   kiTypeRequiresImage,
   getStyleVariant,
   getInfrastructureOption,
-} from './constants';
-export type { StyleVariantConfig, InfrastructureOptionConfig } from './constants';
+} from './constants.js';
+export type { StyleVariantConfig, InfrastructureOptionConfig } from './constants.js';
 
 // Validation
 export {
@@ -88,17 +88,17 @@ export {
   validateFormData,
   validateTextResponse,
   validateCanvasResponse,
-} from './utils/validation';
-export type { ImageStudioValidationResult } from './utils/validation';
+} from './utils/validation.js';
+export type { ImageStudioValidationResult } from './utils/validation.js';
 
 // Hooks
-export { useImageStudio } from './hooks/useImageStudio';
-export { useImageStudioCanvas } from './hooks/useImageStudioCanvas';
-export { useKiImageGeneration } from './hooks/useKiImageGeneration';
+export { useImageStudio } from './hooks/useImageStudio.js';
+export { useImageStudioCanvas } from './hooks/useImageStudioCanvas.js';
+export { useKiImageGeneration } from './hooks/useKiImageGeneration.js';
 export type {
   UseImageStudioCanvasOptions,
   UseImageStudioCanvasReturn,
-} from './hooks/useImageStudioCanvas';
+} from './hooks/useImageStudioCanvas.js';
 
 // ============================================================================
 // MODIFICATION TYPES
@@ -119,7 +119,7 @@ export type {
   RangeControlConfig,
   ModificationControlsConfig,
   ModificationUIState,
-} from './modification-types';
+} from './modification-types.js';
 
 // ============================================================================
 // MODIFICATION CONSTANTS
@@ -146,7 +146,7 @@ export {
   MODIFICATION_LABELS,
   getDefaultModificationParams,
   typeSupportsModifications,
-} from './modification-constants';
+} from './modification-constants.js';
 
 // ============================================================================
 // MODIFICATION VALIDATION
@@ -166,8 +166,8 @@ export {
   validateZitatParams,
   validateVeranstaltungParams,
   validateModificationParams,
-} from './modification-validation';
-export type { ModificationValidationResult } from './modification-validation';
+} from './modification-validation.js';
+export type { ModificationValidationResult } from './modification-validation.js';
 
 // ============================================================================
 // MODIFICATION TRANSFORMERS
@@ -186,4 +186,4 @@ export {
   cloneModificationParams,
   areColorSchemesEqual,
   findColorSchemePresetId,
-} from './modification-transformers';
+} from './modification-transformers.js';

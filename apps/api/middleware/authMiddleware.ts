@@ -59,12 +59,12 @@ function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunctio
         }
     }
 
-    jwtAuthMiddleware(req, res, (jwtError?: any) => {
+    jwtAuthMiddleware(req as any, res, (jwtError?: any) => {
         if (!req.user && req.session?.passport?.user) {
             try {
                 req.user = req.session.passport.user;
                 if (typeof req.isAuthenticated !== 'function') {
-                    req.isAuthenticated = () => true;
+                    (req as any).isAuthenticated = () => true;
                 }
             } catch (attachErr) {
                 // Continue to standard checks/logging

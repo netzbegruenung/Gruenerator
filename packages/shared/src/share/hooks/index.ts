@@ -2,4 +2,4 @@
  * Share hooks barrel export
  */
 
-export { useShareStore } from './useShareStore';
+export { useShareStore } from './useShareStore.js';

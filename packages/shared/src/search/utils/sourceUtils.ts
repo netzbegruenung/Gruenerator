@@ -3,7 +3,7 @@
  * Platform-agnostic helper functions for search source processing
  */
 
-import type { SearchResult } from '../types';
+import type { SearchResult } from '../types.js';
 
 /**
  * Find sources that were actually used in the analysis text

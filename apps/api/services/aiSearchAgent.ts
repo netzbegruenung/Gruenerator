@@ -167,7 +167,7 @@ interface DatabaseQueryParams {
 }
 
 interface CacheInstance {
-    get: (key: string) => EnhancementResult | undefined;
+    get: (key: string) => EnhancementResult | null;
     set: (key: string, value: EnhancementResult) => void;
     getStats: () => Record<string, unknown>;
 }
@@ -217,7 +217,7 @@ class AISearchAgent {
 
     constructor() {
         this.defaultTimeout = 15000;
-        this.enhancementCache = createCache.searchEnhancement() as CacheInstance;
+        this.enhancementCache = createCache.searchEnhancement() as unknown as CacheInstance;
         this.searchTools = this.defineSearchTools();
     }
 
@@ -880,7 +880,7 @@ Nach der Suche erkläre deine Keyword-Wahl und begründe die Relevanz der Ergebn
      * Handle search_database_examples tool call
      */
     private async handleSearchDatabaseExamples(params: SearchExamplesParams): Promise<SearchToolResult> {
-        const { DocumentSearchService } = await import('./document-services/DocumentSearchService.js');
+        const { DocumentSearchService } = await import('./document-services/DocumentSearchService/index.js');
         const documentSearchService = new DocumentSearchService();
 
         const enforcedLimit = Math.min(params.limit || 5, 5);

@@ -3,7 +3,7 @@
  * TypeScript interfaces for image modification parameters
  */
 
-import type { ColorScheme } from './types';
+import type { ColorScheme } from './types.js';
 
 // ============================================================================
 // OFFSET TYPES

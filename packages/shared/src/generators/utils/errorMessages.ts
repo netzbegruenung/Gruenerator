@@ -3,7 +3,7 @@
  * Maps API errors to user-friendly German error messages.
  */
 
-import type { GeneratorError } from '../types';
+import type { GeneratorError } from '../types.js';
 
 // Type guard for axios errors
 interface AxiosErrorLike {

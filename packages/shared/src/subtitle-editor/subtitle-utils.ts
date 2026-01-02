@@ -3,7 +3,7 @@
  * Shared parsing, formatting, and helper functions for subtitle editing
  */
 
-import type { SubtitleSegment } from './subtitle-types';
+import type { SubtitleSegment } from './subtitle-types.js';
 
 /**
  * Parse subtitle text format into segment array

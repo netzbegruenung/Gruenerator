@@ -30,9 +30,10 @@ export interface ValidatedSearchParams {
   user_id: string;
   limit: number;
   threshold: number | null;
-  mode: 'vector' | 'hybrid' | 'keyword';
+  mode: 'vector' | 'hybrid' | 'keyword' | 'text';
   documentIds?: string[];
   group_id?: string;
+  sourceType?: string;
 }
 
 /**

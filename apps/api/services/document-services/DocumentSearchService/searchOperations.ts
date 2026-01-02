@@ -192,7 +192,7 @@ export async function findSimilarChunks(
     try {
         const intentCfg = vectorConfig.get('retrieval')?.queryIntent;
         if (intentCfg?.enabled) {
-            const { queryIntentService } = await import('../QueryIntentService/index.js');
+            const { queryIntentService } = await import('../../QueryIntentService/index.js');
             const intent = queryIntentService.detectIntent(query || '');
             results = await qdrantOps.searchWithIntent(searchCollection, embedding, intent, filter, { limit, threshold, withPayload: true });
         } else {

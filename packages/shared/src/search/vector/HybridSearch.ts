@@ -7,13 +7,13 @@ import type {
   VectorSearchResult,
   TextSearchResult,
   HybridConfig,
-} from './types';
+} from './types.js';
 import {
   DEFAULT_HYBRID_CONFIG,
   RRF_K,
   WEIGHTED_FUSION_DEFAULTS,
   MIN_TEXT_RESULTS_FOR_RRF,
-} from './constants';
+} from './constants.js';
 
 interface RRFScoreEntry {
   item: VectorSearchResult | TextSearchResult;

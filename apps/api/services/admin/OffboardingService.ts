@@ -28,7 +28,7 @@ export const DEFAULT_CONFIG: GrueneApiConfig = {
 
 export class OffboardingService {
   private apiClient: GrueneApiClient;
-  private grueneratorOffboarding: GrueneratorOffboarding;
+  public grueneratorOffboarding: GrueneratorOffboarding;
   private config: GrueneApiConfig;
 
   constructor(config: GrueneApiConfig = DEFAULT_CONFIG) {

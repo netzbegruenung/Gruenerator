@@ -12,8 +12,8 @@ import type {
   CreateImageShareParams,
   UpdateImageShareParams,
   ShareMediaType,
-} from '../types';
-import { shareApi } from '../api/shareApi';
+} from '../types.js';
+import { shareApi } from '../api/shareApi.js';
 
 const initialState: ShareStoreState = {
   shares: [],

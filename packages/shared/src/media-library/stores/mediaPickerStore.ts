@@ -10,7 +10,7 @@ import type {
   MediaPickerState,
   MediaPickerActions,
   OpenPickerOptions,
-} from '../types';
+} from '../types.js';
 
 const initialState: MediaPickerState = {
   isOpen: false,

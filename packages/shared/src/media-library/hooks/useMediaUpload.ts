@@ -4,9 +4,9 @@
  */
 
 import { useState, useCallback } from 'react';
-import { mediaApi } from '../api';
-import { SUPPORTED_MIME_TYPES, MAX_FILE_SIZE } from '../constants';
-import type { MediaUploadResult, UploadSource } from '../types';
+import { mediaApi } from '../api/index.js';
+import { SUPPORTED_MIME_TYPES, MAX_FILE_SIZE } from '../constants.js';
+import type { MediaUploadResult, UploadSource } from '../types.js';
 
 interface UploadState {
   isUploading: boolean;

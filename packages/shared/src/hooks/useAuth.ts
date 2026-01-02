@@ -1,5 +1,5 @@
-import { useAuthStore } from '../stores/authStore';
-import type { User } from '../types/auth';
+import { useAuthStore } from '../stores/authStore.js';
+import type { User } from '../types/auth.js';
 
 /**
  * Simplified auth hook for mobile/web usage

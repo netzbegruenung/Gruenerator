@@ -12,10 +12,10 @@ import type {
   DreizeilenModificationParams,
   ZitatModificationParams,
   VeranstaltungModificationParams,
-} from './modification-types';
+} from './modification-types.js';
 import {
   MODIFICATION_CONTROLS_CONFIG,
-} from './modification-constants';
+} from './modification-constants.js';
 
 // ============================================================================
 // VALIDATION RESULT TYPE

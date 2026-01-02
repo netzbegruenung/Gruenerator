@@ -3,8 +3,8 @@
  * Platform-agnostic form validation for image-studio
  */
 
-import type { ImageStudioTemplateType, InputFieldConfig, ImageStudioFormData, FormFieldValue } from '../types';
-import { getTypeConfig, getFieldConfig, getInputFields } from '../constants';
+import type { ImageStudioTemplateType, InputFieldConfig, ImageStudioFormData, FormFieldValue } from '../types.js';
+import { getTypeConfig, getFieldConfig, getInputFields } from '../constants.js';
 
 // ============================================================================
 // ERROR MESSAGES (German)

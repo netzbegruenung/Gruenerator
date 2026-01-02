@@ -182,11 +182,11 @@ export class InputValidator {
     );
 
     // Validate mode
-    const validModes: Array<'vector' | 'hybrid' | 'keyword'> = ['vector', 'hybrid', 'keyword'];
+    const validModes: Array<'vector' | 'hybrid' | 'keyword' | 'text'> = ['vector', 'hybrid', 'keyword', 'text'];
     if (params.mode && !validModes.includes(params.mode as any)) {
       throw new ValidationError('Invalid search mode', 'mode', params.mode);
     }
-    validated.mode = (params.mode as 'vector' | 'hybrid' | 'keyword') || 'vector';
+    validated.mode = (params.mode as 'vector' | 'hybrid' | 'keyword' | 'text') || 'vector';
 
     // Validate document IDs if provided
     if (params.documentIds) {

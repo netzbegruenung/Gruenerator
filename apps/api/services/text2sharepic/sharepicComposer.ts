@@ -59,14 +59,18 @@ try {
 export class SharepicComposer {
   private redis: any;
   private claudeApiHelper: any;
-  private cacheEnabled: boolean;
+  private _cacheEnabled: boolean;
   private cacheTTL: number;
 
   constructor(options: SharepicComposerOptions = {}) {
     this.redis = options.redis || null;
     this.claudeApiHelper = options.claudeApiHelper || null;
-    this.cacheEnabled = options.cacheEnabled !== false && this.redis !== null;
+    this._cacheEnabled = options.cacheEnabled !== false && this.redis !== null;
     this.cacheTTL = options.cacheTTL || 3600; // 1 hour default
+  }
+
+  get cacheEnabled(): boolean {
+    return this._cacheEnabled;
   }
 
   /**
@@ -80,7 +84,7 @@ export class SharepicComposer {
     try {
       // Step 1: Check cache if enabled
       const cacheKey = this.generateCacheKey(description, options);
-      if (this.cacheEnabled && !options.skipCache) {
+      if (this._cacheEnabled && !options.skipCache) {
         const cached = await this.getFromCache(cacheKey);
         if (cached) {
           console.log('[SharepicComposer] Cache hit, returning cached result');
@@ -124,7 +128,7 @@ export class SharepicComposer {
       const result = await this.renderLayoutPlan(layoutPlan);
 
       // Step 7: Cache the result
-      if (this.cacheEnabled) {
+      if (this._cacheEnabled) {
         await this.saveToCache(cacheKey, result);
       }
 
