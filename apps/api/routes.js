@@ -101,7 +101,7 @@ async function setupRoutes(app) {
   const { default: claudeAlttextRoute } = await import('./routes/claude_alttext.ts');
   const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
-  const { default: claudeWebsiteRoute } = await import('./routes/claude_website.js');
+  const { default: claudeWebsiteRoute } = await import('./routes/claude_website.ts');
   const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
   const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
   const { default: notebookCollectionsRouter } = await import('./routes/notebookCollections.mjs');
