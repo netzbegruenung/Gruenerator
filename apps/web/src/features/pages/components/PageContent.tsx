@@ -6,7 +6,12 @@ import {
     TimelineBlock
 } from './blocks';
 
-const PageContent = ({ content, children }) => {
+interface PageContentProps {
+    content?: unknown[] | string;
+    children?: React.ReactNode;
+}
+
+const PageContent = ({ content, children }: PageContentProps) => {
     // If children are provided directly, use them
     if (children) {
         return (

@@ -3,13 +3,28 @@ import PageHeader from './PageHeader';
 import PageContent from './PageContent';
 import { getReadingTime } from '../../../utils/readingTimeUtils';
 
+interface PageViewProps {
+    pageId?: string;
+    pageData?: {
+        title?: string;
+        subtitle?: string;
+        author?: string;
+        readTime?: string;
+        content?: unknown[];
+        headerAlignment?: string;
+    };
+    children?: React.ReactNode;
+    loading?: boolean;
+    error?: string | null;
+}
+
 const PageView = ({
     pageId,
     pageData,
     children,
     loading = false,
     error = null
-}) => {
+}: PageViewProps) => {
     const [currentPage, setCurrentPage] = useState(null);
     const [isLoading, setIsLoading] = useState(loading);
 
