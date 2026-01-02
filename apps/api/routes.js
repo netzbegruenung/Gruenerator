@@ -108,7 +108,7 @@ async function setupRoutes(app) {
   const { default: notebookInteractionRouter } = await import('./routes/notebookInteraction.mjs');
   const { default: canvaAuthRouter } = await import('./routes/canva/canvaAuth.mjs');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.mjs');
-  const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.mjs');
+  const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: crawlUrlRouter } = await import('./routes/crawlUrl.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
