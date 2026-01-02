@@ -32,6 +32,17 @@ const supportsWebP = () => {
   return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
 };
 
+interface CompressionOptions {
+  maxSizeMB?: number;
+  maxWidthOrHeight?: number;
+  useWebWorker?: boolean;
+  preserveExif?: boolean;
+  initialQuality?: number;
+  alwaysKeepResolution?: boolean;
+  fileType?: string;
+  preserveFormat?: boolean;
+}
+
 /**
  * Komprimiert ein Bild mit optimierten Einstellungen
  * @param {File} imageFile - Die Bilddatei
@@ -39,7 +50,7 @@ const supportsWebP = () => {
  * @returns {Promise<File>} - Die komprimierte Datei
  * @throws {Error} - Wenn die Datei kein Bild ist oder die Komprimierung fehlschlägt
  */
-export const compressImage = async (imageFile, customOptions = {}) => {
+export const compressImage = async (imageFile: File, customOptions: CompressionOptions = {}) => {
   try {
     if (!isImage(imageFile)) {
       throw new Error('Die ausgewählte Datei ist kein Bild');
@@ -81,7 +92,7 @@ export const compressImage = async (imageFile, customOptions = {}) => {
  * @param {Object} options - Optionale Komprimierungsoptionen
  * @returns {Promise<File>} - Die verarbeitete Datei
  */
-export const processImageForUpload = async (file, options = {}) => {
+export const processImageForUpload = async (file: File, options: CompressionOptions = {}) => {
   try {
     if (!file) {
       throw new Error('Keine Datei ausgewählt');

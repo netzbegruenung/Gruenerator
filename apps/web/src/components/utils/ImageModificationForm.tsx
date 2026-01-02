@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { JSX, useState } from 'react';
 import { FaChevronLeft, FaChevronRight, FaChevronUp, FaChevronDown, FaCog } from 'react-icons/fa';
 
 import {
@@ -7,8 +7,8 @@ import {
 } from './constants';
 
 export interface FontSizeControlProps {
-  fontSize: number;
-  onControlChange: () => void;
+  fontSize?: number;
+  onControlChange: (name: string, value: unknown) => void;
   isQuoteType?: boolean;
 }
 
@@ -76,8 +76,6 @@ export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max =
     </div>
   );
 };
-
-Free
 
 export const GroupedFontSizeControl = ({
   fontSizes = { main: 100, circle: 100, footer: 100 },

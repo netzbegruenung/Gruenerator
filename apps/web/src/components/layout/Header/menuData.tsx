@@ -1,20 +1,60 @@
-import type { ComponentType } from 'react';
+import type { JSX, ComponentType } from 'react';
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
+import type { IconType } from 'react-icons';
+
+// Beta features interface
+export interface BetaFeatures {
+  databaseBetaEnabled?: boolean;
+  youBetaEnabled?: boolean;
+  chatBetaEnabled?: boolean;
+  igelModeEnabled?: boolean;
+  websiteBetaEnabled?: boolean;
+  isAustrian?: boolean;
+}
+
+// Menu item type definition
+export interface MenuItemType {
+  id: string;
+  path: string;
+  title: string;
+  description: string;
+  icon?: IconType | ComponentType;
+  hasSubmenu?: boolean;
+  items?: MenuItemType[];
+}
+
+// Menu section type definition
+export interface MenuSection {
+  title: string;
+  icon?: IconType | ComponentType;
+  items: MenuItemType[];
+}
+
+// Menu items result type
+export interface MenuItemsResult {
+  texte: MenuSection;
+  bildUndVideo: MenuSection;
+  tools: MenuSection;
+  labor?: MenuSection;
+}
+
+// Direct menu items result type
+export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
 // Direkte Menüpunkte ohne Dropdown - jetzt leer da alle in Dropdowns organisiert sind
-export const getDirectMenuItems = (betaFeatures = {}) => {
-  const items = {};
+export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuItemsResult => {
+  const items: DirectMenuItemsResult = {};
   // Alle direkten Links wurden in Dropdowns organisiert
   return items;
 };
 
 // Mobile-only Menüpunkte (nur im NavMenu angezeigt)
-export const getMobileOnlyMenuItems = () => {
+export const getMobileOnlyMenuItems = (): DirectMenuItemsResult => {
   return {};
 };
 
 // Funktion zur Generierung der Hauptmenüstruktur inkl. dynamischem "Labor"-Menü
-export const getMenuItems = (betaFeatures = {}) => {
+export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult => {
   // Dynamic tools items based on beta features
   const toolsItems = [
     {
@@ -152,7 +192,7 @@ export const getMenuItems = (betaFeatures = {}) => {
     */
   };
 
-  const laborItems = [];
+  const laborItems: MenuItemType[] = [];
 
   if (betaFeatures.databaseBetaEnabled) {
     laborItems.push({
@@ -165,7 +205,7 @@ export const getMenuItems = (betaFeatures = {}) => {
   }
 
   // Build result with optional sections
-  let result = staticMenuItems;
+  let result: MenuItemsResult = staticMenuItems;
 
   if (laborItems.length > 0) {
     result = {
@@ -211,7 +251,11 @@ export const menuStyles = {
   icon: 'menu-item-icon',
   header: 'menu-item-header',
   title: 'menu-item-title',
-  description: 'menu-item-description'
+  description: 'menu-item-description',
+  dropdownContent: {
+    base: 'header-dropdown-content',
+    show: 'show'
+  }
 };
 
 export const MenuItem = ({ item }: MenuItemProps): JSX.Element => (

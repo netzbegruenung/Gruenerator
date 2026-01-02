@@ -1,8 +1,9 @@
 import { FONT_SIZES } from '../../utils/constants';
+import type { JSX } from 'react';
 
 interface FontSizeSelectorProps {
-  fontSize: unknown;
-  handleFontSizeChange: () => void;
+  fontSize: string | number;
+  handleFontSizeChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
 const FontSizeSelector = ({ fontSize, handleFontSizeChange }: FontSizeSelectorProps): JSX.Element => {

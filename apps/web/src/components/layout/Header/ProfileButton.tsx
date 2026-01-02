@@ -9,14 +9,19 @@ import { useGroups } from '../../../features/groups/hooks/useGroups';
 import { useProfileStore } from '../../../stores/profileStore';
 import ProfileMenu from '../../../features/auth/components/profile/ProfileMenu';
 
+interface Profile {
+  display_name?: string;
+  avatar_robot_id?: number;
+}
+
 const ProfileButton = () => {
-  const { user, loading, logout, isLoggingOut, isProfileLoading, setLoginIntent } = useOptimizedAuth();
+  const { user, loading, logout, isLoggingOut, isInitialLoad, setLoginIntent } = useOptimizedAuth();
 
   // Profildaten aus Query holen - now uses backend API via useAuth
-  const { data: profile } = useProfile(user?.id);
+  const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
 
   // Fetch custom generators for authenticated users
-  useCustomGeneratorsData({ isActive: !!user?.id });
+  useCustomGeneratorsData({ enabled: !!user?.id });
   const customGenerators = useProfileStore(state => state.customGenerators) || [];
 
   // Fetch user groups for authenticated users
@@ -26,13 +31,15 @@ const ProfileButton = () => {
   const displayName = profile?.display_name || '';
   // Use default avatar (robot #1) while loading for immediate visual feedback
   const avatarRobotId = profile?.avatar_robot_id ?? 1;
+  // isProfileLoading equivalent - true when initial load is happening
+  const isProfileLoading = isInitialLoad;
 
-  const dropdownRef = useRef(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     // Listen for avatar updates from other components
-    const handleAvatarUpdate = (event) => {
+    const handleAvatarUpdate = () => {
       // This component doesn't manage avatar updates, so no action needed
     };
 
@@ -45,8 +52,8 @@ const ProfileButton = () => {
 
   // Dropdown schließen wenn außerhalb geklickt wird
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
@@ -66,7 +73,7 @@ const ProfileButton = () => {
   };
 
   // Korrekte Genitiv-Form mit Apostroph
-  const getPossessiveForm = (name) => {
+  const getPossessiveForm = (name: string | undefined): string => {
     if (!name) return "Dein";
 
     // Endet der Name auf s, ss, ß, z, tz, x oder ce, nur Apostroph anhängen

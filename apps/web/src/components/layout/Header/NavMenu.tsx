@@ -1,17 +1,18 @@
-import { useState, useRef, useEffect, useMemo, ComponentType, MouseEvent } from 'react';
+import { JSX, useState, useRef, useEffect, useMemo, ComponentType, MouseEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import useAccessibility from '../../hooks/useAccessibility';
-import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction } from './menuData';
+import { getMenuItems, getDirectMenuItems, getMobileOnlyMenuItems, handleMenuInteraction as commonHandleMenuInteraction, type MenuItemType, type MenuSection, type MenuItemsResult } from './menuData';
 import { useLazyAuth, useOptimizedAuth } from '../../../hooks/useAuth';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useProfileStore } from '../../../stores/profileStore';
 import { useAuthStore } from '../../../stores/authStore';
 import { useCustomGeneratorsData } from '../../../features/auth/hooks/useProfileData';
 import Icon from '../../common/Icon';
+import type { IconType } from 'react-icons';
 
-interface MenuItemProps {
-  icon?: ComponentType;
+interface NavMenuItemProps {
+  icon?: IconType | ComponentType;
   title: string;
   description?: string;
   path: string;
@@ -19,11 +20,16 @@ interface MenuItemProps {
   isTopLevel?: boolean;
 }
 
-const MenuItem = ({ icon: IconComponent, title, description, path, onClick, isTopLevel = false }: MenuItemProps): JSX.Element => (
+interface NavMenuProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+const NavMenuItem = ({ icon: IconComponent, title, description, path, onClick, isTopLevel = false }: NavMenuItemProps): JSX.Element => (
   <div className={`menu-item ${isTopLevel ? 'menu-item--top-level' : ''}`}>
     <Link to={path} onClick={onClick} className="menu-item__link">
       <div className="menu-item__content">
-        {!isTopLevel && IconComponent && <IconComponent className="menu-item__icon" aria-hidden="true" />}
+        {!isTopLevel && IconComponent && <IconComponent aria-hidden="true" />}
         <div className="menu-item__text">
           <span className="menu-item__title">{title}</span>
           {description && (
@@ -35,13 +41,13 @@ const MenuItem = ({ icon: IconComponent, title, description, path, onClick, isTo
   </div>
 );
 
-const NavMenu = ({ open, onClose }) => {
-  const [activeDropdown, setActiveDropdown] = useState(null);
-  const [activeSubmenu, setActiveSubmenu] = useState(null);
+const NavMenu = ({ open, onClose }: NavMenuProps) => {
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { announce } = useAccessibility();
-  const navMenuRef = useRef(null);
+  const navMenuRef = useRef<HTMLElement>(null);
   useLazyAuth(); // Keep for other auth functionality
   const { user } = useOptimizedAuth();
   const { getBetaFeatureState } = useBetaFeatures();
@@ -52,17 +58,16 @@ const NavMenu = ({ open, onClose }) => {
   const isAustrian = locale === 'de-AT';
 
   // Fetch custom generators for authenticated users
-  useCustomGeneratorsData({ isActive: !!user?.id });
+  useCustomGeneratorsData({ enabled: !!user?.id });
   const customGenerators = useProfileStore(state => state.customGenerators) || [];
 
   // Memoize menu items to prevent unnecessary recalculations
   const menuItems = useMemo(() => getMenuItems(
-    { databaseBetaEnabled, chatBetaEnabled, isAustrian },
-    customGenerators
-  ), [databaseBetaEnabled, chatBetaEnabled, isAustrian, customGenerators]);
+    { databaseBetaEnabled, chatBetaEnabled, isAustrian }
+  ), [databaseBetaEnabled, chatBetaEnabled, isAustrian]);
   const directMenuItems = useMemo(() => getDirectMenuItems({ databaseBetaEnabled, chatBetaEnabled, isAustrian }), [databaseBetaEnabled, chatBetaEnabled, isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
-  const dynamicTopLevelItems = useMemo(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
+  const dynamicTopLevelItems = useMemo<MenuItemType[]>(() => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)], [directMenuItems, mobileOnlyItems]);
 
   useEffect(() => {
     if (onClose) {
@@ -70,44 +75,45 @@ const NavMenu = ({ open, onClose }) => {
     }
   }, [location.pathname]);
 
-  const handleDropdownClick = (dropdown) => {
+  const handleDropdownClick = (dropdown: string) => {
     setActiveDropdown(activeDropdown === dropdown ? null : dropdown);
-    announce(activeDropdown === dropdown ? `${menuItems[dropdown]?.title} Untermenü geschlossen` : `${menuItems[dropdown]?.title} Untermenü geöffnet`);
+    announce(activeDropdown === dropdown ? `${menuItems[dropdown as keyof typeof menuItems]?.title} Untermenü geschlossen` : `${menuItems[dropdown as keyof typeof menuItems]?.title} Untermenü geöffnet`);
   };
 
-  const handleLinkClick = (path, label) => {
+  const handleLinkClick = (path: string, label: string) => {
     navigate(path);
     setActiveDropdown(null);
     if (onClose) onClose();
     announce(`Navigation zu ${label}`);
   };
 
-  const handleKeyDown = (event, dropdown) => {
+  const handleKeyDown = (event: React.KeyboardEvent, dropdown: string) => {
     commonHandleMenuInteraction(event, 'keydown', () => handleDropdownClick(dropdown));
   };
 
-  const handleSubmenuClick = (itemId) => {
+  const handleSubmenuClick = (itemId: string) => {
     setActiveSubmenu(activeSubmenu === itemId ? null : itemId);
   };
 
-  const renderDropdownContent = (menuType) => {
+  const renderDropdownContent = (menuType: keyof typeof menuItems) => {
     const menu = menuItems[menuType];
     if (!menu || !menu.items) return null;
-    return menu.items.map(item => {
+    return menu.items.map((item: MenuItemType) => {
       // Handle items with sub-menus
       if (item.hasSubmenu && item.items) {
+        const ItemIcon = item.icon;
         return (
           <li key={item.id} className="nav-menu__submenu-container">
             <span
               className="nav-menu__submenu-trigger"
               onClick={() => handleSubmenuClick(item.id)}
               onKeyDown={(e) => commonHandleMenuInteraction(e, 'keydown', () => handleSubmenuClick(item.id))}
-              tabIndex="0"
+              tabIndex={0}
               role="button"
               aria-haspopup="true"
               aria-expanded={activeSubmenu === item.id}
             >
-              {item.icon && <item.icon className="menu-item__icon" aria-hidden="true" />}
+              {ItemIcon && <ItemIcon aria-hidden="true" />}
               <span className="menu-item__title">{item.title}</span>
               {activeSubmenu === item.id ?
                 <Icon category="ui" name="caretUp" className="nav-menu__icon nav-menu__icon--up" aria-hidden="true" /> :
@@ -125,9 +131,9 @@ const NavMenu = ({ open, onClose }) => {
                   transition={{ duration: 0.2, ease: 'easeInOut' }}
                   style={{ overflow: 'hidden' }}
                 >
-                  {item.items.map(subItem => (
+                  {item.items.map((subItem: MenuItemType) => (
                     <li key={subItem.id}>
-                      <MenuItem
+                      <NavMenuItem
                         icon={subItem.icon}
                         title={subItem.title}
                         description={subItem.description}
@@ -147,7 +153,7 @@ const NavMenu = ({ open, onClose }) => {
       // Regular menu items
       return (
         <li key={item.id}>
-          <MenuItem
+          <NavMenuItem
             icon={item.icon}
             title={item.title}
             description={item.description}
@@ -166,18 +172,17 @@ const NavMenu = ({ open, onClose }) => {
       ref={navMenuRef}
       aria-label="Mobile Navigation"
     >
-      {Object.entries(menuItems).map(([key, menu]) => (
+      {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][]).map(([key, menu]) => (
         <div key={key} className="nav-menu__dropdown">
           <span
             onClick={() => handleDropdownClick(key)}
             onKeyDown={(e) => handleKeyDown(e, key)}
-            tabIndex="0"
+            tabIndex={0}
             role="button"
             aria-haspopup="true"
             aria-expanded={activeDropdown === key}
             className="nav-menu__dropdown-trigger"
           >
-            {menu.icon && <menu.icon style={{ marginRight: '8px' }} />}
             {menu.title}
             {activeDropdown === key ?
               <Icon category="ui" name="caretUp" className="nav-menu__icon nav-menu__icon--up" aria-hidden="true" /> :
@@ -202,8 +207,8 @@ const NavMenu = ({ open, onClose }) => {
         </div>
       ))}
 
-      {dynamicTopLevelItems.map(item => (
-        <MenuItem
+      {dynamicTopLevelItems.map((item: MenuItemType) => (
+        <NavMenuItem
           key={item.id}
           icon={item.icon}
           title={item.title}

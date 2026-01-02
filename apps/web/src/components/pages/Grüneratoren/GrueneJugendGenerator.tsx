@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { JSX, useState, useCallback, useMemo } from 'react';
 import { Controller } from 'react-hook-form';
 import BaseForm from '../../common/BaseForm';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../utils/constants';
@@ -119,29 +119,28 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
         ...crawledUrls
       ];
 
-      const formDataToSubmit = {
-        thema: rhfData.thema,
-        details: rhfData.details,
-        platforms: selectedPlatforms,
-        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
-        attachments: allAttachments
-      };
-
       // Extract search query from form data
-      const extractQueryFromFormData = (data) => {
-        const queryParts = [];
-        if (data.thema) queryParts.push(data.thema);
-        if (data.details) queryParts.push(data.details);
+      const extractQueryFromFormData = (data: Record<string, unknown>) => {
+        const queryParts: string[] = [];
+        if (data.thema) queryParts.push(String(data.thema));
+        if (data.details) queryParts.push(String(data.details));
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
 
       const searchQuery = extractQueryFromFormData(rhfData);
 
-      // Add custom prompt from user instructions (simplified)
-      formDataToSubmit.customPrompt = customPrompt;
-      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
-      formDataToSubmit.selectedTextIds = selectedTextIds || [];
-      formDataToSubmit.searchQuery = searchQuery || '';
+      const formDataToSubmit = {
+        thema: rhfData.thema,
+        details: rhfData.details,
+        platforms: selectedPlatforms,
+        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
+        attachments: allAttachments,
+        // Add custom prompt from user instructions (simplified)
+        customPrompt,
+        selectedDocumentIds: selectedDocumentIds || [],
+        selectedTextIds: selectedTextIds || [],
+        searchQuery: searchQuery || ''
+      };
 
       console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
       const content = await submitForm(formDataToSubmit);
@@ -214,7 +213,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
         <BaseForm
           {...form.generator.baseFormProps}
           title={<span className="gradient-title">Grüne Jugend</span>}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading}
           success={success}
           error={error}
