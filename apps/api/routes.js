@@ -19,7 +19,7 @@ import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImage
 import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
 import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
-import claudeTextAdjustmentRoute from './routes/claude_text_adjustment.js';
+import claudeTextAdjustmentRoute from './routes/claude_text_adjustment.ts';
 import claudeSuggestEditsRoute from './routes/claude_suggest_edits.js';
 import claudeTextImproverRoute from './routes/claude_text_improver.ts';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
@@ -98,7 +98,7 @@ async function setupRoutes(app) {
   const { default: documentsRouter } = await import('./routes/documents.mjs');
   const { default: oparlRouter } = await import('./routes/oparl.mjs');
   const { default: claudeSocialRoute } = await import('./routes/claude_social.ts');
-  const { default: claudeAlttextRoute } = await import('./routes/claude_alttext.js');
+  const { default: claudeAlttextRoute } = await import('./routes/claude_alttext.ts');
   const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
   const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
   const { default: claudeWebsiteRoute } = await import('./routes/claude_website.js');
