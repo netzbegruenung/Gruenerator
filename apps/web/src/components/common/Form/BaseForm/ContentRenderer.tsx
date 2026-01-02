@@ -55,7 +55,7 @@ const enhanceTextWithCitations = (text: string, citations: Citation[]): ReactNod
         <CitationBadge
           key={`citation-${i}-${citationIndex}`}
           citationIndex={citationIndex}
-          citation={citation?.index}
+          citation={citation}
         />
       );
     } else if (part) {
@@ -239,7 +239,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
             <CitationBadge
               key={`citation-${i}-${citationIndex}`}
               citationIndex={citationIndex}
-              citation={citation?.index}
+              citation={citation}
             />
           );
         } else if (part) {

@@ -106,7 +106,7 @@ function FormSelect<T extends FieldValues = FieldValues>({
             onChange: _oc,
             onBlur: _ob,
             ...cleanSelectProps
-          } = selectProps;
+          } = selectProps as SelectHTMLAttributes<HTMLSelectElement> & { defaultValue?: unknown };
           const {
             defaultValue: _dv2,
             value: _v2,

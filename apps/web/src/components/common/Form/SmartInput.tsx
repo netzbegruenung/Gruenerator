@@ -34,6 +34,7 @@ interface RecentOption {
   };
   __isRecentValue: boolean;
   __recentIndex: number;
+  [key: string]: unknown;
 }
 
 /**
