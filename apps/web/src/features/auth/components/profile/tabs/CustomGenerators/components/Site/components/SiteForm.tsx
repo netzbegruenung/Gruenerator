@@ -5,7 +5,32 @@ import ProfileCard from '../../../../../../../../../components/common/ProfileCar
 import { useProfileStore } from '../../../../../../../../../stores/profileStore';
 import { getSitesDomain } from '../utils/siteConfig';
 
-const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }) => {
+interface SocialLinks {
+  twitter?: string;
+  facebook?: string;
+  instagram?: string;
+  linkedin?: string;
+  [key: string]: string | undefined;
+}
+
+interface SiteFormData {
+  subdomain?: string;
+  site_title?: string;
+  tagline?: string;
+  bio?: string;
+  contact_email?: string;
+  theme?: string;
+  social_links?: SocialLinks;
+}
+
+interface SiteFormProps {
+  initialData?: SiteFormData;
+  onSubmit: (data: SiteFormData) => Promise<void>;
+  onCancel: () => void;
+  isCreating?: boolean;
+}
+
+const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }: SiteFormProps) => {
     // Get profile data from store to pre-populate fields
     const profile = useProfileStore(state => state.profile);
 
@@ -36,14 +61,14 @@ const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }) 
     });
 
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleChange = (name, value) => {
+    const handleChange = (name: string, value: string): void => {
         setFormData(prev => ({ ...prev, [name]: value }));
         setError(null);
     };
 
-    const handleSocialChange = (platform, value) => {
+    const handleSocialChange = (platform: string, value: string): void => {
         setFormData(prev => ({
             ...prev,
             social_links: {
@@ -53,7 +78,7 @@ const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }) 
         }));
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
 
         if (isCreating && !formData.subdomain) {
@@ -71,7 +96,7 @@ const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }) 
             setError(null);
             await onSubmit(formData);
         } catch (err) {
-            setError(err.message || 'Ein Fehler ist aufgetreten');
+            setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
         } finally {
             setIsSaving(false);
         }
@@ -118,69 +143,77 @@ const SiteForm = ({ initialData = {}, onSubmit, onCancel, isCreating = false }) 
                     )}
 
                     <FormInput
+                        name="site_title"
                         label="Titel *"
                         value={formData.site_title}
-                        onChange={(e) => handleChange('site_title', e.target.value)}
+                        onChange={(value) => handleChange('site_title', value)}
                         required
                         placeholder="Max Mustermann"
                     />
 
                     <FormInput
+                        name="tagline"
                         label="Tagline"
                         value={formData.tagline}
-                        onChange={(e) => handleChange('tagline', e.target.value)}
+                        onChange={(value) => handleChange('tagline', value)}
                         placeholder="Grüner Kreisverband Beispielstadt"
                     />
 
                     <FormTextarea
+                        name="bio"
                         label="Bio"
                         value={formData.bio}
-                        onChange={(e) => handleChange('bio', e.target.value)}
+                        onChange={(value) => handleChange('bio', value)}
                         placeholder="Erzähle etwas über dich..."
-                        rows={4}
+                        minRows={4}
                     />
                 </ProfileCard>
 
                 <ProfileCard title="Kontaktinformationen">
                     <FormInput
+                        name="contact_email"
                         label="E-Mail"
                         type="email"
                         value={formData.contact_email}
-                        onChange={(e) => handleChange('contact_email', e.target.value)}
+                        onChange={(value) => handleChange('contact_email', value)}
                         placeholder="email@beispiel.de"
                     />
                 </ProfileCard>
 
                 <ProfileCard title="Social Media">
                     <FormInput
+                        name="social_twitter"
                         label="Twitter/X"
                         type="url"
-                        value={formData.social_links.twitter || ''}
-                        onChange={(e) => handleSocialChange('twitter', e.target.value)}
+                        value={formData.social_links?.twitter || ''}
+                        onChange={(value) => handleSocialChange('twitter', value)}
                         placeholder="https://twitter.com/username"
                     />
 
                     <FormInput
+                        name="social_facebook"
                         label="Facebook"
                         type="url"
-                        value={formData.social_links.facebook || ''}
-                        onChange={(e) => handleSocialChange('facebook', e.target.value)}
+                        value={formData.social_links?.facebook || ''}
+                        onChange={(value) => handleSocialChange('facebook', value)}
                         placeholder="https://facebook.com/username"
                     />
 
                     <FormInput
+                        name="social_instagram"
                         label="Instagram"
                         type="url"
-                        value={formData.social_links.instagram || ''}
-                        onChange={(e) => handleSocialChange('instagram', e.target.value)}
+                        value={formData.social_links?.instagram || ''}
+                        onChange={(value) => handleSocialChange('instagram', value)}
                         placeholder="https://instagram.com/username"
                     />
 
                     <FormInput
+                        name="social_linkedin"
                         label="LinkedIn"
                         type="url"
-                        value={formData.social_links.linkedin || ''}
-                        onChange={(e) => handleSocialChange('linkedin', e.target.value)}
+                        value={formData.social_links?.linkedin || ''}
+                        onChange={(value) => handleSocialChange('linkedin', value)}
                         placeholder="https://linkedin.com/in/username"
                     />
                 </ProfileCard>

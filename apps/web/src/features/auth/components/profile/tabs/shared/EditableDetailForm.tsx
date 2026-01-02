@@ -1,6 +1,26 @@
 import FormFieldWrapper from '../../../../../../components/common/Form/Input/FormFieldWrapper';
+import type { JSX } from 'react';
 import { ProfileActionButton, ProfileIconButton } from '../../../../../../components/profile/actions/ProfileActionButton';
 import RequiredFieldToggle from '../../../../../../components/common/RequiredFieldToggle';
+
+/**
+ * Form field type for form schema
+ */
+interface FormField {
+  label: string;
+  name: string;
+  type: string;
+  required: boolean;
+  placeholder?: string;
+  options?: { label: string; value: string }[];
+}
+
+/**
+ * Form schema type
+ */
+interface FormSchema {
+  fields?: FormField[];
+}
 
 /**
  * Reusable form component for editing detail views
@@ -8,8 +28,10 @@ import RequiredFieldToggle from '../../../../../../components/common/RequiredFie
  */
 interface EditableDetailFormProps {
   entityType: 'generator' | 'notebook';
-  getDisplayValue: () => void;
-  updateField: () => void;
+  getDisplayValue: (field: string) => string;
+  getFormSchema?: () => FormSchema | undefined;
+  updateField: (field: string, value: string) => void;
+  updateFormSchema?: (schema: FormSchema) => void;
   onSave: () => void;
   onCancel: () => void;
   isLoading?: boolean;
@@ -18,7 +40,9 @@ interface EditableDetailFormProps {
 
 const EditableDetailForm = ({ entityType,
     getDisplayValue,
+    getFormSchema,
     updateField,
+    updateFormSchema,
     onSave,
     onCancel,
     isLoading,
@@ -99,8 +123,8 @@ const EditableDetailForm = ({ entityType,
             >
                 <div id="form-fields-editor" className="form-fields-editor generator-form-fields">
                     <FormBuilderSection
-                        formSchema={getDisplayValue('form_schema')}
-                        updateFormSchema={(newSchema) => updateField('form_schema', newSchema)}
+                        formSchema={getFormSchema?.()}
+                        updateFormSchema={updateFormSchema || (() => {})}
                         disabled={disabled}
                     />
                 </div>
@@ -193,10 +217,19 @@ const EditableDetailForm = ({ entityType,
 };
 
 /**
+ * Form builder section props
+ */
+interface FormBuilderSectionProps {
+  formSchema: FormSchema | undefined;
+  updateFormSchema: (schema: FormSchema) => void;
+  disabled?: boolean;
+}
+
+/**
  * Form builder section for generator form schema editing
  */
-const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
-    const fields = formSchema?.fields || [];
+const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuilderSectionProps): JSX.Element => {
+    const fields: FormField[] = formSchema?.fields || [];
 
     // Add form field
     const addFormField = () => {
@@ -215,7 +248,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
     };
 
     // Remove form field
-    const removeFormField = (index) => {
+    const removeFormField = (index: number): void => {
         const updatedFields = fields.filter((_, i) => i !== index);
         updateFormSchema({
             ...formSchema,
@@ -224,7 +257,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
     };
 
     // Update form field
-    const updateFormField = (index, fieldData) => {
+    const updateFormField = (index: number, fieldData: Partial<FormField>): void => {
         const updatedFields = fields.map((field, i) =>
             i === index ? { ...field, ...fieldData } : field
         );
@@ -235,7 +268,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
     };
 
     // Helper functions for managing select options
-    const addOption = (fieldIndex) => {
+    const addOption = (fieldIndex: number): void => {
         const updatedFields = [...fields];
         const field = updatedFields[fieldIndex];
         const currentOptions = field.options || [];
@@ -249,7 +282,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
         });
     };
 
-    const updateOption = (fieldIndex, optionIndex, optionField, value) => {
+    const updateOption = (fieldIndex: number, optionIndex: number, optionField: string, value: string): void => {
         const updatedFields = [...fields];
         const field = updatedFields[fieldIndex];
         const currentOptions = [...(field.options || [])];
@@ -267,7 +300,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }) => {
         });
     };
 
-    const removeOption = (fieldIndex, optionIndex) => {
+    const removeOption = (fieldIndex: number, optionIndex: number): void => {
         const updatedFields = [...fields];
         const field = updatedFields[fieldIndex];
         const currentOptions = field.options || [];

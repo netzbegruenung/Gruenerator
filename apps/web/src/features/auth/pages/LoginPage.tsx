@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { JSX, useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useInstantAuth } from '../../../hooks/useAuth';

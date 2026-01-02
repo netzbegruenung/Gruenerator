@@ -56,8 +56,9 @@ const GroupInfoSection = ({
                                         disabled={isUpdatingGroupName}
                                         style={{ minHeight: 'auto', resize: 'none', overflow: 'hidden' }}
                                         onInput={(e) => {
-                                            e.target.style.height = 'auto';
-                                            e.target.style.height = (e.target.scrollHeight + 2) + 'px';
+                                            const target = e.target as HTMLTextAreaElement;
+                                            target.style.height = 'auto';
+                                            target.style.height = (target.scrollHeight + 2) + 'px';
                                         }}
                                     />
                                     {editedGroupDescription.length >= 450 && (
@@ -142,7 +143,6 @@ const GroupInfoSection = ({
                                     message="Die gesamte Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Gruppeninhalte und -mitgliedschaften werden permanent entfernt."
                                     confirmText="Endgültig löschen"
                                     cancelText="Abbrechen"
-                                    tabIndex={tabIndex.deleteGroupButton}
                                 />
                             </div>
                         )}

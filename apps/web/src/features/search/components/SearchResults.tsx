@@ -1,3 +1,5 @@
+import type { JSX } from 'react';
+
 interface SearchResultsProps {
   results: {
     url?: string;

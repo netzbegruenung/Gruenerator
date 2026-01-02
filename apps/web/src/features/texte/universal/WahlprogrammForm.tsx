@@ -3,7 +3,20 @@ import { useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
-const WahlprogrammForm = forwardRef(({ tabIndex = {} }, ref) => {
+interface WahlprogrammFormProps {
+  tabIndex?: {
+    formType?: number;
+    hauptfeld?: number;
+    [key: string]: number | undefined;
+  };
+}
+
+interface WahlprogrammFormRef {
+  getFormData: () => Record<string, unknown>;
+  resetForm: (data?: Record<string, unknown>) => void;
+}
+
+const WahlprogrammForm = forwardRef<WahlprogrammFormRef, WahlprogrammFormProps>(({ tabIndex = {} }, ref) => {
   const {
     control,
     getValues,

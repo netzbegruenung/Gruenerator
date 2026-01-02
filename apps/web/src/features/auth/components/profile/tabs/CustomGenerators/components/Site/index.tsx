@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
+import { useOptimizedAuth } from '../../../../../../../../hooks/useAuth';
 
 const SitesView = lazy(() => import('./SitesView'));
 

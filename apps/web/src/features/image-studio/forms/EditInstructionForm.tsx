@@ -8,6 +8,16 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
  * Config-driven form for KI edit types (GREEN_EDIT, UNIVERSAL_EDIT)
  * Props come from TYPE_CONFIG.formProps
  */
+interface EditInstructionFormProps {
+  label?: string;
+  placeholder?: string;
+  helpText?: string;
+  rows?: number;
+  maxLength?: number;
+  loading?: boolean;
+  formErrors?: Record<string, string>;
+}
+
 const EditInstructionForm = ({
   label = 'Anweisungen',
   placeholder = 'Beschreibe, was geändert werden soll...',
@@ -16,7 +26,7 @@ const EditInstructionForm = ({
   maxLength = 500,
   loading = false,
   formErrors = {}
-}) => {
+}: EditInstructionFormProps) => {
   const {
     precisionInstruction,
     setPrecisionInstruction

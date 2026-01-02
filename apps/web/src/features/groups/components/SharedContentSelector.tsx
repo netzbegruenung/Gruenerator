@@ -408,7 +408,7 @@ const SharedContentSelector = ({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const documentId = entry.target.dataset.documentId;
+            const documentId = (entry.target as HTMLElement).dataset.documentId;
             if (documentId) {
               // Preload after a short delay to avoid excessive requests
               setTimeout(() => {
@@ -734,7 +734,7 @@ const SharedContentSelector = ({
                         alt={`Vorschau von ${item.title || item.name}`}
                         className="shared-content-preview-image"
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          (e.target as HTMLElement).style.display = 'none';
                         }}
                         loading="lazy"
                       />
@@ -848,7 +848,7 @@ const SharedContentSelector = ({
                             alt={`Vorschau von ${item.title || item.name}`}
                             className="shared-content-preview-image"
                             onError={(e) => {
-                              e.target.style.display = 'none';
+                              (e.target as HTMLElement).style.display = 'none';
                             }}
                             loading="lazy"
                           />

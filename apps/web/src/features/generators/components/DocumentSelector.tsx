@@ -9,6 +9,10 @@ interface Document {
   id: string;
   title: string;
   status: string;
+  name?: string;
+  page_count?: number;
+  filename?: string;
+  created_at?: string;
   [key: string]: unknown;
 }
 
@@ -51,7 +55,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   const selectedDocumentIds = selectedDocuments.map(doc => doc.id);
 
   // Handle document selection/deselection
-  const handleDocumentToggle = (document) => {
+  const handleDocumentToggle = (document: Document) => {
     if (disabled) return;
 
     const isSelected = selectedDocumentIds.includes(document.id);
@@ -74,7 +78,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   };
 
   // Get status icon
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
         return <HiCheckCircle className="text-green-500" />;

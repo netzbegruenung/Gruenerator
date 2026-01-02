@@ -93,11 +93,11 @@ const NotebookSearchPage = () => {
 
         <BaseForm
           title="Dokumente durchsuchen"
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading}
           success={success}
           error={error}
-          formErrors={errors}
+          formErrors={errors as Record<string, string>}
           generatedContent={storeGeneratedText}
           onGeneratedContentChange={handleGeneratedContentChange}
           helpContent={helpContent}

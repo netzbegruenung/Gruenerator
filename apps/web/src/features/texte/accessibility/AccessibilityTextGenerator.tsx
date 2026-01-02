@@ -19,6 +19,17 @@ import { convertCanvaDesignToBase64 } from '../../../utils/canvaImageHelper';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
 
+// Form ref interface for child forms
+interface FormRef {
+  getFormData: () => Record<string, unknown> | null;
+  isValid: () => boolean;
+  setCanvaDesign?: (designData: unknown) => void;
+}
+
+interface AccessibilityTextGeneratorProps {
+  showHeaderFooter?: boolean;
+}
+
 // Define types and labels directly in this file
 export const ACCESSIBILITY_TYPES = {
   ALT_TEXT: 'alt-text',
@@ -50,10 +61,10 @@ const API_ENDPOINTS = {
   [ACCESSIBILITY_TYPES.LEICHTE_SPRACHE]: '/leichte_sprache'
 };
 
-const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
+const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({ showHeaderFooter = true }) => {
   const [selectedType, setSelectedType] = useState(ACCESSIBILITY_TYPES.ALT_TEXT);
   const [generatedContent, setGeneratedContent] = useState('');
-  const formRef = useRef();
+  const formRef = useRef<FormRef>(null);
   const [searchParams] = useSearchParams();
 
   const { setGeneratedText } = useGeneratedTextStore();
@@ -130,14 +141,14 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
   } = useUrlCrawler();
 
   // Handle URL detection and crawling for Leichte Sprache
-  const handleUrlsDetected = useCallback(async (urls) => {
+  const handleUrlsDetected = useCallback(async (urls: string[]) => {
     if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE && !isCrawling && urls.length > 0) {
       await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
   }, [detectAndCrawlUrls, isCrawling, selectedType, usePrivacyMode]);
 
   // Handle URL retry for Leichte Sprache
-  const handleRetryUrl = useCallback(async (url) => {
+  const handleRetryUrl = useCallback(async (url: string) => {
     if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE) {
       await retryUrl(url, usePrivacyMode);
     }
@@ -186,7 +197,16 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     try {
       if (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT) {
         // Alt-Text generation logic
-        const { hasUploadedImage, hasCanvaImage, uploadedImage, selectedCanvaDesign, imageSource, imageDescription } = formData;
+        interface CanvaDesignData {
+          design: unknown;
+          title?: string;
+        }
+        const hasUploadedImage = formData.hasUploadedImage as boolean;
+        const hasCanvaImage = formData.hasCanvaImage as boolean;
+        const uploadedImage = formData.uploadedImage as File | null;
+        const selectedCanvaDesign = formData.selectedCanvaDesign as CanvaDesignData | null;
+        const imageSource = formData.imageSource as string;
+        const imageDescription = formData.imageDescription as string | null;
 
         if (!hasUploadedImage && !hasCanvaImage) {
           console.error('[AccessibilityTextGenerator] No image selected');
@@ -198,10 +218,10 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
         let imageBase64;
         let imageContext = '';
 
-        if (imageSource === 'upload' && hasUploadedImage) {
+        if (imageSource === 'upload' && hasUploadedImage && uploadedImage) {
           imageBase64 = await fileToBase64(uploadedImage);
           imageContext = `Bild: ${uploadedImage.name}`;
-        } else if (imageSource === 'canva' && hasCanvaImage) {
+        } else if (imageSource === 'canva' && hasCanvaImage && selectedCanvaDesign) {
           const conversionResult = await convertCanvaDesignToBase64(selectedCanvaDesign.design);
           imageBase64 = conversionResult.base64;
           imageContext = `Canva Design: ${selectedCanvaDesign.title || 'Untitled'}`;
@@ -217,14 +237,10 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
             : imageContext;
         }
 
-        // Get feature state from store
-        const features = getFeatureState();
-
-        // Generate alt text with feature toggles
+        // Generate alt text
         const response = await generateAltTextForImage(
           imageBase64,
-          fullDescription || null,
-          features
+          fullDescription || null
         );
 
         const altText = response?.altText || response || '';
@@ -276,20 +292,20 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     getFeatureState
   ]);
 
-  const handleGeneratedContentChange = useCallback((content) => {
+  const handleGeneratedContentChange = useCallback((content: string) => {
     setGeneratedContent(content);
-    form.generator.handleGeneratedContentChange(content);
+    form.generator?.handleGeneratedContentChange(content);
   }, [form.generator]);
 
   const renderForm = () => {
     switch (selectedType) {
       case ACCESSIBILITY_TYPES.ALT_TEXT:
-        return <AltTextForm ref={formRef} tabIndex={form.generator.tabIndex} />;
+        return <AltTextForm ref={formRef} tabIndex={form.generator?.tabIndex} />;
       case ACCESSIBILITY_TYPES.LEICHTE_SPRACHE:
         return (
           <LeichteSpracheForm
             ref={formRef}
-            tabIndex={form.generator.tabIndex}
+            tabIndex={form.generator?.tabIndex}
             onUrlsDetected={handleUrlsDetected}
           />
         );
@@ -328,14 +344,11 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          {...form.generator.baseFormProps}
+          {...form.generator?.baseFormProps}
           title={<span className="gradient-title">{ACCESSIBILITY_TYPE_TITLES[selectedType]}</span>}
           generatedContent={storeGeneratedText || generatedContent}
-          onGeneratedContentChange={handleGeneratedContentChange}
           onSubmit={handleSubmit}
           firstExtrasChildren={renderTypeSelector()}
-          submitButtonText={selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? "Alt-Text generieren" : "In Leichte Sprache übersetzen"}
-          isSubmitDisabled={!formRef.current?.isValid?.()}
           useFeatureIcons={false}
           loading={combinedLoading}
           success={combinedSuccess}

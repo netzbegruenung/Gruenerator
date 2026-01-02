@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { JSX, useEffect, useMemo, useRef, useState } from 'react';
 import { HiAdjustmentsHorizontal, HiXMark, HiCheck, HiArrowPath, HiChevronDown, HiChevronRight } from 'react-icons/hi2';
 import useNotebookStore from '../stores/notebookStore';
 import DateRangeFilter from './DateRangeFilter';
@@ -7,7 +7,7 @@ import '../styles/notebook-filters.css';
 interface FilterDropdownButtonProps {
   collectionId?: string;
   collectionIds?: string[];
-  collections: {
+  collections?: {
     id?: string;
     name?: string
   }[];
@@ -109,7 +109,7 @@ const FilterDropdownButton = ({ collectionId,
             if (!filterValues) return;
 
             const collectionActiveFilters = getFiltersForCollection(collection.id);
-            const fields = Object.entries(filterValues)
+            const fields = Object.entries(filterValues as Record<string, { label?: string; type?: string; values?: unknown[]; min?: unknown; max?: unknown }>)
                 .map(([field, config]) => ({
                     field,
                     label: config.label || field,

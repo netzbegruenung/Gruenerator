@@ -3,7 +3,12 @@ import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 
-const UniversalEditForm = ({ loading = false, formErrors = {} }) => {
+interface UniversalEditFormProps {
+  loading?: boolean;
+  formErrors?: Record<string, string>;
+}
+
+const UniversalEditForm = ({ loading = false, formErrors = {} }: UniversalEditFormProps) => {
   const {
     precisionInstruction,
     setPrecisionInstruction

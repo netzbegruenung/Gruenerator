@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { FiTrash2, FiMove, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { Thumbnail } from '@remotion/player';
 import { preloadVideo } from '@remotion/preload';
@@ -83,7 +83,6 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     selectedSegmentId,
     selectSegment,
     setCurrentTime,
-    seekToTime,
     getComposedDuration,
     getTotalClipsDuration,
     deleteSegment,
@@ -157,8 +156,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     const newTime = percent * composedDuration;
 
     setCurrentTime(Math.max(0, Math.min(newTime, composedDuration)));
-    seekToTime?.(Math.max(0, Math.min(newTime, composedDuration)));
-  }, [composedDuration, setCurrentTime, seekToTime]);
+  }, [composedDuration, setCurrentTime]);
 
   const handlePlayheadDrag = useCallback((e) => {
     if (!isDragging || !timelineRef.current || draggedSegmentIndex !== null) return;
@@ -169,7 +167,6 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     const newTime = percent * composedDuration;
 
     setCurrentTime(newTime);
-    seekToTime?.(newTime);
 
     // Update preview popup
     const fps = compositionFps || 30;
@@ -177,7 +174,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     setPreviewFrame(frame);
     setPreviewPosition({ x: e.clientX, y: rect.top });
     setShowPreview(true);
-  }, [isDragging, composedDuration, setCurrentTime, seekToTime, compositionFps, draggedSegmentIndex]);
+  }, [isDragging, composedDuration, setCurrentTime, compositionFps, draggedSegmentIndex]);
 
   const handleMouseDown = useCallback((e) => {
     // Don't preventDefault if clicking on a draggable segment - it blocks HTML5 drag
@@ -218,8 +215,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     const percent = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
     const newTime = percent * composedDuration;
     setCurrentTime(newTime);
-    seekToTime?.(newTime);
-  }, [composedDuration, setCurrentTime, seekToTime]);
+  }, [composedDuration, setCurrentTime]);
 
   const handleTouchMove = useCallback((e) => {
     if (!isTouching || !timelineRef.current) return;
@@ -230,8 +226,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     const percent = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
     const newTime = percent * composedDuration;
     setCurrentTime(newTime);
-    seekToTime?.(newTime);
-  }, [isTouching, composedDuration, setCurrentTime, seekToTime]);
+  }, [isTouching, composedDuration, setCurrentTime]);
 
   const handleTouchEnd = useCallback(() => {
     setIsTouching(false);
@@ -462,8 +457,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
     e.stopPropagation();
     selectOverlay(overlay.id);
     setCurrentTime(overlay.startTime);
-    seekToTime?.(overlay.startTime);
-  }, [selectOverlay, setCurrentTime, seekToTime]);
+  }, [selectOverlay, setCurrentTime]);
 
   const handleOverlayDragStart = useCallback((e, overlay) => {
     e.stopPropagation();
@@ -676,7 +670,6 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
               }}
               onSeek={(time) => {
                 setCurrentTime(time);
-                seekToTime?.(time);
               }}
               columns={3}
             />
@@ -704,7 +697,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                   onOverlayDoubleClick?.(overlay);
                 }}
                 onMouseDown={(e) => {
-                  if (!e.target.classList.contains('timeline__overlay-resize-handle')) {
+                  if (!(e.target as HTMLElement).classList.contains('timeline__overlay-resize-handle')) {
                     handleOverlayDragStart(e, overlay);
                   }
                 }}
@@ -767,10 +760,10 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 style={{
                   left: `${leftPercent}%`,
                   width: `${widthPercent}%`,
-                  '--segment-color': clipColor,
+                  ['--segment-color' as string]: clipColor,
                   backgroundColor: `${clipColor}22`,
                   borderColor: clipColor
-                }}
+                } as React.CSSProperties}
                 onClick={(e) => handleSegmentClick(e, segment.id)}
                 onTouchStart={(e) => handleSegmentTouchStart(e, index, segment.id)}
                 onTouchMove={handleSegmentTouchMove}
@@ -950,7 +943,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
           >
             <Thumbnail
               ref={thumbnailRef}
-              component={VideoComposition}
+              component={VideoComposition as unknown as React.ComponentType<Record<string, unknown>>}
               frameToDisplay={safeFrame}
               compositionWidth={width}
               compositionHeight={height}

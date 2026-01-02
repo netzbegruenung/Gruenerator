@@ -43,7 +43,7 @@ interface SharepicTypeOption {
   label: string;
 }
 
-interface ExamplePrompt {
+interface LocalExamplePrompt {
   icon: string | ReactNode;
   label: string;
   prompt: string;
@@ -52,6 +52,35 @@ interface ExamplePrompt {
 
 interface PresseSocialGeneratorProps {
   showHeaderFooter?: boolean;
+}
+
+interface FormValues {
+  inhalt: string;
+  zitatgeber: string;
+  presseabbinder: string;
+  platforms: string[];
+  sharepicType: string;
+  zitatAuthor: string;
+}
+
+interface CombinedResults {
+  sharepic?: unknown[];
+  social?: {
+    content: string;
+    metadata?: Record<string, unknown>;
+  };
+}
+
+interface GeneratedContentResult {
+  sharepic?: unknown[];
+  social?: {
+    content: string;
+    metadata?: Record<string, unknown>;
+  };
+  content: string;
+  metadata: Record<string, unknown>;
+  selectedPlatforms: string[];
+  onEditSharepic: (sharepicData: unknown) => Promise<void>;
 }
 
 const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeaderFooter = true }) => {
@@ -137,13 +166,16 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     handleSubmit,
     reset,
     setValue,
-    getValues,
     errors
   } = form;
+  // Cast getValues to typed version
+  const getValues = form.getValues as (name?: string) => unknown;
 
-  const watchPlatforms = useWatch({ control, name: 'platforms', defaultValue: defaultPlatforms });
-  const watchSharepicType = useWatch({ control, name: 'sharepicType', defaultValue: 'default' });
-  const watchInhalt = useWatch({ control, name: 'inhalt', defaultValue: '' });
+  // Type control as any for useWatch compatibility with useBaseForm
+  const typedControl = control as unknown as import('react-hook-form').Control<FormValues>;
+  const watchPlatforms: string[] = useWatch({ control: typedControl, name: 'platforms' }) ?? defaultPlatforms;
+  const watchSharepicType: string = useWatch({ control: typedControl, name: 'sharepicType' }) ?? 'default';
+  const watchInhalt: string = useWatch({ control: typedControl, name: 'inhalt' }) ?? '';
 
   const watchPressemitteilung = Array.isArray(watchPlatforms) && watchPlatforms.includes('pressemitteilung');
   const watchSharepic = canUseSharepic && Array.isArray(watchPlatforms) && watchPlatforms.includes('sharepic');
@@ -168,10 +200,10 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     setUploadedImage(file);
   }, []);
 
-  const [socialMediaContent, setSocialMediaContent] = useState('');
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [processedAttachments, setProcessedAttachments] = useState([]);
+  const [socialMediaContent, setSocialMediaContent] = useState<string | GeneratedContentResult>('');
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [processedAttachments, setProcessedAttachments] = useState<unknown[]>([]);
   const [showSharepicConfig, setShowSharepicConfig] = useState(false);
 
   // Get selection store state (batched with useShallow for optimal performance)
@@ -237,7 +269,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     }
   );
 
-  const onSubmitRHF = useCallback(async (rhfData) => {
+  const onSubmitRHF = useCallback(async (rhfData: FormValues) => {
     setStoreIsLoading(true);
 
     try {
@@ -254,7 +286,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         ...crawledUrls
       ];
 
-      const formDataToSubmit = {
+      const formDataToSubmit: Record<string, unknown> = {
         inhalt: rhfData.inhalt,
         platforms: selectedPlatforms,
         zitatgeber: rhfData.zitatgeber,
@@ -263,11 +295,11 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
       };
 
       // Extract search query from form data for intelligent document content
-      const extractQueryFromFormData = (data) => {
-        const queryParts = [];
-        if (data.inhalt) queryParts.push(data.inhalt);
-        if (data.zitatgeber) queryParts.push(data.zitatgeber);
-        return queryParts.filter(part => part && part.trim()).join(' ');
+      const extractQueryFromFormData = (data: Record<string, unknown>) => {
+        const queryParts: string[] = [];
+        if (data.inhalt) queryParts.push(data.inhalt as string);
+        if (data.zitatgeber) queryParts.push(data.zitatgeber as string);
+        return queryParts.filter(part => part && (part as string).trim()).join(' ');
       };
 
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
@@ -278,28 +310,29 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
       formDataToSubmit.selectedTextIds = selectedTextIds || [];
       formDataToSubmit.searchQuery = searchQuery || '';
 
-      let combinedResults = {};
+      const combinedResults: CombinedResults = {};
       const otherPlatforms = selectedPlatforms.filter(p => p !== 'sharepic');
 
       // Run sharepic and social generation in PARALLEL for better performance
-      const generationPromises = [];
+      const generationPromises: Promise<{ type: string; result?: unknown; error?: unknown }>[] = [];
 
       // Prepare sharepic generation promise
       if (hasSharepic) {
+        type SharepicType = 'default' | 'quote' | 'quote_pure' | 'info' | 'headline' | 'dreizeilen';
         generationPromises.push(
           generateSharepic(
             rhfData.inhalt,
             '', // details merged into inhalt
             uploadedImage,
-            rhfData.sharepicType || 'default',
+            (rhfData.sharepicType || 'default') as SharepicType,
             rhfData.zitatAuthor,
             customPrompt,
             allAttachments,
             features.usePrivacyMode,
             null,
             features.useBedrock
-          ).then(result => ({ type: 'sharepic', result }))
-           .catch(error => ({ type: 'sharepic', error }))
+          ).then(result => ({ type: 'sharepic' as const, result }))
+           .catch(error => ({ type: 'sharepic' as const, error }))
         );
       }
 
@@ -320,17 +353,22 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
       // Process results
       for (const outcome of results) {
         if (outcome.type === 'sharepic' && !outcome.error && outcome.result) {
-          const sharepicResult = outcome.result;
-          const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] || socialMediaContent;
-          const existingSharepics = Array.isArray(previousContent?.sharepic)
+          interface SharepicEntry {
+            id?: string;
+            createdAt?: string;
+            [key: string]: unknown;
+          }
+          const sharepicResult = outcome.result as SharepicEntry | SharepicEntry[];
+          const previousContent = useGeneratedTextStore.getState().generatedTexts?.[componentName] as GeneratedContentResult | undefined || socialMediaContent as GeneratedContentResult | undefined;
+          const existingSharepics: unknown[] = Array.isArray(previousContent?.sharepic)
             ? previousContent.sharepic
             : previousContent?.sharepic
               ? [previousContent.sharepic]
               : [];
 
-          let newSharepicEntries;
+          let newSharepicEntries: SharepicEntry[];
           if (Array.isArray(sharepicResult)) {
-            newSharepicEntries = sharepicResult.map(sharepic => ({
+            newSharepicEntries = sharepicResult.map((sharepic: SharepicEntry) => ({
               ...sharepic,
               id: sharepic.id || `sharepic-${Date.now()}-${Math.random().toString(16).slice(2)}`,
               createdAt: sharepic.createdAt || new Date().toISOString()
@@ -349,9 +387,9 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         }
 
         if (outcome.type === 'social' && !outcome.error && outcome.result) {
-          const response = outcome.result;
-          let content = typeof response === 'string' ? response : response.content;
-          const metadata = typeof response === 'object' ? response.metadata : {};
+          const response = outcome.result as { content?: string; metadata?: Record<string, unknown> } | string;
+          let content = typeof response === 'string' ? response : (response as { content?: string }).content || '';
+          const metadata = typeof response === 'object' && response !== null ? (response as { metadata?: Record<string, unknown> }).metadata || {} : {};
 
           if (otherPlatforms.includes('pressemitteilung') && rhfData.presseabbinder?.trim()) {
             content = `${content}\n\n---\n\n${rhfData.presseabbinder.trim()}`;
@@ -365,7 +403,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
 
       // Set combined content
       if (combinedResults.sharepic || combinedResults.social) {
-        const finalContent = {
+        const finalContent: GeneratedContentResult = {
           ...combinedResults,
           // For backward compatibility, also set the main content
           content: combinedResults.social?.content || '',
@@ -598,7 +636,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     }
   ];
 
-  const handleExamplePromptClick = useCallback((example: ExamplePrompt) => {
+  const handleExamplePromptClick = useCallback((example: LocalExamplePrompt) => {
     setValue('inhalt', example.prompt || '');
     if (example.platforms) {
       setValue('platforms', example.platforms);
@@ -674,7 +712,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
               placeholder={FORM_PLACEHOLDERS.WHO_QUOTE}
               rules={{}}
               tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.zitatgeber, watchPressemitteilung)}
-              onSubmitSuccess={success ? getValues('zitatgeber') : null}
+              onSubmitSuccess={success ? String(getValues('zitatgeber') || '') : null}
               shouldSave={success}
             />
             <SmartInput
@@ -688,7 +726,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
               subtext="Standard-Abbinder, der an die Pressemitteilung angehängt wird (z.B. Kontaktdaten, Vereinsinformationen)."
               placeholder="z.B. Kontakt: Max Mustermann, presse@gruene-example.de"
               tabIndex={TabIndexHelpers.getConditional(form.generator?.tabIndex?.presseabbinder, watchPressemitteilung)}
-              onSubmitSuccess={success ? getValues('presseabbinder') : null}
+              onSubmitSuccess={success ? String(getValues('presseabbinder') || '') : null}
               shouldSave={success}
             />
           </motion.div>
@@ -704,15 +742,13 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
           useStartPageLayout={true}
           startPageDescription="Erstelle professionelle Texte für Social Media und Presse. Wähle deine Plattformen und lass dich von KI unterstützen."
           title={firstName ? `Hallo ${firstName}! Welche Botschaft willst du heute grünerieren?` : "Welche Botschaft willst du heute grünerieren?"}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading || sharepicLoading}
           success={success}
           error={error}
           generatedContent={storeGeneratedText || socialMediaContent}
-          onGeneratedContentChange={handleGeneratedContentChange}
           enableEditMode={true}
           enableKnowledgeSelector={true}
-          enableDocumentSelector={true}
           helpContent={helpContent}
           componentName={componentName}
           useFeatureIcons={true}
@@ -726,11 +762,10 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
           }}
           knowledgeSelectorTabIndex={form.generator?.baseFormTabIndex?.knowledgeSelectorTabIndex}
           knowledgeSourceSelectorTabIndex={form.generator?.baseFormTabIndex?.knowledgeSourceSelectorTabIndex}
-          documentSelectorTabIndex={form.generator?.baseFormTabIndex?.documentSelectorTabIndex}
           submitButtonTabIndex={form.generator?.baseFormTabIndex?.submitButtonTabIndex}
           firstExtrasChildren={renderPlatformSection()}
-          examplePrompts={isMobile ? mobileExamplePrompts : examplePrompts}
-          onExamplePromptClick={handleExamplePromptClick}
+          examplePrompts={(isMobile ? mobileExamplePrompts : examplePrompts) as import('../../../types/baseform').ExamplePrompt[]}
+          onExamplePromptClick={handleExamplePromptClick as (prompt: import('../../../types/baseform').ExamplePrompt) => void}
           contextualTip={activeTip}
         >
           {renderFormInputs()}

@@ -62,7 +62,7 @@ const Timeline = ({
     const segmentEl = element?.closest('.timeline-segment');
 
     if (segmentEl) {
-      const segmentId = parseInt(segmentEl.dataset.segmentId, 10);
+      const segmentId = parseInt((segmentEl as HTMLElement).dataset.segmentId || '0', 10);
       const segment = segments.find(s => s.id === segmentId);
 
       if (segment) {
@@ -179,7 +179,7 @@ const Timeline = ({
           return (
             <div
               key={segment.id}
-              ref={el => segmentRefs.current[segment.id] = el}
+              ref={(el: HTMLDivElement | null) => { if (el) segmentRefs.current[segment.id] = el; }}
               data-segment-id={segment.id}
               className={`timeline-segment ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${isEditing ? 'editing' : ''} ${isCorrected ? 'corrected' : ''}`}
               tabIndex={0}

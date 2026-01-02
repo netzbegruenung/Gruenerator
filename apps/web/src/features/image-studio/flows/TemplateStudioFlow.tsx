@@ -21,6 +21,7 @@ import './TemplateStudioFlow.css';
 const TemplateStudioFlow = ({ onBack }) => {
   const {
     currentStep,
+    setCurrentStep,
     previousStep,
     navigationDirection,
     setIsAnimating,
@@ -71,7 +72,7 @@ const TemplateStudioFlow = ({ onBack }) => {
 
   const stepTransition = (shouldReduceMotion || isGoingBack)
     ? { duration: 0 }
-    : { type: 'tween', ease: 'easeOut', duration: isUploadToInput ? 0.4 : 0.25 };
+    : { type: 'tween' as const, ease: 'easeOut' as const, duration: isUploadToInput ? 0.4 : 0.25 };
 
   const typeConfig = useMemo(() => getTypeConfig(type), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
@@ -173,6 +174,7 @@ const TemplateStudioFlow = ({ onBack }) => {
                   {currentStep === FORM_STEPS.INPUT && (
                     <StepFlow
                       onBack={onBack}
+                      onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}
                       imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
                     />
                   )}

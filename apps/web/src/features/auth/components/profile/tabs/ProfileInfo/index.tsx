@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, FormEvent } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields } from '../../../../services/profileApiService';
 import { useAutosave } from '../../../../../../hooks/useAutosave';
@@ -10,13 +10,43 @@ import ProfileView from './ProfileView';
 
 const AvatarSelectionModal = lazy(() => import('../../AvatarSelectionModal'));
 
-const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProfileMessage, deleteAccount, canManageAccount }) => {
+interface Profile {
+  avatar_robot_id?: string | number;
+  display_name?: string;
+  email?: string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface User {
+  id: string;
+  email?: string;
+  username?: string;
+  [key: string]: unknown;
+}
+
+interface ProfileInfoTabContainerProps {
+  user?: User;
+  onSuccessMessage: (message: string) => void;
+  onErrorProfileMessage: (message: string) => void;
+  deleteAccount: (options: { confirm: string }) => Promise<{ success: boolean }>;
+  canManageAccount: () => boolean;
+}
+
+const ProfileInfoTabContainer = ({
+  user: userProp,
+  onSuccessMessage,
+  onErrorProfileMessage,
+  deleteAccount,
+  canManageAccount
+}: ProfileInfoTabContainerProps) => {
   const { user: authUser } = useOptimizedAuth();
   const user = userProp || authUser;
 
   // Move all hooks before conditional returns to avoid React hooks violation
   const queryClient = useQueryClient();
-  const { data: profile, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
+  const { data: profileData, isLoading: isLoadingProfile, isError: isErrorProfileQuery, error: errorProfileQuery } = useProfile(user?.id);
+  const profile = profileData as Profile | undefined;
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
   const syncProfile = useProfileStore((s) => s.syncProfile);
 
@@ -41,8 +71,14 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     );
   }
 
+  interface ProfileUpdateData {
+    display_name?: string;
+    username?: string | null;
+    email?: string | null;
+  }
+
   const updateProfileMutation = useMutation({
-    mutationFn: async (profileData) => {
+    mutationFn: async (profileData: ProfileUpdateData) => {
       if (!user) throw new Error('Nicht angemeldet');
       return await profileApiService.updateProfile(profileData);
     },
@@ -71,16 +107,18 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
       if (!user) throw new Error('Nicht angemeldet');
       return await profileApiService.updateAvatar(avatarRobotId);
     },
-    onMutate: async (avatarRobotId) => {
+    onMutate: async (avatarRobotId: string | number) => {
       await queryClient.cancelQueries({ queryKey: ['profileData', user?.id] });
-      const previousProfile = queryClient.getQueryData(['profileData', user?.id]);
-      queryClient.setQueryData(['profileData', user?.id], (oldData) => ({ ...oldData, avatar_robot_id: avatarRobotId }));
+      const previousProfile = queryClient.getQueryData<Profile>(['profileData', user?.id]);
+      queryClient.setQueryData<Profile>(['profileData', user?.id], (oldData) =>
+        oldData ? { ...oldData, avatar_robot_id: avatarRobotId } : { avatar_robot_id: avatarRobotId }
+      );
       return { previousProfile, avatarRobotId };
     },
-    onSuccess: (updatedProfile, avatarRobotId) => {
+    onSuccess: (updatedProfile: Profile, avatarRobotId: string | number) => {
       if (user?.id) {
-        queryClient.setQueryData(['profileData', user.id], (oldData) => ({
-          ...oldData,
+        queryClient.setQueryData<Profile>(['profileData', user.id], (oldData) => ({
+          ...(oldData || {}),
           ...updatedProfile,
           avatar_robot_id: avatarRobotId,
         }));
@@ -95,8 +133,8 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     },
   });
 
-  const updateProfile = updateProfileMutation.mutate;
-  const updateAvatar = updateAvatarMutation.mutate;
+  const updateProfile = updateProfileMutation.mutateAsync;
+  const updateAvatar = updateAvatarMutation.mutateAsync;
   const profileUpdateError = updateProfileMutation.error;
 
   const [displayName, setDisplayName] = useState('');
@@ -127,9 +165,10 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
       await Promise.race([updateProfile(profileUpdateData), timeoutPromise]);
       setErrorProfile('');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Auto-save error:', error);
-      if (error.message === 'Save timeout') {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage === 'Save timeout') {
         setErrorProfile('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
         onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
       }
@@ -176,21 +215,21 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     }
   }, [profileUpdateError, onErrorProfileMessage]);
 
-  const handleAvatarSelect = async (robotId) => {
+  const handleAvatarSelect = async (robotId: string | number) => {
     try {
       const oldAvatarId = profile?.avatar_robot_id || 'unknown';
       console.log(`[Avatar] User selected avatar: ${oldAvatarId} → ${robotId}`);
       await updateAvatar(robotId);
       onSuccessMessage('Avatar erfolgreich aktualisiert!');
       setTimeout(() => {
-        updateAvatarOptimistic(robotId).catch(() => {
+        updateAvatarOptimistic(String(robotId)).catch(() => {
           console.debug('[ProfileInfo] ProfileStore sync after avatar update completed');
         });
         window.dispatchEvent(new CustomEvent('avatarUpdated', { detail: { avatarRobotId: robotId } }));
       }, 100);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[Avatar] update failed:', error);
-      const errorMessage = error.message || 'Fehler beim Aktualisieren des Avatars.';
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Aktualisieren des Avatars.';
       onErrorProfileMessage(errorMessage);
     }
   };
@@ -205,7 +244,7 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
     }
   };
 
-  const handleDeleteAccountSubmit = async (e) => {
+  const handleDeleteAccountSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setDeleteAccountError('');
     onErrorProfileMessage('');
@@ -222,9 +261,9 @@ const ProfileInfoTabContainer = ({ user: userProp, onSuccessMessage, onErrorProf
       if (result.success) {
         onSuccessMessage('Konto erfolgreich gelöscht. Sie werden automatisch weitergeleitet...');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Account deletion error:', error);
-      const msg = error.message || 'Fehler beim Löschen des Kontos.';
+      const msg = error instanceof Error ? error.message : 'Fehler beim Löschen des Kontos.';
       setDeleteAccountError(msg);
       onErrorProfileMessage(msg);
     } finally {

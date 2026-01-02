@@ -27,6 +27,33 @@ import { getCurrentPath, buildLoginUrl } from '../../../../../../../utils/authRe
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
 import { announceToScreenReader } from '../../../../../../../utils/focusManagement';
 
+interface CanvaSectionProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    initialSubsection?: string;
+    onSubsectionChange?: (subsection: string) => void;
+    onShareToGroup?: (contentType: string, content: unknown) => void;
+}
+
+interface CanvaTemplate {
+    id: string;
+    title?: string;
+    canva_url?: string;
+    external_url?: string;
+    content_data?: { originalUrl?: string };
+    source?: string;
+    saved_as_template?: boolean;
+    preview_image_url?: string;
+    thumbnail_url?: string;
+}
+
+interface BulkDeleteResult {
+    success: boolean;
+    message?: string;
+    failed?: number;
+}
+
 const CanvaSection = ({
     isActive,
     onSuccessMessage,
@@ -34,7 +61,7 @@ const CanvaSection = ({
     initialSubsection = 'overview',
     onSubsectionChange,
     onShareToGroup
-}) => {
+}: CanvaSectionProps) => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -88,17 +115,18 @@ const CanvaSection = ({
         deleteTemplate,
         isUpdatingTitle: isUpdatingTemplateTitle,
         isDeleting: isDeletingTemplate
-    } = useUserTemplates({ isActive });
+    } = useUserTemplates({ enabled: isActive });
 
     const { data: templates = [], isLoading: templatesLoading, error: templatesError } = templatesQuery;
+    const typedTemplates = templates as CanvaTemplate[];
 
     // =====================================================================
     // CANVA FUNCTIONALITY
     // =====================================================================
 
     // Create stable refs for functions to prevent useEffect loops
-    const checkCanvaConnectionStatusRef = useRef();
-    const fetchCanvaDesignsRef = useRef();
+    const checkCanvaConnectionStatusRef = useRef<(() => Promise<void>) | undefined>(undefined);
+    const fetchCanvaDesignsRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
     // Canva store-based handlers (using refs for stability in effects)
     checkCanvaConnectionStatusRef.current = async () => {
@@ -162,29 +190,29 @@ const CanvaSection = ({
         }
     };
 
-    const handleDeleteTemplate = async (templateId) => {
+    const handleDeleteTemplate = async (templateId: string): Promise<void> => {
         try {
             await deleteTemplate(templateId);
             onSuccessMessage('Canva Vorlage wurde erfolgreich gelöscht.');
         } catch (error) {
             console.error('[CanvaSection] Error deleting Canva template:', error);
-            onErrorMessage('Fehler beim Löschen der Canva Vorlage: ' + error.message);
+            onErrorMessage('Fehler beim Löschen der Canva Vorlage: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
             throw error;
         }
     };
 
-    const handleTemplateTitleUpdate = async (templateId, newTitle) => {
+    const handleTemplateTitleUpdate = async (templateId: string, newTitle: string): Promise<void> => {
         try {
             await updateTemplateTitle(templateId, newTitle);
         } catch (error) {
             console.error('[CanvaSection] Error updating Canva template title:', error);
-            onErrorMessage('Fehler beim Aktualisieren des Canva Vorlagentitels: ' + error.message);
+            onErrorMessage('Fehler beim Aktualisieren des Canva Vorlagentitels: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
             throw error;
         }
     };
 
     // Handler for creating alt text from template
-    const handleCreateAltText = useCallback((template) => {
+    const handleCreateAltText = useCallback((template: CanvaTemplate) => {
         try {
             // Create unique session ID for cross-tab communication
             const sessionId = `canva-alttext-${Date.now()}`;
@@ -209,8 +237,8 @@ const CanvaSection = ({
     }, [onErrorMessage]);
 
     // Action items for templates
-    const getCanvaTemplateActionItems = useCallback((template) => {
-        const actions = [];
+    const getCanvaTemplateActionItems = useCallback((template: CanvaTemplate) => {
+        const actions: Array<{ icon: string; label: string; onClick: () => void }> = [];
 
         // Basic actions for all templates
         if (template.canva_url || template.external_url) {
@@ -243,12 +271,12 @@ const CanvaSection = ({
     }, [handleSaveCanvaTemplate, handleEditTemplate, handleCreateAltText]);
 
     // Bulk delete handlers
-    const handleBulkDeleteTemplates = async (templateIds) => {
+    const handleBulkDeleteTemplates = async (templateIds: string[]): Promise<BulkDeleteResult> => {
         try {
-            const result = { success: true };
+            const result: BulkDeleteResult = { success: true };
             templatesQuery.refetch();
             if (result.message) {
-                if (result.failed > 0) {
+                if (result.failed && result.failed > 0) {
                     onErrorMessage(result.message);
                 } else {
                     onSuccessMessage(result.message);
@@ -257,13 +285,13 @@ const CanvaSection = ({
             return result;
         } catch (error) {
             console.error('[CanvaSection] Error in bulk delete templates:', error);
-            onErrorMessage(error.message);
+            onErrorMessage(error instanceof Error ? error.message : 'Unbekannter Fehler');
             throw error;
         }
     };
 
     // Custom meta renderer for templates
-    const renderTemplateMetadata = (template) => {
+    const renderTemplateMetadata = (template: CanvaTemplate) => {
         const config = canvaUtils.getTemplateMetadataConfig(template, savedCanvaDesigns);
 
         return (
@@ -313,12 +341,12 @@ const CanvaSection = ({
 
         // Check connection when on canva section
         if (!canvaConnected && !canvaLoading) {
-            checkCanvaConnectionStatusRef.current();
+            checkCanvaConnectionStatusRef.current?.();
         }
 
         // Fetch designs when on templates subsection and connected
         if (currentSubsection === 'vorlagen' && canvaConnected && !fetchingCanvaDesigns) {
-            fetchCanvaDesignsRef.current();
+            fetchCanvaDesignsRef.current?.();
         }
     }, [isActive, isAuthenticated, currentSubsection, canvaConnected, canvaLoading, fetchingCanvaDesigns]);
 
@@ -496,7 +524,7 @@ const CanvaSection = ({
                 tabIndex={-1}
             >
                 <DocumentOverview
-                    documents={[...templates, ...canvaDesigns]}
+                    items={[...typedTemplates, ...canvaDesigns].map(item => ({ ...item, id: item.id || '' }))}
                     loading={templatesLoading || fetchingCanvaDesigns}
                     onFetch={() => {
                         templatesQuery.refetch();
@@ -504,20 +532,20 @@ const CanvaSection = ({
                             getCanvaState().fetchDesigns(true);
                         }
                     }}
-                    onDelete={handleDeleteTemplate}
-                    onBulkDelete={handleBulkDeleteTemplates}
+                    onDelete={async (id: string) => { await handleDeleteTemplate(id); }}
+                    onBulkDelete={async (ids: string[]) => { await handleBulkDeleteTemplates(ids); }}
                     onUpdateTitle={handleTemplateTitleUpdate}
-                    onEdit={handleEditTemplate}
-                    onShare={createShareAction('database')}
-                    actionItems={getCanvaTemplateActionItems}
-                    documentTypes={[]}
-                    metaRenderer={renderTemplateMetadata}
+                    onEdit={(item) => handleEditTemplate(item as unknown as CanvaTemplate)}
+                    onShare={(item) => createShareAction('database')(item)}
+                    actionItems={(item) => getCanvaTemplateActionItems(item as unknown as CanvaTemplate) as unknown[]}
+                    documentTypes={{}}
+                    metaRenderer={(item) => renderTemplateMetadata(item as unknown as CanvaTemplate)}
                     emptyStateConfig={{
                         noDocuments: canvaConnected ? 'Du hast noch keine Vorlagen. Verwende den "Sync mit Canva" Button um deine Canva-Designs zu laden.' : 'Du hast noch keine Vorlagen.',
                         createMessage: canvaConnected ? 'Synchronisiere deine Canva-Designs oder erstelle neue Vorlagen.' : 'Verbinde dich mit Canva um deine Designs zu synchronisieren.'
                     }}
                     searchPlaceholder={canvaConnected ? "Alle Vorlagen und Canva-Designs durchsuchen..." : "Vorlagen durchsuchen..."}
-                    title={`Meine Vorlagen (${templates.length + canvaDesigns.length})`}
+                    title={`Meine Vorlagen (${typedTemplates.length + canvaDesigns.length})`}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
                     headerActions={
@@ -546,7 +574,6 @@ const CanvaSection = ({
                                     onClick={handleCanvaLogin}
                                     loading={canvaLoading}
                                     size="small"
-                                    tabIndex={tabIndex.addContentButton}
                                     ariaLabel="Mit Canva verbinden"
                                 >
                                     Mit Canva verbinden

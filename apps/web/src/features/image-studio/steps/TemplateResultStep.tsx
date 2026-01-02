@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FaDownload, FaEdit, FaRedo, FaArrowLeft, FaTimes, FaChevronDown, FaExchangeAlt, FaInstagram, FaShareAlt, FaSave, FaImages, FaImage } from 'react-icons/fa';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
 import { HiSparkles, HiArrowLeft, HiRefresh, HiShare } from 'react-icons/hi';
-import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useShareStore } from '@gruenerator/shared';
+import useImageStudioStore, { VeranstaltungFieldFontSizes, SelectedImageData, SloganAlternative } from '../../../stores/imageStudioStore';
+import { useShareStore } from '@gruenerator/shared/share';
 import ConfigDrivenFields from '../components/ConfigDrivenFields';
 import {
   ColorSchemeControl,
@@ -52,21 +52,11 @@ interface FieldConfig {
   minimalLayout?: boolean;
 }
 
-interface SloganAlternative {
+// SloganAlternative type imported from imageStudioStore
+// Extended type with index for display purposes
+type SloganAlternativeWithIndex = SloganAlternative & {
   _index: number;
-  quote?: string;
-  eventTitle?: string;
-  weekday?: string;
-  date?: string;
-  time?: string;
-  header?: string;
-  subheader?: string;
-  body?: string;
-  line1?: string;
-  line2?: string;
-  line3?: string;
-  [key: string]: any;
-}
+};
 
 interface PreviewValues {
   line1?: string;
@@ -77,14 +67,12 @@ interface PreviewValues {
   subheader?: string;
   body?: string;
   eventTitle?: string;
-  line3Main?: string;
-  line3Suffix?: string;
   weekday?: string;
   date?: string;
   time?: string;
   locationName?: string;
   address?: string;
-  [key: string]: any;
+  [key: string]: string | undefined;
 }
 
 interface TemplateResultEditPanelProps {
@@ -96,18 +84,18 @@ interface TemplateResultEditPanelProps {
   handleImageChange: (e: ChangeEvent<HTMLInputElement>) => void;
   previewValues: PreviewValues;
   handleChange: (e: { target: { name: string; value: string } }) => void;
-  displayAlternatives: SloganAlternative[];
+  displayAlternatives: SloganAlternativeWithIndex[];
   isAlternativesOpen: boolean;
   setIsAlternativesOpen: (open: boolean) => void;
-  handleSloganSwitch: (alt: SloganAlternative, index: number) => void;
-  getAlternativePreview: (alt: SloganAlternative) => string;
+  handleSloganSwitch: (alt: SloganAlternativeWithIndex, index: number) => void;
+  getAlternativePreview: (alt: SloganAlternativeWithIndex) => string;
   credit?: string;
   fontSize?: number;
   colorScheme?: any;
   balkenOffset?: number[];
   balkenGruppenOffset?: number[];
   sunflowerOffset?: number[];
-  veranstaltungFieldFontSizes?: Record<string, number>;
+  veranstaltungFieldFontSizes?: VeranstaltungFieldFontSizes;
   handleControlChange: (name: string, value: any) => void;
   handleFieldFontSizeChange: (fieldName: string, value: number) => void;
   isAdvancedEditingOpen?: boolean;
@@ -483,16 +471,20 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
   const { generateAltTextForImage } = useAltTextGeneration();
-  const { generatedPosts, generatePost, loading: socialLoading } = useGenerateSocialPost();
+  const { generatedPosts, generatePost, loading: socialLoading } = useGenerateSocialPost() as {
+    generatedPosts: { instagram?: string; [key: string]: string | undefined };
+    generatePost: (thema: string, details: string, platforms: string[], includeActionIdeas: boolean) => Promise<any>;
+    loading: boolean;
+  };
 
   const typeConfig = useMemo(() => getTypeConfig(type), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
 
   // Helper to convert blob/file to base64
-  const blobToBase64 = useCallback((blob) => {
+  const blobToBase64 = useCallback((blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
@@ -542,7 +534,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     } else if (legacyType === 'Info') {
       metadata.content = { header, subheader, body };
     } else if (legacyType === 'Veranstaltung') {
-      metadata.content = { eventTitle, line1, line2, line3Main, line3Suffix, weekday, date, time, locationName, address };
+      metadata.content = { eventTitle, line1, line2, line3, weekday, date, time, locationName, address };
     } else {
       metadata.content = { line1, line2, line3 };
     }
@@ -551,7 +543,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   }, [typeConfig, type, fontSize, colorScheme, balkenOffset, balkenGruppenOffset,
       sunflowerOffset, credit, searchTerms, sloganAlternatives, quote, name,
       header, subheader, body, line1, line2, line3, uploadedImage, selectedImage,
-      eventTitle, line3Main, line3Suffix, weekday, date, time, locationName, address]);
+      eventTitle, weekday, date, time, locationName, address]);
 
   // Handle gallery update
   const handleGalleryUpdate = useCallback(async () => {
@@ -563,17 +555,17 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
 
       await updateImageShare({
         shareToken: editShareToken,
-        imageData: generatedImageSrc,
-        title: editTitle,
+        imageBase64: generatedImageSrc,
+        title: editTitle || undefined,
         metadata,
-        originalImage,
+        originalImage: originalImage || undefined,
       });
 
       setUpdateSuccess(true);
       setTimeout(() => setUpdateSuccess(false), 3000);
     } catch (error) {
       console.error('Failed to update sharepic:', error);
-      alert('Fehler beim Aktualisieren: ' + error.message);
+      alert('Fehler beim Aktualisieren: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
     }
   }, [galleryEditMode, editShareToken, editTitle, generatedImageSrc,
       getOriginalImageBase64, buildShareMetadata, updateImageShare]);
@@ -582,8 +574,8 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     line1, line2, line3,
     quote,
     header, subheader, body,
-    eventTitle, line3Main, line3Suffix, weekday, date, time, locationName, address
-  }), [line1, line2, line3, quote, header, subheader, body, eventTitle, line3Main, line3Suffix, weekday, date, time, locationName, address]);
+    eventTitle, weekday, date, time, locationName, address
+  }), [line1, line2, line3, quote, header, subheader, body, eventTitle, weekday, date, time, locationName, address]);
 
   useEffect(() => {
     setIsNewImage(true);
@@ -592,7 +584,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   }, [generatedImageSrc]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isLightboxOpen) setIsLightboxOpen(false);
         else if (isEditPanelOpen) setIsEditPanelOpen(false);
@@ -681,17 +673,17 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     checkShareCapability();
   }, []);
 
-  const stableAlternativesRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const stableAlternativesRef = useRef<SloganAlternativeWithIndex[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (stableAlternativesRef.current === null && sloganAlternatives?.length > 0) {
     stableAlternativesRef.current = sloganAlternatives.map((alt, idx) => ({
       ...alt,
       _index: idx
-    }));
+    } as SloganAlternativeWithIndex));
   }
 
-  const displayAlternatives = stableAlternativesRef.current || [];
+  const displayAlternatives: SloganAlternativeWithIndex[] = stableAlternativesRef.current || [];
 
   const currentImagePreview = useMemo(() => {
     if (uploadedImage) {
@@ -703,7 +695,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     return null;
   }, [uploadedImage, selectedImage]);
 
-  const handleSloganSwitch = useCallback((selected, alternativeIndex) => {
+  const handleSloganSwitch = useCallback((selected: SloganAlternative, alternativeIndex: number) => {
     cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
 
     const cachedImage = getCachedSloganImage(alternativeIndex);
@@ -721,7 +713,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   }, [cacheSloganImage, getCachedSloganImage, handleSloganSelect, setCurrentAlternativeIndex,
       currentAlternativeIndex, generatedImageSrc, updateFormData, onRegenerate]);
 
-  const getAlternativePreview = useCallback((alt) => {
+  const getAlternativePreview = useCallback((alt: SloganAlternative): string => {
     if (alt.quote) {
       return alt.quote;
     }
@@ -738,15 +730,15 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     return 'Alternative';
   }, []);
 
-  const handleControlChange = useCallback((name, value) => {
+  const handleControlChange = useCallback((name: string, value: unknown) => {
     updateFormData({ [name]: value });
   }, [updateFormData]);
 
-  const handleFieldFontSizeChange = useCallback((fieldName, value) => {
-    updateFieldFontSize(fieldName, value);
+  const handleFieldFontSizeChange = useCallback((fieldName: string, value: number) => {
+    updateFieldFontSize(fieldName as keyof VeranstaltungFieldFontSizes, value);
   }, [updateFieldFontSize]);
 
-  const handleImageChange = useCallback((e) => {
+  const handleImageChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 

@@ -108,7 +108,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
     handleSubmit,
     getValues,
     errors
-  } = form;
+  } = form as { control: any; handleSubmit: any; getValues: any; errors: { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } } };
 
   // Store integration
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
@@ -203,7 +203,13 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
         };
       });
 
-      const finalResult = {
+      const finalResult: {
+        sharepic: typeof enrichedSharepics;
+        inlineSharepicEditEnabled: boolean;
+        content: string;
+        enableCanvaEdit: boolean;
+        social?: { content: string };
+      } = {
         sharepic: enrichedSharepics,
         inlineSharepicEditEnabled: true,
         content: 'sharepic-content',
@@ -318,7 +324,7 @@ const KampagnenGenerator = ({ showHeaderFooter = true }) => {
         key={selectedCampaign}
         title="Weihnachtskampagne 2025"
         subtitle="Erstelle festliche Weihnachtsgrüße mit grünen Werten für deine Region"
-        onSubmit={handleSubmit(onSubmitRHF)}
+        onSubmit={() => handleSubmit(onSubmitRHF)()}
         loading={isGenerating || isRegenerating}
         success={!!storeGeneratedText}
         error={form.generator?.error}

@@ -5,9 +5,32 @@ import { FaPlus, FaTrash, FaClock, FaVideo, FaShare, FaUpload } from 'react-icon
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import Spinner from '../../../components/common/Spinner';
 import apiClient from '../../../components/utils/apiClient';
-import { formatDuration, formatDate, formatFileSize } from '@gruenerator/shared';
 import '../styles/ProjectSelector.css';
 import '../../../assets/styles/components/ui/button.css';
+
+const formatDuration = (seconds: number | undefined): string => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const formatDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const formatFileSize = (bytes: number | undefined): string => {
+    if (!bytes || isNaN(bytes)) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) {
+        bytes /= 1024;
+        i++;
+    }
+    return `${bytes.toFixed(1)} ${units[i]}`;
+};
 
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
 const baseURL = isDevelopment ? 'http://localhost:3001/api' : `${window.location.origin}/api`;
@@ -93,8 +116,10 @@ const ProjectCard = ({ project, onSelect, onDelete, onShare, isLoading }) => {
                         className={imageLoaded ? 'loaded' : 'loading'}
                         onLoad={() => setImageLoaded(true)}
                         onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const nextSibling = target.nextSibling as HTMLElement;
+                            if (nextSibling) nextSibling.style.display = 'flex';
                         }}
                     />
                 ) : null}
@@ -256,8 +281,8 @@ const ProjectSelector = ({
                     setUploadProgress(100);
                     setCurrentUpload(null);
 
-                    const originalFile = upload.file;
-                    const metadataFromFile = file.metadata || {};
+                    const originalFile = upload.file as File;
+                    const metadataFromFile = (file as File & { metadata?: Record<string, unknown> }).metadata || {};
 
                     const uploadData = {
                         originalFile: originalFile,
@@ -423,6 +448,7 @@ const ProjectSelector = ({
                     mediaType="video"
                     projectId={shareProject.id}
                     defaultTitle={shareProject.title}
+                    imageData={{}}
                 />
             )}
         </div>

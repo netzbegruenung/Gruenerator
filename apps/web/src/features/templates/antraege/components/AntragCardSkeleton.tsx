@@ -1,8 +1,8 @@
-import { motion } from "motion/react";
+import { motion, type HTMLMotionProps } from "motion/react";
 
 const AntragCardSkeleton = () => {
   // Animation for pulsing effect
-  const pulseAnimation = {
+  const pulseAnimation: Partial<HTMLMotionProps<"div">> = {
     initial: { opacity: 0.3 },
     animate: { opacity: 0.7 },
     transition: {

@@ -22,9 +22,9 @@ const LiveSubtitlePreview = ({
     return SubtitleStylingService.calculateStyles(videoMetadata, editableSubtitles, subtitlePreference, stylePreference);
   }, [videoMetadata, editableSubtitles, subtitlePreference, stylePreference]);
 
-  const getStyleForPreference = useMemo(() => {
+  const getStyleForPreference = useMemo((): React.CSSProperties => {
     // Base styles - use GrueneType as default, Montserrat for Austrian users
-    const baseStyles = {
+    const baseStyles: React.CSSProperties = {
       fontFamily: isAustrian ? "'Montserrat', Arial, sans-serif" : "'GrueneType', Arial, sans-serif",
       fontWeight: 'bold',
       color: '#ffffff',
@@ -143,7 +143,7 @@ const LiveSubtitlePreview = ({
     relativeFontSize = videoMetadata.height > 0 ? (fontSize / videoMetadata.height) * 20 : 1.5;
   }
 
-  const containerStyles = {
+  const containerStyles: React.CSSProperties = {
     position: 'absolute',
     bottom: `${relativeMarginV}%`,
     left: `${marginL}px`,
@@ -155,7 +155,7 @@ const LiveSubtitlePreview = ({
     alignItems: 'flex-end'
   };
 
-  const textStyles = {
+  const textStyles: React.CSSProperties = {
     ...getStyleForPreference,
     fontSize: `${relativeFontSize}vw`
   };

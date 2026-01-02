@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { JSX, useEffect } from 'react';
 import { FaMicrophone, FaStop, FaRedo } from 'react-icons/fa';
 import useVoiceRecorder from '../hooks/useVoiceRecorder';
 import Spinner from '../../../components/common/Spinner';

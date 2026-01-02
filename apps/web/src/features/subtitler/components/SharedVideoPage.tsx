@@ -52,7 +52,7 @@ const SharedVideoPage = () => {
       try {
         const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
           skipAuthRedirect: true
-        });
+        } as any);
         if (response.data.success) {
           setShareData(response.data.share);
           if (response.data.share.status === 'rendering') {
@@ -84,7 +84,7 @@ const SharedVideoPage = () => {
       try {
         const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
           skipAuthRedirect: true
-        });
+        } as any);
         if (response.data.success) {
           const newStatus = response.data.share.status;
           if (newStatus === 'ready') {

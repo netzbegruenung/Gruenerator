@@ -5,25 +5,59 @@ import { useMessageHandling } from '../../../../../../../hooks/useMessageHandlin
 import { useAnweisungenWissen } from '../../../../../hooks/useProfileData';
 import { InstructionsGrid, INSTRUCTION_FIELDS } from '../../../../../../../components/common/InstructionFields';
 
+interface AnweisungenSectionProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+}
+
+interface AnweisungenFormData {
+    customAntragPrompt: string;
+    customSocialPrompt: string;
+    customUniversalPrompt: string;
+    customRedePrompt: string;
+    customBuergeranfragenPrompt: string;
+    customGruenejugendPrompt: string;
+    knowledge?: unknown[];
+}
+
+interface AnweisungenData {
+    antragPrompt?: string;
+    socialPrompt?: string;
+    universalPrompt?: string;
+    redePrompt?: string;
+    buergeranfragenPrompt?: string;
+    gruenejugendPrompt?: string;
+    knowledge?: unknown[];
+}
+
 const AnweisungenSection = ({
     isActive,
     onSuccessMessage,
     onErrorMessage
-}) => {
+}: AnweisungenSectionProps) => {
     const isInitialized = useRef(false);
-    const [enabledFields, setEnabledFields] = useState([]);
+    const [enabledFields, setEnabledFields] = useState<string[]>([]);
 
     const { clearMessages, showSuccess, showError } = useMessageHandling(onSuccessMessage, onErrorMessage);
 
-    const { query, saveChanges, isSaving } = useAnweisungenWissen({ isActive });
+    const anweisungenResult = useAnweisungenWissen({ enabled: isActive });
+    const { query, isSaving } = anweisungenResult;
+    const saveChanges = anweisungenResult.saveChanges as (data: unknown) => Promise<void>;
     const { data, isError: isErrorQuery, error: errorQuery } = query;
+    const typedData = data as AnweisungenData | undefined;
 
-    const defaultValues = INSTRUCTION_FIELDS.reduce((acc, field) => {
-        acc[field.name] = '';
-        return acc;
-    }, {});
+    const defaultValues: AnweisungenFormData = {
+        customAntragPrompt: '',
+        customSocialPrompt: '',
+        customUniversalPrompt: '',
+        customRedePrompt: '',
+        customBuergeranfragenPrompt: '',
+        customGruenejugendPrompt: '',
+        knowledge: []
+    };
 
-    const formMethods = useForm({
+    const formMethods = useForm<AnweisungenFormData>({
         defaultValues,
         mode: 'onChange'
     });
@@ -33,7 +67,7 @@ const AnweisungenSection = ({
     const [autosaveEnabled, setAutosaveEnabled] = useState(false);
 
     const { resetTracking } = useAutosave({
-        saveFunction: useCallback(async (changedFields) => {
+        saveFunction: useCallback(async (changedFields: Partial<AnweisungenFormData>) => {
             const currentValues = getValues();
             const formData = {
                 customAntragPrompt: changedFields.customAntragPrompt !== undefined ? changedFields.customAntragPrompt : currentValues.customAntragPrompt || '',
@@ -46,11 +80,10 @@ const AnweisungenSection = ({
             };
 
             try {
-                const result = await saveChanges(formData);
+                await saveChanges(formData);
                 showSuccess('Änderungen wurden automatisch gespeichert');
-                return result;
             } catch (error) {
-                showError('Fehler beim automatischen Speichern: ' + error.message);
+                showError('Fehler beim automatischen Speichern: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
                 throw error;
             }
         }, [saveChanges, getValues, showSuccess, showError]),
@@ -64,35 +97,35 @@ const AnweisungenSection = ({
     });
 
     useEffect(() => {
-        if (!data || isInitialized.current) return;
+        if (!typedData || isInitialized.current) return;
 
-        const formData = {
-            customAntragPrompt: data.antragPrompt || '',
-            customSocialPrompt: data.socialPrompt || '',
-            customUniversalPrompt: data.universalPrompt || '',
-            customRedePrompt: data.redePrompt || '',
-            customBuergeranfragenPrompt: data.buergeranfragenPrompt || '',
-            customGruenejugendPrompt: data.gruenejugendPrompt || '',
+        const formData: Partial<AnweisungenFormData> = {
+            customAntragPrompt: typedData.antragPrompt || '',
+            customSocialPrompt: typedData.socialPrompt || '',
+            customUniversalPrompt: typedData.universalPrompt || '',
+            customRedePrompt: typedData.redePrompt || '',
+            customBuergeranfragenPrompt: typedData.buergeranfragenPrompt || '',
+            customGruenejugendPrompt: typedData.gruenejugendPrompt || '',
         };
 
-        reset(formData);
+        reset(formData as AnweisungenFormData);
         isInitialized.current = true;
 
         setTimeout(() => {
             setAutosaveEnabled(true);
             resetTracking();
         }, 100);
-    }, [data, reset, resetTracking]);
+    }, [typedData, reset, resetTracking]);
 
     useEffect(() => {
         clearMessages();
     }, [isActive, clearMessages]);
 
-    const handleAddField = useCallback((fieldName) => {
+    const handleAddField = useCallback((fieldName: string) => {
         setEnabledFields(prev => [...prev, fieldName]);
     }, []);
 
-    const handleRemoveField = useCallback((fieldName) => {
+    const handleRemoveField = useCallback((fieldName: keyof AnweisungenFormData) => {
         setValue(fieldName, '');
         setEnabledFields(prev => prev.filter(f => f !== fieldName));
     }, [setValue]);
@@ -115,9 +148,10 @@ const AnweisungenSection = ({
             >
                 <InstructionsGrid
                     control={control}
-                    data={data}
+                    data={typedData}
                     isReadOnly={false}
                     labelPrefix="Persönliche"
+                    maxLength={2000}
                     enabledFields={enabledFields}
                     onAddField={handleAddField}
                     onRemoveField={handleRemoveField}

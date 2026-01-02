@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ChangeEvent, ReactNode } from 'react';
+import { JSX, useState, useRef, useEffect, ChangeEvent, ReactNode } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import Icon from '../../../components/common/Icon';
@@ -16,12 +16,12 @@ const defaultExampleQuestions = [
 ];
 
 interface SearchBarProps {
-  onSearch: () => void;
+  onSearch: (query?: string) => void;
   loading?: boolean;
   value?: string;
-  onChange?: (event: React.ChangeEvent) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
-  exampleQuestions: {
+  exampleQuestions?: {
     icon?: string;
     text?: string
   }[];

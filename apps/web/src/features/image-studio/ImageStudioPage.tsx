@@ -432,7 +432,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
   const { generateText, generateImage, loading, error, setError } = useImageGeneration();
   const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
 
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isAlternativesExpanded, setIsAlternativesExpanded] = useState(false);
 
   const typeConfig = useMemo(() => getTypeConfig(type), [type]);
@@ -526,7 +526,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
   }, [currentStep, category, subcategory, typeConfig, goBack, setCategory, navigate]);
 
   const validateForm = useCallback(() => {
-    const errors = {};
+    const errors: FormErrors = {};
 
     if (currentStep === FORM_STEPS.INPUT) {
       if (typeConfig?.hasTextGeneration) {

@@ -185,6 +185,7 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                     syncStatuses={syncStatuses}
                     onSyncFolder={handleSyncFolder}
                     onSyncComplete={onSyncComplete}
+                    refreshSyncStatuses={refreshSyncStatuses}
                 />
             ) : (
                 <div className="wolke-no-folders">
@@ -197,7 +198,7 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
 };
 
 // Share links with sync toggle component
-const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComplete }) => {
+const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComplete, refreshSyncStatuses }: { shareLinks: any[]; syncStatuses: any[]; onSyncFolder: (shareLinkId: string, folderPath: string) => Promise<void>; onSyncComplete?: () => void; refreshSyncStatuses?: () => Promise<any> }) => {
     const [syncingFolders, setSyncingFolders] = useState(new Set());
     const { setAutoSync } = useWolkeSync();
 

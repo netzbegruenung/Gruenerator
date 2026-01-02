@@ -83,12 +83,12 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }) => {
         }
     };
 
-    const formatLastSync = (lastSyncAt) => {
+    const formatLastSync = (lastSyncAt: string | null | undefined) => {
         if (!lastSyncAt) return 'Nie synchronisiert';
 
         const date = new Date(lastSyncAt);
         const now = new Date();
-        const diffMs = now - date;
+        const diffMs = now.getTime() - date.getTime();
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);

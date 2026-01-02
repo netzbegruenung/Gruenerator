@@ -152,7 +152,7 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
         <BaseForm
           {...form.generator?.baseFormProps}
           title={<span className="gradient-title">Welchen Text willst du verbessern?</span>}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading}
           success={success}
           error={error}

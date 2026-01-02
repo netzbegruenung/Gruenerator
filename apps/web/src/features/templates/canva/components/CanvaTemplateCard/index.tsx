@@ -1,17 +1,31 @@
-import { useState } from 'react';
+import { JSX, useState } from 'react';
 import ImageSlider from '../../../../../components/common/ImageSlider';
-import { useAuth } from '../../../../../hooks/useAuth';
 import VerifyFeature from '../../../../../components/common/VerifyFeature';
 
+interface TemplateImage {
+  url: string;
+  alt?: string;
+}
+
+interface CanvaTemplate {
+  canva_url: string;
+  title?: string;
+  description?: string;
+  credit?: string;
+  thumbnail_url?: string;
+  images?: TemplateImage[];
+}
+
 interface CanvaTemplateCardProps {
-  template: string | number;
+  template: CanvaTemplate;
 }
 
 const CanvaTemplateCard = ({ template }: CanvaTemplateCardProps): JSX.Element => {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
   const [showVerify, setShowVerify] = useState(false);
-  const { isFeatureVerified } = useAuth();
+  // Feature verification is handled by VerifyFeature component
+  const [isVerified, setIsVerified] = useState(false);
 
   const handleImageLoad = () => {
     setImageLoading(false);
@@ -22,9 +36,9 @@ const CanvaTemplateCard = ({ template }: CanvaTemplateCardProps): JSX.Element =>
     setImageLoading(false);
   };
 
-  const handleCanvaClick = (e) => {
+  const handleCanvaClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    if (!isFeatureVerified('templates')) {
+    if (!isVerified) {
       setShowVerify(true);
     } else {
       window.open(template.canva_url, '_blank');
@@ -90,6 +104,7 @@ const CanvaTemplateCard = ({ template }: CanvaTemplateCardProps): JSX.Element =>
             feature="templates"
             onVerified={() => {
               setShowVerify(false);
+              setIsVerified(true);
               window.open(template.canva_url, '_blank');
             }}
             onCancel={() => setShowVerify(false)}

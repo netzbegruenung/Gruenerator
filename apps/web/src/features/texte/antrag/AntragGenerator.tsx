@@ -15,6 +15,16 @@ import QuestionAnswerSection from '../../../components/common/Form/BaseForm/Ques
 import { HiAnnotation } from 'react-icons/hi';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
+import type { Question } from '../../../types/baseform';
+
+interface AntragGeneratorProps {
+  showHeaderFooter?: boolean;
+}
+
+interface FormValues {
+  inhalt: string;
+  gliederung: string;
+}
 
 const REQUEST_TYPES = {
   ANTRAG: 'antrag',
@@ -40,7 +50,7 @@ const REQUEST_TYPE_TITLES = {
   [REQUEST_TYPES.GROSSE_ANFRAGE]: 'Welche Große Anfrage willst du heute grünerieren?'
 };
 
-const AntragGenerator = ({ showHeaderFooter = true }) => {
+const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = true }) => {
   const componentName = 'antrag-generator';
 
   // User defaults for persistent preferences
@@ -50,22 +60,22 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
 
   // Interactive mode state - initialized from user defaults
-  const [useInteractiveMode, setUseInteractiveMode] = useState(
-    () => userDefaults.get('interactiveMode', true)
+  const [useInteractiveMode, setUseInteractiveMode] = useState<boolean>(
+    () => userDefaults.get('interactiveMode', true) as boolean
   );
 
   // Sync state when user defaults hydrate from backend
   useEffect(() => {
     if (userDefaults.isHydrated) {
-      const stored = userDefaults.get('interactiveMode', true);
+      const stored = userDefaults.get('interactiveMode', true) as boolean;
       setUseInteractiveMode(stored);
     }
   }, [userDefaults.isHydrated]);
 
-  const [interactiveState, setInteractiveState] = useState('initial'); // 'initial' | 'questions' | 'generating'
-  const [sessionId, setSessionId] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [currentAnswers, setCurrentAnswers] = useState({});
+  const [interactiveState, setInteractiveState] = useState<'initial' | 'questions' | 'generating'>('initial');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentAnswers, setCurrentAnswers] = useState<Record<string, string | string[]>>({});
   const [questionRound, setQuestionRound] = useState(0);
 
   // Interactive API hook
@@ -122,9 +132,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     }
   });
 
-  const { control, handleSubmit, getValues, setValue } = form;
+  const { control, handleSubmit, setValue } = form;
+  // Cast getValues to typed version
+  const getValues = form.getValues as (name?: string) => unknown;
 
-  const onSubmitRHF = useCallback(async (rhfData) => {
+  const onSubmitRHF = useCallback(async (rhfData: FormValues) => {
     setStoreIsLoading(true);
 
     try {
@@ -213,19 +225,19 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
       }
 
       // SIMPLE MODE
-      const formDataToSubmit = {
+      const formDataToSubmit: Record<string, unknown> = {
         requestType: selectedRequestType,
         inhalt: rhfData.inhalt,
         gliederung: rhfData.gliederung,
         ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
-        attachments: form.generator.attachedFiles
+        attachments: form.generator?.attachedFiles
       };
 
-      const extractQueryFromFormData = (data) => {
-        const queryParts = [];
-        if (data.inhalt) queryParts.push(data.inhalt);
-        if (data.gliederung) queryParts.push(data.gliederung);
-        return queryParts.filter(part => part && part.trim()).join(' ');
+      const extractQueryFromFormData = (data: Record<string, unknown>) => {
+        const queryParts: string[] = [];
+        if (data.inhalt) queryParts.push(data.inhalt as string);
+        if (data.gliederung) queryParts.push(data.gliederung as string);
+        return queryParts.filter(part => part && (part as string).trim()).join(' ');
       };
 
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
@@ -273,7 +285,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     getFeatureState
   ]);
 
-  const handleGeneratedContentChange = useCallback((content) => {
+  const handleGeneratedContentChange = useCallback((content: string) => {
     setAntragContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
@@ -315,7 +327,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             minRows={5}
             maxRows={15}
             className="form-textarea-large"
-            tabIndex={form.generator.tabIndex.inhalt}
+            tabIndex={form.generator?.tabIndex?.inhalt}
           />
 
           <SmartInput
@@ -326,8 +338,8 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
             getValues={getValues}
             label={FORM_LABELS.GLIEDERUNG}
             placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
-            tabIndex={form.generator.tabIndex.gliederung}
-            onSubmitSuccess={success ? getValues('gliederung') : null}
+            tabIndex={form.generator?.tabIndex?.gliederung}
+            onSubmitSuccess={success ? String(getValues('gliederung') || '') : null}
             shouldSave={success}
             formName="antrag"
           />
@@ -338,11 +350,11 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
         <QuestionAnswerSection
           questions={questions}
           answers={currentAnswers}
-          onAnswerChange={(questionId, value) => {
+          onAnswerChange={(questionId: string, value: string | string[]) => {
             setCurrentAnswers(prev => ({ ...prev, [questionId]: value }));
           }}
           questionRound={questionRound}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading || interactiveLoading}
           success={success}
           submitButtonProps={computedSubmitButtonProps}
@@ -354,7 +366,7 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
   // Interactive mode toggle
   const interactiveModeToggle = useMemo(() => ({
     isActive: useInteractiveMode,
-    onToggle: (checked) => {
+    onToggle: (checked: boolean) => {
       setUseInteractiveMode(checked);
       // Save preference to database
       userDefaults.set('interactiveMode', checked);
@@ -401,15 +413,14 @@ const AntragGenerator = ({ showHeaderFooter = true }) => {
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          {...form.generator.baseFormProps}
+          {...form.generator?.baseFormProps}
           enableEditMode={true}
           title={<span className="gradient-title">{REQUEST_TYPE_TITLES[selectedRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}</span>}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading || interactiveLoading}
           success={success}
           error={error}
           generatedContent={storeGeneratedText || antragContent}
-          onGeneratedContentChange={handleGeneratedContentChange}
           interactiveModeToggle={interactiveModeToggle}
           useInteractiveModeToggle={true}
           submitButtonProps={computedSubmitButtonProps}

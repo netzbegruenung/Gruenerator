@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { JSX, useMemo } from 'react';
 import { HiX } from 'react-icons/hi';
 import useNotebookStore from '../stores/notebookStore';
 import '../styles/notebook-filters.css';
@@ -6,7 +6,7 @@ import '../styles/notebook-filters.css';
 interface ActiveFiltersDisplayProps {
   collectionId?: string;
   collectionIds?: string[];
-  collections: {
+  collections?: {
     id?: string;
     name?: string
   }[];
@@ -44,9 +44,9 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
             const filterValues = getFilterValuesForCollection(collection.id);
 
             Object.entries(activeFilters)
-                .filter(([, values]) => values && values.length > 0)
+                .filter(([, values]) => values && (values as unknown[]).length > 0)
                 .forEach(([field, values]) => {
-                    values.forEach(value => {
+                    (values as unknown[]).forEach(value => {
                         allFilters.push({
                             collectionId: collection.id,
                             collectionName: collection.name,

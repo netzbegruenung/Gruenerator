@@ -9,6 +9,14 @@ import { useCanvaConnection } from '../../../../stores/canvaStore';
 // Utils
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
+interface CanvaAssetsPanelProps {
+    isAuthenticated?: boolean;
+    onSuccessMessage?: (message: string) => void;
+    onErrorMessage?: (message: string) => void;
+    onNavigateToOverview?: () => void;
+    onCanvaLogin?: () => void;
+}
+
 /**
  * Canva Assets Panel Component - Optimized with store
  * Displays available asset packages and handles import functionality
@@ -18,8 +26,9 @@ const CanvaAssetsPanel = memo(({
     isAuthenticated = true,
     onSuccessMessage,
     onErrorMessage,
-    onNavigateToOverview
-}) => {
+    onNavigateToOverview,
+    onCanvaLogin
+}: CanvaAssetsPanelProps) => {
 
     // Store-based state (memoized)
     const { connected: canvaConnected, loading: canvaLoading } = useCanvaConnection();

@@ -13,6 +13,41 @@ import GroupInstructionsSection from './subcomponents/GroupInstructionsSection';
 import GroupSharedContentSection from './subcomponents/GroupSharedContentSection';
 import GroupWolkeSection from './subcomponents/GroupWolkeSection';
 
+interface GroupData {
+    antragInstructionsEnabled?: boolean;
+    socialInstructionsEnabled?: boolean;
+    isAdmin?: boolean;
+    membership?: {
+        role?: string;
+    };
+    antragPrompt?: string;
+    socialPrompt?: string;
+    universalPrompt?: string;
+    redePrompt?: string;
+    buergeranfragenPrompt?: string;
+    gruenejugendPrompt?: string;
+    groupInfo?: {
+        id?: string;
+        name?: string;
+        description?: string;
+    };
+    joinToken?: string;
+}
+
+interface TabIndexConfig {
+    groupDetailTabs: number;
+}
+
+interface GroupDetailSectionProps {
+    groupId: string;
+    groupDetailView: string;
+    setGroupDetailView: (view: string) => void;
+    onSuccessMessage: (msg: string) => void;
+    onErrorMessage: (msg: string) => void;
+    isActive: boolean;
+    tabIndex: TabIndexConfig;
+}
+
 const GroupDetailSection = memo(({
     groupId,
     groupDetailView,
@@ -21,16 +56,16 @@ const GroupDetailSection = memo(({
     onErrorMessage,
     isActive,
     tabIndex
-}) => {
+}: GroupDetailSectionProps) => {
     const [isEditingName, setIsEditingName] = useState(false);
     const [editedGroupName, setEditedGroupName] = useState('');
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedGroupDescription, setEditedGroupDescription] = useState('');
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
-    const [enabledFields, setEnabledFields] = useState([]);
+    const [enabledFields, setEnabledFields] = useState<string[]>([]);
 
     const isInitialized = useRef(false);
-    const prevCurrentView = useRef();
+    const prevCurrentView = useRef<string | undefined>(undefined);
 
     useEffect(() => {
         isInitialized.current = false;
@@ -55,18 +90,20 @@ const GroupDetailSection = memo(({
         saveChanges,
         saveError,
     } = useAnweisungenWissen({
-        isActive,
+        enabled: isActive,
         context: 'group',
         groupId
     });
 
     const {
-        data,
+        data: rawData,
         isLoading: isLoadingDetails,
         isError: isErrorDetails,
         error: errorDetails,
         refetch: refetchGroupData
     } = query;
+
+    const data = rawData as GroupData | undefined;
 
     const GROUP_MAX_CONTENT_LENGTH = 1000;
     const isSaveError = !!saveError;
@@ -111,7 +148,7 @@ const GroupDetailSection = memo(({
                     role: data?.membership?.role || 'member'
                 }
             };
-            return await saveChanges(saveData);
+            return await (saveChanges as unknown as (data: typeof saveData) => Promise<unknown>)(saveData);
         }, [saveChanges, getValues, data]),
         formRef: { getValues, watch },
         enabled: data && isInitialized.current && data?.isAdmin,
@@ -180,7 +217,7 @@ const GroupDetailSection = memo(({
         onErrorMessage('');
         deleteGroup(groupId, {
             onSuccess: () => onSuccessMessage('Gruppe erfolgreich gelöscht!'),
-            onError: (error) => onErrorMessage(`Fehler beim Löschen der Gruppe: ${error.message}`)
+            onError: (error: Error) => onErrorMessage(`Fehler beim Löschen der Gruppe: ${error.message}`)
         });
     }, [groupId, data?.isAdmin, deleteGroup, onSuccessMessage, onErrorMessage]);
 
@@ -207,7 +244,7 @@ const GroupDetailSection = memo(({
                 onSuccessMessage('Gruppenname erfolgreich geändert!');
                 refetchGroupData();
             },
-            onError: (error) => {
+            onError: (error: Error) => {
                 onErrorMessage('Fehler beim Ändern des Gruppennamens: ' + error.message);
                 setEditedGroupName(data?.groupInfo?.name || '');
             }
@@ -231,25 +268,25 @@ const GroupDetailSection = memo(({
             cancelEditingDescription();
             return;
         }
-        updateGroupInfo(groupId, { description: editedGroupDescription }, {
+        updateGroupInfo(groupId, { name: data?.groupInfo?.name, description: editedGroupDescription }, {
             onSuccess: () => {
                 setIsEditingDescription(false);
                 onSuccessMessage('Gruppenbeschreibung erfolgreich geändert!');
                 refetchGroupData();
             },
-            onError: (error) => {
+            onError: (error: Error) => {
                 onErrorMessage('Fehler beim Ändern der Gruppenbeschreibung: ' + error.message);
                 setEditedGroupDescription(data?.groupInfo?.description || '');
             }
         });
-    }, [editedGroupDescription, data?.groupInfo?.description, groupId, updateGroupInfo, cancelEditingDescription, onSuccessMessage, onErrorMessage, refetchGroupData]);
+    }, [editedGroupDescription, data?.groupInfo?.description, data?.groupInfo?.name, groupId, updateGroupInfo, cancelEditingDescription, onSuccessMessage, onErrorMessage, refetchGroupData]);
 
-    const handleAddField = useCallback((fieldName) => {
+    const handleAddField = useCallback((fieldName: string) => {
         setEnabledFields(prev => [...prev, fieldName]);
     }, []);
 
-    const handleRemoveField = useCallback((fieldName) => {
-        setValue(fieldName, '');
+    const handleRemoveField = useCallback((fieldName: string) => {
+        (setValue as (name: string, value: string) => void)(fieldName, '');
         setEnabledFields(prev => prev.filter(f => f !== fieldName));
     }, [setValue]);
 

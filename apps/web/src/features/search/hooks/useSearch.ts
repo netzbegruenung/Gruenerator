@@ -2,7 +2,13 @@ import { useState, useCallback } from 'react';
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 
-const findUsedSources = (sources, analysisText, claudeSourceTitles) => {
+interface Source {
+  url: string;
+  title?: string;
+  content_snippets?: string;
+}
+
+const findUsedSources = (sources: Source[], analysisText: string, claudeSourceTitles: string[]): Source[] => {
   // Extrahiere URLs und Titel aus der Analyse
   const urlRegex = /(https?:\/\/[^\s)]+)/g;
   const usedUrls = [...new Set(analysisText.match(urlRegex) || [])];
@@ -29,7 +35,7 @@ const findUsedSources = (sources, analysisText, claudeSourceTitles) => {
   });
 };
 
-const formatAnalysisText = (text) => {
+const formatAnalysisText = (text: string): string => {
   // Teile den Text in Absätze
   const paragraphs = text.split('\n\n');
   
@@ -44,24 +50,42 @@ const formatAnalysisText = (text) => {
   }).join('');
 };
 
+interface Citation {
+  id: string;
+  sourceId: string;
+  text: string;
+}
+
+interface WebResults {
+  summary?: { text: string };
+  results?: Array<{ url: string; title: string; snippet?: string }>;
+  suggestions?: string[];
+  resultCount?: number;
+}
+
+interface SourceRecommendation {
+  title: string;
+  summary: string;
+}
+
 const useSearch = () => {
-  const [results, setResults] = useState([]);
-  const [usedSources, setUsedSources] = useState([]);
-  const [analysis, setAnalysis] = useState(null);
-  const [error, setError] = useState(null);
-  const [sourceRecommendations, setSourceRecommendations] = useState([]);
+  const [results, setResults] = useState<Source[]>([]);
+  const [usedSources, setUsedSources] = useState<Source[]>([]);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sourceRecommendations, setSourceRecommendations] = useState<SourceRecommendation[]>([]);
 
   // Deep research specific state
-  const [dossier, setDossier] = useState(null);
-  const [categorizedSources, setCategorizedSources] = useState({});
-  const [researchQuestions, setResearchQuestions] = useState([]);
+  const [dossier, setDossier] = useState<string | null>(null);
+  const [categorizedSources, setCategorizedSources] = useState<Record<string, Source[]>>({});
+  const [researchQuestions, setResearchQuestions] = useState<string[]>([]);
 
   // Web search specific state
-  const [webResults, setWebResults] = useState(null);
+  const [webResults, setWebResults] = useState<WebResults | null>(null);
 
   // Citation support
-  const [citations, setCitations] = useState([]);
-  const [citationSources, setCitationSources] = useState([]);
+  const [citations, setCitations] = useState<Citation[]>([]);
+  const [citationSources, setCitationSources] = useState<Source[]>([]);
 
   // Get store function to save citations for ContentRenderer
   const setGeneratedTextMetadata = useGeneratedTextStore(state => state.setGeneratedTextMetadata);
@@ -88,7 +112,7 @@ const useSearch = () => {
     setCitationSources([]);
   };
 
-  const search = useCallback(async (query) => {
+  const search = useCallback(async (query: string) => {
     clearAllResults();
 
     try {
@@ -101,21 +125,21 @@ const useSearch = () => {
           include_raw_content: true
         }
       });
-      
+
       if (searchData.status === 'success' && Array.isArray(searchData.results)) {
         setResults(searchData.results);
-        
+
         // 2. Claude Analyse (nur die ersten 6 Quellen)
         try {
-          const analysisResult = await submitAnalysis({ 
-            contents: searchData.results.slice(0, 6) 
+          const analysisResult = await submitAnalysis({
+            contents: searchData.results.slice(0, 6)
           });
           setAnalysis(formatAnalysisText(analysisResult.analysis));
           setSourceRecommendations(analysisResult.sourceRecommendations || []);
-          
+
           // 3. Finde genutzte Quellen (nur aus den ersten 6)
           const usedSourcesList = findUsedSources(
-            searchData.results.slice(0, 6), 
+            searchData.results.slice(0, 6),
             analysisResult.analysis,
             analysisResult.claudeSourceTitles
           );
@@ -128,22 +152,22 @@ const useSearch = () => {
         throw new Error('Ungültiges Antwortformat vom Server');
       }
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : String(err));
       setResults([]);
     }
   }, [submitSearch, submitAnalysis]);
 
-  const deepSearch = useCallback(async (query) => {
+  const deepSearch = useCallback(async (query: string) => {
     clearAllResults();
 
     try {
       console.log('[useSearch] Starting deep search for:', query);
-      
+
       const deepSearchData = await submitDeepSearch({ query });
-      
+
       if (deepSearchData.status === 'success') {
         console.log('[useSearch] Deep search successful:', deepSearchData);
-        
+
         // Set deep research specific data
         setDossier(deepSearchData.dossier);
         setCategorizedSources(deepSearchData.categorizedSources || {});
@@ -165,26 +189,26 @@ const useSearch = () => {
         if (deepSearchData.citationSources) {
           setCitationSources(deepSearchData.citationSources);
         }
-        
+
         // For deep search, we don't use the standard analysis workflow
         // The dossier serves as the analysis
-        
+
       } else {
         throw new Error('Ungültiges Antwortformat vom Server');
       }
     } catch (err) {
       console.error('[useSearch] Deep search error:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : String(err));
       setResults([]);
     }
-  }, [submitDeepSearch]);
+  }, [submitDeepSearch, setGeneratedTextMetadata]);
 
-  const webSearch = useCallback(async (query) => {
+  const webSearch = useCallback(async (query: string) => {
     clearAllResults();
 
     try {
       console.log('[useSearch] Starting web search for:', query);
-      
+
       const webSearchData = await submitWebSearch({
         query,
         searchType: 'general',
@@ -192,7 +216,7 @@ const useSearch = () => {
         maxResults: 10,
         language: 'de-DE'
       });
-      
+
       if (webSearchData.success) {
         console.log('[useSearch] Web search successful:', webSearchData);
         setWebResults(webSearchData);
@@ -215,10 +239,10 @@ const useSearch = () => {
       }
     } catch (err) {
       console.error('[useSearch] Web search error:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : String(err));
       setWebResults(null);
     }
-  }, [submitWebSearch]);
+  }, [submitWebSearch, setGeneratedTextMetadata]);
 
   return {
     results,

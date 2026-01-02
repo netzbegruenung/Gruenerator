@@ -14,6 +14,36 @@ import '../../../../../../../assets/styles/components/profile/profile-action-but
 // No data hook here; mutations are passed down from parent
 import { useTabIndex } from '../../../../../../../hooks/useTabIndex';
 
+interface Generator {
+    id: string;
+    title?: string;
+    name?: string;
+    slug?: string;
+    description?: string;
+    contact_email?: string;
+    prompt?: string;
+    form_schema?: string | { fields: unknown[] };
+    owner_first_name?: string;
+    owner_last_name?: string;
+    owner_email?: string;
+}
+
+interface GeneratorDetailProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    generatorId: string;
+    onBack: () => void;
+    generators: Generator[];
+    updateGenerator?: (id: string, data: unknown) => Promise<unknown>;
+    deleteGenerator?: (id: string) => Promise<unknown>;
+    isUpdating?: boolean;
+    isDeleting?: boolean;
+    isSavedGenerator?: boolean;
+    unsaveGenerator?: (id: string) => Promise<unknown>;
+    isUnsaving?: boolean;
+}
+
 const GeneratorDetail = ({
     isActive,
     onSuccessMessage,
@@ -30,7 +60,7 @@ const GeneratorDetail = ({
     isSavedGenerator = false,
     unsaveGenerator,
     isUnsaving = false,
-}) => {
+}: GeneratorDetailProps) => {
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_GENERATORS');
 
@@ -219,7 +249,7 @@ const GeneratorDetail = ({
                 {!isSavedGenerator && editableDetail.isEditing ? (
                     <EditableDetailForm
                         entityType="generator"
-                        getDisplayValue={editableDetail.getDisplayValue}
+                        getDisplayValue={(field: string) => String(editableDetail.getDisplayValue(field) || '')}
                         updateField={editableDetail.updateField}
                         onSave={editableDetail.saveEdit}
                         onCancel={editableDetail.cancelEdit}
@@ -228,13 +258,15 @@ const GeneratorDetail = ({
                 ) : (
                     // Display Mode
                     <>
-                        {editableDetail.getDisplayValue('form_schema') &&
-                         editableDetail.getDisplayValue('form_schema').fields &&
-                         Array.isArray(editableDetail.getDisplayValue('form_schema').fields) &&
-                         editableDetail.getDisplayValue('form_schema').fields.length > 0 && (
+                        {(() => {
+                            const formSchema = editableDetail.getDisplayValue('form_schema') as { fields?: Array<{ label?: string; name?: string; required?: boolean; type?: string; placeholder?: string; options?: Array<{ label: string }> }> } | undefined;
+                            return formSchema &&
+                             formSchema.fields &&
+                             Array.isArray(formSchema.fields) &&
+                             formSchema.fields.length > 0 && (
                             <div className="generator-form-fields">
                                 <h4>Formularfelder</h4>
-                                {editableDetail.getDisplayValue('form_schema').fields.map((field, index) => (
+                                {formSchema.fields.map((field, index) => (
                                     <div key={index} className="field-item">
                                         <div className="field-header">
                                             <span className="field-name">{field.label || field.name}</span>
@@ -273,7 +305,8 @@ const GeneratorDetail = ({
                                     </div>
                                 ))}
                             </div>
-                        )}
+                        );
+                        })()}
 
                         {generator.prompt && (
                             <div>
@@ -284,13 +317,13 @@ const GeneratorDetail = ({
                             </div>
                         )}
 
-                        {!((editableDetail.getDisplayValue('form_schema') &&
-                           editableDetail.getDisplayValue('form_schema').fields &&
-                           Array.isArray(editableDetail.getDisplayValue('form_schema').fields) &&
-                           editableDetail.getDisplayValue('form_schema').fields.length > 0) ||
-                           generator.prompt) && (
-                            <p>Für diesen Grünerator sind keine detaillierten Feld- oder Prompt-Informationen verfügbar.</p>
-                        )}
+                        {(() => {
+                            const formSchema = editableDetail.getDisplayValue('form_schema') as { fields?: unknown[] } | undefined;
+                            const hasFormFields = formSchema && formSchema.fields && Array.isArray(formSchema.fields) && formSchema.fields.length > 0;
+                            return !hasFormFields && !generator.prompt && (
+                                <p>Für diesen Grünerator sind keine detaillierten Feld- oder Prompt-Informationen verfügbar.</p>
+                            );
+                        })()}
                     </>
                 )}
 

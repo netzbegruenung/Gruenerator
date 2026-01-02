@@ -38,16 +38,41 @@ interface ColorScheme {
   text: string;
 }
 
+interface UnsplashImage {
+  urls: {
+    regular: string;
+    small?: string;
+    thumb?: string;
+    full?: string;
+  };
+  alt_description?: string;
+  user?: {
+    name?: string;
+  };
+}
+
 interface HelpContentType {
   title?: string;
   content?: string;
   tips?: string[];
 }
 
-interface FileUploadProps {
+interface Slogan {
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  line4?: string;
+  line5?: string;
+  quote?: string;
+  header?: string;
+  subheader?: string;
+  body?: string;
+}
+
+interface BaseFormFileUploadProps {
   loading?: boolean;
   file?: File | null;
-  handleChange?: (file: File | null) => void;
+  handleChange?: (file: File) => void;
   error?: string;
   allowedTypes?: string[];
   buttonText?: string;
@@ -56,7 +81,7 @@ interface FileUploadProps {
   alternativesButtonProps?: {
     isExpanded?: boolean;
     onClick?: () => void;
-    onSloganSelect?: (selected: any) => void;
+    onSloganSelect?: (selected: Slogan) => void;
   };
 }
 
@@ -70,7 +95,7 @@ interface BaseFormProps {
   error?: string | { message?: string; title?: string } | null;
   formErrors?: Record<string, string>;
   generatedContent?: ReactNode | string;
-  fileUploadProps?: FileUploadProps;
+  fileUploadProps?: BaseFormFileUploadProps;
   useDownloadButton?: boolean;
   showBackButton?: boolean;
   submitButtonText?: string;
@@ -129,22 +154,30 @@ const BaseForm: React.FC<BaseFormProps> = ({
 }) => {
   const {
     // State
-    currentStep, generatedImageSrc, isAdvancedEditingOpen, selectedImage,
-    type, thema, details, line1, line2, line3, quote, name, fontSize: storeFontSize,
+    currentStep, generatedImageSrc, isAdvancedEditingOpen,
+    selectedImage: rawSelectedImage,
+    type, thema, details, line1, line2, line3, line4, line5, quote, name,
+    header, subheader, body,
+    fontSize: storeFontSize,
     balkenOffset: storeBalkenOffset, colorScheme: storeColorScheme,
     balkenGruppenOffset: storeBalkenGruppenOffset, sunflowerOffset: storeSunflowerOffset,
     credit: storeCredit, searchTerms, sloganAlternatives, uploadedImage,
+    file,
     // Actions
-    toggleAdvancedEditing, handleChange
+    toggleAdvancedEditing, handleChange, updateFormData
   } = useSharepicStore();
+
+  // Cast selectedImage to UnsplashImage if it's an object (store types it as string | null but it's actually an object)
+  const selectedImage = rawSelectedImage as unknown as UnsplashImage | null;
 
   // Create formData object for compatibility with existing code
   const formData = {
-    type, thema, details, line1, line2, line3, quote, name,
+    type, thema, details, line1, line2, line3, line4, line5, quote, name,
+    header, subheader, body,
     fontSize: storeFontSize, balkenOffset: storeBalkenOffset,
     colorScheme: storeColorScheme, balkenGruppenOffset: storeBalkenGruppenOffset,
     sunflowerOffset: storeSunflowerOffset, credit: storeCredit,
-    searchTerms, sloganAlternatives, uploadedImage
+    searchTerms, sloganAlternatives, uploadedImage, file
   };
 
   // Alt text state management
@@ -224,23 +257,23 @@ const BaseForm: React.FC<BaseFormProps> = ({
   }, [generatedImageSrc, formData, generateAltTextForImage, resetAltTextState]);
 
   // Helper to convert File to base64
-  const fileToBase64 = useCallback((file) => {
+  const fileToBase64 = useCallback((file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
+      reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
   }, []);
 
   // Helper to fetch image URL and convert to base64
-  const urlToBase64 = useCallback(async (url) => {
+  const urlToBase64 = useCallback(async (url: string): Promise<string | null> => {
     try {
       const response = await fetch(url);
       const blob = await response.blob();
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
+        reader.onload = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
@@ -251,15 +284,15 @@ const BaseForm: React.FC<BaseFormProps> = ({
   }, []);
 
   // Get original image as base64 for sharing
-  const getOriginalImageBase64 = useCallback(async () => {
-    if (formData.uploadedImage) {
-      return await fileToBase64(formData.uploadedImage);
+  const getOriginalImageBase64 = useCallback(async (): Promise<string | null> => {
+    if (formData.file) {
+      return await fileToBase64(formData.file);
     }
     if (selectedImage?.urls?.regular) {
       return await urlToBase64(selectedImage.urls.regular);
     }
     return null;
-  }, [formData.uploadedImage, selectedImage, fileToBase64, urlToBase64]);
+  }, [formData.file, selectedImage, fileToBase64, urlToBase64]);
 
   // Build metadata for sharing/saving
   const buildShareMetadata = useCallback(() => {
@@ -313,15 +346,16 @@ const BaseForm: React.FC<BaseFormProps> = ({
       try {
         await updateImageShare({
           shareToken: editShareToken,
-          imageData: generatedImageSrc,
+          imageBase64: generatedImageSrc || '',
           title: formData.thema || undefined,
           metadata,
-          originalImage,
+          originalImage: originalImage || undefined,
         });
         alert('Sharepic erfolgreich aktualisiert!');
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to update sharepic:', error);
-        alert('Fehler beim Aktualisieren: ' + error.message);
+        const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+        alert('Fehler beim Aktualisieren: ' + errorMessage);
       }
     } else {
       // Normal flow: open modal to create new share
@@ -490,9 +524,9 @@ const BaseForm: React.FC<BaseFormProps> = ({
         {currentStep === FORM_STEPS.PREVIEW && (
           <>
             <div className="preview-image-container">
-              {formData.uploadedImage && (
+              {formData.file && (
                 <img
-                  src={URL.createObjectURL(formData.uploadedImage)}
+                  src={URL.createObjectURL(formData.file)}
                   alt="Vorschau"
                   className="preview-image"
                 />
@@ -521,37 +555,18 @@ const BaseForm: React.FC<BaseFormProps> = ({
                   }}
                   alternatives={formData.sloganAlternatives}
                   onSloganSelect={formData.type === 'Zitat' ?
-                    (selected) => {
-                      handleChange({
-                        target: {
-                          name: 'quote',
-                          value: selected.quote
-                        }
-                      });
+                    (selected: Slogan) => {
+                      updateFormData({ quote: selected.quote || '' });
                     } : formData.type === 'Info' ?
-                    (selected) => {
-                      handleChange({
-                        target: {
-                          name: 'header',
-                          value: selected.header
-                        }
-                      });
-                      handleChange({
-                        target: {
-                          name: 'subheader',
-                          value: selected.subheader
-                        }
-                      });
-                      handleChange({
-                        target: {
-                          name: 'body',
-                          value: selected.body
-                        }
+                    (selected: Slogan) => {
+                      updateFormData({
+                        header: selected.header || '',
+                        subheader: selected.subheader || '',
+                        body: selected.body || ''
                       });
                     } :
                     fileUploadProps?.alternativesButtonProps?.onSloganSelect
                   }
-                  onAutoAdvance={onSubmit}
                 />
               </div>
             )}

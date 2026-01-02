@@ -6,6 +6,18 @@ import '../../assets/styles/pages/Impressum_datenschutz.css';
 import '../../assets/styles/components/ui/button.css';
 import './AppsPage.css';
 
+// Type augmentation for Navigator with userAgentData
+interface NavigatorUAData {
+  platform?: string;
+  architecture?: string;
+}
+
+declare global {
+  interface Navigator {
+    userAgentData?: NavigatorUAData;
+  }
+}
+
 const RELEASES_API_URL = `${import.meta.env.VITE_API_BASE_URL || ''}/api/releases/latest`;
 
 const detectPlatform = () => {
@@ -50,11 +62,11 @@ const detectArchitecture = () => {
     // Use WebGL renderer as fallback detection
     try {
       const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
       if (gl) {
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        const debugInfo = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info');
         if (debugInfo) {
-          const renderer = gl.getParameter(debugInfo.UNRENDERED_RENDERER_WEBGL).toLowerCase();
+          const renderer = ((gl as WebGLRenderingContext).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string).toLowerCase();
           if (renderer.includes('apple m') || renderer.includes('apple gpu')) {
             return 'arm64';
           }

@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { JSX, MouseEvent, ReactNode } from 'react';
 
 // Canva Button Feature CSS - Loaded only when this feature is accessed
 import '../../../../assets/styles/components/canva/canva-button.css';
@@ -16,6 +16,7 @@ interface CanvaButtonProps {
   children?: ReactNode;
   className?: string;
   ariaLabel?: string;
+  style?: React.CSSProperties;
 }
 
 const CanvaButton = ({ onClick,
