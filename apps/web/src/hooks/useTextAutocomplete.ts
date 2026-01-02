@@ -62,7 +62,14 @@ export const COMBINED_DICTIONARY = [...new Set([...TAG_DICTIONARY, ...PLATFORM_D
  *   />
  * </div>
  */
-export function useTextAutocomplete(value, setValue, options = {}) {
+interface TextAutocompleteOptions {
+  dictionary?: string[];
+  minChars?: number;
+  requireHashtag?: boolean;
+  addHashtagOnAccept?: boolean;
+}
+
+export function useTextAutocomplete(value: string, setValue: (value: string) => void, options: TextAutocompleteOptions = {}) {
   const {
     dictionary = COMBINED_DICTIONARY,
     minChars = 3,

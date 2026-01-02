@@ -33,7 +33,6 @@ const ROUTE_TITLES: Record<string, string> = {
   '/notebooks': 'Notebooks',
   '/survey': 'Umfragen',
   '/editor': 'Editor',
-  '/campaigns': 'Kampagnen',
 };
 
 const getRouteTitle = (pathname: string): string => {

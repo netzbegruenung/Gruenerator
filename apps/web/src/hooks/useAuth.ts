@@ -1,7 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '../stores/authStore';
+import { useAuthStore, type AuthStore } from '../stores/authStore';
 import apiClient from '../components/utils/apiClient';
+import type { AxiosRequestConfig } from 'axios';
+
+// Extend axios config to allow skipAuthRedirect
+interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
+  skipAuthRedirect?: boolean;
+}
 
 interface AuthOptions {
   skipAuth?: boolean;
@@ -138,7 +144,7 @@ const detectPartialLogoutState = async () => {
     if (frontendLoggedOut) {
       const response = await apiClient.get('/auth/status', {
         skipAuthRedirect: true
-      });
+      } as ExtendedAxiosRequestConfig);
 
       const statusData = response.data;
       const backendAuthenticated = statusData.isAuthenticated;
@@ -252,7 +258,7 @@ const getCachedAuthState = () => {
 /**
  * Save auth state to cache
  */
-const setCachedAuthState = (data) => {
+const setCachedAuthState = (data: AuthData) => {
   try {
     localStorage.setItem('authState', JSON.stringify({
       data,
@@ -286,7 +292,7 @@ const setCachedAuthState = (data) => {
  * @param {boolean} options.instant - Use cached state immediately, refresh in background
  * @returns {Object} Authentication state and methods
  */
-export const useAuth = (options = {}) => {
+export const useAuth = (options: AuthOptions = {}) => {
   const { skipAuth = false, lazy = false, instant = false } = options;
   
   const {
@@ -295,14 +301,12 @@ export const useAuth = (options = {}) => {
     isLoading,
     error,
     isLoggingOut,
-    betaFeatures,
     selectedMessageColor,
     igelModus,
     setAuthState,
     setLoading,
     setError,
     clearAuth,
-    updateBetaFeature,
     updateMessageColor,
     setIgelModus,
     login,
@@ -379,22 +383,22 @@ export const useAuth = (options = {}) => {
     isError,
     error: queryError,
     refetch: refetchAuth,
-  } = useQuery({
+  } = useQuery<AuthData>({
     queryKey: ['authStatus'],
-    queryFn: async () => {
+    queryFn: async (): Promise<AuthData> => {
       try {
         const response = await apiClient.get('/auth/status', {
           skipAuthRedirect: true,
-        });
-        return response.data;
+        } as ExtendedAxiosRequestConfig);
+        return response.data as AuthData;
       } catch (error: any) {
         throw error;
       }
     },
     enabled: isServerAvailable && !skipAuth && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
-    retry: 1, 
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    retry: 1,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
@@ -453,7 +457,7 @@ export const useAuth = (options = {}) => {
                 try {
                   const response = await apiClient.get('/auth/groups', {
                     skipAuthRedirect: true
-                  });
+                  } as ExtendedAxiosRequestConfig);
                   return response.data.groups || [];
                 } catch (error: any) {
                   console.warn('[useAuth] Groups prefetch failed:', error);
@@ -499,7 +503,7 @@ export const useAuth = (options = {}) => {
 
 
   // Helper function to update message color
-  const updateUserMessageColor = async (newColor) => {
+  const updateUserMessageColor = async (newColor: string) => {
     if (!user) {
       return;
     }

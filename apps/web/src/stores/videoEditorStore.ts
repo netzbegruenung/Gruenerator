@@ -130,6 +130,7 @@ interface VideoEditorStore {
   removeTextOverlay: (id: number) => void;
   selectOverlay: (id: number | null) => void;
   getSelectedOverlay: () => TextOverlay | null;
+  seekToTime?: (timeInSeconds: number) => void;
 }
 
 const useVideoEditorStore = create<VideoEditorStore>()(

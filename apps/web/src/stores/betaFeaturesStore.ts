@@ -2,9 +2,31 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import apiClient from '../components/utils/apiClient';
 
+// Types
+interface BetaFeatures {
+  [key: string]: boolean;
+}
+
+interface BetaFeaturesState {
+  userId: string | null;
+  betaFeatures: BetaFeatures;
+  isHydrated: boolean;
+  isUpdating: boolean;
+  error: string | null;
+  lastUpdatedAt: number;
+}
+
+interface BetaFeaturesActions {
+  hydrate: (userId: string) => Promise<void>;
+  toggle: (featureKey: string, enabled: boolean) => Promise<void>;
+  resetForUser: (userId?: string | null) => void;
+}
+
+type BetaFeaturesStore = BetaFeaturesState & BetaFeaturesActions;
+
 // Normalize backend keys to frontend camelCase keys
-const normalizeBetaFeatures = (features = {}) => {
-  const keyMap = {
+const normalizeBetaFeatures = (features: Record<string, unknown> = {}): BetaFeatures => {
+  const keyMap: Record<string, string> = {
     groups_enabled: 'groups',
     database_access: 'database',
     igel_modus: 'igel_modus',
@@ -18,7 +40,7 @@ const normalizeBetaFeatures = (features = {}) => {
     labor_enabled: 'labor'
   };
 
-  const normalized = {};
+  const normalized: BetaFeatures = {};
   for (const [key, value] of Object.entries(features || {})) {
     const mappedKey = keyMap[key] || key;
     normalized[mappedKey] = !!value;
@@ -26,7 +48,7 @@ const normalizeBetaFeatures = (features = {}) => {
   return normalized;
 };
 
-export const useBetaFeaturesStore = create(persist((set, get) => ({
+export const useBetaFeaturesStore = create<BetaFeaturesStore>()(persist((set, get) => ({
   userId: null,
   betaFeatures: {},
   isHydrated: false,
@@ -55,13 +77,14 @@ export const useBetaFeaturesStore = create(persist((set, get) => ({
         error: null,
         lastUpdatedAt: Date.now()
       });
-    } catch (e: any) {
-      set({ error: e?.message || 'Failed to hydrate beta features', isHydrated: true });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Failed to hydrate beta features';
+      set({ error: errorMessage, isHydrated: true });
     }
   },
 
   // Optimistic toggle with rollback on error
-  toggle: async (featureKey, enabled) => {
+  toggle: async (featureKey: string, enabled: boolean) => {
     const previous = get().betaFeatures;
     const optimistic = { ...previous, [featureKey]: !!enabled };
     set({ betaFeatures: optimistic, isUpdating: true, error: null });
@@ -76,8 +99,9 @@ export const useBetaFeaturesStore = create(persist((set, get) => ({
 
       const confirmed = normalizeBetaFeatures(result?.betaFeatures || {});
       set({ betaFeatures: confirmed, isUpdating: false, error: null, lastUpdatedAt: Date.now() });
-    } catch (e: any) {
-      set({ betaFeatures: previous, isUpdating: false, error: e?.message || 'Update failed' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Update failed';
+      set({ betaFeatures: previous, isUpdating: false, error: errorMessage });
       throw e;
     }
   },

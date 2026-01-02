@@ -298,9 +298,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     localStorage.removeItem(AUTH_VERSION_KEY);
     
     // Clear React Query cache to prevent stale auth data
-    if (typeof window !== 'undefined' && window.queryClient) {
-      window.queryClient.removeQueries({ queryKey: ['authStatus'] });
-      window.queryClient.clear();
+    if (typeof window !== 'undefined' && (window as Window & { queryClient?: { removeQueries: (options: { queryKey: string[] }) => void; clear: () => void } }).queryClient) {
+      const win = window as Window & { queryClient: { removeQueries: (options: { queryKey: string[] }) => void; clear: () => void } };
+      win.queryClient.removeQueries({ queryKey: ['authStatus'] });
+      win.queryClient.clear();
     }
     
     // Legacy cleanup - no longer needed with new auth system
@@ -724,21 +725,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 export { legacyHelpers as supabaseHelpers }; 
 
 // Subscribe to changes and persist them to localStorage
-useAuthStore.subscribe(
-  (state) => {
-    // Only persist if the user is authenticated to avoid overwriting with null
-    if (state.isAuthenticated && state.user) {
-      persistAuthState(state);
-    }
-  },
-  (state) => ({
-    user: state.user,
-    isAuthenticated: state.isAuthenticated,
-    selectedMessageColor: state.selectedMessageColor,
-    igelModus: state.igelModus,
-    locale: state.locale,
-  })
-);
+useAuthStore.subscribe((state) => {
+  // Only persist if the user is authenticated to avoid overwriting with null
+  if (state.isAuthenticated && state.user) {
+    persistAuthState(state);
+  }
+});
 
 // Legacy initialization - no longer needed with new auth system
 // Auth state is now managed via backend API calls in useAuth hook

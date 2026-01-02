@@ -9,7 +9,14 @@ const LOCATION_KEYWORDS = {
   middle: ['mitte', 'middle', 'zentrum', 'center']
 };
 
-const useScrollSync = (textContainerRef, options = {}) => {
+interface ScrollSyncOptions {
+  highlightDuration?: number;
+  scrollBehavior?: ScrollBehavior;
+  topOffset?: number;
+  announceChanges?: boolean;
+}
+
+const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, options: ScrollSyncOptions = {}) => {
   const {
     highlightDuration = 600,
     scrollBehavior = 'smooth',
