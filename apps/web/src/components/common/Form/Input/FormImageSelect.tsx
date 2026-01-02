@@ -50,7 +50,7 @@ const FormImageSelect = ({
   showLabel = false,
   imageProps = {},
 }: FormImageSelectProps): JSX.Element => {
-  const renderImageGrid = (selectedValue, onChange) => {
+  const renderImageGrid = (selectedValue: string | number | undefined, onChangeGrid: (value: string | number) => void) => {
     return (
       <div
         className={`form-image-select-grid`}
@@ -69,7 +69,7 @@ const FormImageSelect = ({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (!disabled) onChange(option.value);
+              if (!disabled) onChangeGrid(option.value);
             }}
             role="radio"
             aria-checked={selectedValue === option.value}
@@ -79,7 +79,7 @@ const FormImageSelect = ({
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!disabled) onChange(option.value);
+                if (!disabled) onChangeGrid(option.value);
               }
             }}
             style={{
