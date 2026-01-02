@@ -74,10 +74,9 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = ({
   const handleExampleClick = (promptText: string): void => {
     onDescriptionChange(promptText);
     // Optional: Focus the textarea after selecting an example
-    const textarea = document.getElementById('aiDescription');
+    const textarea = document.getElementById('aiDescription') as HTMLTextAreaElement | null;
     if (textarea) {
       textarea.focus();
-      // Move cursor to the end
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = promptText.length;
       }, 0);

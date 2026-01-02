@@ -161,10 +161,10 @@ const ProfilePage = () => {
   }, [navigate, REVERSE_TAB_MAPPING]);
 
   // Handle tab hover with prefetching
-  const onTabHover = useCallback((tabName) => {
+  const onTabHover = useCallback((tabName: string) => {
     if (tabName === activeTab || tabName === hoveredTab) return;
     setHoveredTab(tabName);
-    handleTabHover(tabName, activeTab, hoveredTab);
+    handleTabHover();
   }, [activeTab, hoveredTab, handleTabHover]);
 
   // Available tabs (filtered based on feature flags from PROFILE_MENU_ITEMS)
@@ -383,7 +383,7 @@ const ProfilePage = () => {
           )}
           {errorMessage && (
             <div className="auth-error-message">
-              {typeof errorMessage === 'string' ? errorMessage : errorMessage.message || 'Ein Fehler ist aufgetreten.'}
+              {errorMessage}
             </div>
           )}
         </div>
@@ -397,16 +397,19 @@ const ProfilePage = () => {
               user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorProfileMessage={handleErrorMessage}
-              updatePassword={updatePassword}
-              deleteAccount={deleteAccount}
-              canManageAccount={canManageAccount}
-              isActive={activeTab === 'profile'}
+              deleteAccount={async (options: { confirm: string }) => {
+                if (typeof deleteAccount === 'function') {
+                  const result = await deleteAccount({ confirm: options.confirm }) as { success?: boolean } | void;
+                  return { success: (result && typeof result === 'object' && 'success' in result) ? result.success ?? false : false };
+                }
+                return { success: false };
+              }}
+              canManageAccount={() => typeof canManageAccount === 'function' ? canManageAccount() : !!canManageAccount}
             />
           )}
 
           {activeTab === 'inhalte' && (
             <ContentManagementTab
-              user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'inhalte'}
@@ -418,7 +421,6 @@ const ProfilePage = () => {
 
           {activeTab === 'gruppen' && shouldShowTab('groups') && (
             <GroupsManagementTab
-              user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'gruppen'}
@@ -427,10 +429,10 @@ const ProfilePage = () => {
 
           {activeTab === 'custom_generators' && (
             <CustomGeneratorsTab
-              user={user}
               onSuccessMessage={handleSuccessMessage}
               onErrorMessage={handleErrorMessage}
               isActive={activeTab === 'custom_generators'}
+              onTabChange={handleContentSubtabChange}
             />
           )}
         </Suspense>

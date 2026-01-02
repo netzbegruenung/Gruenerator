@@ -153,6 +153,7 @@ const ProfileView = ({
           </div>
 
           <SettingsSection
+            isActive={true}
             igelActive={igelActive}
             onToggleIgelModus={onToggleIgelModus}
             isBetaFeaturesUpdating={isBetaFeaturesUpdating}

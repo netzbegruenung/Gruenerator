@@ -34,6 +34,38 @@ import apiClient from '../../../../../../components/utils/apiClient';
 // Styles for generator/notebook list buttons
 import '../../../../../generators/styles/custom-generators-tab.css';
 
+interface CustomGeneratorsViewProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    initialTab?: string;
+    initialGeneratorId?: string | null;
+    initialQAId?: string | null;
+    onTabChange?: (tab: string) => void;
+}
+
+interface Generator {
+    id: string;
+    title?: string;
+    name?: string;
+    slug?: string;
+    owner_first_name?: string;
+    owner_last_name?: string;
+    owner_email?: string;
+}
+
+interface Site {
+    id: string;
+    site_title?: string;
+    subdomain?: string;
+    is_published?: boolean;
+}
+
+interface NotebookCollection {
+    id: string;
+    name: string;
+}
+
 const CustomGeneratorsView = ({
     isActive,
     onSuccessMessage,
@@ -42,7 +74,7 @@ const CustomGeneratorsView = ({
     initialGeneratorId = null,
     initialQAId = null,
     onTabChange
-}) => {
+}: CustomGeneratorsViewProps) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -56,11 +88,11 @@ const CustomGeneratorsView = ({
     const { clearMessages } = useMessageHandling(onSuccessMessage, onErrorMessage);
 
     // State management
-    const [selectedGeneratorId, setSelectedGeneratorId] = useState(initialGeneratorId);
-    const [selectedSavedGeneratorId, setSelectedSavedGeneratorId] = useState(null);
-    const [selectedQAId, setSelectedQAId] = useState(initialQAId);
+    const [selectedGeneratorId, setSelectedGeneratorId] = useState<string | null>(initialGeneratorId);
+    const [selectedSavedGeneratorId, setSelectedSavedGeneratorId] = useState<string | null>(null);
+    const [selectedQAId, setSelectedQAId] = useState<string | null>(initialQAId);
     const [view, setView] = useState(initialTab);
-    const [site, setSite] = useState(null);
+    const [site, setSite] = useState<Site | null>(null);
     const [siteLoading, setSiteLoading] = useState(false);
 
     // View-only navigation; no separate tab controller
@@ -75,7 +107,7 @@ const CustomGeneratorsView = ({
     const savedGenerators = useProfileStore(state => state.savedGenerators) || [];
 
     const qaQuery = useNotebookCollections({ isActive: isActive && isQAEnabled });
-    const notebookCollections = useProfileStore(state => state.notebookCollections) || [];
+    const notebookCollections = useProfileStore(state => state.qaCollections) || [];
 
     const availableDocuments = useAvailableDocuments();
 
@@ -105,7 +137,7 @@ const CustomGeneratorsView = ({
     }, [isActive, isSitesEnabled, fetchSite]);
 
     // Navigation handlers
-    const handleGeneratorSelect = useCallback((generatorId) => {
+    const handleGeneratorSelect = useCallback((generatorId: string) => {
         setSelectedGeneratorId(generatorId);
         setSelectedSavedGeneratorId(null);
         setSelectedQAId(null);
@@ -113,7 +145,7 @@ const CustomGeneratorsView = ({
         clearMessages();
     }, [clearMessages]);
 
-    const handleSavedGeneratorSelect = useCallback((generatorId) => {
+    const handleSavedGeneratorSelect = useCallback((generatorId: string) => {
         setSelectedSavedGeneratorId(generatorId);
         setSelectedGeneratorId(null);
         setSelectedQAId(null);
@@ -121,7 +153,7 @@ const CustomGeneratorsView = ({
         clearMessages();
     }, [clearMessages]);
 
-    const handleNotebookSelect = useCallback((qaId) => {
+    const handleNotebookSelect = useCallback((qaId: string) => {
         setSelectedQAId(qaId);
         setSelectedGeneratorId(null);
         setSelectedSavedGeneratorId(null);
@@ -191,13 +223,13 @@ const CustomGeneratorsView = ({
     }, [clearMessages]);
 
     // Success handlers
-    const handleGeneratorCreated = useCallback(async ({ name, slug }) => {
+    const handleGeneratorCreated = useCallback(async ({ name, slug }: { name: string; slug: string }) => {
         try {
             await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customGenerators(authUser?.id) });
             onSuccessMessage(`Custom Grünerator "${name}" erstellt.`);
             // Find the newly created generator by slug and navigate to its detail view
-            const updatedGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(authUser?.id));
-            const newGenerator = updatedGenerators?.find(g => g.slug === slug);
+            const updatedGenerators = queryClient.getQueryData(QUERY_KEYS.customGenerators(authUser?.id)) as Generator[] | undefined;
+            const newGenerator = updatedGenerators?.find((g: Generator) => g.slug === slug);
             if (newGenerator) {
                 setSelectedGeneratorId(newGenerator.id);
                 setView('generator-detail');
@@ -209,7 +241,7 @@ const CustomGeneratorsView = ({
         }
     }, [queryClient, authUser?.id, onSuccessMessage]);
 
-    const handleNotebookCreated = useCallback(({ id, name }) => {
+    const handleNotebookCreated = useCallback(({ id, name }: { id?: string; name?: string }) => {
         if (id) {
             setSelectedQAId(id);
             setView('notebook-detail');
@@ -218,31 +250,34 @@ const CustomGeneratorsView = ({
         }
     }, []);
 
-    const handleSiteCreated = useCallback(async (siteData) => {
+    const handleSiteCreated = useCallback(async (siteData: Record<string, unknown>) => {
         try {
             const response = await apiClient.post('/sites/create', siteData);
             setSite(response.data.site);
             setView('site-view');
             onSuccessMessage('Site erfolgreich erstellt!');
-        } catch (err) {
-            onErrorMessage(err.response?.data?.error || 'Fehler beim Erstellen der Site');
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { error?: string } } };
+            onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Erstellen der Site');
             throw err;
         }
     }, [onSuccessMessage, onErrorMessage]);
 
-    const handleSiteUpdated = useCallback(async (siteData) => {
+    const handleSiteUpdated = useCallback(async (siteData: Record<string, unknown>) => {
         try {
-            const response = await apiClient.put(`/sites/${site.id}`, siteData);
+            const response = await apiClient.put(`/sites/${site?.id}`, siteData);
             setSite(response.data.site);
             setView('site-view');
             onSuccessMessage('Site erfolgreich aktualisiert!');
-        } catch (err) {
-            onErrorMessage(err.response?.data?.error || 'Fehler beim Aktualisieren der Site');
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { error?: string } } };
+            onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Aktualisieren der Site');
             throw err;
         }
     }, [site, onSuccessMessage, onErrorMessage]);
 
     const handlePublish = useCallback(async () => {
+        if (!site) return;
         try {
             const response = await apiClient.post(`/sites/${site.id}/publish`, {
                 publish: !site.is_published
@@ -255,7 +290,7 @@ const CustomGeneratorsView = ({
     }, [site, onSuccessMessage, onErrorMessage]);
 
     // QA navigation handler
-    const handleViewQA = useCallback((qaId) => {
+    const handleViewQA = useCallback((qaId: string) => {
         navigate(`/notebook/${qaId}`);
     }, [navigate]);
 
@@ -321,7 +356,6 @@ const CustomGeneratorsView = ({
                         generatorId={selectedGeneratorId}
                         onBack={handleBackToOverviewFromGenerator}
                         generators={generators}
-                        availableDocuments={availableDocuments.data}
                         updateGenerator={generatorMutations.updateGenerator}
                         deleteGenerator={generatorMutations.deleteGenerator}
                         isUpdating={generatorMutations.isUpdating}
@@ -338,7 +372,6 @@ const CustomGeneratorsView = ({
                         generatorId={selectedSavedGeneratorId}
                         onBack={handleBackToOverviewFromGenerator}
                         generators={savedGenerators}
-                        availableDocuments={[]}
                         isSavedGenerator={true}
                         unsaveGenerator={savedGeneratorsHook.unsaveGenerator}
                         isUnsaving={savedGeneratorsHook.isUnsaving}
@@ -379,7 +412,7 @@ const CustomGeneratorsView = ({
                         onCancel={handleBackToNotebooks}
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
-                        availableDocuments={availableDocuments.data}
+                        availableDocuments={Array.isArray(availableDocuments.data) ? availableDocuments.data : []}
                     />
                 );
 

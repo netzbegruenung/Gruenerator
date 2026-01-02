@@ -8,10 +8,10 @@ import './ImageGallery.css';
 
 const MAX_IMAGES = 50;
 
-const formatDate = (dateString) => {
+const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
-  const diff = now - date;
+  const diff = now.getTime() - date.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
   if (days === 0) return 'Heute';
@@ -356,7 +356,7 @@ const ImageGallery = () => {
       <div className="image-gallery-grid">
         {imageShares.map((image) => (
           <ImageGalleryCard
-            key={image.id}
+            key={(image as any).id || (image as any).shareToken}
             image={image}
             onShare={handleShare}
             onDelete={handleDelete}

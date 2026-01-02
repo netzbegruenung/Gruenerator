@@ -70,7 +70,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   const { submitForm, loading: isSubmitting, success: submissionSuccess, resetSuccess, error: submissionError } = useApiSubmit('/custom_generator');
 
   // Create default values for the form
-  const defaultValues = {
+  const defaultValues: Record<string, unknown> = {
     useWebSearchTool: false,
     usePrivacyMode: false,
     useBedrock: false
@@ -104,7 +104,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   // Reset form when generator config changes
   useEffect(() => {
     if (generatorConfig) {
-      const newDefaults = {
+      const newDefaults: Record<string, unknown> = {
         useWebSearchTool: false,
         usePrivacyMode: false,
         useBedrock: false
@@ -141,9 +141,10 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
         } else {
           setError('Generator nicht gefunden.');
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error fetching generator config:', err);
-        if (err.response?.status === 404) {
+        const axiosError = err as { response?: { status?: number } };
+        if (axiosError.response?.status === 404) {
           setError('Generator nicht gefunden.');
         } else {
           setError('Fehler beim Laden des Generators.');
@@ -159,22 +160,22 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   }, [slug, isAuthenticated, user?.id, authLoading]);
 
   // Handle URL detection and crawling
-  const handleUrlsDetected = useCallback(async (urls) => {
+  const handleUrlsDetected = useCallback(async (urls: string[]) => {
     if (!isCrawling && urls.length > 0) {
       await detectAndCrawlUrls(urls.join(' '), form.generator.toggles.privacyMode);
     }
   }, [detectAndCrawlUrls, isCrawling, form.generator.toggles.privacyMode]);
 
   // Handle URL retry
-  const handleRetryUrl = useCallback(async (url) => {
+  const handleRetryUrl = useCallback(async (url: string) => {
     await retryUrl(url, form.generator.toggles.privacyMode);
   }, [retryUrl, form.generator.toggles.privacyMode]);
 
   // Custom submission handler for dynamic generator configuration
-  const customSubmit = useCallback(async (formData) => {
+  const customSubmit = useCallback(async (formData: Record<string, unknown>) => {
     try {
       // Create clean form data object - only include fields from generator config
-      const cleanFormData = {};
+      const cleanFormData: Record<string, unknown> = {};
       if (generatorConfig) {
         generatorConfig.form_schema.fields.forEach(field => {
           cleanFormData[field.name] = formData[field.name] || '';
@@ -199,11 +200,14 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
         formData: cleanFormData
       });
 
-      const content = response?.content || response?.data?.content || response?.data || response;
+      const content = (response as { content?: string; data?: { content?: string } })?.content ||
+                     (response as { data?: { content?: string } })?.data?.content ||
+                     (response as { data?: string })?.data ||
+                     response;
 
       if (content) {
-        setLocalGeneratedContent(content);
-        form.generator.handleGeneratedContentChange(content);
+        setLocalGeneratedContent(String(content));
+        form.generator.handleGeneratedContentChange(String(content));
         setTimeout(resetSuccess, 3000);
       } else {
         setLocalGeneratedContent('');
@@ -214,7 +218,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     }
   }, [submitForm, resetSuccess, generatorConfig, form, slug, crawledUrls]);
 
-  const handleGeneratedContentChange = useCallback((content) => {
+  const handleGeneratedContentChange = useCallback((content: string) => {
     setLocalGeneratedContent(content);
     form.generator.handleGeneratedContentChange(content);
   }, [form.generator]);
@@ -287,9 +291,9 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
           return (
             <Controller
               key={field.name}
-              name={field.name}
+              name={field.name as never}
               control={form.control}
-              defaultValue={field.defaultValue || ''}
+              defaultValue={(field.defaultValue || '') as never}
               rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
               render={({ field: controllerField, fieldState }) => (
                 <EnhancedSelect
@@ -299,7 +303,10 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
                   placeholder={field.placeholder || 'Bitte wählen...'}
                   value={controllerField.value ? selectOptions.find(opt => opt.value === controllerField.value) : null}
                   onChange={(selectedOption) => {
-                    const value = selectedOption ? selectedOption.value : null;
+                    // Handle single-value select (not multi-select)
+                    const value = selectedOption && !Array.isArray(selectedOption)
+                      ? (selectedOption as { value: string | number }).value
+                      : null;
                     controllerField.onChange(value);
                   }}
                   onBlur={controllerField.onBlur}
@@ -340,7 +347,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
         <BaseForm
           {...form.generator.baseFormProps}
           title={generatorConfig.name || generatorConfig.title}
-          onSubmit={form.handleSubmit(customSubmit)}
+          onSubmit={() => form.handleSubmit(customSubmit)()}
           loading={isSubmitting}
           success={submissionSuccess}
           error={submissionError}

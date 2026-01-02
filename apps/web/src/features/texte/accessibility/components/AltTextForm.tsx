@@ -5,12 +5,33 @@ import FileUpload from '../../../../components/common/FileUpload';
 // import { HiUpload, HiTemplate } from 'react-icons/hi';
 // import CanvaSelector from './CanvaSelector';
 
-const AltTextForm = forwardRef(({ tabIndex = {} }, ref) => {
+interface AltTextFormProps {
+  tabIndex?: {
+    fileUpload?: number;
+    imageDescription?: number;
+    [key: string]: number | undefined;
+  };
+}
+
+interface AltTextFormRef {
+  getFormData: () => Record<string, unknown>;
+  isValid: () => boolean;
+  setCanvaDesign?: (designData: unknown) => void;
+}
+
+interface CanvaDesign {
+  type: string;
+  design: unknown;
+  imageUrl?: string;
+  title?: string;
+}
+
+const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {} }, ref) => {
   const { Input } = useFormFields();
 
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [selectedCanvaDesign, setSelectedCanvaDesign] = useState(null);
-  const [imageSource, setImageSource] = useState('upload'); // 'upload' or 'canva'
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [selectedCanvaDesign, setSelectedCanvaDesign] = useState<CanvaDesign | null>(null);
+  const [imageSource, setImageSource] = useState<'upload' | 'canva'>('upload');
 
   const {
     control,
@@ -22,7 +43,7 @@ const AltTextForm = forwardRef(({ tabIndex = {} }, ref) => {
     }
   });
 
-  const handleImageChange = useCallback((file) => {
+  const handleImageChange = useCallback((file: File | null) => {
     setUploadedImage(file);
     setSelectedCanvaDesign(null); // Clear Canva selection when file is uploaded
   }, []);
@@ -66,8 +87,8 @@ const AltTextForm = forwardRef(({ tabIndex = {} }, ref) => {
     isValid: () => {
       return uploadedImage !== null;
     },
-    setCanvaDesign: (designData) => {
-      if (designData) {
+    setCanvaDesign: (designData: { template?: { id?: string; thumbnail_url?: string; preview_image_url?: string; title?: string } } | null) => {
+      if (designData && designData.template) {
         setImageSource('canva');
         setSelectedCanvaDesign({
           type: 'canva',

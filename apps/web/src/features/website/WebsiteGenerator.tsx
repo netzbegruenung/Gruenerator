@@ -167,7 +167,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
         title="Website Grünerator"
-        onSubmit={handleSubmit(onSubmitRHF)}
+        onSubmit={() => handleSubmit(onSubmitRHF)()}
         loading={loading}
         success={success}
         error={error}

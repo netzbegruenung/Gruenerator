@@ -2,7 +2,20 @@ import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 
-const LeichteSpracheForm = forwardRef(({ tabIndex = {}, onUrlsDetected }, ref) => {
+interface LeichteSpracheFormProps {
+  tabIndex?: {
+    originalText?: number;
+    [key: string]: number | undefined;
+  };
+  onUrlsDetected?: (urls: string[]) => void;
+}
+
+interface LeichteSpracheFormRef {
+  getFormData: () => Record<string, unknown>;
+  isValid: () => boolean;
+}
+
+const LeichteSpracheForm = forwardRef<LeichteSpracheFormRef, LeichteSpracheFormProps>(({ tabIndex = {}, onUrlsDetected }, ref) => {
   const { Textarea } = useFormFields();
 
   const {

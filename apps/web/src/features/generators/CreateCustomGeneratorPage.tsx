@@ -24,7 +24,7 @@ import { ProfileIconButton } from '../../components/profile/actions/ProfileActio
 // Page-level CSS removed (embedded-only)
 
 interface CreateCustomGeneratorPageProps {
-  onCompleted?: () => void;
+  onCompleted?: (data?: { name: string; slug: string }) => void;
   onCancel?: () => void;
 }
 
@@ -172,7 +172,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   };
 
   // Handler for AI description
-  const handleAiDescriptionChange = (value) => {
+  const handleAiDescriptionChange = (value: string) => {
     setAiDescription(value);
     setError(null);
   };
@@ -207,9 +207,10 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       } else {
         setError('Fehler: Die von der KI generierte Konfiguration ist unvollständig oder ungültig.');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[CreateCustom] Error during AI generation:', err);
-      setError(aiError || `Fehler bei der KI-Generierung: ${err.message || 'Unbekannter Fehler'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      setError(aiError || `Fehler bei der KI-Generierung: ${errorMessage}`);
     } finally {
       setIsGeneratingWithAI(false);
     }
@@ -224,12 +225,12 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     }
   };
 
-  const startEditField = (index) => {
+  const startEditField = (index: number) => {
     setEditingFieldIndex(index);
     setIsEditingField(true);
   };
 
-  const handleSaveField = (fieldData) => {
+  const handleSaveField = (fieldData: FormField) => {
     const currentFields = getValues('fields');
     const newFields = [...currentFields];
     if (editingFieldIndex === null) {
@@ -247,7 +248,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     setEditingFieldIndex(null);
   };
 
-  const deleteField = (index) => {
+  const deleteField = (index: number) => {
     const currentFields = getValues('fields');
     setValue('fields', currentFields.filter((_, i) => i !== index));
   };
@@ -291,7 +292,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   };
 
   // Navigation with React Hook Form
-  const onSubmit = async (data) => {
+  const onSubmit = async (_data: FormData) => {
     const isValid = await validateStep();
     if (!isValid) {
       return;
@@ -306,8 +307,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   // Navigation
   const handleNext = handleSubmit(onSubmit);
 
-  const handleBack = (e) => {
-    e.preventDefault();
+  const handleBack = () => {
     setError(null);
     if (currentStep > STEPS.BASICS) {
       setCurrentStep(currentStep - 1);
@@ -349,9 +349,10 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       if (onCompleted) {
         onCompleted({ name: dataToSave.name, slug: dataToSave.slug });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error saving generator:", err);
-      setError(`Fehler beim Speichern: ${err.message || 'Unbekannter Fehler'}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      setError(`Fehler beim Speichern: ${errorMessage}`);
     } finally {
       setIsGeneratingWithAI(false);
     }
@@ -610,7 +611,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
         nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
         useModernForm={true}
         formControl={control}
-        defaultValues={INITIAL_FORM_DATA}
+        defaultValues={INITIAL_FORM_DATA as unknown as Record<string, unknown>}
         hideExtrasSection={true}
         showSubmitButtonInInputSection={true}
       >

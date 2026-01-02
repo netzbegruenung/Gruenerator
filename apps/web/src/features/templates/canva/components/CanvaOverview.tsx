@@ -11,6 +11,13 @@ import { useCanvaStore, useCanvaConnection, useCanvaDesigns } from '../../../../
 // Utils
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
+interface CanvaOverviewProps {
+    isAuthenticated?: boolean;
+    onSuccessMessage?: (message: string) => void;
+    onErrorMessage?: (message: string) => void;
+    onNavigateToSubtab?: (subsection: string) => void;
+}
+
 /**
  * CanvaOverview - Optimized overview component for Canva integration
  * Uses canvaStore for better performance and state management
@@ -21,7 +28,7 @@ const CanvaOverview = memo(({
     onSuccessMessage,
     onErrorMessage,
     onNavigateToSubtab
-}) => {
+}: CanvaOverviewProps) => {
 
     // Store-based state (memoized selectors)
     const { connected: canvaConnected, user: canvaUser, loading: canvaLoading } = useCanvaConnection();

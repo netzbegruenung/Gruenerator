@@ -3,7 +3,20 @@ import { useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
-const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
+interface UniversalFormProps {
+  tabIndex?: {
+    formType?: number;
+    hauptfeld?: number;
+    [key: string]: number | undefined;
+  };
+}
+
+interface UniversalFormRef {
+  getFormData: () => Record<string, unknown>;
+  resetForm: (data?: Record<string, unknown>) => void;
+}
+
+const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabIndex = {} }, ref) => {
   const {
     control,
     getValues,

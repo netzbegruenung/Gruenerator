@@ -26,19 +26,20 @@ const StepFlowSloganStep = ({
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
 
   const currentSlogan = useMemo(() => {
-    if (!fieldConfig?.resultFields) return {};
-    const values = { line1, line2, line3, quote, header, subheader, body };
-    return fieldConfig.resultFields.reduce((acc, field) => {
-      acc[field] = values[field] || '';
-      return acc;
-    }, {});
+    if (!fieldConfig?.resultFields) return {} as Record<string, string>;
+    const values: Record<string, string> = { line1, line2, line3, quote, header, subheader, body };
+    const result: Record<string, string> = {};
+    (fieldConfig.resultFields as string[]).forEach((field: string) => {
+      result[field] = values[field] || '';
+    });
+    return result;
   }, [fieldConfig, line1, line2, line3, quote, header, subheader, body]);
 
-  const handleSloganSelect = useCallback((selected) => {
+  const handleSloganSelect = useCallback((selected: Record<string, string>) => {
     if (fieldConfig?.alternativesMapping) {
       const mapped = fieldConfig.alternativesMapping(selected);
       Object.entries(mapped).forEach(([key, value]) => {
-        handleChange({ target: { name: key, value } });
+        handleChange({ target: { name: key, value } } as React.ChangeEvent<HTMLInputElement>);
       });
     }
   }, [fieldConfig, handleChange]);

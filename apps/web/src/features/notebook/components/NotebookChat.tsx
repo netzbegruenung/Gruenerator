@@ -103,7 +103,6 @@ const NotebookChat = () => {
         disabled={submitLoading}
         renderMessage={renderMessage}
         infoPanelContent={isMobileView ? null : renderInfoPanel()}
-        enableVoiceInput={true}
         hideHeader={true}
         hideModeSelector={true}
         singleLine={true}

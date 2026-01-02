@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { JSX, useState, useMemo, useCallback } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import SearchBar from './SearchBar';
 import useSearch from '../hooks/useSearch';
@@ -31,7 +31,7 @@ const exampleQuestions = [
 ];
 
 interface ExampleQuestionsProps {
-  onQuestionClick: () => void;
+  onQuestionClick: (text: string) => void;
 }
 
 const ExampleQuestions = ({ onQuestionClick }: ExampleQuestionsProps): JSX.Element => (
@@ -49,7 +49,24 @@ const ExampleQuestions = ({ onQuestionClick }: ExampleQuestionsProps): JSX.Eleme
   </div>
 );
 
-const extractMainDomain = (url) => {
+interface Source {
+  url: string;
+  title: string;
+  content_snippets?: string;
+}
+
+interface SourceRecommendation {
+  title: string;
+  summary: string;
+}
+
+interface SourceListProps {
+  sources: Source[];
+  title: string;
+  recommendations?: SourceRecommendation[];
+}
+
+const extractMainDomain = (url: string) => {
   try {
     const domain = new URL(url).hostname;
     return domain.replace(/^www\./, '');
@@ -58,7 +75,7 @@ const extractMainDomain = (url) => {
   }
 };
 
-const SourceList = ({ sources, title, recommendations = [] }) => (
+const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) => (
   <div className="sources-container">
     <h2>{title}</h2>
     <div className="sources-list">
@@ -163,7 +180,7 @@ const SearchPage = () => {
     }];
   }, [hasCitations, handleDeepResearchDOCXExport]);
 
-  const handleSearch = async (query) => {
+  const handleSearch = async (query: string) => {
     if (searchMode === 'deep') {
       await deepSearch(query);
     } else {

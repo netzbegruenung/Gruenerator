@@ -248,7 +248,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           title={<span className="gradient-title">Welches Bild willst du heute beschreiben?</span>}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading}
           success={success}
           error={error}

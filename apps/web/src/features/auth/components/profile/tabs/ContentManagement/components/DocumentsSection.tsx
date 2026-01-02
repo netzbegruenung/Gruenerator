@@ -25,8 +25,40 @@ import { handleError } from '../../../../../../../components/utils/errorHandling
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
 import apiClient from '../../../../../../../components/utils/apiClient';
 
+interface MemoizedDocumentUploadProps {
+    onUploadComplete?: (document: unknown) => void;
+    onDeleteComplete?: () => void;
+    showDocumentsList?: boolean;
+    showTitle?: boolean;
+    forceShowUploadForm?: boolean;
+    showAsModal?: boolean;
+}
+
+interface DocumentsSectionProps {
+    isActive: boolean;
+    onSuccessMessage: (message: string) => void;
+    onErrorMessage: (message: string) => void;
+    onShareToGroup?: (contentType: string, contentId: string, contentTitle: string) => void;
+}
+
+interface CombinedItem {
+    id: string;
+    title?: string;
+    name?: string;
+    status?: string;
+    itemType: 'document' | 'text';
+    content?: string;
+    document_type?: string;
+    word_count?: number;
+    source_type?: string;
+    full_content?: string;
+    created_at?: string;
+    updated_at?: string;
+    [key: string]: unknown;
+}
+
 // Memoized DocumentUpload wrapper to prevent re-renders
-const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }) => {
+const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showDocumentsList = true, showTitle = true, forceShowUploadForm = false, showAsModal = false }: MemoizedDocumentUploadProps) => {
     return (
         <DocumentUpload
             onUploadComplete={onUploadComplete}
@@ -46,7 +78,7 @@ const DocumentsSection = ({
     onSuccessMessage,
     onErrorMessage,
     onShareToGroup
-}) => {
+}: DocumentsSectionProps) => {
     // Tab index configuration
     const tabIndex = useTabIndex('PROFILE_CONTENT_MANAGEMENT');
 
@@ -107,53 +139,63 @@ const DocumentsSection = ({
     // Text operations will need to be implemented in the store or as separate API calls
 
     // Combine documents and texts into a single array
-    const combinedItems = useMemo(() => {
-        const documentsWithType = documents.map(doc => ({ ...doc, itemType: 'document' }));
+    const combinedItems: CombinedItem[] = useMemo(() => {
+        const documentsWithType = documents.map(doc => ({ ...doc, itemType: 'document' as const }));
         const textsWithType = texts.map(text => ({
             ...text,
-            itemType: 'text',
+            itemType: 'text' as const,
             source_type: 'gruenerierte_texte', // Mark texts as generated content
             full_content: text.content, // Map content field for preview modal
             type: text.document_type, // Map document_type to type for metadata display
             word_count: text.word_count || (text.content ? text.content.split(/\s+/).length : 0) // Calculate word count if missing
         }));
-        return [...documentsWithType, ...textsWithType];
+        return [...documentsWithType, ...textsWithType] as CombinedItem[];
     }, [documents, texts]);
 
     // Combined loading state - using single fetch now
     const combinedLoading = documentsLoading;
 
     // Stable remote search handler to avoid re-triggering effect
-    const handleDocumentsRemoteSearch = useCallback((q, mode) => {
+    const handleDocumentsRemoteSearch = useCallback((q: string, mode: 'intelligent' | 'fulltext') => {
         return searchDocumentsApi(q, { limit: 10, mode });
     }, [searchDocumentsApi]);
+
+    // Combined fetch handler using the new unified endpoint - defined early to be used in other handlers
+    const handleCombinedFetch = useCallback(async () => {
+        try {
+            await fetchCombinedContent();
+        } catch (error) {
+            console.error('[DocumentsSection] Error fetching combined content:', error);
+            onErrorMessage('Fehler beim Aktualisieren der Inhalte: ' + (error instanceof Error ? error.message : String(error)));
+        }
+    }, [fetchCombinedContent, onErrorMessage]);
 
     // =====================================================================
     // DOCUMENTS FUNCTIONALITY
     // =====================================================================
 
     // Document handlers
-    const handleDocumentDelete = async (documentId) => {
+    const handleDocumentDelete = async (documentId: string) => {
         try {
             await deleteDocument(documentId);
             onSuccessMessage('Dokument wurde erfolgreich gelöscht.');
         } catch (error) {
             console.error('[DocumentsSection] Error deleting document:', error);
-            onErrorMessage('Fehler beim Löschen des Dokuments: ' + error.message);
+            onErrorMessage('Fehler beim Löschen des Dokuments: ' + (error instanceof Error ? error.message : String(error)));
             throw error;
         }
     };
 
-    const handleDocumentEdit = (document) => {
+    const handleDocumentEdit = (document: CombinedItem) => {
         onSuccessMessage('Dokumentbearbeitung wird bald verfügbar sein.');
     };
 
     // Text handlers
-    const handleTextEdit = (text) => {
+    const handleTextEdit = (text: CombinedItem) => {
         window.open(`/editor/collab/${text.id}`, '_blank');
     };
 
-    const handleTextTitleUpdate = async (textId, newTitle) => {
+    const handleTextTitleUpdate = async (textId: string, newTitle: string) => {
         try {
             // Direct API call for text title update
             await apiClient.put(`/auth/saved-texts/${textId}/title`, { title: newTitle });
@@ -162,12 +204,12 @@ const DocumentsSection = ({
             await handleCombinedFetch();
         } catch (error) {
             console.error('[DocumentsSection] Error updating text title:', error);
-            onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + error.message);
+            onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + (error instanceof Error ? error.message : String(error)));
             throw error;
         }
     };
 
-    const handleTextDelete = async (textId) => {
+    const handleTextDelete = async (textId: string) => {
         try {
             // Use apiClient for proper backend URL handling
             await apiClient.delete(`/auth/saved-texts/${textId}`);
@@ -177,13 +219,13 @@ const DocumentsSection = ({
             await handleCombinedFetch();
         } catch (error) {
             console.error('[DocumentsSection] Error deleting text:', error);
-            onErrorMessage('Fehler beim Löschen des Texts: ' + error.message);
+            onErrorMessage('Fehler beim Löschen des Texts: ' + (error instanceof Error ? error.message : String(error)));
             throw error;
         }
     };
 
     // Combined handlers for both documents and texts
-    const handleCombinedEdit = (item) => {
+    const handleCombinedEdit = (item: CombinedItem) => {
         if (item.itemType === 'text') {
             handleTextEdit(item);
         } else {
@@ -191,7 +233,7 @@ const DocumentsSection = ({
         }
     };
 
-    const handleCombinedTitleUpdate = async (itemId, newTitle, item) => {
+    const handleCombinedTitleUpdate = async (itemId: string, newTitle: string, item: CombinedItem) => {
         if (item.itemType === 'text') {
             await handleTextTitleUpdate(itemId, newTitle);
         } else {
@@ -199,7 +241,7 @@ const DocumentsSection = ({
         }
     };
 
-    const handleCombinedDelete = async (itemId, item) => {
+    const handleCombinedDelete = async (itemId: string, item: CombinedItem) => {
         if (item.itemType === 'text') {
             await handleTextDelete(itemId);
         } else {
@@ -207,27 +249,27 @@ const DocumentsSection = ({
         }
     };
 
-    const handleDocumentTitleUpdate = async (documentId, newTitle) => {
+    const handleDocumentTitleUpdate = async (documentId: string, newTitle: string) => {
         try {
             await updateDocumentTitle(documentId, newTitle);
         } catch (error) {
             console.error('[DocumentsSection] Error updating document title:', error);
-            onErrorMessage('Fehler beim Aktualisieren des Dokumenttitels: ' + error.message);
+            onErrorMessage('Fehler beim Aktualisieren des Dokumenttitels: ' + (error instanceof Error ? error.message : String(error)));
             throw error;
         }
     };
 
-    const handleDocumentRefresh = async (documentId) => {
+    const handleDocumentRefresh = async (documentId: string) => {
         try {
             await refreshDocument(documentId);
         } catch (error) {
             console.error('[DocumentsSection] Error refreshing document:', error);
-            onErrorMessage('Fehler beim Aktualisieren des Dokumentstatus: ' + error.message);
+            onErrorMessage('Fehler beim Aktualisieren des Dokumentstatus: ' + (error instanceof Error ? error.message : String(error)));
             throw error;
         }
     };
 
-    const handleBulkDeleteDocuments = async (documentIds) => {
+    const handleBulkDeleteDocuments = async (documentIds: string[]) => {
         try {
             const result = await documentAndTextUtils.bulkDeleteDocuments(documentIds);
             fetchDocuments();
@@ -241,13 +283,13 @@ const DocumentsSection = ({
             return result;
         } catch (error) {
             console.error('[DocumentsSection] Error in bulk delete documents:', error);
-            onErrorMessage(error.message);
+            onErrorMessage((error instanceof Error ? error.message : String(error)));
             throw error;
         }
     };
 
     // Upload handlers
-    const handleUploadComplete = React.useCallback((document) => {
+    const handleUploadComplete = React.useCallback((document: { title?: string }) => {
         onSuccessMessage(`Dokument "${document.title}" wurde erfolgreich hochgeladen und wird verarbeitet.`);
     }, [onSuccessMessage]);
 
@@ -255,7 +297,7 @@ const DocumentsSection = ({
         onSuccessMessage('Dokument wurde erfolgreich gelöscht.');
     }, [onSuccessMessage]);
 
-    const handleModalUploadComplete = React.useCallback((document) => {
+    const handleModalUploadComplete = React.useCallback((document: { title?: string } | null) => {
         if (document) {
             handleUploadComplete(document);
         }
@@ -271,7 +313,7 @@ const DocumentsSection = ({
         }
     }, [showDeleteAllForm]);
 
-    const handleDeleteAllSubmit = useCallback(async (e) => {
+    const handleDeleteAllSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         setDeleteAllError('');
         onErrorMessage('');
@@ -287,13 +329,13 @@ const DocumentsSection = ({
         setIsDeletingAll(true);
         try {
             // 1. Delete all documents
-            const allDocIds = documents.map(d => d.id);
+            const allDocIds = documents.map((d: { id: string }) => d.id);
             if (allDocIds.length > 0) {
                 await handleBulkDeleteDocuments(allDocIds);
             }
 
             // 2. Delete all texts
-            const allTextIds = texts.map(t => t.id);
+            const allTextIds = texts.map((t: { id: string }) => t.id);
             for (const textId of allTextIds) {
                 await handleTextDelete(textId);
             }
@@ -318,13 +360,13 @@ const DocumentsSection = ({
             setDeleteConfirmText('');
         } catch (error) {
             console.error('[DocumentsSection] Error in delete all:', error);
-            const msg = error.message || 'Fehler beim Löschen aller Inhalte.';
+            const msg = (error instanceof Error ? error.message : String(error)) || 'Fehler beim Löschen aller Inhalte.';
             setDeleteAllError(msg);
             onErrorMessage(msg);
         } finally {
             setIsDeletingAll(false);
         }
-    }, [deleteConfirmText, documents, syncStatuses, handleBulkDeleteDocuments, setAutoSync, fetchDocuments, fetchShareLinks, onSuccessMessage, onErrorMessage]);
+    }, [deleteConfirmText, documents, texts, syncStatuses, handleBulkDeleteDocuments, handleTextDelete, setAutoSync, handleCombinedFetch, fetchShareLinks, onSuccessMessage, onErrorMessage]);
 
     // =====================================================================
     // WOLKE SYNC FUNCTIONALITY
@@ -342,7 +384,7 @@ const DocumentsSection = ({
             await fetchShareLinks();
         } catch (error) {
             console.error('[DocumentsSection] Error refreshing Wolke share links:', error);
-            onErrorMessage('Fehler beim Aktualisieren der Wolke-Verbindungen: ' + error.message);
+            onErrorMessage('Fehler beim Aktualisieren der Wolke-Verbindungen: ' + (error instanceof Error ? error.message : String(error)));
         }
     }, [fetchShareLinks, onErrorMessage]);
 
@@ -368,23 +410,13 @@ const DocumentsSection = ({
         }
     }, [wolkeError, onErrorMessage]);
 
-    // Combined fetch handler using the new unified endpoint
-    const handleCombinedFetch = useCallback(async () => {
-        try {
-            await fetchCombinedContent();
-        } catch (error) {
-            console.error('[DocumentsSection] Error fetching combined content:', error);
-            onErrorMessage('Fehler beim Aktualisieren der Inhalte: ' + error.message);
-        }
-    }, [fetchCombinedContent, onErrorMessage]);
-
     // Fetch combined content when tab becomes active - use ref to prevent loops
-    const fetchCombinedRef = useRef();
+    const fetchCombinedRef = useRef<typeof handleCombinedFetch | null>(null);
     fetchCombinedRef.current = handleCombinedFetch;
 
     useEffect(() => {
         if (isActive) {
-            fetchCombinedRef.current();
+            fetchCombinedRef.current?.();
             // Also fetch Wolke share links when tab becomes active
             if (!wolkeInitialized) {
                 handleRefreshWolkeShareLinks();
@@ -421,15 +453,26 @@ const DocumentsSection = ({
                     /> */}
 
                     <DocumentOverview
-                            documents={combinedItems}
+                            documents={combinedItems as Array<{ id: string; title?: string; status?: string; [key: string]: unknown }>}
                             loading={combinedLoading}
                             onFetch={handleCombinedFetch}
-                            onDelete={(itemId, item) => handleCombinedDelete(itemId, item)}
+                            onDelete={(itemId: string, item: unknown) => handleCombinedDelete(itemId, item as CombinedItem)}
                             onBulkDelete={handleBulkDeleteDocuments}
-                            onUpdateTitle={(itemId, newTitle, item) => handleCombinedTitleUpdate(itemId, newTitle, item)}
+                            onUpdateTitle={async (itemId: string, newTitle: string) => {
+                                // Find the item to determine its type
+                                const item = combinedItems.find(i => i.id === itemId);
+                                if (item) {
+                                    await handleCombinedTitleUpdate(itemId, newTitle, item);
+                                }
+                            }}
                             onEdit={handleCombinedEdit}
                             onRefreshDocument={handleDocumentRefresh}
-                            onShare={onShareToGroup}
+                            onShare={(item: unknown) => {
+                                const typedItem = item as CombinedItem;
+                                if (onShareToGroup) {
+                                    onShareToGroup(typedItem.itemType, typedItem.id, typedItem.title || '');
+                                }
+                            }}
                             documentTypes={documentTypes}
                             emptyStateConfig={{
                                 noDocuments: 'Keine Inhalte vorhanden.',
@@ -437,7 +480,6 @@ const DocumentsSection = ({
                             }}
                             searchPlaceholder="Alle Inhalte durchsuchen..."
                             title="Meine Inhalte"
-                            subtitle="Dokumente, Dateien und Grünerierte Texte"
                             onSuccessMessage={onSuccessMessage}
                             onErrorMessage={onErrorMessage}
                             enableGrouping={true}

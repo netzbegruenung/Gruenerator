@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, RefObject } from 'react';
 import { useLocation } from 'react-router-dom';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -12,6 +12,16 @@ import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import { useUserInstructions } from '../../../hooks/useUserInstructions';
+
+// Form ref interface for child forms
+interface FormRef {
+  getFormData: () => Record<string, unknown> | null;
+  resetForm: (data?: Record<string, unknown>) => void;
+}
+
+interface UniversalTextGeneratorProps {
+  showHeaderFooter?: boolean;
+}
 
 // Text type constants (moved from TextTypeSelector)
 export const TEXT_TYPES = {
@@ -64,7 +74,7 @@ const getInitialTextType = (pathname) => {
   return TEXT_TYPES.UNIVERSAL;
 };
 
-const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
+const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHeaderFooter = true }) => {
   const componentName = 'universal-text';
   const location = useLocation();
 
@@ -76,13 +86,13 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Create separate refs for each form type to avoid stale references
-  const redeFormRef = useRef();
-  const wahlprogrammFormRef = useRef();
-  const buergeranfragenFormRef = useRef();
-  const universalFormRef = useRef();
+  const redeFormRef = useRef<FormRef>(null);
+  const wahlprogrammFormRef = useRef<FormRef>(null);
+  const buergeranfragenFormRef = useRef<FormRef>(null);
+  const universalFormRef = useRef<FormRef>(null);
 
   // Get current form ref based on selected type
-  const getCurrentFormRef = () => {
+  const getCurrentFormRef = (): RefObject<FormRef | null> | null => {
     switch (selectedType) {
       case TEXT_TYPES.REDE:
         return redeFormRef;
@@ -120,7 +130,7 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   }, [selectedType, currentFormRef]);
 
   // Map selected text type to instruction type
-  const getInstructionType = (textType) => {
+  const getInstructionType = (textType: string) => {
     switch (textType) {
       case TEXT_TYPES.REDE:
         return 'rede';
@@ -231,13 +241,13 @@ const UniversalTextGenerator = ({ showHeaderFooter = true }) => {
   const renderForm = () => {
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={form.generator.tabIndex} />;
+        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={form.generator?.tabIndex} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef} tabIndex={form.generator.tabIndex} />;
+        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef} tabIndex={form.generator?.tabIndex} />;
       case TEXT_TYPES.BUERGERANFRAGEN:
-        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef} tabIndex={form.generator.tabIndex} />;
+        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef} tabIndex={form.generator?.tabIndex} />;
       case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef} tabIndex={form.generator.tabIndex} />;
+        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef} tabIndex={form.generator?.tabIndex} />;
       default:
         return null;
     }

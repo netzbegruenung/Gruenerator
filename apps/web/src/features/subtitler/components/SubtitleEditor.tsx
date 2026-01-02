@@ -218,9 +218,9 @@ const SubtitleEditor = ({
 
     try {
       console.log('[SubtitleEditor] Creating video URL for file:', {
-        name: videoFile.name,
-        type: videoFile.type,
-        size: videoFile.size
+        name: (videoFile as File).name,
+        type: (videoFile as File).type,
+        size: (videoFile as File).size
       });
 
       const url = URL.createObjectURL(videoFile);
@@ -401,8 +401,8 @@ const SubtitleEditor = ({
     if (window.innerWidth <= 768 && (videoFile || videoUrlProp) && subtitles) {
       const textareas = document.querySelectorAll('.segment-text');
       textareas.forEach((element) => {
-        element.style.height = 'auto';
-        element.style.height = element.scrollHeight + 'px';
+        (element as HTMLElement).style.height = 'auto';
+        (element as HTMLElement).style.height = (element as HTMLElement).scrollHeight + 'px';
       });
     }
   }, [editableSubtitles, videoFile, videoUrlProp, subtitles]);

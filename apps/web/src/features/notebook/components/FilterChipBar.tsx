@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { JSX, useEffect, useMemo } from 'react';
 import useNotebookStore from '../stores/notebookStore';
 import '../styles/notebook-filters.css';
 
@@ -36,8 +36,8 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
 
         return Object.entries(filterValues).map(([field, config]) => ({
             field,
-            label: config.label || field,
-            values: config.values || []
+            label: (config as any).label || field,
+            values: (config as any).values || []
         })).filter(group => group.values.length > 0);
     }, [filterValues]);
 

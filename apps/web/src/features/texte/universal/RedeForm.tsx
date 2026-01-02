@@ -2,7 +2,20 @@ import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm } from 'react-hook-form';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
-const RedeForm = forwardRef(({ tabIndex = {} }, ref) => {
+interface RedeFormProps {
+  tabIndex?: {
+    formType?: number;
+    hauptfeld?: number;
+    [key: string]: number | undefined;
+  };
+}
+
+interface RedeFormRef {
+  getFormData: () => Record<string, unknown>;
+  resetForm: (data?: Record<string, unknown>) => void;
+}
+
+const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref) => {
   const {
     control,
     getValues,

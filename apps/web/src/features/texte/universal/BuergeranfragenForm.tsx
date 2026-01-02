@@ -4,8 +4,26 @@ import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import CreatableSelect from 'react-select/creatable';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 
-const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
-  const [selectedAntwortart, setSelectedAntwortart] = useState([]);
+interface BuergeranfragenFormProps {
+  tabIndex?: {
+    formType?: number;
+    hauptfeld?: number;
+    [key: string]: number | undefined;
+  };
+}
+
+interface BuergeranfragenFormRef {
+  getFormData: () => Record<string, unknown>;
+  resetForm: (data?: Record<string, unknown>) => void;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFormProps>(({ tabIndex = {} }, ref) => {
+  const [selectedAntwortart, setSelectedAntwortart] = useState<SelectOption[]>([]);
   const {
     control,
     getValues,
@@ -28,11 +46,11 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
       data.antwortart = selectedAntwortart.map(option => option.value || option.label).join(', ');
       return data;
     },
-    resetForm: (data) => {
+    resetForm: (data?: Record<string, unknown>) => {
       reset(data);
       // Handle reset with existing antwortart string - convert back to array
-      if (data?.antwortart) {
-        const antwortartValues = data.antwortart.split(', ').map(value => ({
+      if (data?.antwortart && typeof data.antwortart === 'string') {
+        const antwortartValues = data.antwortart.split(', ').map((value: string) => ({
           value: value.trim(),
           label: value.trim()
         }));
@@ -51,7 +69,7 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
     { value: 'loesungsorientiert', label: 'Lösungsorientiert' }
   ];
 
-  const handleAntwortartChange = (newValues) => {
+  const handleAntwortartChange = (newValues: SelectOption[] | null) => {
     // newValues is an array of selected options
     const selectedValues = newValues || [];
     setSelectedAntwortart(selectedValues);
@@ -83,10 +101,12 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
 
       <FormFieldWrapper
         label="Art der gewünschten Antwort"
+        htmlFor="antwortart-select"
         required={true}
-        error={null} // We'll handle validation manually for now
+        error={undefined}
       >
         <CreatableSelect
+          inputId="antwortart-select"
           classNamePrefix="react-select"
           isMulti={true}
           options={antwortartOptions}

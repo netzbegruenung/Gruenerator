@@ -112,10 +112,10 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
       const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
       // Add custom prompt from user instructions (simplified)
-      formDataToSubmit.customPrompt = customPrompt;
-      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
-      formDataToSubmit.selectedTextIds = selectedTextIds || [];
-      formDataToSubmit.searchQuery = searchQuery || '';
+      (formDataToSubmit as any).customPrompt = customPrompt;
+      (formDataToSubmit as any).selectedDocumentIds = selectedDocumentIds || [];
+      (formDataToSubmit as any).selectedTextIds = selectedTextIds || [];
+      (formDataToSubmit as any).searchQuery = searchQuery || '';
 
       const response = await submitForm(formDataToSubmit);
       if (response) {
@@ -164,7 +164,7 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
         <BaseForm
           {...form.generator.baseFormProps}
           title={<span className="gradient-title">Welchen Text willst du heute vereinfachen?</span>}
-          onSubmit={handleSubmit(onSubmitRHF)}
+          onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading}
           success={success}
           error={error}

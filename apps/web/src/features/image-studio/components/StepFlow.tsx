@@ -472,8 +472,8 @@ const StepFlow = ({ onBack: parentOnBack, onComplete, imageLimitData }) => {
           {currentStep.type === 'input' && (
             <StepFlowInputStep
               key={currentStep.id}
-              field={currentStep.field}
-              value={getFieldValue(currentStep.field?.name)}
+              field={(currentStep as any).field}
+              value={getFieldValue((currentStep as any).field?.name)}
               onChange={handleChange}
               onNext={handleNext}
               onBack={handleBack}

@@ -191,9 +191,9 @@ const VideoEditor = ({
       generateThumbnail(videoUrl, 1).then(thumbnail => {
         if (thumbnail) {
           const clips = useVideoEditorStore.getState().clips;
-          const firstClipId = Object.keys(clips)[0];
+          const firstClipId = Object.keys(clips)[0] as string;
           if (firstClipId) {
-            setClipThumbnail(firstClipId, thumbnail);
+            setClipThumbnail(firstClipId, thumbnail as string);
           }
         }
       });
@@ -271,7 +271,7 @@ const VideoEditor = ({
       // Generate thumbnail asynchronously
       const thumbnail = await generateThumbnail(url, 1);
       if (thumbnail && clipId) {
-        setClipThumbnail(clipId, thumbnail);
+        setClipThumbnail(clipId, thumbnail as string);
       }
     } catch (err) {
       console.error('Failed to add clip:', err);
@@ -381,7 +381,7 @@ const VideoEditor = ({
               <ClipPanel />
             )}
             <div className="video-editor__player-wrapper">
-              <VideoEditorPlayer subtitles={subtitles} stylePreference={localStyle} />
+              <VideoEditorPlayer className="video-editor__player" subtitles={subtitles} stylePreference={localStyle} />
               <button
                 className="video-editor__play-overlay"
                 onClick={handlePlayPause}

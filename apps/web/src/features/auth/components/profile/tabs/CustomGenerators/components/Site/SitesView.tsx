@@ -8,8 +8,25 @@ import SiteCreator from './components/SiteCreator';
 import SiteEditor from './components/SiteEditor';
 import SitePreview from './components/SitePreview';
 
-const SitesView = ({ isActive = true, onSuccessMessage = () => {}, onErrorMessage = () => {} }) => {
-    const [site, setSite] = useState(null);
+interface Site {
+    id: string;
+    site_title?: string;
+    subdomain?: string;
+    is_published?: boolean;
+}
+
+interface SitesViewProps {
+    isActive?: boolean;
+    onSuccessMessage?: (message: string) => void;
+    onErrorMessage?: (message: string) => void;
+}
+
+const SitesView = ({
+    isActive = true,
+    onSuccessMessage = (_msg: string) => {},
+    onErrorMessage = (_msg: string) => {}
+}: SitesViewProps) => {
+    const [site, setSite] = useState<Site | null>(null);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState('empty'); // 'empty', 'preview', 'edit', 'create'
 
@@ -34,40 +51,45 @@ const SitesView = ({ isActive = true, onSuccessMessage = () => {}, onErrorMessag
                 setSite(null);
                 setView('empty');
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('[SitesView] Error fetching site:', err);
-            onErrorMessage('Fehler beim Laden der Site: ' + (err.response?.data?.error || err.message));
+            const axiosError = err as { response?: { data?: { error?: string } }; message?: string };
+            onErrorMessage('Fehler beim Laden der Site: ' + (axiosError.response?.data?.error || axiosError.message));
             setView('empty');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCreateSite = async (siteData) => {
+    const handleCreateSite = async (siteData: Record<string, unknown>) => {
         try {
             const response = await apiClient.post('/api/sites/create', siteData);
             setSite(response.data.site);
             setView('preview');
             onSuccessMessage('Site erfolgreich erstellt!');
-        } catch (err) {
-            onErrorMessage(err.response?.data?.error || 'Fehler beim Erstellen der Site');
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { error?: string } } };
+            onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Erstellen der Site');
             throw err;
         }
     };
 
-    const handleUpdateSite = async (siteData) => {
+    const handleUpdateSite = async (siteData: Record<string, unknown>) => {
+        if (!site) return;
         try {
             const response = await apiClient.put(`/api/sites/${site.id}`, siteData);
             setSite(response.data.site);
             setView('preview');
             onSuccessMessage('Site erfolgreich aktualisiert!');
-        } catch (err) {
-            onErrorMessage(err.response?.data?.error || 'Fehler beim Aktualisieren der Site');
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { error?: string } } };
+            onErrorMessage(axiosError.response?.data?.error || 'Fehler beim Aktualisieren der Site');
             throw err;
         }
     };
 
     const handlePublish = async () => {
+        if (!site) return;
         try {
             const response = await apiClient.post(`/api/sites/${site.id}/publish`, {
                 publish: !site.is_published

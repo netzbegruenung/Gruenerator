@@ -3,13 +3,27 @@ import { motion } from 'motion/react';
 import ChatWorkbenchLayout from '../../../components/common/Chat/ChatWorkbenchLayout';
 import GrueneratorChatMessage from './GrueneratorChatMessage';
 import { useChatStore } from '../../../stores/chatStore';
-import { shallow } from 'zustand/shallow';
+import { useShallow } from 'zustand/react/shallow';
 import { useChatApi } from '../hooks/useChatApi';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { validateFiles, prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import { resolveTextContent } from '../utils/textResolvers';
 import apiClient from '../../../components/utils/apiClient';
 import '../../../assets/styles/components/chat/chat-workbench.css';
+
+interface AttachedFile extends File {
+  name: string;
+  type: string;
+  size: number;
+}
+
+interface ChatMsg {
+  type: string;
+  content: string;
+  timestamp?: number;
+  agent?: string;
+  componentId?: string;
+}
 
 const EXAMPLE_QUESTIONS = [
   { icon: '📝', text: 'Schreib einen Instagram-Post über Klimaschutz' },
@@ -20,16 +34,16 @@ const EXAMPLE_QUESTIONS = [
 const GrueneratorChat = () => {
   const [inputValue, setInputValue] = useState('');
   const [isEditModeActive, setIsEditModeActive] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
 
-  const messages = useChatStore(state => state.messages, shallow);
+  const messages = useChatStore(useShallow(state => state.messages));
   const currentAgent = useChatStore(state => state.currentAgent);
   const isLoading = useChatStore(state => state.isLoading);
   const error = useChatStore(state => state.error);
   const initializeChat = useChatStore(state => state.initializeChat);
   const setError = useChatStore(state => state.setError);
   const clearMessages = useChatStore(state => state.clearMessages);
-  const multiResults = useChatStore(state => state.multiResults, shallow);
+  const multiResults = useChatStore(useShallow(state => state.multiResults));
   const clearMultiResults = useChatStore(state => state.clearMultiResults);
   const activeResultId = useChatStore(state => state.activeResultId);
   const setActiveResultId = useChatStore(state => state.setActiveResultId);
@@ -57,7 +71,7 @@ const GrueneratorChat = () => {
     }
   }, [inputValue, error, setError]);
 
-  const handleSubmit = useCallback(async (message) => {
+  const handleSubmit = useCallback(async (message: string) => {
     console.log('[GrueneratorChat] Message submit started:', message?.substring(0, 50) + '...');
 
     if (!message?.trim() || isLoading) return;
@@ -77,8 +91,8 @@ const GrueneratorChat = () => {
 
       try {
         await apiClient.delete('/chat/clear');
-      } catch (error) {
-        console.warn('Failed to clear backend session:', error);
+      } catch (err) {
+        console.warn('Failed to clear backend session:', err);
       }
 
       setTimeout(() => initializeChat(), 100);
@@ -97,9 +111,9 @@ const GrueneratorChat = () => {
         try {
           processedFiles = await prepareFilesForSubmission(attachedFiles);
           console.log('[GrueneratorChat] Files processed successfully:', processedFiles?.length || 0, 'processed files');
-        } catch (error) {
-          console.error('[GrueneratorChat] File processing error:', error);
-          setError(error.message);
+        } catch (err) {
+          console.error('[GrueneratorChat] File processing error:', err);
+          setError(err instanceof Error ? err.message : String(err));
           return;
         }
       } else {
@@ -107,7 +121,7 @@ const GrueneratorChat = () => {
       }
 
       if (isEditModeActive) {
-        await sendEditInstruction(message, processedFiles);
+        await sendEditInstruction(message);
       } else {
         await sendMessage(message, { attachments: processedFiles });
       }
@@ -117,8 +131,8 @@ const GrueneratorChat = () => {
         console.log('[GrueneratorChat] Clearing attached files after send');
         setAttachedFiles([]);
       }
-    } catch (error) {
-      console.error('[GrueneratorChat] Error sending message:', error);
+    } catch (err) {
+      console.error('[GrueneratorChat] Error sending message:', err);
       // Error is already handled in useChatApi
     }
   }, [sendMessage, sendEditInstruction, isLoading, isEditModeActive, attachedFiles, setError, clearMessages, clearMultiResults, setActiveResultId, initializeChat]);
@@ -151,7 +165,7 @@ const GrueneratorChat = () => {
     currentAgent
   ]);
 
-  const handleEditRequest = useCallback((componentId) => {
+  const handleEditRequest = useCallback((componentId: string) => {
     if (!componentId) return;
 
     if (isEditModeActive && activeResultId === componentId) {
@@ -196,7 +210,7 @@ const GrueneratorChat = () => {
     activeResultId
   ]);
 
-  const handleFileSelect = useCallback(async (files) => {
+  const handleFileSelect = useCallback(async (files: AttachedFile[]) => {
     console.log('[GrueneratorChat] File upload started:', files?.length || 0, 'files');
     console.log('[GrueneratorChat] Files selected:', files?.map(f => ({ name: f.name, type: f.type, size: f.size })) || []);
 
@@ -208,13 +222,13 @@ const GrueneratorChat = () => {
       setAttachedFiles(files);
       console.log('[GrueneratorChat] Files attached to state');
       setError(null);
-    } catch (error) {
-      console.error('[GrueneratorChat] File validation error:', error);
-      setError(error.message);
+    } catch (err) {
+      console.error('[GrueneratorChat] File validation error:', err);
+      setError(err instanceof Error ? err.message : String(err));
     }
   }, [setError]);
 
-  const handleRemoveFile = useCallback((index) => {
+  const handleRemoveFile = useCallback((index: number) => {
     setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
   }, []);
 
@@ -244,7 +258,7 @@ const GrueneratorChat = () => {
     }
   }, [clearMessages, setError, initializeChat, setActiveResultId]);
 
-  const renderMessage = useCallback((msg, index) => {
+  const renderMessage = useCallback((msg: ChatMsg, index: number) => {
     return (
       <GrueneratorChatMessage
         key={msg.timestamp || `msg-${index}`}
