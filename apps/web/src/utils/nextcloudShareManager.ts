@@ -222,22 +222,24 @@ export class NextcloudShareManager {
         try {
             const shareLinks = await this.getShareLinks();
             
-            const stats = {
+            const oldestLinkTime = shareLinks.length > 0 ?
+                Math.min(...shareLinks.map(link => new Date(link.created_at).getTime())) : null;
+            const newestLinkTime = shareLinks.length > 0 ?
+                Math.max(...shareLinks.map(link => new Date(link.created_at).getTime())) : null;
+
+            const stats: {
+                totalLinks: number;
+                activeLinks: number;
+                inactiveLinks: number;
+                oldestLink: Date | null;
+                newestLink: Date | null;
+            } = {
                 totalLinks: shareLinks.length,
                 activeLinks: shareLinks.filter(link => link.is_active).length,
                 inactiveLinks: shareLinks.filter(link => !link.is_active).length,
-                oldestLink: shareLinks.length > 0 ? 
-                    Math.min(...shareLinks.map(link => new Date(link.created_at).getTime())) : null,
-                newestLink: shareLinks.length > 0 ? 
-                    Math.max(...shareLinks.map(link => new Date(link.created_at).getTime())) : null
+                oldestLink: oldestLinkTime ? new Date(oldestLinkTime) : null,
+                newestLink: newestLinkTime ? new Date(newestLinkTime) : null
             };
-
-            if (stats.oldestLink) {
-                stats.oldestLink = new Date(stats.oldestLink);
-            }
-            if (stats.newestLink) {
-                stats.newestLink = new Date(stats.newestLink);
-            }
 
             return stats;
         } catch (error) {

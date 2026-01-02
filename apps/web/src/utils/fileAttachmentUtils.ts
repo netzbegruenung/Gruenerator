@@ -92,7 +92,7 @@ export const fileToBase64 = (file) => {
     reader.onload = () => {
       try {
         // Remove data URL prefix (e.g., "data:application/pdf;base64,")
-        const base64String = reader.result.split(',')[1];
+        const base64String = (reader.result as string).split(',')[1];
         resolve(base64String);
       } catch (error) {
         reject(new Error(`Fehler beim Konvertieren der Datei ${file.name}: ${error.message}`));
@@ -130,7 +130,7 @@ export const prepareFilesForSubmission = async (files) => {
       console.log(`[fileAttachmentUtils] File details:`, { name: file.name, type: file.type, size: file.size });
 
       const base64Data = await fileToBase64(file);
-      console.log(`[fileAttachmentUtils] File ${file.name} converted to base64, size:`, base64Data?.length || 0);
+      console.log(`[fileAttachmentUtils] File ${file.name} converted to base64, size:`, (base64Data as string)?.length || 0);
       
       processedFiles.push({
         name: file.name,

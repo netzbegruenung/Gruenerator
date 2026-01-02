@@ -288,11 +288,11 @@ export interface FormInputSectionProps {
   useModernForm?: boolean;
   defaultValues?: Record<string, unknown>;
   validationRules?: Record<string, unknown>;
-  formControl?: FormControl;
-  onFormChange?: (values: Record<string, unknown>) => void;
-  onSubmit?: (data: Record<string, unknown>) => void | Promise<void>;
+  formControl?: FormControl | null;
+  onFormChange?: ((values: Record<string, unknown>) => void) | null;
+  onSubmit?: ((data?: Record<string, unknown>) => void | Promise<void>) | (() => void);
   showSubmitButton?: boolean;
-  nextButtonText?: string;
+  nextButtonText?: string | null;
   submitButtonProps?: Record<string, unknown>;
   isMultiStep?: boolean;
   onBack?: () => void;
@@ -307,8 +307,10 @@ export interface FormInputSectionProps {
   platformSelectorTabIndex?: number;
   showImageUpload?: boolean;
   uploadedImage?: unknown;
-  onImageChange?: (image: unknown) => void;
+  onImageChange?: ((image: unknown) => void) | null;
   isStartMode?: boolean;
+  loading?: boolean;
+  success?: boolean;
 }
 
 // =============================================================================
@@ -319,12 +321,12 @@ export interface FormExtrasSectionProps {
   balancedModeToggle?: FeatureToggle;
   interactiveModeToggle?: FeatureToggle;
   useInteractiveModeToggle?: boolean;
-  onAttachmentClick?: () => void;
+  onAttachmentClick?: ((files: File[]) => void) | (() => void);
   onRemoveFile?: (index: number) => void;
   attachedFiles?: unknown[];
-  onSubmit?: (data?: Record<string, unknown>) => void | Promise<void>;
+  onSubmit?: ((data?: Record<string, unknown>) => void | Promise<void>) | (() => void);
   showSubmitButton?: boolean;
-  nextButtonText?: string;
+  nextButtonText?: string | null;
   submitButtonProps?: Record<string, unknown>;
   formNotice?: ReactNode;
   onPrivacyInfoClick?: () => void;
@@ -334,11 +336,21 @@ export interface FormExtrasSectionProps {
   isStartMode?: boolean;
   hide?: boolean;
   usePrivacyMode?: boolean;
-  featureIconsTabIndex?: TabIndexConfig['featureIcons'];
+  featureIconsTabIndex?: {
+    webSearch?: number;
+    balancedMode?: number;
+    attachment?: number;
+    anweisungen?: number;
+  };
   submitButtonTabIndex?: number;
-  formControl?: FormControl;
+  formControl?: FormControl | null;
   isMultiStep?: boolean;
   componentName?: string;
+  knowledgeSelectorTabIndex?: number;
+  knowledgeSourceSelectorTabIndex?: number;
+  documentSelectorTabIndex?: number;
+  showProfileSelector?: boolean;
+  enableKnowledgeSelector?: boolean;
 }
 
 // =============================================================================
@@ -425,9 +437,16 @@ export interface BaseFormProps {
 
   // Generated content
   generatedContent?: GeneratedContent;
+  onGeneratedContentChange?: ((content: string) => void) | null;
   initialContent?: string;
   hideDisplayContainer?: boolean;
-  customRenderer?: ReactNode | ((content: GeneratedContent) => ReactNode);
+  customRenderer?: ((props: {
+    content: unknown;
+    generatedContent: unknown;
+    componentName: string;
+    helpContent?: HelpContent | null;
+    onEditModeToggle?: () => void;
+  }) => ReactNode) | null;
   useMarkdown?: boolean | null;
 
   // Help content

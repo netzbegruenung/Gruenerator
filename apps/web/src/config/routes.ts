@@ -29,9 +29,6 @@ const VorlagenGallery = lazy(() =>
 );
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
-const CampaignPage = lazy(() => import('../features/campaigns'));
-const WebinarCampaign = lazy(() => import('../features/campaigns/components/WebinarCampaign'));
-
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
@@ -93,7 +90,7 @@ const WrappedGrueneratorChat = lazy(() =>
   ]).then(([chatModule, wrapperModule]) => ({
     default: (props: Record<string, unknown>) => (
       wrapperModule.default({
-        children: chatModule.default(props),
+        children: chatModule.default(),
         featureKey: 'chat',
         fallbackPath: '/profile?tab=labor'
       })
@@ -135,8 +132,6 @@ export const GrueneratorenBundle = {
   AntragDetail: AntragDetailPage,
   VorlagenListe: VorlagenGallery,
   Reel: Reel,
-  Campaign: CampaignPage,
-  Webinar: WebinarCampaign,
   CustomGenerator: CustomGeneratorPage,
   NotebookChat: NotebookChat,
   Chat: WrappedGrueneratorChat,
@@ -179,8 +174,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
-  { path: '/kampagne', component: GrueneratorenBundle.Campaign },
-  { path: '/webinare', component: GrueneratorenBundle.Webinar },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
