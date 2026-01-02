@@ -1,12 +1,12 @@
 import { cloneElement, type ReactElement, type HTMLAttributes, type LabelHTMLAttributes } from 'react';
 
 export interface FormFieldWrapperProps extends HTMLAttributes<HTMLDivElement> {
-  children: ReactElement;
+  children: ReactElement<{ 'aria-invalid'?: boolean; 'aria-describedby'?: string }>;
   label?: string;
   required?: boolean;
   error?: string;
   helpText?: string;
-  htmlFor: string;
+  htmlFor?: string;
   className?: string;
   labelProps?: LabelHTMLAttributes<HTMLLabelElement>;
 }
