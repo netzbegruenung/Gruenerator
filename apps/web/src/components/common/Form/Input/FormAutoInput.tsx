@@ -149,6 +149,8 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
             <div>
               <TextareaAutosize
                 {...field}
+                {...textareaProps}
+                {...rest}
                 id={autoInputId}
                 placeholder={placeholder}
                 disabled={disabled}
@@ -156,6 +158,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
                 maxRows={maxRows}
                 maxLength={maxLength}
                 className={`${autoInputClassName} ${error ? 'error-input' : ''}`.trim()}
+                style={undefined}
                 onBlur={(e: FocusEvent<HTMLTextAreaElement>) => {
                   if (autoFormat) {
                     const formatted = formatText(e.target.value, true);
@@ -163,8 +166,6 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
                   }
                   field.onBlur();
                 }}
-                {...textareaProps}
-                {...rest}
               />
               <TextStats
                 value={field.value || ''}
@@ -193,6 +194,8 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
     >
       <div>
         <TextareaAutosize
+          {...textareaProps}
+          {...rest}
           id={autoInputId}
           name={String(name)}
           placeholder={placeholder}
@@ -202,6 +205,7 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
           maxLength={maxLength}
           className={autoInputClassName}
           value={value}
+          style={undefined}
           onChange={(e) => {
             let newVal = e.target.value;
             if (autoFormat) {
@@ -212,8 +216,6 @@ function FormAutoInput<T extends FieldValues = FieldValues>({
               onChangeProp(newVal);
             }
           }}
-          {...textareaProps}
-          {...rest}
         />
         <TextStats
           value={value}

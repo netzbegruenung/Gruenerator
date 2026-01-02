@@ -72,11 +72,10 @@ const FormInput: React.FC<FormInputProps> = ({
             const newVal = e.target.value;
             setField(name, newVal);
             if (rest.onChange) {
-              rest.onChange(newVal);
+              (rest.onChange as (value: string) => void)(newVal);
             }
           }}
           {...inputProps}
-          {...rest}
         />
       </FormFieldWrapper>
     );
