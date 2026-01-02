@@ -467,7 +467,7 @@ const SharedContentSelector = ({
   };
 
   // Get permission badges
-  const getPermissionBadges = (permissions = {}) => (
+  const getPermissionBadges = (permissions: { read?: boolean; write?: boolean; collaborative?: boolean } = {}) => (
     <div className="shared-content-permissions">
       <span className={`permission-badge ${permissions.read ? 'active' : ''}`}>
         Lesen
