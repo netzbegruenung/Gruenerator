@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import PropTypes from 'prop-types';
 import { FaSave, FaCheck, FaDownload, FaMagic, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import LiveSubtitlePreview from './LiveSubtitlePreview';
@@ -165,7 +164,7 @@ const SubtitleEditor = ({
     const unsubscribe = subscribe();
     return unsubscribe;
   }, [subscribe]);
-  
+
   // Watch for export start and completion
   useEffect(() => {
     // Only navigate to success when we have a valid NEW token (not null)
@@ -192,7 +191,7 @@ const SubtitleEditor = ({
   // Function to wrap emojis in spans for styling
   const formatTextWithEmojis = (text) => {
     const emojiRegex = /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F270}]|[\u{238C}-\u{2454}]|[\u{20D0}-\u{20FF}]|[\u{FE0F}]/gu;
-    
+
     return text.replace(emojiRegex, (emoji) => `<span class="emoji-transparent">${emoji}</span>`);
   };
 
@@ -252,7 +251,7 @@ const SubtitleEditor = ({
 
     try {
       console.log('[SubtitleEditor] Processing subtitles:', subtitles);
-      
+
       const segments = subtitles.split('\n\n')
         .map((block, index) => {
           const [timeLine, ...textLines] = block.split('\n');
@@ -622,7 +621,7 @@ const SubtitleEditor = ({
           <div className="fallback-message">
             <p>⚠️ Automatischer Download fehlgeschlagen?</p>
             <div className="fallback-buttons">
-              <a 
+              <a
                 href={showFallbackButton.url || showFallbackButton}
                 download={showFallbackButton.filename}
                 className="btn-primary"
@@ -632,7 +631,7 @@ const SubtitleEditor = ({
               >
                 Video manuell herunterladen
               </a>
-              <button 
+              <button
                 className="btn-secondary"
                 onClick={() => setShowFallbackButton(null)}
               >
@@ -818,23 +817,4 @@ const SubtitleEditor = ({
   );
 };
 
-SubtitleEditor.propTypes = {
-  videoFile: PropTypes.instanceOf(File),
-  videoUrl: PropTypes.string,
-  subtitles: PropTypes.string.isRequired,
-  uploadId: PropTypes.string.isRequired,
-  subtitlePreference: PropTypes.string.isRequired,
-  stylePreference: PropTypes.oneOf(['standard', 'clean', 'shadow', 'tanne']),
-  heightPreference: PropTypes.oneOf(['standard', 'tief']),
-  onStyleChange: PropTypes.func,
-  onHeightChange: PropTypes.func,
-  onExportSuccess: PropTypes.func.isRequired,
-  isExporting: PropTypes.bool,
-  onExportComplete: PropTypes.func,
-  loadedProject: PropTypes.object,
-  videoMetadataFromUpload: PropTypes.object,
-  videoFilename: PropTypes.string,
-  videoSize: PropTypes.number
-};
-
-export default SubtitleEditor; 
+export default SubtitleEditor;

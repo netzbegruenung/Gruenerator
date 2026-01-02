@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import PropTypes from 'prop-types';
 import '../styles/SubtitleEditor.css';
 
 const Timeline = ({
@@ -210,22 +209,6 @@ const Timeline = ({
       </div>
     </div>
   );
-};
-
-Timeline.propTypes = {
-  duration: PropTypes.number.isRequired,
-  currentTime: PropTypes.number.isRequired,
-  segments: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    startTime: PropTypes.number.isRequired,
-    endTime: PropTypes.number.isRequired,
-    text: PropTypes.string.isRequired,
-  })).isRequired,
-  selectedSegmentId: PropTypes.number,
-  correctedSegmentIds: PropTypes.instanceOf(Set),
-  onSeek: PropTypes.func.isRequired,
-  onSegmentClick: PropTypes.func.isRequired,
-  onTextChange: PropTypes.func,
 };
 
 export default Timeline;

@@ -1,5 +1,4 @@
 import React, { useState, useCallback, forwardRef, useImperativeHandle } from 'react';
-import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 import FileUpload from '../../../../components/common/FileUpload';
@@ -8,7 +7,7 @@ import FileUpload from '../../../../components/common/FileUpload';
 
 const AltTextForm = forwardRef(({ tabIndex = {} }, ref) => {
   const { Input } = useFormFields();
-  
+
   const [uploadedImage, setUploadedImage] = useState(null);
   const [selectedCanvaDesign, setSelectedCanvaDesign] = useState(null);
   const [imageSource, setImageSource] = useState('upload'); // 'upload' or 'canva'
@@ -147,9 +146,5 @@ const AltTextForm = forwardRef(({ tabIndex = {} }, ref) => {
 });
 
 AltTextForm.displayName = 'AltTextForm';
-
-AltTextForm.propTypes = {
-  tabIndex: PropTypes.object
-};
 
 export default AltTextForm;

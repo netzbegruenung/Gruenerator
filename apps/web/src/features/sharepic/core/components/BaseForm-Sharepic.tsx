@@ -20,14 +20,14 @@ import { useShareStore } from '@gruenerator/shared';
 import '../../../../assets/styles/components/sharepic/sharepic.css';
 import '../../../../assets/styles/components/sharepic/sharepic-type-selector.css';
 
-import { 
-  ColorSchemeControl, 
-  FontSizeControl, 
+import {
+  ColorSchemeControl,
+  FontSizeControl,
   CreditControl,
 } from '../../../../components/utils/ImageModificationForm';
-import { 
-  BUTTON_LABELS, 
-  ARIA_LABELS, 
+import {
+  BUTTON_LABELS,
+  ARIA_LABELS,
   FORM_STEPS,
 } from '../../../../components/utils/constants';
 import { SloganAlternativesDisplay } from '../components/SloganAlternatives';
@@ -131,7 +131,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
     // State
     currentStep, generatedImageSrc, isAdvancedEditingOpen, selectedImage,
     type, thema, details, line1, line2, line3, quote, name, fontSize: storeFontSize,
-    balkenOffset: storeBalkenOffset, colorScheme: storeColorScheme, 
+    balkenOffset: storeBalkenOffset, colorScheme: storeColorScheme,
     balkenGruppenOffset: storeBalkenGruppenOffset, sunflowerOffset: storeSunflowerOffset,
     credit: storeCredit, searchTerms, sloganAlternatives, uploadedImage,
     // Actions
@@ -141,9 +141,9 @@ const BaseForm: React.FC<BaseFormProps> = ({
   // Create formData object for compatibility with existing code
   const formData = {
     type, thema, details, line1, line2, line3, quote, name,
-    fontSize: storeFontSize, balkenOffset: storeBalkenOffset, 
+    fontSize: storeFontSize, balkenOffset: storeBalkenOffset,
     colorScheme: storeColorScheme, balkenGruppenOffset: storeBalkenGruppenOffset,
-    sunflowerOffset: storeSunflowerOffset, credit: storeCredit, 
+    sunflowerOffset: storeSunflowerOffset, credit: storeCredit,
     searchTerms, sloganAlternatives, uploadedImage
   };
 
@@ -157,13 +157,13 @@ const BaseForm: React.FC<BaseFormProps> = ({
 
   // Get updateImageShare for gallery edit mode
   const { updateImageShare, isCreating: isSaving } = useShareStore();
-  
+
   // Alt text generation hook
-  const { 
-    loading: altTextLoading, 
-    error: altTextError, 
+  const {
+    loading: altTextLoading,
+    error: altTextError,
     generateAltTextForImage,
-    resetState: resetAltTextState 
+    resetState: resetAltTextState
   } = useAltTextGeneration();
 
   useEffect(() => {
@@ -346,8 +346,8 @@ const BaseForm: React.FC<BaseFormProps> = ({
     <div className="button-container">
       {formButtons.showBack && (
         <div className="button-wrapper">
-          <Button 
-            onClick={onBack} 
+          <Button
+            onClick={onBack}
             text={BUTTON_LABELS.BACK}
             className="submit-button"
             ariaLabel={ARIA_LABELS.BACK}
@@ -491,16 +491,16 @@ const BaseForm: React.FC<BaseFormProps> = ({
           <>
             <div className="preview-image-container">
               {formData.uploadedImage && (
-                <img 
-                  src={URL.createObjectURL(formData.uploadedImage)} 
-                  alt="Vorschau" 
+                <img
+                  src={URL.createObjectURL(formData.uploadedImage)}
+                  alt="Vorschau"
                   className="preview-image"
                 />
               )}
               {selectedImage && (
-                <img 
-                  src={selectedImage.urls.regular} 
-                  alt={selectedImage.alt_description || "Unsplash Vorschau"} 
+                <img
+                  src={selectedImage.urls.regular}
+                  alt={selectedImage.alt_description || "Unsplash Vorschau"}
                   className="preview-image"
                 />
               )}
@@ -573,7 +573,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
                 </button>
               </div>
             </div>
-            
+
             {/* Alt Text Inline Section */}
             {showAltTextSection && (
               <div className="alt-text-inline-section" style={{ fontSize: 'initial' }}>
@@ -581,40 +581,40 @@ const BaseForm: React.FC<BaseFormProps> = ({
                   <h3>Alt-Text für Barrierefreiheit</h3>
                   <HelpTooltip>
                     <p>
-                      Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung. 
+                      Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung.
                       Er wird von Screenreadern vorgelesen und macht Inhalte barrierefrei.
                     </p>
                     <p>
-                      <a href="https://www.dbsv.org/bildbeschreibung-4-regeln.html" 
-                         target="_blank" 
+                      <a href="https://www.dbsv.org/bildbeschreibung-4-regeln.html"
+                         target="_blank"
                          rel="noopener noreferrer">
                         DBSV-Richtlinien für Bildbeschreibungen →
                       </a>
                     </p>
                   </HelpTooltip>
                   {generatedAltText && !altTextLoading && (
-                    <CopyButton 
+                    <CopyButton
                       directContent={generatedAltText}
                       variant="icon"
                       className="alt-text-copy-button"
                     />
                   )}
                 </div>
-                
+
                 {altTextLoading && (
                   <div className="alt-text-loading">
                     <span className="loading-spinner">⏳</span>
                     <span>Alt-Text wird generiert...</span>
                   </div>
                 )}
-                
+
                 {altTextError && (
                   <div className="alt-text-error">
                     <span>⚠️</span>
                     <span>Fehler bei der Alt-Text-Generierung: {altTextError}</span>
                   </div>
                 )}
-                
+
                 {generatedAltText && !altTextLoading && (
                   <div className="alt-text-content">
                     {generatedAltText}

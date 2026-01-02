@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { FaPlus, FaEdit, FaShareAlt, FaInstagram, FaTimes, FaDownload, FaFileAlt } from 'react-icons/fa';
 import CopyButton from '../../../components/common/CopyButton';
@@ -285,19 +284,6 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
       )}
     </div>
   );
-};
-
-VideoSuccessScreen.propTypes = {
-  onReset: PropTypes.func.isRequired,
-  onEditAgain: PropTypes.func.isRequired,
-  isLoading: PropTypes.bool,
-  socialText: PropTypes.string,
-  uploadId: PropTypes.string,
-  projectTitle: PropTypes.string,
-  projectId: PropTypes.string,
-  onGenerateSocialText: PropTypes.func,
-  isGeneratingSocialText: PropTypes.bool,
-  videoUrl: PropTypes.string
 };
 
 export default VideoSuccessScreen;

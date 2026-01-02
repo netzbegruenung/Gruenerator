@@ -42,4 +42,4 @@ const GeneratorCreationSuccessScreen: React.FC<GeneratorCreationSuccessScreenPro
   );
 };
 
-export default GeneratorCreationSuccessScreen; 
+export default GeneratorCreationSuccessScreen;

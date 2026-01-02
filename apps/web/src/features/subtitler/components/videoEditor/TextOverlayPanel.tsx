@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import PropTypes from 'prop-types';
 import { FiTrash2, FiCheck } from 'react-icons/fi';
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
 import './TextOverlay.css';
@@ -120,11 +119,6 @@ const TextOverlayPanel = ({ overlayId, onClose }) => {
       </div>
     </div>
   );
-};
-
-TextOverlayPanel.propTypes = {
-  overlayId: PropTypes.number.isRequired,
-  onClose: PropTypes.func.isRequired
 };
 
 export default TextOverlayPanel;

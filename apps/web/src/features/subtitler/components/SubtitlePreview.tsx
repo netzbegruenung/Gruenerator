@@ -1,4 +1,4 @@
-/* 
+/*
 LEGACY COMPONENT - NOT CURRENTLY USED
 This component has been replaced by LiveSubtitlePreview and SubtitleEditor
 Keeping for reference but commenting out to avoid confusion
@@ -6,14 +6,13 @@ Keeping for reference but commenting out to avoid confusion
 
 /*
 import React, { useRef, useEffect, useState } from 'react';
-import PropTypes from 'prop-types';
 
-const SubtitlePreview = ({ 
+const SubtitlePreview = ({
   videoFile = null,
-  subtitles = null, 
+  subtitles = null,
   isProcessing = false,
   isExporting = false,
-  onExport = () => {} 
+  onExport = () => {}
 }) => {
   const videoRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState(null);
@@ -72,8 +71,8 @@ const SubtitlePreview = ({
   };
 
   const handleSubtitleEdit = (id, newText) => {
-    setEditableSubtitles(prev => 
-      prev.map(segment => 
+    setEditableSubtitles(prev =>
+      prev.map(segment =>
         segment.id === id ? { ...segment, text: newText } : segment
       )
     );
@@ -85,8 +84,6 @@ const SubtitlePreview = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-
-
   return (
     <div className="subtitle-preview">
       {isExporting && (
@@ -95,10 +92,10 @@ const SubtitlePreview = ({
           <p>Video wird exportiert...</p>
         </div>
       )}
-      
+
       {!isProcessing && !isExporting && videoFile && (
         <div className="video-container">
-          <video 
+          <video
             ref={videoRef}
             className="preview-video"
             controls
@@ -128,7 +125,7 @@ const SubtitlePreview = ({
             ))}
           </div>
           <div className="subtitle-controls">
-            <button 
+            <button
               className="btn-primary"
               onClick={handleExport}
               disabled={isExporting}
@@ -138,7 +135,7 @@ const SubtitlePreview = ({
           </div>
         </div>
       )}
-      
+
       {!isProcessing && !isExporting && !subtitles && !videoFile && (
         <div className="no-subtitles">
           Keine Untertitel verfügbar
@@ -148,13 +145,5 @@ const SubtitlePreview = ({
   );
 };
 
-SubtitlePreview.propTypes = {
-  videoFile: PropTypes.object,
-  subtitles: PropTypes.string,
-  isProcessing: PropTypes.bool,
-  isExporting: PropTypes.bool,
-  onExport: PropTypes.func
-};
-
 export default SubtitlePreview;
-*/ 
+*/

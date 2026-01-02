@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router-dom';
 import { HiUpload, HiTemplate } from 'react-icons/hi';
@@ -18,12 +17,12 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
   const componentName = 'alt-text';
   const { setGeneratedText } = useGeneratedTextStore();
   const [searchParams] = useSearchParams();
-  
+
   const [uploadedImage, setUploadedImage] = useState(null);
   const [selectedCanvaDesign, setSelectedCanvaDesign] = useState(null);
   const [imageSource, setImageSource] = useState('upload'); // 'upload' or 'canva'
   const [generatedAltText, setGeneratedAltText] = useState('');
-  
+
   const {
     loading,
     success,
@@ -31,7 +30,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
     generateAltTextForImage,
     resetSuccess
   } = useAltTextGeneration();
-  
+
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
 
   // Get feature state from store
@@ -46,13 +45,13 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
         const sessionData = sessionStorage.getItem(canvaTemplateParam);
         if (sessionData) {
           const parsedData = JSON.parse(sessionData);
-          
+
           if (parsedData.source === 'canvaTemplate' && parsedData.template) {
             console.log('[AltTextGenerator] Pre-selecting Canva template from URL:', parsedData.template.title);
-            
+
             // Switch to Canva mode
             setImageSource('canva');
-            
+
             // Set the selected design
             setSelectedCanvaDesign({
               type: 'canva',
@@ -60,13 +59,13 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
               imageUrl: parsedData.template.thumbnail_url || parsedData.template.preview_image_url,
               title: parsedData.template.title
             });
-            
+
             // Clear uploaded image
             setUploadedImage(null);
-            
+
             // Clean up sessionStorage
             sessionStorage.removeItem(canvaTemplateParam);
-            
+
             console.log('[AltTextGenerator] Canva template pre-selected successfully');
           }
         }
@@ -157,15 +156,15 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
         fullDescription || null,
         features // Pass feature toggles to generation hook
       );
-      
+
       const altText = response?.altText || response || '';
-      
+
       setGeneratedAltText(altText);
       setGeneratedText(componentName, altText);
-      
+
       console.log('[AltTextGenerator] Alt text generated successfully');
       setTimeout(resetSuccess, 3000);
-      
+
     } catch (error) {
       console.error('[AltTextGenerator] Error generating alt text:', error);
     }
@@ -184,7 +183,7 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
       "Füge optional eine Beschreibung hinzu für besseren Kontext",
       "Der generierte Alt-Text folgt DBSV-Richtlinien für Barrierefreiheit",
       "Alt-Texte sollten prägnant aber beschreibend sein",
-      
+
     ]
   };
 
@@ -266,10 +265,6 @@ const AltTextGenerator = ({ showHeaderFooter = true }) => {
       </div>
     </ErrorBoundary>
   );
-};
-
-AltTextGenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
 };
 
 export default AltTextGenerator;

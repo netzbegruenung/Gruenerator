@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import PropTypes from 'prop-types';
 
 const StepIndicator = ({ steps, currentStep, onStepClick, allowClickNavigation = false }) => {
   const currentIndex = steps.indexOf(currentStep);
@@ -28,13 +27,6 @@ const StepIndicator = ({ steps, currentStep, onStepClick, allowClickNavigation =
       })}
     </nav>
   );
-};
-
-StepIndicator.propTypes = {
-  steps: PropTypes.arrayOf(PropTypes.string).isRequired,
-  currentStep: PropTypes.string.isRequired,
-  onStepClick: PropTypes.func,
-  allowClickNavigation: PropTypes.bool
 };
 
 export default StepIndicator;

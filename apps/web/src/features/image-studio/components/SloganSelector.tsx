@@ -1,5 +1,4 @@
 import React, { useRef } from 'react';
-import PropTypes from 'prop-types';
 
 import '../../../assets/styles/components/actions/slogan-alternatives.css';
 
@@ -99,43 +98,6 @@ export const SloganSelector = ({
       )}
     </div>
   );
-};
-
-SloganSelector.propTypes = {
-  currentSlogan: PropTypes.oneOfType([
-    PropTypes.shape({
-      line1: PropTypes.string,
-      line2: PropTypes.string,
-      line3: PropTypes.string
-    }),
-    PropTypes.shape({
-      quote: PropTypes.string
-    }),
-    PropTypes.shape({
-      header: PropTypes.string,
-      subheader: PropTypes.string,
-      body: PropTypes.string
-    })
-  ]).isRequired,
-  alternatives: PropTypes.arrayOf(
-    PropTypes.oneOfType([
-      PropTypes.shape({
-        line1: PropTypes.string,
-        line2: PropTypes.string,
-        line3: PropTypes.string
-      }),
-      PropTypes.shape({
-        quote: PropTypes.string
-      }),
-      PropTypes.shape({
-        header: PropTypes.string,
-        subheader: PropTypes.string,
-        body: PropTypes.string
-      })
-    ])
-  ),
-  onSelect: PropTypes.func.isRequired,
-  loading: PropTypes.bool
 };
 
 export default SloganSelector;

@@ -55,7 +55,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
   });
 
   const [error, setError] = useState(null);
-  
+
   // Helper functions for managing select options
   const addOption = () => {
     const currentOptions = watchedOptions || [];
@@ -108,17 +108,17 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
       setValue('name', sanitizedName, { shouldValidate: false });
 
       // Auto-suggest field type
-      if (watchedLabel.toLowerCase().includes('beschreibung') || 
-          watchedLabel.toLowerCase().includes('text') || 
-          watchedLabel.toLowerCase().includes('inhalt') || 
-          watchedLabel.toLowerCase().includes('prompt') || 
+      if (watchedLabel.toLowerCase().includes('beschreibung') ||
+          watchedLabel.toLowerCase().includes('text') ||
+          watchedLabel.toLowerCase().includes('inhalt') ||
+          watchedLabel.toLowerCase().includes('prompt') ||
           watchedLabel.toLowerCase().includes('abschnitt')) {
         setValue('type', 'textarea', { shouldValidate: false });
       }
 
       // Auto-suggest required status
-      if (watchedLabel.toLowerCase().includes('email') || 
-          watchedLabel.toLowerCase().includes('name') || 
+      if (watchedLabel.toLowerCase().includes('email') ||
+          watchedLabel.toLowerCase().includes('name') ||
           watchedLabel.toLowerCase().includes('titel')) {
         setValue('required', true, { shouldValidate: false });
       }
@@ -131,7 +131,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
   // Effect to handle type changes and options initialization
   useEffect(() => {
     const currentOptions = watchedOptions || [];
-    
+
     if (watchedType === 'select' && currentOptions.length === 0) {
       // When switching to select type, ensure at least one option exists
       setValue('options', [{ label: '', value: '' }], { shouldValidate: false });
@@ -140,7 +140,6 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
       setValue('options', [], { shouldValidate: false });
     }
   }, [watchedType, watchedOptions, setValue]);
-
 
   // Define validation rules
   const validationRules = {
@@ -151,10 +150,10 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     name: {
       required: 'Technischer Name konnte nicht generiert werden.',
       validate: (value) => {
-        const otherNames = initialFieldData 
+        const otherNames = initialFieldData
           ? existingFieldNames.filter(n => n !== initialFieldData.name)
           : existingFieldNames;
-        return !otherNames.includes(value) || 
+        return !otherNames.includes(value) ||
           `Der technische Name '${value}' wird bereits von einem anderen Feld verwendet.`;
       }
     }
@@ -169,7 +168,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
   const handleSaveClick = handleSubmit(onSubmit);
 
   return (
-    <div className="field-editor-assistant p-3 mb-3 border rounded"> 
+    <div className="field-editor-assistant p-3 mb-3 border rounded">
       <h5>Feld bearbeiten/hinzufügen</h5>
       {error && <div className="alert alert-danger">{error}</div>}
       {(errors.label || errors.name) && (
@@ -177,7 +176,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
           {errors.label?.message || errors.name?.message}
         </div>
       )}
-      
+
       {/* Label Input */}
       <FormInput
         name="label"
@@ -196,7 +195,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
           control={control}
           render={({ field }) => (
             <div className="type-selector-container" role="radiogroup" aria-labelledby="type-label">
-              <button 
+              <button
                 type="button"
                 className={`btn type-selector-button ${field.value === 'text' ? 'active' : ''}`}
                 onClick={() => {
@@ -207,7 +206,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
               >
                 Kurzer Text
               </button>
-              <button 
+              <button
                 type="button"
                 className={`btn type-selector-button ${field.value === 'textarea' ? 'active' : ''}`}
                 onClick={() => {
@@ -218,7 +217,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
               >
                 Langer Text
               </button>
-              <button 
+              <button
                 type="button"
                 className={`btn type-selector-button ${field.value === 'select' ? 'active' : ''}`}
                 onClick={() => {
@@ -299,8 +298,8 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
           name="required"
           control={control}
           render={({ field }) => (
-            <button 
-              type="button" 
+            <button
+              type="button"
               role="switch"
               aria-checked={field.value}
               id="assistant-required-toggle"
@@ -321,7 +320,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
           <button type="button" onClick={onCancel} className="btn btn-tanne-bordered">
             Abbrechen
           </button>
-          <button 
+          <button
             type="button"
             onClick={handleSaveClick}
             className="btn btn-primary"
@@ -333,4 +332,4 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
   );
 };
 
-export default FieldEditorAssistant; 
+export default FieldEditorAssistant;

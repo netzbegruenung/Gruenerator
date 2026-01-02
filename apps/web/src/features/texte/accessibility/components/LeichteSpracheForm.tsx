@@ -1,5 +1,4 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import { useFormFields } from '../../../../components/common/Form/hooks';
 
@@ -50,10 +49,5 @@ const LeichteSpracheForm = forwardRef(({ tabIndex = {}, onUrlsDetected }, ref) =
 });
 
 LeichteSpracheForm.displayName = 'LeichteSpracheForm';
-
-LeichteSpracheForm.propTypes = {
-  tabIndex: PropTypes.object,
-  onUrlsDetected: PropTypes.func
-};
 
 export default LeichteSpracheForm;

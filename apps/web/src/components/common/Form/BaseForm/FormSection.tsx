@@ -243,16 +243,16 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
 
           onSubmit();
         }} className="form-section__form">
-          
+
           {/* Mobile: firstExtrasChildren above everything (except in start mode or edit mode) */}
           {isMobileView && firstExtrasChildren && !isStartMode && !useEditMode && (
             <div className="form-section__mobile-first-extras">
               {firstExtrasChildren}
             </div>
           )}
-          
+
           <div className="form-section__container">
-            
+
             {/* Input Section */}
             <FormInputSection
               isMultiStep={isMultiStep}
@@ -345,4 +345,4 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
 
 FormSection.displayName = 'FormSection';
 
-export default React.memo(FormSection); 
+export default React.memo(FormSection);

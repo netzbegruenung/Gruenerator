@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback } from 'react';
-import PropTypes from 'prop-types';
 import { motion } from 'motion/react';
 import { HiArrowLeft, HiArrowRight } from 'react-icons/hi';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -80,13 +79,6 @@ const StepFlowSloganStep = ({
       </div>
     </motion.div>
   );
-};
-
-StepFlowSloganStep.propTypes = {
-  onNext: PropTypes.func.isRequired,
-  onBack: PropTypes.func.isRequired,
-  loading: PropTypes.bool,
-  direction: PropTypes.number
 };
 
 export default StepFlowSloganStep;

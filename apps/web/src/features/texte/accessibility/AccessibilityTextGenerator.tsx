@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import PropTypes from 'prop-types';
 import { useSearchParams } from 'react-router-dom';
 import BaseForm from '../../../components/common/BaseForm';
 import ErrorBoundary from '../../../components/ErrorBoundary';
@@ -152,22 +151,22 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
   // Handle pre-selected Canva template from URL parameters (Alt-Text only)
   useEffect(() => {
     if (selectedType !== ACCESSIBILITY_TYPES.ALT_TEXT) return;
-    
+
     const canvaTemplateParam = searchParams.get('canvaTemplate');
     if (canvaTemplateParam) {
       try {
         const sessionData = sessionStorage.getItem(canvaTemplateParam);
         if (sessionData) {
           const parsedData = JSON.parse(sessionData);
-          
+
           if (parsedData.source === 'canvaTemplate' && parsedData.template) {
             console.log('[AccessibilityTextGenerator] Pre-selecting Canva template from URL:', parsedData.template.title);
-            
+
             // Set the Canva design in the form
             if (formRef.current?.setCanvaDesign) {
               formRef.current.setCanvaDesign(parsedData);
             }
-            
+
             // Clean up sessionStorage
             sessionStorage.removeItem(canvaTemplateParam);
           }
@@ -347,10 +346,6 @@ const AccessibilityTextGenerator = ({ showHeaderFooter = true }) => {
       </div>
     </ErrorBoundary>
   );
-};
-
-AccessibilityTextGenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
 };
 
 export default withAuthRequired(AccessibilityTextGenerator, {

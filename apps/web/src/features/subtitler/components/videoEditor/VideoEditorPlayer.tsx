@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Player } from '@remotion/player';
-import PropTypes from 'prop-types';
 import VideoComposition from './VideoComposition';
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
 import './VideoEditorPlayer.css';
@@ -417,12 +416,6 @@ const VideoEditorPlayer = ({ className, subtitles, stylePreference }) => {
       </div>
     </div>
   );
-};
-
-VideoEditorPlayer.propTypes = {
-  className: PropTypes.string,
-  subtitles: PropTypes.string,
-  stylePreference: PropTypes.string
 };
 
 export default VideoEditorPlayer;

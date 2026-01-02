@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import QRCode from 'react-qr-code';
 import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
@@ -213,12 +212,6 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
       </div>
     </div>
   );
-};
-
-ShareVideoModal.propTypes = {
-  projectId: PropTypes.string.isRequired,
-  title: PropTypes.string,
-  onClose: PropTypes.func.isRequired,
 };
 
 export default ShareVideoModal;

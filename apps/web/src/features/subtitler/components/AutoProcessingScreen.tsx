@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'motion/react';
 import { MdSearch, MdContentCut, MdSubtitles, MdCheck, MdError } from 'react-icons/md';
 import apiClient from '../../../components/utils/apiClient';
@@ -229,12 +228,6 @@ const AutoProcessingScreen = ({ uploadId, onComplete, onError }) => {
       </div>
     </div>
   );
-};
-
-AutoProcessingScreen.propTypes = {
-  uploadId: PropTypes.string.isRequired,
-  onComplete: PropTypes.func,
-  onError: PropTypes.func
 };
 
 export default AutoProcessingScreen;

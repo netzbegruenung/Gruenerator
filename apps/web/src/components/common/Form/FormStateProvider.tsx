@@ -240,14 +240,14 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
       }),
 
       // Actions for web search
-      setWebSearchActive: (isActive) => 
+      setWebSearchActive: (isActive) =>
         set((state) => ({
           webSearchConfig: {
             ...state.webSearchConfig,
             isActive
           }
         })),
-      
+
       setWebSearchSearching: (isSearching) =>
         set((state) => ({
           webSearchConfig: {
@@ -281,7 +281,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
         })),
 
       // Actions for privacy mode
-      setPrivacyModeActive: (isActive) => 
+      setPrivacyModeActive: (isActive) =>
         set((state) => ({
           privacyModeConfig: {
             ...state.privacyModeConfig,
@@ -335,7 +335,7 @@ const createFormStateStore = (initialState: Partial<FormStateStore> = {}): FormS
 
       // Actions for file attachments
       setAttachedFiles: (attachedFiles) => set({ attachedFiles }),
-      addAttachedFile: (file) => 
+      addAttachedFile: (file) =>
         set((state) => ({
           attachedFiles: [...state.attachedFiles, file]
         })),
@@ -501,12 +501,12 @@ export const FormStateProvider = ({ children, initialState = {}, formId = 'defau
   // Create a unique store instance for this form
   const store = useMemo(() => {
     const storeInstance = createFormStateStore(initialState);
-    
+
     // Add debug info in development
     if (process.env.NODE_ENV === 'development') {
       storeInstance.formId = formId;
     }
-    
+
     return storeInstance;
   }, [formId]); // Only recreate if formId changes
 

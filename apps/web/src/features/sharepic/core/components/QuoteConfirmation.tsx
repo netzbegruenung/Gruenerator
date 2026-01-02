@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import PropTypes from 'prop-types';
 
 const QuoteConfirmation = ({ onConfirmationChange }) => {
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -31,8 +30,4 @@ const QuoteConfirmation = ({ onConfirmationChange }) => {
   );
 };
 
-QuoteConfirmation.propTypes = {
-  onConfirmationChange: PropTypes.func.isRequired
-};
-
-export default QuoteConfirmation; 
+export default QuoteConfirmation;

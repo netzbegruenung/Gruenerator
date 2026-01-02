@@ -1,5 +1,4 @@
 import { AbsoluteFill, Sequence, Video, useCurrentFrame, useVideoConfig } from 'remotion';
-import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 
 /**
@@ -319,38 +318,6 @@ const VideoComposition = ({ clips, segments, subtitles, stylePreference = 'shado
       })}
     </AbsoluteFill>
   );
-};
-
-VideoComposition.propTypes = {
-  clips: PropTypes.objectOf(PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    url: PropTypes.string.isRequired,
-    duration: PropTypes.number,
-    fps: PropTypes.number,
-    width: PropTypes.number,
-    height: PropTypes.number,
-    name: PropTypes.string,
-    color: PropTypes.string
-  })),
-  segments: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    clipId: PropTypes.string,
-    start: PropTypes.number.isRequired,
-    end: PropTypes.number.isRequired
-  })),
-  subtitles: PropTypes.string,
-  stylePreference: PropTypes.string,
-  videoUrl: PropTypes.string,
-  textOverlays: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
-    type: PropTypes.oneOf(['header', 'subheader']).isRequired,
-    text: PropTypes.string.isRequired,
-    yPosition: PropTypes.number.isRequired,
-    startTime: PropTypes.number.isRequired,
-    endTime: PropTypes.number.isRequired
-  })),
-  selectedOverlayId: PropTypes.number,
-  editingOverlayId: PropTypes.number
 };
 
 export default VideoComposition;

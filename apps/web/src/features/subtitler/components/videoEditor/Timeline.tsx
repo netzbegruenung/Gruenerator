@@ -1,5 +1,4 @@
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
-import PropTypes from 'prop-types';
 import { FiTrash2, FiMove, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { Thumbnail } from '@remotion/player';
 import { preloadVideo } from '@remotion/preload';
@@ -996,13 +995,6 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
       })()}
     </div>
   );
-};
-
-Timeline.propTypes = {
-  subtitles: PropTypes.string,
-  onSubtitleClick: PropTypes.func,
-  onSubtitleUpdate: PropTypes.func,
-  onOverlayDoubleClick: PropTypes.func
 };
 
 export default Timeline;

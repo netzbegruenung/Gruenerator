@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import { HiCode, HiDownload, HiCheck } from 'react-icons/hi';
 import BaseForm from '../../components/common/Form/BaseForm/BaseForm';
@@ -198,10 +197,6 @@ const WebsiteGenerator = (props) => {
       </BetaFeatureWrapper>
     </ErrorBoundary>
   );
-};
-
-WebsiteGenerator.propTypes = {
-  showHeaderFooter: PropTypes.bool
 };
 
 export default WebsiteGenerator;

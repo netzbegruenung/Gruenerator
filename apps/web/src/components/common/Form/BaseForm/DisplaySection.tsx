@@ -94,10 +94,10 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
   const isLoading = useGeneratedTextStore(state => state.isLoading);
   const [generatePostLoading, setGeneratePostLoading] = React.useState(false);
   const { saveToLibrary, isLoading: saveToLibraryLoading, error: saveToLibraryError, success: saveToLibrarySuccess } = useSaveToLibrary();
-  
+
   // Store selectors for potential future use
   const storeSaveLoading = useFormStateSelector(state => state.saveLoading);
-  
+
   // Use store state with prop fallback
   const saveLoading = storeSaveLoading || propSaveLoading;
 
@@ -138,30 +138,26 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
   }, [onGeneratePost]);
 
   // Check if activeContent is mixed content (has both social and sharepic)
-  const isMixedContent = activeContent && typeof activeContent === 'object' && 
+  const isMixedContent = activeContent && typeof activeContent === 'object' &&
     (activeContent.sharepic || activeContent.social);
-
 
   const currentExportableContent = React.useMemo(() => {
     // For export, use the social content string if it's mixed content
-    return isMixedContent 
+    return isMixedContent
       ? (activeContent.social?.content || activeContent.content || '')
       : activeContent;
   }, [activeContent, isMixedContent]);
-
-
 
   const handleSaveToLibrary = React.useCallback(async () => {
     try {
       // Priority: metadata title > prop title > fallback
       const titleToUse = storeGeneratedTextMetadata?.title || title || 'Unbenannter Text';
-      
+
       await saveToLibrary(currentExportableContent, titleToUse, storeGeneratedTextMetadata?.contentType || 'universal');
     } catch (error) {
       // Error handling is managed by the hook
     }
   }, [currentExportableContent, title, storeGeneratedTextMetadata, saveToLibrary]);
-
 
   const actionButtons = (
     <ActionButtons
@@ -270,4 +266,4 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
 
 DisplaySection.displayName = 'DisplaySection';
 
-export default React.memo(DisplaySection); 
+export default React.memo(DisplaySection);

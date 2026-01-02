@@ -113,9 +113,9 @@ const BuergeranfragenForm = forwardRef(({ tabIndex = {} }, ref) => {
               ...provided,
               minHeight: 'var(--form-element-min-height)',
             }),
-            menuPortal: (base) => ({ 
-              ...base, 
-              zIndex: 9999 
+            menuPortal: (base) => ({
+              ...base,
+              zIndex: 9999
             })
           }}
         />

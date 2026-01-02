@@ -58,4 +58,4 @@ const UniversalForm = forwardRef(({ tabIndex = {} }, ref) => {
 
 UniversalForm.displayName = 'UniversalForm';
 
-export default UniversalForm; 
+export default UniversalForm;

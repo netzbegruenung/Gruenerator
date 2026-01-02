@@ -1,5 +1,4 @@
 import React from 'react';
-import PropTypes from 'prop-types';
 import { FaTimes } from 'react-icons/fa';
 import '../styles/ProcessingIndicator.css';
 
@@ -37,11 +36,6 @@ const ProcessingIndicator = ({ onCancel, error }) => {
             </div>
         </div>
     );
-};
-
-ProcessingIndicator.propTypes = {
-    onCancel: PropTypes.func,
-    error: PropTypes.string
 };
 
 export default ProcessingIndicator;

@@ -1,6 +1,5 @@
 // Neue Komponente: AdvancedEditingSection.js
 import React from 'react';
-import PropTypes from 'prop-types';
 import { BalkenOffsetControl, BalkenGruppeControl, SonnenblumenControl } from '../../../../components/utils/ImageModificationForm';
 
 const AdvancedEditingSection = ({
@@ -41,15 +40,6 @@ const AdvancedEditingSection = ({
       </div>
     </div>
   );
-};
-
-AdvancedEditingSection.propTypes = {
-  balkenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
-  balkenGruppenOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
-  sunflowerOffset: PropTypes.arrayOf(PropTypes.number).isRequired,
-  onBalkenOffsetChange: PropTypes.func.isRequired,
-  onBalkenGruppenOffsetChange: PropTypes.func.isRequired,
-  onSonnenblumenOffsetChange: PropTypes.func.isRequired,
 };
 
 export default AdvancedEditingSection;
