@@ -99,7 +99,7 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
                 label="Link gültig für"
                 options={expirationOptions}
                 value={expiresInDays}
-                onChange={setExpiresInDays}
+                onChange={(option) => option && setExpiresInDays(option as { value: number; label: string })}
                 isSearchable={false}
                 menuPlacement="auto"
               />

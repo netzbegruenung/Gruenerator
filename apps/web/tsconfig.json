@@ -5,6 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "types": ["vite/client"],
 
     // Migration-friendly settings (tighten these over time)
     "strict": false,
@@ -31,8 +32,8 @@
     "paths": {
       "@/*": ["src/*"],
       "~/*": ["./*"],
-      "@gruenerator/shared": ["../packages/shared/src"],
-      "@gruenerator/shared/*": ["../packages/shared/src/*"]
+      "@gruenerator/shared": ["../../packages/shared/src"],
+      "@gruenerator/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["src/**/*", "vite.config.ts"],

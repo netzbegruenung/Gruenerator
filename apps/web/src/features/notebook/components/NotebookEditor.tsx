@@ -12,11 +12,11 @@ import '../../../assets/styles/features/notebook/notebook-chat.css';
 import '../../../assets/styles/features/notebook/notebook-collections.css';
 import '../../../assets/styles/components/ui/button.css';
 
-const formatFileSize = (bytes) => {
+const formatFileSize = (bytes: number): string => {
   if (!bytes) return '';
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   if (bytes === 0) return '0 Bytes';
-  const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)), 10);
+  const i = parseInt(String(Math.floor(Math.log(bytes) / Math.log(1024))), 10);
   return `${Math.round(bytes / Math.pow(1024, i) * 10) / 10} ${sizes[i]}`;
 };
 
@@ -321,7 +321,7 @@ const NotebookEditor = ({
                                                         document: doc
                                                     };
                                                 })}
-                                                onChange={handleDocumentSelectChange}
+                                                onChange={(selected) => handleDocumentSelectChange(selected as typeof documentOptions)}
                                                 filterOption={() => true}
                                                 noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}
                                                 closeMenuOnSelect={false}

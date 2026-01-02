@@ -26,9 +26,10 @@ const queryClient = new QueryClient({
       gcTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes (was cacheTime)
       refetchOnWindowFocus: false, // Verhindert unnötige Neuladungen
       refetchOnReconnect: 'always', // Nur bei Reconnect neu laden
-      retry: (failureCount, error) => {
+      retry: (failureCount, error: unknown) => {
         // Smart retry logic
-        if (error?.status === 404 || error?.status === 401) return false;
+        const status = (error as { status?: number })?.status;
+        if (status === 404 || status === 401) return false;
         return failureCount < 2; // Max 2 retries
       },
       retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
@@ -62,7 +63,7 @@ function App() {
   const { login } = useAuthStore();
 
   useEffect(() => {
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Tab') {
         const focusableElements = document.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
         setupKeyboardNav(Array.from(focusableElements));
