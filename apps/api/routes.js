@@ -20,7 +20,7 @@ import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRout
 import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import claudeTextAdjustmentRoute from './routes/claude_text_adjustment.ts';
-import claudeSuggestEditsRoute from './routes/claude_suggest_edits.js';
+import claudeSuggestEditsRoute from './routes/claude_suggest_edits.ts';
 import claudeTextImproverRoute from './routes/claude_text_improver.ts';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import claudeGrueneJugendRoute from './routes/claude_gruene_jugend.ts';
@@ -100,7 +100,7 @@ async function setupRoutes(app) {
   const { default: claudeSocialRoute } = await import('./routes/claude_social.ts');
   const { default: claudeAlttextRoute } = await import('./routes/claude_alttext.ts');
   const { default: leichteSpracheRoute } = await import('./routes/leichte_sprache.js');
-  const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.js');
+  const { default: claudeGrueneratorAskRoute } = await import('./routes/claude_gruenerator_ask.ts');
   const { default: claudeWebsiteRoute } = await import('./routes/claude_website.ts');
   const { default: customGeneratorRoute } = await import('./routes/custom_generator.mjs');
   const { default: generatorConfiguratorRoute } = await import('./routes/generator_configurator.mjs');
