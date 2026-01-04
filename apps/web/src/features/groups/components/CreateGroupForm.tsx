@@ -3,7 +3,12 @@ import TextInput from '../../../components/common/Form/Input/TextInput';
 import Spinner from '../../../components/common/Spinner';
 import { useGroups } from '../hooks/useGroups';
 
-const CreateGroupForm = ({ onCancel, onSuccess }) => {
+interface CreateGroupFormProps {
+  onCancel: () => void;
+  onSuccess: (groupId: string) => void;
+}
+
+const CreateGroupForm: React.FC<CreateGroupFormProps> = ({ onCancel, onSuccess }) => {
   const [groupName, setGroupName] = useState('');
   const [nameError, setNameError] = useState('');
 
@@ -16,7 +21,7 @@ const CreateGroupForm = ({ onCancel, onSuccess }) => {
   } = useGroups({ isActive: true });
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
 
     // Validation
@@ -28,7 +33,7 @@ const CreateGroupForm = ({ onCancel, onSuccess }) => {
 
     // Create group
     createGroup(groupName, {
-      onSuccess: (groupId) => {
+      onSuccess: (groupId: string) => {
         if (onSuccess) onSuccess(groupId);
       }
     });
@@ -59,7 +64,7 @@ const CreateGroupForm = ({ onCancel, onSuccess }) => {
           {nameError && <p className="error-text">{nameError}</p>}
         </div>
 
-        {isCreateGroupError && (
+        {isCreateGroupError && createGroupError && (
           <div className="error-message">
             Fehler beim Erstellen der Gruppe: {createGroupError.message}
           </div>

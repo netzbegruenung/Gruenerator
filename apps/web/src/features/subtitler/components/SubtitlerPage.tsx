@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import apiClient from '../../../components/utils/apiClient';
 import ProcessingIndicator from './ProcessingIndicator';
 import { VideoEditor } from './videoEditor';
@@ -40,6 +40,7 @@ interface VideoMetadataFromUpload {
   [key: string]: unknown;
 }
 
+// UploadData matches ProjectSelector's interface with VideoMetadata as the local type
 interface UploadData {
   originalFile: File;
   uploadId: string;
@@ -70,17 +71,24 @@ interface AutoProcessingResult {
   subtitles?: string;
 }
 
+// LoadedProject type from the shared useProjectsStore
 interface LoadedProject {
   id: string;
-  title?: string;
-  subtitles?: string;
-  style_preference?: string;
-  height_preference?: string;
-  mode_preference?: string;
-  video_metadata?: Record<string, unknown>;
-  video_filename?: string;
-  video_size?: number;
-  [key: string]: unknown;
+  user_id: string;
+  title: string;
+  upload_id: string;
+  thumbnail_path: string | null;
+  video_path: string | null;
+  video_metadata: VideoMetadataFromUpload | null;
+  video_size: number;
+  video_filename: string | null;
+  style_preference: string;
+  height_preference: string;
+  mode_preference: string | null;
+  subtitles: string | null;
+  export_count: number;
+  last_edited_at: string;
+  created_at: string;
 }
 
 type EditMode = 'subtitle' | 'full-edit' | 'auto' | null;
@@ -153,7 +161,7 @@ const SubtitlerPage = (): React.ReactElement => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dynamically set baseURL based on environment
   const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
@@ -231,7 +239,8 @@ const SubtitlerPage = (): React.ReactElement => {
       }
     } catch (error) {
       console.error('[SubtitlerPage] Error initiating video processing:', error);
-      setError(error.response?.data?.error || error.message || 'Fehler beim Starten der Videoverarbeitung.');
+      const axiosError = error as AxiosError<{ error?: string }>;
+      setError(axiosError.response?.data?.error || axiosError.message || 'Fehler beim Starten der Videoverarbeitung.');
       setIsProcessing(false);
     }
   }, [uploadInfo?.uploadId, modePreference, stylePreference, heightPreference, baseURL]);
@@ -302,7 +311,9 @@ const SubtitlerPage = (): React.ReactElement => {
           const { status, subtitles: fetchedSubtitles, error: jobError } = resultResponse.data;
 
           if (status === 'complete') {
-            clearInterval(pollingIntervalRef.current);
+            if (pollingIntervalRef.current !== null) {
+              clearInterval(pollingIntervalRef.current);
+            }
             setSubtitles(fetchedSubtitles);
             setIsProcessing(false);
             // Only navigate to edit step if not in preview mode
@@ -312,21 +323,27 @@ const SubtitlerPage = (): React.ReactElement => {
             setIsPreviewMode(false); // Reset preview mode flag
           } else if (status === 'error') {
             console.error(`[SubtitlerPage] Processing error for ${currentUploadId}:`, jobError);
-            clearInterval(pollingIntervalRef.current);
+            if (pollingIntervalRef.current !== null) {
+              clearInterval(pollingIntervalRef.current);
+            }
             setError(jobError || 'Ein Fehler ist während der Verarbeitung aufgetreten.');
             setIsProcessing(false);
           } else if (status === 'processing') {
             // Still processing, continue polling
           } else if (status === 'not_found') {
              console.error(`[SubtitlerPage] Job not found for ${currentUploadId}. Stopping polling.`);
-             clearInterval(pollingIntervalRef.current);
+             if (pollingIntervalRef.current !== null) {
+               clearInterval(pollingIntervalRef.current);
+             }
              setError('Verarbeitungsjob nicht gefunden. Bitte erneut versuchen.');
              setIsProcessing(false);
              setStep('upload'); // Reset to upload
           }
         } catch (pollError) {
           console.error(`[SubtitlerPage] Error during polling for ${currentUploadId}:`, pollError);
-          clearInterval(pollingIntervalRef.current);
+          if (pollingIntervalRef.current !== null) {
+            clearInterval(pollingIntervalRef.current);
+          }
           setError('Fehler bei der Statusabfrage der Verarbeitung.');
           setIsProcessing(false);
         }
@@ -334,12 +351,14 @@ const SubtitlerPage = (): React.ReactElement => {
 
       // Cleanup function to clear interval when component unmounts or dependencies change
       return () => {
-        clearInterval(pollingIntervalRef.current);
+        if (pollingIntervalRef.current !== null) {
+          clearInterval(pollingIntervalRef.current);
+        }
       };
     }
 
     // Cleanup if isProcessing becomes false before interval is set (e.g. error in handleVideoConfirm)
-    if (!isProcessing && pollingIntervalRef.current) {
+    if (!isProcessing && pollingIntervalRef.current !== null) {
        clearInterval(pollingIntervalRef.current);
     }
 
@@ -461,7 +480,8 @@ const SubtitlerPage = (): React.ReactElement => {
       }
     } catch (error) {
       console.error('[SubtitlerPage] Error starting auto processing:', error);
-      setError(error.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.');
+      const axiosError = error as AxiosError<{ error?: string }>;
+      setError(axiosError.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.');
       setStep('mode-select');
     }
   }, [uploadInfo?.uploadId, user?.id]);
@@ -516,18 +536,22 @@ const SubtitlerPage = (): React.ReactElement => {
       const project = await loadProject(projectId);
 
       if (project) {
-        setLoadedProject(project);
-        setSubtitles(project.subtitles || '');
+        setLoadedProject(project as LoadedProject);
+        setSubtitles(project.subtitles ?? '');
         setStylePreference(project.style_preference || 'standard');
         setHeightPreference(project.height_preference || 'standard');
-        setModePreference(project.mode_preference || 'manual');
+        setModePreference(project.mode_preference ?? 'manual');
 
         // Set upload info from project data with streaming video URL
         setUploadInfo({
           uploadId: project.id,
-          metadata: project.video_metadata,
-          name: project.video_filename,
-          size: project.video_size,
+          metadata: project.video_metadata ? {
+            duration: project.video_metadata.duration,
+            width: project.video_metadata.width,
+            height: project.video_metadata.height
+          } : undefined,
+          name: project.video_filename ?? undefined,
+          size: project.video_size ?? undefined,
           isFromProject: true,
           videoUrl: `${baseURL}/subtitler/projects/${project.id}/video`
         });
@@ -542,7 +566,7 @@ const SubtitlerPage = (): React.ReactElement => {
       setIsProcessing(false);
       setLoadingProjectId(null);
     }
-  }, [loadProject]);
+  }, [loadProject, baseURL]);
 
   // Funktion zum Umschalten des Profi-Modus (erwartet jetzt den neuen Wert)
   const toggleProMode = useCallback((newIsActive: boolean) => {
@@ -574,9 +598,9 @@ const SubtitlerPage = (): React.ReactElement => {
               {step === 'select' && (
                 <ProjectSelector
                   onSelectProject={handleSelectProject}
-                  onUpload={handleUploadComplete}
+                  onUpload={handleUploadComplete as (uploadData: { originalFile: File; uploadId: string; metadata: { duration?: number; width?: number; height?: number }; name: string; size: number; type: string }) => void}
                   loadingProjectId={loadingProjectId}
-                  projects={projects}
+                  projects={projects as unknown as Array<{ id: string; title: string; thumbnail_path?: string; video_metadata?: { duration?: number; width?: number; height?: number }; last_edited_at?: string; video_size?: number }>}
                   isLoading={isProjectsLoading}
                   onDeleteProject={deleteProject}
                 />
@@ -604,7 +628,7 @@ const SubtitlerPage = (): React.ReactElement => {
                   videoMetadata={uploadInfo?.metadata}
                   uploadId={uploadInfo?.uploadId}
                   onGenerateSubtitles={handleGenerateSubtitlesPreview}
-                  subtitles={subtitles}
+                  subtitles={subtitles ?? undefined}
                   isGeneratingSubtitles={isProcessing && isPreviewMode}
                   stylePreference={stylePreference}
                   heightPreference={heightPreference}
@@ -626,13 +650,13 @@ const SubtitlerPage = (): React.ReactElement => {
                 />
               )}
 
-              {step === 'edit' && (!isProcessing || selectedEditMode !== 'subtitle') && (
+              {step === 'edit' && (!isProcessing || selectedEditMode !== 'subtitle') && subtitles && uploadInfo?.uploadId && (
                 <>
                   <SubtitleEditor
                     videoFile={originalVideoFile}
-                    videoUrl={uploadInfo?.videoUrl}
+                    videoUrl={uploadInfo.videoUrl ?? undefined}
                     subtitles={subtitles}
-                    uploadId={uploadInfo?.uploadId}
+                    uploadId={uploadInfo.uploadId}
                     subtitlePreference={subtitlePreference}
                     stylePreference={stylePreference}
                     heightPreference={heightPreference}
@@ -641,10 +665,10 @@ const SubtitlerPage = (): React.ReactElement => {
                     onExportSuccess={handleExport}
                     onExportComplete={handleExportComplete}
                     isExporting={exportStatus === 'starting' || exportStatus === 'exporting' || isGenerating}
-                    loadedProject={loadedProject}
-                    videoMetadataFromUpload={uploadInfo?.metadata}
-                    videoFilename={uploadInfo?.name}
-                    videoSize={uploadInfo?.size}
+                    loadedProject={loadedProject as { id: string; [key: string]: unknown } | null | undefined}
+                    videoMetadataFromUpload={uploadInfo.metadata ?? undefined}
+                    videoFilename={uploadInfo.name ?? undefined}
+                    videoSize={uploadInfo.size ?? undefined}
                   />
                 </>
               )}
@@ -655,17 +679,17 @@ const SubtitlerPage = (): React.ReactElement => {
                   onEditAgain={handleEditAgain}
                   isLoading={exportStatus === 'starting' || exportStatus === 'exporting'}
                   socialText={socialText}
-                  uploadId={exportToken || uploadInfo?.uploadId}
+                  uploadId={exportToken || uploadInfo?.uploadId || undefined}
                   isGeneratingSocialText={isGenerating}
-                  onGenerateSocialText={() => generateSocialText(subtitles)}
-                  projectId={loadedProject?.id || autoSavedProjectId}
-                  projectTitle={loadedProject?.title || (autoSavedProjectId ? 'Auto-Video' : null)}
+                  onGenerateSocialText={() => generateSocialText(subtitles ?? '')}
+                  projectId={loadedProject?.id || autoSavedProjectId || undefined}
+                  projectTitle={loadedProject?.title || (autoSavedProjectId ? 'Auto-Video' : undefined)}
                   videoUrl={
-                    selectedEditMode === 'auto'
-                      ? `${baseURL}/subtitler/auto-download/${uploadInfo?.uploadId}`
+                    selectedEditMode === 'auto' && uploadInfo?.uploadId
+                      ? `${baseURL}/subtitler/auto-download/${uploadInfo.uploadId}`
                       : exportToken
                         ? `${baseURL}/subtitler/export-download/${exportToken}`
-                        : null
+                        : undefined
                   }
                 />
               )}

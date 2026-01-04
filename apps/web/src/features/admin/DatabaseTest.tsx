@@ -2,10 +2,36 @@ import React, { useState } from 'react';
 import apiClient from '../../components/utils/apiClient';
 import './DatabaseTest.css';
 
+interface DatabaseTestResult {
+  success: boolean;
+  error?: string;
+  database: {
+    connection: string;
+    pool?: {
+      totalCount: number;
+      idleCount: number;
+      waitingCount: number;
+    };
+  };
+  tables: {
+    missing: string[];
+    created: string[];
+    existing: string[];
+  };
+  schema: {
+    expected_tables_count: number;
+    existing_tables_count: number;
+    missing_tables_count: number;
+  };
+  actions?: {
+    creation_errors: Array<{ error: string }>;
+  };
+}
+
 const DatabaseTest = () => {
-  const [testResult, setTestResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [testResult, setTestResult] = useState<DatabaseTestResult | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const runDatabaseTest = async (createMissing = false) => {
     setLoading(true);
@@ -21,13 +47,14 @@ const DatabaseTest = () => {
       setTestResult(response.data);
     } catch (err) {
       console.error('[DatabaseTest] Error running test:', err);
-      setError(err.message || 'Fehler beim Datenbanktest');
+      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Datenbanktest';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderTableStatus = (result) => {
+  const renderTableStatus = (result: DatabaseTestResult | null): React.ReactElement | null => {
     if (!result) return null;
 
     const { tables, schema } = result;
@@ -54,7 +81,7 @@ const DatabaseTest = () => {
           <div className="missing-tables">
             <h4>Fehlende Tabellen:</h4>
             <ul>
-              {tables.missing.map(table => (
+              {tables.missing.map((table: string) => (
                 <li key={table} className="missing-table">{table}</li>
               ))}
             </ul>
@@ -65,7 +92,7 @@ const DatabaseTest = () => {
           <div className="created-tables">
             <h4>Erstellt:</h4>
             <ul>
-              {tables.created.map(table => (
+              {tables.created.map((table: string) => (
                 <li key={table} className="created-table">{table}</li>
               ))}
             </ul>
@@ -75,7 +102,7 @@ const DatabaseTest = () => {
         <div className="existing-tables">
           <h4>Vorhandene Tabellen ({tables.existing.length}):</h4>
           <div className="table-list">
-            {tables.existing.map(table => (
+            {tables.existing.map((table: string) => (
               <span key={table} className="table-tag">{table}</span>
             ))}
           </div>
@@ -84,7 +111,7 @@ const DatabaseTest = () => {
     );
   };
 
-  const renderDatabaseStatus = (result) => {
+  const renderDatabaseStatus = (result: DatabaseTestResult | null): React.ReactElement | null => {
     if (!result) return null;
 
     const { database } = result;
@@ -170,7 +197,7 @@ const DatabaseTest = () => {
             </div>
           ) : (
             <div className="error">
-              <p>✗ Test fehlgeschlagen: {testResult.error}</p>
+              <p>✗ Test fehlgeschlagen: {testResult.error || 'Unbekannter Fehler'}</p>
             </div>
           )}
 
@@ -182,7 +209,7 @@ const DatabaseTest = () => {
               {testResult.actions && testResult.actions.creation_errors.length > 0 && (
                 <div className="creation-errors">
                   <h4>Fehler beim Erstellen:</h4>
-                  {testResult.actions.creation_errors.map((err, idx) => (
+                  {testResult.actions.creation_errors.map((err: { error: string }, idx: number) => (
                     <div key={idx} className="creation-error">
                       <p>{err.error}</p>
                     </div>

@@ -42,7 +42,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     formState: { errors },
     reset,
     trigger
-  } = useForm({
+  } = useForm<FieldData>({
     defaultValues: {
       label: '',
       name: '',
@@ -54,7 +54,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     mode: 'onChange'
   });
 
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Helper functions for managing select options
   const addOption = () => {
@@ -62,14 +62,14 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     setValue('options', [...currentOptions, { label: '', value: '' }], { shouldValidate: false });
   };
 
-  const updateOption = (index, field, value) => {
+  const updateOption = (index: number, field: 'label' | 'value', value: string): void => {
     const currentOptions = watchedOptions || [];
     const newOptions = [...currentOptions];
     newOptions[index] = { ...newOptions[index], [field]: value };
     setValue('options', newOptions, { shouldValidate: false });
   };
 
-  const removeOption = (index) => {
+  const removeOption = (index: number): void => {
     const currentOptions = watchedOptions || [];
     setValue('options', currentOptions.filter((_, i) => i !== index), { shouldValidate: false });
   };
@@ -149,7 +149,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     },
     name: {
       required: 'Technischer Name konnte nicht generiert werden.',
-      validate: (value) => {
+      validate: (value: string): string | boolean => {
         const otherNames = initialFieldData
           ? existingFieldNames.filter(n => n !== initialFieldData.name)
           : existingFieldNames;
@@ -160,7 +160,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
   };
 
   // Form submission handler
-  const onSubmit = (data) => {
+  const onSubmit = (data: FieldData): void => {
     setError(null);
     onSave(data);
   };

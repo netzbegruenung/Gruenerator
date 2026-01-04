@@ -10,13 +10,14 @@ import NotebookChatMessage from './NotebookChatMessage';
 import FilterDropdownButton from './FilterDropdownButton';
 import ActiveFiltersDisplay from './ActiveFiltersDisplay';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import { NotebookCollection } from '../../../types/notebook';
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 
 const NotebookChat = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const { user } = useOptimizedAuth();
   const { getQACollection, fetchQACollections, qaCollections, loading: storeLoading } = useNotebookStore();
-  const [collection, setCollection] = useState(null);
+  const [collection, setCollection] = useState<NotebookCollection | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,8 +38,8 @@ const NotebookChat = () => {
     chatMessages, inputValue, submitLoading, isMobileView,
     setInputValue, handleSubmitQuestion
   } = useNotebookChat({
-    collections: collection ? [{ id, name: collection.name }] : [],
-    welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : null,
+    collections: collection ? [{ id: collection.id, name: collection.name }] : [],
+    welcomeMessage: collection ? `Hallo! Ich bin bereit, Fragen zu Ihrem Notebook "${collection.name}" zu beantworten. Stellen Sie mir gerne eine Frage zu den Dokumenten.` : undefined,
     persistMessages: true
   });
 
@@ -52,29 +53,32 @@ const NotebookChat = () => {
         <p>User ID: {user?.id}</p>
         <p>Store Loading: {storeLoading ? 'Yes' : 'No'}</p>
         <p>Collections in Store: {qaCollections?.length || 0}</p>
-        <p>Available Collection IDs: {qaCollections?.map(c => c.id).join(', ') || 'None'}</p>
+        <p>Available Collection IDs: {qaCollections?.map((c: NotebookCollection) => c.id).join(', ') || 'None'}</p>
       </div>
     );
   }
 
-  const documents = collection.documents || collection.notebook_collection_documents?.map(qcd => qcd.documents) || [];
+  const documents = (collection.documents as unknown[]) || [];
 
   const renderInfoPanel = () => (
     <div className="qa-collection-info">
       <div className="qa-collection-info-header">
         <HiInformationCircle className="qa-collection-info-icon" />
-        <h3>{collection.name}</h3>
+        <h3>{collection?.name}</h3>
       </div>
-      {collection.description && <div className="qa-collection-info-description">{collection.description}</div>}
+      {collection?.description && <div className="qa-collection-info-description">{collection.description}</div>}
       <div className="qa-collection-info-documents">
         <h4>Enthaltene Dokumente:</h4>
         <ul>
-          {documents.map((doc, i) => (
-            <li key={doc.id || i}>
-              <HiDocumentText className="document-icon" />
-              <span>{doc.title || doc.name || `Dokument ${i + 1}`}</span>
-            </li>
-          ))}
+          {documents.map((doc: unknown, i: number) => {
+            const docItem = doc as { id?: string; title?: string; name?: string };
+            return (
+              <li key={docItem.id || i}>
+                <HiDocumentText className="document-icon" />
+                <span>{docItem.title || docItem.name || `Dokument ${i + 1}`}</span>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
@@ -82,9 +86,11 @@ const NotebookChat = () => {
 
   const effectiveMode = 'chat';
 
-  const renderMessage = useCallback((msg, i) => (
-    <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg} index={i} />
-  ), []);
+  const renderMessage = useCallback((msg: unknown, i: number) => {
+    const timestamp = (msg as Record<string, unknown>)?.timestamp;
+    const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
+    return <NotebookChatMessage key={key} msg={msg} index={i} />;
+  }, []);
 
   return (
     <>
@@ -93,7 +99,7 @@ const NotebookChat = () => {
         mode={effectiveMode}
         modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
-        title={collection.name}
+        title={collection?.name || ''}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}
         isProcessing={submitLoading}
@@ -107,7 +113,7 @@ const NotebookChat = () => {
         hideModeSelector={true}
         singleLine={true}
         showStartPage={true}
-        startPageTitle={`Fragen zu "${collection.name}"`}
+        startPageTitle={`Fragen zu "${collection?.name || 'Notebook'}"`}
         filterButton={<FilterDropdownButton collectionId={id} />}
         filterBar={<ActiveFiltersDisplay collectionId={id} />}
       />

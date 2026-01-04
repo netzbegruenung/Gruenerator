@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo, RefObject } from 'react';
 import { useLocation } from 'react-router-dom';
 import BaseForm from '../../../components/common/BaseForm';
+import type { BaseFormProps } from '../../../types/baseform';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
@@ -67,7 +68,7 @@ const API_ENDPOINTS = {
 };
 
 // Move URL detection function outside component to avoid React hook dependency issues
-const getInitialTextType = (pathname) => {
+const getInitialTextType = (pathname: string): string => {
   if (pathname === '/rede') return TEXT_TYPES.REDE;
   if (pathname === '/buergerinnenanfragen') return TEXT_TYPES.BUERGERANFRAGEN;
   if (pathname === '/wahlprogramm') return TEXT_TYPES.WAHLPROGRAMM;
@@ -124,7 +125,7 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
 
   // Reset form when type changes
   useEffect(() => {
-    if (currentFormRef.current?.resetForm) {
+    if (currentFormRef?.current?.resetForm) {
       currentFormRef.current.resetForm();
     }
   }, [selectedType, currentFormRef]);
@@ -151,32 +152,34 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
   const customPrompt = useUserInstructions(currentInstructionType, isInstructionsActive);
 
   // Memoize helpContent to prevent unnecessary re-renders
-  const helpContent = useMemo(() => ({
-    content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten.",
-    title: TEXT_TYPE_TITLES[selectedType],
-    tips: [
-      "Wähle zunächst den passenden Texttyp aus",
-      "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
-      "Wahlprogramme: Strukturierte politische Inhalte",
-      "Bürger*innenanfragen: Professionelle Antworten auf Anfragen von Bürger*innen",
-      "Universal: Für alle anderen Textarten geeignet",
-      "Gib spezifische Details für bessere Ergebnisse an"
-    ]
-  }), [selectedType]);
+  const helpContent = useMemo(() => {
+    const title = TEXT_TYPE_TITLES[selectedType as keyof typeof TEXT_TYPE_TITLES];
+    return {
+      content: "Der Universal Text Grünerator erstellt verschiedene Textarten - von Reden über Wahlprogramme bis hin zu Bürger*innenanfragen und allgemeinen Texten.",
+      title: title || 'Universal Text Grünerator',
+      tips: [
+        "Wähle zunächst den passenden Texttyp aus",
+        "Reden: Perfekt für Veranstaltungen und öffentliche Auftritte",
+        "Wahlprogramme: Strukturierte politische Inhalte",
+        "Bürger*innenanfragen: Professionelle Antworten auf Anfragen von Bürger*innen",
+        "Universal: Für alle anderen Textarten geeignet",
+        "Gib spezifische Details für bessere Ergebnisse an"
+      ]
+    };
+  }, [selectedType]);
 
   // Create baseForm with knowledge system enabled for document/text fetching
   const form = useBaseForm({
-    defaultValues: {},
-    // Generator configuration - using a placeholder endpoint since we handle submission manually
-    generatorType: 'universal-text',
-    componentName: componentName,
-    endpoint: '/placeholder', // This won't be used
-    disableKnowledgeSystem: false, // Enable knowledge system for fetching documents/texts
-    features: ['webSearch', 'privacyMode', 'proMode'],
-    tabIndexKey: 'UNIVERSAL',
-    defaultMode: 'privacy',
+    defaultValues: {} as Record<string, unknown>,
+    generatorType: 'universal-text' as string,
+    componentName: componentName as string,
+    endpoint: '/placeholder' as string,
+    disableKnowledgeSystem: false,
+    features: ['webSearch', 'privacyMode', 'proMode'] as string[],
+    tabIndexKey: 'UNIVERSAL' as string,
+    defaultMode: 'privacy' as string,
     helpContent: helpContent
-  });
+  } as any);
 
   // Custom submission handler for dynamic form types
   const handleSubmit = useCallback(async () => {
@@ -203,9 +206,11 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
 
     // Add feature toggles from store, custom instructions, and attachments to form data
     const features = getFeatureState();
-    Object.assign(formData, features); // Add useWebSearchTool, usePrivacyMode, useBedrock from store
-    formData.customPrompt = customPrompt; // Add custom user instructions
-    formData.attachments = form.generator.attachedFiles;
+    Object.assign(formData, features);
+    formData.customPrompt = customPrompt;
+    if (form.generator) {
+      formData.attachments = form.generator.attachedFiles;
+    }
 
     setIsLoading(true);
 
@@ -226,28 +231,33 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
 
       console.log('[UniversalTextGenerator] Response received:', { responseData, content, metadata });
 
-      if (content) {
+      if (content && form.generator) {
         form.generator.handleGeneratedContentChange(content);
         console.log('[UniversalTextGenerator] Content set successfully');
       }
     } catch (error) {
       console.error('[UniversalTextGenerator] Error submitting form:', error);
-      form.handleSubmitError(error);
+      if (error instanceof Error) {
+        form.handleSubmitError(error);
+      } else {
+        form.handleSubmitError(new Error(String(error)));
+      }
     } finally {
       setIsLoading(false);
     }
   }, [selectedType, form, currentFormRef, getFeatureState, customPrompt]);
 
   const renderForm = () => {
+    const tabIndexValue = form.generator?.tabIndex;
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={form.generator?.tabIndex} />;
+        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef} tabIndex={form.generator?.tabIndex} />;
+        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.BUERGERANFRAGEN:
-        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef} tabIndex={form.generator?.tabIndex} />;
+        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef} tabIndex={form.generator?.tabIndex} />;
+        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
       default:
         return null;
     }
@@ -268,7 +278,6 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
       label="Art des Textes"
       placeholder="Textart auswählen..."
       isMulti={false}
-      control={null}
       enableIcons={true}
       enableSubtitles={false}
       isSearchable={false}
@@ -279,17 +288,19 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
-        <BaseForm
-          key={selectedType}
-          {...form.generator.baseFormProps}
-          enableEditMode={true}
-          title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType]}</span>}
-          onSubmit={handleSubmit}
-          loading={isLoading}
-          firstExtrasChildren={renderTextTypeSection()}
-        >
-          {renderForm()}
-        </BaseForm>
+        {form.generator && (
+          <BaseForm
+            key={selectedType}
+            {...(form.generator.baseFormProps as unknown as BaseFormProps)}
+            enableEditMode={true}
+            title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType as keyof typeof TEXT_TYPE_TITLES]}</span>}
+            onSubmit={handleSubmit}
+            loading={isLoading}
+            firstExtrasChildren={renderTextTypeSection()}
+          >
+            {renderForm()}
+          </BaseForm>
+        )}
       </div>
     </ErrorBoundary>
   );

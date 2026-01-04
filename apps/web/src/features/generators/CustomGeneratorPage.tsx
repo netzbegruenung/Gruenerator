@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { Controller } from 'react-hook-form';
+import type { HelpContent, BaseFormProps } from '../../types/baseform';
 import BaseForm from '../../components/common/BaseForm';
 import FormInput from '../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../components/common/Form/Input/FormTextarea';
@@ -81,9 +82,8 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     });
   }
 
-  const helpContent = {
+  const helpContent: HelpContent = {
     content: generatorConfig?.description || "Benutzerdefinierter Grünerator",
-    title: generatorConfig?.name || generatorConfig?.title || "Custom Generator",
     tips: [
       "Fülle alle erforderlichen Felder aus"
     ]
@@ -96,10 +96,10 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     endpoint: '/custom_generator',
     instructionType: 'custom_generator',
     tabIndexKey: 'CUSTOM_GENERATOR',
-    helpContent: helpContent,
+    helpContent,
     useFeatureIcons: false,
     disableKnowledgeSystem: true
-  });
+  } as unknown as Parameters<typeof useBaseForm>[0]);
 
   // Reset form when generator config changes
   useEffect(() => {
@@ -161,15 +161,19 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
 
   // Handle URL detection and crawling
   const handleUrlsDetected = useCallback(async (urls: string[]) => {
-    if (!isCrawling && urls.length > 0) {
-      await detectAndCrawlUrls(urls.join(' '), form.generator.toggles.privacyMode);
+    if (!isCrawling && urls.length > 0 && form.generator) {
+      const { toggles } = form.generator as unknown as { toggles: { privacyMode: boolean } };
+      await detectAndCrawlUrls(urls.join(' '), toggles.privacyMode);
     }
-  }, [detectAndCrawlUrls, isCrawling, form.generator.toggles.privacyMode]);
+  }, [detectAndCrawlUrls, isCrawling, form.generator]);
 
   // Handle URL retry
   const handleRetryUrl = useCallback(async (url: string) => {
-    await retryUrl(url, form.generator.toggles.privacyMode);
-  }, [retryUrl, form.generator.toggles.privacyMode]);
+    if (form.generator) {
+      const { toggles } = form.generator as unknown as { toggles: { privacyMode: boolean } };
+      await retryUrl(url, toggles.privacyMode);
+    }
+  }, [retryUrl, form.generator]);
 
   // Custom submission handler for dynamic generator configuration
   const customSubmit = useCallback(async (formData: Record<string, unknown>) => {
@@ -183,15 +187,19 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
       }
 
       // Combine file attachments with crawled URLs
-      const allAttachments = [
-        ...form.generator.attachedFiles,
-        ...crawledUrls
-      ];
+      const allAttachments = form.generator
+        ? [...form.generator.attachedFiles, ...crawledUrls]
+        : crawledUrls;
 
       // Add feature flags and attachments to form data
-      cleanFormData.useWebSearchTool = form.generator.toggles.webSearch;
-      cleanFormData.usePrivacyMode = form.generator.toggles.privacyMode;
-      cleanFormData.useBedrock = form.generator.toggles.proMode;  // Pro mode flag for backend API
+      if (form.generator) {
+        const { toggles } = form.generator as unknown as {
+          toggles: { webSearch: boolean; privacyMode: boolean; proMode: boolean }
+        };
+        cleanFormData.useWebSearchTool = toggles.webSearch;
+        cleanFormData.usePrivacyMode = toggles.privacyMode;
+        cleanFormData.useBedrock = toggles.proMode;  // Pro mode flag for backend API
+      }
       cleanFormData.attachments = allAttachments;
 
       // Use submitForm instead of apiClient.post for automatic loading state management
@@ -207,7 +215,9 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
 
       if (content) {
         setLocalGeneratedContent(String(content));
-        form.generator.handleGeneratedContentChange(String(content));
+        if (form.generator) {
+          form.generator.handleGeneratedContentChange(String(content));
+        }
         setTimeout(resetSuccess, 3000);
       } else {
         setLocalGeneratedContent('');
@@ -220,7 +230,9 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
 
   const handleGeneratedContentChange = useCallback((content: string) => {
     setLocalGeneratedContent(content);
-    form.generator.handleGeneratedContentChange(content);
+    if (form.generator) {
+      form.generator.handleGeneratedContentChange(content);
+    }
   }, [form.generator]);
 
   // Handle saving generator to user's profile
@@ -341,24 +353,26 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     </>
   );
 
+  const baseFormProps: BaseFormProps = {
+    ...(form.generator?.baseFormProps as unknown as BaseFormProps || {}),
+    title: generatorConfig.name || generatorConfig.title,
+    onSubmit: () => form.handleSubmit(customSubmit)(),
+    loading: isSubmitting,
+    success: submissionSuccess,
+    error: submissionError,
+    generatedContent: localGeneratedContent,
+    onGeneratedContentChange: handleGeneratedContentChange,
+    submitButtonProps: {
+      defaultText: 'Grünerieren'
+    },
+    showProfileSelector: false,
+    firstExtrasChildren: saveButton
+  };
+
   return (
     <ErrorBoundary>
       <div className={`custom-generator-page-container container ${showHeaderFooter ? 'with-header' : ''}`}>
-        <BaseForm
-          {...form.generator.baseFormProps}
-          title={generatorConfig.name || generatorConfig.title}
-          onSubmit={() => form.handleSubmit(customSubmit)()}
-          loading={isSubmitting}
-          success={submissionSuccess}
-          error={submissionError}
-          generatedContent={localGeneratedContent}
-          onGeneratedContentChange={handleGeneratedContentChange}
-          submitButtonProps={{
-            defaultText: 'Grünerieren'
-          }}
-          showProfileSelector={false}
-          firstExtrasChildren={saveButton}
-        >
+        <BaseForm {...baseFormProps}>
           {renderFormInputs()}
         </BaseForm>
       </div>

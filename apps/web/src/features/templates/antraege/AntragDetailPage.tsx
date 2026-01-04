@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy } from 'react';
+import React, { useState, useEffect, useRef, lazy, FC, ChangeEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 import { useOptimizedAuth } from '../../../hooks/useAuth';
@@ -7,15 +7,32 @@ import apiClient from '../../../components/utils/apiClient';
 // Antrag Detail Feature CSS - Loaded only when this feature is accessed
 import '../../../assets/styles/pages/AntragDetailPage.css';
 
+interface AntragData {
+  id: string;
+  title: string;
+  description?: string;
+  antragstext?: string;
+  antragsteller?: string;
+  kontakt_email?: string;
+  tags?: string[];
+  categories?: string[];
+  updated_at?: string;
+  created_at?: string;
+  user_id?: string;
+  status?: string;
+  is_private?: boolean;
+  is_example?: boolean;
+}
+
 // Hilfsfunktionen (ähnlich wie in AntragDetailView)
-const formatDate = (dateString) => {
+const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '–';
   return new Date(dateString).toLocaleString('de-DE', {
     year: 'numeric', month: '2-digit', day: '2-digit'
   });
 };
 
-const getStatusClass = (status) => {
+const getStatusClass = (status: string | undefined): string => {
   const statusLower = status?.toLowerCase() || 'unbekannt';
   // Statusklassen bleiben gleich, da sie in der neuen CSS wiederverwendet werden
   switch (statusLower) {
@@ -27,16 +44,16 @@ const getStatusClass = (status) => {
   }
 };
 
-const AntragDetailPage = () => {
-  const { antragId } = useParams();
-  const [antrag, setAntrag] = useState(null);
+const AntragDetailPage: FC = () => {
+  const { antragId } = useParams<{ antragId: string }>();
+  const [antrag, setAntrag] = useState<AntragData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { user: supabaseUser } = useOptimizedAuth();
 
   // State for editing mode
   const [isEditing, setIsEditing] = useState(false);
-  const [editedAntrag, setEditedAntrag] = useState(null);
+  const [editedAntrag, setEditedAntrag] = useState<AntragData | null>(null);
 
   useEffect(() => {
     const fetchAntrag = async () => {
@@ -52,20 +69,21 @@ const AntragDetailPage = () => {
 
       try {
         const response = await apiClient.get(`/auth/antraege/${antragId}`);
-        const data = response.data;
-        const antrag = data.antrag || data;
+        const data = response.data as { antrag?: AntragData };
+        const antragData = data.antrag || (data as unknown as AntragData);
 
-        if (!antrag) {
+        if (!antragData) {
           throw new Error('Antrag nicht gefunden.');
         }
 
-        console.log("[AntragDetailPage] Antrag erfolgreich geladen:", antrag);
-        setAntrag(antrag);
-        setEditedAntrag(antrag);
+        console.log("[AntragDetailPage] Antrag erfolgreich geladen:", antragData);
+        setAntrag(antragData);
+        setEditedAntrag(antragData);
 
       } catch (err) {
         console.error('[AntragDetailPage] Fehler beim Laden des Antrags:', err);
-        setError(`Fehler beim Laden des Antrags: ${err.message}`);
+        const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
+        setError(`Fehler beim Laden des Antrags: ${errorMessage}`);
         setAntrag(null); // Stelle sicher, dass kein alter Antrag angezeigt wird
       } finally {
         setLoading(false);
@@ -86,7 +104,7 @@ const AntragDetailPage = () => {
     setEditedAntrag(antrag);
   };
 
-  const handleSaveClick = async () => {
+  const handleSaveClick = async (): Promise<void> => {
     if (!editedAntrag || !supabaseUser) return;
 
     setLoading(true);
@@ -102,26 +120,27 @@ const AntragDetailPage = () => {
       };
 
       const response = await apiClient.put(`/auth/antraege/${antragId}`, updateData);
-      const result = response.data;
+      const result = response.data as { antrag?: AntragData };
       setAntrag(result.antrag || editedAntrag);
       setIsEditing(false);
       console.log("[AntragDetailPage] Antrag erfolgreich aktualisiert.");
 
     } catch (err) {
       console.error('[AntragDetailPage] Fehler beim Speichern des Antrags:', err);
-      setError(`Fehler beim Speichern: ${err.message}`);
+      const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
+      setError(`Fehler beim Speichern: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (event) => {
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
     const { name, value } = event.target;
-    setEditedAntrag(prev => ({ ...prev, [name]: value }));
+    setEditedAntrag(prev => prev ? { ...prev, [name]: value } : null);
   };
 
-  const handleMarkdownChange = (markdown) => {
-    setEditedAntrag(prev => ({ ...prev, antragstext: markdown }));
+  const handleMarkdownChange = (markdown: string): void => {
+    setEditedAntrag(prev => prev ? { ...prev, antragstext: markdown } : null);
   };
 
   // --- Render Logic ---

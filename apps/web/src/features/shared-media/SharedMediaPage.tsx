@@ -13,19 +13,26 @@ import '../../assets/styles/components/ui/button.css';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+interface ShareData {
+  title: string;
+  mediaType: 'video' | 'image';
+  sharerName: string;
+  status: 'processing' | 'ready' | 'failed';
+}
+
 const SharedMediaPage = () => {
   const { shareToken } = useParams();
   const { isAuthenticated } = useOptimizedAuth();
-  const [shareData, setShareData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadSuccess, setDownloadSuccess] = useState(false);
-  const [downloadError, setDownloadError] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
+  const [shareData, setShareData] = useState<ShareData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
+  const [downloadError, setDownloadError] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [canNativeShare, setCanNativeShare] = useState<boolean>(false);
+  const [isSharing, setIsSharing] = useState<boolean>(false);
 
   useEffect(() => {
     const checkShareCapability = async () => {
@@ -61,9 +68,10 @@ const SharedMediaPage = () => {
           }
         }
       } catch (err) {
-        if (err.response?.status === 410) {
+        const error = err as any;
+        if (error?.response?.status === 410) {
           setError('Dieser Link ist nicht mehr gültig.');
-        } else if (err.response?.status === 404) {
+        } else if (error?.response?.status === 404) {
           setError('Dieses Medium existiert nicht oder wurde gelöscht.');
         } else {
           setError('Fehler beim Laden des Mediums.');
@@ -94,7 +102,9 @@ const SharedMediaPage = () => {
             setError('Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.');
           }
         }
-      } catch {}
+      } catch (err) {
+        // Silent fail for polling
+      }
     };
 
     const interval = setInterval(pollStatus, 5000);
@@ -132,7 +142,8 @@ const SharedMediaPage = () => {
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (err) {
-      if (err.response?.status === 410) {
+      const error = err as any;
+      if (error?.response?.status === 410) {
         setError('Dieser Link ist nicht mehr gültig.');
       } else {
         setDownloadError('Download fehlgeschlagen. Bitte versuche es erneut.');
@@ -181,8 +192,9 @@ const SharedMediaPage = () => {
         title: shareData?.title || 'Grünerator Media',
         text: '',
       });
-    } catch (error) {
-      if (error.name !== 'AbortError') {
+    } catch (err) {
+      const error = err as any;
+      if (error?.name !== 'AbortError') {
         console.error('Share failed:', error);
       }
     } finally {

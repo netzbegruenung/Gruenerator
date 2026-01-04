@@ -1,18 +1,19 @@
 import { useState, useCallback } from 'react';
 import { searchPapers, getIndexedCities } from '../services/oparlService';
+import type { OparlPaper, SearchResult, IndexedCitiesResult } from '../types';
 
 export const useOparlSearch = () => {
-  const [results, setResults] = useState([]);
-  const [indexedCities, setIndexedCities] = useState([]);
-  const [selectedCity, setSelectedCity] = useState(null);
+  const [results, setResults] = useState<OparlPaper[]>([]);
+  const [indexedCities, setIndexedCities] = useState<string[]>([]);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [totalResults, setTotalResults] = useState(0);
   const [lastQuery, setLastQuery] = useState('');
-  const [selectedPaper, setSelectedPaper] = useState(null);
+  const [selectedPaper, setSelectedPaper] = useState<OparlPaper | null>(null);
 
-  const handleSearch = useCallback(async (query, options = {}) => {
+  const handleSearch = useCallback(async (query: string, options: { city?: string | null; limit?: number } = {}) => {
     if (!query || query.trim().length < 2) {
       setError('Suchanfrage muss mindestens 2 Zeichen haben');
       return;
@@ -28,11 +29,12 @@ export const useOparlSearch = () => {
         limit: options.limit || 10
       });
 
-      setResults(result.results || []);
-      setTotalResults(result.total || 0);
-    } catch (err) {
+      setResults((result as SearchResult).results || []);
+      setTotalResults((result as SearchResult).total || 0);
+    } catch (err: unknown) {
       console.error('[useOparlSearch] Search error:', err);
-      setError(err.response?.data?.error || 'Fehler bei der Suche');
+      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Suche';
+      setError(errorMessage);
       setResults([]);
       setTotalResults(0);
     } finally {
@@ -44,15 +46,15 @@ export const useOparlSearch = () => {
     setIsLoadingCities(true);
     try {
       const result = await getIndexedCities();
-      setIndexedCities(result.cities || []);
-    } catch (err) {
+      setIndexedCities((result as IndexedCitiesResult).cities || []);
+    } catch (err: unknown) {
       console.error('[useOparlSearch] Cities error:', err);
     } finally {
       setIsLoadingCities(false);
     }
   }, []);
 
-  const handleSelectCity = useCallback((city) => {
+  const handleSelectCity = useCallback((city: string) => {
     setSelectedCity(city);
     if (lastQuery) {
       handleSearch(lastQuery, { city });
@@ -66,7 +68,7 @@ export const useOparlSearch = () => {
     }
   }, [lastQuery, handleSearch]);
 
-  const handleSelectPaper = useCallback((paper) => {
+  const handleSelectPaper = useCallback((paper: OparlPaper) => {
     setSelectedPaper(paper);
   }, []);
 

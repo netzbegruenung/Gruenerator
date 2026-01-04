@@ -11,6 +11,21 @@ import { useCanvaStore, useCanvaConnection, useCanvaDesigns } from '../../../../
 // Utils
 import * as canvaUtils from '../../../../components/utils/canvaUtils';
 
+interface CanvaUserInfo {
+    name?: string;
+    email?: string;
+    avatar?: string;
+}
+
+interface CanvaConnectionBadge {
+    type: string;
+    text: string;
+    color: string;
+    icon: string;
+    className: string;
+    userInfo?: CanvaUserInfo;
+}
+
 interface CanvaOverviewProps {
     isAuthenticated?: boolean;
     onSuccessMessage?: (message: string) => void;
@@ -46,7 +61,9 @@ const CanvaOverview = memo(({
         try {
             await canvaStore.initiateLogin();
         } catch (error) {
-            onErrorMessage?.(error.message);
+            if (error instanceof Error) {
+                onErrorMessage?.(error.message);
+            }
         }
     }, [canvaStore, onErrorMessage]);
 
@@ -60,7 +77,9 @@ const CanvaOverview = memo(({
             await canvaStore.disconnect();
             onSuccessMessage?.('Canva-Verbindung wurde getrennt.');
         } catch (error) {
-            onErrorMessage?.(error.message);
+            if (error instanceof Error) {
+                onErrorMessage?.(error.message);
+            }
         }
     }, [canvaStore, onSuccessMessage, onErrorMessage]);
 
@@ -79,7 +98,7 @@ const CanvaOverview = memo(({
     }, [isAuthenticated, canvaStore]);
 
     // Generate UI configurations using utility functions
-    const connectionBadge = canvaUtils.getCanvaConnectionBadge(canvaConnected, canvaUser, canvaLoading);
+    const connectionBadge = canvaUtils.getCanvaConnectionBadge(canvaConnected, canvaUser ?? undefined, canvaLoading) as CanvaConnectionBadge;
     // Stats section removed
 
     // Render connection status section
@@ -237,7 +256,7 @@ const CanvaOverview = memo(({
     };
 
     // Helper function to render status icons
-    const getStatusIcon = (iconType) => {
+    const getStatusIcon = (iconType: string): React.ReactNode => {
         const iconProps = { style: { width: '16px', height: '16px' } };
         switch (iconType) {
             case 'check':

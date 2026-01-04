@@ -1,16 +1,43 @@
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import EnhancedSelect from '../../../components/common/EnhancedSelect';
-import { WolkeSelector } from '../../../components/common';
+import { useState, useEffect, ComponentType } from 'react';
+import { useForm, FieldValues } from 'react-hook-form';
+import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
+import type { EnhancedSelectOption } from '../../../components/common/EnhancedSelect/EnhancedSelect';
+import WolkeSelector from '../../../components/common/WolkeSelector/WolkeSelector';
+import type { WolkeShareLink } from '../../../components/common/WolkeSelector/WolkeSelector';
 import { HiDocumentText, HiOutlineCloud } from 'react-icons/hi';
 import { motion } from "motion/react";
 import { useFormFields } from '../../../components/common/Form/hooks';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
+import { Document } from '../../../types/documents';
 
 import '../styles/notebook-creator.css';
 import '../../../assets/styles/features/notebook/notebook-chat.css';
 import '../../../assets/styles/features/notebook/notebook-collections.css';
 import '../../../assets/styles/components/ui/button.css';
+
+interface NotebookCollection {
+  id?: string;
+  name: string;
+  description?: string;
+  custom_prompt?: string;
+  documents?: Document[];
+  wolke_share_links?: WolkeShareLink[];
+  auto_sync?: boolean;
+  remove_missing_on_sync?: boolean;
+  [key: string]: unknown;
+}
+
+interface NotebookEditorFormData {
+  name: string;
+  description: string;
+  custom_prompt: string;
+}
+
+interface FormFieldComponents {
+  Input: ComponentType<{ name: string; control: unknown; label: string; placeholder?: string; rules?: unknown }>;
+  Textarea: ComponentType<{ name: string; control: unknown; label: string; placeholder?: string; minRows?: number; maxRows?: number; helpText?: string; rules?: unknown }>;
+  [key: string]: unknown;
+}
 
 const formatFileSize = (bytes: number): string => {
   if (!bytes) return '';
@@ -20,7 +47,7 @@ const formatFileSize = (bytes: number): string => {
   return `${Math.round(bytes / Math.pow(1024, i) * 10) / 10} ${sizes[i]}`;
 };
 
-const formatDate = (dateString) => {
+const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '';
   try {
     return new Date(dateString).toLocaleDateString('de-DE', {
@@ -33,7 +60,7 @@ const formatDate = (dateString) => {
   }
 };
 
-const formatDocumentStatus = (status) => {
+const formatDocumentStatus = (status: string | undefined): string => {
   switch (status) {
     case 'completed':
       return 'Bereit';
@@ -48,7 +75,7 @@ const formatDocumentStatus = (status) => {
   }
 };
 
-const getDocumentIcon = (filename) => {
+const getDocumentIcon = (filename: string | undefined): string => {
   if (!filename) return 'document';
   const ext = filename.split('.').pop()?.toLowerCase();
   switch (ext) {
@@ -63,6 +90,16 @@ const getDocumentIcon = (filename) => {
   }
 };
 
+interface NotebookEditorProps {
+  onSave: (data: unknown) => Promise<void>;
+  availableDocuments?: Document[];
+  editingCollection?: NotebookCollection | null;
+  loading?: boolean;
+  onCancel?: () => void;
+  allowedModes?: string[];
+  lockSelectionMode?: string | null;
+}
+
 const NotebookEditor = ({
     onSave,
     availableDocuments = [],
@@ -71,20 +108,20 @@ const NotebookEditor = ({
     onCancel,
     allowedModes = ['documents', 'wolke'],
     lockSelectionMode = null
-}) => {
+}: NotebookEditorProps) => {
     const { user } = useOptimizedAuth();
-    const [selectedDocuments, setSelectedDocuments] = useState([]);
-    const [selectedWolkeLinks, setSelectedWolkeLinks] = useState([]);
-    const [selectionMode, setSelectionMode] = useState('documents');
-    const [autoSync, setAutoSync] = useState(false);
-    const [removeMissing, setRemoveMissing] = useState(false);
-    const { Input, Textarea } = useFormFields();
+    const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
+    const [selectedWolkeLinks, setSelectedWolkeLinks] = useState<WolkeShareLink[]>([]);
+    const [selectionMode, setSelectionMode] = useState<string>('documents');
+    const [autoSync, setAutoSync] = useState<boolean>(false);
+    const [removeMissing, setRemoveMissing] = useState<boolean>(false);
+    const { Input, Textarea } = useFormFields() as unknown as FormFieldComponents;
 
     const {
         control,
         handleSubmit,
         reset
-    } = useForm({
+    } = useForm<NotebookEditorFormData>({
         defaultValues: {
             name: '',
             description: '',
@@ -136,32 +173,36 @@ const NotebookEditor = ({
         }
     }, [allowedModes.join(','), lockSelectionMode, selectionMode]);
 
-    const documentOptions = availableDocuments.map(doc => {
-        const subtitle = [];
+    const documentOptions = availableDocuments.map((doc): EnhancedSelectOption & { document?: Document; [key: string]: unknown } => {
+        const subtitle: string[] = [];
         if (doc.filename) subtitle.push(doc.filename);
-        if (doc.file_size) subtitle.push(formatFileSize(doc.file_size));
+        const fileSize = doc.metadata?.file_size as number | undefined;
+        if (fileSize) subtitle.push(formatFileSize(fileSize));
         if (doc.created_at) subtitle.push(`Hochgeladen: ${formatDate(doc.created_at)}`);
 
         return {
-            value: doc.id,
+            value: doc.id as string | number,
             label: doc.title,
             iconType: getDocumentIcon(doc.filename),
             subtitle: subtitle.join(' • '),
             tag: doc.status ? {
                 label: formatDocumentStatus(doc.status),
-                variant: 'custom'
-            } : null,
-            searchableContent: `${doc.title} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
+                variant: 'custom' as const,
+                type: undefined,
+                icon: undefined
+            } : undefined,
+            searchableContent: `${doc.title} ${doc.filename || ''} ${(doc.metadata?.ocr_text as string) || ''}`.toLowerCase(),
             document: doc
         };
     });
 
-    const handleDocumentSelectChange = (selectedOptions) => {
-        const documents = selectedOptions ? selectedOptions.map(option => option.document) : [];
+    const handleDocumentSelectChange = (selectedOptions: unknown): void => {
+        const options = selectedOptions as Array<{ document?: Document }> | null;
+        const documents = options ? options.map(option => option.document).filter((doc): doc is Document => !!doc) : [];
         setSelectedDocuments(documents);
     };
 
-    const onSubmit = async (data) => {
+    const onSubmit = async (data: NotebookEditorFormData): Promise<void> => {
         if (selectionMode === 'documents' && selectedDocuments.length === 0) {
             alert('Bitte wählen Sie mindestens ein Dokument aus.');
             return;
@@ -185,7 +226,7 @@ const NotebookEditor = ({
         await onSave(qaData);
     };
 
-    const handleCancel = () => {
+    const handleCancel = (): void => {
         reset();
         setSelectedDocuments([]);
         setSelectedWolkeLinks([]);
@@ -193,7 +234,7 @@ const NotebookEditor = ({
         if (onCancel) onCancel();
     };
 
-    const handleModeSwitch = (mode) => {
+    const handleModeSwitch = (mode: string): void => {
         if (!allowedModes.includes(mode)) return;
         if (lockSelectionMode && mode !== lockSelectionMode) return;
         setSelectionMode(mode);
@@ -312,7 +353,7 @@ const NotebookEditor = ({
                                                 isMulti
                                                 isSearchable
                                                 placeholder="Dokumente suchen und auswählen..."
-                                                options={documentOptions}
+                                                options={documentOptions as EnhancedSelectOption[]}
                                                 value={selectedDocuments.map(doc => {
                                                     const option = documentOptions.find(opt => opt.value === doc.id);
                                                     return option || {
@@ -320,8 +361,8 @@ const NotebookEditor = ({
                                                         label: doc.title,
                                                         document: doc
                                                     };
-                                                })}
-                                                onChange={(selected) => handleDocumentSelectChange(selected as typeof documentOptions)}
+                                                }) as EnhancedSelectOption[]}
+                                                onChange={(selected) => handleDocumentSelectChange(selected)}
                                                 filterOption={() => true}
                                                 noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}
                                                 closeMenuOnSelect={false}
@@ -344,10 +385,10 @@ const NotebookEditor = ({
                                 <div className="wolke-selection">
                                     <WolkeSelector
                                         value={selectedWolkeLinks}
-                                        onChange={setSelectedWolkeLinks}
+                                        onChange={(selectedLinks: WolkeShareLink[]): void => setSelectedWolkeLinks(selectedLinks)}
                                         placeholder="Wolke-Ordner suchen und auswählen..."
                                         helpText="Alle Dokumente aus den ausgewählten Wolke-Ordnern werden automatisch in die Sammlung einbezogen."
-                                        scope={user?.groups?.length > 0 ? 'personal' : 'personal'}
+                                        scope={Array.isArray(user?.groups) && (user.groups as unknown[]).length > 0 ? 'personal' : 'personal'}
                                         isMulti={true}
                                     />
                                     {selectedWolkeLinks.length > 0 && (
