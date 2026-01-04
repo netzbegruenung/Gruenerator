@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, useColorScheme } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, View, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button, ChipGroup } from '../common';
+import { FeatureIcons } from './FeatureIcons';
+import { useGeneratorSelectionStore } from '../../stores';
 import {
   useTextGeneration,
   GENERATOR_ENDPOINTS,
@@ -44,9 +46,16 @@ export function AntragForm({ onResult, onError }: AntragFormProps) {
   });
 
   const handleSubmit = useCallback(async () => {
+    const featureState = useGeneratorSelectionStore.getState().getFeatureState();
     const request: Partial<AntragRequest> = {
       requestType,
       inhalt: inhalt.trim(),
+      useWebSearchTool: featureState.useWebSearchTool,
+      usePrivacyMode: featureState.usePrivacyMode,
+      useProMode: featureState.useProMode,
+      useUltraMode: featureState.useUltraMode,
+      selectedDocumentIds: featureState.selectedDocumentIds,
+      selectedTextIds: featureState.selectedTextIds,
     };
 
     const validation = validateAntragRequest(request);
@@ -64,6 +73,7 @@ export function AntragForm({ onResult, onError }: AntragFormProps) {
         <Text style={[styles.header, { color: theme.text }]}>
           Welchen Antrag planst du?
         </Text>
+
         <ChipGroup
           options={ANTRAG_TYPES}
           selected={requestType}
@@ -71,13 +81,18 @@ export function AntragForm({ onResult, onError }: AntragFormProps) {
           icons={TYPE_ICONS}
         />
 
-        <TextInput
-          placeholder="Thema und Details..."
-          value={inhalt}
-          onChangeText={setInhalt}
-          multiline
-          numberOfLines={6}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Thema und Details..."
+            value={inhalt}
+            onChangeText={setInhalt}
+            multiline
+            numberOfLines={6}
+          />
+          <View style={styles.featureIconsContainer}>
+            <FeatureIcons />
+          </View>
+        </View>
 
         <Button onPress={handleSubmit} loading={loading}>
           Grünerieren
@@ -89,6 +104,14 @@ export function AntragForm({ onResult, onError }: AntragFormProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.medium, gap: spacing.medium },
-  header: { ...typography.h2, textAlign: 'center', marginBottom: spacing.small },
+  content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
+  header: { ...typography.h2, marginBottom: spacing.small },
+  inputContainer: {
+    position: 'relative',
+  },
+  featureIconsContainer: {
+    position: 'absolute',
+    bottom: spacing.medium + 4,
+    left: spacing.medium,
+  },
 });
