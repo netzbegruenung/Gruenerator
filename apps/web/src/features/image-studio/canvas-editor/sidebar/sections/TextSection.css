@@ -1,0 +1,41 @@
+/* TextSection - Auto-sizing content */
+.sidebar-section--text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  width: 320px;
+}
+
+/* When followed by fontsize section (desktop combined view) */
+.sidebar-section--text + .sidebar-section--fontsize {
+  margin-top: var(--spacing-small);
+  padding-top: var(--spacing-medium);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sidebar-section--text .form-textarea {
+  resize: none;
+}
+
+/* Thin scrollbar for panel content */
+.sidebar-panel__content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-color) transparent;
+}
+
+.sidebar-panel__content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-panel__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-panel__content::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color);
+  border-radius: 3px;
+}
+
+.sidebar-panel__content::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover-color);
+}

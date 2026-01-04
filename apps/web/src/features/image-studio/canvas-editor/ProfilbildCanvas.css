@@ -1,0 +1,54 @@
+.profilbild-canvas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-medium);
+}
+
+.profilbild-canvas-wrapper {
+  border-radius: var(--border-radius-medium);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+}
+
+.profilbild-canvas-wrapper:active {
+  cursor: grabbing;
+}
+
+.profilbild-canvas-actions {
+  display: flex;
+  gap: var(--spacing-small);
+  width: 100%;
+  max-width: 400px;
+}
+
+.profilbild-canvas-actions .btn {
+  flex: 1;
+}
+
+.profilbild-canvas-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  min-height: 300px;
+  color: var(--font-color-secondary);
+}
+
+.profilbild-canvas-loading .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--tanne);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,38 @@
+.dreizeilen-text-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+}
+
+.dreizeilen-text-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxsmall);
+}
+
+.dreizeilen-text-field label {
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--font-color-secondary);
+}
+
+.dreizeilen-text-field input {
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-border-radius-small, 8px);
+  background: var(--background-color);
+  color: var(--font-color);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.dreizeilen-text-field input:focus {
+  outline: none;
+  border-color: var(--primary-600);
+}
+
+.dreizeilen-text-field input::placeholder {
+  color: var(--font-color-secondary);
+  opacity: 0.6;
+}

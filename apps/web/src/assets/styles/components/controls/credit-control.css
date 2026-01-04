@@ -1,0 +1,47 @@
+/* CreditControl component styles */
+
+.credit-control-section {
+  margin-top: var(--spacing-medium);
+  padding-top: var(--spacing-small);
+  border-top: 1px solid var(--border-color);
+}
+
+.credit-control-section h4 {
+  margin: 0 0 var(--spacing-xsmall) 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.credit-control {
+  margin-top: var(--spacing-xsmall);
+}
+
+.credit-control input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--card-background);
+  color: var(--font-color);
+  font-size: 0.9em;
+  transition: border-color 0.2s ease;
+}
+
+.credit-control input:focus {
+  outline: none;
+  border-color: var(--interactive-accent-color);
+}
+
+.credit-control input::placeholder {
+  color: var(--font-color);
+  opacity: 0.5;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .credit-control input {
+    padding: 0.5rem;
+    font-size: 0.9em;
+  }
+}

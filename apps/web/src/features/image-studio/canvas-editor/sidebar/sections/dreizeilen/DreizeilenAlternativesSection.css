@@ -1,0 +1,47 @@
+.dreizeilen-alternatives-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xsmall);
+}
+
+.alternative-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-border-radius-small, 8px);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.alternative-card:hover {
+  background: var(--background-color-alt);
+}
+
+.alternative-card--active {
+  border-color: var(--primary-600);
+  background: var(--primary-100);
+}
+
+.alternative-card__text {
+  flex: 1;
+  text-align: left;
+  font-size: var(--font-size-small);
+  color: var(--font-color);
+  line-height: 1.4;
+}
+
+.alternative-card__check {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-600);
+  color: white;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

@@ -1,0 +1,64 @@
+.canvas-editor-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 500px;
+}
+
+/* When sidebar is present, add left margin for fixed sidebar */
+.canvas-editor-layout--with-sidebar {
+  margin-left: 64px;
+}
+
+.canvas-editor-layout__main {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-small);
+  overflow: hidden;
+}
+
+.canvas-editor-layout__canvas {
+  flex-shrink: 0;
+  max-height: calc(100vh - 80px);
+}
+
+/* Footer with action buttons */
+.canvas-editor-layout__footer {
+  padding: var(--spacing-small) var(--spacing-large);
+  background: var(--background-color);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.canvas-editor-layout__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-small);
+}
+
+.canvas-editor-layout__actions .btn {
+  min-width: 120px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 900px) {
+  .canvas-editor-layout--with-sidebar {
+    margin-left: 0;
+    padding-bottom: 56px;
+  }
+
+  .canvas-editor-layout__main {
+    flex-direction: column;
+    padding: var(--spacing-xsmall);
+  }
+
+  .canvas-editor-layout__canvas {
+    max-height: calc(100vh - 140px);
+  }
+
+  .canvas-editor-layout__actions .btn {
+    flex: 1;
+    min-width: auto;
+  }
+}
