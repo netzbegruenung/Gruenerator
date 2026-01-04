@@ -72,9 +72,20 @@ export function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="(notebooks)"
+        options={{
+          title: 'Fragen',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           href: null,
+          headerShown: false,
         }}
       />
     </Tabs>

@@ -138,6 +138,10 @@ export const useSubtitleEditorStore = create<SubtitleEditorStore>()((set, get) =
       isSaving: false,
     });
   },
+
+  setProjectId: (newProjectId: string) => {
+    set({ projectId: newProjectId });
+  },
 }));
 
 /**

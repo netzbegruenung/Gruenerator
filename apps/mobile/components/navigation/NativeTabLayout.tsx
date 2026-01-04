@@ -38,6 +38,13 @@ export function NativeTabLayout() {
         })}
         <Label>Tools</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(notebooks)">
+        {Platform.select({
+          ios: <Icon sf={{ default: 'text.bubble', selected: 'text.bubble.fill' }} />,
+          android: <Icon src={<VectorIcon family={Ionicons} name="chatbubbles" />} />,
+        })}
+        <Label>Fragen</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
   );

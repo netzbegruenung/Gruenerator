@@ -12,6 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useProjectsStore, formatDuration, formatDate, type Project, getThumbnailUrl } from '@gruenerator/shared';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { colors, spacing, lightTheme, darkTheme } from '../../theme';
@@ -19,12 +20,15 @@ import { secureStorage } from '../../services/storage';
 
 interface ProjectListProps {
   onSelectProject: (project: Project) => void;
+  onEditProject?: (project: Project) => void;
+  onShareProject?: (project: Project) => void;
   onNewReel: () => void;
 }
 
-export function ProjectList({ onSelectProject, onNewReel }: ProjectListProps) {
+export function ProjectList({ onSelectProject, onEditProject, onShareProject, onNewReel }: ProjectListProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const { showActionSheetWithOptions } = useActionSheet();
   const [refreshing, setRefreshing] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
@@ -55,7 +59,7 @@ export function ProjectList({ onSelectProject, onNewReel }: ProjectListProps) {
     setRefreshing(false);
   }, [fetchProjects]);
 
-  const handleDelete = useCallback((project: Project) => {
+  const confirmDelete = useCallback((project: Project) => {
     Alert.alert(
       'Projekt löschen',
       `Möchtest du "${project.title}" wirklich löschen?`,
@@ -76,6 +80,38 @@ export function ProjectList({ onSelectProject, onNewReel }: ProjectListProps) {
     );
   }, [deleteProject]);
 
+  const showProjectOptions = useCallback((project: Project) => {
+    const options = ['Bearbeiten', 'Teilen', 'Löschen', 'Abbrechen'];
+    const destructiveButtonIndex = 2;
+    const cancelButtonIndex = 3;
+
+    showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex,
+        destructiveButtonIndex,
+        title: project.title,
+      },
+      (selectedIndex) => {
+        switch (selectedIndex) {
+          case 0:
+            if (onEditProject) {
+              onEditProject(project);
+            } else {
+              onSelectProject(project);
+            }
+            break;
+          case 1:
+            onShareProject?.(project);
+            break;
+          case 2:
+            confirmDelete(project);
+            break;
+        }
+      }
+    );
+  }, [showActionSheetWithOptions, onSelectProject, onEditProject, onShareProject, confirmDelete]);
+
   const renderProject = useCallback(({ item }: { item: Project }) => {
     const thumbnailUrl = item.thumbnail_path ? getThumbnailUrl(item.id) : null;
     const duration = item.video_metadata?.duration;
@@ -84,7 +120,7 @@ export function ProjectList({ onSelectProject, onNewReel }: ProjectListProps) {
       <TouchableOpacity
         style={[styles.projectCard, { backgroundColor: theme.card }]}
         onPress={() => onSelectProject(item)}
-        onLongPress={() => handleDelete(item)}
+        onLongPress={() => showProjectOptions(item)}
         activeOpacity={0.7}
       >
         <View style={styles.thumbnailContainer}>
@@ -122,15 +158,15 @@ export function ProjectList({ onSelectProject, onNewReel }: ProjectListProps) {
         </View>
 
         <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDelete(item)}
+          style={styles.moreButton}
+          onPress={() => showProjectOptions(item)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="trash-outline" size={18} color={colors.error} />
+          <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
-  }, [theme, onSelectProject, handleDelete, authToken]);
+  }, [theme, onSelectProject, showProjectOptions, authToken]);
 
   const renderEmpty = () => {
     if (isLoading && !initialFetchComplete) {
@@ -180,7 +216,7 @@ export function ProjectList({ onSelectProject, onNewReel }: ProjectListProps) {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+        <Ionicons name="alert-circle-outline" size={48} color={colors.error[500]} />
         <Text style={[styles.errorText, { color: theme.text }]}>{error}</Text>
         <TouchableOpacity
           style={[styles.retryButton, { backgroundColor: colors.primary[600] }]}
@@ -307,7 +343,7 @@ const styles = StyleSheet.create({
   projectDate: {
     fontSize: 12,
   },
-  deleteButton: {
+  moreButton: {
     padding: spacing.small,
   },
   emptyContainer: {
