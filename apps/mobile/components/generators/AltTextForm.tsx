@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, View, Text, useColorScheme } from 'react-native';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button, ImagePicker } from '../common';
+import { FeatureIcons } from './FeatureIcons';
+import { useGeneratorSelectionStore } from '../../stores';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
   GENERATOR_ENDPOINTS,
@@ -55,10 +57,15 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
     setLoading(true);
 
     try {
+      const featureState = useGeneratorSelectionStore.getState().getFeatureState();
       const client = getGlobalApiClient();
       const response = await client.post(GENERATOR_ENDPOINTS.ALT_TEXT, {
         imageBase64,
         imageDescription: imageDescription.trim() || undefined,
+        useWebSearchTool: featureState.useWebSearchTool,
+        usePrivacyMode: featureState.usePrivacyMode,
+        useProMode: featureState.useProMode,
+        useUltraMode: featureState.useUltraMode,
       });
 
       const parsed = parseGeneratorResponse(response);
@@ -91,14 +98,19 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
 
         {selectedImage && (
           <View style={styles.descriptionContainer}>
-            <TextInput
-              label="Zusätzliche Beschreibung (optional)"
-              placeholder="Kontext oder besondere Details zum Bild..."
-              value={imageDescription}
-              onChangeText={setImageDescription}
-              multiline
-              numberOfLines={3}
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                label="Zusätzliche Beschreibung (optional)"
+                placeholder="Kontext oder besondere Details zum Bild..."
+                value={imageDescription}
+                onChangeText={setImageDescription}
+                multiline
+                numberOfLines={3}
+              />
+              <View style={styles.featureIconsContainer}>
+                <FeatureIcons showContent={false} />
+              </View>
+            </View>
 
             <Button onPress={handleSubmit} loading={loading}>
               Alt-Text grünerieren
@@ -112,7 +124,15 @@ export function AltTextForm({ onResult, onError }: AltTextFormProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.medium, gap: spacing.medium },
-  header: { ...typography.h2, textAlign: 'center', marginBottom: spacing.small },
+  content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
+  header: { ...typography.h2, marginBottom: spacing.small },
   descriptionContainer: { gap: spacing.medium },
+  inputContainer: {
+    position: 'relative',
+  },
+  featureIconsContainer: {
+    position: 'absolute',
+    bottom: spacing.medium + 4,
+    left: spacing.medium,
+  },
 });

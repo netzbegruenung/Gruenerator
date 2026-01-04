@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, useColorScheme } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, View, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button, ChipGroup } from '../common';
+import { FeatureIcons } from './FeatureIcons';
+import { useGeneratorSelectionStore } from '../../stores';
 import {
   useTextGeneration,
   UNIVERSAL_TEXT_TYPES,
@@ -47,7 +49,23 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
   });
 
   const getPayload = useCallback((): Partial<UniversalRequest> => {
-    const base = { textType, inhalt: inhalt.trim() };
+    const featureState = useGeneratorSelectionStore.getState().getFeatureState();
+    const base = {
+      textType,
+      inhalt: inhalt.trim(),
+      useWebSearchTool: featureState.useWebSearchTool,
+      usePrivacyMode: featureState.usePrivacyMode,
+      useProMode: featureState.useProMode,
+      useUltraMode: featureState.useUltraMode,
+      useAutomaticSearch: featureState.useAutomaticSearch,
+      selectedDocumentIds: featureState.selectedDocumentIds,
+      selectedTextIds: featureState.selectedTextIds,
+      attachedFiles: featureState.attachedFiles.map(f => ({
+        name: f.name,
+        type: f.type,
+        base64: f.base64,
+      })),
+    };
 
     switch (textType) {
       case 'rede':
@@ -95,6 +113,7 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
         <Text style={[styles.header, { color: theme.text }]}>
           Was möchtest du heute grünerieren?
         </Text>
+
         <ChipGroup
           options={UNIVERSAL_TEXT_TYPES}
           selected={textType}
@@ -110,13 +129,18 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
           />
         )}
 
-        <TextInput
-          placeholder="Beschreibe was du brauchst..."
-          value={inhalt}
-          onChangeText={setInhalt}
-          multiline
-          numberOfLines={6}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Beschreibe was du brauchst..."
+            value={inhalt}
+            onChangeText={setInhalt}
+            multiline
+            numberOfLines={6}
+          />
+          <View style={styles.featureIconsContainer}>
+            <FeatureIcons />
+          </View>
+        </View>
 
         <Button onPress={handleSubmit} loading={loading}>
           Grünerieren
@@ -128,6 +152,14 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.medium, gap: spacing.medium },
-  header: { ...typography.h2, textAlign: 'center', marginBottom: spacing.small },
+  content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
+  header: { ...typography.h2, marginBottom: spacing.small },
+  inputContainer: {
+    position: 'relative',
+  },
+  featureIconsContainer: {
+    position: 'absolute',
+    bottom: spacing.medium + 4,
+    left: spacing.medium,
+  },
 });

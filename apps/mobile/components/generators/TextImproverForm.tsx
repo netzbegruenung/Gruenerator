@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, useColorScheme } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, View, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button, ChipGroup } from '../common';
+import { FeatureIcons } from './FeatureIcons';
+import { useGeneratorSelectionStore } from '../../stores';
 import {
   useTextGeneration,
   GENERATOR_ENDPOINTS,
@@ -63,10 +65,17 @@ export function TextImproverForm({ onResult, onError }: TextImproverFormProps) {
       return;
     }
 
+    const featureState = useGeneratorSelectionStore.getState().getFeatureState();
     await generate({
       inhalt: originalText.trim(),
       originalText: originalText.trim(),
       action,
+      useWebSearchTool: featureState.useWebSearchTool,
+      usePrivacyMode: featureState.usePrivacyMode,
+      useProMode: featureState.useProMode,
+      useUltraMode: featureState.useUltraMode,
+      selectedDocumentIds: featureState.selectedDocumentIds,
+      selectedTextIds: featureState.selectedTextIds,
     });
   }, [originalText, action, generate, onError]);
 
@@ -83,13 +92,18 @@ export function TextImproverForm({ onResult, onError }: TextImproverFormProps) {
           icons={ACTION_ICONS}
         />
 
-        <TextInput
-          placeholder="Füge hier den Text ein, den du bearbeiten möchtest..."
-          value={originalText}
-          onChangeText={setOriginalText}
-          multiline
-          numberOfLines={10}
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Füge hier den Text ein, den du bearbeiten möchtest..."
+            value={originalText}
+            onChangeText={setOriginalText}
+            multiline
+            numberOfLines={10}
+          />
+          <View style={styles.featureIconsContainer}>
+            <FeatureIcons />
+          </View>
+        </View>
 
         <Button onPress={handleSubmit} loading={loading} disabled={!originalText.trim()}>
           Text bearbeiten
@@ -101,6 +115,14 @@ export function TextImproverForm({ onResult, onError }: TextImproverFormProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.medium, gap: spacing.medium },
-  header: { ...typography.h2, textAlign: 'center', marginBottom: spacing.small },
+  content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
+  header: { ...typography.h2, marginBottom: spacing.small },
+  inputContainer: {
+    position: 'relative',
+  },
+  featureIconsContainer: {
+    position: 'absolute',
+    bottom: spacing.medium + 4,
+    left: spacing.medium,
+  },
 });

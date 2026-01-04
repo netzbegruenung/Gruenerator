@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, useColorScheme } from 'react-native';
+import { StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Text, View, useColorScheme } from 'react-native';
 import { spacing, typography, lightTheme, darkTheme } from '../../theme';
 import { TextInput, Button } from '../common';
+import { FeatureIcons } from './FeatureIcons';
+import { useGeneratorSelectionStore } from '../../stores';
 import {
   useTextGeneration,
   GENERATOR_ENDPOINTS,
@@ -39,9 +41,16 @@ export function LeichteSpracheForm({ onResult, onError }: LeichteSpracheFormProp
       return;
     }
 
+    const featureState = useGeneratorSelectionStore.getState().getFeatureState();
     await generate({
       inhalt: originalText.trim(),
       originalText: originalText.trim(),
+      useWebSearchTool: featureState.useWebSearchTool,
+      usePrivacyMode: featureState.usePrivacyMode,
+      useProMode: featureState.useProMode,
+      useUltraMode: featureState.useUltraMode,
+      selectedDocumentIds: featureState.selectedDocumentIds,
+      selectedTextIds: featureState.selectedTextIds,
     });
   }, [originalText, generate, onError]);
 
@@ -51,13 +60,19 @@ export function LeichteSpracheForm({ onResult, onError }: LeichteSpracheFormProp
         <Text style={[styles.header, { color: theme.text }]}>
           Welchen Text vereinfachen wir?
         </Text>
-        <TextInput
-          placeholder="Füge hier den Text ein, den du in Leichte Sprache übersetzen möchtest..."
-          value={originalText}
-          onChangeText={setOriginalText}
-          multiline
-          numberOfLines={10}
-        />
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Füge hier den Text ein, den du in Leichte Sprache übersetzen möchtest..."
+            value={originalText}
+            onChangeText={setOriginalText}
+            multiline
+            numberOfLines={10}
+          />
+          <View style={styles.featureIconsContainer}>
+            <FeatureIcons />
+          </View>
+        </View>
 
         <Button onPress={handleSubmit} loading={loading} disabled={!originalText.trim()}>
           In Leichte Sprache übersetzen
@@ -69,6 +84,14 @@ export function LeichteSpracheForm({ onResult, onError }: LeichteSpracheFormProp
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: spacing.medium, gap: spacing.medium },
-  header: { ...typography.h2, textAlign: 'center', marginBottom: spacing.small },
+  content: { padding: spacing.medium, paddingTop: spacing.xlarge, gap: spacing.medium },
+  header: { ...typography.h2, marginBottom: spacing.small },
+  inputContainer: {
+    position: 'relative',
+  },
+  featureIconsContainer: {
+    position: 'absolute',
+    bottom: spacing.medium + 4,
+    left: spacing.medium,
+  },
 });

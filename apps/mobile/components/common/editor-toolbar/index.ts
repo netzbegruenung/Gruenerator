@@ -10,3 +10,6 @@ export { Slider, type SliderProps } from './Slider';
 export { CrossControl, type CrossControlProps, type Offset2D } from './CrossControl';
 export { IncrementControl, type IncrementControlProps } from './IncrementControl';
 export { EditorToolbar, type EditorToolbarProps, type ToolConfig } from './EditorToolbar';
+export { EditorModal, type EditorModalRef, type EditorModalProps } from './EditorModal';
+export { CategoryBar, type CategoryBarProps, type CategoryConfig } from './CategoryBar';
+export { InlineBar, type InlineBarProps } from './InlineBar';
