@@ -1,13 +1,71 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { usePreloadStore } from './usePreloadStore';
 import { useImageGeneration } from './useImageGeneration';
 import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS } from '../utils/typeConfig';
 import apiClient from '../../../components/utils/apiClient';
+import { removeBackground } from '../../../services/backgroundRemoval';
 
-export const useStepFlow = () => {
+interface FlowStep {
+  id: string;
+  type: 'input' | 'image_upload' | 'canvas_edit';
+  field?: {
+    name: string;
+    label: string;
+    subtitle?: string;
+    helpText?: string;
+  };
+  stepTitle: string;
+  stepSubtitle: string | null;
+  afterComplete: string | null;
+}
+
+interface BgRemovalProgress {
+  phase: string;
+  progress: number;
+  message: string;
+}
+
+interface UseStepFlowOptions {
+  startAtCanvasEdit?: boolean;
+}
+
+interface AiImageSuggestionResult {
+  image: {
+    category?: string;
+    [key: string]: unknown;
+  };
+  category?: string;
+}
+
+interface UseStepFlowReturn {
+  stepIndex: number;
+  direction: number;
+  currentStep: FlowStep | null;
+  flowSteps: FlowStep[];
+  isFirstStep: boolean;
+  isLastStep: boolean;
+  totalSteps: number;
+  isProcessing: boolean;
+  loading: boolean;
+  error: string;
+  bgRemovalProgress: BgRemovalProgress | null;
+  transparentImage: string | null;
+  goNext: () => Promise<boolean>;
+  goBack: () => boolean;
+  reset: () => void;
+  getFieldValue: (fieldName: string) => string;
+  setError: (error: string) => void;
+  handleCanvasExport: (dataUrl: string) => void;
+  goBackToCanvas: () => void;
+}
+
+export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = {}): UseStepFlowReturn => {
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [bgRemovalProgress, setBgRemovalProgress] = useState<BgRemovalProgress | null>(null);
+  const hasInitializedCanvasEditRef = useRef(false);
 
   const {
     type,
@@ -16,6 +74,7 @@ export const useStepFlow = () => {
     line1, line2, line3,
     quote,
     header, subheader, body,
+    headline, subtext,
     uploadedImage,
     selectedImage,
     fontSize,
@@ -24,7 +83,6 @@ export const useStepFlow = () => {
     balkenGruppenOffset,
     sunflowerOffset,
     credit,
-    // Veranstaltung-specific fields
     eventTitle,
     beschreibung,
     weekday,
@@ -32,7 +90,6 @@ export const useStepFlow = () => {
     time,
     locationName,
     address,
-    // KI-specific fields
     purePrompt,
     sharepicPrompt,
     imagineTitle,
@@ -47,26 +104,26 @@ export const useStepFlow = () => {
     setCurrentStep,
     setFlowTitle,
     setFlowSubtitle,
-    setPreloadedImageResult,
-    setSlogansReady
+    transparentImage,
+    setTransparentImage
   } = useImageStudioStore();
+
+  const { setPreloadedImageResult, setSlogansReady } = usePreloadStore();
 
   const { generateText, generateImage, loading, error, setError } = useImageGeneration();
 
   const typeConfig = useMemo(() => getTypeConfig(type), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
 
-  const flowSteps = useMemo(() => {
+  const flowSteps = useMemo((): FlowStep[] => {
     if (!fieldConfig) return [];
 
-    const steps = [];
+    const steps: FlowStep[] = [];
     const inputBeforeImage = typeConfig?.inputBeforeImage ?? false;
 
-    // For inputBeforeImage types: INPUT fields come FIRST
     if (inputBeforeImage && fieldConfig.inputFields?.length > 0) {
-      fieldConfig.inputFields.forEach((field, index) => {
+      fieldConfig.inputFields.forEach((field: any, index: number) => {
         const isLastInput = index === fieldConfig.inputFields.length - 1;
-        // For parallelPreload types, trigger parallel loading after last input
         const afterComplete = isLastInput && typeConfig?.parallelPreload
           ? 'parallelPreload'
           : null;
@@ -82,31 +139,52 @@ export const useStepFlow = () => {
       });
     }
 
-    // Image upload step (if required)
     if (typeConfig?.requiresImage) {
-      // For parallelPreload, text generation already happened - don't trigger again
-      const imageUploadAfterComplete = inputBeforeImage && !typeConfig?.parallelPreload
-        ? 'generateText'
-        : null;
+      let imageUploadAfterComplete: string | null = null;
+      if (typeConfig?.hasBackgroundRemoval) {
+        imageUploadAfterComplete = 'backgroundRemoval';
+      } else if (inputBeforeImage && !typeConfig?.parallelPreload) {
+        imageUploadAfterComplete = 'generateText';
+      }
+
+      const stepTitle = typeConfig?.hasBackgroundRemoval
+        ? 'Foto auswählen'
+        : 'Bild auswählen';
+      const stepSubtitle = typeConfig?.hasBackgroundRemoval
+        ? 'Wähle ein Porträtfoto aus'
+        : 'Ziehe ein Bild hierher oder klicke zum Auswählen (JPG, PNG, WebP)';
 
       steps.push({
         id: 'image_upload',
         type: 'image_upload',
-        stepTitle: 'Bild auswählen',
-        stepSubtitle: 'Ziehe ein Bild hierher oder klicke zum Auswählen (JPG, PNG, WebP)',
+        stepTitle,
+        stepSubtitle,
         afterComplete: imageUploadAfterComplete
       });
+
+      if (typeConfig?.hasBackgroundRemoval) {
+        steps.push({
+          id: 'canvas_edit',
+          type: 'canvas_edit',
+          stepTitle: 'Position anpassen',
+          stepSubtitle: 'Ziehe und skaliere dein Bild',
+          afterComplete: null
+        });
+      }
     }
 
-    // For default flow: INPUT fields come AFTER image upload
     if (!inputBeforeImage && fieldConfig.inputFields?.length > 0) {
-      fieldConfig.inputFields.forEach((field, index) => {
+      fieldConfig.inputFields.forEach((field: any, index: number) => {
         const isLast = index === fieldConfig.inputFields.length - 1;
-        const afterComplete = isLast
-          ? (fieldConfig.skipSloganStep
-              ? (fieldConfig.afterLastInputTrigger || 'generateImage')
-              : 'generateText')
-          : null;
+        let afterComplete: string | null = null;
+
+        if (isLast) {
+          if (typeConfig?.hasTextCanvasEdit) {
+            afterComplete = 'generateText';
+          } else {
+            afterComplete = fieldConfig.afterLastInputTrigger || 'generateImage';
+          }
+        }
 
         steps.push({
           id: field.name,
@@ -119,14 +197,13 @@ export const useStepFlow = () => {
       });
     }
 
-    // Slogan selection (only for template types)
-    if (!fieldConfig.skipSloganStep) {
+    if (typeConfig?.hasTextGeneration && !typeConfig?.usesFluxApi) {
       steps.push({
-        id: 'slogan-select',
-        type: 'slogan',
-        stepTitle: 'Text auswählen',
-        stepSubtitle: 'Wähle einen der generierten Texte aus',
-        afterComplete: 'generateImage'
+        id: 'text_canvas_edit',
+        type: 'canvas_edit',
+        stepTitle: null,
+        stepSubtitle: null,
+        afterComplete: null
       });
     }
 
@@ -138,21 +215,30 @@ export const useStepFlow = () => {
   const isLastStep = stepIndex === flowSteps.length - 1;
   const totalSteps = flowSteps.length;
 
-  // Update flow title and subtitle when step changes
   useEffect(() => {
-    if (currentStep?.stepTitle) {
-      setFlowTitle(currentStep.stepTitle);
+    if (startAtCanvasEdit && !hasInitializedCanvasEditRef.current && flowSteps.length > 0) {
+      const canvasEditIndex = flowSteps.findIndex(step => step.type === 'canvas_edit');
+      if (canvasEditIndex >= 0) {
+        setStepIndex(canvasEditIndex);
+        setDirection(1);
+        hasInitializedCanvasEditRef.current = true;
+      }
     }
+  }, [startAtCanvasEdit, flowSteps]);
+
+  useEffect(() => {
+    // Always update title - set to null when stepTitle is null/undefined (e.g., canvas edit)
+    setFlowTitle(currentStep?.stepTitle || null);
     setFlowSubtitle(currentStep?.stepSubtitle || null);
   }, [currentStep, setFlowTitle, setFlowSubtitle]);
 
-  const executeTextGeneration = useCallback(async () => {
+  const executeTextGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
     try {
       const formData = { thema, name };
-      const result = await generateText(type, formData);
+      const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {
         const mappedData = fieldConfig.responseMapping(result);
@@ -168,7 +254,7 @@ export const useStepFlow = () => {
     }
   }, [type, thema, name, fieldConfig, generateText, updateFormData, setSloganAlternatives, setError]);
 
-  const executeTemplateImageGeneration = useCallback(async () => {
+  const executeTemplateImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
@@ -179,6 +265,7 @@ export const useStepFlow = () => {
         quote,
         name,
         header, subheader, body,
+        headline, subtext,
         uploadedImage: uploadedImage || selectedImage,
         fontSize,
         colorScheme,
@@ -186,7 +273,6 @@ export const useStepFlow = () => {
         balkenGruppenOffset,
         sunflowerOffset,
         credit,
-        // Veranstaltung fields
         eventTitle,
         beschreibung,
         weekday,
@@ -196,7 +282,7 @@ export const useStepFlow = () => {
         address
       };
 
-      const image = await generateImage(type, formData);
+      const image = await generateImage(type!, formData);
       setGeneratedImage(image);
       return true;
     } catch (err) {
@@ -209,6 +295,7 @@ export const useStepFlow = () => {
     type, typeConfig,
     line1, line2, line3, quote, name,
     header, subheader, body,
+    headline, subtext,
     uploadedImage, selectedImage,
     fontSize, colorScheme, balkenOffset,
     balkenGruppenOffset, sunflowerOffset, credit,
@@ -216,7 +303,7 @@ export const useStepFlow = () => {
     generateImage, setGeneratedImage, setError
   ]);
 
-  const executeKiImageGeneration = useCallback(async () => {
+  const executeKiImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
@@ -233,7 +320,7 @@ export const useStepFlow = () => {
         allyPlacement
       };
 
-      const image = await generateImage(type, formData);
+      const image = await generateImage(type!, formData);
       setGeneratedImage(image);
       return true;
     } catch (err) {
@@ -250,7 +337,44 @@ export const useStepFlow = () => {
     generateImage, setGeneratedImage, setError
   ]);
 
-  const fetchAiImageSuggestion = useCallback(async (text) => {
+  const executeBackgroundRemoval = useCallback(async (): Promise<boolean> => {
+    setError('');
+    setIsProcessing(true);
+    setBgRemovalProgress({ phase: 'processing', progress: 0, message: 'Hintergrund wird entfernt...' });
+
+    try {
+      const currentImage = useImageStudioStore.getState().uploadedImage;
+      if (!currentImage) {
+        throw new Error('Kein Bild hochgeladen');
+      }
+
+      const { url: transparentUrl } = await removeBackground(
+        currentImage,
+        (progress: BgRemovalProgress) => setBgRemovalProgress(progress)
+      );
+
+      setTransparentImage(transparentUrl);
+      return true;
+    } catch (err) {
+      console.error('[useStepFlow] Background removal error:', err);
+      setError((err as Error).message || 'Fehler beim Entfernen des Hintergrunds');
+      return false;
+    } finally {
+      setIsProcessing(false);
+      setBgRemovalProgress(null);
+    }
+  }, [setError, setTransparentImage]);
+
+  const handleCanvasExport = useCallback((dataUrl: string) => {
+    setGeneratedImage(dataUrl);
+    setCurrentStep(FORM_STEPS.RESULT);
+  }, [setGeneratedImage, setCurrentStep]);
+
+  const goBackToCanvas = useCallback(() => {
+    setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+  }, [setCurrentStep]);
+
+  const fetchAiImageSuggestion = useCallback(async (text: string): Promise<AiImageSuggestionResult | null> => {
     try {
       const response = await apiClient.post('/image-picker/select', {
         text,
@@ -268,7 +392,7 @@ export const useStepFlow = () => {
     return null;
   }, []);
 
-  const executeParallelPreload = useCallback(async () => {
+  const executeParallelPreload = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
@@ -283,7 +407,7 @@ export const useStepFlow = () => {
 
       const textPromise = (async () => {
         const formData = { thema, name };
-        const result = await generateText(type, formData);
+        const result = await generateText(type!, formData);
         if (result && fieldConfig?.responseMapping) {
           const mappedData = fieldConfig.responseMapping(result);
           updateFormData(mappedData);
@@ -316,25 +440,27 @@ export const useStepFlow = () => {
     setPreloadedImageResult, setSlogansReady
   ]);
 
-  const goNext = useCallback(async () => {
+  const goNext = useCallback(async (): Promise<boolean> => {
     if (isProcessing) return false;
 
     const step = currentStep;
     if (!step) return false;
 
-    // Handle parallel preload (both image suggestion and text generation)
     if (step.afterComplete === 'parallelPreload') {
       const success = await executeParallelPreload();
       if (!success) return false;
     }
 
-    // Handle text generation (after last input field for template types)
     if (step.afterComplete === 'generateText') {
       const success = await executeTextGeneration();
       if (!success) return false;
     }
 
-    // Handle image generation (after slogan selection or after last input for KI types)
+    if (step.afterComplete === 'backgroundRemoval') {
+      const success = await executeBackgroundRemoval();
+      if (!success) return false;
+    }
+
     if (step.afterComplete === 'generateImage') {
       const success = typeConfig?.usesFluxApi
         ? await executeKiImageGeneration()
@@ -344,7 +470,6 @@ export const useStepFlow = () => {
       return true;
     }
 
-    // Advance to next internal step
     if (stepIndex < flowSteps.length - 1) {
       setDirection(1);
       setStepIndex(prev => prev + 1);
@@ -355,10 +480,10 @@ export const useStepFlow = () => {
   }, [
     currentStep, stepIndex, flowSteps.length, isProcessing, typeConfig,
     executeTextGeneration, executeTemplateImageGeneration, executeKiImageGeneration,
-    executeParallelPreload, setCurrentStep
+    executeBackgroundRemoval, executeParallelPreload, setCurrentStep
   ]);
 
-  const goBack = useCallback(() => {
+  const goBack = useCallback((): boolean => {
     if (stepIndex > 0) {
       setDirection(-1);
       setStepIndex(prev => prev - 1);
@@ -373,17 +498,15 @@ export const useStepFlow = () => {
     setIsProcessing(false);
   }, []);
 
-  const getFieldValue = useCallback((fieldName) => {
-    const values = {
-      // Template fields
+  const getFieldValue = useCallback((fieldName: string): string => {
+    const values: Record<string, string> = {
       thema, name, line1, line2, line3, quote, header, subheader, body,
-      // Veranstaltung fields
+      headline, subtext,
       eventTitle, beschreibung, weekday, date, time, locationName, address,
-      // KI fields
-      purePrompt, sharepicPrompt, imagineTitle, precisionInstruction, allyPlacement
+      purePrompt, sharepicPrompt, imagineTitle, precisionInstruction, allyPlacement: allyPlacement || ''
     };
     return values[fieldName] || '';
-  }, [thema, name, line1, line2, line3, quote, header, subheader, body, eventTitle, beschreibung, weekday, date, time, locationName, address, purePrompt, sharepicPrompt, imagineTitle, precisionInstruction, allyPlacement]);
+  }, [thema, name, line1, line2, line3, quote, header, subheader, body, headline, subtext, eventTitle, beschreibung, weekday, date, time, locationName, address, purePrompt, sharepicPrompt, imagineTitle, precisionInstruction, allyPlacement]);
 
   return {
     stepIndex,
@@ -396,11 +519,16 @@ export const useStepFlow = () => {
     isProcessing,
     loading: loading || isProcessing,
     error,
+    bgRemovalProgress,
+    transparentImage,
+    typeConfig,
     goNext,
     goBack,
     reset,
     getFieldValue,
-    setError
+    setError,
+    handleCanvasExport,
+    goBackToCanvas
   };
 };
 

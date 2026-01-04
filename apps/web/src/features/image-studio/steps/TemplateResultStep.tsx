@@ -1,428 +1,54 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, ChangeEvent, RefObject } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
-import { FaDownload, FaEdit, FaRedo, FaArrowLeft, FaTimes, FaChevronDown, FaExchangeAlt, FaInstagram, FaShareAlt, FaSave, FaImages, FaImage } from 'react-icons/fa';
-import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
-import { HiSparkles, HiArrowLeft, HiRefresh, HiShare } from 'react-icons/hi';
-import useImageStudioStore, { VeranstaltungFieldFontSizes, SelectedImageData, SloganAlternative } from '../../../stores/imageStudioStore';
+import { motion } from 'motion/react';
+import { FaArrowLeft, FaEdit } from 'react-icons/fa';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import { useAutoSaveStore } from '../hooks/useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
-import ConfigDrivenFields from '../components/ConfigDrivenFields';
-import {
-  ColorSchemeControl,
-  FontSizeControl,
-  GroupedFontSizeControl,
-  InputWithFontSize,
-  CreditControl,
-  BalkenOffsetControl,
-  BalkenGruppeControl,
-  SonnenblumenControl
-} from '../../../components/utils/ImageModificationForm';
-import { getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
-import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
-import { useGenerateSocialPost } from '../../../components/hooks/useGenerateSocialPost';
-import Spinner from '../../../components/common/Spinner';
+import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
+import { getAlternativePreview, buildPreviewValues } from '../utils/templateResultUtils';
+import { useLightbox } from '../hooks/useLightbox';
+import { useEditPanel } from '../hooks/useEditPanel';
+import { useImageHelpers } from '../hooks/useImageHelpers';
+import { useTemplateResultActions } from '../hooks/useTemplateResultActions';
+import { useTemplateResultAutoSave } from '../hooks/useTemplateResultAutoSave';
+import { useImageGeneration } from '../hooks/useImageGeneration';
+import { Lightbox } from '../components/Lightbox';
+import { EditPanel } from '../components/EditPanel';
+import { TemplateResultActionButtons } from '../components/TemplateResultActionButtons';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
-import ImageDisplay from '../../../components/common/ImageDisplay';
-import Button from '../../../components/common/SubmitButton';
+import {
+  ZitatPureCanvas,
+  ZitatCanvas,
+  InfoCanvas,
+  VeranstaltungCanvas,
+  DreizeilenCanvas
+} from '../canvas-editor';
+import type { TemplateResultStepProps, SloganAlternativeWithIndex, SloganAlternative, VeranstaltungFieldFontSizes } from '../types/templateResultTypes';
+
+const CANVAS_SUPPORTED_TYPES = [
+  IMAGE_STUDIO_TYPES.DREIZEILEN,
+  IMAGE_STUDIO_TYPES.ZITAT,
+  IMAGE_STUDIO_TYPES.ZITAT_PURE,
+  IMAGE_STUDIO_TYPES.INFO,
+  IMAGE_STUDIO_TYPES.VERANSTALTUNG
+] as const;
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-import '../../../assets/styles/components/ui/button.css';
-import '../../../assets/styles/components/actions/advanced-editing.css';
 import './TemplateResultStep.css';
 
-// Types
-interface FieldConfigField {
-  name: string;
-  label: string;
-  placeholder?: string;
-}
-
-interface FieldConfig {
-  showImageUpload?: boolean;
-  showGroupedFontSizeControl?: boolean;
-  previewFields?: FieldConfigField[];
-  showPreviewLabels?: boolean;
-  showCredit?: boolean;
-  showFontSizeControl?: boolean;
-  showColorControls?: boolean;
-  showAdvancedEditing?: boolean;
-  showAutoSave?: boolean;
-  showSocialGeneration?: boolean;
-  minimalLayout?: boolean;
-}
-
-// SloganAlternative type imported from imageStudioStore
-// Extended type with index for display purposes
-type SloganAlternativeWithIndex = SloganAlternative & {
-  _index: number;
-};
-
-interface PreviewValues {
-  line1?: string;
-  line2?: string;
-  line3?: string;
-  quote?: string;
-  header?: string;
-  subheader?: string;
-  body?: string;
-  eventTitle?: string;
-  weekday?: string;
-  date?: string;
-  time?: string;
-  locationName?: string;
-  address?: string;
-  [key: string]: string | undefined;
-}
-
-interface TemplateResultEditPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  fieldConfig: FieldConfig | null;
-  currentImagePreview: string | null;
-  fileInputRef: RefObject<HTMLInputElement>;
-  handleImageChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  previewValues: PreviewValues;
-  handleChange: (e: { target: { name: string; value: string } }) => void;
-  displayAlternatives: SloganAlternativeWithIndex[];
-  isAlternativesOpen: boolean;
-  setIsAlternativesOpen: (open: boolean) => void;
-  handleSloganSwitch: (alt: SloganAlternativeWithIndex, index: number) => void;
-  getAlternativePreview: (alt: SloganAlternativeWithIndex) => string;
-  credit?: string;
-  fontSize?: number;
-  colorScheme?: any;
-  balkenOffset?: number[];
-  balkenGruppenOffset?: [number, number];
-  sunflowerOffset?: [number, number];
-  veranstaltungFieldFontSizes?: VeranstaltungFieldFontSizes;
-  handleControlChange: (name: string, value: any) => void;
-  handleFieldFontSizeChange: (fieldName: string, value: number) => void;
-  isAdvancedEditingOpen?: boolean;
-  toggleAdvancedEditing?: () => void;
-  type?: string;
-  loading?: boolean;
-  onRegenerate: () => void;
-}
-
-interface TemplateResultLightboxProps {
-  isOpen: boolean;
-  onClose: () => void;
-  imageSrc: string;
-  altText?: string;
-}
-
-interface TemplateResultStepProps {
-  onRegenerate: () => void;
-  loading?: boolean;
-}
-
-// Sub-component: Edit Panel
-const TemplateResultEditPanel: React.FC<TemplateResultEditPanelProps> = ({
-  isOpen,
-  onClose,
-  fieldConfig,
-  currentImagePreview,
-  fileInputRef,
-  handleImageChange,
-  previewValues,
-  handleChange,
-  displayAlternatives,
-  isAlternativesOpen,
-  setIsAlternativesOpen,
-  handleSloganSwitch,
-  getAlternativePreview,
-  credit,
-  fontSize,
-  colorScheme,
-  balkenOffset,
-  balkenGruppenOffset,
-  sunflowerOffset,
-  veranstaltungFieldFontSizes,
-  handleControlChange,
-  handleFieldFontSizeChange,
-  isAdvancedEditingOpen,
-  toggleAdvancedEditing,
-  type,
-  loading,
-  onRegenerate
-}) => {
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-
-  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  }, [onClose]);
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        className="edit-panel-overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={handleOverlayClick}
-      />
-      <motion.div
-        className="edit-panel"
-        initial={isDesktop ? { x: '100%' } : { y: '100%' }}
-        animate={isDesktop ? { x: 0 } : { y: 0 }}
-        exit={isDesktop ? { x: '100%' } : { y: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-      >
-        <div className="edit-panel__header">
-          <h3 className="edit-panel__title">Bild bearbeiten</h3>
-          <button
-            className="edit-panel__close"
-            onClick={onClose}
-            aria-label="Panel schließen"
-          >
-            <FaTimes />
-          </button>
-        </div>
-
-        <div className="edit-panel__content">
-          {fieldConfig?.showImageUpload && (
-            <div className="edit-panel__section">
-              <h4>Hintergrundbild</h4>
-              <div className="image-change-control">
-                <div className="image-change-preview">
-                  {currentImagePreview ? (
-                    <img src={currentImagePreview} alt="Aktuelles Bild" />
-                  ) : (
-                    <div className="image-change-placeholder">
-                      <FaImage />
-                    </div>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleImageChange}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  className="btn-secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
-                  type="button"
-                >
-                  <FaImage />
-                  Bild ändern
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="edit-panel__section">
-            <h4>Text</h4>
-            {fieldConfig?.showGroupedFontSizeControl ? (
-              <div className="veranstaltung-fields-with-fontsize">
-                {(fieldConfig?.previewFields || []).map(field => {
-                  const baseFontSizes = {
-                    eventTitle: 94,
-                    beschreibung: 62,
-                    weekday: 57, date: 55, time: 55,
-                    locationName: 42, address: 42
-                  };
-                  const base = baseFontSizes[field.name] || 60;
-                  return (
-                    <InputWithFontSize
-                      key={field.name}
-                      label={field.label}
-                      name={field.name}
-                      value={previewValues[field.name] || ''}
-                      onChange={handleChange}
-                      fontSizePx={veranstaltungFieldFontSizes?.[field.name] || base}
-                      baseFontSize={base}
-                      onFontSizeChange={handleFieldFontSizeChange}
-                      placeholder={field.placeholder || ''}
-                      disabled={loading}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <ConfigDrivenFields
-                fields={fieldConfig?.previewFields || []}
-                values={previewValues}
-                onChange={handleChange}
-                disabled={loading}
-                hideLabels={!fieldConfig?.showPreviewLabels}
-              />
-            )}
-          </div>
-
-          {displayAlternatives.length > 0 && (
-            <div className="edit-panel__section">
-              <button
-                className={`edit-panel__section-toggle ${isAlternativesOpen ? 'edit-panel__section-toggle--open' : ''}`}
-                onClick={() => setIsAlternativesOpen(!isAlternativesOpen)}
-                type="button"
-              >
-                <FaExchangeAlt />
-                Text-Alternativen ({displayAlternatives.length})
-                <FaChevronDown />
-              </button>
-
-              <AnimatePresence>
-                {isAlternativesOpen && (
-                  <motion.div
-                    className="edit-panel__alternatives"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div className="alternatives-pills">
-                      {displayAlternatives.map((alt) => (
-                        <button
-                          key={alt._index}
-                          className="alternative-pill"
-                          onClick={() => handleSloganSwitch(alt, alt._index)}
-                          disabled={loading}
-                          type="button"
-                        >
-                          {getAlternativePreview(alt)}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {(fieldConfig?.showCredit || (fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl)) && (
-            <div className="edit-panel__row">
-              {fieldConfig?.showCredit && (
-                <div className="edit-panel__section edit-panel__section--flex">
-                  <h4>Credit</h4>
-                  <CreditControl credit={credit} onControlChange={handleControlChange} />
-                </div>
-              )}
-              {fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl && (
-                <div className="edit-panel__section edit-panel__section--auto">
-                  <h4>Schriftgröße</h4>
-                  <FontSizeControl
-                    fontSize={fontSize}
-                    onControlChange={handleControlChange}
-                    isQuoteType={type === 'zitat' || type === 'zitat-pure'}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {fieldConfig?.showColorControls && (
-            <div className="edit-panel__section">
-              <h4>Farbschema</h4>
-              <ColorSchemeControl colorScheme={colorScheme} onControlChange={handleControlChange} />
-            </div>
-          )}
-
-          {fieldConfig?.showAdvancedEditing && (
-            <>
-              <button
-                className={`edit-panel__advanced-toggle ${isAdvancedEditingOpen ? 'edit-panel__advanced-toggle--open' : ''}`}
-                onClick={toggleAdvancedEditing}
-              >
-                <HiSparkles />
-                Erweiterte Einstellungen
-                <FaChevronDown />
-              </button>
-
-              {isAdvancedEditingOpen && (
-                <div className="advanced-controls-row">
-                  <div className="advanced-control-item">
-                    <h5>Balken</h5>
-                    <BalkenOffsetControl
-                      balkenOffset={balkenOffset || [50, -100, 50]}
-                      onControlChange={handleControlChange}
-                    />
-                  </div>
-                  <div className="advanced-control-item">
-                    <h5>Gruppe</h5>
-                    <BalkenGruppeControl
-                      offset={balkenGruppenOffset || [0, 0] as [number, number]}
-                      onOffsetChange={(value) => handleControlChange('balkenGruppenOffset', value)}
-                    />
-                  </div>
-                  <div className="advanced-control-item">
-                    <h5>Sonnenblume</h5>
-                    <SonnenblumenControl
-                      offset={sunflowerOffset || [0, 0] as [number, number]}
-                      onOffsetChange={(value) => handleControlChange('sunflowerOffset', value)}
-                    />
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="edit-panel__actions">
-          <button
-            className="btn-primary"
-            onClick={() => {
-              onRegenerate();
-              onClose();
-            }}
-            disabled={loading}
-          >
-            {loading ? <div className="button-spinner" /> : <FaRedo />}
-            Aktualisieren
-          </button>
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  );
-};
-
-// Sub-component: Lightbox
-const TemplateResultLightbox: React.FC<TemplateResultLightboxProps> = ({ isOpen, onClose, imageSrc, altText }) => {
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        className="image-lightbox-overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      >
-        <div className="image-lightbox-content">
-          <button
-            className="image-lightbox-close"
-            onClick={onClose}
-            aria-label="Lightbox schließen"
-          >
-            ×
-          </button>
-          <img
-            src={imageSrc}
-            alt={altText || 'Vergrößertes Bild'}
-            className="image-lightbox-image"
-          />
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  );
-};
-
-const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, loading = false }) => {
+const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, loading = false, onGoBackToCanvas: _onGoBackToCanvas }) => {
   const navigate = useNavigate();
 
   const {
     type,
+    thema,
     generatedImageSrc,
     line1, line2, line3,
     quote, name,
     header, subheader, body,
-    eventTitle, beschreibung, weekday, date, time, locationName, address,
+    eventTitle, weekday, date, time, locationName, address,
     fontSize,
     colorScheme,
     balkenOffset,
@@ -435,6 +61,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     updateFormData,
     goBack,
     sloganAlternatives,
+    setSloganAlternatives,
     handleSloganSelect,
     cacheSloganImage,
     getCachedSloganImage,
@@ -446,136 +73,170 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     editShareToken,
     editTitle,
     uploadedImage,
-    selectedImage,
-    searchTerms,
-    autoSaveStatus,
-    autoSavedShareToken,
-    lastAutoSavedImageSrc,
-    setAutoSaveStatus,
-    setAutoSavedShareToken,
-    setLastAutoSavedImageSrc
+    selectedImage
   } = useImageStudioStore();
 
-  const { createImageShare, updateImageShare, isCreating: isUpdating } = useShareStore();
+  const { autoSaveStatus } = useAutoSaveStore();
 
-  const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [isNewImage, setIsNewImage] = useState(true);
-  const [altText, setAltText] = useState('');
-  const [isAltTextLoading, setIsAltTextLoading] = useState(false);
-  const [isAlternativesOpen, setIsAlternativesOpen] = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [updateSuccess, setUpdateSuccess] = useState(false);
-
-  const { generateAltTextForImage } = useAltTextGeneration();
-  const { generatedPosts, generatePost, loading: socialLoading } = useGenerateSocialPost() as {
-    generatedPosts: { instagram?: string; [key: string]: string | undefined };
-    generatePost: (thema: string, details: string, platforms: string[], includeActionIdeas: boolean) => Promise<any>;
-    loading: boolean;
-  };
-
+  const { isCreating: isUpdating } = useShareStore();
   const typeConfig = useMemo(() => getTypeConfig(type), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
 
-  // Helper to convert blob/file to base64
-  const blobToBase64 = useCallback((blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+  const { isOpen: isLightboxOpen, openLightbox, closeLightbox } = useLightbox();
+  const {
+    isOpen: isEditPanelOpen,
+    openPanel: openEditPanel,
+    closePanel: closeEditPanel,
+    isAlternativesOpen,
+    setIsAlternativesOpen
+  } = useEditPanel();
+  const { currentImagePreview, buildShareMetadata, getOriginalImageBase64 } = useImageHelpers();
+  const {
+    handleDownload,
+    handleShareToInstagram,
+    handleTextButtonClick,
+    handleGalleryUpdate,
+    isSharing,
+    copied,
+    updateSuccess,
+    altText,
+    isAltTextLoading,
+    generatedPosts,
+    socialLoading,
+    hasGeneratedText
+  } = useTemplateResultActions();
+
+  useTemplateResultAutoSave();
+
+  const { generateAlternatives, alternativesLoading } = useImageGeneration();
+
+  const [isNewImage, setIsNewImage] = useState(true);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isCanvasMode, setIsCanvasMode] = useState(true);
+
+  const supportsCanvas = useMemo(() =>
+    type ? CANVAS_SUPPORTED_TYPES.includes(type as typeof CANVAS_SUPPORTED_TYPES[number]) : false,
+  [type]);
+
+  const handleCanvasExport = useCallback((base64: string) => {
+    updateFormData({ generatedImageSrc: base64 });
+    setIsCanvasMode(false);
+  }, [updateFormData]);
+
+  const handleCanvasCancel = useCallback(() => {
+    setIsCanvasMode(false);
   }, []);
 
-  // Get original image as base64 for saving
-  const getOriginalImageBase64 = useCallback(async () => {
+  const handleSwitchToCanvas = useCallback(() => {
+    setIsCanvasMode(true);
+  }, []);
+
+  const uploadedImageUrl = useMemo(() => {
     if (uploadedImage) {
-      return await blobToBase64(uploadedImage);
+      return URL.createObjectURL(uploadedImage);
     }
-    if (selectedImage?.urls?.regular) {
-      try {
-        const response = await fetch(selectedImage.urls.regular);
-        const blob = await response.blob();
-        return await blobToBase64(blob);
-      } catch (error) {
-        console.error('Failed to fetch original image:', error);
+    if (selectedImage && typeof selectedImage === 'string') {
+      return selectedImage;
+    }
+    return undefined;
+  }, [uploadedImage, selectedImage]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadedImage && uploadedImageUrl) {
+        URL.revokeObjectURL(uploadedImageUrl);
       }
-    }
-    return null;
-  }, [uploadedImage, selectedImage, blobToBase64]);
+    };
+  }, [uploadedImage, uploadedImageUrl]);
 
-  // Build metadata for sharing/saving
-  const buildShareMetadata = useCallback(() => {
-    const legacyType = typeConfig?.legacyType || type;
-    const hasOriginal = !!(uploadedImage || selectedImage);
+  const renderCanvasEditor = useCallback(() => {
+    if (!type) return null;
 
-    const metadata = {
-      sharepicType: legacyType,
-      hasOriginalImage: hasOriginal,
-      content: {},
-      styling: {
-        fontSize,
-        colorScheme,
-        balkenOffset,
-        balkenGruppenOffset,
-        sunflowerOffset,
-        credit,
-      },
-      searchTerms,
-      sloganAlternatives,
+    const canvasProps = {
+      onExport: handleCanvasExport,
+      onCancel: handleCanvasCancel,
     };
 
-    // Add type-specific content
-    if (legacyType === 'Zitat' || legacyType === 'Zitat_Pure') {
-      metadata.content = { quote, name };
-    } else if (legacyType === 'Info') {
-      metadata.content = { header, subheader, body };
-    } else if (legacyType === 'Veranstaltung') {
-      metadata.content = { eventTitle, line1, line2, line3, weekday, date, time, locationName, address };
-    } else {
-      metadata.content = { line1, line2, line3 };
+    switch (type) {
+      case IMAGE_STUDIO_TYPES.DREIZEILEN:
+        return (
+          <DreizeilenCanvas
+            line1={line1 || ''}
+            line2={line2 || ''}
+            line3={line3 || ''}
+            imageSrc={uploadedImageUrl}
+            alternatives={sloganAlternatives}
+            {...canvasProps}
+          />
+        );
+      case IMAGE_STUDIO_TYPES.ZITAT:
+        return (
+          <ZitatCanvas
+            quote={quote || ''}
+            name={name || ''}
+            imageSrc={uploadedImageUrl}
+            alternatives={sloganAlternatives?.map((a: SloganAlternative) => a.quote || '')}
+            {...canvasProps}
+          />
+        );
+      case IMAGE_STUDIO_TYPES.ZITAT_PURE:
+        return (
+          <ZitatPureCanvas
+            quote={quote || ''}
+            name={name || ''}
+            alternatives={sloganAlternatives?.map((a: SloganAlternative) => a.quote || '')}
+            {...canvasProps}
+          />
+        );
+      case IMAGE_STUDIO_TYPES.INFO:
+        return (
+          <InfoCanvas
+            header={header || ''}
+            subheader={subheader || ''}
+            body={body || ''}
+            alternatives={sloganAlternatives}
+            {...canvasProps}
+          />
+        );
+      case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
+        return (
+          <VeranstaltungCanvas
+            eventTitle={eventTitle || ''}
+            weekday={weekday || ''}
+            date={date || ''}
+            time={time || ''}
+            locationName={locationName || ''}
+            address={address || ''}
+            imageSrc={uploadedImageUrl}
+            {...canvasProps}
+          />
+        );
+      default:
+        return null;
     }
+  }, [
+    type, line1, line2, line3, quote, name, header, subheader, body,
+    eventTitle, weekday, date, time, locationName, address,
+    uploadedImageUrl, sloganAlternatives, handleCanvasExport, handleCanvasCancel
+  ]);
 
-    return metadata;
-  }, [typeConfig, type, fontSize, colorScheme, balkenOffset, balkenGruppenOffset,
-      sunflowerOffset, credit, searchTerms, sloganAlternatives, quote, name,
-      header, subheader, body, line1, line2, line3, uploadedImage, selectedImage,
-      eventTitle, weekday, date, time, locationName, address]);
+  const stableAlternativesRef = useRef<SloganAlternativeWithIndex[] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Handle gallery update
-  const handleGalleryUpdate = useCallback(async () => {
-    if (!galleryEditMode || !editShareToken || !generatedImageSrc) return;
-
-    try {
-      const originalImage = await getOriginalImageBase64();
-      const metadata = buildShareMetadata();
-
-      await updateImageShare({
-        shareToken: editShareToken,
-        imageBase64: generatedImageSrc,
-        title: editTitle || undefined,
-        metadata,
-        originalImage: originalImage || undefined,
-      });
-
-      setUpdateSuccess(true);
-      setTimeout(() => setUpdateSuccess(false), 3000);
-    } catch (error) {
-      console.error('Failed to update sharepic:', error);
-      alert('Fehler beim Aktualisieren: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
-    }
-  }, [galleryEditMode, editShareToken, editTitle, generatedImageSrc,
-      getOriginalImageBase64, buildShareMetadata, updateImageShare]);
-
-  const previewValues = useMemo(() => ({
-    line1, line2, line3,
-    quote,
-    header, subheader, body,
+  const previewValues = useMemo(() => buildPreviewValues({
+    line1, line2, line3, quote, header, subheader, body,
     eventTitle, weekday, date, time, locationName, address
   }), [line1, line2, line3, quote, header, subheader, body, eventTitle, weekday, date, time, locationName, address]);
+
+  if (stableAlternativesRef.current === null && sloganAlternatives?.length > 0) {
+    stableAlternativesRef.current = sloganAlternatives.map((alt: SloganAlternative, idx: number) => ({
+      ...alt,
+      _index: idx
+    } as SloganAlternativeWithIndex));
+  }
+
+  const displayAlternatives: SloganAlternativeWithIndex[] = stableAlternativesRef.current || [];
 
   useEffect(() => {
     setIsNewImage(true);
@@ -584,75 +245,10 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   }, [generatedImageSrc]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (isLightboxOpen) setIsLightboxOpen(false);
-        else if (isEditPanelOpen) setIsEditPanelOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isLightboxOpen, isEditPanelOpen]);
-
-  useEffect(() => {
-    if (isEditPanelOpen || isLightboxOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isEditPanelOpen, isLightboxOpen]);
-
-  useEffect(() => {
     if (generatedImageSrc) {
       cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
     }
   }, [generatedImageSrc, currentAlternativeIndex, cacheSloganImage]);
-
-  // Auto-save effect: Save new images to gallery automatically
-  useEffect(() => {
-    const performAutoSave = async () => {
-      // Skip auto-save conditions
-      if (!generatedImageSrc) return;
-      if (fieldConfig?.showAutoSave === false) return;
-      if (galleryEditMode) return;
-      if (autoSaveStatus === 'saving') return;
-      if (lastAutoSavedImageSrc === generatedImageSrc) return;
-
-      setAutoSaveStatus('saving');
-
-      try {
-        const originalImage = await getOriginalImageBase64();
-        const metadata = buildShareMetadata();
-        const title = typeConfig?.label || 'Sharepic';
-
-        const share = await createImageShare({
-          imageData: generatedImageSrc,
-          title,
-          imageType: typeConfig?.legacyType || type,
-          metadata,
-          originalImage,
-        });
-
-        if (share?.shareToken) {
-          setAutoSavedShareToken(share.shareToken);
-          setLastAutoSavedImageSrc(generatedImageSrc);
-          setAutoSaveStatus('saved');
-        }
-      } catch (error) {
-        console.error('[TemplateResultStep] Auto-save failed:', error);
-        setAutoSaveStatus('error');
-      }
-    };
-
-    const timer = setTimeout(performAutoSave, 500);
-    return () => clearTimeout(timer);
-  }, [generatedImageSrc, galleryEditMode, autoSaveStatus, lastAutoSavedImageSrc,
-      getOriginalImageBase64, buildShareMetadata, createImageShare, typeConfig, type,
-      setAutoSaveStatus, setAutoSavedShareToken, setLastAutoSavedImageSrc, fieldConfig]);
 
   useEffect(() => {
     const checkShareCapability = async () => {
@@ -673,33 +269,9 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     checkShareCapability();
   }, []);
 
-  const stableAlternativesRef = useRef<SloganAlternativeWithIndex[] | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  if (stableAlternativesRef.current === null && sloganAlternatives?.length > 0) {
-    stableAlternativesRef.current = sloganAlternatives.map((alt, idx) => ({
-      ...alt,
-      _index: idx
-    } as SloganAlternativeWithIndex));
-  }
-
-  const displayAlternatives: SloganAlternativeWithIndex[] = stableAlternativesRef.current || [];
-
-  const currentImagePreview = useMemo(() => {
-    if (uploadedImage) {
-      return URL.createObjectURL(uploadedImage);
-    }
-    if (selectedImage?.urls?.small) {
-      return selectedImage.urls.small;
-    }
-    return null;
-  }, [uploadedImage, selectedImage]);
-
   const handleSloganSwitch = useCallback((selected: SloganAlternative, alternativeIndex: number) => {
     cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
-
     const cachedImage = getCachedSloganImage(alternativeIndex);
-
     handleSloganSelect(selected);
     setCurrentAlternativeIndex(alternativeIndex);
 
@@ -708,35 +280,21 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     } else {
       onRegenerate();
     }
-
     setIsAlternativesOpen(false);
   }, [cacheSloganImage, getCachedSloganImage, handleSloganSelect, setCurrentAlternativeIndex,
-      currentAlternativeIndex, generatedImageSrc, updateFormData, onRegenerate]);
+      currentAlternativeIndex, generatedImageSrc, updateFormData, onRegenerate, setIsAlternativesOpen]);
 
-  const getAlternativePreview = useCallback((alt: SloganAlternative): string => {
-    if (alt.quote) {
-      return alt.quote;
-    }
-    if (alt.eventTitle) {
-      return `${alt.eventTitle} · ${alt.weekday || ''} ${alt.date || ''} ${alt.time || ''}`.trim();
-    }
-    if (alt.header) {
-      return [alt.header, alt.subheader, alt.body].filter(Boolean).join(' · ');
-    }
-    const lines = [alt.line1, alt.line2, alt.line3].filter(Boolean);
-    if (lines.length > 0) {
-      return lines.join(' · ');
-    }
-    return 'Alternative';
-  }, []);
-
-  const handleControlChange = useCallback((name: string, value: unknown) => {
-    updateFormData({ [name]: value });
+  const handleControlChange = useCallback((controlName: string, value: unknown) => {
+    updateFormData({ [controlName]: value });
   }, [updateFormData]);
 
   const handleFieldFontSizeChange = useCallback((fieldName: string, value: number) => {
     updateFieldFontSize(fieldName as keyof VeranstaltungFieldFontSizes, value);
   }, [updateFieldFontSize]);
+
+  const handleTextFieldChange = useCallback((e: { target: { name: string; value: string } }) => {
+    handleChange(e as React.ChangeEvent<HTMLInputElement>);
+  }, [handleChange]);
 
   const handleImageChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -754,97 +312,20 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     });
   }, [updateFormData]);
 
-  const handleDownload = useCallback(() => {
-    if (!generatedImageSrc) return;
-    const link = document.createElement('a');
-    link.href = generatedImageSrc;
-    link.download = `sharepic-${type || 'image'}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [generatedImageSrc, type]);
+  const handleGenerateAlternatives = useCallback(async () => {
+    if (!type) return;
 
-  const handleShareToInstagram = useCallback(async () => {
-    if (!generatedImageSrc) return;
-    setIsSharing(true);
-    try {
-      const response = await fetch(generatedImageSrc);
-      const blob = await response.blob();
-      const file = new File([blob], 'sharepic.png', { type: 'image/png' });
-
-      await navigator.share({
-        files: [file],
-        title: 'Grünerator Sharepic',
-        text: generatedPosts?.instagram || '',
-      });
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Share failed:', error);
-      }
-    } finally {
-      setIsSharing(false);
+    const result = await generateAlternatives(type, { thema, name, quote });
+    if (result?.alternatives && result.alternatives.length > 0) {
+      setSloganAlternatives(result.alternatives);
+      stableAlternativesRef.current = result.alternatives.map((alt, idx) => ({
+        ...alt,
+        _index: idx
+      }));
     }
-  }, [generatedImageSrc, generatedPosts?.instagram]);
+  }, [type, thema, name, quote, generateAlternatives, setSloganAlternatives]);
 
-  const handleGenerateAltText = useCallback(async () => {
-    if (isAltTextLoading || !generatedImageSrc) return;
-
-    setIsAltTextLoading(true);
-    try {
-      const imageBase64 = generatedImageSrc.replace(/^data:image\/[^;]+;base64,/, '');
-      const response = await generateAltTextForImage(imageBase64, `${line1} ${line2} ${line3}`.trim());
-      if (response?.altText) {
-        setAltText(response.altText);
-      }
-    } catch (error) {
-      console.error('[TemplateResultStep] Alt text generation failed:', error);
-    } finally {
-      setIsAltTextLoading(false);
-    }
-  }, [generatedImageSrc, generateAltTextForImage, line1, line2, line3, isAltTextLoading]);
-
-  const handleGenerateInstagramText = useCallback(async () => {
-    if (socialLoading || generatedPosts?.instagram) return;
-
-    const sharepicContent = [line1, line2, line3, quote, header, subheader, body]
-      .filter(Boolean)
-      .join(' ');
-
-    if (!sharepicContent.trim()) return;
-
-    await generatePost(
-      sharepicContent,
-      `Sharepic Typ: ${type}`,
-      ['instagram'],
-      false
-    );
-  }, [line1, line2, line3, quote, header, subheader, body, type, generatePost, socialLoading, generatedPosts?.instagram]);
-
-  const hasGeneratedText = !!(altText || generatedPosts?.instagram);
-
-  const handleTextButtonClick = useCallback(async () => {
-    if (hasGeneratedText) {
-      const textToCopy = [
-        altText ? `Alt-Text: ${altText}` : '',
-        generatedPosts?.instagram || ''
-      ].filter(Boolean).join('\n\n');
-
-      try {
-        await navigator.clipboard.writeText(textToCopy);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        console.error('Copy failed:', err);
-      }
-    } else {
-      handleGenerateInstagramText();
-      handleGenerateAltText();
-    }
-  }, [hasGeneratedText, altText, generatedPosts?.instagram, handleGenerateInstagramText, handleGenerateAltText]);
-
-  const isMinimalLayout = fieldConfig?.minimalLayout;
-
-  if (!generatedImageSrc) {
+  if (!generatedImageSrc && !supportsCanvas) {
     return (
       <div className="template-result-step template-result-step--empty">
         <p>Kein Bild generiert. Bitte gehe zurück und versuche es erneut.</p>
@@ -856,216 +337,161 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     );
   }
 
-  // Unified layout for both KI and template types
+  if (supportsCanvas && isCanvasMode) {
+    return (
+      <motion.div
+        className="template-result-step template-result-step--canvas-mode"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        {renderCanvasEditor()}
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
-      className={`template-result-step ${isMinimalLayout ? 'template-result-step--minimal' : ''} ${loading ? 'template-result-step--loading' : ''}`}
+      className={`template-result-step ${loading ? 'template-result-step--loading' : ''}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Image Display Section */}
-      {isMinimalLayout ? (
-        <ImageDisplay
-          sharepicData={{ image: generatedImageSrc, type: typeConfig?.label || type }}
-          title="Dein KI-generiertes Bild"
-          downloadFilename={`ki-bild-${type || 'image'}.png`}
-          showEditButton={false}
-          enableKiLabel={true}
-          fullscreenMode={true}
-          minimal={true}
-        />
-      ) : (
-        <div className="template-result-main">
-          <motion.div
-            className="image-result-hero"
-            initial={isNewImage ? { opacity: 0, scale: 0.95 } : false}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
-            <motion.img
-              src={generatedImageSrc}
-              alt={altText || 'Generiertes Sharepic'}
-              className="image-result-hero__img"
-              onClick={() => setIsLightboxOpen(true)}
-              initial={isNewImage ? { filter: 'blur(10px)' } : false}
-              animate={{ filter: 'blur(0px)' }}
-              transition={{ duration: 0.5 }}
-            />
-          </motion.div>
+      <div className="template-result-main">
+        <motion.div
+          className="image-result-hero"
+          initial={isNewImage ? { opacity: 0, scale: 0.95 } : false}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+        >
+          <motion.img
+            src={generatedImageSrc}
+            alt={altText || 'Generiertes Sharepic'}
+            className="image-result-hero__img"
+            onClick={openLightbox}
+            initial={isNewImage ? { filter: 'blur(10px)' } : false}
+            animate={{ filter: 'blur(0px)' }}
+            transition={{ duration: 0.5 }}
+          />
+          {supportsCanvas && (
+            <button
+              className="btn-icon image-result-hero__edit-btn"
+              onClick={handleSwitchToCanvas}
+              title="Im Canvas-Editor bearbeiten"
+            >
+              <FaEdit />
+            </button>
+          )}
+        </motion.div>
 
-          <motion.div
-            className={`image-result-info ${(altText || generatedPosts?.instagram) ? 'image-result-info--has-text' : ''}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
-          >
-            <div className="image-result-info__header">
-              <div className="image-result-info__text">
-                <h2>Dein Sharepic ist fertig!</h2>
-                <p>{galleryEditMode ? 'Speichere deine Änderungen oder lade das Bild herunter.' : 'Lade es herunter oder bearbeite den Text.'}</p>
-              </div>
-
-              <div className="action-buttons">
-                <button className="btn-icon btn-primary" onClick={handleDownload} disabled={loading} title="Herunterladen">
-                  <FaDownload />
-                </button>
-                {galleryEditMode ? (
-                  <button
-                    className={`btn-icon btn-primary ${updateSuccess ? 'btn-success' : ''}`}
-                    onClick={handleGalleryUpdate}
-                    disabled={loading || isUpdating}
-                    title={updateSuccess ? 'Gespeichert!' : 'Änderungen speichern'}
-                  >
-                    {isUpdating ? <Spinner size="small" /> : updateSuccess ? <IoCheckmarkOutline /> : <FaSave />}
-                  </button>
-                ) : (
-                  <button className="btn-icon btn-primary" onClick={() => setShowShareModal(true)} disabled={loading} title="Teilen">
-                    <FaShareAlt />
-                  </button>
-                )}
-                {!galleryEditMode && autoSaveStatus === 'saved' && (
-                  <button className="btn-icon btn-primary" onClick={() => navigate('/image-studio/gallery')} title="In Galerie anzeigen">
-                    <FaImages />
-                  </button>
-                )}
-                <button className="btn-icon btn-primary" onClick={() => setIsEditPanelOpen(true)} disabled={loading} title="Bearbeiten">
-                  <FaEdit />
-                </button>
-                <button
-                  className={`btn-icon btn-primary ${copied ? 'btn-success' : ''}`}
-                  onClick={handleTextButtonClick}
-                  disabled={loading || socialLoading || isAltTextLoading}
-                  title={hasGeneratedText ? (copied ? 'Kopiert!' : 'Text kopieren') : 'Texte generieren'}
-                >
-                  {(socialLoading || isAltTextLoading) ? <Spinner size="small" /> : copied ? <IoCheckmarkOutline /> : hasGeneratedText ? <IoCopyOutline /> : <HiSparkles />}
-                </button>
-                {canNativeShare && (
-                  <button className="btn-icon btn-primary" onClick={handleShareToInstagram} disabled={loading || isSharing} title="Auf Instagram posten">
-                    {isSharing ? <Spinner size="small" /> : <FaInstagram />}
-                  </button>
-                )}
-              </div>
+        <motion.div
+          className={`image-result-info ${(altText || generatedPosts?.instagram) ? 'image-result-info--has-text' : ''}`}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+        >
+          <div className="image-result-info__header">
+            <div className="image-result-info__text">
+              <h2>Dein Sharepic ist fertig!</h2>
+              <p>{galleryEditMode ? 'Speichere deine Änderungen oder lade das Bild herunter.' : 'Lade es herunter oder bearbeite den Text.'}</p>
             </div>
 
-            {(altText || generatedPosts?.instagram) && (
-              <div className="image-result-info__generated">
-                {altText && (
-                  <motion.div className="alt-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <strong>Alt-Text:</strong> {altText}
-                  </motion.div>
-                )}
-                {generatedPosts?.instagram && (
-                  <motion.div className="social-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <h3>Dein Instagram Post:</h3>
-                    <div className="markdown-content">
-                      <Suspense fallback={<div>Laden...</div>}>
-                        <ReactMarkdown>{generatedPosts.instagram}</ReactMarkdown>
-                      </Suspense>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            )}
-          </motion.div>
-        </div>
-      )}
+            <TemplateResultActionButtons
+              generatedImageSrc={generatedImageSrc}
+              loading={loading}
+              galleryEditMode={galleryEditMode}
+              autoSaveStatus={autoSaveStatus}
+              hasGeneratedText={hasGeneratedText}
+              copied={copied}
+              updateSuccess={updateSuccess}
+              isSharing={isSharing}
+              socialLoading={socialLoading}
+              isAltTextLoading={isAltTextLoading}
+              canNativeShare={canNativeShare}
+              isUpdating={isUpdating}
+              onDownload={handleDownload}
+              onShare={() => setShowShareModal(true)}
+              onGalleryUpdate={handleGalleryUpdate}
+              onNavigateToGallery={() => navigate('/image-studio/gallery')}
+              onOpenEditPanel={supportsCanvas ? handleSwitchToCanvas : openEditPanel}
+              onTextButtonClick={handleTextButtonClick}
+              onShareToInstagram={handleShareToInstagram}
+            />
+          </div>
 
-      {/* Generated Text for Minimal Layout */}
-      {isMinimalLayout && fieldConfig?.showSocialGeneration && (altText || generatedPosts?.instagram) && (
-        <motion.div className="ki-result-generated-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          {altText && <div className="alt-text-result"><strong>Alt-Text:</strong> {altText}</div>}
-          {generatedPosts?.instagram && (
-            <div className="social-text-result">
-              <h3>Dein Instagram Post:</h3>
-              <div className="markdown-content">
-                <Suspense fallback={<div>Laden...</div>}>
-                  <ReactMarkdown>{generatedPosts.instagram}</ReactMarkdown>
-                </Suspense>
-              </div>
+          {(altText || generatedPosts?.instagram) && (
+            <div className="image-result-info__generated">
+              {altText && (
+                <motion.div className="alt-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <strong>Alt-Text:</strong> {altText}
+                </motion.div>
+              )}
+              {generatedPosts?.instagram && (
+                <motion.div className="social-text-result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                  <h3>Dein Instagram Post:</h3>
+                  <div className="markdown-content">
+                    <Suspense fallback={<div>Laden...</div>}>
+                      <ReactMarkdown>{generatedPosts.instagram}</ReactMarkdown>
+                    </Suspense>
+                  </div>
+                </motion.div>
+              )}
             </div>
           )}
         </motion.div>
-      )}
+      </div>
 
-      {/* Action Buttons for Minimal Layout */}
-      {isMinimalLayout && (
-        <div className="ki-studio-result__actions">
-          <Button onClick={goBack} text="Zurück" icon={<HiArrowLeft />} className="submit-button" ariaLabel="Zurück zur Eingabe" />
-          <Button onClick={() => setShowShareModal(true)} text="Teilen" icon={<HiShare />} className="submit-button" ariaLabel="Bild teilen" />
-          {fieldConfig?.showSocialGeneration && (
-            <Button
-              onClick={handleTextButtonClick}
-              loading={socialLoading || isAltTextLoading}
-              text={hasGeneratedText ? (copied ? 'Kopiert!' : 'Text kopieren') : 'Texte generieren'}
-              icon={copied ? <IoCheckmarkOutline /> : hasGeneratedText ? <IoCopyOutline /> : <HiSparkles />}
-              className="submit-button"
-              ariaLabel={hasGeneratedText ? 'Text kopieren' : 'Texte generieren'}
-            />
-          )}
-          {fieldConfig?.showAutoSave && autoSaveStatus === 'saved' && (
-            <Button onClick={() => navigate('/image-studio/gallery')} text="Galerie" icon={<FaImages />} className="submit-button" ariaLabel="In Galerie anzeigen" />
-          )}
-          <Button onClick={onRegenerate} loading={loading} text="Neues Bild" icon={<HiRefresh />} className="form-button" ariaLabel="Neues Bild generieren" />
-        </div>
-      )}
+      <EditPanel
+        isOpen={isEditPanelOpen}
+        onClose={closeEditPanel}
+        fieldConfig={fieldConfig}
+        currentImagePreview={currentImagePreview}
+        fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
+        handleImageChange={handleImageChange}
+        previewValues={previewValues}
+        handleChange={handleTextFieldChange}
+        displayAlternatives={displayAlternatives}
+        isAlternativesOpen={isAlternativesOpen}
+        setIsAlternativesOpen={setIsAlternativesOpen}
+        handleSloganSwitch={handleSloganSwitch}
+        getAlternativePreview={getAlternativePreview}
+        credit={credit}
+        fontSize={fontSize}
+        colorScheme={colorScheme}
+        balkenOffset={balkenOffset}
+        balkenGruppenOffset={balkenGruppenOffset}
+        sunflowerOffset={sunflowerOffset}
+        veranstaltungFieldFontSizes={veranstaltungFieldFontSizes}
+        handleControlChange={handleControlChange}
+        handleFieldFontSizeChange={handleFieldFontSizeChange}
+        isAdvancedEditingOpen={isAdvancedEditingOpen}
+        toggleAdvancedEditing={toggleAdvancedEditing}
+        type={type || undefined}
+        loading={loading}
+        onRegenerate={onRegenerate}
+        onGenerateAlternatives={handleGenerateAlternatives}
+        alternativesLoading={alternativesLoading}
+      />
 
-      {/* Edit Panel - only for non-minimal layout */}
-      {!isMinimalLayout && (
-        <TemplateResultEditPanel
-          isOpen={isEditPanelOpen}
-          onClose={() => setIsEditPanelOpen(false)}
-          fieldConfig={fieldConfig}
-          currentImagePreview={currentImagePreview}
-          fileInputRef={fileInputRef}
-          handleImageChange={handleImageChange}
-          previewValues={previewValues}
-          handleChange={handleChange}
-          displayAlternatives={displayAlternatives}
-          isAlternativesOpen={isAlternativesOpen}
-          setIsAlternativesOpen={setIsAlternativesOpen}
-          handleSloganSwitch={handleSloganSwitch}
-          getAlternativePreview={getAlternativePreview}
-          credit={credit}
-          fontSize={fontSize}
-          colorScheme={colorScheme}
-          balkenOffset={balkenOffset}
-          balkenGruppenOffset={balkenGruppenOffset}
-          sunflowerOffset={sunflowerOffset}
-          veranstaltungFieldFontSizes={veranstaltungFieldFontSizes}
-          handleControlChange={handleControlChange}
-          handleFieldFontSizeChange={handleFieldFontSizeChange}
-          isAdvancedEditingOpen={isAdvancedEditingOpen}
-          toggleAdvancedEditing={toggleAdvancedEditing}
-          type={type}
-          loading={loading}
-          onRegenerate={onRegenerate}
-        />
-      )}
+      <Lightbox
+        isOpen={isLightboxOpen}
+        onClose={closeLightbox}
+        imageSrc={generatedImageSrc}
+        altText={altText}
+      />
 
-      {/* Lightbox - only for non-minimal layout */}
-      {!isMinimalLayout && (
-        <TemplateResultLightbox
-          isOpen={isLightboxOpen}
-          onClose={() => setIsLightboxOpen(false)}
-          imageSrc={generatedImageSrc}
-          altText={altText}
-        />
-      )}
-
-      {/* Share Modal */}
       <ShareMediaModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         mediaType="image"
         imageData={{
           image: generatedImageSrc,
-          type: typeConfig?.legacyType || type,
-          metadata: buildShareMetadata(),
-          originalImage: uploadedImage || selectedImage ? 'pending' : null
+          type: (typeConfig?.legacyType || type) ?? undefined,
+          metadata: buildShareMetadata() as Record<string, unknown>,
+          originalImage: uploadedImage || selectedImage ? 'pending' : undefined
         }}
-        defaultTitle={typeConfig?.label || (isMinimalLayout ? 'KI-generiertes Bild' : 'Sharepic')}
-        getOriginalImage={getOriginalImageBase64}
+        defaultTitle={typeConfig?.label || 'Sharepic'}
+        getOriginalImage={async () => (await getOriginalImageBase64()) ?? undefined}
       />
     </motion.div>
   );

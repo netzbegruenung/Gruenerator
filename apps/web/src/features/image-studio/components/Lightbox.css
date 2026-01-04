@@ -1,0 +1,36 @@
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  cursor: zoom-out;
+}
+
+.image-lightbox-content {
+  position: relative;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+.image-lightbox-image {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  border-radius: var(--card-border-radius-medium);
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  padding: var(--spacing-small);
+  line-height: 1;
+}

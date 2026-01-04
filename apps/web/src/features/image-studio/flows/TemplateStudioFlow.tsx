@@ -80,6 +80,10 @@ const TemplateStudioFlow = ({ onBack }) => {
   const { generateImage, loading, error, setError } = useImageGeneration();
   const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
 
+  const handleGoBackToCanvas = useCallback(() => {
+    setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+  }, [setCurrentStep]);
+
   const handleImageRegenerate = useCallback(async () => {
     setError('');
 
@@ -171,11 +175,12 @@ const TemplateStudioFlow = ({ onBack }) => {
                   onAnimationStart={handleAnimationStart}
                   onAnimationComplete={handleAnimationComplete}
                 >
-                  {currentStep === FORM_STEPS.INPUT && (
+                  {(currentStep === FORM_STEPS.INPUT || currentStep === FORM_STEPS.CANVAS_EDIT) && (
                     <StepFlow
                       onBack={onBack}
                       onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}
                       imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
+                      startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
                     />
                   )}
 
@@ -183,6 +188,7 @@ const TemplateStudioFlow = ({ onBack }) => {
                     <TemplateResultStep
                       onRegenerate={handleImageRegenerate}
                       loading={loading}
+                      onGoBackToCanvas={typeConfig?.hasBackgroundRemoval ? handleGoBackToCanvas : undefined}
                     />
                   )}
                 </motion.div>
