@@ -8,3 +8,5 @@ export { default as infoCanvas } from './info_canvas.js';
 export { default as veranstaltungCanvas } from './veranstaltung_canvas.js';
 export { default as dreizeilenCanvas } from './dreizeilen_canvas.js';
 export { default as campaignCanvas, generateCampaignCanvas } from './campaign_canvas.js';
+export { default as profilbildCanvas } from './profilbild_canvas.js';
+export { default as simpleCanvas } from './simple_canvas.js';

@@ -4,15 +4,40 @@
  */
 
 import express, { Router, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
 import type { AuthRequest } from '../types.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const log = createLogger('templateGallery');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+// Load system templates and files from JSON file
+let systemTemplates: any[] = [];
+let systemFiles: any[] = [];
+const systemFilesDir = path.resolve(__dirname, '../../../data/files');
+
+try {
+  const systemTemplatesPath = path.resolve(__dirname, '../../../data/system-templates.json');
+  const data = fs.readFileSync(systemTemplatesPath, 'utf-8');
+  const parsed = JSON.parse(data);
+  systemTemplates = parsed.templates || [];
+  systemFiles = parsed.files || [];
+  log.info(`[Template Gallery] Loaded ${systemTemplates.length} system templates and ${systemFiles.length} system files`);
+} catch (err) {
+  log.warn('[Template Gallery] Could not load system templates:', err);
+}
+
+// Helper to get download URL for system files (mounted at /auth/system-files)
+const getFileDownloadUrl = (fileName: string) => `/auth/system-files/${encodeURIComponent(fileName)}`;
 
 // ============================================================================
 // Examples Endpoints
@@ -287,7 +312,7 @@ router.get('/vorlagen', ensureAuthenticated as any, async (req: AuthRequest, res
 
     const data = await postgres.query(query, params, { table: 'user_templates' });
 
-    const vorlagen = (data || []).map((item: any) => {
+    const userVorlagen = (data || []).map((item: any) => {
       log.debug(`[Vorlagen DEBUG] Item: id=${item.id}, title=${item.title}, external_url=${item.external_url}`);
       return {
         id: item.id,
@@ -306,6 +331,67 @@ router.get('/vorlagen', ensureAuthenticated as any, async (req: AuthRequest, res
       };
     });
 
+    // Filter and merge system templates
+    let filteredSystemTemplates = systemTemplates;
+    if (templateType && templateType !== 'all') {
+      filteredSystemTemplates = systemTemplates.filter(t => t.template_type === templateType);
+    }
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const term = String(searchTerm).trim().toLowerCase();
+      filteredSystemTemplates = filteredSystemTemplates.filter(t =>
+        t.title?.toLowerCase().includes(term) ||
+        t.description?.toLowerCase().includes(term)
+      );
+    }
+    if (tags) {
+      try {
+        const tagsArray = JSON.parse(tags as string);
+        if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+          filteredSystemTemplates = filteredSystemTemplates.filter(t =>
+            tagsArray.every((tag: string) => t.tags?.includes(tag.toLowerCase()))
+          );
+        }
+      } catch {
+        // Invalid tags JSON, skip filtering
+      }
+    }
+
+    // Filter system files with same logic
+    let filteredSystemFiles = systemFiles.map(f => ({
+      ...f,
+      template_type: f.file_type,
+      download_url: getFileDownloadUrl(f.file_name),
+      external_url: null
+    }));
+
+    if (templateType && templateType !== 'all') {
+      filteredSystemFiles = filteredSystemFiles.filter(f => f.file_type === templateType);
+    }
+    if (searchTerm && String(searchTerm).trim().length > 0) {
+      const term = String(searchTerm).trim().toLowerCase();
+      filteredSystemFiles = filteredSystemFiles.filter(f =>
+        f.title?.toLowerCase().includes(term) ||
+        f.description?.toLowerCase().includes(term)
+      );
+    }
+    if (tags) {
+      try {
+        const tagsArray = JSON.parse(tags as string);
+        if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+          filteredSystemFiles = filteredSystemFiles.filter(f =>
+            tagsArray.every((tag: string) => f.tags?.includes(tag.toLowerCase()))
+          );
+        }
+      } catch {
+        // Invalid tags JSON, skip filtering
+      }
+    }
+
+    // System templates first, then system files
+    // TEMPORARILY DISABLED: User vorlagen hidden from public gallery until likes/ranking feature is complete
+    // const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen];
+    const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles];
+
     res.json({ success: true, vorlagen });
   } catch (error) {
     const err = error as Error;
@@ -315,6 +401,193 @@ router.get('/vorlagen', ensureAuthenticated as any, async (req: AuthRequest, res
       message: 'Fehler beim Laden der Vorlagen',
       vorlagen: []
     });
+  }
+});
+
+// ============================================================================
+// System File Thumbnail Endpoint
+// ============================================================================
+
+// Serve system file thumbnail (optimized for gallery display)
+router.get('/system-files/thumbs/:fileName', async (req: express.Request, res: Response): Promise<void> => {
+  try {
+    const { fileName } = req.params;
+    const decodedFileName = decodeURIComponent(fileName);
+
+    // Extract base name and construct thumbnail path
+    const baseName = decodedFileName.replace(/\.[^.]+$/, '');
+    const thumbName = `thumb_${baseName}.jpg`;
+    const thumbPath = path.join(systemFilesDir, 'thumbs', thumbName);
+
+    // Security: ensure file is within the thumbs directory
+    const resolvedPath = path.resolve(thumbPath);
+    const thumbsDir = path.resolve(systemFilesDir, 'thumbs');
+    if (!resolvedPath.startsWith(thumbsDir)) {
+      res.status(403).json({ success: false, message: 'Zugriff verweigert' });
+      return;
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      res.status(404).json({ success: false, message: 'Thumbnail nicht gefunden' });
+      return;
+    }
+
+    // Set cache headers for thumbnails (1 day)
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Type', 'image/jpeg');
+
+    const fileStream = fs.createReadStream(resolvedPath);
+    fileStream.pipe(res);
+  } catch (error) {
+    const err = error as Error;
+    log.error('[System Files] Thumbnail error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden des Thumbnails' });
+  }
+});
+
+// ============================================================================
+// System File Download Endpoint
+// ============================================================================
+
+// Download system file
+router.get('/system-files/:fileName', async (req: express.Request, res: Response): Promise<void> => {
+  try {
+    const { fileName } = req.params;
+    const decodedFileName = decodeURIComponent(fileName);
+
+    // Validate file exists in system files list
+    const systemFile = systemFiles.find(f => f.file_name === decodedFileName);
+    if (!systemFile) {
+      res.status(404).json({ success: false, message: 'Datei nicht gefunden' });
+      return;
+    }
+
+    const filePath = path.join(systemFilesDir, decodedFileName);
+
+    // Security: ensure file is within the files directory
+    const resolvedPath = path.resolve(filePath);
+    if (!resolvedPath.startsWith(path.resolve(systemFilesDir))) {
+      res.status(403).json({ success: false, message: 'Zugriff verweigert' });
+      return;
+    }
+
+    if (!fs.existsSync(resolvedPath)) {
+      res.status(404).json({ success: false, message: 'Datei nicht gefunden' });
+      return;
+    }
+
+    // Set content disposition for download
+    res.setHeader('Content-Disposition', `attachment; filename="${decodedFileName}"`);
+
+    // Set content type based on file extension
+    const ext = path.extname(decodedFileName).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.png': 'image/png',
+      '.svg': 'image/svg+xml',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.pdf': 'application/pdf',
+      '.zip': 'application/zip'
+    };
+    res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+
+    // Stream file
+    const fileStream = fs.createReadStream(resolvedPath);
+    fileStream.pipe(res);
+  } catch (error) {
+    const err = error as Error;
+    log.error('[System Files] Download error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Herunterladen' });
+  }
+});
+
+// ============================================================================
+// Template Likes Endpoints
+// ============================================================================
+
+// Get user's liked template IDs
+router.get('/vorlagen/likes', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+
+    const likes = await postgres.query(
+      'SELECT template_id, template_type, created_at FROM template_likes WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId],
+      { table: 'template_likes' }
+    );
+
+    res.json({
+      success: true,
+      likes: likes || [],
+      count: (likes || []).length
+    });
+  } catch (error) {
+    const err = error as Error;
+    log.error('[Template Likes] GET error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Laden der Favoriten' });
+  }
+});
+
+// Like a template
+router.post('/vorlagen/:templateId/like', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { templateId } = req.params;
+    const { templateType = 'system' } = req.body;
+
+    if (!templateId) {
+      res.status(400).json({ success: false, message: 'Template ID erforderlich' });
+      return;
+    }
+
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+
+    await postgres.query(
+      `INSERT INTO template_likes (user_id, template_id, template_type)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, template_id) DO NOTHING`,
+      [userId, templateId, templateType],
+      { table: 'template_likes' }
+    );
+
+    log.info(`[Template Likes] User ${userId} liked template ${templateId}`);
+    res.json({ success: true, liked: true });
+  } catch (error) {
+    const err = error as Error;
+    log.error('[Template Likes] POST error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Speichern des Favoriten' });
+  }
+});
+
+// Unlike a template
+router.delete('/vorlagen/:templateId/like', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { templateId } = req.params;
+
+    if (!templateId) {
+      res.status(400).json({ success: false, message: 'Template ID erforderlich' });
+      return;
+    }
+
+    const postgres = getPostgresInstance();
+    await postgres.ensureInitialized();
+
+    await postgres.query(
+      'DELETE FROM template_likes WHERE user_id = $1 AND template_id = $2',
+      [userId, templateId],
+      { table: 'template_likes' }
+    );
+
+    log.info(`[Template Likes] User ${userId} unliked template ${templateId}`);
+    res.json({ success: true, liked: false });
+  } catch (error) {
+    const err = error as Error;
+    log.error('[Template Likes] DELETE error:', err);
+    res.status(500).json({ success: false, message: 'Fehler beim Entfernen des Favoriten' });
   }
 });
 

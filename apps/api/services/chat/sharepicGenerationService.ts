@@ -1,4 +1,4 @@
-import sharepicClaudeRouter from '../../routes/sharepic/sharepic_claude/index.js';
+import sharepicClaudeRouter, { handleClaudeRequest as sharepicClaudeHandler } from '../../routes/sharepic/sharepic_claude/index.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
@@ -290,8 +290,7 @@ const callSharepicClaude = async (
   type: string,
   body: RequestBody
 ): Promise<Record<string, unknown>> => {
-  const router = sharepicClaudeRouter as unknown as { handleClaudeRequest?: Function };
-  if (typeof router.handleClaudeRequest !== 'function') {
+  if (typeof sharepicClaudeHandler !== 'function') {
     throw new Error('Sharepic Claude handler unavailable');
   }
 
@@ -308,7 +307,7 @@ const callSharepicClaude = async (
 
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
-    const maybePromise = router.handleClaudeRequest!(mockReq, res, type);
+    const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any);
 
     if (maybePromise && typeof maybePromise.then === 'function') {
       maybePromise.catch(reject);

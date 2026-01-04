@@ -45,6 +45,7 @@
     "@anthropic-ai/sdk": "^0.71.0",
     "@aws-sdk/client-bedrock-runtime": "^3.830.0",
     "@gruenerator/shared": "workspace:*",
+    "@imgly/background-removal-node": "^1.4.5",
     "@langchain/core": "^1.0.2",
     "@langchain/langgraph": "^1.0.1",
     "@mistralai/mistralai": "^1.7.2",

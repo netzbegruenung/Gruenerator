@@ -5,6 +5,8 @@ import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('fileManagement');
 
+let fontsRegistered = false;
+
 interface FileConfig {
   path: string;
   name: string;
@@ -35,6 +37,10 @@ export async function checkFiles(): Promise<void> {
 }
 
 export function registerFonts(): void {
+  if (fontsRegistered) {
+    return;
+  }
+
   const fonts: FontConfig[] = [
     { path: FONT_PATH, family: 'GrueneTypeNeue', name: 'GrueneTypeNeue' },
     { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
@@ -49,4 +55,7 @@ export function registerFonts(): void {
       throw err;
     }
   }
+
+  fontsRegistered = true;
+  log.debug('All fonts registered successfully');
 }

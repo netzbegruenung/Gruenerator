@@ -28,6 +28,9 @@ import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canv
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veranstaltung_canvas.js';
+import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
+import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
+import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
 import sharepicClaudeRoute, { handleClaudeRequest } from './routes/sharepic/sharepic_claude/index.js';
 import text2SharepicRoute from './routes/sharepic/text2sharepic.js';
@@ -148,6 +151,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/imagine_label_canvas', imagineLabelCanvasRoute);
   app.use('/api/campaign_canvas', campaignCanvasRoute);
   app.use('/api/veranstaltung_canvas', veranstaltungCanvasRoute);
+  app.use('/api/profilbild_canvas', profilbildCanvasRoute);
+  app.use('/api/simple_canvas', simpleCanvasRoute);
+  app.use('/api/background-removal', backgroundRemovalRoute);
   app.use('/api/campaign_generate', campaignGenerateRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
@@ -167,6 +173,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   });
   app.post('/api/zitat_pure_claude', async (req: Request, res: Response): Promise<void> => {
     await handleClaudeRequest(req as any, res, 'zitat_pure');
+  });
+  app.post('/api/simple_claude', async (req: Request, res: Response): Promise<void> => {
+    await handleClaudeRequest(req as any, res, 'simple');
   });
   app.post('/api/default_claude', async (req: Request, res: Response): Promise<void> => {
     await handleClaudeRequest(req as any, res, 'default');

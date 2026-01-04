@@ -133,6 +133,19 @@ export function selectProviderAndModel({
     useBedrock = true;
     model = options.model || 'anthropic.claude-3-haiku-20240307-v1:0';
   }
+  // Sharepic types - use AWS Bedrock with Claude Sonnet 4.5
+  else if (
+    type === 'sharepic_dreizeilen' ||
+    type === 'sharepic_zitat' ||
+    type === 'sharepic_zitat_pure' ||
+    type === 'sharepic_headline' ||
+    type === 'sharepic_info' ||
+    type === 'sharepic_veranstaltung'
+  ) {
+    provider = 'bedrock';
+    useBedrock = true;
+    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+  }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)
   if (options.explicitProvider) {
