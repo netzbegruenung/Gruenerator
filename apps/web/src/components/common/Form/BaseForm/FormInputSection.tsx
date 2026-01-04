@@ -14,12 +14,34 @@ const getFormContentClasses = (hasErrors: boolean): string =>
 const getButtonContainerClasses = (showBackButton?: boolean): string =>
   `button-container ${showBackButton ? 'form-buttons' : ''}`;
 
-interface FormChildrenProps {
-  control: Control<FieldValues>;
-  errors: Record<string, unknown>;
-  formData: Record<string, unknown>;
-  handleChange: (name: string, value: unknown) => void;
-  [key: string]: unknown;
+interface FormInputSectionProps {
+  useModernForm?: boolean;
+  defaultValues?: Record<string, unknown>;
+  validationRules?: Record<string, unknown>;
+  formControl?: FormControl | null;
+  onFormChange?: ((values: Record<string, unknown>) => void) | null;
+  onSubmit?: ((data?: Record<string, unknown>) => void | Promise<void>) | (() => void);
+  showSubmitButton?: boolean;
+  nextButtonText?: string | null;
+  submitButtonProps?: Record<string, unknown>;
+  isMultiStep?: boolean;
+  onBack?: () => void;
+  showBackButton?: boolean;
+  formErrors?: Record<string, string>;
+  children?: ReactNode | ((formControl: FormControl) => ReactNode);
+  enablePlatformSelector?: boolean;
+  platformOptions?: PlatformOption[];
+  platformSelectorLabel?: string;
+  platformSelectorPlaceholder?: string;
+  platformSelectorHelpText?: string;
+  platformSelectorTabIndex?: number;
+  showImageUpload?: boolean;
+  uploadedImage?: unknown;
+  onImageChange?: ((image: unknown) => void) | null;
+  isStartMode?: boolean;
+  loading?: boolean;
+  success?: boolean;
+  inputHeaderContent?: ReactNode;
 }
 
 const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
@@ -48,7 +70,8 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
   showImageUpload = false,
   uploadedImage = null,
   onImageChange = null,
-  isStartMode = false
+  isStartMode = false,
+  inputHeaderContent = null
 }, ref) => {
   const formContentClasses = getFormContentClasses(hasFormErrors(formErrors as Record<string, string>));
   const buttonContainerClasses = getButtonContainerClasses(showBackButton);
@@ -93,6 +116,11 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
   return (
     <div className={`form-section__inputs ${isStartMode ? 'form-section__inputs--start-mode' : ''}`} ref={ref}>
       <div className="form-inputs__content">
+        {inputHeaderContent && (
+          <div className="form-inputs__header">
+            {inputHeaderContent}
+          </div>
+        )}
         <div className={`form-inputs__fields ${formContentClasses}`}>
           {enablePlatformSelector && useModernForm && platformOptions.length > 0 && (
             <div className="form-inputs__platform-selector">

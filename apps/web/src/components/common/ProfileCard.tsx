@@ -1,4 +1,12 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, HTMLAttributes } from 'react';
+
+interface ProfileCardProps extends HTMLAttributes<HTMLDivElement> {
+    title: string;
+    children: ReactNode;
+    headerActions?: ReactNode;
+    className?: string;
+    contentClassName?: string;
+}
 
 const ProfileCard = ({
     title,
@@ -7,7 +15,7 @@ const ProfileCard = ({
     className = '',
     contentClassName = '',
     ...props
-}) => {
+}: ProfileCardProps) => {
     return (
         <div className={`profile-card ${className}`} {...props}>
             <div className="profile-card-header">

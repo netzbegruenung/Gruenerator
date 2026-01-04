@@ -1,5 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 
+interface SelectAllCheckboxItem {
+  source_type?: string;
+  [key: string]: unknown;
+}
+
+interface SelectAllCheckboxProps {
+  enabled?: boolean;
+  disabledWhenRemote?: boolean;
+  isRemoteActive?: boolean;
+  filteredItems?: SelectAllCheckboxItem[];
+  itemType?: 'document' | 'notebook';
+  selectedItemIds?: Set<string>;
+  onToggleAll?: (isSelected: boolean) => void;
+}
+
 const SelectAllCheckbox = ({
   enabled = false,
   disabledWhenRemote = false,
@@ -8,8 +23,8 @@ const SelectAllCheckbox = ({
   itemType = 'document',
   selectedItemIds = new Set(),
   onToggleAll,
-}) => {
-  const checkboxRef = useRef(null);
+}: SelectAllCheckboxProps) => {
+  const checkboxRef = useRef<HTMLInputElement>(null);
 
   const selectableItems = filteredItems.filter(
     (item) => itemType !== 'document' || item.source_type !== 'wolke'

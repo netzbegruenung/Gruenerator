@@ -1,16 +1,38 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HiOutlineCloud, HiOutlineDocument, HiSearch, HiX, HiCheck } from 'react-icons/hi';
 import { useWolkeStore } from '../../../stores/wolkeStore';
+import type { ShareLink } from '../../../stores/wolkeStore';
 import apiClient from '../../utils/apiClient';
 import Spinner from '../Spinner';
 
 import './WolkeFilePicker.css';
 
+interface WolkeFile {
+  href: string;
+  name: string;
+  fileExtension: string;
+  isSupported: boolean;
+  sizeFormatted: string;
+  lastModified: string;
+  [key: string]: unknown;
+}
+
+interface SelectedFile extends WolkeFile {
+  shareLinkId: string;
+}
+
+interface WolkeFilePickerProps {
+  onFilesSelected: (files: SelectedFile[]) => void;
+  onCancel: () => void;
+  selectedFiles?: WolkeFile[];
+  inline?: boolean;
+}
+
 /**
  * WolkeFilePicker - Component for selecting files from Wolke folders
  * Used in DocumentUpload when users want to import documents from their Wolke shares
  */
-const WolkeFilePicker = ({
+const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
     onFilesSelected,
     onCancel,
     selectedFiles = [],
@@ -26,12 +48,12 @@ const WolkeFilePicker = ({
         preloadFiles
     } = useWolkeStore();
 
-    const [selectedShareLink, setSelectedShareLink] = useState(null);
-    const [files, setFiles] = useState([]);
+    const [selectedShareLink, setSelectedShareLink] = useState<ShareLink | null>(null);
+    const [files, setFiles] = useState<WolkeFile[]>([]);
     const [filesLoading, setFilesLoading] = useState(false);
-    const [filesError, setFilesError] = useState(null);
+    const [filesError, setFilesError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedFileIds, setSelectedFileIds] = useState(new Set());
+    const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
 
     // Derive the active share link - auto-select if only one exists
     const activeShareLink = selectedShareLink ||
@@ -87,7 +109,7 @@ const WolkeFilePicker = ({
         }
     }, [selectedFiles]);
 
-    const loadFiles = async (shareLinkId) => {
+    const loadFiles = async (shareLinkId: string): Promise<void> => {
         try {
             setFilesError(null);
 
@@ -95,7 +117,7 @@ const WolkeFilePicker = ({
             const cachedData = getCachedFiles(shareLinkId);
             if (cachedData.isCached && cachedData.files.length > 0) {
                 console.log(`[WolkeFilePicker] Using cached files for ${shareLinkId}:`, cachedData.files.length);
-                setFiles(cachedData.files);
+                setFiles(cachedData.files as WolkeFile[]);
                 setFilesLoading(cachedData.loading);
 
                 // If cache is fresh (less than 3 minutes), use it without refetching
@@ -113,12 +135,13 @@ const WolkeFilePicker = ({
             }
 
             // Use preloadFiles method which handles caching and deduplication
-            const files = await preloadFiles(shareLinkId);
-            setFiles(files);
+            const loadedFiles = await preloadFiles(shareLinkId);
+            setFiles(loadedFiles as WolkeFile[]);
 
         } catch (error) {
             console.error('[WolkeFilePicker] Error loading files:', error);
-            setFilesError(error.message || 'Failed to load files');
+            const errorMessage = error instanceof Error ? error.message : 'Failed to load files';
+            setFilesError(errorMessage);
         } finally {
             setFilesLoading(false);
         }
@@ -140,7 +163,7 @@ const WolkeFilePicker = ({
         return filteredFiles.filter(file => file.isSupported);
     }, [filteredFiles]);
 
-    const handleFileToggle = (file) => {
+    const handleFileToggle = (file: WolkeFile): void => {
         const newSelected = new Set(selectedFileIds);
 
         if (newSelected.has(file.href)) {
@@ -152,18 +175,18 @@ const WolkeFilePicker = ({
         setSelectedFileIds(newSelected);
 
         // Immediately propagate selection changes to parent
-        const selectedFileObjects = files.filter(f =>
+        const selectedFileObjects: SelectedFile[] = files.filter(f =>
             f.href !== file.href ? newSelected.has(f.href) : newSelected.has(file.href)
         ).map(f => ({
             ...f,
-            shareLinkId: activeShareLink.id
+            shareLinkId: activeShareLink!.id
         }));
         onFilesSelected(selectedFileObjects);
     };
 
-    const handleSelectAll = () => {
-        let newSelected;
-        let selectedFileObjects;
+    const handleSelectAll = (): void => {
+        let newSelected: Set<string>;
+        let selectedFileObjects: SelectedFile[];
 
         if (selectedFileIds.size === supportedFiles.length) {
             // Deselect all
@@ -174,7 +197,7 @@ const WolkeFilePicker = ({
             newSelected = new Set(supportedFiles.map(f => f.href));
             selectedFileObjects = supportedFiles.map(f => ({
                 ...f,
-                shareLinkId: activeShareLink.id
+                shareLinkId: activeShareLink!.id
             }));
         }
 
@@ -184,7 +207,7 @@ const WolkeFilePicker = ({
         onFilesSelected(selectedFileObjects);
     };
 
-    const getFileIcon = (file) => {
+    const getFileIcon = (file: WolkeFile): string => {
         const ext = file.fileExtension.toLowerCase();
         if (['.pdf'].includes(ext)) return '📄';
         if (['.docx', '.doc'].includes(ext)) return '📝';
@@ -194,7 +217,7 @@ const WolkeFilePicker = ({
         return '📁';
     };
 
-    const formatLastModified = (dateString) => {
+    const formatLastModified = (dateString: string): string => {
         if (!dateString || dateString === 'Unknown') return 'Unbekannt';
         try {
             const date = new Date(dateString);
@@ -297,7 +320,7 @@ const WolkeFilePicker = ({
                                         {shareLink.label || 'Unbenannter Ordner'}
                                     </span>
                                     <span className="share-link-url">
-                                        {shareLink.base_url || new URL(shareLink.share_link).hostname}
+                                        {shareLink.base_url || (shareLink.share_link ? new URL(shareLink.share_link).hostname : 'Wolke')}
                                     </span>
                                 </div>
                             </button>

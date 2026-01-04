@@ -229,3 +229,4 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
 };
 
 export default WolkeSelector;
+export type { WolkeShareLink, WolkeSelectorProps };

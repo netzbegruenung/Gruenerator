@@ -78,10 +78,34 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   const getGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata);
 
   let processedGeneratedContent: GeneratedContent | undefined = generatedContent;
-  if (generatedContent && typeof generatedContent === 'object' &&
-      'content' in generatedContent &&
-      'success' in generatedContent) {
-    processedGeneratedContent = (generatedContent as { content: string }).content;
+
+  // Parse JSON string if store returned stringified mixed content
+  // This handles the case where BaseForm stores content as JSON.stringify()
+  if (typeof processedGeneratedContent === 'string') {
+    const trimmed = processedGeneratedContent.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+          processedGeneratedContent = parsed;
+
+          // Restore function handlers from metadata (functions can't be JSON.stringified)
+          // BaseForm stores the original object with handlers as metadata
+          const storedMetadata = getGeneratedTextMetadata(componentName) as MixedContent | null;
+          if (storedMetadata && typeof storedMetadata.onEditSharepic === 'function') {
+            (processedGeneratedContent as MixedContent).onEditSharepic = storedMetadata.onEditSharepic;
+          }
+        }
+      } catch {
+        // Not valid JSON, use as-is
+      }
+    }
+  }
+
+  if (processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
+      'content' in processedGeneratedContent &&
+      'success' in processedGeneratedContent) {
+    processedGeneratedContent = (processedGeneratedContent as { content: string }).content;
   }
 
   const isMixedContent = processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
@@ -107,9 +131,13 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         ? [mixedContent.sharepic]
         : [];
 
+    // Only load FinetuneEditor if there's actual text content (not just whitespace)
+    // This prevents loading the heavy MDXEditor bundle for sharepic-only content
+    const hasTextContent = typeof contentToRender === 'string' && contentToRender.trim().length > 0;
+
     return (
       <div className="generated-content-wrapper mixed-content">
-        {contentToRender && typeof contentToRender === 'string' && (
+        {hasTextContent && (
           <div className="social-content-section">
             <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
               <FinetuneEditor

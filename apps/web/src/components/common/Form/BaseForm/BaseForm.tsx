@@ -192,7 +192,9 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   startPageDescription = null, // 1-2 sentence description shown below title in start mode
   examplePrompts = [], // Array of { icon, text } for clickable example prompts
   onExamplePromptClick = null, // Callback when example prompt is clicked
-  contextualTip = null // Tip shown below example prompts { icon, text }
+  contextualTip = null, // Tip shown below example prompts { icon, text }
+  selectedPlatforms = [], // Array of selected platform IDs for highlighting platform tags
+  inputHeaderContent = null // Content rendered above the textarea inside the form card
 }) => {
 
   const baseFormRef = useRef(null);
@@ -401,12 +403,26 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     const extracted = extractEditableText(editableSource as Content);
     return typeof extracted === 'string' ? extracted.trim() : '';
   }, [editableSource, componentName]);
+
+  // Check if we have sharepic content (for mixed content like presse-social)
+  const hasSharepicContent = useMemo(() => {
+    if (editableSource && typeof editableSource === 'object' && 'sharepic' in editableSource) {
+      const sharepic = (editableSource as { sharepic?: unknown }).sharepic;
+      if (Array.isArray(sharepic) && sharepic.length > 0) return true;
+      if (sharepic && !Array.isArray(sharepic)) return true;
+    }
+    return false;
+  }, [editableSource]);
+
   const hasEditableContent = isStreaming || editableText.length > 0;
+  // hasAnyContent includes both text and sharepic content for determining start mode
+  const hasAnyContent = hasEditableContent || hasSharepicContent;
   const [isEditModeToggled, setIsEditModeToggled] = React.useState(false);
   const isEditModeActive = isEditModeToggled && enableEditMode && hasEditableContent;
 
   // Start mode: Show centered ChatGPT-like layout when no content has been generated yet
-  const isStartMode = useStartPageLayout && !hasEditableContent;
+  // Uses hasAnyContent to also exit start mode when sharepics are generated (even without text)
+  const isStartMode = useStartPageLayout && !hasAnyContent;
 
   // Sync isStartMode to store for child components (e.g., FormAutoInput)
   React.useEffect(() => {
@@ -601,7 +617,6 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
 
   // Enhanced accessibility hook with Phase 5 features
   const {
-    setupKeyboardNav,
     handleFormError,
     handleFormSuccess,
     registerFormElement,
@@ -732,14 +747,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
 
     if (labelledElements.length > 0) {
       addAriaLabelsToElements(labelledElements);
-      // Only setup custom keyboard navigation for specific interactive elements
-      // Skip for forms to allow natural tab navigation
-      if (!baseFormRef.current?.querySelector('form')) {
-        const interactiveElements = labelledElements.map(item => item.element);
-        setupKeyboardNav(interactiveElements);
-      }
     }
-  }, [setupKeyboardNav, generatedContent]);
+  }, [generatedContent]);
 
   // Development accessibility testing
   useEffect(() => {
@@ -842,7 +851,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         id="main-content"
       >
         <AnimatePresence initial={false}>
-          {!isFormVisible && hasEditableContent && !isEditModeActive && (
+          {!isFormVisible && hasAnyContent && !isEditModeActive && (
             <FormToggleButtonFAB onClick={toggleFormVisibility} />
           )}
         </AnimatePresence>
@@ -895,7 +904,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 useModernForm={useModernForm}
                 onFormChange={onFormChange}
                 bottomSectionChildren={bottomSectionChildren}
-                showHideButton={hasEditableContent}
+                showHideButton={hasAnyContent}
                 onHide={toggleFormVisibility}
                 firstExtrasChildren={firstExtrasChildren}
                 extrasChildren={extrasChildren}
@@ -922,6 +931,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 examplePrompts={examplePrompts}
                 onExamplePromptClick={handleExamplePromptClick}
                 contextualTip={contextualTip}
+                selectedPlatforms={selectedPlatforms}
+                inputHeaderContent={inputHeaderContent}
               >
                 {children}
               </FormSection>

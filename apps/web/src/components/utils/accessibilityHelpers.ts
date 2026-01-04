@@ -51,16 +51,6 @@ export const setFocus = (elementId: string): void => {
 };
 
 /**
- * @deprecated Custom tab navigation removed - let browser handle all tab navigation
- */
-export const handleKeyboardNavigation = (
-  _event: KeyboardEvent,
-  _elements: HTMLElement[]
-): void => {
-  return;
-};
-
-/**
  * Create an aria-live region for announcements
  */
 export const createAriaLiveRegion = (
@@ -160,16 +150,6 @@ export const setupEnhancedKeyboardNavigation = (
   return () => {
     formElement.removeEventListener('keydown', handleKeyDown);
   };
-};
-
-/**
- * @deprecated Browser and screen readers handle card navigation natively
- */
-export const manageFocusForCardLayouts = (
-  _event: KeyboardEvent,
-  _container: HTMLElement
-): void => {
-  return;
 };
 
 /**

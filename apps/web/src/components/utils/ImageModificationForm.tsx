@@ -6,6 +6,11 @@ import {
   IMAGE_MODIFICATION,
 } from './constants';
 
+import '../../assets/styles/components/controls/font-size-control.css';
+import '../../assets/styles/components/controls/color-scheme-control.css';
+import '../../assets/styles/components/controls/credit-control.css';
+import '../../assets/styles/components/actions/advanced-editing.css';
+
 export interface FontSizeControlProps {
   fontSize?: number;
   onControlChange: (name: string, value: unknown) => void;

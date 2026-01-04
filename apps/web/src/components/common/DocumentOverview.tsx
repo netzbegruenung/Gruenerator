@@ -175,7 +175,7 @@ const DocumentOverview = ({
 
     // Sort state (must be declared before useFilteredAndGroupedItems)
     const [sortBy, setSortBy] = useState(sortOptions[0]?.value || 'updated_at');
-    const [sortOrder, setSortOrder] = useState('desc');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     // Derived items and filtering
     const { filteredItems } = useFilteredAndGroupedItems({
@@ -186,17 +186,17 @@ const DocumentOverview = ({
         sortOrder,
         enableGrouping: false, // Grouping disabled - using category filter instead
         searchState,
-    });
+    }) as { filteredItems: DocumentItem[]; groupedItems: Record<string, DocumentItem[]> };
 
     // Component state
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [showPreview, setShowPreview] = useState(false);
-    const [editingTitle, setEditingTitle] = useState(null);
-    const [newTitle, setNewTitle] = useState('');
-    const [deleting, setDeleting] = useState(null);
-    const [refreshing, setRefreshing] = useState(null);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewError, setPreviewError] = useState(null);
+    const [selectedItem, setSelectedItem] = useState<DocumentItem | null>(null);
+    const [showPreview, setShowPreview] = useState<boolean>(false);
+    const [editingTitle, setEditingTitle] = useState<string | null>(null);
+    const [newTitle, setNewTitle] = useState<string>('');
+    const [deleting, setDeleting] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState<string | null>(null);
+    const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+    const [previewError, setPreviewError] = useState<string | null>(null);
 
     // Category filter state
     const [selectedCategory, setSelectedCategory] = useState('all');
@@ -255,7 +255,7 @@ const DocumentOverview = ({
     }, [allItems, itemType]);
 
     // Apply category filtering to items
-    const categoryFilteredItems = useMemo(() => {
+    const categoryFilteredItems = useMemo((): DocumentItem[] => {
         if (selectedCategory === 'all') {
             return filteredItems;
         }
@@ -302,7 +302,9 @@ const DocumentOverview = ({
 
         setDeleting(item.id);
         try {
-            await onDelete(item.id, item);
+            if (onDelete) {
+                await onDelete(item.id, item);
+            }
 
             // Close preview if deleted item was selected
             if (selectedItem?.id === item.id) {
@@ -310,7 +312,8 @@ const DocumentOverview = ({
                 setShowPreview(false);
             }
         } catch (error) {
-            onErrorMessage && onErrorMessage('Fehler beim Löschen: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            onErrorMessage && onErrorMessage('Fehler beim Löschen: ' + errorMessage);
         } finally {
             setDeleting(null);
         }
@@ -320,19 +323,20 @@ const DocumentOverview = ({
     const handleTitleEdit = (item: DocumentItem) => {
         setEditingTitle(item.id);
         const currentTitle = itemType === 'notebook' ? item.name : item.title;
-        setNewTitle(currentTitle);
+        setNewTitle(currentTitle || '');
     };
 
     const handleTitleSave = async (itemId: string) => {
         const originalItem = allItems.find(item => item.id === itemId);
         const originalTitle = itemType === 'notebook' ? originalItem?.name : originalItem?.title;
 
-        if (newTitle.trim() && newTitle.trim() !== originalTitle) {
+        if (newTitle.trim() && newTitle.trim() !== originalTitle && onUpdateTitle) {
             try {
                 await onUpdateTitle(itemId, newTitle.trim());
                 onSuccessMessage && onSuccessMessage('Titel erfolgreich aktualisiert');
             } catch (error) {
-                onErrorMessage && onErrorMessage('Fehler beim Aktualisieren des Titels: ' + error.message);
+                const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+                onErrorMessage && onErrorMessage('Fehler beim Aktualisieren des Titels: ' + errorMessage);
             }
         }
         setEditingTitle(null);
@@ -361,9 +365,9 @@ const DocumentOverview = ({
         // Only allow bulk select for non-Wolke documents
         const selectable = categoryFilteredItems.filter(item => itemType !== 'document' || item.source_type !== 'wolke');
         if (isSelected) {
-            setSelectedItemIds(new Set(selectable.map(item => item.id)));
+            setSelectedItemIds(new Set<string>(selectable.map(item => item.id)));
         } else {
-            setSelectedItemIds(new Set());
+            setSelectedItemIds(new Set<string>());
         }
     };
 
@@ -383,7 +387,8 @@ const DocumentOverview = ({
                 `${idsArray.length} ${idsArray.length === 1 ? 'Element' : 'Elemente'} erfolgreich gelöscht.`
             );
         } catch (error) {
-            onErrorMessage && onErrorMessage('Fehler beim Bulk-Löschen: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            onErrorMessage && onErrorMessage('Fehler beim Bulk-Löschen: ' + errorMessage);
         } finally {
             setIsBulkDeleting(false);
         }
@@ -436,7 +441,8 @@ const DocumentOverview = ({
             onSuccessMessage && onSuccessMessage('Dokumentstatus wurde aktualisiert.');
         } catch (error) {
             console.error('[DocumentOverview] Error refreshing document:', error);
-            onErrorMessage && onErrorMessage('Fehler beim Aktualisieren des Dokumentstatus: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            onErrorMessage && onErrorMessage('Fehler beim Aktualisieren des Dokumentstatus: ' + errorMessage);
         } finally {
             setRefreshing(null);
         }
@@ -456,7 +462,7 @@ const DocumentOverview = ({
         try {
             const response = await apiClient.get(`/documents/${item.id}/content`);
             const data = response.data;
-            const enhancedItem = {
+            const enhancedItem: DocumentItem = {
                 ...item,
                 full_content: data.data.ocr_text || 'Kein Text extrahiert',
                 markdown_content: data.data.markdown_content
@@ -467,7 +473,8 @@ const DocumentOverview = ({
         } catch (error) {
             console.error('[DocumentOverview] Error fetching document content:', error);
             setPreviewError('Fehler beim Laden des Dokument-Inhalts');
-            onErrorMessage && onErrorMessage('Fehler beim Laden des Dokument-Inhalts: ' + error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            onErrorMessage && onErrorMessage('Fehler beim Laden des Dokument-Inhalts: ' + errorMessage);
         } finally {
             setPreviewLoading(false);
         }
@@ -698,7 +705,7 @@ const DocumentOverview = ({
                     }
 
                     // Handle submenu items (like Copy Links)
-                    if (action.submenu && action.submenuItems) {
+                    if (action.submenu && action.submenuItems && action.icon) {
                         const IconComponent = action.icon;
 
                         return (
@@ -734,7 +741,12 @@ const DocumentOverview = ({
                     }
 
                     // Regular menu items
+                    if (!action.icon || !action.onClick) {
+                        return null;
+                    }
+
                     const IconComponent = action.icon;
+                    const handleClick = action.onClick;
 
                     return (
                         <button
@@ -742,7 +754,7 @@ const DocumentOverview = ({
                             className={`menu-dropdown-item ${action.danger ? 'danger' : ''}`}
                             onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation();
-                                action.onClick();
+                                handleClick();
                                 onClose && onClose();
                             }}
                             disabled={action.loading}

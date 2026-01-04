@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { HiX } from 'react-icons/hi';
 import { SiCanva } from 'react-icons/si';
@@ -7,14 +7,36 @@ import { suggestTagsFromTemplate } from './tagSuggestions';
 import { useTagAutocomplete } from '../TemplateModal';
 import '../TemplateModal/template-modal.css';
 import apiClient from '../../utils/apiClient';
+import type { AxiosError } from 'axios';
 
 const READ_ONLY_PERMISSIONS = { read: true, write: false, collaborative: false };
 
-const isCanvaTemplateShareLink = (url) => {
+interface PreviewData {
+  thumbnail_url?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface ApiResponse {
+  success: boolean;
+  message?: string;
+  preview?: PreviewData;
+  data?: { id: string };
+}
+
+interface AddTemplateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: (data: { id: string; title: string }) => void;
+  groupId?: string | null;
+  onShareContent?: ((type: string, id: string, options: { permissions: Record<string, boolean>; targetGroupId: string | null }) => Promise<void>) | null;
+}
+
+const isCanvaTemplateShareLink = (url: string): boolean => {
     try {
         const urlObj = new URL(url);
         const utmSource = urlObj.searchParams.get('utm_source');
-        return ['publishsharelink', 'sharebutton', 'shareyourdesignpanel'].includes(utmSource);
+        return utmSource !== null && ['publishsharelink', 'sharebutton', 'shareyourdesignpanel'].includes(utmSource);
     } catch {
         return false;
     }
@@ -26,23 +48,23 @@ const AddTemplateModal = ({
     onSuccess,
     groupId = null,
     onShareContent = null
-}) => {
-    const [mode, setMode] = useState('canva');
-    const [canvaUrl, setCanvaUrl] = useState('');
-    const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-    const [previewData, setPreviewData] = useState(null);
-    const [previewError, setPreviewError] = useState(null);
+}: AddTemplateModalProps) => {
+    const [mode, setMode] = useState<string>('canva');
+    const [canvaUrl, setCanvaUrl] = useState<string>('');
+    const [isLoadingPreview, setIsLoadingPreview] = useState<boolean>(false);
+    const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+    const [previewError, setPreviewError] = useState<string | null>(null);
 
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [externalUrl, setExternalUrl] = useState('');
+    const [title, setTitle] = useState<string>('');
+    const [description, setDescription] = useState<string>('');
+    const [externalUrl, setExternalUrl] = useState<string>('');
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitError, setSubmitError] = useState(null);
-    const [notShareLinkError, setNotShareLinkError] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [notShareLinkError, setNotShareLinkError] = useState<boolean>(false);
 
-    const [authorName, setAuthorName] = useState('');
-    const [contactEmail, setContactEmail] = useState('');
+    const [authorName, setAuthorName] = useState<string>('');
+    const [contactEmail, setContactEmail] = useState<string>('');
 
     const tagAutocomplete = useTagAutocomplete(description, setDescription);
 
@@ -90,19 +112,22 @@ const AddTemplateModal = ({
         setPreviewData(null);
 
         try {
-            const response = await apiClient.post('/auth/user-templates/from-url', { url: canvaUrl.trim(), preview: true });
+            const response = await apiClient.post<ApiResponse>('/auth/user-templates/from-url', { url: canvaUrl.trim(), preview: true });
             const data = response.data;
 
             if (!data.success) {
                 throw new Error(data.message || 'Fehler beim Laden der Vorschau');
             }
 
-            setPreviewData(data.preview);
-            const existingDesc = data.preview.description || '';
-            const suggestedTags = suggestTagsFromTemplate(data.preview, 'canva');
-            setDescription(existingDesc + (existingDesc && suggestedTags ? '\n\n' : '') + suggestedTags);
+            if (data.preview) {
+                setPreviewData(data.preview);
+                const existingDesc = data.preview.description || '';
+                const suggestedTags = suggestTagsFromTemplate(data.preview, 'canva');
+                setDescription(existingDesc + (existingDesc && suggestedTags ? '\n\n' : '') + suggestedTags);
+            }
         } catch (error) {
-            setPreviewError(error.response?.data?.message || error.message || 'Fehler beim Laden der Vorschau');
+            const axiosError = error as AxiosError<{ message?: string }>;
+            setPreviewError(axiosError.response?.data?.message || (error instanceof Error ? error.message : 'Fehler beim Laden der Vorschau'));
         } finally {
             setIsLoadingPreview(false);
         }
@@ -113,7 +138,7 @@ const AddTemplateModal = ({
         setIsSubmitting(true);
 
         try {
-            let templateId;
+            let templateId: string | undefined;
 
             if (mode === 'canva') {
                 if (!previewData) {
@@ -123,7 +148,7 @@ const AddTemplateModal = ({
                     throw new Error('Titel ist erforderlich.');
                 }
 
-                const response = await apiClient.post('/auth/user-templates/from-url', {
+                const response = await apiClient.post<ApiResponse>('/auth/user-templates/from-url', {
                     url: canvaUrl.trim(),
                     title: title.trim(),
                     description: description.trim(),
@@ -139,7 +164,7 @@ const AddTemplateModal = ({
                     throw new Error(data.message || 'Fehler beim Erstellen der Vorlage');
                 }
 
-                templateId = data.data.id;
+                templateId = data.data?.id;
             } else {
                 if (!title.trim()) {
                     throw new Error('Titel ist erforderlich.');
@@ -151,7 +176,7 @@ const AddTemplateModal = ({
                     throw new Error('URL ist erforderlich.');
                 }
 
-                const response = await apiClient.post('/auth/user-templates', {
+                const response = await apiClient.post<ApiResponse>('/auth/user-templates', {
                     title: title.trim(),
                     description: description.trim(),
                     canva_url: externalUrl.trim(),
@@ -168,7 +193,7 @@ const AddTemplateModal = ({
                     throw new Error(data.message || 'Fehler beim Erstellen der Vorlage');
                 }
 
-                templateId = data.data.id;
+                templateId = data.data?.id;
             }
 
             if (groupId && onShareContent && templateId) {
@@ -178,22 +203,25 @@ const AddTemplateModal = ({
                 });
             }
 
-            onSuccess?.({ id: templateId, title: title.trim() });
+            if (templateId) {
+                onSuccess?.({ id: templateId, title: title.trim() });
+            }
             onClose();
         } catch (error) {
-            setSubmitError(error.message || 'Fehler beim Erstellen der Vorlage');
+            const errorMessage = error instanceof Error ? error.message : 'Fehler beim Erstellen der Vorlage';
+            setSubmitError(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
     }, [mode, previewData, title, description, externalUrl, canvaUrl, groupId, onShareContent, onSuccess, onClose, authorName, contactEmail]);
 
-    const handleBackdropClick = useCallback((e) => {
+    const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget) {
             onClose();
         }
     }, [onClose]);
 
-    const handleKeyDown = useCallback((e) => {
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Escape') {
             onClose();
         }

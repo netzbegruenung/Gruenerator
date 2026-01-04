@@ -10,7 +10,7 @@ import useApiSubmit from '../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { extractPlainText, extractFormattedText } from '../utils/contentExtractor';
 import { copyFormattedContent } from '../utils/commonFunctions';
-import { NextcloudShareManager } from '../../utils/nextcloudShareManager';
+import { NextcloudShareManager, ShareLink } from '../../utils/nextcloudShareManager';
 import { canShare, shareContent } from '../../utils/shareUtils';
 import WolkeSetupModal from '../../features/wolke/components/WolkeSetupModal';
 import { useLocation } from 'react-router-dom';
@@ -47,17 +47,17 @@ const ExportDropdown = ({ content,
   customExportOptions = [],
   hideDefaultOptions = false,
   showShareButton = true,
-  showMoreMenu = true }: ExportDropdownProps): JSX.Element => {
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [shareLinks, setShareLinks] = useState([]);
-  const [selectedShareLinkId, setSelectedShareLinkId] = useState('');
-  const [loadingShareLinks, setLoadingShareLinks] = useState(false);
-  const [uploadingToWolke, setUploadingToWolke] = useState(false);
-  const [saveIcon, setSaveIcon] = useState('save');
-  const [showWolkeSubDropdown, setShowWolkeSubDropdown] = useState(false);
-  const [exportIcon, setExportIcon] = useState('share');
-  const [showWolkeSetupModal, setShowWolkeSetupModal] = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
+  showMoreMenu = true }: ExportDropdownProps): JSX.Element | null => {
+  const [showDropdown, setShowDropdown] = useState<boolean>(false);
+  const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
+  const [selectedShareLinkId, setSelectedShareLinkId] = useState<string>('');
+  const [loadingShareLinks, setLoadingShareLinks] = useState<boolean>(false);
+  const [uploadingToWolke, setUploadingToWolke] = useState<boolean>(false);
+  const [saveIcon, setSaveIcon] = useState<string>('save');
+  const [showWolkeSubDropdown, setShowWolkeSubDropdown] = useState<boolean>(false);
+  const [exportIcon, setExportIcon] = useState<string>('share');
+  const [showWolkeSetupModal, setShowWolkeSetupModal] = useState<boolean>(false);
+  const [canNativeShare, setCanNativeShare] = useState<boolean>(false);
 
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
@@ -106,7 +106,7 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleExportWithAutoSave = useCallback(async (exportFn, exportName = 'Export') => {
+  const handleExportWithAutoSave = useCallback(async (exportFn: () => Promise<void>, exportName: string = 'Export') => {
     console.log('[DEBUG] handleExportWithAutoSave called', exportName);
     try {
       console.log('[DEBUG] About to call exportFn');
@@ -157,12 +157,13 @@ const ExportDropdown = ({ content,
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showDropdown && !event.target.closest('.export-dropdown')) {
+    const handleClickOutside = (event: Event) => {
+      const target = (event as unknown as MouseEvent).target as HTMLElement;
+      if (showDropdown && !target.closest('.export-dropdown')) {
         setShowDropdown(false);
         setShowWolkeSubDropdown(false);
       }
-      if (showWolkeSubDropdown && !event.target.closest('.wolke-subdropdown') && !event.target.closest('.wolke-trigger')) {
+      if (showWolkeSubDropdown && !target.closest('.wolke-subdropdown') && !target.closest('.wolke-trigger')) {
         setShowWolkeSubDropdown(false);
       }
     };
@@ -207,7 +208,7 @@ const ExportDropdown = ({ content,
     return lastPart;
   };
 
-  const tryGetTextWithFallbacks = (primaryComponentName) => {
+  const tryGetTextWithFallbacks = (primaryComponentName: string) => {
     let text = getGeneratedText(primaryComponentName);
     if (text) return { text, componentName: primaryComponentName };
 
@@ -276,7 +277,8 @@ const ExportDropdown = ({ content,
       }
     } catch (err) {
       console.error('Fehler beim Exportieren zu Textbegrünung:', err);
-      alert('Fehler beim Exportieren zu Textbegrünung: ' + err.message);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert('Fehler beim Exportieren zu Textbegrünung: ' + errorMessage);
     }
   };
 
@@ -314,7 +316,7 @@ const ExportDropdown = ({ content,
         text: plainContent,
       });
     } catch (error) {
-      if (error.name !== 'AbortError') {
+      if (error instanceof Error && error.name !== 'AbortError') {
         console.error('Share failed:', error);
       }
     }
@@ -326,10 +328,11 @@ const ExportDropdown = ({ content,
     setShowDropdown(false);
     try {
       const formattedContent = await extractFormattedText(content);
-      await generateDOCX(formattedContent, title);
+      await generateDOCX(formattedContent, title || '');
     } catch (error) {
       console.error('DOCX download failed:', error);
-      alert('DOCX Download fehlgeschlagen: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert('DOCX Download fehlgeschlagen: ' + errorMessage);
     }
   }, [generateDOCX, content, title]);
 
@@ -344,7 +347,7 @@ const ExportDropdown = ({ content,
     }
 
     // If only one sharelink, upload directly
-    if (shareLinks.length === 1) {
+    if (shareLinks.length === 1 && shareLinks[0]) {
       await handleWolkeUpload(shareLinks[0].id);
     } else if (shareLinks.length > 1) {
       // Show sub-dropdown for multiple sharelinks
@@ -355,7 +358,7 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleWolkeUploadInner = async (shareLinkId) => {
+  const handleWolkeUploadInner = async (shareLinkId: string) => {
     setShowDropdown(false);
     setShowWolkeSubDropdown(false);
     setUploadingToWolke(true);
@@ -400,12 +403,13 @@ const ExportDropdown = ({ content,
 
     } catch (error) {
       console.error('Wolke upload failed:', error);
-      alert('Wolke Upload fehlgeschlagen: ' + error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert('Wolke Upload fehlgeschlagen: ' + errorMessage);
       setUploadingToWolke(false);
     }
   };
 
-  const handleWolkeUpload = async (shareLinkId) => await handleExportWithAutoSave(() => handleWolkeUploadInner(shareLinkId), 'Wolke');
+  const handleWolkeUpload = async (shareLinkId: string) => await handleExportWithAutoSave(() => handleWolkeUploadInner(shareLinkId), 'Wolke');
 
   const handleSaveToLibrary = () => {
     setShowDropdown(false);
@@ -419,7 +423,7 @@ const ExportDropdown = ({ content,
     }
   };
 
-  const handleWolkeSetup = async (shareLink, label) => {
+  const handleWolkeSetup = async (shareLink: string, label: string) => {
     try {
       const parsed = NextcloudShareManager.parseShareLink(shareLink);
       if (!parsed) throw new Error('Ungültiger Wolke-Share-Link');
@@ -599,7 +603,7 @@ const ExportDropdown = ({ content,
           <div className="wolke-subdropdown-header">
             <span>Wolke-Verbindung wählen:</span>
           </div>
-          {shareLinks.map(link => (
+          {shareLinks.map(link => link.id ? (
             <button
               key={link.id}
               className="wolke-subdropdown-option"
@@ -612,11 +616,11 @@ const ExportDropdown = ({ content,
                   {link.label || 'Unbenannte Wolke'}
                 </div>
                 <div className="wolke-subdropdown-subtitle">
-                  {new URL(link.share_link).hostname}
+                  {link.share_link ? new URL(link.share_link).hostname : 'Keine URL'}
                 </div>
               </div>
             </button>
-          ))}
+          ) : null)}
         </div>
       )}
 
