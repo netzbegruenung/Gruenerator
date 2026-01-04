@@ -49,6 +49,13 @@ export const typography = {
     lineHeight: 24,
   } as TextStyle,
 
+  bodyBold: {
+    fontFamily: systemFont,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
+  } as TextStyle,
+
   bodySmall: {
     fontFamily: systemFont,
     fontSize: 14,

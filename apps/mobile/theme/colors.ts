@@ -68,8 +68,22 @@ export const colors = {
     info: '#316049', // primary.600
   },
 
+  // Error Color System
+  error: {
+    50: '#FEF2F2',
+    100: '#FEE2E2',
+    200: '#FECACA',
+    300: '#FCA5A5',
+    400: '#F87171',
+    500: '#EF4444',
+    600: '#DC2626',
+    700: '#B91C1C',
+    800: '#991B1B',
+    900: '#7F1D1D',
+    950: '#450A0A',
+  },
+
   // Legacy semantic (flat access)
-  error: '#D32F2F',
   success: '#52907A', // primary.500
   warning: '#FFA000',
   info: '#316049', // primary.600
@@ -79,6 +93,21 @@ export const colors = {
   eucalyptus: '#5F8575', // secondary.600
   sand: '#F5F1E9', // neutral.600
   tanne: '#005538', // Brand green (splash screen)
+
+  // Alias for American spelling (gray = grey)
+  gray: {
+    50: '#f9f9f9',
+    100: '#efefef',
+    200: '#dcdcdc',
+    300: '#bdbdbd',
+    400: '#989898',
+    500: '#7c7c7c',
+    600: '#656565',
+    700: '#525252',
+    800: '#464646',
+    900: '#3d3d3d',
+    950: '#262626',
+  },
 } as const;
 
 /**

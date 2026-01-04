@@ -53,19 +53,24 @@ export function isError(error: unknown): error is Error {
  */
 export function getErrorMessage(error: unknown): string {
   if (isApiError(error)) {
-    return error.message;
+    return error.message || 'API-Fehler';
   }
 
   if (isError(error)) {
-    return error.message;
+    return error.message || 'Fehler';
   }
 
   if (typeof error === 'string') {
     return error;
   }
 
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as { message: unknown }).message);
+  if (error && typeof error === 'object') {
+    if ('message' in error && error.message) {
+      return String(error.message);
+    }
+    if ('error' in error && error.error) {
+      return String(error.error);
+    }
   }
 
   return 'Ein unbekannter Fehler ist aufgetreten';
@@ -141,11 +146,12 @@ export function getUserFriendlyMessage(error: unknown): string {
   }
 
   if (isError(error)) {
-    const msg = error.message.toLowerCase();
+    const rawMsg = error.message;
+    const msg = typeof rawMsg === 'string' ? rawMsg.toLowerCase() : '';
     if (msg.includes('network') || msg.includes('fetch')) {
       return ErrorMessages.NETWORK;
     }
-    return error.message;
+    return typeof rawMsg === 'string' ? rawMsg : ErrorMessages.UNKNOWN;
   }
 
   return ErrorMessages.UNKNOWN;

@@ -23,18 +23,28 @@ export type AppRoute =
   | '/(tabs)/(media)/image-studio/input'
   | '/(tabs)/(media)/image-studio/image'
   | '/(tabs)/(media)/image-studio/text'
-  | '/(tabs)/(media)/image-studio/customize'
+  | '/(tabs)/(media)/image-studio/ki-input'
   | '/(tabs)/(media)/image-studio/result'
   // Tools routes
   | '/(tabs)/(tools)/suche'
   | '/(tabs)/(tools)/texteditor'
   | '/(tabs)/(tools)/barrierefreiheit'
+  // Notebooks routes
+  | '/(tabs)/(notebooks)'
+  | '/(tabs)/(notebooks)/gruenerator'
+  | '/(tabs)/(notebooks)/gruene'
+  | '/(tabs)/(notebooks)/bundestagsfraktion'
+  | '/(tabs)/(notebooks)/oesterreich'
   // Modal routes
   | '/(modals)/gruenerator-chat'
   | '/(modals)/edit-chat'
   // Auth routes
   | '/(auth)/login'
-  | '/auth/callback';
+  | '/auth/callback'
+  // Fullscreen routes
+  | '/(fullscreen)/subtitle-editor'
+  | '/(fullscreen)/image-studio-editor'
+  | '/(fullscreen)/webview-editor';
 
 /**
  * Modal routes that accept parameters
@@ -45,6 +55,10 @@ export interface ModalRouteParams {
   };
   '/(modals)/gruenerator-chat': {
     initialMessage?: string;
+  };
+  '/(fullscreen)/subtitle-editor': {
+    projectId: string;
+    projectData: string;
   };
 }
 

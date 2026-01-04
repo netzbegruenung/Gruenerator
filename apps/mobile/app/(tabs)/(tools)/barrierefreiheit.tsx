@@ -97,7 +97,7 @@ export default function BarrierefreiheitScreen() {
 
       {error && (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={16} color={colors.error} />
+          <Ionicons name="alert-circle" size={16} color={colors.error[500]} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
   },
   modeSelector: {
     padding: spacing.medium,
+    paddingTop: spacing.xlarge,
     paddingBottom: 0,
   },
   errorContainer: {
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: colors.error,
+    color: colors.error[500],
     fontSize: 13,
   },
   formContainer: {

@@ -1,11 +1,31 @@
 {
-  "extends": "./node_modules/expo/tsconfig.base.json",
   "compilerOptions": {
-    "strict": true,
+    "allowJs": true,
+    "esModuleInterop": true,
+    "jsx": "react-native",
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
+    "target": "ESNext",
+    "strict": true,
     "baseUrl": ".",
     "paths": {
-      "react-native-gifted-chat": ["./types/react-native-gifted-chat.d.ts"]
+      "react-native-gifted-chat": [
+        "./types/react-native-gifted-chat.d.ts"
+      ],
+      "@gruenerator/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@gruenerator/shared/*": [
+        "../../packages/shared/src/*"
+      ]
     }
   },
   "include": [
@@ -24,10 +44,13 @@
     "utils/**/*.ts",
     "utils/**/*.tsx",
     "types/**/*.d.ts",
+    "config/**/*.ts",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "../../packages/shared/src/**/*.ts"
   ],
   "exclude": [
     "**/node_modules/**"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

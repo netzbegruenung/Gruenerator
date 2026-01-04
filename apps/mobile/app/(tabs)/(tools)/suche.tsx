@@ -95,14 +95,12 @@ export default function SucheScreen() {
     >
       <ScrollView
         style={[styles.container, { backgroundColor: theme.background }]}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          !hasResults && !loading && !error && styles.scrollContentCentered,
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Ionicons name="search" size={28} color={colors.primary[600]} />
-          <Text style={[styles.title, { color: theme.text }]}>Suche</Text>
-        </View>
-
         <SearchInput onSearch={handleSearch} loading={loading} />
 
         {loading && (
@@ -217,14 +215,9 @@ const styles = StyleSheet.create({
     padding: spacing.medium,
     paddingBottom: spacing.xxlarge,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-    marginBottom: spacing.large,
-  },
-  title: {
-    ...typography.h1,
+  scrollContentCentered: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   loadingContainer: {
     alignItems: 'center',

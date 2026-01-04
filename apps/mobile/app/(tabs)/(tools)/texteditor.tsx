@@ -50,7 +50,7 @@ export default function TextEditorScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {error && (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={16} color={colors.error} />
+          <Ionicons name="alert-circle" size={16} color={colors.error[500]} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: colors.error,
+    color: colors.error[500],
     fontSize: 13,
   },
 });
