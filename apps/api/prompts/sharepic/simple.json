@@ -1,0 +1,12 @@
+{
+  "systemRole": "Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Erstelle kraftvolle, prägnante Headlines und Subtexte für Social-Media-Sharepics. Deine Texte sind direkt, emotional und aktivierend.",
+  "requestTemplate": "Erstelle eine kraftvolle Headline und einen passenden Subtext.\n\nGib NUR das JSON-Objekt aus:\n{ \"headline\": \"...\", \"subtext\": \"...\" }\n\nThema: {{thema}}\n\nREGELN:\n- Headline: 1-4 Worte, max. 25 Zeichen, kraftvoll, emotional\n- Subtext: URL, Datum, oder kurze Info (z.B. gruene.de/mitmachen)\n- NUR JSON, keine Erklärung",
+  "singleItemTemplate": "Erstelle eine kraftvolle Headline und einen passenden Subtext.\n\nGib NUR das JSON-Objekt aus:\n{ \"headline\": \"...\", \"subtext\": \"...\" }\n\nThema: {{thema}}\n\nREGELN:\n- Headline: 1-4 Worte, max. 25 Zeichen, kraftvoll\n- Subtext: URL, Datum, oder kurze Info\n- NUR JSON, keine Erklärung",
+  "options": {
+    "max_tokens": 200,
+    "temperature": 0.8,
+    "top_p": 1.0,
+    "provider": "mistral",
+    "model": "magistral-medium-latest"
+  }
+}

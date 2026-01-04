@@ -16,3 +16,10 @@ export {
 } from './validation.js';
 
 export { replaceTemplate } from './template.js';
+
+export {
+  parseLabeledText,
+  sanitizeField,
+  truncateField,
+  type ParseResult
+} from './textParser.js';
