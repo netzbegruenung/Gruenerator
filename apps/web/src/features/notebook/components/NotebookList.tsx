@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { HiOutlineTrash, HiPencil, HiShare, HiEye } from 'react-icons/hi';
 import { NotebookIcon } from '../../../config/icons';
 import { motion } from "motion/react";
+import type { NotebookListProps, NotebookCollection } from '../../../types/notebook';
 import '../../../assets/styles/features/notebook/notebook-collections.css';
 import '../../../assets/styles/features/auth/profile-cards.css';
 import '../../../assets/styles/components/actions/collection-actions.css';
 
-const NotebookList = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading = false }) => {
-    const [deletingId, setDeletingId] = useState(null);
+const NotebookList: React.FC<NotebookListProps> = ({ qaCollections = [], onEdit, onDelete, onShare, onView, loading = false }) => {
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const handleDelete = async (id, name) => {
+    const handleDelete = async (id: string, name: string): Promise<void> => {
         if (window.confirm(`Möchten Sie das Notebook "${name}" wirklich löschen?`)) {
             setDeletingId(id);
             try {

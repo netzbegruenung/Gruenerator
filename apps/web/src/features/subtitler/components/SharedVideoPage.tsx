@@ -13,12 +13,25 @@ import '../../../assets/styles/components/ui/button.css';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+interface ShareData {
+  title: string;
+  sharerName: string;
+  status: string;
+  expiresAt: string;
+}
+
+interface ApiError {
+  response?: {
+    status: number;
+  };
+}
+
 const SharedVideoPage = () => {
   const { shareToken } = useParams();
   const { user, isAuthenticated } = useOptimizedAuth();
-  const [shareData, setShareData] = useState(null);
+  const [shareData, setShareData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
@@ -62,9 +75,10 @@ const SharedVideoPage = () => {
           }
         }
       } catch (err) {
-        if (err.response?.status === 410) {
+        const apiErr = err as ApiError;
+        if (apiErr.response?.status === 410) {
           setExpired(true);
-        } else if (err.response?.status === 404) {
+        } else if (apiErr.response?.status === 404) {
           setError('Dieses Video existiert nicht oder wurde gelöscht.');
         } else {
           setError('Fehler beim Laden des Videos.');
@@ -95,7 +109,9 @@ const SharedVideoPage = () => {
             setError('Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.');
           }
         }
-      } catch {}
+      } catch (_err) {
+        // Silently ignore polling errors
+      }
     };
 
     const interval = setInterval(pollStatus, 5000);
@@ -130,7 +146,8 @@ const SharedVideoPage = () => {
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (err) {
-      if (err.response?.status === 410) {
+      const apiErr = err as ApiError;
+      if (apiErr.response?.status === 410) {
         setExpired(true);
       } else {
         setDownloadError('Download fehlgeschlagen. Bitte versuche es erneut.');
@@ -177,8 +194,9 @@ const SharedVideoPage = () => {
         title: shareData?.title || 'Grünerator Video',
         text: '',
       });
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
+    } catch (error: unknown) {
+      const shareError = error as { name: string };
+      if (shareError.name !== 'AbortError') {
         console.error('Share failed:', error);
       }
     } finally {
@@ -186,7 +204,7 @@ const SharedVideoPage = () => {
     }
   }, [shareToken, shareData?.title]);
 
-  const formatExpiration = (expiresAt) => {
+  const formatExpiration = (expiresAt: string) => {
     if (!expiresAt) return '';
     const date = new Date(expiresAt);
     return date.toLocaleDateString('de-DE', {

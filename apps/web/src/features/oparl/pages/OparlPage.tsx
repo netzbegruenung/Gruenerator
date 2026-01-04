@@ -4,6 +4,7 @@ import SearchBar from '../../search/components/SearchBar';
 import '../../search/styles/SearchBarStyles.css';
 import '../styles/oparl.css';
 import '../../../assets/styles/common/markdown-styles.css';
+import type { OparlPaper } from '../types';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -15,7 +16,7 @@ const exampleQuestions = [
   { icon: '🌳', text: 'Grünflächen Park' }
 ];
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr: string | undefined): string => {
   if (!dateStr) return '';
   try {
     return new Date(dateStr).toLocaleDateString('de-DE');
@@ -24,7 +25,7 @@ const formatDate = (dateStr) => {
   }
 };
 
-const truncateText = (text, maxLength = 150) => {
+const truncateText = (text: string | undefined, maxLength: number = 150): string => {
   if (!text) return '';
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
@@ -53,11 +54,13 @@ const OparlPage = () => {
     loadIndexedCities();
   }, [loadIndexedCities]);
 
-  const handleSearch = useCallback((query) => {
-    search(query);
+  const handleSearch = useCallback((query?: string) => {
+    if (query) {
+      search(query);
+    }
   }, [search]);
 
-  const handleCityChange = useCallback((e) => {
+  const handleCityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const city = e.target.value;
     if (city === '') {
       clearCityFilter();

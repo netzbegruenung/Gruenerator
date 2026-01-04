@@ -11,6 +11,7 @@ import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import type { HelpContent } from '../../../types/baseform';
 
 // Import components
 import AltTextForm from './components/AltTextForm';
@@ -78,11 +79,10 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
   const componentName = `accessibility-${selectedType}`;
 
   // Dynamic help content based on selected type
-  const helpContent = useMemo(() => {
+  const helpContent = useMemo<HelpContent>(() => {
     if (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT) {
       return {
         content: "Erstelle barrierefreie Alt-Texte für Bilder nach den Richtlinien des Deutschen Blinden- und Sehbehindertenverbands (DBSV). Alt-Texte sind essentiell für Screenreader und die Zugänglichkeit von Webinhalten.",
-        title: ACCESSIBILITY_TYPE_TITLES[selectedType],
         tips: [
           "Lade ein Bild hoch (JPG, PNG, WebP)",
           "Füge optional eine Beschreibung hinzu für besseren Kontext",
@@ -93,7 +93,6 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
     } else {
       return {
         content: "Dieser Grünerator übersetzt Texte in Leichte Sprache. Leichte Sprache ist eine vereinfachte Form des Deutschen für Menschen mit kognitiven Beeinträchtigungen, Lernschwierigkeiten oder begrenzten Sprachkenntnissen.",
-        title: ACCESSIBILITY_TYPE_TITLES[selectedType],
         tips: [
           "Füge den zu übersetzenden Text in das Textfeld ein",
           "Der Text wird automatisch nach den Regeln der Leichten Sprache übersetzt",
@@ -108,13 +107,13 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
   // Create baseForm based on selected type
   const form = useBaseForm({
     defaultValues: {},
-    generatorType: `accessibility-${selectedType}`,
-    componentName: componentName,
-    endpoint: API_ENDPOINTS[selectedType],
+    generatorType: `accessibility-${selectedType}` as unknown as null,
+    componentName: componentName as unknown as null,
+    endpoint: API_ENDPOINTS[selectedType] as unknown as null,
     disableKnowledgeSystem: true,
     features: [],
-    tabIndexKey: selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? 'ALT_TEXT' : 'LEICHTE_SPRACHE',
-    helpContent: helpContent
+    tabIndexKey: (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? 'ALT_TEXT' : 'LEICHTE_SPRACHE') as unknown as null,
+    helpContent: helpContent as unknown as null
   });
 
   // Hooks for different functionality
@@ -240,20 +239,20 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
         // Generate alt text
         const response = await generateAltTextForImage(
           imageBase64,
-          fullDescription || null
+          (fullDescription ? fullDescription : null) as null | undefined
         );
 
         const altText = response?.altText || response || '';
 
         setGeneratedContent(altText);
-        form.generator.handleGeneratedContentChange(altText);
+        form.generator?.handleGeneratedContentChange(altText);
 
         console.log('[AccessibilityTextGenerator] Alt text generated successfully');
 
       } else if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE) {
         // Leichte Sprache generation logic
         const allAttachments = [
-          ...form.generator.attachedFiles,
+          ...(form.generator?.attachedFiles || []),
           ...crawledUrls
         ];
 
@@ -274,13 +273,13 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
 
           if (content) {
             setGeneratedContent(content);
-            form.generator.handleGeneratedContentChange(content);
+            form.generator?.handleGeneratedContentChange(content);
           }
         }
       }
     } catch (error) {
       console.error('[AccessibilityTextGenerator] Error submitting form:', error);
-      form.handleSubmitError(error);
+      form.handleSubmitError?.(error);
     }
   }, [
     selectedType,
@@ -300,11 +299,11 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
   const renderForm = () => {
     switch (selectedType) {
       case ACCESSIBILITY_TYPES.ALT_TEXT:
-        return <AltTextForm ref={formRef} tabIndex={form.generator?.tabIndex} />;
+        return <AltTextForm ref={formRef as any} tabIndex={form.generator?.tabIndex} />;
       case ACCESSIBILITY_TYPES.LEICHTE_SPRACHE:
         return (
           <LeichteSpracheForm
-            ref={formRef}
+            ref={formRef as any}
             tabIndex={form.generator?.tabIndex}
             onUrlsDetected={handleUrlsDetected}
           />
@@ -329,7 +328,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
       label="Art der Barrierefreiheit"
       placeholder="Barrierefreiheit-Typ auswählen..."
       isMulti={false}
-      control={null}
+      control={undefined}
       enableIcons={true}
       enableSubtitles={false}
       isSearchable={false}
@@ -344,7 +343,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          {...form.generator?.baseFormProps}
+          {...(form.generator?.baseFormProps as any)}
           title={<span className="gradient-title">{ACCESSIBILITY_TYPE_TITLES[selectedType]}</span>}
           generatedContent={storeGeneratedText || generatedContent}
           onSubmit={handleSubmit}

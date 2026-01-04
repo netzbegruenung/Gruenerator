@@ -107,7 +107,9 @@ const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
             setNewLabel('');
         } catch (error) {
             // Silent failure for autosave - user can still manually save
-            console.log('Autosave failed:', error.message);
+            if (error instanceof Error) {
+                console.log('Autosave failed:', error.message);
+            }
         }
     }, [newShareLink, newLabel, useStore, propOnAddShareLink, storeAddShareLink, propOnSuccessMessage]);
 
@@ -116,13 +118,18 @@ const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
         saveFunction: autosaveShareLink,
         formRef: {
             getValues: () => ({ newShareLink, newLabel }),
-            watch: () => {} // Not needed for state-based
+            watch: (callback) => {
+                // Not needed for state-based, return empty subscription
+                return { unsubscribe: undefined };
+            }
         },
         enabled: isInitialized.current,
         debounceMs: 3000, // Longer delay for external API calls
         getFieldsToTrack: () => ['newShareLink', 'newLabel'],
-        onError: (error: Error) => {
-            console.error('ShareLink autosave failed:', error);
+        onError: (error: unknown) => {
+            if (error instanceof Error) {
+                console.error('ShareLink autosave failed:', error);
+            }
         }
     });
 
@@ -140,9 +147,9 @@ const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
         const validation = NextcloudShareManager.validateShareLink(newShareLink);
         if (!validation.isValid) {
             if (useStore) {
-                setError(validation.error);
+                setError(validation.error || 'Ungültiger Share-Link');
             } else if (propOnErrorMessage) {
-                propOnErrorMessage(validation.error);
+                propOnErrorMessage(validation.error || 'Ungültiger Share-Link');
             }
             return;
         }
@@ -162,10 +169,11 @@ const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
             setNewShareLink('');
             setNewLabel('');
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
             if (useStore && !propOnErrorMessage) {
-                setError('Fehler beim Hinzufügen der Verbindung: ' + error.message);
+                setError('Fehler beim Hinzufügen der Verbindung: ' + errorMessage);
             } else if (propOnErrorMessage) {
-                propOnErrorMessage('Fehler beim Hinzufügen der Verbindung: ' + error.message);
+                propOnErrorMessage('Fehler beim Hinzufügen der Verbindung: ' + errorMessage);
             }
         } finally {
             setIsSubmitting(false);
@@ -175,11 +183,11 @@ const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
     const handleTestConnection = async (shareLink: ShareLink) => {
         setTestingConnections(prev => new Set(prev).add(shareLink.id));
         try {
-            let result;
+            let result: TestResult | undefined;
             if (useStore && !propOnTestConnection) {
-                result = await storeTestConnection(shareLink.share_link);
+                result = await storeTestConnection(shareLink.share_link || '');
             } else if (propOnTestConnection) {
-                result = await propOnTestConnection(shareLink.share_link);
+                result = await propOnTestConnection(shareLink.share_link || '');
             }
 
             if (result?.success) {
@@ -197,7 +205,8 @@ const WolkeShareLinkManager: React.FC<WolkeShareLinkManagerProps> = ({
                 }
             }
         } catch (error) {
-            const message = 'Fehler beim Testen der Verbindung: ' + error.message;
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            const message = 'Fehler beim Testen der Verbindung: ' + errorMessage;
             if (useStore && !propOnErrorMessage) {
                 setError(message);
             } else if (propOnErrorMessage) {
@@ -224,7 +233,7 @@ Diese Datei wurde automatisch erstellt, um die Wolke-Verbindung zu testen.
 
 Erstellt am: ${timestamp}
 ShareLink: ${shareLink.label || 'Unbenannt'}
-Host: ${new URL(shareLink.share_link).hostname}
+Host: ${shareLink.share_link ? new URL(shareLink.share_link).hostname : 'Unbekannt'}
 Kontext: ${contextLabel}
 
 ✅ Wenn Sie diese Datei sehen können, funktioniert die Verbindung korrekt!`;
@@ -255,7 +264,8 @@ Kontext: ${contextLabel}
                 }
             }
         } catch (error) {
-            const message = 'Fehler beim Test-Upload: ' + error.message;
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            const message = 'Fehler beim Test-Upload: ' + errorMessage;
             if (useStore && !propOnErrorMessage) {
                 setError(message);
             } else if (propOnErrorMessage) {
@@ -280,7 +290,8 @@ Kontext: ${contextLabel}
                 propOnSuccessMessage(message);
             }
         } catch (error) {
-            const message = 'Fehler beim Kopieren: ' + error.message;
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            const message = 'Fehler beim Kopieren: ' + errorMessage;
             if (useStore && !propOnErrorMessage) {
                 setError(message);
             } else if (propOnErrorMessage) {
@@ -307,7 +318,8 @@ Kontext: ${contextLabel}
                     }
                 }
             } catch (error) {
-                const message = 'Fehler beim Löschen: ' + error.message;
+                const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+                const message = 'Fehler beim Löschen: ' + errorMessage;
                 if (useStore && !propOnErrorMessage) {
                     setError(message);
                 } else if (propOnErrorMessage) {
@@ -451,7 +463,7 @@ Kontext: ${contextLabel}
                             disabled={loading}
                             title="Liste aktualisieren"
                         >
-                            {React.createElement(getIcon('actions', 'refresh'), { className: 'pabtn__icon' })}
+                            {React.createElement(getIcon('actions', 'refresh') as React.ElementType, { className: 'pabtn__icon' })}
                             <span className="pabtn__label">Aktualisieren</span>
                         </button>
                     }
@@ -473,10 +485,10 @@ Kontext: ${contextLabel}
 
                                     <div className="wolke-share-link-details">
                                         <span className="wolke-share-link-url">
-                                            {new URL(shareLink.share_link).hostname}
+                                            {shareLink.share_link ? new URL(shareLink.share_link).hostname : 'Unbekannter Host'}
                                         </span>
                                         <span className="wolke-share-link-date">
-                                            Hinzugefügt am {new Date(shareLink.created_at).toLocaleDateString('de-DE')}
+                                            Hinzugefügt am {shareLink.created_at ? new Date(shareLink.created_at).toLocaleDateString('de-DE') : 'Unbekanntes Datum'}
                                         </span>
                                     </div>
                                 </div>
@@ -489,7 +501,7 @@ Kontext: ${contextLabel}
                                         disabled={testingConnections.has(shareLink.id) || !shareLink.is_active}
                                         title="Verbindung testen"
                                     >
-                                        {React.createElement(getIcon('actions', 'refresh'), { className: `pabtn__icon ${testingConnections.has(shareLink.id) ? 'spinning' : ''}` })}
+                                        {React.createElement(getIcon('actions', 'refresh') as React.ElementType, { className: `pabtn__icon ${testingConnections.has(shareLink.id) ? 'spinning' : ''}` })}
                                     </button>
 
                                     <button
@@ -499,25 +511,25 @@ Kontext: ${contextLabel}
                                         disabled={uploadingFiles.has(shareLink.id) || !shareLink.is_active}
                                         title="Test-Datei hochladen"
                                     >
-                                        {React.createElement(getIcon('actions', 'upload'), { className: `pabtn__icon ${uploadingFiles.has(shareLink.id) ? 'spinning' : ''}` })}
+                                        {React.createElement(getIcon('actions', 'upload') as React.ElementType, { className: `pabtn__icon ${uploadingFiles.has(shareLink.id) ? 'spinning' : ''}` })}
                                     </button>
 
                                     <button
                                         type="button"
                                         className="pabtn pabtn--ghost pabtn--s"
-                                        onClick={() => handleCopyToClipboard(shareLink.share_link)}
+                                        onClick={() => handleCopyToClipboard(shareLink.share_link || '')}
                                         title="Link kopieren"
                                     >
-                                        {React.createElement(getIcon('actions', 'copy'), { className: 'pabtn__icon' })}
+                                        {React.createElement(getIcon('actions', 'copy') as React.ElementType, { className: 'pabtn__icon' })}
                                     </button>
 
                                     <button
                                         type="button"
                                         className="pabtn pabtn--ghost pabtn--s"
-                                        onClick={() => window.open(shareLink.share_link, '_blank')}
+                                        onClick={() => window.open(shareLink.share_link || '', '_blank')}
                                         title="In neuem Tab öffnen"
                                     >
-                                        {React.createElement(getIcon('actions', 'share'), { className: 'pabtn__icon' })}
+                                        {React.createElement(getIcon('actions', 'share') as React.ElementType, { className: 'pabtn__icon' })}
                                     </button>
 
                                     {canDeleteLinks && (
@@ -527,7 +539,7 @@ Kontext: ${contextLabel}
                                             onClick={() => handleDeleteWithConfirm(shareLink)}
                                             title="Löschen"
                                         >
-                                            {React.createElement(getIcon('actions', 'delete'), { className: 'pabtn__icon' })}
+                                            {React.createElement(getIcon('actions', 'delete') as React.ElementType, { className: 'pabtn__icon' })}
                                         </button>
                                     )}
                                 </div>
@@ -549,7 +561,7 @@ Kontext: ${contextLabel}
                             disabled={loading}
                             title="Liste aktualisieren"
                         >
-                            {React.createElement(getIcon('actions', 'refresh'), { className: 'pabtn__icon' })}
+                            {React.createElement(getIcon('actions', 'refresh') as React.ElementType, { className: 'pabtn__icon' })}
                             <span className="pabtn__label">Aktualisieren</span>
                         </button>
                     }

@@ -30,7 +30,6 @@ import {
   ARIA_LABELS,
   FORM_STEPS,
 } from '../../../../components/utils/constants';
-import { SloganAlternativesDisplay } from '../components/SloganAlternatives';
 
 // Types
 interface ColorScheme {
@@ -539,37 +538,6 @@ const BaseForm: React.FC<BaseFormProps> = ({
                 />
               )}
             </div>
-            {formData.sloganAlternatives?.length > 0 && (
-              <div className="alternatives-section">
-                <SloganAlternativesDisplay
-                  currentSlogan={formData.type === 'Zitat' ? {
-                    quote: formData.quote
-                  } : formData.type === 'Info' ? {
-                    header: formData.header,
-                    subheader: formData.subheader,
-                    body: formData.body
-                  } : {
-                    line1: formData.line1,
-                    line2: formData.line2,
-                    line3: formData.line3
-                  }}
-                  alternatives={formData.sloganAlternatives}
-                  onSloganSelect={formData.type === 'Zitat' ?
-                    (selected: Slogan) => {
-                      updateFormData({ quote: selected.quote || '' });
-                    } : formData.type === 'Info' ?
-                    (selected: Slogan) => {
-                      updateFormData({
-                        header: selected.header || '',
-                        subheader: selected.subheader || '',
-                        body: selected.body || ''
-                      });
-                    } :
-                    fileUploadProps?.alternativesButtonProps?.onSloganSelect
-                  }
-                />
-              </div>
-            )}
           </>
         )}
         {currentStep === FORM_STEPS.RESULT && typeof generatedImageSrc === 'string' && (generatedImageSrc.startsWith('data:image') || generatedImageSrc.startsWith('/api/')) && (

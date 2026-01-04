@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import BaseForm from '../../../components/common/BaseForm';
+import type { BaseFormProps } from '../../../types/baseform';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
@@ -50,7 +51,7 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
         "Schwierige Wörter werden erklärt oder ersetzt"
       ]
     }
-  });
+  } as unknown as Parameters<typeof useBaseForm>[0]);
 
   const { control, handleSubmit } = form;
 
@@ -82,7 +83,7 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
     await retryUrl(url, usePrivacyMode);
   }, [retryUrl, usePrivacyMode]);
 
-  const onSubmitRHF = useCallback(async (rhfData: any) => {
+  const onSubmitRHF = useCallback(async (rhfData: Record<string, unknown>) => {
     setStoreIsLoading(true);
 
     try {
@@ -91,7 +92,7 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
 
       // Combine file attachments with crawled URLs
       const allAttachments = [
-        ...form.generator.attachedFiles,
+        ...(form.generator?.attachedFiles || []),
         ...crawledUrls
       ];
 
@@ -103,9 +104,9 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
       };
 
       // Extract search query from form data for intelligent document content
-      const extractQueryFromFormData = (data) => {
-        const queryParts = [];
-        if (data.originalText) queryParts.push(data.originalText);
+      const extractQueryFromFormData = (data: Record<string, unknown>): string => {
+        const queryParts: string[] = [];
+        if (data.originalText) queryParts.push(String(data.originalText));
         return queryParts.filter(part => part && part.trim()).join(' ');
       };
 
@@ -151,7 +152,7 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
         minRows={5}
         maxRows={15}
         className="form-textarea-large"
-        tabIndex={form.generator.tabIndex.originalText}
+        tabIndex={form.generator?.tabIndex?.originalText}
         enableUrlDetection={true}
         onUrlsDetected={handleUrlsDetected}
       />
@@ -162,7 +163,7 @@ const LeichteSpracheGenerator: React.FC<LeichteSpracheGeneratorProps> = ({ showH
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          {...form.generator.baseFormProps}
+          {...((form.generator?.baseFormProps || {}) as unknown as BaseFormProps)}
           title={<span className="gradient-title">Welchen Text willst du heute vereinfachen?</span>}
           onSubmit={() => handleSubmit(onSubmitRHF)()}
           loading={loading}

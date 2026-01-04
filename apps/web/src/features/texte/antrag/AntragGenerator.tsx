@@ -15,7 +15,7 @@ import QuestionAnswerSection from '../../../components/common/Form/BaseForm/Ques
 import { HiAnnotation } from 'react-icons/hi';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
-import type { Question } from '../../../types/baseform';
+import type { Question, HelpContent } from '../../../types/baseform';
 
 interface AntragGeneratorProps {
   showHeaderFooter?: boolean;
@@ -105,31 +105,31 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
       inhalt: '',
       gliederung: ''
     },
-    generatorType: 'antrag',
-    componentName: componentName,
-    endpoint: '/antraege/generate-simple',
-    instructionType: 'antrag',
-    features: ['webSearch', 'privacyMode'],
-    tabIndexKey: 'ANTRAG',
-    defaultMode: 'pro',
+    generatorType: 'antrag' as unknown as null,
+    componentName: componentName as unknown as null,
+    endpoint: '/antraege/generate-simple' as unknown as null,
+    instructionType: 'antrag' as unknown as null,
+    features: ['webSearch', 'privacyMode'] as unknown as never[],
+    tabIndexKey: 'ANTRAG' as unknown as null,
+    defaultMode: 'pro' as unknown as null,
     helpContent: {
-      content: `Interaktiver Modus! Die KI stellt dir 6 kurze Fragen, um deinen Antrag besser zu verstehen. So entstehen passgenauere Ergebnisse.`,
+      content: 'Interaktiver Modus! Die KI stellt dir 6 kurze Fragen, um deinen Antrag besser zu verstehen. So entstehen passgenauere Ergebnisse.',
       tips: [
-        "Beantworte die Quiz-artigen Fragen mit einem Klick",
-        "Die KI nutzt deine Antworten für ein maßgeschneidertes Ergebnis",
-        "Du kannst den interaktiven Modus jederzeit ausschalten"
+        'Beantworte die Quiz-artigen Fragen mit einem Klick',
+        'Die KI nutzt deine Antworten für ein maßgeschneidertes Ergebnis',
+        'Du kannst den interaktiven Modus jederzeit ausschalten'
       ],
       isNewFeature: true,
       featureId: 'interactive-antrag-v1',
-      fallbackContent: `Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.`,
+      fallbackContent: 'Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.',
       fallbackTips: [
-        "Wähle die Art: Antrag, Kleine oder Große Anfrage",
-        "Kleine Anfragen: Präzise Fachinformationen punktuell abfragen",
-        "Große Anfragen: Umfassende politische Themen mit Debatte",
-        "Formuliere deine Idee klar und präzise",
-        "Nutze die Websuche für aktuelle Informationen"
+        'Wähle die Art: Antrag, Kleine oder Große Anfrage',
+        'Kleine Anfragen: Präzise Fachinformationen punktuell abfragen',
+        'Große Anfragen: Umfassende politische Themen mit Debatte',
+        'Formuliere deine Idee klar und präzise',
+        'Nutze die Websuche für aktuelle Informationen'
       ]
-    }
+    } as unknown as null
   });
 
   const { control, handleSubmit, setValue } = form;
@@ -306,7 +306,7 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
         label="Art der Anfrage"
         placeholder="Art der Anfrage auswählen..."
         isMulti={false}
-        control={null}
+        control={undefined}
         enableIcons={true}
         enableSubtitles={false}
         isSearchable={false}
@@ -354,7 +354,7 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
             setCurrentAnswers(prev => ({ ...prev, [questionId]: value }));
           }}
           questionRound={questionRound}
-          onSubmit={() => handleSubmit(onSubmitRHF)()}
+          onSubmit={() => handleSubmit((data: Record<string, unknown>) => onSubmitRHF(data as unknown as FormValues))()}
           loading={loading || interactiveLoading}
           success={success}
           submitButtonProps={computedSubmitButtonProps}
@@ -414,9 +414,10 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           {...form.generator?.baseFormProps}
+          componentName={componentName}
           enableEditMode={true}
           title={<span className="gradient-title">{REQUEST_TYPE_TITLES[selectedRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}</span>}
-          onSubmit={() => handleSubmit(onSubmitRHF)()}
+          onSubmit={() => handleSubmit((data: Record<string, unknown>) => onSubmitRHF(data as unknown as FormValues))()}
           loading={loading || interactiveLoading}
           success={success}
           error={error}
@@ -426,6 +427,7 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
           submitButtonProps={computedSubmitButtonProps}
           firstExtrasChildren={renderRequestTypeSection()}
           hideFormExtras={useInteractiveMode && interactiveState === 'questions'}
+          platformOptions={form.generator?.baseFormProps?.platformOptions ?? undefined}
         >
           {renderFormInputs()}
         </BaseForm>
