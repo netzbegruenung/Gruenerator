@@ -1,14 +1,18 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HiArrowLeft, HiCog, HiArrowRight, HiX, HiPhotograph } from 'react-icons/hi';
-import useImageStudioStore, { StockImage } from '../../../stores/imageStudioStore';
+import { HiArrowLeft, HiCog, HiArrowRight, HiX, HiPhotograph, HiCheck } from 'react-icons/hi';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import { useImageSourceStore } from '../hooks/useImageSourceStore';
+import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { useStepFlow } from '../hooks/useStepFlow';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import StepFlowSloganStep from './StepFlowSloganStep';
 import StockImagesGrid from '../steps/StockImagesGrid';
+import { ProfilbildCanvas, ZitatPureCanvas, ZitatCanvas, InfoCanvas, VeranstaltungCanvas, DreizeilenCanvas } from '../canvas-editor';
 import SegmentedControl from '../../../components/common/UI/SegmentedControl';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import Button from '../../../components/common/SubmitButton';
+import apiClient from '../../../components/utils/apiClient';
+import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 
 import '../../../assets/styles/components/image-studio/typeform-fields.css';
 
@@ -37,7 +41,7 @@ interface BaseFlowStep {
   id: string;
   stepTitle: string;
   stepSubtitle?: string | null;
-  afterComplete?: 'generateText' | 'generateImage' | 'parallelPreload' | null;
+  afterComplete?: 'generateText' | 'generateImage' | 'parallelPreload' | 'backgroundRemoval' | null;
 }
 
 interface InputFlowStep extends BaseFlowStep {
@@ -53,7 +57,11 @@ interface SloganFlowStep extends BaseFlowStep {
   type: 'slogan';
 }
 
-type FlowStep = InputFlowStep | ImageUploadFlowStep | SloganFlowStep;
+interface CanvasEditFlowStep extends BaseFlowStep {
+  type: 'canvas_edit';
+}
+
+type FlowStep = InputFlowStep | ImageUploadFlowStep | SloganFlowStep | CanvasEditFlowStep;
 
 // Component props interfaces
 interface StepFlowInputStepProps {
@@ -68,10 +76,18 @@ interface StepFlowInputStepProps {
   direction: number;
 }
 
+interface BackgroundRemovalProgress {
+  phase: 'downloading' | 'processing' | 'compressing';
+  progress: number;
+  message: string;
+}
+
 interface StepFlowImageUploadStepProps {
   onNext: () => void;
   onBack: () => void;
   direction: number;
+  loading: boolean;
+  bgRemovalProgress: BackgroundRemovalProgress | null;
 }
 
 interface StepFlowProps {
@@ -81,6 +97,7 @@ interface StepFlowProps {
     count: number;
     canGenerate: boolean;
   } | null;
+  startAtCanvasEdit?: boolean;
 }
 
 // Animation variant type
@@ -261,19 +278,19 @@ const StepFlowInputStep: React.FC<StepFlowInputStepProps> = ({
 
 const IMAGE_SOURCE_TABS = [
   { value: 'upload', label: 'Hochladen' },
-  { value: 'stock', label: 'Stock Bilder' }
+  { value: 'stock', label: 'Stock Bilder' },
+  { value: 'mediathek', label: 'Meine Bilder' }
 ];
 
-const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNext, onBack, direction }) => {
+const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNext, onBack, direction, loading, bgRemovalProgress }) => {
+  const { uploadedImage, updateFormData } = useImageStudioStore();
   const {
-    uploadedImage,
-    updateFormData,
     imageSourceTab,
     setImageSourceTab,
     selectedStockImage,
     stockImageAttribution,
     resetStockImageState
-  } = useImageStudioStore();
+  } = useImageSourceStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
@@ -348,9 +365,62 @@ const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNex
     setTimeout(() => onNext(), 50);
   }, [onNext]);
 
-  const handleTabChange = useCallback((tab: 'upload' | 'stock' | 'unsplash') => {
+  const handleTabChange = useCallback((tab: 'upload' | 'stock' | 'unsplash' | 'mediathek') => {
     setImageSourceTab(tab);
   }, [setImageSourceTab]);
+
+  // Mediathek state
+  const { shares, isLoading: isLoadingShares, fetchUserShares } = useShareStore();
+  const [selectedMediathekImage, setSelectedMediathekImage] = useState<Share | null>(null);
+  const [isLoadingMediathekImage, setIsLoadingMediathekImage] = useState(false);
+
+  // Filter for images with originals or AI-generated
+  const mediathekImages = useMemo(() => {
+    return shares.filter(share =>
+      share.mediaType === 'image' && (
+        share.imageMetadata?.hasOriginalImage === true ||
+        share.imageType === 'pure-create'
+      )
+    );
+  }, [shares]);
+
+  // Fetch mediathek images when tab is selected
+  useEffect(() => {
+    if (imageSourceTab === 'mediathek' && shares.length === 0) {
+      fetchUserShares('image');
+    }
+  }, [imageSourceTab, shares.length, fetchUserShares]);
+
+  const handleMediathekImageSelect = useCallback(async (share: Share) => {
+    setSelectedMediathekImage(share);
+    setIsLoadingMediathekImage(true);
+
+    try {
+      const hasOriginal = share.imageMetadata?.hasOriginalImage === true;
+      const imageUrl = hasOriginal
+        ? `${apiClient.defaults.baseURL}/share/${share.shareToken}/original`
+        : `${apiClient.defaults.baseURL}/share/${share.shareToken}`;
+
+      const response = await fetch(imageUrl, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch image');
+      }
+
+      const blob = await response.blob();
+      const file = new File([blob], `mediathek-${share.shareToken}.jpg`, { type: blob.type || 'image/jpeg' });
+
+      updateFormData({ uploadedImage: file });
+      setTimeout(() => onNext(), 50);
+    } catch (error) {
+      console.error('Failed to load mediathek image:', error);
+    } finally {
+      setIsLoadingMediathekImage(false);
+      setSelectedMediathekImage(null);
+    }
+  }, [updateFormData, onNext]);
 
   const renderUploadContent = () => (
     <div
@@ -440,6 +510,105 @@ const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNex
     </div>
   );
 
+  const renderMediathekContent = () => (
+    <div className="typeform-stock-content">
+      {previewUrl ? (
+        <div className="typeform-upload-preview">
+          <img
+            src={previewUrl}
+            alt="Ausgewähltes Bild aus Mediathek"
+            className="typeform-upload-preview__image"
+          />
+          <button
+            type="button"
+            className="typeform-upload-preview__remove"
+            onClick={handleRemoveImage}
+            aria-label="Bild entfernen"
+          >
+            <HiX />
+          </button>
+        </div>
+      ) : (
+        <div className="stock-images-grid">
+          {isLoadingShares && mediathekImages.length === 0 ? (
+            <div className="stock-images-grid__loading">
+              <div className="stock-images-grid__spinner" />
+              <p>Mediathek wird geladen...</p>
+            </div>
+          ) : mediathekImages.length === 0 ? (
+            <div className="stock-images-grid__empty">
+              <p>Noch keine Bilder in der Mediathek.</p>
+              <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>
+                Erstelle Sharepics, um sie hier wiederzuverwenden.
+              </p>
+            </div>
+          ) : (
+            <div className="stock-images-grid__grid">
+              <AnimatePresence mode="popLayout">
+                {mediathekImages.map((share, index) => {
+                  const isSelected = selectedMediathekImage?.shareToken === share.shareToken;
+                  const thumbnailUrl = share.thumbnailUrl || `${apiClient.defaults.baseURL}/share/${share.shareToken}/thumbnail`;
+                  const isOriginal = share.imageMetadata?.hasOriginalImage === true;
+
+                  return (
+                    <motion.div
+                      key={share.shareToken}
+                      className={`stock-images-grid__card ${isSelected ? 'selected' : ''}`}
+                      onClick={() => handleMediathekImageSelect(share)}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.2, delay: index * 0.02 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      style={{ cursor: isLoadingMediathekImage ? 'wait' : 'pointer' }}
+                    >
+                      <img
+                        src={thumbnailUrl}
+                        alt={share.title || 'Mediathek Bild'}
+                        loading="lazy"
+                        className="stock-images-grid__image"
+                      />
+
+                      {isSelected && isLoadingMediathekImage && (
+                        <div className="stock-images-grid__selected-overlay">
+                          <div className="stock-images-grid__spinner" style={{ width: 16, height: 16 }} />
+                        </div>
+                      )}
+
+                      {!isSelected && (
+                        <div
+                          className="stock-images-grid__recommended-badge"
+                          title={isOriginal ? 'Original Bild' : 'KI-generiert'}
+                          style={{ background: isOriginal ? 'var(--primary-500)' : 'var(--sonne)' }}
+                        >
+                          {isOriginal ? <HiPhotograph style={{ fontSize: 12 }} /> : '✨'}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderTabContent = () => {
+    switch (imageSourceTab) {
+      case 'upload':
+        return renderUploadContent();
+      case 'stock':
+        return renderStockContent();
+      case 'mediathek':
+        return renderMediathekContent();
+      default:
+        return renderUploadContent();
+    }
+  };
+
   return (
     <motion.div
       key="image_upload"
@@ -460,7 +629,22 @@ const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNex
         />
       </div>
 
-      {imageSourceTab === 'upload' ? renderUploadContent() : renderStockContent()}
+      {renderTabContent()}
+
+      {bgRemovalProgress && (
+        <div className="typeform-progress-overlay">
+          <div className="typeform-progress-content">
+            <div className="typeform-progress-spinner" />
+            <p className="typeform-progress-message">{bgRemovalProgress.message}</p>
+            <div className="typeform-progress-bar">
+              <div
+                className="typeform-progress-bar__fill"
+                style={{ width: `${Math.round(bgRemovalProgress.progress * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="template-input-step__actions">
         <Button
@@ -469,14 +653,17 @@ const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNex
           icon={<HiArrowLeft />}
           className="btn-secondary"
           ariaLabel="Zurück"
+          disabled={loading}
         />
         {previewUrl && (
           <Button
             onClick={onNext}
-            text="Weiter"
-            icon={<HiArrowRight />}
+            text={loading ? "Wird verarbeitet..." : "Weiter"}
+            icon={loading ? undefined : <HiArrowRight />}
             className="btn-primary"
             ariaLabel="Weiter"
+            loading={loading}
+            disabled={loading}
           />
         )}
       </div>
@@ -484,8 +671,8 @@ const StepFlowImageUploadStep: React.FC<StepFlowImageUploadStepProps> = ({ onNex
   );
 };
 
-const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, imageLimitData }) => {
-  const { handleChange, updateFormData, name } = useImageStudioStore();
+const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, imageLimitData, startAtCanvasEdit }) => {
+  const { handleChange, updateFormData, name, sloganAlternatives, uploadedImage } = useImageStudioStore();
   const { user } = useOptimizedAuth();
 
   const {
@@ -498,13 +685,28 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, i
     error,
     goNext,
     goBack,
-    getFieldValue
-  } = useStepFlow();
+    getFieldValue,
+    transparentImage,
+    typeConfig,
+    handleCanvasExport,
+    bgRemovalProgress
+  } = useStepFlow({ startAtCanvasEdit });
 
   const userDisplayName = useMemo(() => {
     const displayName = user?.display_name || user?.name || '';
     return displayName.trim();
   }, [user]);
+
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (uploadedImage) {
+      const url = URL.createObjectURL(uploadedImage);
+      setUploadedImageUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setUploadedImageUrl(null);
+  }, [uploadedImage]);
 
   useEffect(() => {
     if (!name && userDisplayName) {
@@ -547,6 +749,8 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, i
               onNext={handleNext}
               onBack={handleBack}
               direction={direction}
+              loading={loading}
+              bgRemovalProgress={bgRemovalProgress}
             />
           )}
 
@@ -565,14 +769,138 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, i
             />
           )}
 
-          {currentStep.type === 'slogan' && (
-            <StepFlowSloganStep
+          {currentStep.type === 'canvas_edit' && transparentImage && !typeConfig?.hasTextCanvasEdit && (
+            <motion.div
               key={currentStep.id}
-              onNext={handleNext}
-              onBack={handleBack}
-              loading={loading}
-              direction={direction}
-            />
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="typeform-field typeform-field--canvas-edit"
+            >
+              <ProfilbildCanvas
+                transparentImage={transparentImage}
+                onExport={handleCanvasExport}
+                onCancel={handleBack}
+              />
+            </motion.div>
+          )}
+
+          {currentStep.type === 'canvas_edit' && typeConfig?.id === IMAGE_STUDIO_TYPES.ZITAT_PURE && (
+            <motion.div
+              key={currentStep.id}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="typeform-field typeform-field--canvas-edit"
+            >
+              <ZitatPureCanvas
+                quote={getFieldValue('quote')}
+                name={getFieldValue('name')}
+                alternatives={sloganAlternatives.map((alt: { quote?: string }) => alt.quote || '')}
+                onExport={handleCanvasExport}
+                onCancel={handleBack}
+              />
+            </motion.div>
+          )}
+
+          {currentStep.type === 'canvas_edit' && typeConfig?.id === IMAGE_STUDIO_TYPES.ZITAT && uploadedImageUrl && (
+            <motion.div
+              key={currentStep.id}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="typeform-field typeform-field--canvas-edit"
+            >
+              <ZitatCanvas
+                quote={getFieldValue('quote')}
+                name={getFieldValue('name')}
+                imageSrc={uploadedImageUrl}
+                alternatives={sloganAlternatives.map((alt: { quote?: string }) => alt.quote || '')}
+                onExport={handleCanvasExport}
+                onCancel={handleBack}
+              />
+            </motion.div>
+          )}
+
+          {currentStep.type === 'canvas_edit' && typeConfig?.id === IMAGE_STUDIO_TYPES.INFO && (
+            <motion.div
+              key={currentStep.id}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="typeform-field typeform-field--canvas-edit"
+            >
+              <InfoCanvas
+                header={getFieldValue('header')}
+                subheader={getFieldValue('subheader')}
+                body={getFieldValue('body')}
+                alternatives={sloganAlternatives}
+                onExport={handleCanvasExport}
+                onCancel={handleBack}
+              />
+            </motion.div>
+          )}
+
+          {currentStep.type === 'canvas_edit' && typeConfig?.id === IMAGE_STUDIO_TYPES.VERANSTALTUNG && uploadedImageUrl && (
+            <motion.div
+              key={currentStep.id}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="typeform-field typeform-field--canvas-edit"
+            >
+              <VeranstaltungCanvas
+                eventTitle={getFieldValue('eventTitle')}
+                beschreibung={getFieldValue('beschreibung')}
+                weekday={getFieldValue('weekday')}
+                date={getFieldValue('date')}
+                time={getFieldValue('time')}
+                locationName={getFieldValue('locationName')}
+                address={getFieldValue('address')}
+                imageSrc={uploadedImageUrl}
+                alternatives={sloganAlternatives}
+                onExport={handleCanvasExport}
+                onCancel={handleBack}
+              />
+            </motion.div>
+          )}
+
+          {currentStep.type === 'canvas_edit' && typeConfig?.id === IMAGE_STUDIO_TYPES.DREIZEILEN && (
+            <motion.div
+              key={currentStep.id}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="typeform-field typeform-field--canvas-edit"
+            >
+              <DreizeilenCanvas
+                line1={getFieldValue('line1')}
+                line2={getFieldValue('line2')}
+                line3={getFieldValue('line3')}
+                imageSrc={uploadedImageUrl}
+                alternatives={sloganAlternatives}
+                onExport={handleCanvasExport}
+                onCancel={handleBack}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
 

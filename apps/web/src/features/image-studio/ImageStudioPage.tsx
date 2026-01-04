@@ -1,7 +1,9 @@
-import React, { useEffect, useCallback, useMemo, useState, ChangeEvent, ComponentType } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, ChangeEvent, ComponentType, FormEvent } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { HiPhotograph, HiSparkles, HiArrowLeft, HiPencilAlt } from 'react-icons/hi';
-import { PiFolder, PiLayout } from 'react-icons/pi';
+import { motion } from 'motion/react';
+import { HiPhotograph, HiSparkles, HiArrowLeft, HiArrowUp } from 'react-icons/hi';
+import { PiFolder, PiLayout, PiUser } from 'react-icons/pi';
+import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
 import useImageStudioStore from '../../stores/imageStudioStore';
 import TemplateStudioFlow from './flows/TemplateStudioFlow';
 import { EditInstructionForm } from './forms';
@@ -17,13 +19,10 @@ import {
   KI_SUBCATEGORIES,
   FORM_STEPS,
   TYPE_CONFIG,
-  CATEGORY_CONFIG,
-  KI_SUBCATEGORY_CONFIG,
   getTypeConfig,
   getCategoryConfig,
   getTypesForCategory,
-  getTypesForSubcategory,
-  getSubcategoryConfig,
+  getAllKiTypes,
   URL_TYPE_MAP
 } from './utils/typeConfig';
 
@@ -41,6 +40,8 @@ interface StartOption {
   Icon: ComponentType;
   previewImage?: string;
   isComingSoon?: boolean;
+  isEarlyAccess?: boolean;
+  directType?: string;
 }
 
 interface TypeConfig {
@@ -105,31 +106,93 @@ interface SloganAlternative {
 // URL type map keys
 type UrlTypeMapKey = 'dreizeilen' | 'zitat' | 'zitat-pure' | 'info' | 'veranstaltung' | 'text2sharepic' | 'ki' | 'green-edit' | 'ally-maker' | 'universal-edit' | 'pure-create' | 'ki-sharepic';
 
+// Example prompts for the AI chat input
+const EXAMPLE_PROMPTS = [
+  { icon: '💬', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
+  { icon: '📢', text: 'Sharepic mit 3 Zeilen über Windenergie' },
+  { icon: 'ℹ️', text: 'Info-Grafik über erneuerbare Energien' }
+];
+
 // Sub-component: Category Selector (Templates / KI Create / KI Edit / Vorlagen)
 const ImageStudioCategorySelector: React.FC = () => {
   const navigate = useNavigate();
   const setCategory = useImageStudioStore((state) => state.setCategory);
+  const loadFromAIGeneration = useImageStudioStore((state) => state.loadFromAIGeneration);
   const { user } = useOptimizedAuth();
+
+  // Chat input state
+  const [promptInput, setPromptInput] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const firstName = useMemo(() => {
     const displayName = user?.display_name || user?.name || '';
     return displayName.split(' ')[0] || '';
   }, [user]);
 
-  const handleCategorySelect = useCallback((cat: string | null, subcat: string | null) => {
-    setCategory(cat, subcat);
-    if (cat === IMAGE_STUDIO_CATEGORIES.KI && subcat) {
-      navigate(`/image-studio/ki/${subcat}`);
+  const setType = useImageStudioStore((state) => state.setType);
+
+  const handleCategorySelect = useCallback((cat: string | null, subcat: string | null, directType?: string) => {
+    if (directType) {
+      setType(directType);
+      navigate(`/image-studio/templates/${directType}`);
     } else if (cat) {
+      setCategory(cat, subcat);
       navigate(`/image-studio/${cat}`);
     }
-  }, [setCategory, navigate]);
+  }, [setCategory, setType, navigate]);
+
+  // Handle AI prompt submission
+  const handlePromptSubmit = useCallback(async (e?: FormEvent) => {
+    if (e) e.preventDefault();
+
+    const trimmedPrompt = promptInput.trim();
+    if (!trimmedPrompt || isGenerating) return;
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      const result = await generateSharepicFromPrompt(trimmedPrompt);
+
+      if (!result.success) {
+        setGenerationError(result.error || 'Ein Fehler ist aufgetreten');
+        setIsGenerating(false);
+        return;
+      }
+
+      // Load the generated data into the store
+      loadFromAIGeneration(result.type, result.data);
+
+      // Navigate to the sharepic edit page
+      navigate(`/image-studio/templates/${result.type}`);
+
+    } catch (error: any) {
+      console.error('[ImageStudioCategorySelector] Prompt submission error:', error);
+      setGenerationError(error.message || 'Ein Fehler ist aufgetreten');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [promptInput, isGenerating, loadFromAIGeneration, navigate]);
+
+  // Handle keyboard submit (Enter without Shift)
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handlePromptSubmit();
+    }
+  }, [handlePromptSubmit]);
+
+  // Handle example prompt click
+  const handleExampleClick = useCallback((text: string) => {
+    setPromptInput(text);
+  }, []);
 
   const startOptions: StartOption[] = [
-    { id: 'templates', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Templates', description: 'Sharepics mit vorgefertigten Designs', Icon: PiLayout, previewImage: '/imagine/previews/templates-preview.jpg' },
-    { id: 'ki-create', category: IMAGE_STUDIO_CATEGORIES.KI, subcategory: KI_SUBCATEGORIES.CREATE, label: 'Mit KI Generieren', description: 'Neue Bilder aus Text erstellen', Icon: HiSparkles, previewImage: KI_SUBCATEGORY_CONFIG[KI_SUBCATEGORIES.CREATE]?.previewImage },
-    { id: 'ki-edit', category: IMAGE_STUDIO_CATEGORIES.KI, subcategory: KI_SUBCATEGORIES.EDIT, label: 'Mit KI Editieren', description: 'Bestehende Bilder mit KI bearbeiten', Icon: HiPencilAlt, previewImage: KI_SUBCATEGORY_CONFIG[KI_SUBCATEGORIES.EDIT]?.previewImage },
-    { id: 'vorlagen', category: null, subcategory: null, label: 'Vorlagen', description: 'Vorgefertigte Vorlagen durchsuchen', Icon: PiFolder, previewImage: '/imagine/previews/vorlagen-preview.jpg', isComingSoon: true }
+    { id: 'sharepics', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Sharepics', description: 'Erstelle Sharepics mit vorgefertigten Designs', Icon: PiLayout, previewImage: '/imagine/previews/templates-preview.jpg' },
+    { id: 'imagine', category: IMAGE_STUDIO_CATEGORIES.KI, subcategory: null, label: 'Imagine (KI)', description: 'Erstelle oder bearbeite Bilder mit KI', Icon: HiSparkles, previewImage: '/imagine/variants-pure/soft-illustration.png' },
+    { id: 'profilbild', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Profilbild', description: 'Erstelle ein Porträt mit grünem Hintergrund', Icon: PiUser, previewImage: '/imagine/previews/profilbild-preview.png', directType: IMAGE_STUDIO_TYPES.PROFILBILD },
+    { id: 'vorlagen', category: null, subcategory: null, label: 'Vorlagen', description: 'Durchsuche vorgefertigte Vorlagen', Icon: PiFolder, previewImage: '/imagine/previews/vorlagen-preview.jpg', isEarlyAccess: true }
   ];
 
   return (
@@ -141,21 +204,91 @@ const ImageStudioCategorySelector: React.FC = () => {
             <PiFolder /> Meine Bilder
           </button>
         </div>
+
+        {/* AI Prompt Input Section */}
+        <motion.div
+          className="image-studio-prompt-section"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <h2 className="image-studio-prompt-title">Beschreibe dein Sharepic</h2>
+
+          <form className="image-studio-prompt-form" onSubmit={handlePromptSubmit}>
+            <div className="image-studio-prompt-input-container">
+              <textarea
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="z.B. Erstelle ein Sharepic zum Thema Klimaschutz..."
+                disabled={isGenerating}
+                rows={2}
+                className="image-studio-prompt-input"
+              />
+              <button
+                type="submit"
+                className={`image-studio-prompt-submit ${isGenerating ? 'loading' : ''}`}
+                disabled={!promptInput.trim() || isGenerating}
+                aria-label="Sharepic generieren"
+              >
+                {isGenerating ? (
+                  <span className="spinner-small" />
+                ) : (
+                  <HiArrowUp />
+                )}
+              </button>
+            </div>
+          </form>
+
+          {generationError && (
+            <motion.p
+              className="image-studio-prompt-error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {generationError}
+            </motion.p>
+          )}
+
+          <div className="image-studio-prompt-examples">
+            {EXAMPLE_PROMPTS.map((example, index) => (
+              <button
+                key={index}
+                type="button"
+                className="image-studio-prompt-example"
+                onClick={() => handleExampleClick(example.text)}
+                disabled={isGenerating}
+              >
+                <span>{example.icon}</span>
+                <span>{example.text}</span>
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Section Divider */}
+        <div className="image-studio-divider">
+          <span>Oder wähle eine vordefinierte Route</span>
+        </div>
+
+        {/* Existing Category Cards */}
         <div className="type-options-grid type-options-grid--four">
           {startOptions.map((option) => (
             <div
               key={option.id}
               className={`type-card ${option.previewImage ? 'type-card--image gradient-dark' : ''} ${option.isComingSoon ? 'coming-soon' : ''}`}
-              onClick={() => !option.isComingSoon && handleCategorySelect(option.category, option.subcategory)}
+              onClick={() => !option.isComingSoon && (option.isEarlyAccess ? navigate('/datenbank/vorlagen') : handleCategorySelect(option.category, option.subcategory, option.directType))}
               role="button"
               tabIndex={option.isComingSoon ? -1 : 0}
-              onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && !option.isComingSoon && handleCategorySelect(option.category, option.subcategory)}
+              onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && !option.isComingSoon && (option.isEarlyAccess ? navigate('/datenbank/vorlagen') : handleCategorySelect(option.category, option.subcategory, option.directType))}
             >
               {option.isComingSoon && <span className="coming-soon-badge">Coming Soon</span>}
+              {option.isEarlyAccess && <span className="beta-badge">Early Access</span>}
               {option.previewImage ? (
                 <>
                   <img src={option.previewImage} alt={option.label} className="type-card__image" />
                   <h3>{option.label}</h3>
+                  <p className="type-card__description">{option.description}</p>
                 </>
               ) : (
                 <>
@@ -176,20 +309,13 @@ const ImageStudioCategorySelector: React.FC = () => {
 const ImageStudioTypeSelector: React.FC = () => {
   const navigate = useNavigate();
   const category = useImageStudioStore((state) => state.category);
-  const subcategory = useImageStudioStore((state) => state.subcategory);
   const setType = useImageStudioStore((state) => state.setType);
-  const updateFormData = useImageStudioStore((state) => state.updateFormData);
-  const goToNextStep = useImageStudioStore((state) => state.goToNextStep);
 
   const categoryConfig = useMemo(() => getCategoryConfig(category), [category]);
-  const subcategoryConfig = useMemo(() => getSubcategoryConfig(subcategory), [subcategory]);
   const typesInCategory = useMemo(() => {
     if (!category) return [];
-    if (category === IMAGE_STUDIO_CATEGORIES.KI && subcategory) {
-      return getTypesForSubcategory(subcategory);
-    }
     return getTypesForCategory(category);
-  }, [category, subcategory]);
+  }, [category]);
 
   // Wait for category to be set
   if (!category) return null;
@@ -199,34 +325,44 @@ const ImageStudioTypeSelector: React.FC = () => {
     const config = getTypeConfig(selectedType) as TypeConfig | null;
     const urlSegment = config?.urlSlug || selectedType;
     navigate(`/image-studio/${config?.category || category}/${urlSegment}`);
-    goToNextStep();
-  }, [setType, navigate, category, goToNextStep]);
+  }, [setType, navigate, category]);
 
-  const handleVariantSelect = useCallback((selectedType: string, selectedVariant: string) => {
-    setType(selectedType);
-    updateFormData({ variant: selectedVariant });
-    const config = getTypeConfig(selectedType) as TypeConfig | null;
-    const urlSegment = config?.urlSlug || selectedType;
-    navigate(`/image-studio/${config?.category || category}/${urlSegment}`);
-    goToNextStep();
-  }, [setType, updateFormData, navigate, category, goToNextStep]);
+  // KI category - show all variants and edit types in one grid
+  if (category === IMAGE_STUDIO_CATEGORIES.KI) {
+    const allKiTypes = getAllKiTypes();
+    const editTypes = allKiTypes.filter(t => t.subcategory === KI_SUBCATEGORIES.EDIT);
 
-  // For KI Generieren (CREATE subcategory), show variants directly instead of types
-  if (subcategory === KI_SUBCATEGORIES.CREATE) {
+    // Get variants for pure-create (the style options)
     const pureCreateConfig = TYPE_CONFIG[IMAGE_STUDIO_TYPES.PURE_CREATE];
-    const variants = pureCreateConfig?.variants || [];
+    const createVariants = pureCreateConfig?.variants || [];
+
+    const handleVariantSelect = (selectedVariant: string) => {
+      setType(IMAGE_STUDIO_TYPES.PURE_CREATE);
+      const store = useImageStudioStore.getState();
+      store.updateFormData({ variant: selectedVariant });
+      navigate(`/image-studio/ki/pure-create`);
+    };
 
     return (
       <div className="type-selector-screen">
         <div className="type-selector-content">
           <div className="type-selector-header-wrapper">
-            <h1>{subcategoryConfig?.label || 'Mit KI Generieren'}</h1>
+            <h1>Imagine (KI)</h1>
           </div>
-          <div className="type-options-grid type-options-grid--variants">
-            {variants.map((variant) => (
-              <div key={variant.value} className="type-card type-card--image" onClick={() => handleVariantSelect(IMAGE_STUDIO_TYPES.PURE_CREATE, variant.value)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleVariantSelect(IMAGE_STUDIO_TYPES.PURE_CREATE, variant.value)}>
+          <div className="type-options-grid type-options-grid--five">
+            {editTypes.map((config) => (
+              <div key={config.id} className={`type-card type-card--image no-overlay ${config.isBeta ? 'beta' : ''}`} onClick={() => handleTypeSelect(config.id)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleTypeSelect(config.id)}>
+                {config.isBeta && <span className="beta-badge">Beta</span>}
+                <img src={config.previewImage} alt={config.label} className="type-card__image" />
+                <h3>{config.label}</h3>
+                <p className="type-card__description">{config.description}</p>
+              </div>
+            ))}
+            {createVariants.map((variant: { value: string; label: string; description: string; imageUrl: string }) => (
+              <div key={variant.value} className="type-card type-card--image no-overlay" onClick={() => handleVariantSelect(variant.value)} role="button" tabIndex={0} onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleVariantSelect(variant.value)}>
                 <img src={variant.imageUrl} alt={variant.label} className="type-card__image" />
                 <h3>{variant.label}</h3>
+                <p className="type-card__description">{variant.description}</p>
               </div>
             ))}
           </div>
@@ -269,13 +405,13 @@ const ImageStudioTypeSelector: React.FC = () => {
     );
   }
 
-  // Standard type selector for other categories/subcategories
+  // Standard type selector fallback (should not be reached with current flow)
   return (
     <div className="type-selector-screen">
       <div className="type-selector-content">
         <div className="type-selector-header-wrapper">
-          <h1>{subcategoryConfig?.label || categoryConfig?.label}</h1>
-          <p className="type-selector-intro">{subcategoryConfig?.description || categoryConfig?.description}</p>
+          <h1>{categoryConfig?.label}</h1>
+          <p className="type-selector-intro">{categoryConfig?.description}</p>
         </div>
         <div className="type-options-grid">
           {typesInCategory.map((config) => {
@@ -440,7 +576,8 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
     variant, imagineTitle, purePrompt, sharepicPrompt,
     handleChange, updateFormData, setGeneratedImage,
     setSloganAlternatives, goToNextStep, resetStore,
-    loadGalleryEditData, loadEditSessionData, galleryEditMode, editShareToken
+    loadGalleryEditData, loadEditSessionData, galleryEditMode, editShareToken,
+    aiGeneratedContent
   } = useImageStudioStore();
 
   const { generateText, generateImage, loading, error, setError } = useImageGeneration();
@@ -454,6 +591,9 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
   useEffect(() => {
     if (!urlCategory) return;
 
+    // Skip URL sync when content was generated via AI prompt (state is already set correctly)
+    if (aiGeneratedContent) return;
+
     // Check if urlType is actually a subcategory (create/edit)
     const isSubcategory = urlType && Object.values(KI_SUBCATEGORIES).includes(urlType);
 
@@ -465,7 +605,8 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
     } else if (urlType) {
       // URL: /image-studio/ki/green-edit (actual type)
       const mappedType = (urlType in URL_TYPE_MAP ? URL_TYPE_MAP[urlType as UrlTypeMapKey] : urlType) || urlType;
-      if (mappedType && TYPE_CONFIG[mappedType] && !type) {
+      // Only set type if not navigating back (currentStep !== TYPE_SELECT prevents race condition)
+      if (mappedType && TYPE_CONFIG[mappedType] && !type && currentStep !== FORM_STEPS.TYPE_SELECT) {
         setCategory(TYPE_CONFIG[mappedType].category, TYPE_CONFIG[mappedType].subcategory);
         setType(mappedType);
       }
@@ -473,7 +614,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
       // URL: /image-studio/templates or /image-studio/ki (without subcategory)
       setCategory(urlCategory);
     }
-  }, [urlCategory, urlType, category, subcategory, type, setCategory, setType]);
+  }, [urlCategory, urlType, category, subcategory, type, currentStep, setCategory, setType, aiGeneratedContent]);
 
   // Handle gallery edit mode from location.state
   useEffect(() => {
@@ -526,14 +667,14 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
       setCategory(null, null);
       navigate('/image-studio');
     } else if (currentStep === FORM_STEPS.IMAGE_UPLOAD) {
-      goBack();
       navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+      goBack();
     } else if (currentStep === FORM_STEPS.INPUT) {
       const prevStep = typeConfig?.steps?.[typeConfig.steps.indexOf(currentStep) - 1];
-      goBack();
       if (prevStep === FORM_STEPS.TYPE_SELECT || !prevStep) {
         navigate(`/image-studio/${category}${subcategory ? `/${subcategory}` : ''}`);
       }
+      goBack();
     } else {
       goBack();
     }

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { HiCheck, HiRefresh, HiStar } from 'react-icons/hi';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { usePreloadStore } from '../hooks/usePreloadStore';
+import { useImageSourceStore } from '../hooks/useImageSourceStore';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import apiClient from '../../../components/utils/apiClient';
 import './StockImagesGrid.css';
@@ -18,6 +20,8 @@ const CATEGORY_LABELS = {
 };
 
 const StockImagesGrid = ({ onImageSelect }) => {
+  const { thema, line1, setUploadedImage, setFile } = useImageStudioStore();
+  const { preloadedImageResult } = usePreloadStore();
   const {
     stockImages,
     stockImageCategories,
@@ -26,10 +30,8 @@ const StockImagesGrid = ({ onImageSelect }) => {
     selectedStockImage,
     fetchStockImages,
     selectStockImage,
-    thema,
-    line1,
-    preloadedImageResult
-  } = useImageStudioStore();
+    setStockImageCategory
+  } = useImageSourceStore();
 
   const [isAiSuggesting, setIsAiSuggesting] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null);
@@ -49,20 +51,24 @@ const StockImagesGrid = ({ onImageSelect }) => {
     setLocalCategory(category);
     // Only call store for real categories (not 'empfohlen' which is local-only)
     if (category !== 'empfohlen') {
-      useImageStudioStore.getState().setStockImageCategory(category === 'all' ? null : category);
+      setStockImageCategory(category === 'all' ? null : category);
     }
-  }, []);
+  }, [setStockImageCategory]);
 
   const handleImageClick = useCallback(async (image) => {
     try {
-      await selectStockImage(image);
+      const file = await selectStockImage(image);
+      if (file) {
+        setUploadedImage(file);
+        setFile(file);
+      }
       if (onImageSelect) {
         onImageSelect(image);
       }
     } catch (error) {
       console.error('Failed to select stock image:', error);
     }
-  }, [selectStockImage, onImageSelect]);
+  }, [selectStockImage, onImageSelect, setUploadedImage, setFile]);
 
   const handleAiSuggest = useCallback(async () => {
     const textForSuggestion = thema || line1 || '';
