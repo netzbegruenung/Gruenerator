@@ -2,26 +2,33 @@
  * Result Screen
  * Final generated image display for Image Studio
  * Supports both template-based (canvas) and KI (FLUX) generation
+ * Edit button navigates to fullscreen editor
  */
 
 import { useEffect, useCallback, useRef } from 'react';
-import { useColorScheme } from 'react-native';
-import { router, Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { route } from '../../../../types/routes';
 import { useImageStudio, useKiImageGeneration } from '@gruenerator/shared/image-studio';
 import { ResultDisplay } from '../../../../components/image-studio/ResultDisplay';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
-import { lightTheme, darkTheme } from '../../../../theme';
+import { supportsEditing } from '../../../../config/editSheetConfig';
+import { lightTheme, darkTheme, colors } from '../../../../theme';
 
 export default function ResultScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
   const hasTriggeredGeneration = useRef(false);
 
   const {
     type,
     kiType,
     formData,
+    uploadedImageUri,
     uploadedImageBase64,
     generatedImage,
     canvasLoading,
@@ -40,6 +47,11 @@ export default function ResultScreen() {
 
   const isKiMode = kiType !== null;
   const loading = isKiMode ? kiLoading : canvasLoading;
+  const showEditButton = !isKiMode && type !== null && supportsEditing(type);
+
+  const handleOpenEdit = useCallback(() => {
+    router.push(route('/(fullscreen)/image-studio-editor'));
+  }, []);
 
   const { generateCanvas } = useImageStudio({
     onImageGenerated: (image) => {
@@ -97,6 +109,8 @@ export default function ResultScreen() {
     try {
       await generateCanvas(type, {
         type,
+        // Use imageUri for React Native (preferred), fallback to imageData
+        imageUri: uploadedImageUri || undefined,
         imageData: uploadedImageBase64 || undefined,
         formData,
       });
@@ -105,7 +119,7 @@ export default function ResultScreen() {
     } finally {
       setCanvasLoading(false);
     }
-  }, [type, formData, uploadedImageBase64, generateCanvas, setCanvasLoading, setError]);
+  }, [type, formData, uploadedImageUri, uploadedImageBase64, generateCanvas, setCanvasLoading, setError]);
 
   const handleGenerate = useCallback(() => {
     if (isKiMode) {
@@ -124,7 +138,7 @@ export default function ResultScreen() {
 
   const handleNewGeneration = () => {
     reset();
-    router.replace('/(tabs)/(media)/image-studio' as Href);
+    router.replace(route('/(tabs)/(media)/image-studio'));
   };
 
   const handleRetry = () => {
@@ -133,13 +147,20 @@ export default function ResultScreen() {
   };
 
   // Redirect if neither type nor kiType is selected
+  useEffect(() => {
+    if (!type && !kiType) {
+      router.replace(route('/(tabs)/(media)/image-studio'));
+    }
+  }, [type, kiType]);
+
+  // Show nothing while redirecting
   if (!type && !kiType) {
-    router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar hidden />
       <ResultDisplay
         generatedImage={generatedImage}
         loading={loading}
@@ -147,7 +168,33 @@ export default function ResultScreen() {
         onNewGeneration={handleNewGeneration}
         onBack={() => router.back()}
         onRetry={handleRetry}
+        onEdit={handleOpenEdit}
+        showEditButton={showEditButton}
       />
-    </SafeAreaView>
+      <Pressable
+        style={[styles.closeButton, { top: insets.top + 8 }]}
+        onPress={handleNewGeneration}
+        hitSlop={12}
+      >
+        <Ionicons name="close" size={28} color={colors.white} />
+      </Pressable>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+});

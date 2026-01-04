@@ -5,9 +5,10 @@
 
 import { useEffect, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
-import { router, Href } from 'expo-router';
+import { router } from 'expo-router';
+import { route } from '../../../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useImageStudio, typeSupportsModifications } from '@gruenerator/shared/image-studio';
+import { useImageStudio } from '@gruenerator/shared/image-studio';
 import { TextSelectionStep } from '../../../../components/image-studio/TextSelectionStep';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
@@ -64,19 +65,21 @@ export default function TextScreen() {
   }, []);
 
   const handleNext = () => {
-    if (type && typeSupportsModifications(type)) {
-      router.push('./customize' as Href);
-    } else {
-      router.push('./result' as Href);
-    }
+    router.push(route('/(tabs)/(media)/image-studio/result'));
   };
 
   const handleRetry = () => {
     handleGenerateText();
   };
 
+  // Redirect if type is not selected
+  useEffect(() => {
+    if (!type) {
+      router.replace(route('/(tabs)/(media)/image-studio'));
+    }
+  }, [type]);
+
   if (!type) {
-    router.replace('/(tabs)/(media)/image-studio' as Href);
     return null;
   }
 

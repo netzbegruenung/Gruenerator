@@ -29,6 +29,7 @@ const TEMPLATE_ICON_MAP: Record<ImageStudioTemplateType, keyof typeof Ionicons.g
   'zitat-pure': 'chatbubble-outline',
   info: 'information-circle-outline',
   veranstaltung: 'calendar-outline',
+  profilbild: 'person-circle-outline',
 };
 
 const KI_ICON_MAP: Record<ImageStudioKiType, keyof typeof Ionicons.glyphMap> = {

@@ -1,17 +1,19 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+/**
+ * BalkenOffsetControl - Image studio bar offset control
+ * Uses Zustand selector for performance
+ * Note: This control has a unique UI (3 rows of steppers) so it doesn't delegate to a generic component
+ */
+
+import { useCallback } from 'react';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { OffsetStepper } from '../ui/controls';
+import { useImageStudioStore } from '../../stores/imageStudioStore';
+import { spacing, lightTheme, darkTheme } from '../../theme';
 import {
   MODIFICATION_CONTROLS_CONFIG,
   MODIFICATION_LABELS,
   type BalkenOffset,
 } from '@gruenerator/shared/image-studio';
-
-interface BalkenOffsetControlProps {
-  offsets: BalkenOffset;
-  onOffsetsChange: (offsets: BalkenOffset) => void;
-  disabled?: boolean;
-}
 
 const LINE_LABELS = [
   MODIFICATION_LABELS.LINE_1,
@@ -19,24 +21,30 @@ const LINE_LABELS = [
   MODIFICATION_LABELS.LINE_3,
 ];
 
-export function BalkenOffsetControl({
-  offsets,
-  onOffsetsChange,
-  disabled = false,
-}: BalkenOffsetControlProps) {
+interface BalkenOffsetControlProps {
+  disabled?: boolean;
+}
+
+export function BalkenOffsetControl({ disabled = false }: BalkenOffsetControlProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
+  // Zustand selectors - only re-render when these specific values change
+  const offsets = useImageStudioStore(
+    (s) => (s.modifications as { balkenOffset?: BalkenOffset } | null)?.balkenOffset ?? [0, 0, 0]
+  );
+  const updateModification = useImageStudioStore((s) => s.updateModification);
+
   const { min, max, step } = MODIFICATION_CONTROLS_CONFIG.balkenOffset;
 
-  const handleOffsetChange = (index: number, direction: -1 | 1) => {
-    if (disabled) return;
-
-    const newOffsets = [...offsets] as BalkenOffset;
-    const newValue = newOffsets[index] + direction * step;
-    newOffsets[index] = Math.max(min, Math.min(max, newValue));
-    onOffsetsChange(newOffsets);
-  };
+  const handleOffsetChange = useCallback(
+    (index: number, newValue: number) => {
+      const newOffsets = [...offsets] as BalkenOffset;
+      newOffsets[index] = newValue;
+      updateModification('balkenOffset', newOffsets);
+    },
+    [offsets, updateModification]
+  );
 
   return (
     <View style={styles.container}>
@@ -49,57 +57,16 @@ export function BalkenOffsetControl({
 
       <View style={styles.rowsContainer}>
         {offsets.map((offset, index) => (
-          <View key={index} style={styles.row}>
-            <Text style={[styles.rowLabel, { color: theme.text }]}>
-              {LINE_LABELS[index]}
-            </Text>
-
-            <View style={styles.controls}>
-              <Pressable
-                onPress={() => handleOffsetChange(index, -1)}
-                disabled={disabled || offset <= min}
-                style={[
-                  styles.arrowButton,
-                  {
-                    backgroundColor: theme.surface,
-                    borderColor: theme.border,
-                  },
-                  (disabled || offset <= min) && styles.buttonDisabled,
-                ]}
-              >
-                <Ionicons
-                  name="chevron-back"
-                  size={20}
-                  color={disabled || offset <= min ? theme.textSecondary : colors.primary[600]}
-                />
-              </Pressable>
-
-              <View style={[styles.valueDisplay, { backgroundColor: theme.surface }]}>
-                <Text style={[styles.valueText, { color: theme.text }]}>
-                  {offset > 0 ? `+${offset}` : offset}px
-                </Text>
-              </View>
-
-              <Pressable
-                onPress={() => handleOffsetChange(index, 1)}
-                disabled={disabled || offset >= max}
-                style={[
-                  styles.arrowButton,
-                  {
-                    backgroundColor: theme.surface,
-                    borderColor: theme.border,
-                  },
-                  (disabled || offset >= max) && styles.buttonDisabled,
-                ]}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={disabled || offset >= max ? theme.textSecondary : colors.primary[600]}
-                />
-              </Pressable>
-            </View>
-          </View>
+          <OffsetStepper
+            key={index}
+            value={offset}
+            onChange={(v) => handleOffsetChange(index, v)}
+            min={min}
+            max={max}
+            step={step}
+            label={LINE_LABELS[index]}
+            disabled={disabled}
+          />
         ))}
       </View>
     </View>
@@ -119,43 +86,5 @@ const styles = StyleSheet.create({
   },
   rowsContainer: {
     gap: spacing.small,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rowLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-  },
-  arrowButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  valueDisplay: {
-    minWidth: 64,
-    paddingVertical: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    borderRadius: borderRadius.small,
-    alignItems: 'center',
-  },
-  valueText: {
-    fontSize: 13,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
   },
 });

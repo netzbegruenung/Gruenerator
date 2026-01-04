@@ -4,7 +4,8 @@
  */
 
 import { useColorScheme } from 'react-native';
-import { router, Href } from 'expo-router';
+import { router } from 'expo-router';
+import { route } from '../../../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typeRequiresImage, typeHasTextGeneration } from '@gruenerator/shared/image-studio';
 import { InputStep } from '../../../../components/image-studio/InputStep';
@@ -21,16 +22,16 @@ export default function InputScreen() {
     if (!type) return;
 
     if (typeRequiresImage(type)) {
-      router.push('./image' as Href);
+      router.push(route('/(tabs)/(media)/image-studio/image'));
     } else if (typeHasTextGeneration(type)) {
-      router.push('./text' as Href);
+      router.push(route('/(tabs)/(media)/image-studio/text'));
     } else {
-      router.push('./result' as Href);
+      router.push(route('/(tabs)/(media)/image-studio/result'));
     }
   };
 
   if (!type) {
-    router.replace('/(tabs)/(media)/image-studio' as Href);
+    router.replace(route('/(tabs)/(media)/image-studio'));
     return null;
   }
 

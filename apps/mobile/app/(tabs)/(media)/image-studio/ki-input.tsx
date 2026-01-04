@@ -4,7 +4,8 @@
  */
 
 import { useColorScheme } from 'react-native';
-import { router, Href } from 'expo-router';
+import { router } from 'expo-router';
+import { route } from '../../../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KiInputStep } from '../../../../components/image-studio/KiInputStep';
 import { useImageStudioStore } from '../../../../stores/imageStudioStore';
@@ -26,11 +27,11 @@ export default function KiInputScreen() {
   } = useImageStudioStore();
 
   const handleNext = () => {
-    router.push('./result' as Href);
+    router.push(route('/(tabs)/(media)/image-studio/result'));
   };
 
   if (!kiType) {
-    router.replace('/(tabs)/(media)/image-studio' as Href);
+    router.replace(route('/(tabs)/(media)/image-studio'));
     return null;
   }
 
