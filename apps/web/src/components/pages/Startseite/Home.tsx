@@ -15,14 +15,14 @@ const Home = () => {
   const [showMore, setShowMore] = useState(false);
 
   // Icon-Komponenten für bessere JSX-Lesbarkeit
-  const PresseIcon = getIcon('navigation', 'presse-social');
-  const AntragIcon = getIcon('navigation', 'antrag');
-  const UniversalIcon = getIcon('navigation', 'universal');
-  const GrueneJugendIcon = getIcon('navigation', 'gruene-jugend');
-  const ReelIcon = getIcon('navigation', 'reel');
-  const SucheIcon = getIcon('navigation', 'suche');
-  const ImagineIcon = getIcon('navigation', 'imagine');
-  const SharepicIcon = getIcon('navigation', 'sharepic');
+  const PresseIcon = getIcon('navigation', 'presse-social')!;
+  const AntragIcon = getIcon('navigation', 'antrag')!;
+  const UniversalIcon = getIcon('navigation', 'universal')!;
+  const GrueneJugendIcon = getIcon('navigation', 'gruene-jugend')!;
+  const ReelIcon = getIcon('navigation', 'reel')!;
+  const SucheIcon = getIcon('navigation', 'suche')!;
+  const ImagineIcon = getIcon('navigation', 'imagine')!;
+  const SharepicIcon = getIcon('navigation', 'sharepic')!;
 
   return (
     <main role="main" id="main-content">

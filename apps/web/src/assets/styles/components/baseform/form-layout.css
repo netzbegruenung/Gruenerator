@@ -115,6 +115,15 @@
   min-height: 0; /* prevent overflowing children from forcing height */
 }
 
+.form-inputs__header {
+  margin-bottom: var(--spacing-small);
+}
+
+.form-inputs__header .example-prompts {
+  margin-top: 0;
+  max-width: 100%;
+}
+
 .form-inputs__fields {
   flex: 1;
   margin-bottom: var(--spacing-responsive-large);

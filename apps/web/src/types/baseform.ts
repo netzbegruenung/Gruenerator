@@ -169,7 +169,7 @@ export interface Question {
 // =============================================================================
 
 export interface ExamplePrompt {
-  icon?: string;
+  icon?: string | ReactNode;
   label?: string;
   text?: string;
   prompt?: string;
@@ -217,6 +217,8 @@ export interface ExamplePromptsProps {
   prompts?: ExamplePrompt[];
   onPromptClick?: (prompt: ExamplePrompt) => void;
   className?: string;
+  /** Array of platform IDs that are currently selected - used to highlight selected platform tags */
+  selectedPlatforms?: string[];
 }
 
 // =============================================================================
@@ -311,6 +313,7 @@ export interface FormInputSectionProps {
   isStartMode?: boolean;
   loading?: boolean;
   success?: boolean;
+  inputHeaderContent?: ReactNode;
 }
 
 // =============================================================================
@@ -524,12 +527,14 @@ export interface BaseFormProps {
   knowledgeSelectorTabIndex?: number;
   knowledgeSourceSelectorTabIndex?: number;
 
-  // Start page layout
+  // Start page layout props
   useStartPageLayout?: boolean;
   startPageDescription?: string | null;
   examplePrompts?: ExamplePrompt[];
   onExamplePromptClick?: ((prompt: ExamplePrompt) => void) | null;
   contextualTip?: ContextualTip | null;
+  /** Array of platform IDs that are currently selected - used to highlight selected platform tags */
+  selectedPlatforms?: string[];
 
   // Tab index configuration
   featureIconsTabIndex?: {

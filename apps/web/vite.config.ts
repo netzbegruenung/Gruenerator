@@ -65,7 +65,9 @@ export default defineConfig(({ command }) => ({
       'prop-types', '@mdxeditor/editor'
     ],
     exclude: [
-      'motion', 'lodash', 'browser-image-compression'
+      'motion', 'lodash', 'browser-image-compression',
+      '@imgly/background-removal',
+      'onnxruntime-web'
     ],
     esbuildOptions: {
       target: 'es2022',
