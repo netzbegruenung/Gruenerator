@@ -29,6 +29,7 @@ export interface SharepicRequest extends Request {
 export interface SharepicRequestBody {
   type?: string;
   thema?: string;
+  details?: string;
   line1?: string;
   line2?: string;
   line3?: string;
@@ -42,9 +43,10 @@ export interface SharepicRequestBody {
 
 export interface PromptConfig {
   systemRole: string;
-  requestTemplate: string;
-  singleItemTemplate: string;
+  requestTemplate?: string;
+  singleItemTemplate?: string;
   options?: Record<string, unknown>;
+  alternativesOptions?: Record<string, unknown>;
 }
 
 export interface DreizeilenResponse {

@@ -1,12 +1,9 @@
 {
   "systemRole": "Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Erstelle kurze, prägnante Slogans für Sharepics.",
-  "requestTemplate": "<instructions>\nErstelle 5 verschiedene prägnante, zusammenhängende Slogans zum gegebenen Thema. Jeder Slogan soll:\n- Einen durchgängigen Gedanken oder eine Botschaft über drei Zeilen vermitteln\n- Die Werte der Grünen widerspiegeln\n- Inspirierend und zukunftsorientiert sein\n- Für eine breite Zielgruppe geeignet sein\n- Fachbegriffe und komplexe Satzkonstruktionen vermeiden\n</instructions>\n\n<format>\n- Formuliere jeden Slogan als einen zusammenhängenden Satz oder Gedanken\n- Teile jeden Satz auf drei Zeilen auf\n- Jede Zeile soll SEHR KURZ sein (nur 1-2 Worte pro Zeile)\n- Die Slogans sollten auch beim Lesen über die Zeilenumbrüche hinweg Sinn ergeben und flüssig sein\n- Vermeide Bindestriche oder andere Satzzeichen am Ende der Zeilen\n- WICHTIG: Gib NUR die drei Zeilen aus, KEINE Überschriften wie \"Slogan 1:\" oder Nummerierung\n- Trenne verschiedene Slogans durch eine Leerzeile\n- Schlage zusätzlich ein Wort als Suchbegriff für ein passendes Unsplash-Hintergrundbild vor\n- Das Bild soll präzise zum Thema passen\n- WICHTIG: Verwende KEIN Markdown (keine **Fettschrift**, keine Listen mit -, keine Formatierung)\n</format>\n\n<task>\n{{#if (and thema details)}}\nErstelle nun fünf verschiedene Slogans basierend auf folgendem Input:\n<input>\nThema: {{thema}}\nDetails: {{details}}\n</input>\n{{/if}}\n</task>",
-  "singleItemTemplate": "Erstelle einen dreizeiligen Slogan zum Thema: {{thema}}\nDetails: {{details}}\n\nWICHTIG - AUSGABEFORMAT:\nSchreibe NUR die drei Zeilen des Slogans, direkt untereinander:\n\nZeile 1 (sehr kurz, 1-2 Worte)\nZeile 2 (sehr kurz, 1-2 Worte)\nZeile 3 (sehr kurz, 1-2 Worte)\n\nDann eine Leerzeile und:\nSuchbegriff: [ein Wort für Bild]\n\nVERBOTEN:\n- KEINE Überschriften wie \"Slogan:\"\n- KEINE Nummerierung wie \"1.\"\n- KEINE Präfixe wie \"Zeile 1:\"\n- Kein Markdown, keine Bindestriche\n- Nur die drei Zeilen direkt ausgeben",
+  "requestTemplate": "Erstelle einen dreizeiligen Slogan zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nDer Slogan soll:\n- Einen durchgängigen Gedanken über drei Zeilen vermitteln\n- Die Werte der Grünen widerspiegeln\n- Inspirierend und zukunftsorientiert sein\n- Für eine breite Zielgruppe geeignet sein\n- Fachbegriffe vermeiden\n\nAntworte in diesem Format:\n\nZEILE1: Erste Zeile (sehr kurz, 1-2 Worte)\nZEILE2: Zweite Zeile (sehr kurz, 1-2 Worte)\nZEILE3: Dritte Zeile (sehr kurz, 1-2 Worte)\nSUCHBEGRIFF: Ein Wort für Bildsuche",
+  "singleItemTemplate": "Erstelle einen dreizeiligen Slogan zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nDer Slogan soll:\n- Einen durchgängigen Gedanken über drei Zeilen vermitteln\n- Die Werte der Grünen widerspiegeln\n- Inspirierend und zukunftsorientiert sein\n- Für eine breite Zielgruppe geeignet sein\n- Fachbegriffe vermeiden\n\nAntworte in diesem Format:\n\nZEILE1: Erste Zeile (sehr kurz, 1-2 Worte)\nZEILE2: Zweite Zeile (sehr kurz, 1-2 Worte)\nZEILE3: Dritte Zeile (sehr kurz, 1-2 Worte)\nSUCHBEGRIFF: Ein Wort für Bildsuche",
   "options": {
-    "max_tokens": 300,
-    "temperature": 1.0,
-    "top_p": 1.0,
-    "provider": "litellm",
-    "model": "gpt-oss:120b"
+    "max_tokens": 150,
+    "temperature": 0.9
   }
 }
