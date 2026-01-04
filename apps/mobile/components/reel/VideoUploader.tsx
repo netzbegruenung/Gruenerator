@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -173,7 +173,7 @@ export function VideoUploader({ onVideoSelected, uploadProgress, isUploading, on
 
       {error && (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={20} color={colors.error} />
+          <Ionicons name="alert-circle" size={20} color={colors.error[500]} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -181,7 +181,31 @@ export function VideoUploader({ onVideoSelected, uploadProgress, isUploading, on
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<{
+  container: ViewStyle;
+  backButton: ViewStyle;
+  backButtonText: TextStyle;
+  iconContainer: ViewStyle;
+  title: TextStyle;
+  subtitle: TextStyle;
+  buttonContainer: ViewStyle;
+  optionButton: ViewStyle;
+  optionText: TextStyle;
+  hint: TextStyle;
+  previewContainer: ViewStyle;
+  preview: ImageStyle;
+  clearButton: ViewStyle;
+  durationBadge: ViewStyle;
+  durationText: TextStyle;
+  readyText: TextStyle;
+  uploadingContainer: ViewStyle;
+  uploadingText: TextStyle;
+  progressContainer: ViewStyle;
+  progressBar: ViewStyle;
+  progressText: TextStyle;
+  errorContainer: ViewStyle;
+  errorText: TextStyle;
+}>({
   container: {
     flex: 1,
     padding: spacing.large,
@@ -316,6 +340,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.caption,
-    color: colors.error,
+    color: colors.error[500],
   },
 });

@@ -1,23 +1,23 @@
 import { useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, useColorScheme, ActivityIndicator, Text, BackHandler } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { View, StyleSheet, useColorScheme, ActivityIndicator, Text, BackHandler, ViewStyle, TextStyle } from 'react-native';
+import { useFocusEffect, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
 import { VideoUploader, ProcessingProgress, VideoResult, ProjectList, ModeSelector } from '../../../components/reel';
-import { SubtitleEditorScreen } from '../../../components/subtitle-editor';
-import { type Project, getVideoUrl } from '@gruenerator/shared';
+import { type Project, getVideoUrl, saveProject, useProjectsStore } from '@gruenerator/shared';
+import { shareService } from '../../../services/share';
 import type { ReelMode } from '../../../components/reel/ModeSelector';
 
-type ScreenMode = 'projects' | 'creating' | 'mode-select' | 'processing' | 'transcribing' | 'viewing' | 'editing';
+type ScreenMode = 'projects' | 'creating' | 'mode-select' | 'processing' | 'transcribing';
 
 export default function ReelScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const [screenMode, setScreenMode] = useState<ScreenMode>('projects');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [pendingVideoUri, setPendingVideoUri] = useState<string | null>(null);
+  const [isSavingProject, setIsSavingProject] = useState(false);
 
   const {
     status,
@@ -40,26 +40,29 @@ export default function ReelScreen() {
 
   const handleNewReel = useCallback(() => {
     reset();
-    setSelectedProject(null);
     setPendingVideoUri(null);
     setScreenMode('creating');
   }, [reset]);
 
-  const handleSelectProject = useCallback((project: Project) => {
-    setSelectedProject(project);
-    setScreenMode('viewing');
-  }, []);
-
   const handleBackToProjects = useCallback(() => {
     reset();
-    setSelectedProject(null);
     setPendingVideoUri(null);
     setScreenMode('projects');
   }, [reset]);
 
   const handleEditProject = useCallback((project: Project) => {
-    setSelectedProject(project);
-    setScreenMode('editing');
+    router.push({
+      pathname: '/(fullscreen)/subtitle-editor',
+      params: {
+        projectId: project.id,
+        projectData: JSON.stringify(project),
+      },
+    });
+  }, []);
+
+  const handleShareProject = useCallback(async (project: Project) => {
+    const videoUrl = getVideoUrl(project.id);
+    await shareService.shareUrl(videoUrl, project.title, 'Schau dir dieses Reel an!');
   }, []);
 
   const handleVideoSelected = useCallback((fileUri: string) => {
@@ -85,41 +88,69 @@ export default function ReelScreen() {
   }, []);
 
   useEffect(() => {
-    if (screenMode === 'transcribing' && status === 'complete' && transcribedSubtitles && uploadId) {
-      const tempProject: Project = {
-        id: `temp-${uploadId}`,
-        user_id: '',
-        upload_id: uploadId,
-        title: 'Neues Reel',
-        thumbnail_path: null,
-        video_path: null,
-        video_metadata: null,
-        video_size: 0,
-        video_filename: null,
-        subtitles: transcribedSubtitles,
-        style_preference: 'shadow',
-        height_preference: 'tief',
-        mode_preference: 'manual',
-        export_count: 0,
-        last_edited_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
+    if (screenMode === 'transcribing' && status === 'complete' && transcribedSubtitles && uploadId && !isSavingProject) {
+      const saveAndNavigate = async () => {
+        setIsSavingProject(true);
+        try {
+          const { project: savedProject } = await saveProject({
+            uploadId,
+            subtitles: transcribedSubtitles,
+            stylePreference: 'shadow',
+            heightPreference: 'tief',
+            modePreference: 'manual',
+            title: 'Neues Reel',
+          });
+
+          useProjectsStore.getState().fetchProjects();
+
+          setScreenMode('projects');
+          router.push({
+            pathname: '/(fullscreen)/subtitle-editor',
+            params: {
+              projectId: savedProject.id,
+              projectData: JSON.stringify(savedProject),
+            },
+          });
+        } catch (error) {
+          console.error('[ReelScreen] Failed to auto-save project:', error);
+          const tempProject: Project = {
+            id: `temp-${uploadId}`,
+            user_id: '',
+            upload_id: uploadId,
+            title: 'Neues Reel',
+            thumbnail_path: null,
+            video_path: null,
+            video_metadata: null,
+            video_size: 0,
+            video_filename: null,
+            subtitles: transcribedSubtitles,
+            style_preference: 'shadow',
+            height_preference: 'tief',
+            mode_preference: 'manual',
+            export_count: 0,
+            last_edited_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+          };
+          setScreenMode('projects');
+          router.push({
+            pathname: '/(fullscreen)/subtitle-editor',
+            params: {
+              projectId: tempProject.id,
+              projectData: JSON.stringify(tempProject),
+            },
+          });
+        } finally {
+          setIsSavingProject(false);
+        }
       };
-      setSelectedProject(tempProject);
-      setScreenMode('editing');
+
+      saveAndNavigate();
     }
-  }, [screenMode, status, transcribedSubtitles, uploadId]);
+  }, [screenMode, status, transcribedSubtitles, uploadId, isSavingProject]);
 
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        if (screenMode === 'editing') {
-          if (selectedProject?.id.startsWith('temp-')) {
-            handleBackToProjects();
-          } else {
-            setScreenMode('viewing');
-          }
-          return true;
-        }
         if (screenMode === 'mode-select') {
           handleBackFromModeSelect();
           return true;
@@ -133,27 +164,17 @@ export default function ReelScreen() {
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => subscription.remove();
-    }, [screenMode, selectedProject, handleBackToProjects, handleBackFromModeSelect])
+    }, [screenMode, handleBackToProjects, handleBackFromModeSelect])
   );
 
   const renderContent = () => {
-    // Show subtitle editor
-    if (screenMode === 'editing' && selectedProject) {
-      const isTempProject = selectedProject.id.startsWith('temp-');
-      return (
-        <SubtitleEditorScreen
-          project={selectedProject}
-          onBack={() => isTempProject ? handleBackToProjects() : setScreenMode('viewing')}
-          onSaved={() => isTempProject ? handleBackToProjects() : setScreenMode('viewing')}
-        />
-      );
-    }
-
     // Show project list
     if (screenMode === 'projects') {
       return (
         <ProjectList
-          onSelectProject={handleSelectProject}
+          onSelectProject={handleEditProject}
+          onEditProject={handleEditProject}
+          onShareProject={handleShareProject}
           onNewReel={handleNewReel}
         />
       );
@@ -197,10 +218,12 @@ export default function ReelScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary[600]} />
           <Text style={[styles.loadingText, { color: theme.text }]}>
-            {stageName || 'Untertitel werden grüneriert...'}
+            {isSavingProject
+              ? 'Projekt wird gespeichert...'
+              : stageName || 'Untertitel werden grüneriert...'}
           </Text>
           <Text style={[styles.loadingSubtext, { color: theme.textSecondary }]}>
-            Dies kann einige Minuten dauern
+            {isSavingProject ? 'Fast fertig!' : 'Dies kann einige Minuten dauern'}
           </Text>
         </View>
       );
@@ -257,27 +280,12 @@ export default function ReelScreen() {
       }
     }
 
-    // Show selected project video
-    if (screenMode === 'viewing' && selectedProject) {
-      const projectVideoUrl = getVideoUrl(selectedProject.id);
-      return (
-        <VideoResult
-          videoUri={projectVideoUrl}
-          savedToGallery={true}
-          uploadId={selectedProject.upload_id}
-          projectId={selectedProject.id}
-          projectTitle={selectedProject.title}
-          onNewVideo={handleBackToProjects}
-          isRemoteVideo={true}
-          onEdit={() => handleEditProject(selectedProject)}
-        />
-      );
-    }
-
     // Fallback to project list
     return (
       <ProjectList
-        onSelectProject={handleSelectProject}
+        onSelectProject={handleEditProject}
+        onEditProject={handleEditProject}
+        onShareProject={handleShareProject}
         onNewReel={handleNewReel}
       />
     );
@@ -298,7 +306,15 @@ export default function ReelScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<{
+  container: ViewStyle;
+  content: ViewStyle;
+  loadingContainer: ViewStyle;
+  loadingText: TextStyle;
+  loadingSubtext: TextStyle;
+  errorContainer: ViewStyle;
+  errorText: TextStyle;
+}>({
   container: {
     flex: 1,
   },
@@ -327,7 +343,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   errorText: {
-    color: colors.error,
+    color: colors.error[500],
     textAlign: 'center',
   },
 });

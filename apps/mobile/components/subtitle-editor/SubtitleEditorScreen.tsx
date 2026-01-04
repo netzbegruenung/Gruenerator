@@ -1,40 +1,39 @@
 /**
  * SubtitleEditorScreen Component
  * Main orchestrator for subtitle editing
+ * Uses CategoryBar + InlineBar pattern for performant editing
  */
 
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   useColorScheme,
+  useWindowDimensions,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { useVideoPlayer } from 'expo-video';
 import { useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
-import { Button } from '../common/Button';
-import { EditorToolbar, OptionGrid, type ToolConfig, type OptionItem } from '../common/editor-toolbar';
+import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { DraggableSplitView } from '../common/DraggableSplitView';
+import { CategoryBar, InlineBar } from '../common/editor-toolbar';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
 import { VideoPreviewWithSubtitle } from './VideoPreviewWithSubtitle';
 import { SubtitleTimeline } from './SubtitleTimeline';
-import { StylePreview } from './StylePreview';
-import { HeightPreview } from './HeightPreview';
-import { getVideoUrl } from '@gruenerator/shared';
+import { StyleControl, PositionControl } from './controls';
+import { getVideoUrl, getProject } from '@gruenerator/shared';
 import { secureStorage } from '../../services/storage';
+import { SUBTITLE_CATEGORIES, type SubtitleEditCategory } from '../../config/subtitleEditorConfig';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
-import {
-  SUBTITLE_STYLE_OPTIONS,
-  SUBTITLE_HEIGHT_OPTIONS,
-} from '@gruenerator/shared/subtitle-editor';
 import type { Project } from '@gruenerator/shared';
 import type { SubtitleSegment, SubtitleStylePreference, SubtitleHeightPreference } from '@gruenerator/shared/subtitle-editor';
 
@@ -44,32 +43,79 @@ interface SubtitleEditorScreenProps {
   onSaved?: () => void;
 }
 
+const TOOLBAR_HEIGHT = 80;
+const ERROR_BANNER_HEIGHT = 36;
+
 export function SubtitleEditorScreen({
-  project,
+  project: initialProject,
   onBack,
   onSaved,
 }: SubtitleEditorScreenProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const timelineRef = useRef<FlatList<SubtitleSegment>>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [fullProject, setFullProject] = useState<Project | null>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const [splitRatio, setSplitRatio] = useState(0.4);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [inlineCategory, setInlineCategory] = useState<SubtitleEditCategory | null>(null);
 
-  const loadProject = useSubtitleEditorStore((state) => state.loadProject);
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const loadProjectToStore = useSubtitleEditorStore((state) => state.loadProject);
   const reset = useSubtitleEditorStore((state) => state.reset);
+
+  const isTempProject = initialProject.id.startsWith('temp-');
+  const project = fullProject || initialProject;
 
   useEffect(() => {
     secureStorage.getToken().then(setAuthToken);
   }, []);
 
-  const isTempProject = project.id.startsWith('temp-');
+  useEffect(() => {
+    const loadFullProjectData = async () => {
+      if (!isTempProject && !initialProject.subtitles) {
+        setIsLoadingProject(true);
+        try {
+          const loaded = await getProject(initialProject.id);
+          setFullProject(loaded);
+        } catch (error) {
+          console.error('[SubtitleEditorScreen] Failed to load full project:', error);
+        } finally {
+          setIsLoadingProject(false);
+        }
+      }
+    };
+
+    loadFullProjectData();
+  }, [initialProject.id, initialProject.subtitles, isTempProject]);
+
+  const needsFullProjectFetch = !isTempProject && !initialProject.subtitles && !fullProject;
 
   useEffect(() => {
+    if (isLoadingProject || needsFullProjectFetch) return;
+
     const stylePreference = (project.style_preference || 'shadow') as SubtitleStylePreference;
     const heightPreference = (project.height_preference || 'tief') as SubtitleHeightPreference;
     const duration = project.video_metadata?.duration || 0;
 
-    loadProject(
+    loadProjectToStore(
       project.id,
       project.upload_id,
       project.subtitles,
@@ -81,7 +127,7 @@ export function SubtitleEditorScreen({
     return () => {
       reset();
     };
-  }, [project, loadProject, reset]);
+  }, [project, loadProjectToStore, reset, isLoadingProject, needsFullProjectFetch]);
 
   const videoUri = isTempProject
     ? `${API_BASE_URL}/subtitler/internal-video/${project.upload_id}`
@@ -97,14 +143,16 @@ export function SubtitleEditorScreen({
     p.loop = true;
   });
 
+  // Per-property selectors for video preview (controls use their own selectors)
+  const stylePreference = useSubtitleEditorStore((s) => s.stylePreference);
+  const heightPreference = useSubtitleEditorStore((s) => s.heightPreference);
+
   const {
     currentTime,
     segments,
     selectedSegmentId,
     editingSegmentId,
     activeSegmentId,
-    stylePreference,
-    heightPreference,
     hasUnsavedChanges,
     isSaving,
     error,
@@ -113,8 +161,6 @@ export function SubtitleEditorScreen({
     handleTextChange,
     handleEditComplete,
     togglePlayback,
-    setStylePreference,
-    setHeightPreference,
     saveChanges,
     confirmDiscardChanges,
   } = useSubtitleEditor({ player, timelineRef });
@@ -144,151 +190,122 @@ export function SubtitleEditorScreen({
     onBack();
   }, [hasUnsavedChanges, confirmDiscardChanges, onBack]);
 
-  const handleTextTool = useCallback(() => {
-    if (selectedSegmentId !== null) {
-      handleSegmentTap(selectedSegmentId);
-    } else if (activeSegmentId !== null) {
-      handleSegmentTap(activeSegmentId);
-    } else if (segments.length > 0) {
-      handleSegmentTap(segments[0].id);
+  const handleCategorySelect = useCallback((categoryId: SubtitleEditCategory) => {
+    if (categoryId === 'text') {
+      // Text tool - start editing a segment
+      if (selectedSegmentId !== null) {
+        handleSegmentTap(selectedSegmentId);
+      } else if (activeSegmentId !== null) {
+        handleSegmentTap(activeSegmentId);
+      } else if (segments.length > 0) {
+        handleSegmentTap(segments[0].id);
+      }
+    } else {
+      // Style or position - show inline editor
+      setInlineCategory(categoryId);
     }
   }, [selectedSegmentId, activeSegmentId, segments, handleSegmentTap]);
 
-  const styleOptions: OptionItem<SubtitleStylePreference>[] = useMemo(() =>
-    SUBTITLE_STYLE_OPTIONS.map((opt) => ({
-      id: opt.value,
-      label: opt.label,
-      recommended: opt.description === 'Empfohlen',
-      renderPreview: () => <StylePreview style={opt.value} />,
-    })),
-    []
-  );
+  const handleInlineClose = useCallback(() => {
+    setInlineCategory(null);
+  }, []);
 
-  const heightOptions: OptionItem<SubtitleHeightPreference>[] = useMemo(() =>
-    SUBTITLE_HEIGHT_OPTIONS.map((opt) => ({
-      id: opt.value,
-      label: opt.label,
-      renderPreview: () => <HeightPreview position={opt.value} />,
-    })),
-    []
-  );
-
-  const toolbarTools: ToolConfig[] = useMemo(() => [
-    {
-      id: 'style',
-      label: 'Stil',
-      icon: 'brush-outline',
-      hasPanel: true,
-      renderPanel: () => (
-        <OptionGrid
-          options={styleOptions}
-          value={stylePreference}
-          onChange={setStylePreference}
-          columns={4}
-          compact
-        />
-      ),
-    },
-    {
-      id: 'position',
-      label: 'Position',
-      icon: 'move-outline',
-      hasPanel: true,
-      renderPanel: () => (
-        <OptionGrid
-          options={heightOptions}
-          value={heightPreference}
-          onChange={setHeightPreference}
-          columns={2}
-        />
-      ),
-    },
-    {
-      id: 'text',
-      label: 'Text',
-      icon: 'text-outline',
-      badge: segments.length,
-      hasPanel: false,
-      onPress: handleTextTool,
-    },
-  ], [styleOptions, heightOptions, stylePreference, heightPreference, setStylePreference, setHeightPreference, segments.length, handleTextTool]);
+  if (isLoadingProject) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Text style={[styles.loadingText, { color: theme.text }]}>
+          Projekt wird geladen...
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <KeyboardAvoidingView
+    <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top}
+      edges={['top']}
     >
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <Button onPress={handleBack} variant="ghost" style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </Button>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-          {project.title || 'Untertitel bearbeiten'}
-        </Text>
-        <Button
-          onPress={handleSave}
-          variant="primary"
-          style={styles.headerButton}
-          disabled={isSaving || !hasUnsavedChanges}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color={colors.white} />
-          ) : (
-            <Ionicons name="checkmark" size={24} color={colors.white} />
-          )}
-        </Button>
-      </View>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={16} color={colors.error[500]} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-      {error && (
-        <View style={styles.errorBanner}>
-          <Ionicons name="alert-circle" size={16} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      <View style={styles.previewSection}>
-        <VideoPreviewWithSubtitle
-          videoUri={videoUri}
-          isRemoteVideo={true}
-          requiresAuth={!isTempProject}
-          segments={segments}
-          currentTime={currentTime}
-          stylePreference={stylePreference}
-          heightPreference={heightPreference}
-          onTogglePlayback={togglePlayback}
-          isPlaying={isPlaying}
-        />
-      </View>
-
-      <View style={styles.timelineSection}>
-        <View style={[styles.timelineHeader, { borderBottomColor: theme.border }]}>
-          <Text style={[styles.timelineTitle, { color: theme.text }]}>
-            Untertitel ({segments.length})
-          </Text>
-          {hasUnsavedChanges && (
-            <View style={styles.unsavedBadge}>
-              <Text style={styles.unsavedBadgeText}>Ungespeichert</Text>
+        <DraggableSplitView
+          containerHeight={
+            windowHeight -
+            insets.top -
+            insets.bottom -
+            (isKeyboardVisible ? 0 : TOOLBAR_HEIGHT) -
+            (error ? ERROR_BANNER_HEIGHT : 0)
+          }
+        initialRatio={splitRatio}
+        minTopRatio={0.25}
+        maxTopRatio={0.65}
+        onRatioChange={setSplitRatio}
+        topContent={
+          <View style={styles.previewSection}>
+            <VideoPreviewWithSubtitle
+              videoUri={videoUri}
+              isRemoteVideo={true}
+              requiresAuth={!isTempProject}
+              segments={segments}
+              currentTime={currentTime}
+              stylePreference={stylePreference}
+              heightPreference={heightPreference}
+              onTogglePlayback={togglePlayback}
+              isPlaying={isPlaying}
+            />
+          </View>
+        }
+        bottomContent={
+          <View style={styles.timelineSection}>
+            <View style={[styles.timelineHeader, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.timelineTitle, { color: theme.text }]}>
+                Untertitel ({segments.length})
+              </Text>
+              {hasUnsavedChanges && (
+                <View style={styles.unsavedBadge}>
+                  <Text style={styles.unsavedBadgeText}>Ungespeichert</Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
-        <SubtitleTimeline
-          ref={timelineRef}
-          segments={segments}
-          activeSegmentId={activeSegmentId}
-          selectedSegmentId={selectedSegmentId}
-          editingSegmentId={editingSegmentId}
-          onSegmentTap={handleSegmentTap}
-          onTextChange={handleTextChange}
-          onEditComplete={handleEditComplete}
-        />
-      </View>
-
-      <EditorToolbar
-        tools={toolbarTools}
-        disabled={isSaving}
+            <SubtitleTimeline
+              ref={timelineRef}
+              segments={segments}
+              activeSegmentId={activeSegmentId}
+              selectedSegmentId={selectedSegmentId}
+              editingSegmentId={editingSegmentId}
+              onSegmentTap={handleSegmentTap}
+              onTextChange={handleTextChange}
+              onEditComplete={handleEditComplete}
+            />
+          </View>
+        }
       />
-    </KeyboardAvoidingView>
+
+        {!isKeyboardVisible && (
+          inlineCategory ? (
+            <InlineBar onClose={handleInlineClose}>
+              {inlineCategory === 'style' && <StyleControl disabled={isSaving} />}
+              {inlineCategory === 'position' && <PositionControl disabled={isSaving} />}
+            </InlineBar>
+          ) : (
+            <CategoryBar
+              categories={SUBTITLE_CATEGORIES}
+              onSelectCategory={handleCategorySelect}
+            />
+          )
+        )}
+      </KeyboardAvoidingView>
+
+    </SafeAreaView>
   );
 }
 
@@ -296,26 +313,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
-    borderBottomWidth: 1,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    padding: 0,
+  loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.medium,
   },
-  headerTitle: {
-    ...typography.h3,
-    flex: 1,
-    textAlign: 'center',
-    marginHorizontal: spacing.small,
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -326,13 +331,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
   },
   errorText: {
-    color: colors.error,
+    color: colors.error[500],
     fontSize: 13,
     flex: 1,
   },
   previewSection: {
+    flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.small,
+    justifyContent: 'center',
     paddingHorizontal: spacing.medium,
   },
   timelineSection: {

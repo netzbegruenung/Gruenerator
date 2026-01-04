@@ -15,6 +15,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
@@ -200,7 +202,7 @@ export function ShareModal({
       case 'error':
         return (
           <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={48} color={colors.error} />
+            <Ionicons name="alert-circle" size={48} color={colors.error[500]} />
             <Text style={styles.errorTitle}>Fehler</Text>
             <Text style={styles.errorText}>
               {localError || 'Link konnte nicht erstellt werden.'}
@@ -245,7 +247,26 @@ export function ShareModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<{
+  container: ViewStyle;
+  header: ViewStyle;
+  title: TextStyle;
+  closeButton: ViewStyle;
+  content: ViewStyle;
+  inputContainer: ViewStyle;
+  label: TextStyle;
+  input: TextStyle;
+  buttonGroup: ViewStyle;
+  loadingContainer: ViewStyle;
+  loadingText: TextStyle;
+  successContainer: ViewStyle;
+  successHeader: ViewStyle;
+  successTitle: TextStyle;
+  directShareButton: ViewStyle;
+  errorContainer: ViewStyle;
+  errorTitle: TextStyle;
+  errorText: TextStyle;
+}>({
   container: {
     flex: 1,
     backgroundColor: colors.white,
@@ -329,7 +350,7 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     ...typography.h3,
-    color: colors.error,
+    color: colors.error[500],
   },
   errorText: {
     ...typography.body,

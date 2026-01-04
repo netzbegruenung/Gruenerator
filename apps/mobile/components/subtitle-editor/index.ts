@@ -1,5 +1,6 @@
 /**
  * Subtitle Editor Components
+ * Uses shared components from common/editor-toolbar for consistency
  */
 
 export { SubtitleEditorScreen } from './SubtitleEditorScreen';
@@ -10,6 +11,5 @@ export { VideoPreviewWithSubtitle } from './VideoPreviewWithSubtitle';
 export { StylePreview } from './StylePreview';
 export { HeightPreview } from './HeightPreview';
 
-// Legacy exports (kept for backwards compatibility, use common/editor-toolbar instead)
-export { StyleSelector } from './StyleSelector';
-export { HeightSelector } from './HeightSelector';
+// Zustand-connected controls (per-property selectors for performance)
+export { StyleControl, PositionControl } from './controls';

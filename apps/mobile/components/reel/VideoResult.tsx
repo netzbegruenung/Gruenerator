@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEvent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,7 +64,7 @@ export function VideoResult({
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.successHeader}>
         <View style={styles.successIcon}>
           <Ionicons name="checkmark-circle" size={48} color={colors.primary[600]} />
@@ -110,17 +110,17 @@ export function VideoResult({
       </View>
 
       <View style={styles.actions}>
-        <Button onPress={() => setShowShareModal(true)} variant="primary">
-          <Ionicons name="share-outline" size={18} color={colors.white} />
-          {'  '}Teilen
-        </Button>
-
         {onEdit && (
-          <Button onPress={onEdit} variant="outline">
-            <Ionicons name="create-outline" size={18} color={colors.grey[700]} />
+          <Button onPress={onEdit} variant="primary">
+            <Ionicons name="create-outline" size={18} color={colors.white} />
             {'  '}Bearbeiten
           </Button>
         )}
+
+        <Button onPress={() => setShowShareModal(true)} variant="outline">
+          <Ionicons name="share-outline" size={18} color={colors.primary[600]} />
+          {'  '}Teilen
+        </Button>
 
         {!savedToGallery && onSaveToGallery && (
           <Button onPress={onSaveToGallery} variant="outline">
@@ -147,14 +147,17 @@ export function VideoResult({
         projectId={projectId}
         defaultTitle={projectTitle || 'Mein Reel'}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  contentContainer: {
     padding: spacing.large,
+    paddingBottom: spacing.xlarge,
   },
   successHeader: {
     alignItems: 'center',

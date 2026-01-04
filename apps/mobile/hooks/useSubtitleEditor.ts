@@ -10,7 +10,7 @@ import {
   useSubtitleEditorStore,
   selectActiveSegmentId,
 } from '../stores/subtitleEditorStore';
-import { updateProject } from '@gruenerator/shared';
+import { updateProject, saveProject, useProjectsStore } from '@gruenerator/shared';
 import {
   formatSubtitlesToText,
   getNextSegment,
@@ -19,6 +19,8 @@ import {
 } from '@gruenerator/shared/subtitle-editor';
 import type { SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
 
+const AUTO_SAVE_DELAY_MS = 30000; // 30 seconds
+
 interface UseSubtitleEditorOptions {
   player: VideoPlayer | null;
   timelineRef?: React.RefObject<FlatList<SubtitleSegment> | null>;
@@ -26,6 +28,7 @@ interface UseSubtitleEditorOptions {
 
 export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOptions) {
   const lastSeekRef = useRef<number | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     projectId,
@@ -101,6 +104,54 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
       }
     }
   }, [activeSegmentId, segments, timelineRef]);
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    // Skip if no unsaved changes, no project, or already saving
+    if (!hasUnsavedChanges || !projectId || isSaving) {
+      return;
+    }
+
+    // Skip temp projects (they should be rare now with immediate save on process complete)
+    if (projectId.startsWith('temp-')) {
+      return;
+    }
+
+    // Clear any existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const state = useSubtitleEditorStore.getState();
+        if (!state.hasUnsavedChanges || state.isSaving) {
+          return;
+        }
+
+        useSubtitleEditorStore.setState({ isSaving: true, error: null });
+
+        const subtitlesText = formatSubtitlesToText(state.segments);
+        await updateProject(state.projectId!, {
+          subtitles: subtitlesText,
+          stylePreference: state.stylePreference,
+          heightPreference: state.heightPreference,
+        });
+
+        useSubtitleEditorStore.getState().markAsSaved();
+      } catch (err) {
+        console.error('[useSubtitleEditor] Auto-save failed:', err);
+        useSubtitleEditorStore.setState({ isSaving: false });
+      }
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [segments, stylePreference, heightPreference, hasUnsavedChanges, projectId, isSaving]);
 
   const seekToTime = useCallback(
     (time: number) => {
@@ -193,12 +244,29 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
 
     try {
       const subtitlesText = formatSubtitlesToText(segments);
+      const isTempProject = projectId.startsWith('temp-');
 
-      await updateProject(projectId, {
-        subtitles: subtitlesText,
-        stylePreference,
-        heightPreference,
-      });
+      if (isTempProject) {
+        const uploadId = projectId.replace('temp-', '');
+
+        const { project: newProject } = await saveProject({
+          uploadId,
+          subtitles: subtitlesText,
+          stylePreference,
+          heightPreference,
+          title: 'Neues Reel',
+        });
+
+        useSubtitleEditorStore.getState().setProjectId(newProject.id);
+
+        useProjectsStore.getState().fetchProjects();
+      } else {
+        await updateProject(projectId, {
+          subtitles: subtitlesText,
+          stylePreference,
+          heightPreference,
+        });
+      }
 
       markAsSaved();
       return true;
