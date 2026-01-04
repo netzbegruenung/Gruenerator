@@ -35,10 +35,9 @@ export default function TexteLayout() {
             textTransform: 'none',
           },
           tabBarPressColor: colors.primary[100],
-          tabBarScrollEnabled: true,
+          tabBarScrollEnabled: false,
           tabBarItemStyle: {
-            width: 'auto',
-            paddingHorizontal: 12,
+            flex: 1,
           },
           swipeEnabled: true,
           lazy: true,
