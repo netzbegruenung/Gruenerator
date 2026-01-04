@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { getGlobalApiClient } from '../../api/client.js';
+import { isMobile } from '../../platform/index.js';
 import type {
   ImageStudioTemplateType,
   CanvasGenerationRequest,
@@ -68,8 +69,16 @@ export function useImageStudioCanvas(
       const config = getTypeConfig(type);
 
       // Add image if provided
-      if (request.imageData) {
-        // Handle base64 image data
+      if (request.imageUri && isMobile()) {
+        // React Native: Use URI-based FormData approach
+        // React Native FormData supports { uri, type, name } objects
+        formData.append('image', {
+          uri: request.imageUri,
+          type: 'image/jpeg',
+          name: 'image.jpg',
+        } as unknown as Blob);
+      } else if (request.imageData) {
+        // Web: Handle base64 image data by converting to Blob
         const base64Data = request.imageData.replace(/^data:image\/\w+;base64,/, '');
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
@@ -174,8 +183,9 @@ export function useImageStudioCanvas(
       setError(null);
 
       try {
-        // Validate input
-        const validation = validateCanvasInput(type, request.formData, !!request.imageData);
+        // Validate input - check for either imageData or imageUri
+        const hasImage = !!(request.imageData || request.imageUri);
+        const validation = validateCanvasInput(type, request.formData, hasImage);
         if (!validation.valid) {
           throw new Error(validation.error);
         }

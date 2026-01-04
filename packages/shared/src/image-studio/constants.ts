@@ -89,6 +89,31 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     },
     legacyType: 'Veranstaltung',
   },
+
+  profilbild: {
+    id: 'profilbild',
+    label: 'Profilbild',
+    description: 'Porträt mit grünem Hintergrund',
+    requiresImage: true,
+    hasTextGeneration: false,
+    endpoints: {
+      canvas: '/profilbild_canvas',
+    },
+    legacyType: 'Profilbild',
+  },
+
+  simple: {
+    id: 'simple',
+    label: 'Text auf Bild',
+    description: 'Einfaches Sharepic mit Headline und Subtext',
+    requiresImage: true,
+    hasTextGeneration: true,
+    endpoints: {
+      text: '/simple_claude',
+      canvas: '/simple_canvas',
+    },
+    legacyType: 'Simple',
+  },
 };
 
 // ============================================================================
@@ -449,6 +474,46 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
     showEditPanel: true,
     minimalLayout: false,
   },
+
+  profilbild: {
+    inputFields: [],
+    previewFields: [],
+    resultFields: [],
+    showImageUpload: true,
+    showColorControls: false,
+    showFontSizeControl: false,
+    showAdvancedEditing: false,
+    showCredit: false,
+    showAlternatives: false,
+    showEditPanel: false,
+    minimalLayout: true,
+  },
+
+  simple: {
+    inputFields: [
+      {
+        name: 'thema',
+        type: 'textarea',
+        label: 'Thema & Details',
+        placeholder: 'Beschreibe dein Thema, z.B. Mitgliederwerbung, Klimaschutz-Aktion...',
+        required: true,
+        minLength: 3,
+      },
+    ],
+    previewFields: [
+      { name: 'headline', type: 'text', label: 'Headline', required: false },
+      { name: 'subtext', type: 'text', label: 'Subtext', required: false },
+    ],
+    resultFields: ['headline', 'subtext'],
+    showImageUpload: true,
+    showColorControls: false,
+    showFontSizeControl: true,
+    showAdvancedEditing: false,
+    showCredit: false,
+    showAlternatives: false,
+    showEditPanel: true,
+    minimalLayout: false,
+  },
 };
 
 // ============================================================================
@@ -527,6 +592,15 @@ export function mapTextResponse(
           address: alt.address || '',
         })),
         searchTerms: response.searchTerms || [],
+      };
+
+    case 'simple':
+      return {
+        fields: {
+          headline: response.headline || '',
+          subtext: response.subtext || '',
+        },
+        alternatives: [],
       };
 
     default:
