@@ -1,4 +1,4 @@
-import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import { lazy, type ComponentType, type LazyExoticComponent, type FC } from 'react';
 import { isDesktopApp } from '../utils/platform';
 
 /**
@@ -6,7 +6,7 @@ import { isDesktopApp } from '../utils/platform';
  */
 export interface RouteConfig {
   path: string;
-  component: LazyExoticComponent<ComponentType<unknown>>;
+  component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
   showHeaderFooter?: boolean;
 }
@@ -100,6 +100,7 @@ const WrappedGrueneratorChat = lazy(() =>
 const DynamicPageView = lazy(() => import('../features/pages/components/DynamicPageView'));
 const StructuredExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.StructuredExamplePage })));
 const CustomExamplePage = lazy(() => import('../features/pages/ExamplePage').then(module => ({ default: module.CustomExamplePage })));
+const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -136,7 +137,8 @@ export const GrueneratorenBundle = {
   DynamicPageView: DynamicPageView,
   StructuredExamplePage: StructuredExamplePage,
   CustomExamplePage: CustomExamplePage,
-  TextEditor: TextEditorPage
+  TextEditor: TextEditorPage,
+  MobileEditor: MobileEditorPage
 } as const;
 
 // Route Konfigurationen
@@ -237,6 +239,7 @@ export const routes: Routes = {
   standard: standardRoutes,
   special: specialRoutes,
   noHeaderFooter: [
+    { path: '/mobile-editor', component: GrueneratorenBundle.MobileEditor, showHeaderFooter: false },
     ...standardRoutes
       .map(createNoHeaderFooterRoute)
       .filter((route): route is RouteConfig => route !== null)

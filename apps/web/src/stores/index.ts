@@ -17,6 +17,17 @@ export { default as useFormStateStore } from './core/formStateStore';
 export { default as useSharepicStore } from './sharepicStore';
 export { default as useTextEditActions } from './hooks/useTextEditActions';
 
-// Future stores will be exported here:
-// export { useCollabEditorStore } from './collabEditorStore';
-// export { useSupabaseAuthStore } from './supabaseAuthStore'; 
+// Canvas Editor
+export {
+  useCanvasEditorStore,
+  useCanvasLayers,
+  useCanvasSelection,
+  useCanvasConfig,
+  useCanvasContainerSize,
+  useRenderVersion,
+  useSnapGuides,
+  useSnapLines,
+  useCanvasHistory,
+} from './canvasEditorStore';
+export { canvasRefRegistry, CanvasRefRegistry } from './canvasEditorRefs';
+

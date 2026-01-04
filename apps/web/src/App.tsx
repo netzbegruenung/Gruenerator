@@ -57,22 +57,10 @@ const RouteLogger = () => {
 
 function App() {
   useScrollRestoration();
-  const { setupKeyboardNav } = useAccessibility();
+  useAccessibility();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { isFirstRun, requireLogin, completeFirstRun } = useFirstRun();
   const { login } = useAuthStore();
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Tab') {
-        const focusableElements = document.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-        setupKeyboardNav(Array.from(focusableElements));
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [setupKeyboardNav]);
 
   useEffect(() => {
     if (darkMode) {

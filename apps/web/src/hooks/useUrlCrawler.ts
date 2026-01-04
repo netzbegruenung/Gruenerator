@@ -3,18 +3,30 @@ import { processText } from '../components/utils/apiClient';
 import { detectUrls, getNewUrls, getUrlDomain } from '../utils/urlDetection';
 
 /**
+ * Represents a crawled URL attachment
+ */
+interface CrawledAttachment {
+  url: string;
+  metadata?: {
+    wordCount?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
  * Custom hook for URL crawling functionality
  * Manages state for detected URLs, crawling progress, and error handling
- * 
+ *
  * @param {Array<string>} initialUrls - URLs that are already processed
  * @returns {Object} Hook interface with state and methods
  */
-export const useUrlCrawler = (initialUrls = []) => {
-  const [crawledUrls, setCrawledUrls] = useState([]);
-  const [crawlingUrls, setCrawlingUrls] = useState([]);
-  const [crawlErrors, setCrawlErrors] = useState({});
+export const useUrlCrawler = (initialUrls: string[] = []) => {
+  const [crawledUrls, setCrawledUrls] = useState<CrawledAttachment[]>([]);
+  const [crawlingUrls, setCrawlingUrls] = useState<string[]>([]);
+  const [crawlErrors, setCrawlErrors] = useState<Record<string, string | null>>({});
   const processedUrlsRef = useRef(new Set(initialUrls));
-  const inFlightUrlsRef = useRef(new Set());
+  const inFlightUrlsRef = useRef(new Set<string>());
 
   /**
    * Crawls a single URL and returns the attachment object
@@ -22,7 +34,7 @@ export const useUrlCrawler = (initialUrls = []) => {
    * @param {boolean} usePrivacyMode - Whether to use privacy mode
    * @returns {Promise<Object|null>} Crawled attachment object or null on failure
    */
-  const crawlUrl = useCallback(async (url, usePrivacyMode = false) => {
+  const crawlUrl = useCallback(async (url: string, usePrivacyMode = false): Promise<CrawledAttachment | null> => {
     // Skip if already processed
     if (processedUrlsRef.current.has(url)) {
       console.log(`[useUrlCrawler] URL already processed, skipping: ${url}`);
@@ -36,7 +48,7 @@ export const useUrlCrawler = (initialUrls = []) => {
     }
 
     console.log(`[useUrlCrawler] Starting crawl for: ${url} (privacy: ${usePrivacyMode})`);
-    
+
     inFlightUrlsRef.current.add(url);
     setCrawlingUrls(prev => (prev.includes(url) ? prev : [...prev, url]));
     setCrawlErrors(prev => ({ ...prev, [url]: null }));
@@ -63,7 +75,7 @@ export const useUrlCrawler = (initialUrls = []) => {
           delete newErrors[url];
           return newErrors;
         });
-        
+
         console.log(`[useUrlCrawler] Successfully crawled: ${url} (${response.attachment.metadata?.wordCount || 0} words)`);
         return response.attachment;
       } else {
@@ -71,20 +83,31 @@ export const useUrlCrawler = (initialUrls = []) => {
       }
     } catch (error) {
       console.error(`[useUrlCrawler] Failed to crawl ${url}:`, error);
-      
+
       // Map technical errors to user-friendly messages
-      let userFriendlyError = error.message;
-      
-      if (error.response?.status === 400) {
-        userFriendlyError = 'Ungültige URL oder Inhalt nicht verfügbar';
-      } else if (error.response?.status === 429) {
-        userFriendlyError = 'Zu viele Anfragen - bitte warten Sie einen Moment';
-      } else if (error.response?.status >= 500) {
-        userFriendlyError = 'Serverfehler - bitte versuchen Sie es später erneut';
-      } else if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
-        userFriendlyError = 'Zeitüberschreitung - die Seite antwortet nicht';
-      } else if (error.message.includes('Network Error')) {
-        userFriendlyError = 'Netzwerkfehler - bitte überprüfen Sie Ihre Verbindung';
+      let userFriendlyError = 'Ein Fehler ist aufgetreten';
+
+      if (error instanceof Error) {
+        userFriendlyError = error.message;
+      }
+
+      if (error instanceof Error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number } };
+        if (axiosError.response?.status === 400) {
+          userFriendlyError = 'Ungültige URL oder Inhalt nicht verfügbar';
+        } else if (axiosError.response?.status === 429) {
+          userFriendlyError = 'Zu viele Anfragen - bitte warten Sie einen Moment';
+        } else if (axiosError.response?.status && axiosError.response.status >= 500) {
+          userFriendlyError = 'Serverfehler - bitte versuchen Sie es später erneut';
+        }
+      }
+
+      if (error instanceof Error) {
+        if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
+          userFriendlyError = 'Zeitüberschreitung - die Seite antwortet nicht';
+        } else if (error.message.includes('Network Error')) {
+          userFriendlyError = 'Netzwerkfehler - bitte überprüfen Sie Ihre Verbindung';
+        }
       }
 
       setCrawlErrors(prev => ({
@@ -104,9 +127,9 @@ export const useUrlCrawler = (initialUrls = []) => {
    * @param {boolean} usePrivacyMode - Whether to use privacy mode
    * @returns {Promise<Array>} Array of successfully crawled attachments
    */
-  const detectAndCrawlUrls = useCallback(async (text, usePrivacyMode = false) => {
+  const detectAndCrawlUrls = useCallback(async (text: string, usePrivacyMode = false): Promise<CrawledAttachment[]> => {
     const newUrls = getNewUrls(text, Array.from(processedUrlsRef.current));
-    
+
     if (newUrls.length === 0) {
       return [];
     }
@@ -116,13 +139,13 @@ export const useUrlCrawler = (initialUrls = []) => {
     // Crawl URLs in parallel with a maximum of 5 concurrent requests
     const crawlPromises = newUrls.slice(0, 5).map(url => crawlUrl(url, usePrivacyMode));
     const results = await Promise.allSettled(crawlPromises);
-    
+
     const successfulCrawls = results
-      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value)
-      .map(r => r.value);
+      .filter((r): r is PromiseFulfilledResult<CrawledAttachment | null> => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value as CrawledAttachment);
 
     console.log(`[useUrlCrawler] Successfully crawled ${successfulCrawls.length} of ${newUrls.length} URLs`);
-    
+
     return successfulCrawls;
   }, [crawlUrl]);
 
@@ -132,19 +155,19 @@ export const useUrlCrawler = (initialUrls = []) => {
    * @param {boolean} usePrivacyMode - Whether to use privacy mode
    * @returns {Promise<Object|null>} Crawled attachment or null
    */
-  const retryUrl = useCallback(async (url, usePrivacyMode = false) => {
+  const retryUrl = useCallback(async (url: string, usePrivacyMode = false): Promise<CrawledAttachment | null> => {
     console.log(`[useUrlCrawler] Retrying URL: ${url}`);
-    
+
     // Remove from processed URLs to allow retry
     processedUrlsRef.current.delete(url);
-    
+
     // Clear previous error
     setCrawlErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[url];
       return newErrors;
     });
-    
+
     return await crawlUrl(url, usePrivacyMode);
   }, [crawlUrl]);
 
@@ -152,12 +175,12 @@ export const useUrlCrawler = (initialUrls = []) => {
    * Removes a crawled URL from the list
    * @param {string} url - URL to remove
    */
-  const removeCrawledUrl = useCallback((url) => {
+  const removeCrawledUrl = useCallback((url: string) => {
     console.log(`[useUrlCrawler] Removing crawled URL: ${url}`);
-    
+
     setCrawledUrls(prev => prev.filter(item => item.url !== url));
     processedUrlsRef.current.delete(url);
-    
+
     // Clear any errors for this URL
     setCrawlErrors(prev => {
       const newErrors = { ...prev };
@@ -211,7 +234,7 @@ export const useUrlCrawler = (initialUrls = []) => {
    * @param {string} url - Optional specific URL to get error for
    * @returns {string|Object} Error message for URL or all errors
    */
-  const getErrors = useCallback((url = null) => {
+  const getErrors = useCallback((url: string | null = null): string | null | Record<string, string | null> => {
     if (url) {
       return crawlErrors[url] || null;
     }
@@ -223,7 +246,7 @@ export const useUrlCrawler = (initialUrls = []) => {
    * @param {string} url - URL to check
    * @returns {boolean} True if URL has been processed
    */
-  const isUrlProcessed = useCallback((url) => {
+  const isUrlProcessed = useCallback((url: string): boolean => {
     return processedUrlsRef.current.has(url);
   }, []);
 

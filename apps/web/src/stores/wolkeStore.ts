@@ -735,3 +735,4 @@ export const useWolkeStore = create<WolkeStore>()(
 );
 
 export default useWolkeStore;
+export type { ShareLink, SyncStatus, FileCache, WolkePermissions, SyncStats, CachedFilesResult, WolkeStore };

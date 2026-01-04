@@ -1,6 +1,31 @@
 import { useMemo } from 'react';
 import { getSearchValueFactory, getSortValueFactory } from '../components/utils/documentOverviewUtils';
 
+interface DocumentItem {
+  source_type?: string;
+  [key: string]: unknown;
+}
+
+interface SearchState {
+  shouldFilterLocally?: () => boolean;
+  searchQuery?: string;
+}
+
+interface FilteredAndGroupedItemsParams {
+  items?: DocumentItem[];
+  itemType?: 'document' | 'notebook';
+  searchFields?: string[];
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  enableGrouping?: boolean;
+  searchState?: SearchState;
+}
+
+interface FilteredAndGroupedItemsResult {
+  filteredItems: DocumentItem[];
+  groupedItems: Record<string, DocumentItem[]>;
+}
+
 export const useFilteredAndGroupedItems = ({
   items = [],
   itemType = 'document',
@@ -9,7 +34,7 @@ export const useFilteredAndGroupedItems = ({
   sortOrder = 'desc',
   enableGrouping = false,
   searchState,
-}) => {
+}: FilteredAndGroupedItemsParams): FilteredAndGroupedItemsResult => {
   const getSearchValue = useMemo(() => getSearchValueFactory(itemType), [itemType]);
   const getSortValue = useMemo(() => getSortValueFactory(itemType), [itemType]);
 
@@ -38,9 +63,9 @@ export const useFilteredAndGroupedItems = ({
   }, [items, searchFields, sortBy, sortOrder, getSearchValue, getSortValue, searchState]);
 
   const groupedItems = useMemo(() => {
-    if (!enableGrouping || itemType !== 'document') return {};
-    return filteredItems.reduce((groups, item) => {
-      let sourceType = item.source_type;
+    if (!enableGrouping || itemType !== 'document') return {} as Record<string, DocumentItem[]>;
+    return filteredItems.reduce<Record<string, DocumentItem[]>>((groups, item) => {
+      let sourceType: string = item.source_type || 'manual';
       // Support the new 'gruenerierte_texte' group and default to 'manual' for unrecognized types
       if (!['manual', 'wolke', 'url', 'gruenerierte_texte'].includes(sourceType)) {
         sourceType = 'manual';
