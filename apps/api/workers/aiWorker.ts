@@ -10,6 +10,15 @@ import type {
 } from './types.js';
 import type { ProviderName } from '../services/providers/types.js';
 
+const SHAREPIC_TYPES = [
+  'sharepic_dreizeilen',
+  'sharepic_zitat',
+  'sharepic_zitat_pure',
+  'sharepic_headline',
+  'sharepic_info',
+  'sharepic_veranstaltung'
+];
+
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 require('dotenv').config({ quiet: true });
@@ -142,7 +151,14 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     const hasValidContent = result?.content || result?.stop_reason === 'tool_use';
     if (!hasValidContent) {
       console.warn(`[AI Worker ${requestId}] Empty response, trying fallback providers`);
-      const fallbackResult = await providerFallback.tryPrivacyModeProviders(
+
+      // Use sharepic-specific fallback for sharepic types
+      const isSharepicType = SHAREPIC_TYPES.includes(type);
+      const fallbackFn = isSharepicType
+        ? providerFallback.trySharepicFallbackProviders
+        : providerFallback.tryPrivacyModeProviders;
+
+      const fallbackResult = await fallbackFn(
         async (providerName: ProviderName, privacyData) => {
           return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
         },
@@ -158,11 +174,17 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
   } catch (error) {
     console.error(`[AI Worker] Error in processAIRequest for ${requestId}:`, error);
     try {
-      console.log(`[AI Worker ${requestId}] Falling back to privacy mode providers`);
-      const fallbackResult = await providerFallback.tryPrivacyModeProviders(
+      // Use sharepic-specific fallback for sharepic types
+      const isSharepicType = SHAREPIC_TYPES.includes(type);
+      const fallbackFn = isSharepicType
+        ? providerFallback.trySharepicFallbackProviders
+        : providerFallback.tryPrivacyModeProviders;
+
+      console.log(`[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`);
+      const fallbackResult = await fallbackFn(
         async (providerName: ProviderName, privacyData) => {
           const temp = (privacyData.options as unknown as { temperature?: number })?.temperature;
-          console.log(`[AI Worker ${requestId}] Trying privacy fallback provider: ${providerName} with temperature: ${temp || 'default'}`);
+          console.log(`[AI Worker ${requestId}] Trying fallback provider: ${providerName} with temperature: ${temp || 'default'}`);
           return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);
         },
         requestId,

@@ -104,9 +104,9 @@ router.post('/user-templates', ensureAuthenticated as any, async (req: AuthReque
       return;
     }
 
-    // Extract tags from description and merge with provided tags
-    const descriptionTags = extractTagsFromDescription(description);
-    const providedTags = Array.isArray(tags) ? tags : [];
+    // Extract tags from description and merge with provided tags (lowercase for case-insensitive search)
+    const descriptionTags = extractTagsFromDescription(description).map(t => t.toLowerCase());
+    const providedTags = Array.isArray(tags) ? tags.map(t => t.toLowerCase()) : [];
     const mergedTags = [...new Set([...descriptionTags, ...providedTags])];
 
     const postgres = getPostgresInstance();
@@ -431,8 +431,8 @@ router.post('/user-templates/from-url', ensureAuthenticated as any, async (req: 
       return;
     }
 
-    // Extract tags from description
-    const descriptionTags = extractTagsFromDescription(templateData.description);
+    // Extract tags from description (lowercase for case-insensitive search)
+    const descriptionTags = extractTagsFromDescription(templateData.description).map(t => t.toLowerCase());
 
     // Prepare template data for user_templates table
     const categoriesArray = templateData.categories && templateData.categories.length > 0
@@ -440,8 +440,7 @@ router.post('/user-templates/from-url', ensureAuthenticated as any, async (req: 
       : ['canva'];
     const tagsArray = [...new Set([
       ...descriptionTags,
-      ...(templateData.categories || []),
-      'imported'
+      ...(templateData.categories || []).map(c => c.toLowerCase())
     ])];
     const contentDataObj = {
       originalUrl: templateData.originalUrl,

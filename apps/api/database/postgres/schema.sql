@@ -348,6 +348,22 @@ CREATE TABLE IF NOT EXISTS saved_generators (
 CREATE INDEX IF NOT EXISTS idx_saved_generators_user_id ON saved_generators(user_id);
 CREATE INDEX IF NOT EXISTS idx_saved_generators_generator_id ON saved_generators(generator_id);
 
+-- Template Likes (Users can like/favorite templates for ranking)
+CREATE TABLE IF NOT EXISTS template_likes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    template_id TEXT NOT NULL,  -- Supports both UUID (user templates) and string IDs (system templates)
+    template_type TEXT NOT NULL DEFAULT 'system',  -- 'user' | 'system' | 'file'
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Ensure user can only like a template once
+    UNIQUE(user_id, template_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_template_likes_user_id ON template_likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_template_likes_template_id ON template_likes(template_id);
+CREATE INDEX IF NOT EXISTS idx_template_likes_popularity ON template_likes(template_id, created_at);
+
 -- User Templates (Canva templates and other user templates)
 CREATE TABLE IF NOT EXISTS user_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

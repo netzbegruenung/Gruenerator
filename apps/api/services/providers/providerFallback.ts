@@ -49,6 +49,29 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
 }
 
 /**
+ * Get the appropriate model for sharepic fallback
+ */
+export function getSharepicFallbackModel(provider: ProviderName): ModelName {
+  switch (provider) {
+    case 'mistral':
+      return 'magistral-medium-latest';
+    case 'bedrock':
+      return 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+    case 'claude':
+      return 'claude-sonnet-4-20250514';
+    case 'litellm':
+      return 'gpt-oss:120b';
+    default:
+      return 'mistral-medium-latest';
+  }
+}
+
+/**
+ * Sharepic-specific fallback chain: Mistral (Magistral) → Claude API → Bedrock (older Sonnet) → LiteLLM
+ */
+export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'claude', 'bedrock', 'litellm'];
+
+/**
  * Try privacy-friendly providers in order, using a caller-supplied executor.
  * Only attempts providers that have the required API tokens configured.
  *
@@ -112,4 +135,59 @@ export async function tryPrivacyModeProviders(
 
   const msg = lastError?.message || 'Unknown error';
   throw new Error(`All privacy mode providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`);
+}
+
+/**
+ * Sharepic-specific fallback with higher quality models.
+ * Uses Magistral → Claude API → Bedrock Sonnet 3.5 → LiteLLM chain.
+ */
+export async function trySharepicFallbackProviders(
+  execForProvider: ProviderExecutor,
+  requestId: string,
+  data: PrivacyProviderData
+): Promise<ExecutionResponse> {
+  let lastError: Error | undefined;
+  const attemptedProviders: ProviderName[] = [];
+
+  for (const provider of SHAREPIC_FALLBACK_CHAIN) {
+    if (!isProviderAvailable(provider)) {
+      console.log(`[SharepicFallback ${requestId}] Skipping ${provider} - not configured`);
+      continue;
+    }
+
+    attemptedProviders.push(provider);
+
+    try {
+      console.log(`[SharepicFallback ${requestId}] Trying fallback provider: ${provider}`);
+      const fallbackData: PrivacyProviderData = {
+        ...data,
+        options: {
+          ...(data.options || {}),
+          provider,
+          model: getSharepicFallbackModel(provider)
+        }
+      };
+      const result = await execForProvider(provider, fallbackData);
+
+      if (result?.content || result?.stop_reason === 'tool_use') {
+        console.log(`[SharepicFallback ${requestId}] Success with provider: ${provider}`);
+        return result;
+      }
+
+      console.warn(`[SharepicFallback ${requestId}] Empty response from ${provider}, trying next`);
+      lastError = new Error(`Empty response from ${provider}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.warn(`[SharepicFallback ${requestId}] Error from ${provider}: ${errorMessage}`);
+      lastError = err instanceof Error ? err : new Error(errorMessage);
+      continue;
+    }
+  }
+
+  if (attemptedProviders.length === 0) {
+    throw new Error('No sharepic fallback providers are configured');
+  }
+
+  const msg = lastError?.message || 'Unknown error';
+  throw new Error(`All sharepic fallback providers failed (tried: ${attemptedProviders.join(', ')}). Last error: ${msg}`);
 }
