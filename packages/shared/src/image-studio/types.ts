@@ -15,7 +15,9 @@ export type ImageStudioTemplateType =
   | 'zitat'
   | 'zitat-pure'
   | 'info'
-  | 'veranstaltung';
+  | 'veranstaltung'
+  | 'profilbild'
+  | 'simple';
 
 /**
  * KI types supported by image-studio (FLUX API-based)
@@ -241,13 +243,22 @@ export interface VeranstaltungResponse {
 }
 
 /**
+ * Simple (Text auf Bild) response
+ */
+export interface SimpleResponse {
+  headline: string;
+  subtext: string;
+}
+
+/**
  * Union type for all text generation responses
  */
 export type TextGenerationResponse =
   | DreizeilenResponse
   | QuoteResponse
   | InfoResponse
-  | VeranstaltungResponse;
+  | VeranstaltungResponse
+  | SimpleResponse;
 
 /**
  * Normalized text generation result
@@ -293,6 +304,8 @@ export interface CanvasGenerationRequest {
   type: ImageStudioTemplateType;
   /** Base64 image data (for types that require image) */
   imageData?: string;
+  /** File URI for image (React Native - use instead of imageData for mobile) */
+  imageUri?: string;
   /** Form data fields */
   formData: Record<string, string | number>;
   /** Color scheme (dreizeilen) */

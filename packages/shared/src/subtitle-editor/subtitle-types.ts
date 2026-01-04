@@ -81,6 +81,7 @@ export interface SubtitleEditorActions {
   stopEditing: () => void;
   reset: () => void;
   markAsSaved: () => void;
+  setProjectId: (newProjectId: string) => void;
 }
 
 /**

@@ -48,3 +48,6 @@ export * from './media-library/index.js';
 
 // Platform detection
 export * from './platform/index.js';
+
+// Canvas Editor
+export * from './canvas-editor/index.js';
