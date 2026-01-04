@@ -3,7 +3,6 @@ import { useEffect, useCallback, useRef } from 'react';
 import {
   announceToScreenReader,
   setFocus,
-  handleKeyboardNavigation,
   updateAriaLiveRegion,
   setupEnhancedKeyboardNavigation,
   enhanceAriaSupport,
@@ -79,13 +78,6 @@ const useAccessibility = (options = {}) => {
 
   const focusElement = useCallback((elementId) => {
     setFocus(elementId);
-  }, []);
-
-  const setupKeyboardNav = useCallback((elements) => {
-    // DEPRECATED: Custom keyboard navigation removed - browser handles this natively
-    // Function kept for backward compatibility but no longer sets up global listeners
-    console.warn('setupKeyboardNav is deprecated - browser handles keyboard navigation natively');
-    return () => {}; // Return empty cleanup function
   }, []);
 
   const manageFocusTrap = useCallback((trapActive, containerRef, options = {}) => {
@@ -232,10 +224,9 @@ const useAccessibility = (options = {}) => {
     return report;
   }, [getAccessibilityPreferences]);
 
-  return { 
-    announce, 
-    focusElement, 
-    setupKeyboardNav, 
+  return {
+    announce,
+    focusElement,
     manageFocusTrap,
     handleFormError,
     handleFormSuccess,

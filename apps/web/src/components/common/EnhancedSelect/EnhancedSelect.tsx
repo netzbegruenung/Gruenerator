@@ -279,3 +279,4 @@ const EnhancedSelect = forwardRef<any, EnhancedSelectProps>(({
 EnhancedSelect.displayName = 'EnhancedSelect';
 
 export default memo(EnhancedSelect);
+export type { EnhancedSelectOption };

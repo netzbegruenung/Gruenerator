@@ -1,11 +1,34 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ReactNode } from 'react';
 import { HiOutlineDocumentText, HiOutlinePlus, HiOutlineX } from 'react-icons/hi';
+import { Control } from 'react-hook-form';
 import ProfileCard from '../ProfileCard';
 import { useFormFields } from '../Form/hooks';
 import '../../../assets/styles/features/auth/profile.css';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
 
-const INSTRUCTION_FIELDS = [
+interface InstructionField {
+  name: string;
+  dataKey: string;
+  title: string;
+  placeholder: string;
+  helpText: string;
+}
+
+interface InstructionsGridProps {
+  control: Control<any>;
+  data?: Record<string, any>;
+  isReadOnly?: boolean;
+  labelPrefix?: string;
+  maxLength?: number;
+  showCharacterCount?: boolean;
+  minRows?: number;
+  maxRows?: number;
+  enabledFields?: string[];
+  onAddField?: (fieldName: string) => void;
+  onRemoveField?: (fieldName: string) => void;
+}
+
+const INSTRUCTION_FIELDS: InstructionField[] = [
   {
     name: 'customAntragPrompt',
     dataKey: 'antragPrompt',
@@ -62,15 +85,15 @@ const InstructionsGrid = ({
   enabledFields = [],
   onAddField,
   onRemoveField
-}) => {
-  const { Textarea } = useFormFields();
+}: InstructionsGridProps) => {
+  const { Textarea } = useFormFields() as { Textarea: React.FC<any> };
   const [showDropdown, setShowDropdown] = useState(false);
-  const [confirmingRemove, setConfirmingRemove] = useState(null);
-  const dropdownRef = useRef(null);
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
       }
     };
@@ -78,9 +101,9 @@ const InstructionsGrid = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getFieldValue = (fieldName) => {
+  const getFieldValue = (fieldName: string): string => {
     const field = INSTRUCTION_FIELDS.find(f => f.name === fieldName);
-    return data[field?.dataKey] || '';
+    return data[field?.dataKey as string] || '';
   };
 
   const fieldsWithContent = INSTRUCTION_FIELDS.filter(field => {
@@ -94,16 +117,16 @@ const InstructionsGrid = ({
 
   const hasNoInstructions = activeFields.length === 0;
 
-  const handleAddField = (fieldName) => {
+  const handleAddField = (fieldName: string): void => {
     onAddField?.(fieldName);
     setShowDropdown(false);
   };
 
-  const handleRemoveClick = (fieldName) => {
+  const handleRemoveClick = (fieldName: string): void => {
     setConfirmingRemove(fieldName);
   };
 
-  const handleConfirmRemove = (fieldName) => {
+  const handleConfirmRemove = (fieldName: string): void => {
     onRemoveField?.(fieldName);
     setConfirmingRemove(null);
   };
@@ -114,7 +137,7 @@ const InstructionsGrid = ({
 
   if (isReadOnly) {
     const fieldsToShow = INSTRUCTION_FIELDS.filter(field => {
-      const value = data[field.dataKey];
+      const value = data[field.dataKey] as string | undefined;
       return value && value.trim().length > 0;
     });
 
@@ -132,7 +155,7 @@ const InstructionsGrid = ({
         {fieldsToShow.map((field) => (
           <ProfileCard key={field.name} title={`Anweisungen für ${field.title}`}>
             <div className="instruction-display">
-              {data[field.dataKey]}
+              {data[field.dataKey] as string}
             </div>
           </ProfileCard>
         ))}

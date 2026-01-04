@@ -77,6 +77,8 @@ interface FormSectionProps {
   examplePrompts?: ExamplePrompt[];
   onExamplePromptClick?: ((prompt: ExamplePrompt) => void) | null;
   contextualTip?: ContextualTip | null;
+  selectedPlatforms?: string[];
+  inputHeaderContent?: ReactNode;
 }
 
 const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
@@ -141,7 +143,9 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
   startPageDescription = null,
   examplePrompts = [],
   onExamplePromptClick = null,
-  contextualTip = null
+  contextualTip = null,
+  selectedPlatforms = [],
+  inputHeaderContent = null
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -217,6 +221,16 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
           )}
         </div>
       )}
+
+      {/* Example Prompts / Platform Tags - shown between description and card in start mode */}
+      {isStartMode && examplePrompts.length > 0 && (
+        <ExamplePrompts
+          prompts={examplePrompts}
+          onPromptClick={onExamplePromptClick}
+          selectedPlatforms={selectedPlatforms}
+        />
+      )}
+
       <FormCard
         className={useEditMode ? 'form-card--editmode' : ''}
         variant="elevated"
@@ -276,6 +290,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
               showImageUpload={showImageUpload}
               onImageChange={onImageChange}
               isStartMode={isStartMode}
+              inputHeaderContent={inputHeaderContent}
             >
               {isImageEditActive ? (
                 customEditContent
@@ -328,15 +343,7 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
         </form>
       </FormCard>
 
-      {/* Example Prompts - shown in start mode */}
-      {isStartMode && examplePrompts.length > 0 && (
-        <ExamplePrompts
-          prompts={examplePrompts}
-          onPromptClick={onExamplePromptClick}
-        />
-      )}
-
-      {/* Contextual tip - shown below example prompts */}
+      {/* Contextual tip - shown below form card */}
       {contextualTip && <InputTip tip={{ text: contextualTip.text, icon: typeof contextualTip.icon === 'string' ? contextualTip.icon : undefined }} />}
       </div>
     </div>

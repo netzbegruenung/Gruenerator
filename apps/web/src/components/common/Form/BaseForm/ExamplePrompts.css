@@ -12,11 +12,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-xsmall);
-  padding: var(--spacing-xsmall) var(--spacing-small);
+  padding: 10px 18px;
   background-color: var(--card-background);
   border: var(--border-subtle);
-  border-radius: 20px;
-  font-size: 0.875rem;
+  border-radius: 24px;
+  font-size: 0.95rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -30,6 +30,17 @@
   transform: translateY(-1px);
 }
 
+.example-prompts__button--selected {
+  background-color: var(--klee);
+  border-color: var(--klee);
+  color: white;
+}
+
+.example-prompts__button--selected:hover {
+  background-color: var(--tanne);
+  border-color: var(--tanne);
+}
+
 .example-prompts__button:active {
   transform: translateY(0);
 }
@@ -39,6 +50,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.example-prompts__icon .icon,
+.example-prompts__icon svg {
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
 }
 
 .example-prompts__text {
@@ -55,3 +73,21 @@
     padding: 6px 10px;
   }
 }
+
+/* Start mode: left-aligned the prompts between description and card */
+.form-section--start-mode .example-prompts {
+  justify-content: flex-start;
+  margin-top: 0;
+  margin-bottom: var(--spacing-medium);
+}
+
+/* Desktop: dynamic flex layout for platform tags */
+@media (min-width: 769px) {
+  .form-section--start-mode .example-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--spacing-small);
+  }
+}
+

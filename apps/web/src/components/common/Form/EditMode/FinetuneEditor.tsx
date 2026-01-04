@@ -53,6 +53,11 @@ const FinetuneEditor = ({ componentName, readOnly = false }) => {
   const isInitialized = useRef(false);
   const isExternalUpdate = useRef(false);
 
+  // Extract text content to check if we have anything to edit
+  const textContent = useMemo(() => {
+    return extractEditableText(storeContent) || '';
+  }, [storeContent]);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -60,7 +65,7 @@ const FinetuneEditor = ({ componentName, readOnly = false }) => {
   }, []);
 
   const initialContent = useMemo(() => {
-    const text = extractEditableText(storeContent) || '';
+    const text = textContent;
     lastSavedContent.current = text;
     return text;
   }, []);
@@ -133,6 +138,12 @@ const FinetuneEditor = ({ componentName, readOnly = false }) => {
       )
     })
   ], [isMobile]);
+
+  // All hooks are above - now we can safely return early
+  // Don't render MDXEditor if there's no text content
+  if (!textContent.trim()) {
+    return null;
+  }
 
   return (
     <div className="finetune-editor" data-readonly={readOnly}>

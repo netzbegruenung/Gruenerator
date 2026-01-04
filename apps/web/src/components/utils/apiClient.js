@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { buildLoginUrl } from '../../utils/authRedirect';
 import { isDesktopApp } from '../../utils/platform';
 import { getDesktopToken } from '../../utils/desktopAuth';
@@ -6,6 +7,22 @@ import { getDesktopToken } from '../../utils/desktopAuth';
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+// Initialize global API client for @gruenerator/shared hooks (useShareStore, etc.)
+// This is separate from the legacy apiClient below, but uses the same baseURL
+const sharedApiClient = createApiClient({
+  baseURL,
+  authMode: isDesktopApp() ? 'bearer' : 'cookie',
+  getAuthToken: isDesktopApp() ? async () => getDesktopToken() : undefined,
+  onUnauthorized: () => {
+    if (window.location.pathname !== '/login') {
+      const currentPath = window.location.pathname + window.location.search;
+      window.location.href = buildLoginUrl(currentPath);
+    }
+  },
+  timeout: 900000,
+});
+setGlobalApiClient(sharedApiClient);
 
 // Desktop app uses JWT tokens, web app uses session cookies
 // withCredentials must be false for desktop to avoid "Refused to set unsafe header Origin" error

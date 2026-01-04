@@ -1,4 +1,5 @@
-import { JSX, useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { JSX, useState, useRef, useMemo, useCallback, useEffect, ReactNode } from 'react';
+import { IconType } from 'react-icons';
 import { HiX, HiCheck, HiDownload } from 'react-icons/hi';
 import { FaInstagram, FaFacebook, FaTwitter, FaLinkedin } from 'react-icons/fa';
 import { IoShareOutline, IoCopyOutline } from 'react-icons/io5';
@@ -18,14 +19,14 @@ type SharePlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin';
 import '../../assets/styles/components/ui/button.css';
 import '../../assets/styles/components/common/sharepic-share-modal.css';
 
-const PLATFORM_ICONS = {
+const PLATFORM_ICONS: Record<SharePlatform, IconType> = {
   instagram: FaInstagram,
   facebook: FaFacebook,
   twitter: FaTwitter,
   linkedin: FaLinkedin
 };
 
-const PLATFORM_COLORS = {
+const PLATFORM_COLORS: Record<SharePlatform, string> = {
   instagram: '#E4405F',
   facebook: '#1877F2',
   twitter: '#1DA1F2',
@@ -49,9 +50,9 @@ const SharepicShareModal = ({ isOpen,
   sharepicData,
   socialContent,
   selectedPlatforms = [] }: SharepicShareModalProps): JSX.Element => {
-  const modalRef = useRef(null);
-  const [copySuccess, setCopySuccess] = useState(null);
-  const [shareError, setShareError] = useState(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [canShare, setCanShare] = useState(false);
 
@@ -97,13 +98,13 @@ const SharepicShareModal = ({ isOpen,
     }
   }, [isOpen]);
 
-  const handleOverlayClick = useCallback((e) => {
+  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   }, [onClose]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
     }
@@ -120,13 +121,13 @@ const SharepicShareModal = ({ isOpen,
     };
   }, [isOpen, handleKeyDown]);
 
-  const handleShareToPlatform = useCallback(async (platformId) => {
+  const handleShareToPlatform = useCallback(async (platformId: string) => {
     if (!sharepicData?.image || isSharing) return;
 
     setIsSharing(true);
     setShareError(null);
 
-    const text = platformTexts[platformId] || socialContent || '';
+    const text = platformTexts[platformId as SharePlatform] || socialContent || '';
 
     try {
       // Mobile: use native share (best UX)
@@ -155,13 +156,14 @@ const SharepicShareModal = ({ isOpen,
         return;
       }
     } catch (error) {
-      setShareError(error.message || 'Fehler beim Teilen');
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Teilen';
+      setShareError(errorMessage);
     } finally {
       setIsSharing(false);
     }
   }, [sharepicData?.image, isSharing, platformTexts, socialContent, canShare]);
 
-  const handleDownloadImage = useCallback((platformId) => {
+  const handleDownloadImage = useCallback((platformId: string) => {
     if (!sharepicData?.image) return;
 
     try {
@@ -178,8 +180,8 @@ const SharepicShareModal = ({ isOpen,
     }
   }, [sharepicData?.image]);
 
-  const handleCopyText = useCallback(async (platformId) => {
-    const text = platformTexts[platformId] || socialContent;
+  const handleCopyText = useCallback(async (platformId: string) => {
+    const text = platformTexts[platformId as SharePlatform] || socialContent;
     if (!text) return;
 
     try {
@@ -191,7 +193,7 @@ const SharepicShareModal = ({ isOpen,
     }
   }, [platformTexts, socialContent]);
 
-  if (!isOpen) return null;
+  if (!isOpen) return null as unknown as JSX.Element;
 
   const hasPlatforms = availablePlatforms.length > 0;
 
@@ -233,9 +235,9 @@ const SharepicShareModal = ({ isOpen,
             {hasPlatforms ? (
             <div className="sharepic-share-platforms">
               {availablePlatforms.map((platformId) => {
-                const Icon = PLATFORM_ICONS[platformId];
-                const platformText = platformTexts[platformId];
-                const color = PLATFORM_COLORS[platformId];
+                const Icon = PLATFORM_ICONS[platformId as SharePlatform];
+                const platformText = platformTexts[platformId as SharePlatform];
+                const color = PLATFORM_COLORS[platformId as SharePlatform];
 
                 return (
                   <div key={platformId} className="sharepic-platform-card">
