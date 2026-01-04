@@ -1,0 +1,14 @@
+.dreizeilen-canvas-wrapper {
+  border-radius: var(--border-radius-medium);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+}
+
+.dreizeilen-canvas-wrapper:active {
+  cursor: grabbing;
+}
+
+.dreizeilen-stage {
+  display: block;
+}

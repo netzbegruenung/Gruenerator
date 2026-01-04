@@ -1,0 +1,158 @@
+/* ColorSchemeControl component styles */
+
+.color-scheme-control {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Preset thumbnails */
+.color-scheme-presets {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.color-scheme-preset {
+  cursor: pointer;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  padding: 2px;
+  transition: all 0.2s ease;
+}
+
+.color-scheme-preset img {
+  width: 50px;
+  height: auto;
+  border-radius: 4px;
+  display: block;
+}
+
+.color-scheme-preset:hover {
+  border-color: var(--klee);
+}
+
+.color-scheme-preset.active {
+  border-color: var(--interactive-accent-color);
+}
+
+/* Color input fields */
+.color-scheme-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.color-scheme-line {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.color-scheme-line__label {
+  min-width: 55px;
+  font-size: 0.85em;
+  color: var(--font-color);
+  font-weight: 500;
+}
+
+.color-scheme-line__inputs {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.color-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.color-input {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  background: none;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.color-input::-webkit-color-swatch {
+  border-radius: 3px;
+  border: none;
+}
+
+.color-input::-moz-color-swatch {
+  border-radius: 3px;
+  border: none;
+}
+
+.color-input:hover {
+  border-color: var(--interactive-accent-color);
+}
+
+.color-input-label {
+  font-size: 0.8em;
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+/* Grid layout (legacy support) */
+.color-scheme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 1rem;
+  width: 100%;
+  justify-content: center;
+  align-items: start;
+}
+
+.color-scheme-option {
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-scheme-image {
+  width: auto;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.color-scheme-option.active .color-scheme-image {
+  border-color: var(--secondary);
+  transform: scale(0.95);
+}
+
+.color-scheme-option:hover .color-scheme-image {
+  border-color: var(--klee);
+  transform: scale(0.98);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .color-scheme-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .color-scheme-image {
+    width: 100%;
+    height: auto;
+  }
+}

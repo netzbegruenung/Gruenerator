@@ -1,0 +1,25 @@
+.zitat-pure-canvas-wrapper {
+  border-radius: var(--border-radius-medium);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+}
+
+.zitat-pure-canvas-wrapper:active {
+  cursor: grabbing;
+}
+
+.zitat-pure-stage {
+  display: block;
+}
+
+/* Selected state for alternative pills */
+.alternative-pill.selected {
+  background: var(--tanne);
+  border-color: var(--tanne);
+  color: white;
+}
+
+.alternative-pill.selected:hover {
+  background: var(--tanne-dark);
+}

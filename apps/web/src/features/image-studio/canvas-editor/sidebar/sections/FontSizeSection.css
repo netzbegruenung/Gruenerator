@@ -1,0 +1,65 @@
+/* FontSizeSection - Stepper controls */
+.sidebar-section--fontsize {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  width: fit-content;
+}
+
+.font-size-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--card-border-radius-small, 8px);
+  overflow: hidden;
+  background: var(--background-color);
+}
+
+.font-size-stepper__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--font-color);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.font-size-stepper__btn:hover:not(:disabled) {
+  background: var(--background-color-alt);
+  color: var(--primary-600);
+}
+
+.font-size-stepper__btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.font-size-stepper__input {
+  width: 48px;
+  height: 36px;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--background-color-alt);
+  color: var(--font-color);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.font-size-stepper__input::-webkit-outer-spin-button,
+.font-size-stepper__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.font-size-stepper__input:focus {
+  outline: none;
+  background: var(--background-color);
+}
