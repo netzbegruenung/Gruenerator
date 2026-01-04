@@ -73,6 +73,22 @@ interface ImageStudioState {
   kiLoading: boolean;
   /** Rate limit exceeded */
   rateLimitExceeded: boolean;
+
+  // Auto-save state
+  /** Status of auto-save operation */
+  autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  /** Share token from auto-saved image */
+  autoSavedShareToken: string | null;
+  /** Last auto-saved image src (to prevent duplicate saves) */
+  lastAutoSavedImageSrc: string | null;
+
+  // Background removal state (for profilbild)
+  /** Background removal progress (0-1) */
+  bgRemovalProgress: number;
+  /** Background removal phase message */
+  bgRemovalMessage: string | null;
+  /** Background removal loading state */
+  bgRemovalLoading: boolean;
 }
 
 interface ImageStudioActions {
@@ -135,6 +151,24 @@ interface ImageStudioActions {
   setKiLoading: (loading: boolean) => void;
   /** Set rate limit exceeded */
   setRateLimitExceeded: (exceeded: boolean) => void;
+
+  // Auto-save actions
+  /** Set auto-save status */
+  setAutoSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
+  /** Set auto-saved share token */
+  setAutoSavedShareToken: (token: string | null) => void;
+  /** Set last auto-saved image src */
+  setLastAutoSavedImageSrc: (src: string | null) => void;
+  /** Reset auto-save state */
+  resetAutoSave: () => void;
+
+  // Background removal actions
+  /** Set background removal progress */
+  setBgRemovalProgress: (progress: number, message: string | null) => void;
+  /** Set background removal loading state */
+  setBgRemovalLoading: (loading: boolean) => void;
+  /** Reset background removal state */
+  resetBgRemoval: () => void;
 }
 
 type ImageStudioStore = ImageStudioState & ImageStudioActions;
@@ -162,6 +196,14 @@ const initialState: ImageStudioState = {
   kiInfrastructureOptions: [],
   kiLoading: false,
   rateLimitExceeded: false,
+  // Auto-save state
+  autoSaveStatus: 'idle',
+  autoSavedShareToken: null,
+  lastAutoSavedImageSrc: null,
+  // Background removal state
+  bgRemovalProgress: 0,
+  bgRemovalMessage: null,
+  bgRemovalLoading: false,
 };
 
 export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
@@ -332,13 +374,60 @@ export const useImageStudioStore = create<ImageStudioStore>()((set, get) => ({
   setRateLimitExceeded: (exceeded: boolean) => {
     set({ rateLimitExceeded: exceeded });
   },
+
+  // Auto-save actions
+  setAutoSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => {
+    set({ autoSaveStatus: status });
+  },
+
+  setAutoSavedShareToken: (token: string | null) => {
+    set({ autoSavedShareToken: token });
+  },
+
+  setLastAutoSavedImageSrc: (src: string | null) => {
+    set({ lastAutoSavedImageSrc: src });
+  },
+
+  resetAutoSave: () => {
+    set({
+      autoSaveStatus: 'idle',
+      autoSavedShareToken: null,
+      lastAutoSavedImageSrc: null,
+    });
+  },
+
+  // Background removal actions
+  setBgRemovalProgress: (progress: number, message: string | null) => {
+    set({ bgRemovalProgress: progress, bgRemovalMessage: message });
+  },
+
+  setBgRemovalLoading: (loading: boolean) => {
+    set({ bgRemovalLoading: loading });
+  },
+
+  resetBgRemoval: () => {
+    set({
+      bgRemovalProgress: 0,
+      bgRemovalMessage: null,
+      bgRemovalLoading: false,
+    });
+  },
 }));
 
 /**
- * Selector for computed loading state (text or canvas loading)
+ * Selector for computed loading state (text or canvas or bg removal loading)
  */
 export const selectIsGenerating = (state: ImageStudioStore) =>
-  state.textLoading || state.canvasLoading;
+  state.textLoading || state.canvasLoading || state.bgRemovalLoading;
+
+/**
+ * Selector for background removal state
+ */
+export const selectBgRemovalState = (state: ImageStudioStore) => ({
+  loading: state.bgRemovalLoading,
+  progress: state.bgRemovalProgress,
+  message: state.bgRemovalMessage,
+});
 
 /**
  * Selector for checking if result is ready
@@ -386,6 +475,22 @@ export const selectDreizeilenModifications = (state: ImageStudioStore) =>
   state.type === 'dreizeilen' ? state.modifications as DreizeilenModificationParams | null : null;
 
 /**
+ * Selector for getting zitat modifications
+ */
+export const selectZitatModifications = (state: ImageStudioStore) =>
+  (state.type === 'zitat' || state.type === 'zitat-pure')
+    ? state.modifications as ZitatModificationParams | null
+    : null;
+
+/**
+ * Selector for getting veranstaltung modifications
+ */
+export const selectVeranstaltungModifications = (state: ImageStudioStore) =>
+  state.type === 'veranstaltung'
+    ? state.modifications as VeranstaltungModificationParams | null
+    : null;
+
+/**
  * Selector for whether a KI type is selected
  */
 export const selectIsKiMode = (state: ImageStudioStore) =>
@@ -411,3 +516,15 @@ export const selectIsKiInstructionValid = (state: ImageStudioStore) => {
  */
 export const selectShouldShowBadgesWithKi = (state: ImageStudioStore) =>
   state.type === null && state.kiType === null;
+
+/**
+ * Selector for auto-save status
+ */
+export const selectAutoSaveStatus = (state: ImageStudioStore) =>
+  state.autoSaveStatus;
+
+/**
+ * Selector for checking if image is auto-saved
+ */
+export const selectIsAutoSaved = (state: ImageStudioStore) =>
+  state.autoSaveStatus === 'saved' && state.autoSavedShareToken !== null;

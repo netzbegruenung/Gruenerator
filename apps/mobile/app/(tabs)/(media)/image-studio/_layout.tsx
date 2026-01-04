@@ -27,8 +27,19 @@ export default function ImageStudioLayout() {
       <Stack.Screen name="image" />
       <Stack.Screen name="text" />
       <Stack.Screen name="ki-input" />
-      <Stack.Screen name="customize" />
-      <Stack.Screen name="result" />
+      <Stack.Screen
+        name="result"
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
+        name="gallery"
+        options={{
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }

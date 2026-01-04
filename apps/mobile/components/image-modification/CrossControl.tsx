@@ -1,212 +1,76 @@
-import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+/**
+ * CrossControl components - Image studio 2D offset controls
+ * Uses Zustand selectors for performance, delegates to generic CrossPad
+ */
+
+import { useCallback } from 'react';
+import { CrossPad, type Offset2D } from '../ui/controls';
+import { useImageStudioStore } from '../../stores/imageStudioStore';
 import {
   BALKEN_GRUPPE_STEP,
   SUNFLOWER_STEP,
   MODIFICATION_LABELS,
-  type Offset2D,
 } from '@gruenerator/shared/image-studio';
 
-interface CrossControlProps {
-  title: string;
-  description: string;
-  offset: Offset2D;
-  onOffsetChange: (offset: Offset2D) => void;
-  step: number;
-  disabled?: boolean;
-}
-
-type Direction = 'up' | 'down' | 'left' | 'right';
-
-export function CrossControl({
-  title,
-  description,
-  offset,
-  onOffsetChange,
-  step,
-  disabled = false,
-}: CrossControlProps) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-
-  const handleMove = (direction: Direction) => {
-    if (disabled) return;
-
-    const [x, y] = offset;
-    let newOffset: Offset2D;
-
-    switch (direction) {
-      case 'up':
-        newOffset = [x, y - step];
-        break;
-      case 'down':
-        newOffset = [x, y + step];
-        break;
-      case 'left':
-        newOffset = [x - step, y];
-        break;
-      case 'right':
-        newOffset = [x + step, y];
-        break;
-    }
-
-    onOffsetChange(newOffset);
-  };
-
-  const ArrowButton = ({
-    direction,
-    icon,
-  }: {
-    direction: Direction;
-    icon: keyof typeof Ionicons.glyphMap;
-  }) => (
-    <Pressable
-      onPress={() => handleMove(direction)}
-      disabled={disabled}
-      style={[
-        styles.arrowButton,
-        {
-          backgroundColor: theme.surface,
-          borderColor: theme.border,
-        },
-        disabled && styles.disabled,
-      ]}
-    >
-      <Ionicons
-        name={icon}
-        size={20}
-        color={disabled ? theme.textSecondary : colors.primary[600]}
-      />
-    </Pressable>
-  );
-
-  return (
-    <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.description, { color: theme.textSecondary }]}>
-        {description}
-      </Text>
-
-      <View style={styles.crossGrid}>
-        <View style={styles.topRow}>
-          <ArrowButton direction="up" icon="chevron-up" />
-        </View>
-
-        <View style={styles.middleRow}>
-          <ArrowButton direction="left" icon="chevron-back" />
-
-          <View style={[styles.centerDisplay, { backgroundColor: theme.surface }]}>
-            <Text style={[styles.centerText, { color: theme.text }]}>
-              {offset[0]},{offset[1]}
-            </Text>
-          </View>
-
-          <ArrowButton direction="right" icon="chevron-forward" />
-        </View>
-
-        <View style={styles.bottomRow}>
-          <ArrowButton direction="down" icon="chevron-down" />
-        </View>
-      </View>
-    </View>
-  );
-}
-
 interface BalkenGruppeControlProps {
-  offset: Offset2D;
-  onOffsetChange: (offset: Offset2D) => void;
   disabled?: boolean;
 }
 
-export function BalkenGruppeControl({
-  offset,
-  onOffsetChange,
-  disabled = false,
-}: BalkenGruppeControlProps) {
+export function BalkenGruppeControl({ disabled = false }: BalkenGruppeControlProps) {
+  // Zustand selectors - only re-render when these specific values change
+  const offset = useImageStudioStore(
+    (s) => (s.modifications as { balkenGruppenOffset?: Offset2D } | null)?.balkenGruppenOffset ?? ([0, 0] as Offset2D)
+  );
+  const updateModification = useImageStudioStore((s) => s.updateModification);
+
+  const handleChange = useCallback(
+    (newOffset: Offset2D) => {
+      updateModification('balkenGruppenOffset', newOffset);
+    },
+    [updateModification]
+  );
+
   return (
-    <CrossControl
-      title={MODIFICATION_LABELS.BALKEN_GRUPPE}
-      description={MODIFICATION_LABELS.BALKEN_GRUPPE_DESC}
+    <CrossPad
       offset={offset}
-      onOffsetChange={onOffsetChange}
+      onChange={handleChange}
       step={BALKEN_GRUPPE_STEP}
+      label={MODIFICATION_LABELS.BALKEN_GRUPPE}
+      description={MODIFICATION_LABELS.BALKEN_GRUPPE_DESC}
       disabled={disabled}
     />
   );
 }
 
 interface SonnenblumenControlProps {
-  offset: Offset2D;
-  onOffsetChange: (offset: Offset2D) => void;
   disabled?: boolean;
 }
 
-export function SonnenblumenControl({
-  offset,
-  onOffsetChange,
-  disabled = false,
-}: SonnenblumenControlProps) {
+export function SonnenblumenControl({ disabled = false }: SonnenblumenControlProps) {
+  // Zustand selectors - only re-render when these specific values change
+  const offset = useImageStudioStore(
+    (s) => (s.modifications as { sunflowerOffset?: Offset2D } | null)?.sunflowerOffset ?? ([0, 0] as Offset2D)
+  );
+  const updateModification = useImageStudioStore((s) => s.updateModification);
+
+  const handleChange = useCallback(
+    (newOffset: Offset2D) => {
+      updateModification('sunflowerOffset', newOffset);
+    },
+    [updateModification]
+  );
+
   return (
-    <CrossControl
-      title={MODIFICATION_LABELS.SUNFLOWER}
-      description={MODIFICATION_LABELS.SUNFLOWER_DESC}
+    <CrossPad
       offset={offset}
-      onOffsetChange={onOffsetChange}
+      onChange={handleChange}
       step={SUNFLOWER_STEP}
+      label={MODIFICATION_LABELS.SUNFLOWER}
+      description={MODIFICATION_LABELS.SUNFLOWER_DESC}
       disabled={disabled}
     />
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: spacing.small,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  description: {
-    fontSize: 12,
-  },
-  crossGrid: {
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingVertical: spacing.small,
-  },
-  topRow: {
-    alignItems: 'center',
-  },
-  middleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-  },
-  bottomRow: {
-    alignItems: 'center',
-  },
-  arrowButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerDisplay: {
-    width: 64,
-    height: 44,
-    borderRadius: borderRadius.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerText: {
-    fontSize: 12,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});
+// Re-export CrossPad as CrossControl for backwards compatibility if needed
+export { CrossPad as CrossControl } from '../ui/controls';

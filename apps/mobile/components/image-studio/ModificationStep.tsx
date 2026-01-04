@@ -3,7 +3,7 @@
  * Orchestrates all image modification controls with debounced preview regeneration
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,6 @@ import { Ionicons } from '@expo/vector-icons';
 import type {
   ImageStudioTemplateType,
   DreizeilenModificationParams,
-  BalkenOffset,
-  Offset2D,
-  DreizeilenColorScheme,
 } from '@gruenerator/shared/image-studio';
 import { MODIFICATION_LABELS, getTypeConfig } from '@gruenerator/shared/image-studio';
 import { Button } from '../common';
@@ -86,48 +83,6 @@ export function ModificationStep({
     debouncedRegenerate();
   }, [modifications]);
 
-  const handleFontSizeChange = useCallback(
-    (value: number) => {
-      onModificationChange('fontSize', value);
-    },
-    [onModificationChange]
-  );
-
-  const handleColorSchemeChange = useCallback(
-    (scheme: DreizeilenColorScheme) => {
-      onModificationChange('colorScheme', scheme);
-    },
-    [onModificationChange]
-  );
-
-  const handleBalkenOffsetChange = useCallback(
-    (offset: BalkenOffset) => {
-      onModificationChange('balkenOffset', offset);
-    },
-    [onModificationChange]
-  );
-
-  const handleBalkenGruppeChange = useCallback(
-    (offset: Offset2D) => {
-      onModificationChange('balkenGruppenOffset', offset);
-    },
-    [onModificationChange]
-  );
-
-  const handleSunflowerChange = useCallback(
-    (offset: Offset2D) => {
-      onModificationChange('sunflowerOffset', offset);
-    },
-    [onModificationChange]
-  );
-
-  const handleCreditChange = useCallback(
-    (credit: string) => {
-      onModificationChange('credit', credit);
-    },
-    [onModificationChange]
-  );
-
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -188,27 +143,15 @@ export function ModificationStep({
       >
         {/* Basic Controls */}
         <View style={styles.section}>
-          <FontSizeControl
-            fontSize={modifications.fontSize}
-            onFontSizeChange={handleFontSizeChange}
-            disabled={loading}
-          />
+          <FontSizeControl disabled={loading} />
         </View>
 
         <View style={styles.section}>
-          <ColorSchemeSelector
-            colorScheme={modifications.colorScheme}
-            onColorSchemeChange={handleColorSchemeChange}
-            disabled={loading}
-          />
+          <ColorSchemeSelector disabled={loading} />
         </View>
 
         <View style={styles.section}>
-          <CreditInput
-            credit={modifications.credit}
-            onCreditChange={handleCreditChange}
-            disabled={loading}
-          />
+          <CreditInput disabled={loading} />
         </View>
 
         {/* Advanced Toggle */}
@@ -235,27 +178,15 @@ export function ModificationStep({
         {isAdvancedMode && (
           <View style={styles.advancedSection}>
             <View style={styles.section}>
-              <BalkenOffsetControl
-                offsets={modifications.balkenOffset}
-                onOffsetsChange={handleBalkenOffsetChange}
-                disabled={loading}
-              />
+              <BalkenOffsetControl disabled={loading} />
             </View>
 
             <View style={styles.section}>
-              <BalkenGruppeControl
-                offset={modifications.balkenGruppenOffset}
-                onOffsetChange={handleBalkenGruppeChange}
-                disabled={loading}
-              />
+              <BalkenGruppeControl disabled={loading} />
             </View>
 
             <View style={styles.section}>
-              <SonnenblumenControl
-                offset={modifications.sunflowerOffset}
-                onOffsetChange={handleSunflowerChange}
-                disabled={loading}
-              />
+              <SonnenblumenControl disabled={loading} />
             </View>
           </View>
         )}

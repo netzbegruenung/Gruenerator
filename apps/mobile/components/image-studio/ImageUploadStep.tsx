@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../common';
 import { pickImageFromGallery, takePhoto, type ImagePickerResult } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
+import { MediathekSelector } from './MediathekSelector';
 
 interface ImageUploadStepProps {
   uploadedImageUri: string | null;
@@ -27,6 +28,7 @@ interface ImageUploadStepProps {
   onClearImage: () => void;
   onNext: () => void;
   onBack: () => void;
+  disabled?: boolean;
 }
 
 export function ImageUploadStep({
@@ -35,12 +37,14 @@ export function ImageUploadStep({
   onClearImage,
   onNext,
   onBack,
+  disabled = false,
 }: ImageUploadStepProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
 
   const [loading, setLoading] = useState(false);
+  const [showMediathek, setShowMediathek] = useState(false);
 
   const handleImageResult = (result: ImagePickerResult | null) => {
     if (result) {
@@ -61,11 +65,20 @@ export function ImageUploadStep({
     handleImageResult(result);
   };
 
+  const handleOpenMediathek = () => {
+    setShowMediathek(true);
+  };
+
+  const handleMediathekSelect = (uri: string, base64: string) => {
+    onImageSelected(uri, base64);
+    setShowMediathek(false);
+  };
+
   const showImageOptions = () => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Abbrechen', 'Foto aufnehmen', 'Aus Galerie wählen'],
+          options: ['Abbrechen', 'Foto aufnehmen', 'Aus Galerie wählen', 'Aus Mediathek wählen'],
           cancelButtonIndex: 0,
         },
         (buttonIndex) => {
@@ -73,6 +86,8 @@ export function ImageUploadStep({
             handleTakePhoto();
           } else if (buttonIndex === 2) {
             handlePickImage();
+          } else if (buttonIndex === 3) {
+            handleOpenMediathek();
           }
         }
       );
@@ -84,6 +99,7 @@ export function ImageUploadStep({
           { text: 'Abbrechen', style: 'cancel' },
           { text: 'Foto aufnehmen', onPress: handleTakePhoto },
           { text: 'Aus Galerie', onPress: handlePickImage },
+          { text: 'Mediathek', onPress: handleOpenMediathek },
         ]
       );
     }
@@ -168,11 +184,17 @@ export function ImageUploadStep({
         <Button
           onPress={handleNext}
           variant="primary"
-          disabled={!uploadedImageUri}
+          disabled={!uploadedImageUri || disabled}
         >
           Weiter
         </Button>
       </View>
+
+      <MediathekSelector
+        visible={showMediathek}
+        onClose={() => setShowMediathek(false)}
+        onImageSelect={handleMediathekSelect}
+      />
     </ScrollView>
   );
 }

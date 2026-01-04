@@ -4,7 +4,8 @@
  */
 
 import { useColorScheme } from 'react-native';
-import { router, Href } from 'expo-router';
+import { router } from 'expo-router';
+import { route } from '../../../../types/routes';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { ImageStudioTemplateType, ImageStudioKiType } from '@gruenerator/shared/image-studio';
 import { kiTypeRequiresImage } from '@gruenerator/shared/image-studio';
@@ -20,7 +21,7 @@ export default function TypeSelectionScreen() {
   const handleTemplateSelect = (type: ImageStudioTemplateType) => {
     reset();
     setType(type);
-    router.push('./input' as Href);
+    router.push(route('/(tabs)/(media)/image-studio/input'));
   };
 
   const handleKiSelect = (type: ImageStudioKiType) => {
@@ -29,9 +30,9 @@ export default function TypeSelectionScreen() {
 
     // KI edit types need image upload first, create types go straight to input
     if (kiTypeRequiresImage(type)) {
-      router.push('./image' as Href);
+      router.push(route('/(tabs)/(media)/image-studio/image'));
     } else {
-      router.push('./ki-input' as Href);
+      router.push(route('/(tabs)/(media)/image-studio/ki-input'));
     }
   };
 
