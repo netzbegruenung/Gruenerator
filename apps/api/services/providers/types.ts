@@ -1,6 +1,6 @@
 // Shared types for provider system
 
-export type ProviderName = 'ionos' | 'litellm' | 'mistral' | 'claude' | 'bedrock' | 'openai';
+export type ProviderName = 'ionos' | 'litellm' | 'mistral' | 'claude' | 'openai';
 
 export type ModelName = string;
 
@@ -9,7 +9,6 @@ export interface ProviderOptions {
   model?: ModelName;
   useUltraMode?: boolean;
   useProMode?: boolean;
-  useBedrock?: boolean;
   privacyMode?: boolean;
   disableExternalProviders?: boolean;
   explicitProvider?: ProviderName;
@@ -23,7 +22,6 @@ export interface RequestMetadata {
 export interface ProviderResult {
   provider: ProviderName;
   model: ModelName;
-  useBedrock?: boolean;
 }
 
 export interface PrivacyProviderData {

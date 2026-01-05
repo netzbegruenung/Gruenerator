@@ -1,6 +1,6 @@
 /**
  * Centralized provider selection and model override logic
- * Handles routing between Mistral, Bedrock, LiteLLM, and other providers
+ * Handles routing between Mistral, IONOS, LiteLLM, and other providers
  */
 
 import type {
@@ -48,9 +48,6 @@ export function shouldAllowMainLlmOverride(
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  if (name.includes('arn:aws:bedrock') || name.includes('anthropic.claude') || name.includes('anthropic/claude')) {
-    return 'bedrock';
-  }
   if (name.includes('gpt-') || name.includes('openai')) {
     return 'openai';
   }
@@ -62,6 +59,9 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   }
   if (name.includes('llama') || name.includes('meta-llama')) {
     return 'ionos';
+  }
+  if (name.includes('claude') || name.includes('anthropic')) {
+    return 'claude';
   }
   return 'litellm';
 }
@@ -75,7 +75,7 @@ interface SelectProviderParams {
 
 /**
  * Select provider and model given request context and environment
- * Handles mode flags (ultra, pro, bedrock), type-based routing, and environment overrides
+ * Handles mode flags (ultra, pro), type-based routing, and environment overrides
  */
 export function selectProviderAndModel({
   type,
@@ -86,26 +86,16 @@ export function selectProviderAndModel({
   // Base defaults
   let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
   let model: ModelName = options.model || 'mistral-medium-latest';
-  let useBedrock = false;
 
-  // Ultra mode (useUltraMode flag) - routes to Claude Sonnet 4.5 via Bedrock
+  // Ultra mode (useUltraMode flag) - routes to IONOS with high-quality model
   if (options.useUltraMode === true) {
-    provider = 'bedrock';
-    useBedrock = true;
-    model = 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+    provider = 'ionos';
+    model = 'openai/gpt-oss-120b';
   }
   // Pro mode (useProMode flag) - routes to high-quality Magistral model
   else if (options.useProMode === true) {
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
-    useBedrock = false;
-  }
-  // Bedrock mode (useBedrock flag) - routes to high-quality Bedrock model
-  else if (options.useBedrock === true) {
-    provider = 'bedrock';
-    useBedrock = true;
-    // Use Claude 4.5 for Bedrock mode unless specific model is requested
-    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
   }
 
   // Type-based defaults (preserve existing special cases)
@@ -113,27 +103,23 @@ export function selectProviderAndModel({
   if (type === 'qa_draft') {
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
-    useBedrock = false;
   }
   // QA intermediate steps (planner, repair, tools) use standard model
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
     provider = 'mistral';
     model = options.model || 'mistral-medium-latest';
-    useBedrock = false;
   } else if (type === 'antrag_simple' || type === 'antrag' || type === 'kleine_anfrage' || type === 'grosse_anfrage') {
     provider = 'mistral';
     model = options.model || 'magistral-medium-latest';
-    useBedrock = false;
   } else if (type === 'antrag_question_generation' || type === 'antrag_qa_summary') {
     provider = 'mistral';
     model = options.model || 'mistral-small-latest';
-    useBedrock = false;
   } else if (type === 'gruenerator_ask' || type === 'gruenerator_ask_grundsatz') {
-    provider = 'bedrock';
-    useBedrock = true;
-    model = options.model || 'anthropic.claude-3-haiku-20240307-v1:0';
+    // Use Claude API for these types
+    provider = 'claude';
+    model = options.model || 'claude-3-haiku-20240307';
   }
-  // Sharepic types - use AWS Bedrock with Claude Sonnet 4.5
+  // Sharepic types - use Mistral with Magistral for high quality
   else if (
     type === 'sharepic_dreizeilen' ||
     type === 'sharepic_zitat' ||
@@ -142,9 +128,8 @@ export function selectProviderAndModel({
     type === 'sharepic_info' ||
     type === 'sharepic_veranstaltung'
   ) {
-    provider = 'bedrock';
-    useBedrock = true;
-    model = options.model || 'arn:aws:bedrock:eu-central-1:481665093592:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
+    provider = 'mistral';
+    model = options.model || 'magistral-medium-latest';
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)
@@ -164,5 +149,5 @@ export function selectProviderAndModel({
     provider = determineProviderFromModel(mainLlmOverride);
   }
 
-  return { provider, model, useBedrock };
+  return { provider, model };
 }

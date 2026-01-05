@@ -78,13 +78,13 @@ export class ToolHandler {
    * @param provider - Provider name
    * @returns Formatted tools for the provider
    */
-  static formatToolsForProvider(tools: Tool[], provider: AIProvider = 'bedrock'): Tool[] {
+  static formatToolsForProvider(tools: Tool[], provider: AIProvider = 'claude'): Tool[] {
     if (!this.validateTools(tools)) {
       throw new Error('Invalid tools provided to formatToolsForProvider');
     }
 
     const targetProvider = provider.toLowerCase() as AIProvider;
-    const isClaudeProvider = targetProvider === 'bedrock' || targetProvider === 'claude';
+    const isClaudeProvider = targetProvider === 'claude';
     const isOpenAIProvider: boolean = ['openai', 'litellm', 'ionos', 'mistral'].includes(targetProvider);
 
     return tools.map(tool => {
@@ -224,7 +224,7 @@ export class ToolHandler {
     };
 
     // Add tool_choice if specified (mainly for Bedrock/Claude)
-    if (options.tool_choice && (provider === 'bedrock' || provider === 'claude')) {
+    if (options.tool_choice && provider === 'claude') {
       payload.tool_choice = options.tool_choice;
       console.log(`[ToolHandler] Tool choice added for ${requestId}:`, options.tool_choice);
     }
