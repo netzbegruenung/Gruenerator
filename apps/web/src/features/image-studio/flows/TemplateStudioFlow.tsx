@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useImageGeneration } from '../hooks/useImageGeneration';
@@ -18,7 +18,11 @@ import './TemplateStudioFlow.css';
  * TemplateStudioFlow - Unified flow for both template and KI image creation
  * Uses StepFlow for INPUT, then TemplateResultStep for RESULT
  */
-const TemplateStudioFlow = ({ onBack }) => {
+interface TemplateStudioFlowProps {
+  onBack: () => void;
+}
+
+const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const {
     currentStep,
     setCurrentStep,
@@ -56,6 +60,12 @@ const TemplateStudioFlow = ({ onBack }) => {
   const isGoingBack = navigationDirection === 'back';
   const isUploadToInput = previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
 
+  const [isWideStep, setIsWideStep] = useState(false);
+
+  const handleStepChange = useCallback((stepType: string) => {
+    setIsWideStep(stepType === 'image_upload');
+  }, []);
+
   const handleAnimationStart = useCallback(() => {
     setIsAnimating(true);
   }, [setIsAnimating]);
@@ -74,8 +84,8 @@ const TemplateStudioFlow = ({ onBack }) => {
     ? { duration: 0 }
     : { type: 'tween' as const, ease: 'easeOut' as const, duration: isUploadToInput ? 0.4 : 0.25 };
 
-  const typeConfig = useMemo(() => getTypeConfig(type), [type]);
-  const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
+  const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
+  const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
 
   const { generateImage, loading, error, setError } = useImageGeneration();
   const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
@@ -104,11 +114,11 @@ const TemplateStudioFlow = ({ onBack }) => {
           allyPlacement
         };
 
-        image = await generateImage(type, formData);
+        image = await generateImage(type!, formData);
         refetchImageLimit();
       } else {
         // Template regeneration
-        const formData = {
+        const formData: any = {
           type: typeConfig?.legacyType || type,
           line1, line2, line3,
           quote,
@@ -123,7 +133,7 @@ const TemplateStudioFlow = ({ onBack }) => {
           credit
         };
 
-        image = await generateImage(type, formData);
+        image = await generateImage(type!, formData);
       }
 
       setGeneratedImage(image);
@@ -162,7 +172,7 @@ const TemplateStudioFlow = ({ onBack }) => {
               </div>
             )}
 
-            <div className="template-studio-flow">
+            <div className={`template-studio-flow${isWideStep ? ' template-studio-flow--wide' : ''}`}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentStep}
@@ -179,6 +189,7 @@ const TemplateStudioFlow = ({ onBack }) => {
                     <StepFlow
                       onBack={onBack}
                       onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}
+                      onStepChange={handleStepChange}
                       imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
                       startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
                     />

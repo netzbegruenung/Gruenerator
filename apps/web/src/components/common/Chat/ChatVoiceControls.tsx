@@ -7,7 +7,7 @@ interface ChatVoiceControlsProps {
   onTranscription?: (text: string, mode: 'append' | 'replace') => void;
   disabled?: boolean;
   autoSubmit?: boolean;
-  onSubmit?: (event: React.FormEvent) => void;
+  onSubmit?: (value: string | React.FormEvent) => void;
   transcriptionMode?: 'append' | 'replace';
 }
 
@@ -16,7 +16,7 @@ const ChatVoiceControls = ({ onTranscription,
   autoSubmit = false,
   onSubmit,
   transcriptionMode = 'append' }: ChatVoiceControlsProps): JSX.Element => {
-  const handleTranscriptionComplete = useCallback((text) => {
+  const handleTranscriptionComplete = useCallback((text: string) => {
     if (!text) return;
     if (autoSubmit && onSubmit) {
       onSubmit(text);

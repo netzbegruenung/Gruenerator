@@ -152,7 +152,7 @@ const ActionButtons = ({ onEdit,
           setCopyIcon(<IoCopyOutline size={16} />);
         }, 2000);
       },
-      () => {}
+      () => { }
     );
 
     console.log('[ActionButtons] Auto-save check', {
@@ -202,10 +202,10 @@ const ActionButtons = ({ onEdit,
     const contentObj = content as GeneratedContentObject;
     // Check if we have sharepic but no social content
     const hasSharepic = contentObj.sharepic && Object.keys(contentObj.sharepic).length > 0;
-    const hasSocialContent = contentObj.social?.content ||
-                            (contentObj.content && !contentObj.sharepic);
+    const hasSocialContent = !!(contentObj.social?.content ||
+      (contentObj.content && !contentObj.sharepic));
 
-    return hasSharepic && !hasSocialContent;
+    return !!(hasSharepic && !hasSocialContent);
   };
 
   // Determine if buttons should be hidden (sharepic-only content)
@@ -247,12 +247,12 @@ const ActionButtons = ({ onEdit,
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
         handleUndo();
       } else if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z') ||
-                 ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
         e.preventDefault();
         handleRedo();
       }
@@ -402,7 +402,7 @@ const ActionButtons = ({ onEdit,
       )
     };
 
-    return buttons[type];
+    return buttons[type as keyof typeof buttons];
   };
 
   // Button order: copy, share, undo, redo, edit, more (3-dot menu)

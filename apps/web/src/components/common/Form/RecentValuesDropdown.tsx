@@ -53,7 +53,7 @@ const RecentValuesDropdown = ({ // Field configuration
   // Recent values configuration
   maxRecentValues = 5,
   autoSave = true,
-  formName = null,
+  formName,
   showClearButton = true,
 
   // UI customization
@@ -116,7 +116,7 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Handle selection change
    */
-  const handleChange = useCallback((selectedOption) => {
+  const handleChange = useCallback((selectedOption: any) => {
     // Extract the value(s) from the option(s)
     let newValue;
 
@@ -189,11 +189,11 @@ const RecentValuesDropdown = ({ // Field configuration
    * Custom styles for the select component
    */
   const customStyles = useMemo(() => ({
-    container: (provided) => ({
+    container: (provided: any) => ({
       ...provided,
       fontSize: 'var(--form-element-font-size)'
     }),
-    control: (provided, state) => ({
+    control: (provided: any, state: any) => ({
       ...provided,
       borderColor: error
         ? 'var(--error-color, #e74c3c)'
@@ -209,11 +209,11 @@ const RecentValuesDropdown = ({ // Field configuration
           : 'var(--interactive-accent-color)'
       }
     }),
-    menu: (provided) => ({
+    menu: (provided: any) => ({
       ...provided,
       zIndex: 9999
     }),
-    option: (provided, state) => ({
+    option: (provided: any, state: any) => ({
       ...provided,
       backgroundColor: state.isSelected
         ? 'var(--button-color)'
@@ -224,14 +224,14 @@ const RecentValuesDropdown = ({ // Field configuration
         ? 'white'
         : 'var(--font-color)',
       fontSize: 'var(--form-element-font-size)',
-      fontStyle: state.data?.__isRecentValue ? 'normal' : 'normal',
-      '&:before': state.data?.__isRecentValue ? {
+      fontStyle: (state.data as any)?.__isRecentValue ? 'normal' : 'normal',
+      '&:before': (state.data as any)?.__isRecentValue ? {
         content: '"✓ "',
         color: 'var(--success-color, #27ae60)',
         marginRight: '4px'
       } : {}
     }),
-    placeholder: (provided) => ({
+    placeholder: (provided: any) => ({
       ...provided,
       color: 'var(--input-placeholder-color, #999)'
     })
@@ -240,7 +240,7 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Format the "create" label
    */
-  const formatCreateLabel = useCallback((inputValue) => {
+  const formatCreateLabel = useCallback((inputValue: string) => {
     return `Neuer Wert: "${inputValue}"`;
   }, []);
 

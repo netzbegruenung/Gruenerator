@@ -18,37 +18,49 @@ export function DreizeilenTextSection({
   onLine3Change,
 }: DreizeilenTextSectionProps) {
   return (
-    <div className="dreizeilen-text-section">
-      <div className="dreizeilen-text-field">
-        <label htmlFor="line1-input">Zeile 1</label>
+    <div className="sidebar-section sidebar-section--dreizeilen-text">
+      <div className="form-field-wrapper">
+        <label htmlFor="line1-input" className="form-field-label">
+          Zeile 1
+        </label>
         <input
           id="line1-input"
           type="text"
+          className="form-input"
           value={line1}
           onChange={(e) => onLine1Change(e.target.value)}
           placeholder="Erste Zeile..."
         />
       </div>
-      <div className="dreizeilen-text-field">
-        <label htmlFor="line2-input">Zeile 2</label>
+      <div className="form-field-wrapper">
+        <label htmlFor="line2-input" className="form-field-label">
+          Zeile 2
+        </label>
         <input
           id="line2-input"
           type="text"
+          className="form-input"
           value={line2}
           onChange={(e) => onLine2Change(e.target.value)}
           placeholder="Zweite Zeile..."
         />
       </div>
-      <div className="dreizeilen-text-field">
-        <label htmlFor="line3-input">Zeile 3</label>
+      <div className="form-field-wrapper">
+        <label htmlFor="line3-input" className="form-field-label">
+          Zeile 3
+        </label>
         <input
           id="line3-input"
           type="text"
+          className="form-input"
           value={line3}
           onChange={(e) => onLine3Change(e.target.value)}
           placeholder="Dritte Zeile..."
         />
       </div>
+      <p className="sidebar-hint">
+        Gib hier deine drei Textzeilen ein, die jeweils auf einem eigenen Balken erscheinen. Mit der Schriftgröße kannst du deinen Text hervorheben. Halte die Zeilen etwa gleich lang und vermeide zu kleine Schriften für bessere Lesbarkeit.
+      </p>
     </div>
   );
 }

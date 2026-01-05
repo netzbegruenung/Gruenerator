@@ -19,7 +19,7 @@ interface UseVerticalTabNavigationOptions {
   onItemSelect: (item: string) => void;
   loop?: boolean;
   horizontal?: boolean;
-  containerRef?: RefObject<HTMLElement>;
+  containerRef?: RefObject<HTMLElement | null>;
 }
 
 /**

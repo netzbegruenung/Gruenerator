@@ -27,6 +27,9 @@ export function TextSection({
         onChange={(e) => onNameChange(e.target.value)}
         placeholder="Name eingeben..."
       />
+      <p className="sidebar-hint">
+        Gib hier deinen Text für das Sharepic ein. Mit der Schriftgröße kannst du wichtige Textteile hervorheben. Halte die Texte kurz und vermeide zu kleine Schriften für bessere Lesbarkeit auf Social Media.
+      </p>
     </div>
   );
 }

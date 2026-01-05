@@ -54,7 +54,7 @@ const GalleryControls = ({ searchTerm,
             key={category.id}
             type="button"
             className={`category-chip ${selectedCategory === category.id ? 'active' : ''}`}
-            onClick={() => onCategoryChange(category.id)}
+            onClick={() => onCategoryChange?.(category.id)}
           >
             {category.label}
           </button>
@@ -67,7 +67,7 @@ const GalleryControls = ({ searchTerm,
     <div className="gallery-controls">
       <div className="gallery-controls-row">
         <SearchBar
-          onSearch={() => {}}
+          onSearch={() => { }}
           value={searchTerm}
           onChange={onSearchChange}
           placeholder={placeholder}
@@ -95,7 +95,7 @@ const GalleryControls = ({ searchTerm,
               key={type.id}
               type="button"
               className={`category-button ${activeContentType === type.id ? 'active' : ''}`}
-              onClick={() => onContentTypeChange(type.id)}
+              onClick={() => type.id && onContentTypeChange?.(type.id)}
               aria-pressed={activeContentType === type.id}
             >
               {type.label}

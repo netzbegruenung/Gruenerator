@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import type { Layer, CanvasHistoryEntry } from '../types';
+import type { Layer, CanvasHistoryEntry } from '../types.js';
 
 export interface UseCanvasHistoryOptions {
   maxHistorySize?: number;

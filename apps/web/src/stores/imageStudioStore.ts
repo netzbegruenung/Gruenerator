@@ -47,8 +47,6 @@ const initialState: ImageStudioState = {
   header: '',
   subheader: '',
   body: '',
-  description: '',
-  mood: '',
   headline: '',
   subtext: '',
 
@@ -175,7 +173,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   },
 
   setType: (type) => {
-    const config = getTypeConfig(type);
+    const config = getTypeConfig(type || '');
     const firstStep = config?.steps?.[0] || FORM_STEPS.INPUT;
     set({
       type,
@@ -306,7 +304,6 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   setImagineTitle: (title) => set({ imagineTitle: title }),
   setPurePrompt: (prompt) => set({ purePrompt: prompt }),
   setSharepicPrompt: (prompt) => set({ sharepicPrompt: prompt }),
-  setAllyPlacement: (placement) => set({ allyPlacement: placement }),
 
   // Veranstaltung per-field font size controls (px-based)
   updateFieldFontSize: (fieldName, value) => {
@@ -367,8 +364,8 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   }),
 
   // Advanced editing controls
-  updateBalkenGruppenOffset: (newOffset: [number, number]) => set({ balkenGruppenOffset: newOffset }),
-  updateSunflowerOffset: (newOffset: [number, number]) => set({ sunflowerOffset: newOffset }),
+  updateBalkenGruppenOffset: (newOffset: number[]) => set({ balkenGruppenOffset: newOffset as [number, number] }),
+  updateSunflowerOffset: (newOffset: number[]) => set({ sunflowerOffset: newOffset as [number, number] }),
   updateCredit: (credit) => set({ credit }),
 
   // Slogan handling
@@ -383,7 +380,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   }),
   handleSloganSelect: (selected) => {
     const { type } = get();
-    const config = getTypeConfig(type);
+    const config = getTypeConfig(type || '');
 
     if (config?.legacyType === 'Zitat' || config?.legacyType === 'Zitat_Pure') {
       get().updateFormData({ quote: selected.quote });
@@ -488,22 +485,22 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
 
 
   // Load data from AI-generated prompt (from ImageStudio chat input)
-  loadFromAIGeneration: (sharepicType, generatedData) => {
-    const formData = parseAIGeneratedData(sharepicType, generatedData);
+  loadFromAIGeneration: (sharepicType, generatedData, selectedImage) => {
+    const formData = parseAIGeneratedData(sharepicType, generatedData, selectedImage);
     set(formData as Partial<ImageStudioState>);
   },
 
   // Helper to check if current type uses FLUX API
   isKiType: () => {
     const { type } = get();
-    const config = getTypeConfig(type);
+    const config = getTypeConfig(type || '');
     return config?.usesFluxApi || false;
   },
 
   // Helper to check if current type has rate limit
   hasRateLimit: () => {
     const { type } = get();
-    const config = getTypeConfig(type);
+    const config = getTypeConfig(type || '');
     return config?.hasRateLimit || false;
   },
 

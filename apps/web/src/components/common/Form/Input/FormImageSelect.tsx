@@ -55,10 +55,10 @@ const FormImageSelect = ({
       <div
         className={`form-image-select-grid`}
         style={{
-          '--grid-cols-desktop': columns.desktop,
-          '--grid-cols-tablet': columns.tablet,
-          '--grid-cols-mobile': columns.mobile
-        }}
+          '--grid-cols-desktop': columns?.desktop ?? 3,
+          '--grid-cols-tablet': columns?.tablet ?? 2,
+          '--grid-cols-mobile': columns?.mobile ?? 1
+        } as React.CSSProperties}
         role="radiogroup"
         aria-label={label}
       >
@@ -124,7 +124,7 @@ const FormImageSelect = ({
 
   // Controlled mode: use value/onChange props
   const selectedValue = value !== undefined ? value : defaultValue;
-  const handleChange = onChange || (() => {});
+  const handleChange = onChange || (() => { });
 
   return (
     <FormFieldWrapper

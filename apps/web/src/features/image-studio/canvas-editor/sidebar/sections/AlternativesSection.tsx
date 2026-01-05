@@ -62,6 +62,10 @@ export function AlternativesSection({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <p className="sidebar-hint">
+        Die KI hat alternative Textvorschläge für dich erstellt. Probiere verschiedene Varianten aus, um die beste Formulierung zu finden. Nach der Auswahl kannst du den Text noch individuell anpassen.
+      </p>
     </div>
   );
 }

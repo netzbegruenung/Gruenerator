@@ -61,6 +61,7 @@
     "@tanstack/react-query-devtools": "^5.75.2",
     "@testing-library/react": "^16.2.0",
     "@types/lodash": "^4.17.21",
+    "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.10.4",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
@@ -95,6 +96,7 @@
     "preview": "vite preview",
     "test": "jest",
     "analyze": "vite-bundle-analyzer build",
+    "typecheck": "tsc --noEmit",
     "build:analyze": "npm run build && npm run analyze",
     "deps:check": "npx depcheck",
     "deps:clean": "npm prune && npm dedupe"

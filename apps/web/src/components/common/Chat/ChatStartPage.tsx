@@ -52,7 +52,7 @@ interface ChatStartPageProps {
   placeholder?: string;
   inputValue?: string;
   onInputChange?: (value: string) => void;
-  onSubmit: (value: string | React.FormEvent) => void;
+  onSubmit?: (value: string | React.FormEvent) => void;
   disabled?: boolean;
   enableFileUpload?: boolean;
   onFileSelect?: (files: File[]) => void;
@@ -121,7 +121,7 @@ const ChatStartPage = ({ title = "Was möchtest du wissen?",
     event.preventDefault();
     const trimmedValue = (inputValue || '').trim();
     if (!trimmedValue || disabled) return;
-    onSubmit(trimmedValue);
+    onSubmit?.(trimmedValue);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => handleEnterKeySubmit(event, handleSubmit);

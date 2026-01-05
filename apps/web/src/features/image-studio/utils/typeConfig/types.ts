@@ -98,6 +98,7 @@ export interface TypeConfigBase {
   formComponent?: string;
   steps: string[];
   legacyType?: string;
+  urlSlug?: string;
   formProps?: FormProps;
   validation?: Record<string, ValidationRule>;
   placementOptions?: PlacementOption[];

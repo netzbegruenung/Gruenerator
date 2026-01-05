@@ -23,32 +23,37 @@ export function DreizeilenAlternativesSection({
   onSelectAlternative,
 }: DreizeilenAlternativesSectionProps) {
   return (
-    <div className="dreizeilen-alternatives-section">
-      {alternatives.map((alt, index) => {
-        const altLabel = [alt.line1, alt.line2, alt.line3].filter(Boolean).join(' / ');
-        const isActive =
-          alt.line1 === currentLine1 &&
-          alt.line2 === currentLine2 &&
-          alt.line3 === currentLine3;
+    <div className="sidebar-section sidebar-section--dreizeilen-alternatives">
+      <div className="sidebar-card-grid">
+        {alternatives.map((alt, index) => {
+          const altLabel = [alt.line1, alt.line2, alt.line3].filter(Boolean).join(' / ');
+          const isActive =
+            alt.line1 === currentLine1 &&
+            alt.line2 === currentLine2 &&
+            alt.line3 === currentLine3;
 
-        return (
-          <button
-            key={index}
-            className={`alternative-card ${isActive ? 'alternative-card--active' : ''}`}
-            onClick={() => onSelectAlternative(alt)}
-            type="button"
-          >
-            <span className="alternative-card__text">
-              {altLabel || `Alternative ${index + 1}`}
-            </span>
-            {isActive && (
-              <span className="alternative-card__check">
-                <FaCheck size={10} />
+          return (
+            <button
+              key={index}
+              className={`sidebar-selectable-card sidebar-selectable-card--with-text ${isActive ? 'sidebar-selectable-card--active' : ''}`}
+              onClick={() => onSelectAlternative(alt)}
+              type="button"
+            >
+              <span className="sidebar-selectable-card__text">
+                {altLabel || `Alternative ${index + 1}`}
               </span>
-            )}
-          </button>
-        );
-      })}
+              {isActive && (
+                <span className="sidebar-selectable-card__check">
+                  <FaCheck size={10} />
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <p className="sidebar-hint">
+        Hier findest du KI-generierte Textvarianten basierend auf deiner Eingabe. Klicke auf eine Alternative, um sie direkt in dein Design zu übernehmen. Du kannst die Texte anschließend noch manuell anpassen.
+      </p>
     </div>
   );
 }

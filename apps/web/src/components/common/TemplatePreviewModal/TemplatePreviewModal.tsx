@@ -4,7 +4,7 @@ import { HiX, HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/
 import { SiCanva } from 'react-icons/si';
 import './TemplatePreviewModal.css';
 
-const formatDate = (value) => {
+const formatDate = (value: string | number | Date | null | undefined) => {
   if (!value) return '';
   try {
     return new Date(value).toLocaleDateString('de-DE', {
@@ -17,16 +17,23 @@ const formatDate = (value) => {
   }
 };
 
+interface TemplatePreviewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  template: any;
+  onTagClick?: (tag: string) => void;
+}
+
 const TemplatePreviewModal = ({
   isOpen,
   onClose,
   template,
   onTagClick
-}) => {
+}: TemplatePreviewModalProps): React.ReactNode => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const allImages = useMemo(() => {
-    const images = [];
+    const images: any[] = [];
     if (Array.isArray(template?.images) && template.images.length > 0) {
       const sorted = [...template.images].sort((a, b) =>
         (a.display_order || 0) - (b.display_order || 0)
@@ -48,13 +55,13 @@ const TemplatePreviewModal = ({
     setActiveImageIndex(0);
   }, [template?.id]);
 
-  const handleBackdropClick = useCallback((e) => {
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   }, [onClose]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
     } else if (hasMultipleImages) {
@@ -84,19 +91,19 @@ const TemplatePreviewModal = ({
     }
   }, [template]);
 
-  const handleTagClick = useCallback((tag) => {
+  const handleTagClick = useCallback((tag: string) => {
     if (onTagClick) {
       onClose();
       onTagClick(tag);
     }
   }, [onTagClick, onClose]);
 
-  const handlePrevImage = useCallback((e) => {
+  const handlePrevImage = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImageIndex(prev => (prev > 0 ? prev - 1 : allImages.length - 1));
   }, [allImages.length]);
 
-  const handleNextImage = useCallback((e) => {
+  const handleNextImage = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImageIndex(prev => (prev < allImages.length - 1 ? prev + 1 : 0));
   }, [allImages.length]);
@@ -202,7 +209,7 @@ const TemplatePreviewModal = ({
 
               {tags.length > 0 && (
                 <div className="template-preview-tags">
-                  {tags.map((tag) => (
+                  {tags.map((tag: string) => (
                     <span
                       key={tag}
                       className={`template-preview-tag${onTagClick ? ' clickable' : ''}`}

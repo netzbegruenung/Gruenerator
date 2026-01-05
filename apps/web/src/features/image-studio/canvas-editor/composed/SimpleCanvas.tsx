@@ -25,6 +25,7 @@ export interface SimpleCanvasProps {
   subtext: string;
   imageSrc: string;
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
   onCancel: () => void;
   onHeadlineChange?: (headline: string) => void;
   onSubtextChange?: (subtext: string) => void;
@@ -37,6 +38,7 @@ export function SimpleCanvas({
   subtext: initialSubtext,
   imageSrc,
   onExport,
+  onSave,
   onCancel,
   onHeadlineChange,
   onSubtextChange,
@@ -53,8 +55,9 @@ export function SimpleCanvas({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport });
+  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport, onSave });
 
   const snapGuides = useSnapGuides();
   const snapLines = useSnapLines();
@@ -80,6 +83,23 @@ export function SimpleCanvas({
 
   // Sidebar state
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 900
+  );
+
+  const handleTabClick = useCallback((tabId: SidebarTabId) => {
+    setActiveTab((current) => (current === tabId ? null : tabId));
+  }, []);
+
+  const handlePanelClose = useCallback(() => {
+    setActiveTab(null);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // State restoration callback
   const handleRestore = useCallback((state: Record<string, unknown>) => {
@@ -176,12 +196,17 @@ export function SimpleCanvas({
   const handleSubtextTransformEnd = useCallback((_x: number, _y: number, width: number) => setCustomSubtextWidth(width), []);
 
   // Sidebar configuration
-  const tabs: SidebarTab[] = useMemo(() => [
+  const allTabs: SidebarTab[] = useMemo(() => [
     { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
     { id: 'fontsize', icon: PiTextAa, label: 'Schriftgröße', ariaLabel: 'Schriftgröße anpassen' },
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'gradient', icon: HiAdjustments, label: 'Gradient', ariaLabel: 'Gradient anpassen' },
   ], []);
+
+  const visibleTabs = useMemo(() =>
+    isDesktop ? allTabs.filter(t => t.id !== 'fontsize') : allTabs,
+    [isDesktop, allTabs]
+  );
 
   // Custom text section for headline/subtext
   const TextSectionSimple = () => (
@@ -234,7 +259,13 @@ export function SimpleCanvas({
 
   const renderActivePanel = () => {
     switch (activeTab) {
-      case 'text': return <TextSectionSimple />;
+      case 'text':
+        return (
+          <>
+            <TextSectionSimple />
+            {isDesktop && <FontSizeSectionSimple />}
+          </>
+        );
       case 'fontsize': return <FontSizeSectionSimple />;
       case 'image': return <ImageSection scale={imageScale} onScaleChange={handleImageScaleChange} onReset={handleImageReset} />;
       case 'gradient': return <GradientSection enabled={gradientEnabled} onToggle={handleGradientToggle} opacity={gradientOpacity} onOpacityChange={handleGradientOpacityChange} />;
@@ -242,19 +273,14 @@ export function SimpleCanvas({
     }
   };
 
-  const tabBar = <SidebarTabBar tabs={tabs} activeTab={activeTab} onTabClick={setActiveTab} />;
-  const panel = <SidebarPanel isOpen={activeTab !== null}>{renderActivePanel()}</SidebarPanel>;
+  const tabBar = <SidebarTabBar tabs={visibleTabs} activeTab={activeTab} onTabClick={handleTabClick} onExport={handleExport} onSave={handleSave} />;
+  const panel = <SidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>{renderActivePanel()}</SidebarPanel>;
 
   return (
     <CanvasEditorLayout
       sidebar={panel}
       tabBar={tabBar}
-      actions={
-        <>
-          <button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
-          <button className="btn btn-primary" onClick={handleExport}>Fertig</button>
-        </>
-      }
+      actions={null}
     >
       <div className="simple-canvas-wrapper">
         <CanvasStage ref={stageRef} width={config.canvas.width} height={config.canvas.height} responsive maxContainerWidth={900} onStageClick={handleStageClick} className="simple-stage">

@@ -10,6 +10,8 @@
  * - Quote mark is white
  */
 
+import { wrapText } from './textUtils';
+
 export const ZITAT_CONFIG = {
   canvas: {
     width: 1080,
@@ -65,35 +67,7 @@ export interface ZitatLayoutResult {
   quoteLines: string[];
 }
 
-/**
- * Wrap text into lines based on character width estimation
- * Matches backend logic in zitat_canvas.ts
- */
-export function wrapText(
-  text: string,
-  maxWidth: number,
-  fontSize: number,
-  charWidthRatio = 0.5
-): string[] {
-  const charWidth = fontSize * charWidthRatio;
-  const maxCharsPerLine = Math.floor(maxWidth / charWidth);
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
 
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (testLine.length <= maxCharsPerLine) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-
-  return lines;
-}
 
 /**
  * Calculate layout for Zitat canvas

@@ -2,13 +2,25 @@ import React from 'react';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import TextAreaInput from '../../../components/common/Form/Input/TextAreaInput';
 
+import { InputField } from '../utils/typeConfig';
+
 import './ConfigDrivenFields.css';
+
+interface ConfigDrivenFieldsProps {
+  fields: InputField[];
+  values: Record<string, string | undefined>;
+  onChange: (e: { target: { name: string; value: string } }) => void;
+  errors?: Record<string, string>;
+  disabled?: boolean;
+  className?: string;
+  hideLabels?: boolean;
+}
 
 /**
  * ConfigDrivenFields - Renders form fields based on configuration
  * Eliminates hardcoded type checks by using field config from TEMPLATE_FIELD_CONFIG
  */
-const ConfigDrivenFields = ({
+const ConfigDrivenFields: React.FC<ConfigDrivenFieldsProps> = ({
   fields,
   values,
   onChange,
@@ -19,7 +31,7 @@ const ConfigDrivenFields = ({
 }) => {
   if (!fields || fields.length === 0) return null;
 
-  const handleFieldChange = (e) => {
+  const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (onChange) {
       onChange({ target: { name, value } });
@@ -36,7 +48,7 @@ const ConfigDrivenFields = ({
         return (
           <FormFieldWrapper
             key={field.name}
-            label={hideLabels ? null : field.label}
+            label={hideLabels ? undefined : (field.label || undefined)}
             htmlFor={field.name}
             error={error}
           >

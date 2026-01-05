@@ -15,6 +15,7 @@ import {
 export interface UseCanvasInteractionsOptions {
   stageRef: RefObject<CanvasStageRef | null>;
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
 }
 
 export interface UseCanvasInteractionsResult<T extends string | null> {
@@ -24,12 +25,14 @@ export interface UseCanvasInteractionsResult<T extends string | null> {
   handleSnapChange: (h: boolean, v: boolean) => void;
   handlePositionChange: (id: string, x: number, y: number, width: number, height: number) => void;
   handleExport: () => void;
+  handleSave: () => void;
   getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
 export function useCanvasInteractions<T extends string | null = string | null>({
   stageRef,
   onExport,
+  onSave,
 }: UseCanvasInteractionsOptions): UseCanvasInteractionsResult<T> {
   const [selectedElement, setSelectedElement] = useState<T>(null as T);
 
@@ -70,6 +73,17 @@ export function useCanvasInteractions<T extends string | null = string | null>({
     }, 50);
   }, [stageRef, onExport]);
 
+  const handleSave = useCallback(() => {
+    if (!onSave) return;
+    setSelectedElement(null as T);
+    setTimeout(() => {
+      const dataUrl = stageRef.current?.toDataURL({ format: 'png' });
+      if (dataUrl) {
+        onSave(dataUrl);
+      }
+    }, 50);
+  }, [stageRef, onSave]);
+
   const getSnapTargets = useCallback(
     (excludeId: string) => Object.values(elementPositions).filter((t) => t.id !== excludeId),
     [elementPositions]
@@ -82,6 +96,7 @@ export function useCanvasInteractions<T extends string | null = string | null>({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
   };
 }

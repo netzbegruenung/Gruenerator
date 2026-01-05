@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useAutoSaveStore } from './useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
@@ -23,48 +23,89 @@ export const useTemplateResultAutoSave = (): void => {
   const { createImageShare } = useShareStore();
   const { getOriginalImageBase64, buildShareMetadata } = useImageHelpers();
 
-  const typeConfig = getTypeConfig(type);
-  const fieldConfig = getTemplateFieldConfig(type);
+  const typeConfig = getTypeConfig(type || '');
+  const fieldConfig = getTemplateFieldConfig(type || '');
 
-  useEffect(() => {
-    const performAutoSave = async () => {
-      if (!generatedImageSrc) return;
-      if (fieldConfig?.showAutoSave === false) return;
-      if (galleryEditMode) return;
-      if (autoSaveStatus === 'saving') return;
-      if (lastAutoSavedImageSrc === generatedImageSrc) return;
+  // Use refs to store latest values without causing effect re-runs
+  const latestRefs = useRef({
+    type,
+    typeConfig,
+    fieldConfig,
+    galleryEditMode,
+    autoSaveStatus,
+    lastAutoSavedImageSrc,
+    getOriginalImageBase64,
+    buildShareMetadata,
+    createImageShare,
+    setAutoSaveStatus,
+    setAutoSavedShareToken,
+    setLastAutoSavedImageSrc
+  });
 
-      setAutoSaveStatus('saving');
+  // Update refs on each render
+  latestRefs.current = {
+    type,
+    typeConfig,
+    fieldConfig,
+    galleryEditMode,
+    autoSaveStatus,
+    lastAutoSavedImageSrc,
+    getOriginalImageBase64,
+    buildShareMetadata,
+    createImageShare,
+    setAutoSaveStatus,
+    setAutoSavedShareToken,
+    setLastAutoSavedImageSrc
+  };
 
-      try {
-        const originalImage = await getOriginalImageBase64();
-        const metadata = buildShareMetadata();
-        const title = typeConfig?.label || 'Sharepic';
+  // Stable auto-save function that reads from refs
+  const performAutoSave = useCallback(async (imageSrc: string) => {
+    const refs = latestRefs.current;
 
-        const share = await createImageShare({
-          imageData: generatedImageSrc,
-          title,
-          imageType: typeConfig?.legacyType || type || '',
-          metadata,
-          originalImage: originalImage ?? undefined,
-        });
+    if (!imageSrc) return;
+    if (refs.fieldConfig?.showAutoSave === false) return;
+    if (refs.galleryEditMode) return;
+    if (refs.autoSaveStatus === 'saving') return;
+    if (refs.lastAutoSavedImageSrc === imageSrc) return;
 
-        if (share?.shareToken) {
-          setAutoSavedShareToken(share.shareToken);
-          setLastAutoSavedImageSrc(generatedImageSrc);
-          setAutoSaveStatus('saved');
-        }
-      } catch (error) {
-        console.error('[useTemplateResultAutoSave] Auto-save failed:', error);
-        setAutoSaveStatus('error');
+    console.log('[useTemplateResultAutoSave] Starting auto-save for:', refs.type);
+    refs.setAutoSaveStatus('saving');
+
+    try {
+      const originalImage = await refs.getOriginalImageBase64();
+      const metadata = refs.buildShareMetadata();
+      const title = refs.typeConfig?.label || 'Sharepic';
+
+      const share = await refs.createImageShare({
+        imageData: imageSrc,
+        title,
+        imageType: refs.typeConfig?.legacyType || refs.type || '',
+        metadata,
+        originalImage: originalImage ?? undefined,
+      });
+
+      if (share?.shareToken) {
+        console.log('[useTemplateResultAutoSave] Auto-save successful:', share.shareToken);
+        refs.setAutoSavedShareToken(share.shareToken);
+        refs.setLastAutoSavedImageSrc(imageSrc);
+        refs.setAutoSaveStatus('saved');
       }
-    };
+    } catch (error) {
+      console.error('[useTemplateResultAutoSave] Auto-save failed:', error);
+      refs.setAutoSaveStatus('error');
+    }
+  }, []);
 
-    const timer = setTimeout(performAutoSave, 500);
+  // Only trigger on generatedImageSrc changes
+  useEffect(() => {
+    if (!generatedImageSrc) return;
+
+    const timer = setTimeout(() => {
+      performAutoSave(generatedImageSrc);
+    }, 500);
+
     return () => clearTimeout(timer);
-  }, [generatedImageSrc, galleryEditMode, autoSaveStatus, lastAutoSavedImageSrc,
-      getOriginalImageBase64, buildShareMetadata, createImageShare, typeConfig, type,
-      setAutoSaveStatus, setAutoSavedShareToken, setLastAutoSavedImageSrc, fieldConfig]);
+  }, [generatedImageSrc, performAutoSave]);
 };
 
 export default useTemplateResultAutoSave;

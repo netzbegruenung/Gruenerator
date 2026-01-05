@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import type { Layer, ImageLayer, TextLayer, ShapeLayer } from '../types';
+import type { Layer, ImageLayer, TextLayer, ShapeLayer } from '../types.js';
 
 export interface UseCanvasLayersOptions {
   initialLayers?: Layer[];

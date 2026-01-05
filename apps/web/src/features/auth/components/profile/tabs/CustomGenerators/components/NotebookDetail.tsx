@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from "motion/react";
 import { HiInformationCircle } from 'react-icons/hi';
-import type { UseQueryResult } from '@tanstack/react-query';
+import { UseQueryResult } from '@tanstack/react-query';
 
 // Common components
 import { ProfileIconButton, ProfileActionButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 import EditableDetailForm from '../../shared/EditableDetailForm';
 import useEditableDetail from '../../shared/useEditableDetail';
 import NotebookEditor from '../../../../../../notebook/components/NotebookEditor';
-import { handleError, type ErrorState } from '../../../../../../../components/utils/errorHandling';
+import { handleError, ErrorState } from '../../../../../../../components/utils/errorHandling';
 import NextcloudShareManager from '../../../../../../../utils/nextcloudShareManager';
 
 // Adapter to convert string-based error handler to SetErrorFn
@@ -27,8 +27,15 @@ import '../../../../../../../assets/styles/components/profile/profile-action-but
 import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 
-// Type definitions
+import { NotebookCollection, NotebookCollectionInput } from '../../../../../../../types/notebook';
+
 interface WolkeShareLink {
+    id: string;
+    share_link?: string;
+    label?: string;
+}
+
+interface WolkeLinkDetail {
     id: string;
     share_link?: string;
     label?: string;
@@ -40,36 +47,14 @@ interface NotebookDocument {
     name?: string;
 }
 
-interface NotebookCollection {
-    id: string;
-    name?: string;
-    description?: string;
-    custom_prompt?: string;
-    selection_mode?: 'documents' | 'wolke';
-    wolke_share_links?: WolkeShareLink[];
-    documents?: NotebookDocument[];
-    document_count?: number;
-    created_at?: string;
-    view_count?: number;
-    last_accessed?: string;
-    auto_sync?: boolean;
-    remove_missing_on_sync?: boolean;
-    [key: string]: unknown;
-}
-
-interface WolkeLinkDetail {
-    id: string;
-    share_link?: string;
-    label?: string;
-}
-
+// Minimal local interface for QAData if it differs from Input
 interface QAData {
     name: string;
     description?: string;
     custom_prompt?: string;
     selectionMode: 'documents' | 'wolke';
-    documents?: NotebookDocument[];
-    wolkeShareLinks?: WolkeShareLink[];
+    documents?: string[];
+    wolkeShareLinks?: string[];
     auto_sync?: boolean;
     remove_missing_on_sync?: boolean;
 }
@@ -143,11 +128,11 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
                 description: qaData.description,
                 custom_prompt: qaData.custom_prompt,
                 selectionMode: qaData.selectionMode,
-                documents: qaData.selectionMode === 'documents' ? (qaData.documents || []) : [],
-                wolkeShareLinks: qaData.selectionMode === 'wolke' ? (qaData.wolkeShareLinks || []) : [],
+                documents: qaData.documents || [],
+                wolkeShareLinks: qaData.wolkeShareLinks || [],
                 auto_sync: qaData.selectionMode === 'wolke' ? !!qaData.auto_sync : false,
                 remove_missing_on_sync: qaData.selectionMode === 'wolke' ? !!qaData.remove_missing_on_sync : false
-            });
+            } as any);
             onSuccessMessage('Notebook erfolgreich aktualisiert.');
             editableDetail.cancelEdit();
         } catch (error) {
@@ -159,7 +144,7 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
     const handleSyncQA = async () => {
         if (!qa || qa.selection_mode !== 'wolke') return;
         try {
-            await syncQACollection(qaId);
+            syncQACollection && await syncQACollection(qaId);
             // Refresh collections list silently
             qaQuery?.query?.refetch && qaQuery.query.refetch();
         } catch (error) {
@@ -188,13 +173,13 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
             try {
                 setWolkeLoading(true);
                 setWolkeError('');
-                const ids = qa.wolke_share_links.map((l: WolkeShareLink) => l.id);
+                const ids = (qa.wolke_share_links || []).map((l: any) => typeof l === 'string' ? l : l.id);
                 const results = await Promise.allSettled(ids.map((id: string) => NextcloudShareManager.getShareLinkById(id)));
                 if (cancelled) return;
                 const details = results
                     .map(r => (r.status === 'fulfilled' ? r.value : null))
                     .filter(Boolean);
-                setWolkeLinksDetails(details);
+                setWolkeLinksDetails(details as any);
             } catch (e) {
                 if (!cancelled) {
                     setWolkeError('Wolke-Links konnten nicht geladen werden');
@@ -205,7 +190,7 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
         }
         loadWolkeLinks();
         return () => { cancelled = true; };
-    }, [qa?.id, qa?.selection_mode, Array.isArray(qa?.wolke_share_links) ? qa.wolke_share_links.map((l: WolkeShareLink) => l.id).join(',') : '']);
+    }, [qa?.id, qa?.selection_mode, Array.isArray(qa?.wolke_share_links) ? (qa.wolke_share_links as any[]).map((l: any) => typeof l === 'string' ? l : l.id).join(',') : '']);
 
     // Handle delete QA
     const handleDeleteQA = async () => {
@@ -322,7 +307,7 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
                     <span className="generator-info-value">{qa.document_count || 0}</span>
                     <span className="generator-info-label">Erstellt</span>
                     <span className="generator-info-value">
-                        {new Date(qa.created_at).toLocaleDateString('de-DE')}
+                        {qa.created_at ? new Date(qa.created_at).toLocaleDateString('de-DE') : 'Unbekannt'}
                     </span>
                     {qa.view_count && (
                         <>
@@ -338,9 +323,9 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
             <div className="generator-details-content">
                 {editableDetail.isEditing ? (
                     <NotebookEditor
-                        onSave={handleSaveQAEdit}
-                        availableDocuments={availableDocuments}
-                        editingCollection={qa}
+                        onSave={handleSaveQAEdit as any}
+                        availableDocuments={availableDocuments as any}
+                        editingCollection={qa as any}
                         loading={isUpdatingQA}
                         onCancel={editableDetail.cancelEdit}
                         allowedModes={qa.selection_mode === 'wolke' ? ['wolke'] : ['documents', 'wolke']}
@@ -383,7 +368,7 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
                             <div>
                                 <h4>Verwendete Dokumente</h4>
                                 <div className="qa-documents-list">
-                                    {qa.documents.map((doc: NotebookDocument, index: number) => (
+                                    {qa.documents?.map((doc: any, index: number) => (
                                         <div key={doc.id || index} className="qa-document-item">
                                             <HiInformationCircle className="document-icon" />
                                             <span>{doc.title || doc.name || `Dokument ${index + 1}`}</span>

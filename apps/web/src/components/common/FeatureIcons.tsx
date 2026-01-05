@@ -72,12 +72,10 @@ const FeatureIcons = ({
   const useWebSearch = useGeneratorSelectionStore(state => state.useWebSearch);
   const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
   const useProMode = useGeneratorSelectionStore(state => state.useProMode);
-  const useUltraMode = useGeneratorSelectionStore(state => state.useUltraMode);
   const useAutomaticSearch = useGeneratorSelectionStore(state => state.useAutomaticSearch);
   const toggleWebSearch = useGeneratorSelectionStore(state => state.toggleWebSearch);
   const togglePrivacyMode = useGeneratorSelectionStore(state => state.togglePrivacyMode);
   const toggleProMode = useGeneratorSelectionStore(state => state.toggleProMode);
-  const toggleUltraMode = useGeneratorSelectionStore(state => state.toggleUltraMode);
   const [clickedIcon, setClickedIcon] = useState<string | null>(null);
   const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -111,9 +109,9 @@ const FeatureIcons = ({
 
   // Check if instructions exist for this type (smart contextual)
   const { data: instructionsStatus, isLoading: isLoadingInstructions } = useInstructionsStatusForType(
-    finalInstructionType,
+    finalInstructionType || undefined,
     { enabled: !!(finalInstructionType && user?.id) }
-  );
+  ) as any;
 
   // Determine if Anweisungen button should be shown (smart contextual)
   const shouldShowAnweisungen = useMemo(() => {
@@ -252,8 +250,8 @@ const FeatureIcons = ({
           ref={balancedContainerRef}
         >
           <button
-            className={`feature-icon-button ${(usePrivacyMode || useProMode || useUltraMode) ? 'active' : ''} ${clickedIcon === 'balanced' ? 'clicked' : ''}`}
-            aria-label={useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ'))}
+            className={`feature-icon-button ${(usePrivacyMode || useProMode) ? 'active' : ''} ${clickedIcon === 'balanced' ? 'clicked' : ''}`}
+            aria-label={usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ')}
             tabIndex={tabIndex.balancedMode}
             type="button"
             onClick={(event) => {
@@ -261,12 +259,11 @@ const FeatureIcons = ({
               handleDropdownToggle('balanced');
             }}
           >
-            {(useUltraMode && <HiRocketLaunch className="feature-icons__icon" />) ||
-             (usePrivacyMode && <GrueneratorGPTIcon className="feature-icons__icon" />) ||
-             (useProMode && <HiPlusCircle className="feature-icons__icon" />) ||
-             (<HiSparkles className="feature-icons__icon" />)}
+            {(usePrivacyMode && <GrueneratorGPTIcon className="feature-icons__icon" />) ||
+              (useProMode && <HiPlusCircle className="feature-icons__icon" />) ||
+              (<HiSparkles className="feature-icons__icon" />)}
             <span className="feature-icons-button__label">
-              {useUltraMode ? 'Ultra' : (usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ'))}
+              {usePrivacyMode ? 'Gruenerator-GPT' : (useProMode ? 'Pro' : 'Kreativ')}
             </span>
           </button>
         </div>
@@ -404,20 +401,19 @@ const FeatureIcons = ({
 
       {/* Inline Balanced Mode Dropdown */}
       <DropdownPortal
-        triggerRef={balancedContainerRef}
+        triggerRef={balancedContainerRef as any}
         isOpen={activeDropdown === 'balanced'}
         onClose={() => setActiveDropdown(null)}
         className="balanced-dropdown-inline open"
-        widthRef={featureIconsRef}
+        widthRef={featureIconsRef as any}
         gap={8}
       >
         <button
-          className={`balanced-dropdown-item ${!usePrivacyMode && !useProMode && !useUltraMode ? 'active' : ''}`}
+          className={`balanced-dropdown-item ${!usePrivacyMode && !useProMode ? 'active' : ''}`}
           onClick={(event) => handleIconClick(event, 'balanced', () => {
             // Turn off all special modes for balanced
             if (usePrivacyMode) togglePrivacyMode();
             if (useProMode) toggleProMode();
-            if (useUltraMode) toggleUltraMode();
             if (onBalancedModeClick) onBalancedModeClick();
             setActiveDropdown(null);
           })}
@@ -466,32 +462,16 @@ const FeatureIcons = ({
           </div>
         </button>
 
-        <button
-          className={`balanced-dropdown-item ${useUltraMode ? 'active' : ''}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            handleIconClick(event, 'ultra', () => {
-              toggleUltraMode();
-              setActiveDropdown(null);
-            });
-          }}
-          type="button"
-        >
-          <HiRocketLaunch className="balanced-dropdown-icon" />
-          <div className="balanced-dropdown-content">
-            <span className="balanced-dropdown-title">Ultra</span>
-            <span className="balanced-dropdown-desc">Weltweit führendes Modell.</span>
-          </div>
-        </button>
+
       </DropdownPortal>
 
       {/* Content Dropdown */}
       <DropdownPortal
-        triggerRef={contentContainerRef}
+        triggerRef={contentContainerRef as any}
         isOpen={activeDropdown === 'content'}
         onClose={() => setActiveDropdown(null)}
         className="content-dropdown-inline open"
-        widthRef={featureIconsRef}
+        widthRef={featureIconsRef as any}
         gap={8}
       >
         <ContentSelector

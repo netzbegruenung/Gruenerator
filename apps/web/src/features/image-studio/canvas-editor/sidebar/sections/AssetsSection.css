@@ -1,59 +1,9 @@
-/* Assets Section - Vertical column of icons */
 .sidebar-section--assets {
   width: fit-content;
 }
 
-.assets-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xsmall);
-}
-
-.asset-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xsmall);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--card-border-radius-small, 8px);
-  background: transparent;
-  cursor: pointer;
-  transition: opacity 0.15s ease, background-color 0.15s ease;
-}
-
-.asset-card:hover {
-  background: var(--background-color-alt);
-}
-
-.asset-card--inactive {
-  opacity: 0.3;
-}
-
-.asset-card__preview {
-  position: relative;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.asset-card__image {
+.sidebar-section--assets .asset-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-}
-
-.asset-card__check {
-  position: absolute;
-  bottom: -3px;
-  right: -3px;
-  width: 14px;
-  height: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--primary-600);
-  color: white;
-  border-radius: 50%;
 }

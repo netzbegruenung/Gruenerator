@@ -57,7 +57,7 @@ export interface FormStateStore {
   isStartMode: boolean;
 
   // Configuration sections
-  tabIndexConfig: Record<string, number>;
+  tabIndexConfig: Record<string, number | undefined>;
   platformConfig: Record<string, unknown>;
   submitConfig: Record<string, unknown>;
   uiConfig: Record<string, unknown>;
@@ -108,14 +108,14 @@ export interface FormStateStore {
   setIsStartMode: (isStartMode: boolean) => void;
 
   // Actions for configuration sections
-  setTabIndexConfig: (tabIndexConfig: Record<string, number>) => void;
+  setTabIndexConfig: (tabIndexConfig: Record<string, number | undefined>) => void;
   setPlatformConfig: (platformConfig: Record<string, unknown>) => void;
   setSubmitConfig: (submitConfig: Record<string, unknown>) => void;
   setUIConfig: (uiConfig: Record<string, unknown>) => void;
   setHelpConfig: (helpConfig: Record<string, unknown>) => void;
 
   // Merge configuration updates
-  updateTabIndexConfig: (updates: Partial<Record<string, number>>) => void;
+  updateTabIndexConfig: (updates: Partial<Record<string, number | undefined>>) => void;
   updatePlatformConfig: (updates: Partial<Record<string, unknown>>) => void;
   updateSubmitConfig: (updates: Partial<Record<string, unknown>>) => void;
   updateUIConfig: (updates: Partial<Record<string, unknown>>) => void;
@@ -143,7 +143,7 @@ export interface FormStateStore {
     uploadedImage: unknown;
   };
   getConfigState: () => {
-    tabIndexConfig: Record<string, number>;
+    tabIndexConfig: Record<string, number | undefined>;
     platformConfig: Record<string, unknown>;
     submitConfig: Record<string, unknown>;
     uiConfig: Record<string, unknown>;

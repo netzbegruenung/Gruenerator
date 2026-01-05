@@ -1,0 +1,3 @@
+npm warn Unknown project config "node-linker". This will stop working in the next major version of npm.
+src/features/image-studio/ImageStudioPage.tsx(207,6): error TS1128: Declaration or statement expected.
+src/features/image-studio/ImageStudioPage.tsx(207,150): error TS1005: ';' expected.

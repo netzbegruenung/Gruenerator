@@ -32,7 +32,7 @@ const ModeSelector = ({ currentMode,
     if (modeKeys.length === 2) {
       // Toggle between two modes
       const otherMode = modeKeys.find(key => key !== currentMode);
-      onModeChange(otherMode);
+      onModeChange(otherMode as string);
     } else {
       // Cycle through multiple modes
       const currentIndex = modeKeys.indexOf(currentMode);

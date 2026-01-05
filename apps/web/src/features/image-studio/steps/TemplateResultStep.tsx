@@ -48,7 +48,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     line1, line2, line3,
     quote, name,
     header, subheader, body,
-    eventTitle, weekday, date, time, locationName, address,
+    eventTitle, beschreibung, weekday, date, time, locationName, address,
     fontSize,
     colorScheme,
     balkenOffset,
@@ -79,8 +79,8 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   const { autoSaveStatus } = useAutoSaveStore();
 
   const { isCreating: isUpdating } = useShareStore();
-  const typeConfig = useMemo(() => getTypeConfig(type), [type]);
-  const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
+  const typeConfig = useMemo(() => (type ? getTypeConfig(type) : null), [type]);
+  const fieldConfig = useMemo(() => (type ? getTemplateFieldConfig(type) : null), [type]);
 
   const { isOpen: isLightboxOpen, openLightbox, closeLightbox } = useLightbox();
   const {
@@ -113,11 +113,12 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   const [isNewImage, setIsNewImage] = useState(true);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [isCanvasMode, setIsCanvasMode] = useState(true);
+  // Default to canvas mode only if we don't have a generated image yet
+  const [isCanvasMode, setIsCanvasMode] = useState(!generatedImageSrc);
 
   const supportsCanvas = useMemo(() =>
     type ? CANVAS_SUPPORTED_TYPES.includes(type as typeof CANVAS_SUPPORTED_TYPES[number]) : false,
-  [type]);
+    [type]);
 
   const handleCanvasExport = useCallback((base64: string) => {
     updateFormData({ generatedImageSrc: base64 });
@@ -175,7 +176,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
           <ZitatCanvas
             quote={quote || ''}
             name={name || ''}
-            imageSrc={uploadedImageUrl}
+            imageSrc={uploadedImageUrl || ''}
             alternatives={sloganAlternatives?.map((a: SloganAlternative) => a.quote || '')}
             {...canvasProps}
           />
@@ -203,12 +204,13 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
         return (
           <VeranstaltungCanvas
             eventTitle={eventTitle || ''}
+            beschreibung={beschreibung || ''}
             weekday={weekday || ''}
             date={date || ''}
             time={time || ''}
             locationName={locationName || ''}
             address={address || ''}
-            imageSrc={uploadedImageUrl}
+            imageSrc={uploadedImageUrl || ''}
             {...canvasProps}
           />
         );
@@ -233,7 +235,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     stableAlternativesRef.current = sloganAlternatives.map((alt: SloganAlternative, idx: number) => ({
       ...alt,
       _index: idx
-    } as SloganAlternativeWithIndex));
+    } as unknown as SloganAlternativeWithIndex));
   }
 
   const displayAlternatives: SloganAlternativeWithIndex[] = stableAlternativesRef.current || [];
@@ -282,7 +284,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     }
     setIsAlternativesOpen(false);
   }, [cacheSloganImage, getCachedSloganImage, handleSloganSelect, setCurrentAlternativeIndex,
-      currentAlternativeIndex, generatedImageSrc, updateFormData, onRegenerate, setIsAlternativesOpen]);
+    currentAlternativeIndex, generatedImageSrc, updateFormData, onRegenerate, setIsAlternativesOpen]);
 
   const handleControlChange = useCallback((controlName: string, value: unknown) => {
     updateFormData({ [controlName]: value });
@@ -321,7 +323,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
       stableAlternativesRef.current = result.alternatives.map((alt, idx) => ({
         ...alt,
         _index: idx
-      }));
+      } as unknown as SloganAlternativeWithIndex));
     }
   }, [type, thema, name, quote, generateAlternatives, setSloganAlternatives]);
 
@@ -365,7 +367,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
           transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           <motion.img
-            src={generatedImageSrc}
+            src={generatedImageSrc || undefined}
             alt={altText || 'Generiertes Sharepic'}
             className="image-result-hero__img"
             onClick={openLightbox}
@@ -397,7 +399,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
             </div>
 
             <TemplateResultActionButtons
-              generatedImageSrc={generatedImageSrc}
+              generatedImageSrc={generatedImageSrc || ''}
               loading={loading}
               galleryEditMode={galleryEditMode}
               autoSaveStatus={autoSaveStatus}
@@ -476,7 +478,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
       <Lightbox
         isOpen={isLightboxOpen}
         onClose={closeLightbox}
-        imageSrc={generatedImageSrc}
+        imageSrc={generatedImageSrc || ''}
         altText={altText}
       />
 
@@ -485,7 +487,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
         onClose={() => setShowShareModal(false)}
         mediaType="image"
         imageData={{
-          image: generatedImageSrc,
+          image: generatedImageSrc || undefined,
           type: (typeConfig?.legacyType || type) ?? undefined,
           metadata: buildShareMetadata() as Record<string, unknown>,
           originalImage: uploadedImage || selectedImage ? 'pending' : undefined

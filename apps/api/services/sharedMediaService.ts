@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { createCanvas, loadImage, type Image, type Canvas } from 'canvas';
+import sharp from 'sharp';
 
 import type {
     SharedMediaRow,
@@ -225,24 +225,34 @@ class SharedMediaService {
                 await fs.writeFile(targetOriginalPath, origBuffer);
             }
 
-            const image = await loadImage(targetImagePath);
-            const imageInfo: ImageInfo = { width: image.width, height: image.height };
+            // Generate thumbnail using sharp (faster and more stable than canvas)
+            let relativeThumbnailPath: string | null = null;
+            let imageInfo: ImageInfo = { width: 0, height: 0 };
 
-            const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
-            const thumbWidth = Math.round(image.width * scale);
-            const thumbHeight = Math.round(image.height * scale);
+            try {
+                const sharpImage = sharp(targetImagePath);
+                const metadata = await sharpImage.metadata();
+                imageInfo = {
+                    width: metadata.width || 0,
+                    height: metadata.height || 0
+                };
 
-            const canvas = createCanvas(thumbWidth, thumbHeight);
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
+                const thumbnailBuffer = await sharpImage
+                    .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+                        fit: 'inside',
+                        withoutEnlargement: true
+                    })
+                    .jpeg({ quality: 80 })
+                    .toBuffer();
 
-            const thumbnailBuffer = canvas.toBuffer('image/jpeg', { quality: 0.8 });
-
-            const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
-            await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
+                const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
+                await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
+                relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
+            } catch (thumbnailError) {
+                console.warn('[SharedMediaService] Thumbnail generation failed, saving without thumbnail:', thumbnailError);
+            }
 
             const relativeImagePath = `${shareToken}/media.${extension}`;
-            const relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
 
             const enrichedMetadata: EnrichedImageMetadata = {
                 ...metadata,
@@ -426,7 +436,7 @@ class SharedMediaService {
         try {
             let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
-                       duration, image_type, status, download_count, created_at
+                       duration, image_type, image_metadata, status, download_count, created_at
                 FROM shared_media
                 WHERE user_id = $1
             `;
@@ -707,21 +717,28 @@ class SharedMediaService {
             let imageInfo: ImageInfo | null = null;
 
             if (isImage) {
-                const image = await loadImage(targetPath);
-                imageInfo = { width: image.width, height: image.height };
+                try {
+                    const sharpImage = sharp(targetPath);
+                    const metadata = await sharpImage.metadata();
+                    imageInfo = {
+                        width: metadata.width || 0,
+                        height: metadata.height || 0
+                    };
 
-                const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
-                const thumbWidth = Math.round(image.width * scale);
-                const thumbHeight = Math.round(image.height * scale);
+                    const thumbnailBuffer = await sharpImage
+                        .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+                            fit: 'inside',
+                            withoutEnlargement: true
+                        })
+                        .jpeg({ quality: 80 })
+                        .toBuffer();
 
-                const canvas = createCanvas(thumbWidth, thumbHeight);
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
-
-                const thumbnailBuffer = canvas.toBuffer('image/jpeg', { quality: 0.8 });
-                const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
-                await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
-                relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
+                    const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
+                    await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
+                    relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
+                } catch (thumbnailError) {
+                    console.warn('[SharedMediaService] Thumbnail generation failed in uploadMediaFile:', thumbnailError);
+                }
             }
 
             const query = `
@@ -822,20 +839,31 @@ class SharedMediaService {
                 originalImageFilename = (existingMetadata as Record<string, unknown>).originalImageFilename as string | null || null;
             }
 
-            const image = await loadImage(targetImagePath);
-            const imageInfo: ImageInfo = { width: image.width, height: image.height };
 
-            const scale = Math.min(THUMBNAIL_SIZE / image.width, THUMBNAIL_SIZE / image.height, 1);
-            const thumbWidth = Math.round(image.width * scale);
-            const thumbHeight = Math.round(image.height * scale);
+            // Generate thumbnail using sharp (faster and more stable)
+            let imageInfo: ImageInfo = { width: 0, height: 0 };
 
-            const canvas = createCanvas(thumbWidth, thumbHeight);
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(image, 0, 0, thumbWidth, thumbHeight);
+            try {
+                const sharpImage = sharp(targetImagePath);
+                const sharpMetadata = await sharpImage.metadata();
+                imageInfo = {
+                    width: sharpMetadata.width || 0,
+                    height: sharpMetadata.height || 0
+                };
 
-            const thumbnailBuffer = canvas.toBuffer('image/jpeg', { quality: 0.8 });
-            const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
-            await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
+                const thumbnailBuffer = await sharpImage
+                    .resize(THUMBNAIL_SIZE, THUMBNAIL_SIZE, {
+                        fit: 'inside',
+                        withoutEnlargement: true
+                    })
+                    .jpeg({ quality: 80 })
+                    .toBuffer();
+
+                const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
+                await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
+            } catch (thumbnailError) {
+                console.warn('[SharedMediaService] Thumbnail generation failed in updateImageShare:', thumbnailError);
+            }
 
             const enrichedMetadata: EnrichedImageMetadata = {
                 ...metadata,

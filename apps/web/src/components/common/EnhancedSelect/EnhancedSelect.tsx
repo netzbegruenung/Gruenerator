@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, memo, forwardRef, ComponentType, ReactNode } from 'react';
 import type { Props as ReactSelectProps, GroupBase, StylesConfig, MultiValueProps, PlaceholderProps } from 'react-select';
-const Select = lazy(() => import('react-select'));
-const CreatableSelect = lazy(() => import('react-select/creatable'));
+const Select = lazy(() => import('react-select')) as any;
+const CreatableSelect = lazy(() => import('react-select/creatable')) as any;
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import OptionIcon from './OptionIcon';
 import '../../../assets/styles/components/ui/react-select.css';

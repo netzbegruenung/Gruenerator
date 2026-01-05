@@ -1,0 +1,4 @@
+
+> @gruenerator/shared@0.1.0 typecheck /home/morit/gruenerator/packages/shared
+> tsc --noEmit
+

@@ -1,6 +1,6 @@
 import type { IconType } from 'react-icons';
 
-export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'gradient';
+export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'gradient' | 'position';
 
 export interface SidebarTab {
   id: SidebarTabId;
@@ -70,6 +70,8 @@ export interface SidebarTabBarProps {
   tabs: SidebarTab[];
   activeTab: SidebarTabId | null;
   onTabClick: (tabId: SidebarTabId) => void;
+  onExport?: () => void;
+  onSave?: () => void;
   disabledTabs?: SidebarTabId[];
   horizontal?: boolean;
 }
@@ -77,6 +79,7 @@ export interface SidebarTabBarProps {
 export interface SidebarPanelProps {
   isOpen: boolean;
   children: React.ReactNode;
+  onClose?: () => void;
 }
 
 export interface CanvasSidebarProps {
@@ -95,4 +98,6 @@ export interface CanvasSidebarProps {
   nameFontSize?: number;
   onQuoteFontSizeChange?: (size: number) => void;
   onNameFontSizeChange?: (size: number) => void;
+  onExport?: () => void;
+  onSave?: () => void;
 }

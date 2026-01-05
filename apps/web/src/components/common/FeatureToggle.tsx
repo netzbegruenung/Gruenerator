@@ -27,7 +27,7 @@ const FeatureToggle = ({ isActive,
   tabIndex,
   disabled = false,
   noBorder = false }: FeatureToggleProps): JSX.Element => {
-  const handleToggle = (checked) => {
+  const handleToggle = (checked: boolean) => {
     if (!disabled && onToggle) {
       onToggle(checked);
     }

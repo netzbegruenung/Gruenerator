@@ -5,8 +5,7 @@ export const SHAREPIC_TYPES = {
   QUOTE: 'Zitat',
   QUOTE_PURE: 'Zitat_Pure',
   THREE_LINES: 'Dreizeilen',
-  INFO: 'Info',
-  TEXT2SHAREPIC: 'Text2Sharepic'
+  INFO: 'Info'
 };
 
 // Form Steps
@@ -203,7 +202,7 @@ export const IMAGE_MODIFICATION = {
       imageSrc: '/images/Sand_Sand_Tanne.png'
     }
   ],
-  
+
   LABELS: {
     FONT_SIZE: 'Schriftgröße:',
     TEXT_POSITION_TITLE: "Balken-Position",

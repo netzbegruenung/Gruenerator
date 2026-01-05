@@ -54,7 +54,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
     loading: boolean;
   };
 
-  const typeConfig = getTypeConfig(type);
+  const typeConfig = getTypeConfig(type || '');
 
   const [isSharing, setIsSharing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -174,7 +174,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
       alert('Fehler beim Aktualisieren: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
     }
   }, [galleryEditMode, editShareToken, editTitle, generatedImageSrc,
-      getOriginalImageBase64, buildShareMetadata, updateImageShare]);
+    getOriginalImageBase64, buildShareMetadata, updateImageShare]);
 
   return {
     handleDownload,

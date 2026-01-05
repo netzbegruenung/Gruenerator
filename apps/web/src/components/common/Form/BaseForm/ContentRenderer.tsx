@@ -103,8 +103,8 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   }
 
   if (processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
-      'content' in processedGeneratedContent &&
-      'success' in processedGeneratedContent) {
+    'content' in processedGeneratedContent &&
+    'success' in processedGeneratedContent) {
     processedGeneratedContent = (processedGeneratedContent as { content: string }).content;
   }
 
@@ -319,7 +319,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         <div className="generated-content-wrapper">
           <div className="content-display markdown-content">
             <Suspense fallback={<div>Loading...</div>}>
-              <ReactMarkdown components={customComponents}>
+              <ReactMarkdown components={customComponents as any}>
                 {contentToRender as string}
               </ReactMarkdown>
             </Suspense>

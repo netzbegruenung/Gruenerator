@@ -33,23 +33,24 @@ const SubtitleSegmentList = ({ segments,
   const segmentRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const getActiveSegmentId = () => {
-    const active = segments.find(s => currentTime >= s.startTime && currentTime < s.endTime);
+    if (currentTime === undefined) return null;
+    const active = segments.find(s => s.startTime !== undefined && currentTime >= s.startTime && currentTime < s.endTime);
     return active?.id ?? null;
   };
 
   const activeSegmentId = getActiveSegmentId();
 
-  const handleSegmentClick = (segment) => {
+  const handleSegmentClick = (segment: any) => {
     setEditingId(segment.id);
     onSegmentClick?.(segment.id);
-    onSeek?.(segment.startTime);
+    onSeek?.(segment.startTime || 0);
   };
 
   const handleInputBlur = () => {
     setEditingId(null);
   };
 
-  const handleInputKeyDown = (e) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       setEditingId(null);
@@ -65,7 +66,7 @@ const SubtitleSegmentList = ({ segments,
     }
   }, [editingId]);
 
-  const defaultFormatTime = (seconds) => {
+  const defaultFormatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     const tenths = Math.floor((seconds % 1) * 10);
@@ -83,7 +84,7 @@ const SubtitleSegmentList = ({ segments,
         const isActive = activeSegmentId === segment.id;
         const isSelected = selectedSegmentId === segment.id;
         const isEditing = editingId === segment.id;
-        const isCorrected = correctedSegmentIds.has(segment.id);
+        const isCorrected = segment.id !== undefined && correctedSegmentIds.has(segment.id);
 
         return (
           <div
@@ -98,7 +99,7 @@ const SubtitleSegmentList = ({ segments,
                 type="text"
                 className="subtitle-segment__input"
                 value={segment.text}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onTextChange?.(segment.id, e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => segment.id !== undefined && onTextChange?.(segment.id, e.target.value)}
                 onBlur={handleInputBlur}
                 onKeyDown={handleInputKeyDown}
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -107,7 +108,7 @@ const SubtitleSegmentList = ({ segments,
               <span className="subtitle-segment__text">{segment.text}</span>
             )}
             <span className="subtitle-segment__time">
-              {timeFormatter(segment.startTime)}
+              {timeFormatter(segment.startTime || 0)}
             </span>
           </div>
         );

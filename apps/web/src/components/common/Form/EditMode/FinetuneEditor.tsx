@@ -8,14 +8,15 @@ import {
   toolbarPlugin,
   BoldItalicUnderlineToggles,
   ListsToggle,
-  BlockTypeSelect
+  BlockTypeSelect,
+  MDXEditorMethods
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { extractEditableText } from '../../../../stores/hooks/useTextEditActions';
 import '../../../../assets/styles/components/edit-mode/finetune-editor.css';
 
-const updateContentWithText = (originalContent, newText) => {
+const updateContentWithText = (originalContent: any, newText: string) => {
   if (typeof originalContent === 'string') {
     return newText;
   }
@@ -40,16 +41,21 @@ const updateContentWithText = (originalContent, newText) => {
   return newText;
 };
 
-const FinetuneEditor = ({ componentName, readOnly = false }) => {
+interface FinetuneEditorProps {
+  componentName: string;
+  readOnly?: boolean;
+}
+
+const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps) => {
   const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const setTextWithHistory = useGeneratedTextStore(state => state.setTextWithHistory);
   const pushToHistory = useGeneratedTextStore(state => state.pushToHistory);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  const editorRef = useRef(null);
+  const editorRef = useRef<MDXEditorMethods>(null);
   const lastSavedContent = useRef('');
-  const debounceTimer = useRef(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitialized = useRef(false);
   const isExternalUpdate = useRef(false);
 
@@ -99,7 +105,7 @@ const FinetuneEditor = ({ componentName, readOnly = false }) => {
     }
   }, [storeContent]);
 
-  const handleChange = useCallback((markdown) => {
+  const handleChange = useCallback((markdown: string) => {
     if (isExternalUpdate.current) {
       return;
     }

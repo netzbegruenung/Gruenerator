@@ -25,7 +25,13 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
   // Pattern to match citation markers: ⚡CITE1⚡, ⚡CITE2⚡, etc.
   const citationMarkerPattern = /⚡CITE(\d+)⚡/g;
 
-  const parts = [];
+  const parts: Array<{
+    type: 'text' | 'citation';
+    content?: string;
+    citationIndex?: string;
+    citation?: CitationData;
+    key?: string;
+  }> = [];
   let lastIndex = 0;
   let match;
 
@@ -78,7 +84,7 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
         <Suspense fallback={<span>{text}</span>}>
           <ReactMarkdown
             components={{
-              a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
+              a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />
             }}
           >
             {text}
@@ -95,7 +101,7 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
           return (
             <CitationBadge
               key={part.key}
-              citationIndex={part.citationIndex}
+              citationIndex={part.citationIndex || ''}
               citation={part.citation}
             />
           );
@@ -106,8 +112,8 @@ const CitationTextRenderer = ({ text, citations = [], className = "" }: Citation
           <Suspense key={index} fallback={<span>{part.content}</span>}>
             <ReactMarkdown
               components={{
-                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                p: ({node, children}) => <span className="citation-text-segment">{children}</span>
+                a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                p: ({ node, children }) => <span className="citation-text-segment">{children}</span>
               }}
             >
               {part.content}

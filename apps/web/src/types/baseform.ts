@@ -193,9 +193,9 @@ export interface FormCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
   variant?: FormCardVariant;
   size?: FormCardSize;
   hover?: boolean;
-  title?: string;
+  title?: string | null;
   showHideButton?: boolean;
-  onHide?: () => void;
+  onHide?: (() => void) | null;
   children: ReactNode;
   isStartMode?: boolean;
 }
@@ -215,7 +215,7 @@ export interface ErrorDisplayProps {
 
 export interface ExamplePromptsProps {
   prompts?: ExamplePrompt[];
-  onPromptClick?: (prompt: ExamplePrompt) => void;
+  onPromptClick?: ((prompt: ExamplePrompt) => void) | null;
   className?: string;
   /** Array of platform IDs that are currently selected - used to highlight selected platform tags */
   selectedPlatforms?: string[];
@@ -269,7 +269,7 @@ export interface DisplaySectionProps {
   title?: string;
   componentName?: string;
   helpContent?: HelpContent | string | null;
-  customRenderer?: ReactNode | ((content: GeneratedContent) => ReactNode);
+  customRenderer?: ReactNode | ((content: GeneratedContent) => ReactNode) | null;
   customEditContent?: ReactNode;
   customExportOptions?: CustomExportOption[];
   hideDefaultExportOptions?: boolean;
@@ -322,7 +322,7 @@ export interface FormInputSectionProps {
 
 export interface FormExtrasSectionProps {
   balancedModeToggle?: FeatureToggle;
-  interactiveModeToggle?: FeatureToggle;
+  interactiveModeToggle?: FeatureToggle | null;
   useInteractiveModeToggle?: boolean;
   onAttachmentClick?: ((files: File[]) => void) | (() => void);
   onRemoveFile?: (index: number) => void;
@@ -371,7 +371,7 @@ export interface FormSectionProps {
   submitButtonProps?: Record<string, unknown>;
   onBack?: () => void;
   showBackButton?: boolean;
-  interactiveModeToggle?: FeatureToggle;
+  interactiveModeToggle?: FeatureToggle | null;
   useInteractiveModeToggle?: boolean;
   onAttachmentClick?: () => void;
   onRemoveFile?: (index: number) => void;
@@ -574,6 +574,9 @@ export interface BaseFormProps {
   isMultiStep?: boolean;
   showBackButton?: boolean;
   onBack?: () => void;
+
+  // New addition
+  inputHeaderContent?: ReactNode;
 
   // Style
   style?: CSSProperties;

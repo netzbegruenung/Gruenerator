@@ -23,7 +23,6 @@ export const IMAGE_STUDIO_TYPES = {
   ZITAT_PURE: 'zitat-pure',
   INFO: 'info',
   VERANSTALTUNG: 'veranstaltung',
-  TEXT2SHAREPIC: 'text2sharepic',
   PROFILBILD: 'profilbild',
   SIMPLE: 'simple',
 
@@ -55,10 +54,7 @@ export const URL_TYPE_MAP: Record<string, ImageStudioType> = {
   'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
   'info': IMAGE_STUDIO_TYPES.INFO,
   'veranstaltung': IMAGE_STUDIO_TYPES.VERANSTALTUNG,
-  'text2sharepic': IMAGE_STUDIO_TYPES.TEXT2SHAREPIC,
   'profilbild': IMAGE_STUDIO_TYPES.PROFILBILD,
-  'simple': IMAGE_STUDIO_TYPES.SIMPLE,
-  'ki': IMAGE_STUDIO_TYPES.TEXT2SHAREPIC,
   'green-edit': IMAGE_STUDIO_TYPES.GREEN_EDIT,
   'ally-maker': IMAGE_STUDIO_TYPES.ALLY_MAKER,
   'universal-edit': IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT,

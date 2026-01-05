@@ -3,12 +3,12 @@ import useNotebookStore from '../stores/notebookStore';
 import '../styles/notebook-filters.css';
 
 interface FilterChipGroupProps {
-  collectionId: string;
-  collectionName?: string;
-  showCollectionLabel?: boolean;
+    collectionId: string;
+    collectionName?: string | null;
+    showCollectionLabel?: boolean;
 }
 
-const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: FilterChipGroupProps): JSX.Element => {
+const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: FilterChipGroupProps): JSX.Element | null => {
     const {
         fetchFilterValues,
         getFilterValuesForCollection,
@@ -27,7 +27,7 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
         }
     }, [collectionId, fetchFilterValues]);
 
-    const handleChipClick = (field, value) => {
+    const handleChipClick = (field: string, value: any) => {
         setActiveFilter(collectionId, field, value);
     };
 
@@ -65,10 +65,10 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
                 <div className="notebook-filter-collection-label">{collectionName}</div>
             )}
             {filterGroups.map(({ field, label, values }) => (
-                <div key={`${collectionId}-${field}`} className="notebook-filter-group">
+                <div key={`${collectionId} -${field} `} className="notebook-filter-group">
                     <span className="notebook-filter-group-label">{label}</span>
                     <div className="notebook-filter-chips">
-                        {values.map(item => {
+                        {values.map((item: string | { value: string; count?: number }) => {
                             const isObject = typeof item === 'object' && item !== null;
                             const displayValue = isObject ? item.value : item;
                             const count = isObject ? item.count : null;
@@ -76,7 +76,7 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
                                 <button
                                     key={displayValue}
                                     type="button"
-                                    className={`notebook-filter-chip ${activeFilters[field]?.includes(displayValue) ? 'active' : ''}`}
+                                    className={`notebook - filter - chip ${activeFilters[field]?.includes(displayValue) ? 'active' : ''} `}
                                     onClick={() => handleChipClick(field, displayValue)}
                                 >
                                     {displayValue}
@@ -93,13 +93,20 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
     );
 };
 
-const FilterChipBar = ({ collectionId, collectionIds, collections, className = '' }) => {
+interface FilterChipBarProps {
+    collectionId?: string;
+    collectionIds?: string[];
+    collections?: { id: string; name: string | null }[];
+    className?: string;
+}
+
+const FilterChipBar = ({ collectionId, collectionIds, collections, className = '' }: FilterChipBarProps): JSX.Element | null => {
     const normalizedCollections = useMemo(() => {
         if (collections && collections.length > 0) {
             return collections;
         }
         if (collectionIds && collectionIds.length > 0) {
-            return collectionIds.map(id => ({ id, name: null }));
+            return collectionIds.map((id: string) => ({ id, name: null }));
         }
         if (collectionId) {
             return [{ id: collectionId, name: null }];
@@ -114,8 +121,8 @@ const FilterChipBar = ({ collectionId, collectionIds, collections, className = '
     }
 
     return (
-        <div className={`notebook-filter-bar ${isMulti ? 'multi-collection' : ''} ${className}`}>
-            {normalizedCollections.map(collection => (
+        <div className={`notebook - filter - bar ${isMulti ? 'multi-collection' : ''} ${className} `}>
+            {normalizedCollections.map((collection: { id: string; name: string | null }) => (
                 <FilterChipGroup
                     key={collection.id}
                     collectionId={collection.id}

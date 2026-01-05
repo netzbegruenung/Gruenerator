@@ -11,7 +11,7 @@ export type {
   CollectionConfig,
   CollectionConfigMap,
   CollectionKey
-} from './types';
+} from './types.js';
 
 // Config and utilities
 export {
@@ -22,4 +22,4 @@ export {
   isValidCollectionKey,
   getFilterableFields,
   getCollectionsWithField
-} from './config';
+} from './config.js';

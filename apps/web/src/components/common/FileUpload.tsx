@@ -12,16 +12,16 @@ interface FileUploadProps {
 }
 
 const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = "Datei auswählen" }: FileUploadProps): JSX.Element => {
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
+  const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       handleChange(selectedFile);
     }
   };
 
-  const handleRemoveFile = (e) => {
+  const handleRemoveFile = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation(); // Prevent file input from opening
     handleChange(null);
   };
@@ -36,7 +36,7 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = 
       <input
         type="file"
         onChange={onFileSelect}
-        accept={allowedTypes.join(',')}
+        accept={allowedTypes?.join(',')}
         ref={fileInputRef}
         style={{ display: 'none' }}
         disabled={loading}
@@ -44,7 +44,7 @@ const FileUpload = ({ handleChange, error, allowedTypes, loading, file, label = 
       <div className="file-upload-input-wrapper">
         <button
           type="button"
-          onClick={() => fileInputRef.current.click()}
+          onClick={() => fileInputRef.current?.click()}
           disabled={loading}
           className={`file-upload-button ${file ? 'file-upload-button--with-file' : ''}`}
         >

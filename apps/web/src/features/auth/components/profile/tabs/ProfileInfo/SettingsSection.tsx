@@ -119,7 +119,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     checkboxLabel: 'Kollaborative Bearbeitung aktivieren',
                     icon: HiOutlineUsers
                 };
-                case BETA_VIEWS.NOTEBOOK:
+            case BETA_VIEWS.NOTEBOOK:
                 return {
                     title: 'Notebooks',
                     description: 'Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
@@ -195,7 +195,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     checkboxLabel: 'Website Generator aktivieren',
                     linkTo: '/website',
                     linkText: 'Zum Website Generator',
-                    icon: getIcon('navigation', 'website')
+                    icon: getIcon('navigation', 'website') as IconType
                 };
             case BETA_VIEWS.VORLAGEN:
                 return {
@@ -219,7 +219,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     checkboxLabel: 'Volle Video-Bearbeitung im Reel-Studio aktivieren',
                     linkTo: '/reel',
                     linkText: 'Zum Reel-Studio',
-                    icon: getIcon('navigation', 'reel')
+                    icon: getIcon('navigation', 'reel') as IconType
                 };
             default:
                 return null;
@@ -283,7 +283,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                                                 to={config.linkTo}
                                                 className="profile-action-button profile-secondary-button labor-tab-external-link"
                                             >
-                                                {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon"/>
+                                                {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon" />
                                             </Link>
                                         )}
                                     </div>
@@ -293,7 +293,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     </div>
 
                     {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (
-                        <div className="profile-card" style={{marginTop: 'var(--spacing-large)'}}>
+                        <div className="profile-card" style={{ marginTop: 'var(--spacing-large)' }}>
                             <div className="profile-card-header">
                                 <h3>Administrator-Features</h3>
                             </div>

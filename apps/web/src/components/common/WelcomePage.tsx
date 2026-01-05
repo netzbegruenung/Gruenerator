@@ -14,7 +14,9 @@ interface WelcomePageProps {
 const WelcomePage = ({ title, description, steps, onStart, stepsTitle }: WelcomePageProps): JSX.Element => {
   const handleStart = () => {
     const welcomeScreen = document.querySelector('.welcome-screen');
-    welcomeScreen.classList.add('fade-out');
+    if (welcomeScreen) {
+      welcomeScreen.classList.add('fade-out');
+    }
     setTimeout(() => {
       window.scrollTo(0, 0);
       onStart();

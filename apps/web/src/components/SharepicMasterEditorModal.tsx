@@ -6,7 +6,7 @@ import type { SharepicDataItem } from './common/ImageDisplay';
 // Lazily load the actual modal component (assuming it exists or will be created)
 // For now, let's assume a generic Modal wrapper.
 // This is a placeholder for a generic modal that would typically contain the editor.
-const GenericModal = lazy(() => import('./common/GenericModal')); // Assuming GenericModal exists
+const GenericModal = lazy(() => import('./common/GenericModal'));
 
 export interface SharepicMasterEditorModalProps {
   sharepic: SharepicDataItem;
@@ -24,7 +24,7 @@ export function SharepicMasterEditorModal({
 
   // Extract relevant data for the MasterCanvasEditor
   // This mapping logic needs to be robust for all sharepic types
-  const editorType: ImageStudioTemplateType | string = sharepic.sharepicType || 'dreizeilen'; // Default to dreizeilen if type is unknown
+  const editorType = (sharepic.sharepicType as string) || (sharepic.type as string) || 'dreizeilen';
 
   const initialState = useMemo(() => {
     // This mapping depends heavily on how 'sharepic.metadata' is structured
@@ -49,7 +49,7 @@ export function SharepicMasterEditorModal({
       time: sharepic.time,
       locationName: sharepic.locationName,
       address: sharepic.address,
-      
+
       // Modifications (example from Dreizeilen, extend as needed)
       fontSize: sharepic.fontSize,
       colorSchemeId: sharepic.colorSchemeId,
@@ -85,9 +85,9 @@ export function SharepicMasterEditorModal({
     // Priority: uploaded original image (for re-editing), then current generated image
     // For profilbild, image is the transparent image input
     if (sharepic.original_image) {
-      return sharepic.original_image;
+      return sharepic.original_image as string;
     } else if (sharepic.image) {
-      return sharepic.image;
+      return sharepic.image as string;
     }
     return undefined;
   }, [sharepic.original_image, sharepic.image]);

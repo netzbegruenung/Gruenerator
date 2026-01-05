@@ -63,7 +63,7 @@ export function ControllableCanvasWrapper({
       case 'dreizeilen':
         return (
           <DreizeilenCanvas
-            {...(commonProps as DreizeilenCanvasProps)}
+            {...commonProps}
             line1={internalState.line1 || ''}
             line2={internalState.line2 || ''}
             line3={internalState.line3 || ''}
@@ -76,7 +76,7 @@ export function ControllableCanvasWrapper({
       case 'zitat':
         return (
           <ZitatCanvas
-            {...(commonProps as ZitatCanvasProps)}
+            {...commonProps}
             quote={internalState.quote || ''}
             name={internalState.name || ''}
             imageSrc={imageSrc || ''} // Pass source image
@@ -87,7 +87,7 @@ export function ControllableCanvasWrapper({
       case 'zitat-pure':
         return (
           <ZitatPureCanvas
-            {...(commonProps as ZitatPureCanvasProps)}
+            {...commonProps}
             quote={internalState.quote || ''}
             name={internalState.name || ''}
             onQuoteChange={(quote) => handlePartChange({ quote })}
@@ -97,7 +97,7 @@ export function ControllableCanvasWrapper({
       case 'info':
         return (
           <InfoCanvas
-            {...(commonProps as InfoCanvasProps)}
+            {...commonProps}
             header={internalState.header || ''}
             subheader={internalState.subheader || ''}
             body={internalState.body || ''}
@@ -109,7 +109,7 @@ export function ControllableCanvasWrapper({
       case 'veranstaltung':
         return (
           <VeranstaltungCanvas
-            {...(commonProps as VeranstaltungCanvasProps)}
+            {...commonProps}
             eventTitle={internalState.eventTitle || ''}
             beschreibung={internalState.beschreibung || ''}
             weekday={internalState.weekday || ''}
@@ -124,21 +124,21 @@ export function ControllableCanvasWrapper({
         );
       case 'profilbild':
         return (
-            <ProfilbildCanvas
-                {...(commonProps as ProfilbildCanvasProps)}
-                transparentImage={imageSrc || ''} // Pass source image as transparentImage
-            />
+          <ProfilbildCanvas
+            {...commonProps}
+            transparentImage={imageSrc || ''} // Pass source image as transparentImage
+          />
         );
       case 'simple':
         return (
-            <SimpleCanvas
-                {...(commonProps as SimpleCanvasProps)}
-                headline={internalState.headline || ''}
-                subtext={internalState.subtext || ''}
-                imageSrc={imageSrc || ''} // Pass source image
-                onHeadlineChange={(headline) => handlePartChange({ headline })}
-                onSubtextChange={(subtext) => handlePartChange({ subtext })}
-            />
+          <SimpleCanvas
+            {...commonProps}
+            headline={internalState.headline || ''}
+            subtext={internalState.subtext || ''}
+            imageSrc={imageSrc || ''} // Pass source image
+            onHeadlineChange={(headline) => handlePartChange({ headline })}
+            onSubtextChange={(subtext) => handlePartChange({ subtext })}
+          />
         );
       default:
         return <div>Editor type "{type}" not found.</div>;

@@ -1,6 +1,18 @@
 import type { ReactNode } from 'react';
 import '../../assets/styles/components/gallery-layout.css';
 
+interface IndexPageProps {
+  title?: string;
+  description?: ReactNode;
+  headerContent?: ReactNode;
+  children?: ReactNode;
+  loading?: boolean;
+  error?: string | null;
+  emptyMessage?: string;
+  className?: string;
+  [key: string]: any;
+}
+
 const IndexPage = ({
   title,
   description = null,
@@ -11,7 +23,7 @@ const IndexPage = ({
   emptyMessage = 'Keine Inhalte verfügbar.',
   className = '',
   ...props
-}) => {
+}: IndexPageProps) => {
   return (
     <div className={`container with-header gallery-layout ${className}`} {...props}>
       <div className="gallery-header">

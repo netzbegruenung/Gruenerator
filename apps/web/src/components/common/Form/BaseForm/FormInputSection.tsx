@@ -14,35 +14,7 @@ const getFormContentClasses = (hasErrors: boolean): string =>
 const getButtonContainerClasses = (showBackButton?: boolean): string =>
   `button-container ${showBackButton ? 'form-buttons' : ''}`;
 
-interface FormInputSectionProps {
-  useModernForm?: boolean;
-  defaultValues?: Record<string, unknown>;
-  validationRules?: Record<string, unknown>;
-  formControl?: FormControl | null;
-  onFormChange?: ((values: Record<string, unknown>) => void) | null;
-  onSubmit?: ((data?: Record<string, unknown>) => void | Promise<void>) | (() => void);
-  showSubmitButton?: boolean;
-  nextButtonText?: string | null;
-  submitButtonProps?: Record<string, unknown>;
-  isMultiStep?: boolean;
-  onBack?: () => void;
-  showBackButton?: boolean;
-  formErrors?: Record<string, string>;
-  children?: ReactNode | ((formControl: FormControl) => ReactNode);
-  enablePlatformSelector?: boolean;
-  platformOptions?: PlatformOption[];
-  platformSelectorLabel?: string;
-  platformSelectorPlaceholder?: string;
-  platformSelectorHelpText?: string;
-  platformSelectorTabIndex?: number;
-  showImageUpload?: boolean;
-  uploadedImage?: unknown;
-  onImageChange?: ((image: unknown) => void) | null;
-  isStartMode?: boolean;
-  loading?: boolean;
-  success?: boolean;
-  inputHeaderContent?: ReactNode;
-}
+// Property definition is imported from @/types/baseform above
 
 const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
   formErrors = {},
@@ -95,16 +67,16 @@ const FormInputSection = forwardRef<HTMLDivElement, FormInputSectionProps>(({
         <FormProvider {...modernForm}>
           {typeof children === 'function'
             ? children({
-                control: modernForm.control,
-                register: modernForm.register,
-                setValue: modernForm.setValue,
-                getValues: modernForm.getValues,
-                formState: {
-                  errors: modernForm.formState.errors,
-                  isDirty: modernForm.formState.isDirty,
-                  isValid: modernForm.formState.isValid
-                }
-              } as FormControl)
+              control: modernForm.control,
+              register: modernForm.register,
+              setValue: modernForm.setValue,
+              getValues: modernForm.getValues,
+              formState: {
+                errors: modernForm.formState.errors,
+                isDirty: modernForm.formState.isDirty,
+                isValid: modernForm.formState.isValid
+              }
+            } as FormControl)
             : children
           }
         </FormProvider>

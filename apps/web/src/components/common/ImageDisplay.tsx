@@ -114,7 +114,7 @@ const ImageDisplay = ({ sharepicData,
   const openLightbox = () => setIsLightboxOpen(true);
   const closeLightbox = () => setIsLightboxOpen(false);
 
-  const handleLightboxOverlayClick = (e) => {
+  const handleLightboxOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       closeLightbox();
     }
@@ -122,7 +122,7 @@ const ImageDisplay = ({ sharepicData,
 
   // Keyboard event listener for lightbox
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isLightboxOpen) {
         closeLightbox();
       }
@@ -147,10 +147,10 @@ const ImageDisplay = ({ sharepicData,
 
     try {
       // Extract base64 data from image
-      const imageBase64 = currentSharepic.image.replace(/^data:image\/[^;]+;base64,/, '');
+      const imageBase64 = (currentSharepic.image || '').replace(/^data:image\/[^;]+;base64,/, '');
 
       // Generate alt text using the existing hook
-      const response = await generateAltTextForImage(imageBase64, currentSharepic.text);
+      const response = await generateAltTextForImage(imageBase64, currentSharepic.text || null);
 
       if (response?.altText) {
         setAltText(response.altText);
@@ -158,9 +158,9 @@ const ImageDisplay = ({ sharepicData,
       } else {
         throw new Error('Keine Alt-Text-Antwort erhalten');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ImageDisplay] Alt text generation failed:', error);
-      setAltTextError(error.message || 'Fehler bei der Alt-Text-Generierung');
+      setAltTextError(error?.message || 'Fehler bei der Alt-Text-Generierung');
     } finally {
       setAltTextLoading(false);
     }
@@ -290,9 +290,9 @@ const ImageDisplay = ({ sharepicData,
       }
 
       resetAltTextState();
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ImageDisplay] KI label generation failed:', error);
-      setKiLabelError(error.message || 'Fehler beim Hinzufügen des KI-Labels');
+      setKiLabelError(error?.message || 'Fehler beim Hinzufügen des KI-Labels');
     } finally {
       setIsKiLabelLoading(false);
     }
@@ -301,7 +301,7 @@ const ImageDisplay = ({ sharepicData,
   const effectiveDownloadText = minimal ? 'Herunterladen' : downloadButtonText;
   const effectiveDownloadFilename = downloadFilename || 'sharepic.png';
 
-  const handleDownload = React.useCallback((imageIndex = null) => {
+  const handleDownload = React.useCallback((imageIndex: number | null = null) => {
     try {
       const targetSharepic = imageIndex !== null ? sharepicItems[imageIndex] : currentSharepic;
       const targetFilename = imageIndex !== null
@@ -309,7 +309,7 @@ const ImageDisplay = ({ sharepicData,
         : effectiveDownloadFilename;
 
       const link = document.createElement('a');
-      link.href = targetSharepic.image;
+      link.href = targetSharepic.image || '';
       link.download = targetFilename;
       document.body.appendChild(link);
       link.click();
@@ -430,61 +430,61 @@ const ImageDisplay = ({ sharepicData,
           )}
         </div>
 
-      {/* Alt text display section */}
-      {!minimal && showAltText && (
-        <div className="alt-text-inline-section">
-          <div className="alt-text-header">
-            <h3>Alt-Text für Barrierefreiheit</h3>
-            <HelpTooltip>
-              <p>
-                Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung.
-                Er wird von Screenreadern vorgelesen und macht Inhalte barrierefrei.
-              </p>
-              <p>
-                <a href="https://www.dbsv.org/bildbeschreibung-4-regeln.html"
-                   target="_blank"
-                   rel="noopener noreferrer">
-                  DBSV-Richtlinien für Bildbeschreibungen →
-                </a>
-              </p>
-            </HelpTooltip>
+        {/* Alt text display section */}
+        {!minimal && showAltText && (
+          <div className="alt-text-inline-section">
+            <div className="alt-text-header">
+              <h3>Alt-Text für Barrierefreiheit</h3>
+              <HelpTooltip>
+                <p>
+                  Alt-Text beschreibt Bilder für Menschen mit Sehbehinderung.
+                  Er wird von Screenreadern vorgelesen und macht Inhalte barrierefrei.
+                </p>
+                <p>
+                  <a href="https://www.dbsv.org/bildbeschreibung-4-regeln.html"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                    DBSV-Richtlinien für Bildbeschreibungen →
+                  </a>
+                </p>
+              </HelpTooltip>
+              {altText && !isAltTextLoading && (
+                <CopyButton
+                  directContent={altText}
+                  variant="icon"
+                  className="alt-text-copy-button"
+                />
+              )}
+            </div>
+
+            {isAltTextLoading && (
+              <div className="alt-text-loading">
+                <span className="loading-spinner">⏳</span>
+                <span>Alt-Text wird generiert...</span>
+              </div>
+            )}
+
+            {altTextError && (
+              <div className="alt-text-error">
+                <span>⚠️</span>
+                <span>Fehler bei der Alt-Text-Generierung: {altTextError}</span>
+              </div>
+            )}
+
             {altText && !isAltTextLoading && (
-              <CopyButton
-                directContent={altText}
-                variant="icon"
-                className="alt-text-copy-button"
-              />
+              <div className="alt-text-content">
+                {altText}
+              </div>
             )}
           </div>
-
-          {isAltTextLoading && (
-            <div className="alt-text-loading">
-              <span className="loading-spinner">⏳</span>
-              <span>Alt-Text wird generiert...</span>
-            </div>
-          )}
-
-          {altTextError && (
-            <div className="alt-text-error">
-              <span>⚠️</span>
-              <span>Fehler bei der Alt-Text-Generierung: {altTextError}</span>
-            </div>
-          )}
-
-          {altText && !isAltTextLoading && (
-            <div className="alt-text-content">
-              {altText}
-            </div>
-          )}
-        </div>
-      )}
+        )}
       </div>
 
       {/* Canva Template Modal */}
       {isCanvaModalOpen && resolvedCanvaUrl && (
         <CanvaTemplateModal
           url={resolvedCanvaUrl}
-          previewImage={resolvedCanvaPreview}
+          previewImage={resolvedCanvaPreview ?? undefined}
           sharepicLines={{
             line1: currentSharepic?.line1,
             line2: currentSharepic?.line2,

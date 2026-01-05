@@ -21,7 +21,7 @@ import '../../../../assets/styles/components/edit-mode/edit-mode-overlay.css';
 interface EditMessage {
   type: 'user' | 'assistant' | 'error';
   content: string;
-  timestamp: number;
+  timestamp?: number;
   isEditResult?: boolean;
   editSummary?: string;
 }
@@ -55,10 +55,10 @@ interface ProfileData {
 
 interface UniversalEditFormProps {
   componentName: string;
-  onClose?: () => void;
+  onClose?: (() => void) | null;
 }
 
-const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): JSX.Element => {
+const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): JSX.Element | null => {
   const { getEditableText, applyEdits } = useTextEditActions(componentName);
   const storeContent = useGeneratedTextStore(state => state.generatedTexts[componentName] || null);
 
@@ -198,7 +198,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
   }, [stableIsMobileView, isSharepicOnly, displayName, storeContent]);
 
   // Custom message renderer for mobile - shows full text for edit results
-  const renderMobileEditMessage = useCallback((msg: EditMessage, index: number): ReactNode => {
+  const renderMobileEditMessage = useCallback((msg: any, index: number): ReactNode => {
     if (msg.type === 'assistant' && msg.isEditResult) {
       return (
         <motion.div
@@ -247,7 +247,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
     );
   }, []);
 
-  const handleSubmit = useCallback(async (instruction) => {
+  const handleSubmit = useCallback(async (instruction: any) => {
     if (isSharepicOnly || !hasEditableText) {
       return;
     }
@@ -279,7 +279,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       return;
     }
 
-    const attemptFrontendParsing = (rawData) => {
+    const attemptFrontendParsing = (rawData: any) => {
       if (!rawData?.raw) return null;
 
       try {
@@ -293,8 +293,8 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
         if (parsed.changes && Array.isArray(parsed.changes)) {
           return parsed;
         }
-      } catch (e) {
-        console.warn('[UniversalEditForm] Frontend parsing failed:', e.message);
+      } catch (e: any) {
+        console.warn('[UniversalEditForm] Frontend parsing failed:', e?.message);
       }
       return null;
     };
@@ -367,7 +367,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
             if (isFullReplace) {
               summary = '✅ Text komplett umgeschrieben!';
             } else {
-              const describeChange = (change) => {
+              const describeChange = (change: any) => {
                 if (!change.replacement_text || change.replacement_text.trim() === '') {
                   return `🗑️ Entfernt: „${change.text_to_find.substring(0, 60)}${change.text_to_find.length > 60 ? '...' : ''}"`;
                 }
@@ -466,7 +466,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
         <ChatWorkbenchLayout
           mode="chat"
           modes={{ chat: { label: 'Edit' } }}
-          onModeChange={() => {}}
+          onModeChange={() => { }}
           messages={mobileMessages}
           onSubmit={handleSubmit}
           isProcessing={isProcessing}

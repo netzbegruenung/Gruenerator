@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, FormEvent } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields } from '../../../../services/profileApiService';
+import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields, ProfileUpdateData, Profile } from '../../../../services/profileApiService';
 import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useProfile } from '../../../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
@@ -10,13 +10,7 @@ import ProfileView from './ProfileView';
 
 const AvatarSelectionModal = lazy(() => import('../../AvatarSelectionModal'));
 
-interface Profile {
-  avatar_robot_id?: string | number;
-  display_name?: string;
-  email?: string;
-  username?: string;
-  [key: string]: unknown;
-}
+
 
 interface User {
   id: string;
@@ -71,11 +65,7 @@ const ProfileInfoTabContainer = ({
     );
   }
 
-  interface ProfileUpdateData {
-    display_name?: string;
-    username?: string | null;
-    email?: string | null;
-  }
+
 
   const updateProfileMutation = useMutation({
     mutationFn: async (profileData: ProfileUpdateData) => {
@@ -160,7 +150,7 @@ const ProfileInfoTabContainer = ({
   const stateBasedSave = useCallback(async () => {
     if (!profile || !isInitialized.current) return;
     const fullDisplayName = displayName || email || user?.username || 'Benutzer';
-    const profileUpdateData = { display_name: fullDisplayName, username: username || null, email: email?.trim() || null };
+    const profileUpdateData: ProfileUpdateData = { display_name: fullDisplayName, username: username || null, email: email?.trim() || null };
     try {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
       await Promise.race([updateProfile(profileUpdateData), timeoutPromise]);
@@ -176,8 +166,8 @@ const ProfileInfoTabContainer = ({
   }, [displayName, username, email, user?.username, profile, updateProfile, onErrorProfileMessage]);
 
   const { resetTracking } = useAutosave({
-    saveFunction: stateBasedSave,
-    formRef: { getValues: () => ({ displayName, username, email }), watch: () => {} },
+    saveFunction: async () => { await stateBasedSave(); },
+    formRef: { getValues: () => ({ displayName, username, email }), watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({ unsubscribe: () => { } }) },
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
     getFieldsToTrack: () => ['displayName', 'username', 'email'],
@@ -277,7 +267,7 @@ const ProfileInfoTabContainer = ({
     }
   };
 
-  const avatarProps = getAvatarDisplayProps({
+  const avatarProps: any = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
     email: email || user?.email || user?.username,

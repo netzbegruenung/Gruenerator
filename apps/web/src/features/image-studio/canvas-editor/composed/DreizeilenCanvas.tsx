@@ -40,6 +40,7 @@ export interface DreizeilenCanvasProps {
   imageSrc?: string;
   alternatives?: DreizeilenAlternative[];
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
   onCancel: () => void;
   onLine1Change?: (line: string) => void;
   onLine2Change?: (line: string) => void;
@@ -55,6 +56,7 @@ export function DreizeilenCanvas({
   imageSrc,
   alternatives = [],
   onExport,
+  onSave,
   onCancel,
   onLine1Change,
   onLine2Change,
@@ -65,6 +67,19 @@ export function DreizeilenCanvas({
   const balkenGroupRef = useRef<Konva.Group>(null);
   const balkenTransformerRef = useRef<Konva.Transformer>(null);
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 900
+  );
+
+  const handleTabClick = useCallback((tabId: SidebarTabId) => {
+    setActiveTab((current) => (current === tabId ? null : tabId));
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Shared hooks
   useCanvasStoreSetup('dreizeilen', stageRef);
@@ -76,8 +91,9 @@ export function DreizeilenCanvas({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport });
+  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport, onSave });
 
   const snapGuides = useSnapGuides();
   const snapLines = useSnapLines();
@@ -97,6 +113,7 @@ export function DreizeilenCanvas({
   const [balkenOffset, setBalkenOffset] = useState({ x: 0, y: 0 });
   const [balkenScale, setBalkenScale] = useState<number>(1.0);
   const [balkenWidthScale, setBalkenWidthScale] = useState<number>(1.0);
+  const [barOffsets, setBarOffsets] = useState<[number, number, number]>([0, 0, 0]);
 
   const handleRestore = useCallback((state: Record<string, unknown>) => {
     if (state.line1 !== undefined) setLine1(state.line1 as string);
@@ -112,19 +129,20 @@ export function DreizeilenCanvas({
     if (state.balkenOffset !== undefined) setBalkenOffset(state.balkenOffset as { x: number; y: number });
     if (state.balkenScale !== undefined) setBalkenScale(state.balkenScale as number);
     if (state.balkenWidthScale !== undefined) setBalkenWidthScale(state.balkenWidthScale as number);
+    if (state.barOffsets !== undefined) setBarOffsets(state.barOffsets as [number, number, number]);
   }, []);
 
   const collectState = useCallback(() => ({
-    line1, line2, line3, colorSchemeId, fontSize, sunflowerPos, sunflowerSize, sunflowerVisible, imageOffset, imageScale, balkenOffset, balkenScale, balkenWidthScale,
-  }), [line1, line2, line3, colorSchemeId, fontSize, sunflowerPos, sunflowerSize, sunflowerVisible, imageOffset, imageScale, balkenOffset, balkenScale, balkenWidthScale]);
+    line1, line2, line3, colorSchemeId, fontSize, sunflowerPos, sunflowerSize, sunflowerVisible, imageOffset, imageScale, balkenOffset, balkenScale, balkenWidthScale, barOffsets,
+  }), [line1, line2, line3, colorSchemeId, fontSize, sunflowerPos, sunflowerSize, sunflowerVisible, imageOffset, imageScale, balkenOffset, balkenScale, balkenWidthScale, barOffsets]);
 
   const { saveToHistory, debouncedSaveToHistory, collectStateRef } = useCanvasHistorySetup(collectState, handleRestore, 500);
 
   // Computed values
   const layout = useMemo(() => calculateDreizeilenLayout([line1, line2, line3], fontSize, config.defaults.balkenOffset, config.defaults.balkenGruppenOffset, config.canvas.width, config.canvas.height, balkenWidthScale), [line1, line2, line3, fontSize, config.defaults.balkenOffset, config.defaults.balkenGruppenOffset, config.canvas.width, config.canvas.height, balkenWidthScale]);
   const colorScheme = useMemo(() => getColorScheme(colorSchemeId), [colorSchemeId]);
-  const [sunflowerImage] = useImage(config.sunflower.src);
-  const [backgroundImage] = useImage(imageSrc || '');
+  const [sunflowerImage] = useImage(config.sunflower.src, 'anonymous');
+  const [backgroundImage] = useImage(imageSrc || '', 'anonymous');
   const hasBackgroundImage = !!imageSrc && !!backgroundImage;
   const bgImageDimensions = useImageCoverFit(backgroundImage, config.canvas.width, config.canvas.height, imageScale);
 
@@ -214,6 +232,19 @@ export function DreizeilenCanvas({
     debouncedSaveToHistory({ ...collectStateRef.current(), balkenWidthScale: scale });
   }, [debouncedSaveToHistory, collectStateRef]);
 
+  const handleBalkenHorizontalOffsetChange = useCallback((offset: number) => {
+    const newOffset = { x: offset, y: balkenOffset.y };
+    setBalkenOffset(newOffset);
+    debouncedSaveToHistory({ ...collectStateRef.current(), balkenOffset: newOffset });
+  }, [balkenOffset.y, debouncedSaveToHistory, collectStateRef]);
+
+  const handleBarOffsetChange = useCallback((index: number, offset: number) => {
+    const newOffsets: [number, number, number] = [...barOffsets] as [number, number, number];
+    newOffsets[index] = offset;
+    setBarOffsets(newOffsets);
+    debouncedSaveToHistory({ ...collectStateRef.current(), barOffsets: newOffsets });
+  }, [barOffsets, debouncedSaveToHistory, collectStateRef]);
+
   const handleBalkenTransformEnd = useCallback(() => {
     const node = balkenGroupRef.current;
     if (!node) return;
@@ -248,7 +279,7 @@ export function DreizeilenCanvas({
   }, [onLine1Change, onLine2Change, onLine3Change, saveToHistory, collectStateRef, line1, line2, line3]);
 
   // Sidebar configuration
-  const tabs: SidebarTab[] = useMemo(() => [
+  const allTabs: SidebarTab[] = useMemo(() => [
     { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
     { id: 'fontsize', icon: PiTextAa, label: 'Schriftgröße', ariaLabel: 'Schriftgröße anpassen' },
     { id: 'position', icon: FaExpand, label: 'Breite', ariaLabel: 'Balken Breite anpassen' },
@@ -257,6 +288,11 @@ export function DreizeilenCanvas({
     { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
   ], []);
 
+  const visibleTabs = useMemo(() =>
+    isDesktop ? allTabs.filter(t => t.id !== 'fontsize') : allTabs,
+    [isDesktop, allTabs]
+  );
+
   const disabledTabs = useMemo(() => alternatives.length === 0 ? ['alternatives'] as SidebarTabId[] : [], [alternatives]);
   const sidebarAssets: AssetItem[] = useMemo(() => [{ id: 'sunflower', src: config.sunflower.src, label: 'Sonnenblume', visible: sunflowerVisible }], [sunflowerVisible, config]);
 
@@ -264,21 +300,27 @@ export function DreizeilenCanvas({
     setBalkenWidthScale(1);
     setBalkenScale(1);
     setBalkenOffset({ x: 0, y: 0 });
-    saveToHistory({ ...collectStateRef.current(), balkenWidthScale: 1, balkenScale: 1, balkenOffset: { x: 0, y: 0 } });
+    setBarOffsets([0, 0, 0]);
+    saveToHistory({ ...collectStateRef.current(), balkenWidthScale: 1, balkenScale: 1, balkenOffset: { x: 0, y: 0 }, barOffsets: [0, 0, 0] });
   }, [saveToHistory, collectStateRef]);
 
   const renderActivePanel = () => {
     switch (activeTab) {
       case 'text':
         return (
-          <DreizeilenTextSection
-            line1={line1}
-            line2={line2}
-            line3={line3}
-            onLine1Change={handleLine1Change}
-            onLine2Change={handleLine2Change}
-            onLine3Change={handleLine3Change}
-          />
+          <>
+            <DreizeilenTextSection
+              line1={line1}
+              line2={line2}
+              line3={line3}
+              onLine1Change={handleLine1Change}
+              onLine2Change={handleLine2Change}
+              onLine3Change={handleLine3Change}
+            />
+            {isDesktop && (
+              <FontSizeSection quoteFontSize={fontSize} onQuoteFontSizeChange={handleFontSizeChange} />
+            )}
+          </>
         );
       case 'fontsize':
         return <FontSizeSection quoteFontSize={fontSize} onQuoteFontSizeChange={handleFontSizeChange} />;
@@ -287,6 +329,9 @@ export function DreizeilenCanvas({
           <DreizeilenPositionSection
             widthScale={balkenWidthScale}
             onWidthScaleChange={handleBalkenWidthScaleChange}
+            barOffsets={barOffsets}
+            onBarOffsetChange={handleBarOffsetChange}
+            colorScheme={colorScheme}
             onReset={handleReset}
           />
         );
@@ -315,8 +360,12 @@ export function DreizeilenCanvas({
     }
   };
 
-  const tabBar = <SidebarTabBar tabs={tabs} activeTab={activeTab} onTabClick={setActiveTab} disabledTabs={disabledTabs} />;
-  const panel = <SidebarPanel isOpen={activeTab !== null}>{renderActivePanel()}</SidebarPanel>;
+  const handlePanelClose = useCallback(() => {
+    setActiveTab(null);
+  }, []);
+
+  const tabBar = <SidebarTabBar tabs={visibleTabs} activeTab={activeTab} onTabClick={handleTabClick} onExport={handleExport} onSave={handleSave} disabledTabs={disabledTabs} />;
+  const panel = <SidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>{renderActivePanel()}</SidebarPanel>;
 
   const sunflowerWidth = sunflowerSize?.w ?? layout.sunflowerSize;
   const sunflowerHeight = sunflowerSize?.h ?? layout.sunflowerSize;
@@ -324,7 +373,7 @@ export function DreizeilenCanvas({
   const sunflowerY = sunflowerPos?.y ?? layout.sunflowerDefaultPos.y;
 
   return (
-    <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={<><button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button><button className="btn btn-primary" onClick={handleExport}>Fertig</button></>}>
+    <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={null}>
       <div className="dreizeilen-canvas-wrapper">
         <CanvasStage ref={stageRef} width={config.canvas.width} height={config.canvas.height} responsive maxContainerWidth={900} onStageClick={handleStageClick} className="dreizeilen-stage">
           {hasBackgroundImage && bgImageDimensions ? (
@@ -352,16 +401,18 @@ export function DreizeilenCanvas({
             onDragEnd={(e) => handleBalkenDragEnd(e.target.x(), e.target.y())}
             onTransformEnd={handleBalkenTransformEnd}
           >
-            {layout.balkenLayouts.map((balken) => {
+            {layout.balkenLayouts.map((balken, index) => {
               const colorPair = colorScheme.colors[balken.lineIndex];
-              const points = calculateParallelogramPoints(balken.x, balken.y, balken.width, balken.height);
+              const individualOffset = barOffsets[index] ?? 0;
+              const adjustedX = balken.x + individualOffset;
+              const points = calculateParallelogramPoints(adjustedX, balken.y, balken.width, balken.height);
               const skewRad = (config.balken.skewAngle * Math.PI) / 180;
               const skewOffset = (balken.height * Math.tan(skewRad)) / 2;
 
               return (
                 <Group key={balken.lineIndex}>
                   <Line points={flattenPoints(points)} closed fill={colorPair.background} />
-                  <Text text={balken.text} x={balken.x + skewOffset / 2} y={balken.y} width={balken.width} height={balken.height} fontSize={fontSize} fontFamily={`${config.text.fontFamily}, Arial, sans-serif`} fill={colorPair.text} align="center" verticalAlign="middle" listening={false} />
+                  <Text text={balken.text} x={adjustedX + skewOffset / 2} y={balken.y} width={balken.width} height={balken.height} fontSize={fontSize} fontFamily={`${config.text.fontFamily}, Arial, sans-serif`} fill={colorPair.text} align="center" verticalAlign="middle" listening={false} />
                 </Group>
               );
             })}

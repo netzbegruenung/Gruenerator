@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, ChangeEvent } from 'react';
 import { motion } from 'motion/react';
 import { HiArrowLeft, HiCog } from 'react-icons/hi';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -11,13 +11,27 @@ import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../ut
 
 import './TemplateInputStep.css';
 
+interface TemplateInputStepProps {
+  onSubmit: () => void;
+  onBack: () => void;
+  loading?: boolean;
+  error?: string | null;
+  typeformMode?: boolean;
+}
+
 /**
  * TemplateInputStep - Input form for template types
  * Uses config-driven fields for thema, details, name, etc.
  *
  * @param {boolean} typeformMode - When true, shows one field at a time (Typeform-style)
  */
-const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, typeformMode = false }) => {
+const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
+  onSubmit,
+  onBack,
+  loading = false,
+  error = null,
+  typeformMode = false
+}) => {
   const {
     type,
     thema,
@@ -26,7 +40,7 @@ const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, ty
   } = useImageStudioStore();
 
   const { user } = useOptimizedAuth();
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Prefill name with user's full name for ZITAT types
   useEffect(() => {
@@ -38,16 +52,17 @@ const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, ty
     }
   }, [user, type, name, handleChange]);
 
-  const typeConfig = useMemo(() => getTypeConfig(type), [type]);
-  const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
+  const typeConfig = useMemo(() => (type ? getTypeConfig(type) : null), [type]);
+  const fieldConfig = useMemo(() => (type ? getTemplateFieldConfig(type) : null), [type]);
 
-  const values = useMemo(() => ({
-    thema,
-    name
-  }), [thema, name]);
+  const values = useMemo<Record<string, string>>(() => ({
+    thema: thema || '',
+    name: name || '',
+    type: type || ''
+  }), [thema, name, type]);
 
   const validateForm = useCallback(() => {
-    const errors = {};
+    const errors: Record<string, string> = {};
 
     if (fieldConfig?.inputFields) {
       fieldConfig.inputFields.forEach(field => {
@@ -73,6 +88,11 @@ const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, ty
     onSubmit();
   }, [onSubmit]);
 
+  // Adapter for handleChange to match ConfigDrivenFields and TypeformWizard expectations
+  const handleFieldChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
+    handleChange(e as React.ChangeEvent<HTMLInputElement>);
+  }, [handleChange]);
+
   if (typeformMode) {
     return (
       <motion.div
@@ -84,7 +104,7 @@ const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, ty
         <TypeformWizard
           fields={(fieldConfig?.inputFields || []) as TypeformField[]}
           values={values}
-          onChange={handleChange}
+          onChange={handleFieldChange}
           errors={formErrors}
           disabled={loading}
           onComplete={handleTypeformComplete}
@@ -111,7 +131,7 @@ const TemplateInputStep = ({ onSubmit, onBack, loading = false, error = null, ty
         <ConfigDrivenFields
           fields={fieldConfig?.inputFields || []}
           values={values}
-          onChange={handleChange}
+          onChange={handleFieldChange}
           errors={formErrors}
           disabled={loading}
         />

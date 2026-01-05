@@ -2,6 +2,7 @@
   "name": "gruenerator",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.0.0",
   "pnpm": {
     "overrides": {
       "react": "19.1.0",
@@ -19,15 +20,16 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^20.2.0",
-    "cross-env": "^7.0.3",
     "@commitlint/config-conventional": "^20.2.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.2",
     "@types/node": "^24.5.2",
+    "cross-env": "^7.0.3",
     "husky": "^9.1.7",
     "knip": "^5.63.1",
     "semantic-release": "^25.0.2",
+    "turbo": "^2.7.2",
     "typescript": "^5.9.2"
   },
   "scripts": {
@@ -35,13 +37,17 @@
     "prepare": "husky",
     "postinstall": "npm rebuild canvas",
     "release": "semantic-release",
-    "dev:web": "pnpm --filter @gruenerator/web dev",
-    "dev:backend": "pnpm --filter @gruenerator/api dev",
-    "dev:mobile": "pnpm --filter @gruenerator/mobile start",
-    "build:web": "pnpm --filter @gruenerator/web build",
-    "build:shared": "pnpm --filter @gruenerator/shared build",
-    "build:desktop": "pnpm --filter @gruenerator/desktop build",
-    "dev:sites": "pnpm --filter @gruenerator/sites dev",
-    "build:sites": "pnpm --filter @gruenerator/sites build"
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@gruenerator/web",
+    "dev:backend": "turbo run dev --filter=@gruenerator/api",
+    "dev:mobile": "turbo run dev --filter=@gruenerator/mobile",
+    "build:web": "turbo run build --filter=@gruenerator/web",
+    "build:shared": "turbo run build --filter=@gruenerator/shared",
+    "build:desktop": "turbo run build --filter=@gruenerator/desktop",
+    "dev:sites": "turbo run dev --filter=@gruenerator/sites",
+    "build:sites": "turbo run build --filter=@gruenerator/sites"
   }
 }

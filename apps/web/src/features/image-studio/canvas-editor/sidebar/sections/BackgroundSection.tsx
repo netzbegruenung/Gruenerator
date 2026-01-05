@@ -9,24 +9,24 @@ export function BackgroundSection({
 }: BackgroundSectionProps) {
   return (
     <div className="sidebar-section sidebar-section--background">
-      <div className="background-grid">
+      <div className="sidebar-card-grid">
         {colors.map((option) => {
           const isActive = currentColor === option.color;
           return (
             <button
               key={option.id}
-              className="background-card"
+              className={`sidebar-selectable-card ${isActive ? 'sidebar-selectable-card--active' : ''}`}
               onClick={() => onColorChange(option.color)}
               type="button"
               title={option.label}
             >
-              <div className="background-card__preview">
+              <div className="sidebar-selectable-card__preview">
                 <span
-                  className="background-card__color"
+                  className="background-color-swatch"
                   style={{ backgroundColor: option.color }}
                 />
                 {isActive && (
-                  <span className="background-card__check">
+                  <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
                     <FaCheck size={8} />
                   </span>
                 )}
@@ -35,6 +35,9 @@ export function BackgroundSection({
           );
         })}
       </div>
+      <p className="sidebar-hint">
+        Wähle eine passende Hintergrundfarbe für dein Design. Die Farbe sollte gut mit dem Text harmonieren und für ausreichend Kontrast sorgen. Sand (hell) eignet sich für dunkle Texte, grüne Töne für helle Texte.
+      </p>
     </div>
   );
 }

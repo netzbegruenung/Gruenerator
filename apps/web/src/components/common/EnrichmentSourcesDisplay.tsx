@@ -14,12 +14,12 @@ import './EnrichmentSourcesDisplay.css';
 interface EnrichmentSourcesDisplayProps {
   enrichmentSummary?: {
     sources?: {
-    type?: string;
-    title?: string;
-    filename?: string;
-    url?: string;
-    relevance?: number
-  }[];
+      type?: string;
+      title?: string;
+      filename?: string;
+      url?: string;
+      relevance?: number
+    }[];
     urlsUsed?: boolean;
     webSearchUsed?: boolean;
     autoSearchUsed?: boolean
@@ -28,9 +28,9 @@ interface EnrichmentSourcesDisplayProps {
   className?: string;
 }
 
-const EnrichmentSourcesDisplay = ({ enrichmentSummary = null,
+const EnrichmentSourcesDisplay = ({ enrichmentSummary,
   title = "Verwendete Quellen",
-  className = "" }: EnrichmentSourcesDisplayProps): JSX.Element => {
+  className = "" }: EnrichmentSourcesDisplayProps): JSX.Element | null => {
   if (!enrichmentSummary || !enrichmentSummary.sources || enrichmentSummary.sources.length === 0) {
     return null;
   }

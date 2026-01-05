@@ -14,30 +14,30 @@ export function DreizeilenColorSection({
   onSchemeChange,
 }: DreizeilenColorSectionProps) {
   return (
-    <div className="dreizeilen-color-section">
-      <div className="color-scheme-grid">
+    <div className="sidebar-section sidebar-section--dreizeilen-color">
+      <div className="sidebar-card-grid">
         {colorSchemes.map((scheme) => {
           const isActive = activeSchemeId === scheme.id;
           return (
             <button
               key={scheme.id}
-              className={`color-scheme-card ${isActive ? 'color-scheme-card--active' : ''}`}
+              className={`sidebar-selectable-card sidebar-selectable-card--with-label ${isActive ? 'sidebar-selectable-card--active' : ''}`}
               onClick={() => onSchemeChange(scheme.id)}
               type="button"
               title={scheme.label}
             >
-              <div className="color-scheme-card__preview">
+              <div className="color-scheme-preview">
                 {scheme.colors.map((color, i) => (
                   <span
                     key={i}
-                    className="color-scheme-card__bar"
+                    className="color-scheme-preview__bar"
                     style={{ backgroundColor: color.background }}
                   />
                 ))}
               </div>
-              <span className="color-scheme-card__label">{scheme.label}</span>
+              <span className="sidebar-selectable-card__label">{scheme.label}</span>
               {isActive && (
-                <span className="color-scheme-card__check">
+                <span className="sidebar-selectable-card__check">
                   <FaCheck size={10} />
                 </span>
               )}
@@ -45,6 +45,9 @@ export function DreizeilenColorSection({
           );
         })}
       </div>
+      <p className="sidebar-hint">
+        Wähle ein Farbschema, das die Lesbarkeit deiner Balken optimiert. Die Vorschau zeigt dir, wie die drei Balken eingefärbt werden. Achte auf guten Kontrast zwischen Balkenfarbe und Text.
+      </p>
     </div>
   );
 }

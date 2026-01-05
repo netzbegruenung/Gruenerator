@@ -8,7 +8,14 @@ import '../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {}, onClose }) => {
+interface DocumentPreviewModalProps {
+  item: any;
+  itemType?: 'document' | 'notebook';
+  documentTypes?: Record<string, string>;
+  onClose: () => void;
+}
+
+const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {}, onClose }: DocumentPreviewModalProps) => {
   if (!item) return null;
 
   const itemTitle = itemType === 'notebook' ? item.name : item.title;

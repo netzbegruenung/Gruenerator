@@ -34,6 +34,7 @@ export interface ZitatPureCanvasProps {
   name: string;
   alternatives?: string[];
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
   onCancel: () => void;
   onQuoteChange?: (quote: string) => void;
   onNameChange?: (name: string) => void;
@@ -46,6 +47,7 @@ export function ZitatPureCanvas({
   name: initialName,
   alternatives = [],
   onExport,
+  onSave,
   onCancel,
   onQuoteChange,
   onNameChange,
@@ -63,8 +65,9 @@ export function ZitatPureCanvas({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport });
+  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport, onSave });
 
   // Store selectors for snap display
   const snapGuides = useSnapGuides();
@@ -137,8 +140,8 @@ export function ZitatPureCanvas({
 
   // Computed values
   const fontColor = FONT_COLORS[backgroundColor] ?? config.quote.color;
-  const [sunflowerImage] = useImage(config.sunflower.src);
-  const [quoteMarkImage] = useImage(config.quotationMark.src);
+  const [sunflowerImage] = useImage(config.sunflower.src, 'anonymous');
+  const [quoteMarkImage] = useImage(config.quotationMark.src, 'anonymous');
   const layout = useMemo(() => calculateZitatPureLayout(quote), [quote]);
 
   // Sync props to state
@@ -242,18 +245,15 @@ export function ZitatPureCanvas({
     nameFontSize: customNameFontSize ?? layout.authorFontSize,
     onQuoteFontSizeChange: handleQuoteFontSizeChange,
     onNameFontSizeChange: handleNameFontSizeChange,
+    onExport: handleExport,
+    onSave: handleSave,
   });
 
   return (
     <CanvasEditorLayout
       sidebar={panel}
       tabBar={tabBar}
-      actions={
-        <>
-          <button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
-          <button className="btn btn-primary" onClick={handleExport}>Fertig</button>
-        </>
-      }
+      actions={null}
     >
       <div className="zitat-pure-canvas-wrapper">
         <CanvasStage

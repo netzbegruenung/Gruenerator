@@ -1,0 +1,988 @@
+npm warn Unknown project config "node-linker". This will stop working in the next major version of npm.
+src/components/Popups/popup_imagine_update.tsx(244,15): error TS2322: Type 'string' is not assignable to type 'IconCategory'.
+src/components/common/CanvaSelector/CanvaSelector.tsx(284,11): error TS2322: Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactElement<{ 'aria-invalid'?: boolean | undefined; 'aria-describedby'?: string | undefined; }, string | JSXElementConstructor<any>>'.
+  Type 'unknown' is not assignable to type '{ 'aria-invalid'?: boolean | undefined; 'aria-describedby'?: string | undefined; }'.
+src/components/common/CanvaSelector/CanvaSelector.tsx(307,11): error TS2322: Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactElement<{ 'aria-invalid'?: boolean | undefined; 'aria-describedby'?: string | undefined; }, string | JSXElementConstructor<any>>'.
+  Type 'unknown' is not assignable to type '{ 'aria-invalid'?: boolean | undefined; 'aria-describedby'?: string | undefined; }'.
+src/components/common/CanvaSelector/CanvaSelector.tsx(338,11): error TS2322: Type 'ReactElement<unknown, string | JSXElementConstructor<any>>' is not assignable to type 'ReactElement<{ 'aria-invalid'?: boolean | undefined; 'aria-describedby'?: string | undefined; }, string | JSXElementConstructor<any>>'.
+  Type 'unknown' is not assignable to type '{ 'aria-invalid'?: boolean | undefined; 'aria-describedby'?: string | undefined; }'.
+src/components/common/CanvaSelector/CanvaSelector.tsx(449,17): error TS2322: Type '(option: DesignOption, { context }: FormatOptionLabelContext) => JSX.Element' is not assignable to type '(data: unknown, formatOptionLabelMeta: FormatOptionLabelMeta<unknown>) => ReactNode'.
+  Types of parameters 'option' and 'data' are incompatible.
+    Type 'unknown' is not assignable to type 'DesignOption'.
+src/components/common/CanvaTemplateModal.tsx(31,31): error TS7006: Parameter 'lines' implicitly has an 'any' type.
+src/components/common/CanvaTemplateModal.tsx(39,63): error TS7053: Element implicitly has an 'any' type because expression of type '`line${number}`' can't be used to index type '{ line1?: string | undefined; line2?: string | undefined; line3?: string | undefined; line4?: string | undefined; line5?: string | undefined; }'.
+src/components/common/CanvaTemplateModal.tsx(41,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/CategorySelector.tsx(29,43): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/common/Chat/ChatVoiceControls.tsx(19,52): error TS7006: Parameter 'text' implicitly has an 'any' type.
+src/components/common/Chat/ChatWorkbenchLayout.tsx(229,13): error TS2322: Type '((value: string | FormEvent<Element>) => void) | undefined' is not assignable to type '(value: string | FormEvent<Element>) => void'.
+  Type 'undefined' is not assignable to type '(value: string | FormEvent<Element>) => void'.
+src/components/common/Chat/ChatWorkbenchLayout.tsx(297,13): error TS2322: Type '((value: string | FormEvent<Element>) => void) | undefined' is not assignable to type '(value: string | FormEvent<Element>) => void'.
+  Type 'undefined' is not assignable to type '(value: string | FormEvent<Element>) => void'.
+src/components/common/Chat/FloatingAssistantBubble.tsx(46,5): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/components/common/Chat/FloatingAssistantBubble.tsx(157,19): error TS2322: Type '((action: ChatAction) => void) | undefined' is not assignable to type '(action: ChatAction) => void'.
+  Type 'undefined' is not assignable to type '(action: ChatAction) => void'.
+src/components/common/Chat/ModeSelector.tsx(35,20): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/common/Citation/CitationBadge.tsx(68,44): error TS2322: Type 'RefObject<HTMLSpanElement | null>' is not assignable to type 'RefObject<HTMLSpanElement>'.
+  Type 'HTMLSpanElement | null' is not assignable to type 'HTMLSpanElement'.
+    Type 'null' is not assignable to type 'HTMLSpanElement'.
+src/components/common/Citation/CitationSourcesDisplay.tsx(117,45): error TS18048: 'citation.cited_text' is possibly 'undefined'.
+src/components/common/Citation/CitationSourcesDisplay.tsx(124,29): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(124,32): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(129,78): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(130,78): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(136,44): error TS7006: Parameter 'documentId' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(136,56): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(199,39): error TS7006: Parameter 'citation' implicitly has an 'any' type.
+src/components/common/Citation/CitationSourcesDisplay.tsx(199,49): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+src/components/common/Citation/CitationTextRenderer.tsx(98,15): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/common/DeleteWarningTooltip.tsx(76,24): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/DeleteWarningTooltip.tsx(102,43): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/DocumentGroupedContent.tsx(35,28): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ manual: string; wolke: string; url: string; gruenerierte_texte: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ manual: string; wolke: string; url: string; gruenerierte_texte: string; }'.
+src/components/common/DocumentGroupedContent.tsx(36,27): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ manual: string; wolke: string; url: string; gruenerierte_texte: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ manual: string; wolke: string; url: string; gruenerierte_texte: string; }'.
+src/components/common/DocumentPreviewModal.tsx(11,33): error TS7031: Binding element 'item' implicitly has an 'any' type.
+src/components/common/DocumentPreviewModal.tsx(11,82): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/common/DocumentPreviewModal.tsx(61,43): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/components/common/DocumentUpload.tsx(89,16): error TS2345: Argument of type '"Fehler beim Laden des Texts"' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/common/DocumentUpload.tsx(275,21): error TS2345: Argument of type 'File' is not assignable to parameter of type 'SetStateAction<null>'.
+  Type 'File' provides no match for the signature '(prevState: null): null'.
+src/components/common/DocumentUpload.tsx(312,27): error TS2345: Argument of type 'WolkeFile[]' is not assignable to parameter of type 'SetStateAction<never[]>'.
+  Type 'WolkeFile[]' is not assignable to type 'never[]'.
+    Type 'WolkeFile' is not assignable to type 'never'.
+src/components/common/DocumentUpload.tsx(383,33): error TS2339: Property 'shareLinkId' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(597,71): error TS2339: Property 'name' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(606,66): error TS2339: Property 'click' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(716,60): error TS2339: Property 'click' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(796,67): error TS2339: Property 'name' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(805,62): error TS2339: Property 'click' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(916,58): error TS2339: Property 'click' does not exist on type 'never'.
+src/components/common/DocumentUpload.tsx(970,37): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+src/components/common/DownloadExport.tsx(8,27): error TS7031: Binding element 'content' implicitly has an 'any' type.
+src/components/common/DownloadExport.tsx(8,36): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/components/common/DownloadExport.tsx(62,43): error TS7006: Parameter 'format' implicitly has an 'any' type.
+src/components/common/DownloadExport.tsx(75,33): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/DropdownPortal.tsx(97,35): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(8,5): error TS7031: Binding element 'isOpen' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(9,5): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(10,5): error TS7031: Binding element 'onSuccess' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(11,5): error TS7031: Binding element 'onSave' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(12,5): error TS7031: Binding element 'template' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(46,28): error TS2345: Argument of type '"Titel ist erforderlich."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(64,28): error TS18046: 'error' is of type 'unknown'.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(70,46): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/EditTemplateModal/EditTemplateModal.tsx(76,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/EnhancedSelect/EnhancedSelect.tsx(250,9): error TS2322: Type '(option: EnhancedSelectOption, { context }: { context: "menu" | "value"; }) => string | number | bigint | boolean | Iterable<ReactNode> | Promise<AwaitedReactNode> | JSX.Element | null | undefined' is not assignable to type '(data: unknown, formatOptionLabelMeta: FormatOptionLabelMeta<unknown>) => ReactNode'.
+  Types of parameters 'option' and 'data' are incompatible.
+    Type 'unknown' is not assignable to type 'EnhancedSelectOption'.
+src/components/common/EnhancedSelect/EnhancedSelect.tsx(252,9): error TS2322: Type 'StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>' is not assignable to type 'StylesConfig<unknown, boolean, GroupBase<unknown>>'.
+  Types of property 'clearIndicator' are incompatible.
+    Type '((base: CSSObjectWithLabel, props: ClearIndicatorProps<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>) => CSSObjectWithLabel) | undefined' is not assignable to type '((base: CSSObjectWithLabel, props: ClearIndicatorProps<unknown, boolean, GroupBase<unknown>>) => CSSObjectWithLabel) | undefined'.
+      Type '(base: CSSObjectWithLabel, props: ClearIndicatorProps<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>) => CSSObjectWithLabel' is not assignable to type '(base: CSSObjectWithLabel, props: ClearIndicatorProps<unknown, boolean, GroupBase<unknown>>) => CSSObjectWithLabel'.
+        Types of parameters 'props' and 'props' are incompatible.
+          Type 'ClearIndicatorProps<unknown, boolean, GroupBase<unknown>>' is not assignable to type 'ClearIndicatorProps<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>'.
+            The types returned by 'getValue()' are incompatible between these types.
+              Type 'Options<unknown>' is not assignable to type 'Options<EnhancedSelectOption>'.
+                Type 'unknown' is not assignable to type 'EnhancedSelectOption'.
+src/components/common/EnrichmentSourcesDisplay.tsx(31,37): error TS2322: Type 'null' is not assignable to type '{ sources?: { type?: string | undefined; title?: string | undefined; filename?: string | undefined; url?: string | undefined; relevance?: number | undefined; }[] | undefined; urlsUsed?: boolean | undefined; webSearchUsed?: boolean | undefined; autoSearchUsed?: boolean | undefined; }'.
+src/components/common/EnrichmentSourcesDisplay.tsx(35,5): error TS2322: Type 'null' is not assignable to type 'Element'.
+src/components/common/FeatureIcons.tsx(113,11): error TS2339: Property 'data' does not exist on type '{}'.
+src/components/common/FeatureIcons.tsx(113,37): error TS2339: Property 'isLoading' does not exist on type '{}'.
+src/components/common/FeatureIcons.tsx(114,5): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/components/common/FeatureIcons.tsx(407,9): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLElement>'.
+  Type 'HTMLDivElement | null' is not assignable to type 'HTMLElement'.
+    Type 'null' is not assignable to type 'HTMLElement'.
+src/components/common/FeatureIcons.tsx(411,9): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLElement>'.
+  Type 'HTMLDivElement | null' is not assignable to type 'HTMLElement'.
+    Type 'null' is not assignable to type 'HTMLElement'.
+src/components/common/FeatureIcons.tsx(490,9): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLElement>'.
+  Type 'HTMLDivElement | null' is not assignable to type 'HTMLElement'.
+    Type 'null' is not assignable to type 'HTMLElement'.
+src/components/common/FeatureIcons.tsx(494,9): error TS2322: Type 'RefObject<HTMLDivElement | null>' is not assignable to type 'RefObject<HTMLElement>'.
+  Type 'HTMLDivElement | null' is not assignable to type 'HTMLElement'.
+    Type 'null' is not assignable to type 'HTMLElement'.
+src/components/common/FeatureToggle.tsx(30,25): error TS7006: Parameter 'checked' implicitly has an 'any' type.
+src/components/common/FileUpload.tsx(17,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/FileUpload.tsx(24,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/FileUpload.tsx(39,17): error TS18048: 'allowedTypes' is possibly 'undefined'.
+src/components/common/FileUpload.tsx(47,26): error TS18047: 'fileInputRef.current' is possibly 'null'.
+src/components/common/FilterPopover/FilterPopover.tsx(56,28): error TS2339: Property 'focus' does not exist on type 'never'.
+src/components/common/FilterPopover/FilterPopover.tsx(61,16): error TS2322: Type 'null' is not assignable to type 'Element'.
+src/components/common/Form/BaseForm/BaseForm.tsx(72,76): error TS18048: 'generatedContent.content.length' is possibly 'undefined'.
+src/components/common/Form/BaseForm/BaseForm.tsx(197,3): error TS2339: Property 'inputHeaderContent' does not exist on type 'BaseFormProps'.
+src/components/common/Form/BaseForm/BaseForm.tsx(601,33): error TS2345: Argument of type 'GeneratedContent | null' is not assignable to parameter of type 'string | Object'.
+  Type 'null' is not assignable to type 'string | Object'.
+src/components/common/Form/BaseForm/BaseForm.tsx(792,36): error TS2349: This expression is not callable.
+  Type 'never' has no call signatures.
+src/components/common/Form/BaseForm/BaseForm.tsx(820,7): error TS2353: Object literal may only specify known properties, and 'content' does not exist in type '(prevState: null) => null'.
+src/components/common/Form/BaseForm/BaseForm.tsx(831,7): error TS2353: Object literal may only specify known properties, and 'content' does not exist in type '(prevState: null) => null'.
+src/components/common/Form/BaseForm/BaseForm.tsx(882,17): error TS2322: Type '((data?: Record<string, unknown> | undefined) => void | Promise<void>) | undefined' is not assignable to type '((data?: Record<string, unknown> | undefined) => void | Promise<void>) | (() => void)'.
+  Type 'undefined' is not assignable to type '((data?: Record<string, unknown> | undefined) => void | Promise<void>) | (() => void)'.
+src/components/common/Form/BaseForm/BaseForm.tsx(889,17): error TS2322: Type 'FeatureToggle | null' is not assignable to type 'FeatureToggle | undefined'.
+  Type 'null' is not assignable to type 'FeatureToggle | undefined'.
+src/components/common/Form/BaseForm/BaseForm.tsx(926,48): error TS2322: Type '() => void' is not assignable to type 'null'.
+src/components/common/Form/BaseForm/BaseForm.tsx(960,15): error TS2322: Type '(content: GeneratedContent | string | null) => string' is not assignable to type '((content: unknown) => string) | (() => string) | undefined'.
+  Type '(content: GeneratedContent | string | null) => string' is not assignable to type '(content: unknown) => string'.
+    Types of parameters 'content' and 'content' are incompatible.
+      Type 'unknown' is not assignable to type 'GeneratedContent | null'.
+src/components/common/Form/BaseForm/BaseForm.tsx(969,15): error TS2322: Type '((props: { content: unknown; generatedContent: unknown; componentName: string; helpContent?: HelpContent | null | undefined; onEditModeToggle?: (() => void) | undefined; }) => ReactNode) | null' is not assignable to type '((props: { content: unknown; generatedContent: unknown; componentName: string; helpContent?: HelpContent | null | undefined; onEditModeToggle?: (() => void) | undefined; }) => ReactNode) | undefined'.
+  Type 'null' is not assignable to type '((props: { content: unknown; generatedContent: unknown; componentName: string; helpContent?: HelpContent | null | undefined; onEditModeToggle?: (() => void) | undefined; }) => ReactNode) | undefined'.
+src/components/common/Form/BaseForm/ContentRenderer.tsx(322,30): error TS2322: Type '{ text: ({ children }: { children: ReactNode; }) => React.ReactNode; p: ({ children }: { children: ReactNode; }) => JSX.Element; li: ({ children }: { children: ReactNode; }) => JSX.Element; }' is not assignable to type 'Components'.
+  Types of property 'li' are incompatible.
+    Type '({ children }: { children: ReactNode; }) => JSX.Element' is not assignable to type 'keyof IntrinsicElements | ComponentType<ClassAttributes<HTMLLIElement> & LiHTMLAttributes<HTMLLIElement> & ExtraProps> | undefined'.
+      Type '({ children }: { children: ReactNode; }) => JSX.Element' is not assignable to type 'FunctionComponent<ClassAttributes<HTMLLIElement> & LiHTMLAttributes<HTMLLIElement> & ExtraProps>'.
+        Types of parameters '__0' and 'props' are incompatible.
+          Type 'ClassAttributes<HTMLLIElement> & LiHTMLAttributes<HTMLLIElement> & ExtraProps' is not assignable to type '{ children: ReactNode; }'.
+            Property 'children' is optional in type 'ClassAttributes<HTMLLIElement> & LiHTMLAttributes<HTMLLIElement> & ExtraProps' but required in type '{ children: ReactNode; }'.
+src/components/common/Form/BaseForm/FormExtrasSection.tsx(52,11): error TS2339: Property 'isMobileView' does not exist on type 'Object'.
+src/components/common/Form/BaseForm/FormInputSection.tsx(6,15): error TS2440: Import declaration conflicts with local declaration of 'FormInputSectionProps'.
+src/components/common/Form/BaseForm/FormSection.tsx(167,11): error TS2339: Property 'isMobileView' does not exist on type 'Object'.
+src/components/common/Form/BaseForm/FormSection.tsx(176,46): error TS7006: Parameter 'files' implicitly has an 'any' type.
+src/components/common/Form/BaseForm/FormSection.tsx(188,41): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/common/Form/BaseForm/FormSection.tsx(229,11): error TS2322: Type '((prompt: ExamplePrompt) => void) | null' is not assignable to type '((prompt: ExamplePrompt) => void) | undefined'.
+  Type 'null' is not assignable to type '((prompt: ExamplePrompt) => void) | undefined'.
+src/components/common/Form/BaseForm/FormSection.tsx(239,9): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/common/Form/BaseForm/FormSection.tsx(241,9): error TS2322: Type '(() => void) | null' is not assignable to type '(() => void) | undefined'.
+  Type 'null' is not assignable to type '(() => void) | undefined'.
+src/components/common/Form/BaseForm/FormSection.tsx(298,36): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/common/Form/BaseForm/FormSection.tsx(298,66): error TS2322: Type '(() => void) | null' is not assignable to type '(() => void) | undefined'.
+  Type 'null' is not assignable to type '(() => void) | undefined'.
+src/components/common/Form/EditMode/FinetuneEditor.tsx(18,32): error TS7006: Parameter 'originalContent' implicitly has an 'any' type.
+src/components/common/Form/EditMode/FinetuneEditor.tsx(18,49): error TS7006: Parameter 'newText' implicitly has an 'any' type.
+src/components/common/Form/EditMode/FinetuneEditor.tsx(43,27): error TS7031: Binding element 'componentName' implicitly has an 'any' type.
+src/components/common/Form/EditMode/FinetuneEditor.tsx(94,25): error TS2339: Property 'setMarkdown' does not exist on type 'never'.
+src/components/common/Form/EditMode/FinetuneEditor.tsx(102,37): error TS7006: Parameter 'markdown' implicitly has an 'any' type.
+src/components/common/Form/EditMode/FinetuneEditor.tsx(115,5): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(72,11): error TS2339: Property 'isMobileView' does not exist on type 'Object'.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(250,43): error TS7006: Parameter 'instruction' implicitly has an 'any' type.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(282,37): error TS7006: Parameter 'rawData' implicitly has an 'any' type.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(297,70): error TS18046: 'e' is of type 'unknown'.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(370,39): error TS7006: Parameter 'change' implicitly has an 'any' type.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(432,5): error TS2322: Type 'null' is not assignable to type 'Element'.
+src/components/common/Form/EditMode/UniversalEditForm.tsx(476,11): error TS2322: Type '(msg: EditMessage, index: number) => ReactNode' is not assignable to type '(message: ChatMessage, index: number) => ReactNode'.
+  Types of parameters 'msg' and 'message' are incompatible.
+    Type 'ChatMessage' is not assignable to type 'EditMessage'.
+      Types of property 'timestamp' are incompatible.
+        Type 'number | undefined' is not assignable to type 'number'.
+          Type 'undefined' is not assignable to type 'number'.
+src/components/common/Form/FormStateProvider.tsx(367,13): error TS2345: Argument of type '(state: FormStateStore) => { tabIndexConfig: { [x: string]: number | undefined; }; }' is not assignable to parameter of type 'FormStateStore | Partial<FormStateStore> | ((state: FormStateStore) => FormStateStore | Partial<FormStateStore>)'.
+  Type '(state: FormStateStore) => { tabIndexConfig: { [x: string]: number | undefined; }; }' is not assignable to type '(state: FormStateStore) => FormStateStore | Partial<FormStateStore>'.
+    Type '{ tabIndexConfig: { [x: string]: number | undefined; }; }' is not assignable to type 'FormStateStore | Partial<FormStateStore>'.
+      Type '{ tabIndexConfig: { [x: string]: number | undefined; }; }' is not assignable to type 'Partial<FormStateStore>'.
+        Types of property 'tabIndexConfig' are incompatible.
+          Type '{ [x: string]: number | undefined; }' is not assignable to type 'Record<string, number>'.
+            'string' index signatures are incompatible.
+              Type 'number | undefined' is not assignable to type 'number'.
+                Type 'undefined' is not assignable to type 'number'.
+src/components/common/Form/Input/FormImageSelect.tsx(58,11): error TS2322: Type 'number | undefined' is not assignable to type 'string | number'.
+  Type 'undefined' is not assignable to type 'string | number'.
+src/components/common/Form/Input/FormImageSelect.tsx(59,11): error TS2322: Type 'number | undefined' is not assignable to type 'string | number'.
+  Type 'undefined' is not assignable to type 'string | number'.
+src/components/common/Form/Input/FormImageSelect.tsx(60,11): error TS2322: Type 'number | undefined' is not assignable to type 'string | number'.
+  Type 'undefined' is not assignable to type 'string | number'.
+src/components/common/Form/Input/TextareaWithAutocomplete.tsx(105,11): error TS2322: Type 'HTMLTextAreaElement | null' is not assignable to type 'null'.
+  Type 'HTMLTextAreaElement' is not assignable to type 'null'.
+src/components/common/Form/RecentValuesDropdown.tsx(56,3): error TS2322: Type 'null' is not assignable to type 'string'.
+src/components/common/Form/RecentValuesDropdown.tsx(119,37): error TS7006: Parameter 'selectedOption' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(192,17): error TS7006: Parameter 'provided' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(196,15): error TS7006: Parameter 'provided' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(196,25): error TS7006: Parameter 'state' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(212,12): error TS7006: Parameter 'provided' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(216,14): error TS7006: Parameter 'provided' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(216,24): error TS7006: Parameter 'state' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(234,19): error TS7006: Parameter 'provided' implicitly has an 'any' type.
+src/components/common/Form/RecentValuesDropdown.tsx(243,42): error TS7006: Parameter 'inputValue' implicitly has an 'any' type.
+src/components/common/Gallery/GalleryContainer.tsx(31,53): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ all: { id: string; label: string; title: string; intro: string; searchModes: { value: string; label: string; }[]; defaultSearchMode: string; fetcher: string; sectionOrder: string[]; sectionLabels: { antraege: string; generators: string; pr: string; }; sectionTypeMap: { ...; }; allowCategoryFilter: boolean; }; antr...'.
+  No index signature with a parameter of type 'string' was found on type '{ all: { id: string; label: string; title: string; intro: string; searchModes: { value: string; label: string; }[]; defaultSearchMode: string; fetcher: string; sectionOrder: string[]; sectionLabels: { antraege: string; generators: string; pr: string; }; sectionTypeMap: { ...; }; allowCategoryFilter: boolean; }; antr...'.
+src/components/common/Gallery/GalleryContainer.tsx(33,27): error TS2538: Type 'undefined' cannot be used as an index type.
+src/components/common/Gallery/GalleryContainer.tsx(37,42): error TS7006: Parameter 'template' implicitly has an 'any' type.
+src/components/common/Gallery/GalleryContainer.tsx(58,56): error TS2538: Type 'undefined' cannot be used as an index type.
+src/components/common/Gallery/GalleryContainer.tsx(63,36): error TS7006: Parameter 'nextType' implicitly has an 'any' type.
+src/components/common/Gallery/GalleryContainer.tsx(64,10): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ all: { id: string; label: string; title: string; intro: string; searchModes: { value: string; label: string; }[]; defaultSearchMode: string; fetcher: string; sectionOrder: string[]; sectionLabels: { antraege: string; generators: string; pr: string; }; sectionTypeMap: { ...; }; allowCategoryFilter: boolean; }; antr...'.
+src/components/common/Gallery/GalleryContainer.tsx(68,23): error TS7006: Parameter 'list' implicitly has an 'any' type.
+src/components/common/Gallery/GalleryContainer.tsx(68,29): error TS7006: Parameter 'rendererId' implicitly has an 'any' type.
+src/components/common/Gallery/GalleryContainer.tsx(101,43): error TS7006: Parameter 'sectionId' implicitly has an 'any' type.
+src/components/common/Gallery/GalleryControls.tsx(57,28): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/components/common/Gallery/GalleryControls.tsx(98,30): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/components/common/Gallery/GalleryControls.tsx(98,50): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/common/HelpDisplay.tsx(30,3): error TS2322: Type 'null' is not assignable to type '{ title?: string | undefined; description?: string | undefined; }[]'.
+src/components/common/ImageDisplay.tsx(117,39): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/ImageDisplay.tsx(125,28): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/ImageDisplay.tsx(150,27): error TS18048: 'currentSharepic.image' is possibly 'undefined'.
+src/components/common/ImageDisplay.tsx(153,67): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'null | undefined'.
+  Type 'string' is not assignable to type 'null | undefined'.
+src/components/common/ImageDisplay.tsx(163,23): error TS18046: 'error' is of type 'unknown'.
+src/components/common/ImageDisplay.tsx(295,23): error TS18046: 'error' is of type 'unknown'.
+src/components/common/ImageDisplay.tsx(312,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/common/ImageDisplay.tsx(325,24): error TS2345: Argument of type 'number' is not assignable to parameter of type 'null | undefined'.
+src/components/common/ImageDisplay.tsx(487,11): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/common/ImageSlider/index.tsx(8,12): error TS7016: Could not find a declaration file for module 'react-image-gallery'. '/home/morit/gruenerator/node_modules/react-image-gallery/build/image-gallery.es.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/react-image-gallery` if it exists or add a new declaration (.d.ts) file containing `declare module 'react-image-gallery';`
+src/components/common/ImageSlider/index.tsx(51,20): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<null>'.
+src/components/common/ImageSlider/index.tsx(67,24): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/ImageSlider/index.tsx(129,8): error TS2604: JSX element type 'ImageGallery' does not have any construct or call signatures.
+src/components/common/IndexPage.tsx(5,3): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/components/common/IndexPage.tsx(8,3): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/components/common/LoginRequired/LoginRequired.tsx(50,7): error TS2538: Type 'undefined' cannot be used as an index type.
+src/components/common/MenuDropdown.tsx(54,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/MenuDropdown.tsx(67,35): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/PlatformSelector.tsx(166,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string | null>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string | null>'.
+src/components/common/Popup/BasePopup.tsx(43,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/Popup/BasePopup.tsx(52,28): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(7,3): error TS7031: Binding element 'slides' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(8,3): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(9,3): error TS7031: Binding element 'renderSlide' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(10,3): error TS7031: Binding element 'renderFooter' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(34,7): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/components/common/Popup/PopupSlider.tsx(47,28): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(66,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(71,28): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(100,27): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(156,22): error TS7006: Parameter '_' implicitly has an 'any' type.
+src/components/common/Popup/PopupSlider.tsx(156,25): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/common/ShareMediaModal/ShareMediaModal.tsx(72,64): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/common/ShareMediaModal/ShareMediaModal.tsx(93,24): error TS2345: Argument of type 'Share' is not assignable to parameter of type 'ShareData'.
+  Index signature for type 'string' is missing in type 'Share'.
+src/components/common/SubmitButton.tsx(48,7): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/components/common/SubmitButton.tsx(60,24): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/components/common/SubtitleSegmentList.tsx(36,39): error TS18048: 'currentTime' is possibly 'undefined'.
+src/components/common/SubtitleSegmentList.tsx(36,54): error TS18048: 's.startTime' is possibly 'undefined'.
+src/components/common/SubtitleSegmentList.tsx(36,69): error TS18048: 'currentTime' is possibly 'undefined'.
+src/components/common/SubtitleSegmentList.tsx(42,31): error TS7006: Parameter 'segment' implicitly has an 'any' type.
+src/components/common/SubtitleSegmentList.tsx(52,31): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/SubtitleSegmentList.tsx(68,30): error TS7006: Parameter 'seconds' implicitly has an 'any' type.
+src/components/common/SubtitleSegmentList.tsx(86,53): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/common/SubtitleSegmentList.tsx(101,86): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/common/SubtitleSegmentList.tsx(110,30): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/common/TabNavigation.tsx(31,3): error TS2322: Type 'null' is not assignable to type '(key: string) => ReactNode'.
+src/components/common/TemplateLinkModal.tsx(9,30): error TS7031: Binding element 'template' implicitly has an 'any' type.
+src/components/common/TemplateLinkModal.tsx(9,40): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/common/TemplateLinkModal.tsx(9,49): error TS7031: Binding element 'onSubmit' implicitly has an 'any' type.
+src/components/common/TemplateLinkModal.tsx(14,31): error TS7006: Parameter 'url' implicitly has an 'any' type.
+src/components/common/TemplateLinkModal.tsx(18,33): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/TemplateLinkModal.tsx(39,30): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(7,21): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(21,3): error TS7031: Binding element 'isOpen' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(22,3): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(23,3): error TS7031: Binding element 'template' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(24,3): error TS7031: Binding element 'onTagClick' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(29,11): error TS7034: Variable 'images' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(38,37): error TS7005: Variable 'images' implicitly has an 'any[]' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(51,44): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(57,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(87,39): error TS7006: Parameter 'tag' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(94,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(99,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/common/TemplatePreviewModal/TemplatePreviewModal.tsx(205,30): error TS7006: Parameter 'tag' implicitly has an 'any' type.
+src/components/common/UI/ClipboardFeedbackIcon.tsx(5,34): error TS7031: Binding element 'copied' implicitly has an 'any' type.
+src/components/common/UI/FloatingActionButton.tsx(17,17): error TS2322: Type 'null' is not assignable to type 'Element'.
+src/components/common/UI/SegmentedControl.tsx(31,36): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/components/common/UI/SegmentedControl.tsx(31,43): error TS7006: Parameter 'stepDisabled' implicitly has an 'any' type.
+src/components/common/WelcomePage.tsx(17,5): error TS18047: 'welcomeScreen' is possibly 'null'.
+src/components/common/WolkeSelector/WolkeSelector.tsx(46,5): error TS2322: Type 'null' is not assignable to type 'string'.
+src/components/common/WolkeSelector/WolkeSelector.tsx(129,27): error TS7006: Parameter 'selectedOptions' implicitly has an 'any' type.
+src/components/common/WolkeSelector/WolkeSelector.tsx(131,35): error TS7006: Parameter 'option' implicitly has an 'any' type.
+src/components/common/WolkeSelector/WolkeSelector.tsx(206,17): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/common/WolkeSelector/WolkeSelector.tsx(214,17): error TS2322: Type '{ value: string; label: any; iconType: string; icon: IconType; subtitle: string; tag: { label: string; variant: string; icon: IconType; }; searchableContent: string; shareLink: ShareLink; documentCount: number; syncStatus: SyncStatus | undefined; } | { ...; } | ({ ...; } | { ...; })[] | null' is not assignable to type 'PropsValue<EnhancedSelectOption> | undefined'.
+  Type '{ value: string | undefined; label: string; shareLink: WolkeShareLink; }' is not assignable to type 'PropsValue<EnhancedSelectOption> | undefined'.
+    Type '{ value: string | undefined; label: string; shareLink: WolkeShareLink; }' is not assignable to type 'EnhancedSelectOption'.
+      Types of property 'value' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string | number'.
+          Type 'undefined' is not assignable to type 'string | number'.
+src/components/common/WolkeSelector/WolkeSelector.tsx(214,48): error TS18047: 'selectValue' is possibly 'null'.
+src/components/layout/DesktopSidebar/DesktopSidebar.tsx(29,21): error TS7006: Parameter 'path' implicitly has an 'any' type.
+src/components/layout/DesktopSidebar/DesktopSidebar.tsx(31,41): error TS7006: Parameter 'path' implicitly has an 'any' type.
+src/components/layout/DesktopSidebar/DesktopSidebar.tsx(31,47): error TS7006: Parameter 'title' implicitly has an 'any' type.
+src/components/layout/DesktopSidebar/DesktopSidebar.tsx(69,35): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/layout/DesktopTitlebar/DesktopTitlebar.tsx(73,30): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/components/layout/Header/Header.tsx(228,16): error TS18048: 'menu' is possibly 'undefined'.
+src/components/layout/Header/ProfileButton.tsx(98,87): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/components/layout/Header/ProfileButton.tsx(128,22): error TS2339: Property 'type' does not exist on type 'object'.
+src/components/layout/Header/ProfileButton.tsx(131,32): error TS2339: Property 'src' does not exist on type 'object'.
+src/components/layout/Header/ProfileButton.tsx(132,32): error TS2339: Property 'alt' does not exist on type 'object'.
+src/components/layout/Header/ProfileButton.tsx(158,28): error TS2339: Property 'type' does not exist on type 'object'.
+src/components/layout/Header/ProfileButton.tsx(161,38): error TS2339: Property 'src' does not exist on type 'object'.
+src/components/layout/Header/ProfileButton.tsx(162,38): error TS2339: Property 'alt' does not exist on type 'object'.
+src/components/layout/Header/ThemeToggleButton.tsx(3,30): error TS7031: Binding element 'darkMode' implicitly has an 'any' type.
+src/components/layout/Header/ThemeToggleButton.tsx(3,40): error TS7031: Binding element 'toggleDarkMode' implicitly has an 'any' type.
+src/components/layout/Header/menuData.tsx(203,7): error TS2322: Type 'IconType | null' is not assignable to type 'IconType | ComponentType | undefined'.
+  Type 'null' is not assignable to type 'IconType | ComponentType | undefined'.
+src/components/layout/Header/menuData.tsx(208,7): error TS2322: Type '{ texte: { title: string; items: { id: string; path: string; title: string; description: string; icon: IconType | null; }[]; }; bildUndVideo: { title: string; items: { id: string; path: string; title: string; description: string; icon: IconType | null; }[]; }; tools: { ...; }; }' is not assignable to type 'MenuItemsResult'.
+  The types of 'texte.items' are incompatible between these types.
+    Type '{ id: string; path: string; title: string; description: string; icon: IconType | null; }[]' is not assignable to type 'MenuItemType[]'.
+      Type '{ id: string; path: string; title: string; description: string; icon: IconType | null; }' is not assignable to type 'MenuItemType'.
+        Types of property 'icon' are incompatible.
+          Type 'IconType | null' is not assignable to type 'IconType | ComponentType | undefined'.
+            Type 'null' is not assignable to type 'IconType | ComponentType | undefined'.
+src/components/pages/DesktopHome/DesktopHome.tsx(34,24): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/components/pages/DesktopHome/DesktopHome.tsx(34,31): error TS7031: Binding element 'route' implicitly has an 'any' type.
+src/components/pages/DesktopHome/DesktopHome.tsx(34,38): error TS7031: Binding element 'icon' implicitly has an 'any' type.
+src/components/pages/DesktopHome/DesktopHome.tsx(34,44): error TS7031: Binding element 'iconCategory' implicitly has an 'any' type.
+src/components/pages/DesktopHome/DesktopHome.tsx(34,58): error TS7031: Binding element 'onClick' implicitly has an 'any' type.
+src/components/pages/Startseite/ImageComparisonMock.tsx(23,41): error TS2339: Property 'getBoundingClientRect' does not exist on type 'never'.
+src/components/pages/Startseite/ImageComparisonMock.tsx(46,7): error TS2322: Type 'number' is not assignable to type 'null'.
+src/components/pages/Startseite/MockGenerator.tsx(24,5): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/components/pages/Startseite/MockGenerator.tsx(155,13): error TS2322: Type '{ '--layer1-opacity': number[]; '--layer2-opacity': number[]; '--layer3-opacity': number[]; '--layer4-opacity': number[]; '--layer5-opacity': number[]; } | { '--layer1-opacity'?: undefined; '--layer2-opacity'?: undefined; '--layer3-opacity'?: undefined; '--layer4-opacity'?: undefined; '--layer5-opacity'?: undefined; }' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls | undefined'.
+  Type '{ '--layer1-opacity'?: undefined; '--layer2-opacity'?: undefined; '--layer3-opacity'?: undefined; '--layer4-opacity'?: undefined; '--layer5-opacity'?: undefined; }' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls | undefined'.
+    Type '{ '--layer1-opacity'?: undefined; '--layer2-opacity'?: undefined; '--layer3-opacity'?: undefined; '--layer4-opacity'?: undefined; '--layer5-opacity'?: undefined; }' is not assignable to type 'TargetAndTransition'.
+      Type '{ '--layer1-opacity'?: undefined; '--layer2-opacity'?: undefined; '--layer3-opacity'?: undefined; '--layer4-opacity'?: undefined; '--layer5-opacity'?: undefined; }' is not assignable to type 'Target'.
+        Type '{ '--layer1-opacity'?: undefined; '--layer2-opacity'?: undefined; '--layer3-opacity'?: undefined; '--layer4-opacity'?: undefined; '--layer5-opacity'?: undefined; }' is not assignable to type 'VariableKeyframesDefinition'.
+          Property ''--layer1-opacity'' is incompatible with index signature.
+            Type 'undefined' is not assignable to type 'ValueKeyframesDefinition'.
+src/components/profile/actions/ProfileActionButton.tsx(21,25): error TS7006: Parameter 'variant' implicitly has an 'any' type.
+src/components/profile/actions/ProfileActionButton.tsx(31,22): error TS7006: Parameter 'size' implicitly has an 'any' type.
+src/components/profile/actions/ProfileActionButton.tsx(33,27): error TS7006: Parameter 'action' implicitly has an 'any' type.
+src/components/profile/actions/ProfileActionButton.tsx(36,10): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<ActionIconName, IconType>'.
+src/components/profile/actions/ProfileActionButton.tsx(102,35): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/components/routing/RouteComponent.tsx(40,5): error TS2322: Type 'null' is not assignable to type 'Element'.
+src/components/routing/RouteComponent.tsx(56,27): error TS2339: Property 'withSharepic' does not exist on type 'RouteConfig'.
+src/components/utils/FileUpload.tsx(40,9): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/components/utils/ImageModificationForm.tsx(120,66): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/utils/ImageModificationForm.tsx(140,62): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/components/utils/accessibilityHelpers.ts(97,9): error TS2532: Object is possibly 'undefined'.
+src/components/utils/fileUploadText.tsx(30,76): error TS2339: Property 'name' does not exist on type 'never'.
+src/components/utils/imageCompression.tsx(19,3): error TS2322: Type 'boolean | null | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+src/features/apps/AppsPage.tsx(231,16): error TS18046: 'err' is of type 'unknown'.
+src/features/apps/AppsPage.tsx(271,54): error TS2339: Property 'assets' does not exist on type 'never'.
+src/features/apps/AppsPage.tsx(285,55): error TS2339: Property 'tag_name' does not exist on type 'never'.
+src/features/apps/AppsPage.tsx(287,49): error TS2339: Property 'published_at' does not exist on type 'never'.
+src/features/apps/AppsPage.tsx(330,16): error TS2339: Property 'body' does not exist on type 'never'.
+src/features/apps/AppsPage.tsx(333,35): error TS2339: Property 'body' does not exist on type 'never'.
+src/features/auth/components/profile/AvatarSelectionModal.tsx(146,15): error TS2322: Type '{ open?: undefined; } | { open: { transition: { staggerChildren: number; delayChildren: number; }; }; }' is not assignable to type 'Variants | undefined'.
+  Type '{ open?: undefined; }' is not assignable to type 'Variants'.
+    Property 'open' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'Variant'.
+src/features/auth/components/profile/tabs/ContentManagement/ContentManagementView.tsx(65,9): error TS2345: Argument of type '{ key: string; label: string; }[]' is not assignable to parameter of type 'never[]'.
+  Type '{ key: string; label: string; }' is not assignable to type 'never'.
+src/features/auth/components/profile/tabs/ContentManagement/ContentManagementView.tsx(235,21): error TS2322: Type 'ShareableContentType | undefined' is not assignable to type 'ShareableContentType'.
+  Type 'undefined' is not assignable to type 'ShareableContentType'.
+src/features/auth/components/profile/tabs/ContentManagement/ContentManagementView.tsx(236,21): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/ContentManagement/ContentManagementView.tsx(237,21): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/ContentManagement/components/AnweisungenSection.tsx(90,20): error TS2322: Type 'UseFormGetValues<AnweisungenFormData>' is not assignable to type '() => Record<string, unknown>'.
+  Type 'AnweisungenFormData' is not assignable to type 'Record<string, unknown>'.
+    Index signature for type 'string' is missing in type 'AnweisungenFormData'.
+src/features/auth/components/profile/tabs/ContentManagement/components/AnweisungenSection.tsx(157,21): error TS2322: Type '(fieldName: keyof AnweisungenFormData) => void' is not assignable to type '(fieldName: string) => void'.
+  Types of parameters 'fieldName' and 'fieldName' are incompatible.
+    Type 'string' is not assignable to type 'keyof AnweisungenFormData'.
+src/features/auth/components/profile/tabs/ContentManagement/components/CanvaSection.tsx(147,9): error TS2345: Argument of type '{ key: string; label: string; }[]' is not assignable to parameter of type 'never[]'.
+  Type '{ key: string; label: string; }' is not assignable to type 'never'.
+src/features/auth/components/profile/tabs/ContentManagement/components/CanvaSection.tsx(263,19): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/components/profile/tabs/ContentManagement/components/CanvaSection.tsx(371,61): error TS2345: Argument of type '((contentType: string, content: unknown) => void) | undefined' is not assignable to parameter of type 'Function'.
+  Type 'undefined' is not assignable to type 'Function'.
+src/features/auth/components/profile/tabs/ContentManagement/components/CanvaSection.tsx(597,21): error TS2322: Type '(item: DocumentItem) => unknown[]' is not assignable to type '(item: DocumentItem) => ActionItem[]'.
+  Type 'unknown[]' is not assignable to type 'ActionItem[]'.
+    Type 'unknown' is not assignable to type 'ActionItem'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(276,24): error TS2339: Property 'message' does not exist on type 'Object'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(277,28): error TS2339: Property 'hasErrors' does not exist on type 'Object'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(278,43): error TS2339: Property 'message' does not exist on type 'Object'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(280,45): error TS2339: Property 'message' does not exist on type 'Object'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(460,29): error TS2322: Type '(documentIds: string[]) => Promise<Object>' is not assignable to type '(ids: string[]) => Promise<void>'.
+  Type 'Promise<Object>' is not assignable to type 'Promise<void>'.
+    Type 'Object' is not assignable to type 'void'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(468,29): error TS2322: Type '(item: CombinedItem) => void' is not assignable to type '(item: DocumentItem) => void'.
+  Types of parameters 'item' and 'item' are incompatible.
+    Property 'itemType' is missing in type 'DocumentItem' but required in type 'CombinedItem'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(487,29): error TS2322: Type '(q: string, mode: "intelligent" | "fulltext") => Promise<SearchResult[]>' is not assignable to type '(query: string, mode: string) => void'.
+  Types of parameters 'mode' and 'mode' are incompatible.
+    Type 'string' is not assignable to type '"intelligent" | "fulltext"'.
+src/features/auth/components/profile/tabs/ContentManagement/components/DocumentsSection.tsx(594,29): error TS2322: Type '(document: { title?: string; } | null) => void' is not assignable to type '(result: unknown) => void'.
+  Types of parameters 'document' and 'result' are incompatible.
+    Type 'unknown' is not assignable to type '{ title?: string | undefined; } | null'.
+src/features/auth/components/profile/tabs/ContentManagement/components/TextsSection.tsx(140,82): error TS18046: 'error' is of type 'unknown'.
+src/features/auth/components/profile/tabs/ContentManagement/components/VorlagenSection.tsx(144,17): error TS2322: Type '(template: Template) => ActionItem[]' is not assignable to type '(item: DocumentItem) => ActionItem[]'.
+  Types of parameters 'template' and 'item' are incompatible.
+    Type 'DocumentItem' is not assignable to type 'Template'.
+      Types of property 'title' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/ContentManagement/components/VorlagenSection.tsx(145,17): error TS2322: Type '(template: Template) => JSX.Element' is not assignable to type '(item: DocumentItem) => ReactNode'.
+  Types of parameters 'template' and 'item' are incompatible.
+    Type 'DocumentItem' is not assignable to type 'Template'.
+      Types of property 'title' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/CustomGenerators/CustomGeneratorsView.tsx(351,25): error TS2322: Type 'import("/home/morit/gruenerator/apps/web/src/types/notebook").NotebookCollection[]' is not assignable to type 'NotebookCollection[]'.
+  Type 'import("/home/morit/gruenerator/apps/web/src/types/notebook").NotebookCollection' is not assignable to type 'NotebookCollection'.
+    Index signature for type 'string' is missing in type 'NotebookCollection'.
+src/features/auth/components/profile/tabs/CustomGenerators/CustomGeneratorsView.tsx(354,29): error TS2322: Type 'import("/home/morit/gruenerator/apps/web/src/types/notebook").NotebookCollection[] | undefined' is not assignable to type 'NotebookCollection[] | undefined'.
+  Type 'import("/home/morit/gruenerator/apps/web/src/types/notebook").NotebookCollection[]' is not assignable to type 'NotebookCollection[]'.
+    Type 'import("/home/morit/gruenerator/apps/web/src/types/notebook").NotebookCollection' is not assignable to type 'NotebookCollection'.
+      Index signature for type 'string' is missing in type 'NotebookCollection'.
+src/features/auth/components/profile/tabs/CustomGenerators/CustomGeneratorsView.tsx(367,25): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/CustomGenerators/CustomGeneratorsView.tsx(383,25): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/CustomGenerators/CustomGeneratorsView.tsx(399,25): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/CustomGenerators/CustomGeneratorsView.tsx(592,29): error TS2322: Type '(() => void) | null' is not assignable to type '(() => void) | undefined'.
+  Type 'null' is not assignable to type '(() => void) | undefined'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/GeneratorCreator.tsx(51,25): error TS2322: Type '(result: { name: string; slug: string; }) => void' is not assignable to type '(data?: { name: string; slug: string; } | undefined) => void'.
+  Types of parameters 'result' and 'data' are incompatible.
+    Type '{ name: string; slug: string; } | undefined' is not assignable to type '{ name: string; slug: string; }'.
+      Type 'undefined' is not assignable to type '{ name: string; slug: string; }'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/GeneratorDetail.tsx(81,9): error TS2322: Type '((id: string, data: unknown) => Promise<unknown>) | undefined' is not assignable to type '(entityId: string, data: unknown) => Promise<unknown>'.
+  Type 'undefined' is not assignable to type '(entityId: string, data: unknown) => Promise<unknown>'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/GeneratorDetail.tsx(101,19): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(135,19): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(144,64): error TS2304: Cannot find name 'WolkeLinkDetail'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(181,105): error TS2304: Cannot find name 'WolkeShareLink'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(314,25): error TS2322: Type '(qaData: QAData) => Promise<void>' is not assignable to type '(data: unknown) => Promise<void>'.
+  Types of parameters 'qaData' and 'data' are incompatible.
+    Type 'unknown' is not assignable to type 'QAData'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(315,25): error TS2322: Type 'AvailableDocument[]' is not assignable to type 'Document[]'.
+  Property 'status' is missing in type 'AvailableDocument' but required in type 'Document'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(389,33): error TS2339: Property 'last_accessed' does not exist on type 'NotebookCollection'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebookDetail.tsx(393,54): error TS2339: Property 'last_accessed' does not exist on type 'NotebookCollection'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/NotebooksSection.tsx(149,36): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/Site/components/SiteCreator.tsx(9,40): error TS2322: Type '(data: Record<string, unknown>) => Promise<void>' is not assignable to type '(data: SiteFormData) => Promise<void>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'SiteFormData' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'SiteFormData'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/Site/components/SiteEditor.tsx(23,22): error TS2322: Type 'Site | null' is not assignable to type 'SiteFormData | undefined'.
+  Type 'null' is not assignable to type 'SiteFormData | undefined'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/Site/components/SiteEditor.tsx(23,60): error TS2322: Type '(data: Record<string, unknown>) => Promise<void>' is not assignable to type '(data: SiteFormData) => Promise<void>'.
+  Types of parameters 'data' and 'data' are incompatible.
+    Type 'SiteFormData' is not assignable to type 'Record<string, unknown>'.
+      Index signature for type 'string' is missing in type 'SiteFormData'.
+src/features/auth/components/profile/tabs/CustomGenerators/components/Site/components/SitePreview.tsx(79,82): error TS18048: 'site.social_links' is possibly 'undefined'.
+src/features/auth/components/profile/tabs/GroupsManagement/GroupsManagementView.tsx(62,30): error TS2339: Property 'Input' does not exist on type 'Object'.
+src/features/auth/components/profile/tabs/GroupsManagement/GroupsManagementView.tsx(252,21): error TS2322: Type '(view: GroupDetailView) => void' is not assignable to type '(view: string) => void'.
+  Types of parameters 'view' and 'view' are incompatible.
+    Type 'string' is not assignable to type 'GroupDetailView'.
+src/features/auth/components/profile/tabs/GroupsManagement/components/GroupDetailSection.tsx(136,9): error TS2322: Type '() => Promise<unknown>' is not assignable to type '(changedFields: Record<string, unknown>) => Promise<void>'.
+  Type 'Promise<unknown>' is not assignable to type 'Promise<void>'.
+    Type 'unknown' is not assignable to type 'void'.
+src/features/auth/components/profile/tabs/GroupsManagement/components/subcomponents/GroupInstructionsSection.tsx(48,25): error TS2322: Type 'GroupData | null' is not assignable to type 'Record<string, any> | undefined'.
+  Type 'null' is not assignable to type 'Record<string, any> | undefined'.
+src/features/auth/components/profile/tabs/GroupsManagement/components/subcomponents/GroupSharedContentSection.tsx(237,17): error TS2322: Type '(contentType: string, itemId: string, options: ShareOptions) => Promise<void>' is not assignable to type '(type: string, id: string, options: { permissions: Record<string, boolean>; targetGroupId: string | null; }) => Promise<void>'.
+  Types of parameters 'options' and 'options' are incompatible.
+    Type '{ permissions: Record<string, boolean>; targetGroupId: string | null; }' is not assignable to type 'ShareOptions'.
+      Types of property 'permissions' are incompatible.
+        Type 'Record<string, boolean>' is missing the following properties from type 'SharePermissions': read, write, collaborative
+src/features/auth/components/profile/tabs/ProfileInfo/SettingsSection.tsx(198,21): error TS2322: Type 'IconType | null' is not assignable to type 'IconType | ComponentType<{}>'.
+  Type 'null' is not assignable to type 'IconType | ComponentType<{}>'.
+src/features/auth/components/profile/tabs/ProfileInfo/SettingsSection.tsx(222,21): error TS2322: Type 'IconType | null' is not assignable to type 'IconType | ComponentType<{}>'.
+  Type 'null' is not assignable to type 'IconType | ComponentType<{}>'.
+src/features/auth/components/profile/tabs/ProfileInfo/index.tsx(166,41): error TS2345: Argument of type '{ display_name: {}; username: string | null; email: string | null; }' is not assignable to parameter of type 'ProfileUpdateData'.
+  Types of property 'display_name' are incompatible.
+    Type '{}' is not assignable to type 'string'.
+src/features/auth/components/profile/tabs/ProfileInfo/index.tsx(180,69): error TS2322: Type '() => void' is not assignable to type '(callback: (value: Record<string, unknown>, { name }: { name?: string | undefined; }) => void) => { unsubscribe?: (() => void) | undefined; }'.
+  Type 'void' is not assignable to type '{ unsubscribe?: (() => void) | undefined; }'.
+src/features/auth/components/profile/tabs/ProfileInfo/index.tsx(293,9): error TS2322: Type 'object' is not assignable to type 'AvatarProps'.
+src/features/auth/pages/LoginPage.tsx(42,3): error TS2322: Type 'null' is not assignable to type 'string'.
+src/features/auth/pages/LoginPage.tsx(43,3): error TS2322: Type 'null' is not assignable to type 'string'.
+src/features/auth/pages/LoginPage.tsx(44,3): error TS2322: Type 'null' is not assignable to type '() => void'.
+src/features/auth/pages/LoginPage.tsx(98,7): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/pages/LoginPage.tsx(113,7): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/pages/LoginPage.tsx(128,7): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/pages/LoginPage.tsx(143,7): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/auth/pages/ProfilePage.tsx(202,5): error TS2322: Type 'RefObject<null>' is not assignable to type 'RefObject<HTMLElement>'.
+  Type 'null' is not assignable to type 'HTMLElement'.
+src/features/auth/pages/ProfilePage.tsx(417,15): error TS2322: Type 'User | null' is not assignable to type 'User | undefined'.
+  Type 'null' is not assignable to type 'User | undefined'.
+src/features/auth/pages/RegistrationPage.tsx(17,7): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/chat/components/GrueneratorChat.tsx(289,14): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ social_media: string; pressemitteilung: string; antrag: string; zitat: string; leichte_sprache: string; gruene_jugend: string; universal: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ social_media: string; pressemitteilung: string; antrag: string; zitat: string; leichte_sprache: string; gruene_jugend: string; universal: string; }'.
+src/features/chat/components/GrueneratorChat.tsx(306,9): error TS2322: Type '(message: string) => Promise<void>' is not assignable to type '(value: string | FormEvent<Element>) => void'.
+  Types of parameters 'message' and 'value' are incompatible.
+    Type 'string | FormEvent<Element>' is not assignable to type 'string'.
+      Type 'FormEvent<Element>' is not assignable to type 'string'.
+src/features/chat/components/GrueneratorChatMessage.tsx(95,12): error TS18048: 'msg.resultData' is possibly 'undefined'.
+src/features/chat/components/GrueneratorChatMessage.tsx(98,31): error TS18048: 'msg.resultData' is possibly 'undefined'.
+src/features/chat/components/GrueneratorChatMessage.tsx(111,50): error TS18048: 'msg.resultData' is possibly 'undefined'.
+src/features/chat/components/GrueneratorChatMessage.tsx(111,50): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/documents/DocumentViewPage.tsx(20,18): error TS2345: Argument of type '"Keine Dokument-ID angegeben"' is not assignable to parameter of type 'SetStateAction<null>'.
+src/features/documents/DocumentViewPage.tsx(39,18): error TS18046: 'err' is of type 'unknown'.
+src/features/documents/DocumentViewPage.tsx(114,59): error TS2339: Property 'title' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(116,73): error TS2339: Property 'filename' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(117,71): error TS2339: Property 'page_count' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(118,72): error TS2339: Property 'status' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(120,46): error TS2339: Property 'created_at' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(127,23): error TS2339: Property 'ocr_text' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(129,27): error TS2339: Property 'ocr_text' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(134,27): error TS2339: Property 'status' does not exist on type 'never'.
+src/features/documents/DocumentViewPage.tsx(137,27): error TS2339: Property 'status' does not exist on type 'never'.
+src/features/documents/components/WolkeSyncManager.tsx(149,54): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'IconType | null' is not assignable to parameter of type 'string | FunctionComponent<IconBaseProps> | ComponentClass<IconBaseProps, any>'.
+      Type 'null' is not assignable to type 'string | FunctionComponent<IconBaseProps> | ComponentClass<IconBaseProps, any>'.
+src/features/documents/components/WolkeSyncManager.tsx(163,50): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'IconType | null' is not assignable to parameter of type 'string | FunctionComponent<IconBaseProps> | ComponentClass<IconBaseProps, any>'.
+      Type 'null' is not assignable to type 'string | FunctionComponent<IconBaseProps> | ComponentClass<IconBaseProps, any>'.
+src/features/documents/components/WolkeSyncManager.tsx(249,45): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/documents/components/WolkeSyncManager.tsx(259,28): error TS7006: Parameter 'shareLinkId' implicitly has an 'any' type.
+src/features/documents/components/WolkeSyncManager.tsx(278,30): error TS7006: Parameter 'status' implicitly has an 'any' type.
+src/features/documents/components/WolkeSyncManager.tsx(323,59): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/documents/components/WolkeSyncManager.tsx(353,41): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | URL'.
+  Type 'undefined' is not assignable to type 'string | URL'.
+src/features/documents/components/WolkeSyncManager.tsx(354,47): error TS18047: 'syncStatus' is possibly 'null'.
+src/features/documents/components/WolkeSyncManager.tsx(354,89): error TS18047: 'syncStatus' is possibly 'null'.
+src/features/documents/components/WolkeSyncManager.tsx(355,80): error TS18047: 'syncStatus' is possibly 'null'.
+src/features/documents/components/WolkeSyncManager.tsx(367,58): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type 'IconType | null' is not assignable to parameter of type 'string | FunctionComponent<IconBaseProps> | ComponentClass<IconBaseProps, any>'.
+      Type 'null' is not assignable to type 'string | FunctionComponent<IconBaseProps> | ComponentClass<IconBaseProps, any>'.
+src/features/generators/CreateCustomGeneratorPage.tsx(599,23): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/features/generators/components/DocumentSelector.tsx(134,66): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/generators/components/DocumentSelector.tsx(247,33): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 4, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+src/features/groups/components/GroupMembersList.tsx(11,29): error TS7031: Binding element 'groupId' implicitly has an 'any' type.
+src/features/groups/components/GroupMembersList.tsx(127,21): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/features/groups/components/SharedContentSelector.tsx(624,53): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/groups/components/SharedContentSelector.tsx(879,55): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/groups/components/SharedContentSelector.tsx(954,55): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/groups/pages/JoinGroupPage.tsx(69,19): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/groups/pages/JoinGroupPage.tsx(121,54): error TS18047: 'joinGroupError' is possibly 'null'.
+src/features/image-studio/canvas-editor/composed/ControllableDreizeilenCanvas.tsx(3,38): error TS2614: Module '"./DreizeilenCanvas"' has no exported member 'DreizeilenState'. Did you mean to use 'import DreizeilenState from "./DreizeilenCanvas"' instead?
+src/features/image-studio/canvas-editor/composed/ControllableDreizeilenCanvas.tsx(39,33): error TS2552: Cannot find name 'handleStateChange'. Did you mean 'onStateChange'?
+src/features/image-studio/canvas-editor/composed/ControllableDreizeilenCanvas.tsx(40,33): error TS2304: Cannot find name 'handleStateChange'.
+src/features/image-studio/canvas-editor/composed/ControllableDreizeilenCanvas.tsx(41,33): error TS2304: Cannot find name 'handleStateChange'.
+src/features/image-studio/canvas-editor/composed/InfoCanvas.tsx(225,128): error TS2322: Type '{ id: string; image: HTMLImageElement; x: number; y: number; width: 1080; height: 1350; listening: boolean; }' is not assignable to type 'IntrinsicAttributes & CanvasImageProps'.
+  Property 'listening' does not exist on type 'IntrinsicAttributes & CanvasImageProps'.
+src/features/image-studio/canvas-editor/composed/SimpleCanvas.tsx(327,13): error TS2322: Type 'string' is not assignable to type '"bold" | "normal" | "italic" | "bold italic" | undefined'.
+src/features/image-studio/canvas-editor/composed/SimpleCanvas.tsx(356,13): error TS2322: Type 'string' is not assignable to type '"bold" | "normal" | "italic" | "bold italic" | undefined'.
+src/features/image-studio/canvas-editor/composed/VeranstaltungCanvas.tsx(206,152): error TS2322: Type '{ quote: string; name: string; onQuoteChange: (newText: string) => void; onNameChange: (newText: string) => void; quoteLabel: string; nameLabel: string; }' is not assignable to type 'IntrinsicAttributes & TextSectionProps'.
+  Property 'quoteLabel' does not exist on type 'IntrinsicAttributes & TextSectionProps'.
+src/features/image-studio/canvas-editor/composed/VeranstaltungCanvas.tsx(208,287): error TS2322: Type '{ quoteFontSize: number; nameFontSize: number; onQuoteFontSizeChange: (fontSize: number) => void; onNameFontSizeChange: (fontSize: number) => void; quoteLabel: string; nameLabel: string; }' is not assignable to type 'IntrinsicAttributes & FontSizeSectionProps'.
+  Property 'quoteLabel' does not exist on type 'IntrinsicAttributes & FontSizeSectionProps'.
+src/features/image-studio/canvas-editor/composed/VeranstaltungCanvas.tsx(212,303): error TS2322: Type '{ quoteFontSize: number; nameFontSize: number; onQuoteFontSizeChange: (fontSize: number) => void; onNameFontSizeChange: (fontSize: number) => void; quoteLabel: string; nameLabel: string; }' is not assignable to type 'IntrinsicAttributes & FontSizeSectionProps'.
+  Property 'quoteLabel' does not exist on type 'IntrinsicAttributes & FontSizeSectionProps'.
+src/features/image-studio/canvas-editor/composed/VeranstaltungCanvas.tsx(240,79): error TS2322: Type '"italic bold"' is not assignable to type '"bold" | "normal" | "italic" | "bold italic" | undefined'.
+src/features/image-studio/canvas-editor/composed/ZitatCanvas.tsx(125,65): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<0.5>'.
+src/features/image-studio/canvas-editor/composed/ZitatCanvas.tsx(189,24): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<0.5>'.
+src/features/image-studio/canvas-editor/composed/ZitatCanvas.tsx(274,265): error TS2322: Type '{ quoteFontSize: number; nameFontSize: number; onQuoteFontSizeChange: (size: number) => void; onNameFontSizeChange: (size: number) => void; onExport: () => void; }' is not assignable to type 'IntrinsicAttributes & FontSizeSectionProps'.
+  Property 'onExport' does not exist on type 'IntrinsicAttributes & FontSizeSectionProps'.
+src/features/image-studio/components/ImageStudioFormSection.tsx(10,29): error TS2339: Property 'description' does not exist on type 'ImageStudioStore'.
+src/features/image-studio/components/ImageStudioFormSection.tsx(10,42): error TS2339: Property 'mood' does not exist on type 'ImageStudioStore'.
+src/features/image-studio/components/ImageStudioFormSection.tsx(29,37): error TS2339: Property 'TEXT2SHAREPIC' does not exist on type '{ readonly DREIZEILEN: "dreizeilen"; readonly ZITAT: "zitat"; readonly ZITAT_PURE: "zitat-pure"; readonly INFO: "info"; readonly VERANSTALTUNG: "veranstaltung"; readonly PROFILBILD: "profilbild"; ... 5 more ...; readonly KI_SHAREPIC: "ki-sharepic"; }'.
+src/features/image-studio/gallery/ImageGallery.tsx(426,9): error TS2322: Type '{ image: null; type: string | undefined; metadata: GalleryImageMetadata; } | undefined' is not assignable to type 'ImageData | undefined'.
+  Type '{ image: null; type: string | undefined; metadata: GalleryImageMetadata; }' is not assignable to type 'ImageData'.
+    Types of property 'image' are incompatible.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/features/pages/ExamplePage.tsx(66,25): error TS2322: Type '{ number: string; label: string; }' is not assignable to type 'never'.
+src/features/pages/ExamplePage.tsx(67,25): error TS2322: Type '{ number: string; label: string; }' is not assignable to type 'never'.
+src/features/pages/ExamplePage.tsx(68,25): error TS2322: Type '{ number: string; label: string; }' is not assignable to type 'never'.
+src/features/pages/ExamplePage.tsx(69,25): error TS2322: Type '{ number: string; label: string; }' is not assignable to type 'never'.
+src/features/pages/components/PageContent.tsx(98,37): error TS2322: Type '{ number: string; label: string; }[] | undefined' is not assignable to type 'never[] | undefined'.
+  Type '{ number: string; label: string; }[]' is not assignable to type 'never[]'.
+    Type '{ number: string; label: string; }' is not assignable to type 'never'.
+src/features/pages/components/PageContent.tsx(118,37): error TS2322: Type 'string[] | undefined' is not assignable to type 'never[] | undefined'.
+  Type 'string[]' is not assignable to type 'never[]'.
+    Type 'string' is not assignable to type 'never'.
+src/features/pages/components/PageContent.tsx(126,64): error TS2322: Type 'string | undefined' is not assignable to type 'string | TrustedHTML'.
+  Type 'undefined' is not assignable to type 'string | TrustedHTML'.
+src/features/pages/components/PageHeader.tsx(3,5): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/features/pages/components/PageHeader.tsx(4,5): error TS7031: Binding element 'subtitle' implicitly has an 'any' type.
+src/features/pages/components/PageHeader.tsx(5,5): error TS7031: Binding element 'author' implicitly has an 'any' type.
+src/features/pages/components/PageHeader.tsx(6,5): error TS7031: Binding element 'readTime' implicitly has an 'any' type.
+src/features/pages/components/PageView.tsx(35,26): error TS2339: Property 'readTime' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(36,32): error TS2339: Property 'readTime' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(45,38): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(56,22): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(56,44): error TS2339: Property 'readTime' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(60,28): error TS2345: Argument of type '{ title?: string | undefined; subtitle?: string | undefined; author?: string | undefined; readTime?: string | undefined; content?: unknown[] | undefined; headerAlignment?: string | undefined; }' is not assignable to parameter of type 'SetStateAction<null>'.
+  Type '{ title?: string | undefined; subtitle?: string | undefined; author?: string | undefined; readTime?: string | undefined; content?: unknown[] | undefined; headerAlignment?: string | undefined; }' provides no match for the signature '(prevState: null): null'.
+src/features/pages/components/PageView.tsx(115,44): error TS2339: Property 'title' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(116,47): error TS2339: Property 'subtitle' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(117,45): error TS2339: Property 'author' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(119,48): error TS2339: Property 'headerAlignment' does not exist on type 'never'.
+src/features/pages/components/PageView.tsx(121,55): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/pages/components/blocks/FactBox.tsx(13,35): error TS2339: Property 'number' does not exist on type 'never'.
+src/features/pages/components/blocks/FactBox.tsx(16,35): error TS2339: Property 'label' does not exist on type 'never'.
+src/features/pages/components/blocks/QuoteBlock.tsx(2,23): error TS7031: Binding element 'text' implicitly has an 'any' type.
+src/features/pages/components/blocks/QuoteBlock.tsx(2,29): error TS7031: Binding element 'author' implicitly has an 'any' type.
+src/features/pages/components/blocks/QuoteBlock.tsx(2,37): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/features/pages/components/blocks/TimelineBlock.tsx(11,27): error TS2339: Property 'date' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(13,35): error TS2339: Property 'date' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(16,27): error TS2339: Property 'title' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(18,35): error TS2339: Property 'title' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(21,27): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(23,42): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(24,42): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/pages/components/blocks/TimelineBlock.tsx(26,38): error TS2339: Property 'content' does not exist on type 'never'.
+src/features/search/components/SearchBar.tsx(50,33): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/features/search/components/SearchBar.tsx(51,55): error TS2339: Property 'contains' does not exist on type 'never'.
+src/features/search/components/SearchBar.tsx(64,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/search/components/SearchBar.tsx(66,9): error TS18048: 'value' is possibly 'undefined'.
+src/features/search/components/SearchBar.tsx(67,16): error TS18048: 'value' is possibly 'undefined'.
+src/features/search/components/SearchBar.tsx(71,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/search/components/SearchBar.tsx(85,67): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/search/components/SearchBar.tsx(125,37): error TS18048: 'value' is possibly 'undefined'.
+src/features/search/components/SearchBar.tsx(150,32): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/search/components/SearchBar.tsx(150,41): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/search/components/SearchPage.tsx(105,20): error TS18048: 'source.content_snippets' is possibly 'undefined'.
+src/features/search/components/SearchPage.tsx(106,26): error TS18048: 'source.content_snippets' is possibly 'undefined'.
+src/features/search/components/SearchPage.tsx(212,11): error TS2322: Type '(query: string) => Promise<void>' is not assignable to type '(query?: string | undefined) => void'.
+  Types of parameters 'query' and 'query' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/features/search/components/SearchResults.tsx(23,5): error TS2322: Type 'null' is not assignable to type 'Element'.
+src/features/search/hooks/useSearch.ts(29,44): error TS18048: 'source.title' is possibly 'undefined'.
+src/features/search/hooks/useSearch.ts(30,9): error TS18048: 'source.title' is possibly 'undefined'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(248,73): error TS2345: Argument of type 'string' is not assignable to parameter of type 'null | undefined'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(362,9): error TS2353: Object literal may only specify known properties, and 'image' does not exist in type '(prevState: null) => null'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(471,9): error TS2322: Type 'boolean | undefined' is not assignable to type 'boolean'.
+  Type 'undefined' is not assignable to type 'boolean'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(472,9): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(473,9): error TS2322: Type 'number[] | undefined' is not assignable to type 'number[]'.
+  Type 'undefined' is not assignable to type 'number[]'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(474,9): error TS2322: Type 'ColorScheme[] | undefined' is not assignable to type '{ background: string; }[]'.
+  Type 'undefined' is not assignable to type '{ background: string; }[]'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(475,9): error TS2322: Type '((name: string, value: any) => void) | undefined' is not assignable to type '(name: string, value: unknown) => void'.
+  Type 'undefined' is not assignable to type '(name: string, value: unknown) => void'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(476,9): error TS2322: Type '[number, number] | undefined' is not assignable to type '[number, number]'.
+  Type 'undefined' is not assignable to type '[number, number]'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(477,9): error TS2322: Type '[number, number] | undefined' is not assignable to type '[number, number]'.
+  Type 'undefined' is not assignable to type '[number, number]'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(478,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(492,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/sharepic/core/components/BaseForm-Sharepic.tsx(657,9): error TS2322: Type 'null' is not assignable to type 'ImageData | undefined'.
+src/features/sharepic/core/components/DownloadButton.tsx(5,27): error TS7031: Binding element 'imageUrl' implicitly has an 'any' type.
+src/features/sharepic/core/components/QuoteConfirmation.tsx(3,30): error TS7031: Binding element 'onConfirmationChange' implicitly has an 'any' type.
+src/features/sharepic/core/components/QuoteConfirmation.tsx(6,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/sharepic/core/components/UnsplashButton.tsx(3,27): error TS7031: Binding element 'searchTerms' implicitly has an 'any' type.
+src/features/sharepic/dreizeilen/components/AdvancedEditingSection.tsx(6,3): error TS7031: Binding element 'balkenOffset' implicitly has an 'any' type.
+src/features/sharepic/dreizeilen/components/AdvancedEditingSection.tsx(7,3): error TS7031: Binding element 'balkenGruppenOffset' implicitly has an 'any' type.
+src/features/sharepic/dreizeilen/components/AdvancedEditingSection.tsx(8,3): error TS7031: Binding element 'sunflowerOffset' implicitly has an 'any' type.
+src/features/sharepic/dreizeilen/components/AdvancedEditingSection.tsx(9,3): error TS7031: Binding element 'onBalkenOffsetChange' implicitly has an 'any' type.
+src/features/sharepic/dreizeilen/components/AdvancedEditingSection.tsx(10,3): error TS7031: Binding element 'onBalkenGruppenOffsetChange' implicitly has an 'any' type.
+src/features/sharepic/dreizeilen/components/AdvancedEditingSection.tsx(11,3): error TS7031: Binding element 'onSonnenblumenOffsetChange' implicitly has an 'any' type.
+src/features/subtitler/components/AutoProcessingScreen.tsx(18,33): error TS7031: Binding element 'uploadId' implicitly has an 'any' type.
+src/features/subtitler/components/AutoProcessingScreen.tsx(18,43): error TS7031: Binding element 'onComplete' implicitly has an 'any' type.
+src/features/subtitler/components/AutoProcessingScreen.tsx(18,55): error TS7031: Binding element 'onError' implicitly has an 'any' type.
+src/features/subtitler/components/AutoProcessingScreen.tsx(90,5): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/features/subtitler/components/AutoProcessingScreen.tsx(96,9): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/features/subtitler/components/AutoProcessingScreen.tsx(110,28): error TS7006: Parameter 'stage' implicitly has an 'any' type.
+src/features/subtitler/components/AutoProcessingScreen.tsx(110,35): error TS7006: Parameter 'isActive' implicitly has an 'any' type.
+src/features/subtitler/components/AutoProcessingScreen.tsx(110,45): error TS7006: Parameter 'isCompleted' implicitly has an 'any' type.
+src/features/subtitler/components/LiveSubtitlePreview.tsx(6,3): error TS7031: Binding element 'editableSubtitles' implicitly has an 'any' type.
+src/features/subtitler/components/LiveSubtitlePreview.tsx(7,3): error TS7031: Binding element 'currentTimeInSeconds' implicitly has an 'any' type.
+src/features/subtitler/components/LiveSubtitlePreview.tsx(8,3): error TS7031: Binding element 'videoMetadata' implicitly has an 'any' type.
+src/features/subtitler/components/ModeSelector.tsx(31,25): error TS7031: Binding element 'onSelect' implicitly has an 'any' type.
+src/features/subtitler/components/ModeSelector.tsx(31,35): error TS7031: Binding element 'videoFile' implicitly has an 'any' type.
+src/features/subtitler/components/ModeSelector.tsx(41,28): error TS7006: Parameter 'mode' implicitly has an 'any' type.
+src/features/subtitler/components/ProcessingIndicator.tsx(5,32): error TS7031: Binding element 'onCancel' implicitly has an 'any' type.
+src/features/subtitler/components/ProcessingIndicator.tsx(5,42): error TS7031: Binding element 'error' implicitly has an 'any' type.
+src/features/subtitler/components/ShareVideoModal.tsx(15,28): error TS7031: Binding element 'projectId' implicitly has an 'any' type.
+src/features/subtitler/components/ShareVideoModal.tsx(15,39): error TS7031: Binding element 'title' implicitly has an 'any' type.
+src/features/subtitler/components/ShareVideoModal.tsx(15,46): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/features/subtitler/components/ShareVideoModal.tsx(57,29): error TS7006: Parameter 'expiresAt' implicitly has an 'any' type.
+src/features/subtitler/components/ShareVideoModal.tsx(152,40): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/subtitler/components/ShareVideoModal.tsx(165,40): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/subtitler/components/SubtitleEditor.tsx(371,28): error TS2345: Argument of type '({ id: number; startTime: number; endTime: number; text: string; } | null)[]' is not assignable to parameter of type 'SetStateAction<SubtitleSegment[]>'.
+  Type '({ id: number; startTime: number; endTime: number; text: string; } | null)[]' is not assignable to type 'SubtitleSegment[]'.
+    Type '{ id: number; startTime: number; endTime: number; text: string; } | null' is not assignable to type 'SubtitleSegment'.
+      Type 'null' is not assignable to type 'SubtitleSegment'.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,31): error TS7031: Binding element 'onReset' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,40): error TS7031: Binding element 'onEditAgain' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,53): error TS7031: Binding element 'isLoading' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,64): error TS7031: Binding element 'socialText' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,76): error TS7031: Binding element 'uploadId' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,86): error TS7031: Binding element 'projectTitle' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,100): error TS7031: Binding element 'projectId' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,111): error TS7031: Binding element 'onGenerateSocialText' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,133): error TS7031: Binding element 'isGeneratingSocialText' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(61,157): error TS7031: Binding element 'videoUrl' implicitly has an 'any' type.
+src/features/subtitler/components/VideoSuccessScreen.tsx(281,11): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/features/subtitler/components/videoEditor/ClipPanel.tsx(19,41): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/ClipPanel.tsx(19,44): error TS7006: Parameter 'clipId' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/ClipPanel.tsx(24,40): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/ClipPanel.tsx(24,43): error TS7006: Parameter 'clipId' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(6,21): error TS7006: Parameter 'seconds' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(12,29): error TS7031: Binding element 'overlayId' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(12,40): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(32,24): error TS2339: Property 'focus' does not exist on type 'never'.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(33,24): error TS2339: Property 'select' does not exist on type 'never'.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(37,41): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(48,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/subtitler/components/videoEditor/TextOverlayPanel.tsx(51,25): error TS2339: Property 'blur' does not exist on type 'never'.
+src/features/subtitler/components/videoEditor/Timeline.tsx(84,3): error TS2322: Type '({ id: number; startTime: number; endTime: number; text: string; } | null)[]' is not assignable to type 'ParsedSubtitle[]'.
+  Type '{ id: number; startTime: number; endTime: number; text: string; } | null' is not assignable to type 'ParsedSubtitle'.
+    Type 'null' is not assignable to type 'ParsedSubtitle'.
+src/features/subtitler/components/videoEditor/VideoComposition.tsx(66,3): error TS2322: Type '({ startTime: number; endTime: number; text: string; } | null)[]' is not assignable to type 'ParsedSubtitle[]'.
+  Type '{ startTime: number; endTime: number; text: string; } | null' is not assignable to type 'ParsedSubtitle'.
+    Type 'null' is not assignable to type 'ParsedSubtitle'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(66,9): error TS18047: 'ctx' is possibly 'null'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(399,39): error TS18048: 'videoMetadata.width' is possibly 'undefined'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(399,61): error TS18048: 'videoMetadata.height' is possibly 'undefined'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(484,62): error TS2339: Property 'click' does not exist on type 'never'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(614,15): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(617,70): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<null>'.
+src/features/subtitler/components/videoEditor/VideoEditor.tsx(674,19): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/templates/antraege/AntragDetailView.tsx(7,29): error TS7031: Binding element 'antrag' implicitly has an 'any' type.
+src/features/templates/antraege/AntragDetailView.tsx(7,37): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/features/templates/antraege/AntragDetailView.tsx(12,23): error TS7006: Parameter 'dateString' implicitly has an 'any' type.
+src/features/templates/antraege/AntragDetailView.tsx(22,27): error TS7006: Parameter 'status' implicitly has an 'any' type.
+src/features/templates/antraege/AntragDetailView.tsx(52,34): error TS7006: Parameter 'tag' implicitly has an 'any' type.
+src/features/templates/canva/components/AssetPackageCard.tsx(7,38): error TS7031: Binding element 'pkg' implicitly has an 'any' type.
+src/features/templates/canva/components/AssetPackageCard.tsx(7,43): error TS7031: Binding element 'isImported' implicitly has an 'any' type.
+src/features/templates/canva/components/AssetPackageCard.tsx(7,55): error TS7031: Binding element 'isImporting' implicitly has an 'any' type.
+src/features/templates/canva/components/AssetPackageCard.tsx(7,68): error TS7031: Binding element 'onImport' implicitly has an 'any' type.
+src/features/templates/canva/components/CanvaAssetsPanel.tsx(40,52): error TS7006: Parameter 'packageId' implicitly has an 'any' type.
+src/features/templates/canva/components/CanvaAssetsPanel.tsx(49,18): error TS7006: Parameter 'progressMsg' implicitly has an 'any' type.
+src/features/templates/canva/components/CanvaAssetsPanel.tsx(50,18): error TS7006: Parameter 'result' implicitly has an 'any' type.
+src/features/templates/canva/components/CanvaAssetsPanel.tsx(53,21): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+src/features/templates/canva/components/CanvaButton.tsx(31,26): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/texte/accessibility/components/AltTextForm.tsx(30,11): error TS2339: Property 'Input' does not exist on type 'Object'.
+src/features/texte/accessibility/components/AltTextForm.tsx(90,5): error TS2322: Type '(designData: { template?: { id?: string; thumbnail_url?: string; preview_image_url?: string; title?: string; }; } | null) => void' is not assignable to type '(designData: unknown) => void'.
+  Types of parameters 'designData' and 'designData' are incompatible.
+    Type 'unknown' is not assignable to type '{ template?: { id?: string | undefined; thumbnail_url?: string | undefined; preview_image_url?: string | undefined; title?: string | undefined; } | undefined; } | null'.
+src/features/texte/accessibility/components/LeichteSpracheForm.tsx(19,11): error TS2339: Property 'Textarea' does not exist on type 'Object'.
+src/features/texte/accessibility/components/LeichteSpracheForm.tsx(40,5): error TS2322: Type '() => boolean | ""' is not assignable to type '() => boolean'.
+  Type 'string | boolean' is not assignable to type 'boolean'.
+    Type 'string' is not assignable to type 'boolean'.
+src/features/texte/alttext/AltTextGenerator.tsx(57,15): error TS2353: Object literal may only specify known properties, and 'type' does not exist in type '(prevState: null) => null'.
+src/features/texte/alttext/AltTextGenerator.tsx(89,42): error TS7006: Parameter 'file' implicitly has an 'any' type.
+src/features/texte/alttext/AltTextGenerator.tsx(94,53): error TS7006: Parameter 'selectionData' implicitly has an 'any' type.
+src/features/texte/alttext/AltTextGenerator.tsx(104,48): error TS7006: Parameter 'source' implicitly has an 'any' type.
+src/features/texte/alttext/AltTextGenerator.tsx(114,42): error TS7006: Parameter 'formData' implicitly has an 'any' type.
+src/features/texte/alttext/AltTextGenerator.tsx(135,47): error TS2339: Property 'name' does not exist on type 'never'.
+src/features/texte/alttext/AltTextGenerator.tsx(138,87): error TS2339: Property 'design' does not exist on type 'never'.
+src/features/texte/alttext/AltTextGenerator.tsx(140,61): error TS2339: Property 'title' does not exist on type 'never'.
+src/features/texte/alttext/AltTextGenerator.tsx(173,53): error TS7006: Parameter 'content' implicitly has an 'any' type.
+src/features/texte/alttext/AltTextGenerator.tsx(229,51): error TS2339: Property 'design' does not exist on type 'never'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(156,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'SetStateAction<string>'.
+  Type 'undefined' is not assignable to type 'SetStateAction<string>'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(202,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(218,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(219,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(220,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(221,16): error TS2322: Type 'string' is not assignable to type 'never'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(221,31): error TS2322: Type 'string' is not assignable to type 'never'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(222,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(383,7): error TS2322: Type 'null' is not assignable to type 'Control<any> | undefined'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(431,29): error TS18048: 'storeGeneratedText.sharepic.length' is possibly 'undefined'.
+src/features/texte/kampagnen/KampagnenGenerator.tsx(433,18): error TS18047: 'storeGeneratedText' is possibly 'null'.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(10,3): error TS7031: Binding element 'sharepics' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(11,3): error TS7031: Binding element 'activeIndex' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(12,3): error TS7031: Binding element 'onEditedLinesChange' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(13,3): error TS7031: Binding element 'regenerationError' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(14,3): error TS7031: Binding element 'onClearError' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(54,29): error TS7006: Parameter 'lineNumber' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(54,41): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(67,37): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(82,7): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ line1: string; line2: string; line3: string; line4: string; line5: string; customCredit: string; }'.
+  No index signature with a parameter of type 'string' was found on type '{ line1: string; line2: string; line3: string; line4: string; line5: string; customCredit: string; }'.
+src/features/texte/kampagnen/components/CampaignSharepicEditor.tsx(106,24): error TS7053: Element implicitly has an 'any' type because expression of type '`line${number}`' can't be used to index type '{ line1: string; line2: string; line3: string; line4: string; line5: string; customCredit: string; }'.
+src/features/texte/presse/PresseSocialGenerator.tsx(35,46): error TS2322: Type 'Promise<typeof import("/home/morit/gruenerator/apps/web/src/components/SharepicMasterEditorModal")>' is not assignable to type 'Promise<{ default: ComponentType<any>; }>'.
+  Property 'default' is missing in type 'typeof import("/home/morit/gruenerator/apps/web/src/components/SharepicMasterEditorModal")' but required in type '{ default: ComponentType<any>; }'.
+src/features/texte/presse/SharepicConfigPopup.tsx(13,3): error TS7031: Binding element 'isOpen' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(14,3): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(15,3): error TS7031: Binding element 'control' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(16,3): error TS7031: Binding element 'setValue' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(17,3): error TS7031: Binding element 'getValues' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(18,3): error TS7031: Binding element 'sharepicTypeOptions' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(19,3): error TS7031: Binding element 'watchSharepicType' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(20,3): error TS7031: Binding element 'uploadedImage' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(21,3): error TS7031: Binding element 'handleImageChange' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(22,3): error TS7031: Binding element 'loading' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(23,3): error TS7031: Binding element 'success' implicitly has an 'any' type.
+src/features/texte/presse/SharepicConfigPopup.tsx(79,55): error TS7006: Parameter 'option' implicitly has an 'any' type.
+src/features/texte/universal/BuergeranfragenForm.tsx(114,11): error TS2322: Type '(newValues: SelectOption[] | null) => void' is not assignable to type '(newValue: MultiValue<SelectOption>, actionMeta: ActionMeta<SelectOption>) => void'.
+  Types of parameters 'newValues' and 'newValue' are incompatible.
+    The type 'MultiValue<SelectOption>' is 'readonly' and cannot be assigned to the mutable type 'SelectOption[]'.
+src/features/texteditor/TextEditorPage.tsx(40,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texteditor/TextEditorPage.tsx(41,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texteditor/TextEditorPage.tsx(42,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texteditor/TextEditorPage.tsx(43,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texteditor/TextEditorPage.tsx(44,16): error TS2322: Type 'string' is not assignable to type 'never'.
+src/features/texteditor/TextEditorPage.tsx(45,5): error TS2322: Type 'string' is not assignable to type 'null | undefined'.
+src/features/texteditor/TextEditorPage.tsx(46,5): error TS2322: Type '{ content: string; tips: string[]; }' is not assignable to type 'null | undefined'.
+src/features/texteditor/TextEditorPage.tsx(68,49): error TS7006: Parameter 'urls' implicitly has an 'any' type.
+src/features/texteditor/TextEditorPage.tsx(74,42): error TS7006: Parameter 'rhfData' implicitly has an 'any' type.
+src/features/texteditor/TextEditorPage.tsx(116,53): error TS7006: Parameter 'content' implicitly has an 'any' type.
+src/features/texteditor/TextEditorPage.tsx(152,10): error TS2322: Type '{ children: Element; title: Element; onSubmit: () => Promise<void>; loading: boolean; success: boolean; error: string; generatedContent: string; onGeneratedContentChange: (content: any) => void; ... 25 more ...; formControl?: Control<...> | undefined; }' is not assignable to type 'BaseFormProps'.
+  Types of property 'platformOptions' are incompatible.
+    Type 'null | undefined' is not assignable to type 'PlatformOption[] | undefined'.
+      Type 'null' is not assignable to type 'PlatformOption[] | undefined'.
+src/features/website/WebsiteGenerator.tsx(37,42): error TS7006: Parameter 'formData' implicitly has an 'any' type.
+src/features/website/WebsiteGenerator.tsx(139,41): error TS7031: Binding element 'content' implicitly has an 'any' type.
+src/features/website/WebsiteGenerator.tsx(192,27): error TS7006: Parameter 'props' implicitly has an 'any' type.
+src/features/wolke/components/WolkeSetupModal.tsx(13,28): error TS7031: Binding element 'onClose' implicitly has an 'any' type.
+src/features/wolke/components/WolkeSetupModal.tsx(13,37): error TS7031: Binding element 'onSubmit' implicitly has an 'any' type.
+src/features/wolke/components/WolkeSetupModal.tsx(19,33): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/wolke/components/WolkeSetupModal.tsx(24,32): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'SetStateAction<string>'.
+  Type 'null' is not assignable to type 'SetStateAction<string>'.
+src/features/wolke/components/WolkeSetupModal.tsx(35,82): error TS18046: 'error' is of type 'unknown'.
+src/features/wolke/components/WolkeSetupModal.tsx(41,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/features/wolke/components/WolkeSetupModal.tsx(46,32): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hooks/useAutocomplete.ts(30,5): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/hooks/useAutocomplete.ts(52,42): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/hooks/useClickOutside.ts(9,26): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+src/hooks/useClickOutside.ts(15,33): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/hooks/useClickOutside.ts(16,39): error TS2339: Property 'contains' does not exist on type 'never'.
+src/hooks/useClickOutside.ts(21,30): error TS7006: Parameter 'event' implicitly has an 'any' type.
+src/hooks/useFormTips.ts(24,11): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{}'.
+  No index signature with a parameter of type 'string' was found on type '{}'.
+src/hooks/useFormTips.ts(25,26): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{}'.
+  No index signature with a parameter of type 'string' was found on type '{}'.
+src/hooks/useInteractiveGenerator.ts(36,36): error TS7031: Binding element 'inhalt' implicitly has an 'any' type.
+src/hooks/useInteractiveGenerator.ts(36,44): error TS7031: Binding element 'requestType' implicitly has an 'any' type.
+src/hooks/useInteractiveGenerator.ts(59,28): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useInteractiveGenerator.ts(59,59): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useInteractiveGenerator.ts(73,34): error TS7006: Parameter 'sessionId' implicitly has an 'any' type.
+src/hooks/useInteractiveGenerator.ts(73,45): error TS7006: Parameter 'answers' implicitly has an 'any' type.
+src/hooks/useInteractiveGenerator.ts(97,28): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useInteractiveGenerator.ts(97,59): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useInteractiveGenerator.ts(110,35): error TS7006: Parameter 'sessionId' implicitly has an 'any' type.
+src/hooks/useInteractiveGenerator.ts(122,28): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useInteractiveGenerator.ts(122,59): error TS18046: 'err' is of type 'unknown'.
+src/hooks/usePlatformAutoDetect.ts(33,3): error TS7031: Binding element 'content' implicitly has an 'any' type.
+src/hooks/usePlatformAutoDetect.ts(36,3): error TS7031: Binding element 'onPlatformsDetected' implicitly has an 'any' type.
+src/hooks/usePlatformAutoDetect.ts(62,83): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/hooks/usePlatformAutoDetect.ts(80,39): error TS7006: Parameter 'platformId' implicitly has an 'any' type.
+src/hooks/usePlatformAutoDetect.ts(84,35): error TS7006: Parameter 'platformId' implicitly has an 'any' type.
+src/hooks/useRecentValues.ts(80,47): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/hooks/useRecentValues.ts(94,16): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useRecentValues.ts(104,46): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/hooks/useRecentValues.ts(165,16): error TS18046: 'err' is of type 'unknown'.
+src/hooks/useRecentValues.ts(180,39): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/hooks/useRecentValues.ts(189,5): error TS2322: Type '(value: any, formName?: null) => Promise<void>' is not assignable to type '(value: string, formName?: string | null | undefined) => Promise<void>'.
+  Types of parameters 'formName' and 'formName' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'null | undefined'.
+      Type 'string' is not assignable to type 'null | undefined'.
+src/hooks/useSaveToLibrary.ts(20,44): error TS7006: Parameter 'content' implicitly has an 'any' type.
+src/hooks/useSaveToLibrary.ts(20,53): error TS7006: Parameter 'title' implicitly has an 'any' type.
+src/hooks/useSaveToLibrary.ts(23,16): error TS2345: Argument of type '"Kein Inhalt zum Speichern vorhanden."' is not assignable to parameter of type 'SetStateAction<null>'.
+src/hooks/useSaveToLibrary.ts(55,11): error TS18046: 'error' is of type 'unknown'.
+src/hooks/useSaveToLibrary.ts(56,24): error TS18046: 'error' is of type 'unknown'.
+src/hooks/useSaveToLibrary.ts(57,18): error TS18046: 'error' is of type 'unknown'.
+src/hooks/useSaveToLibrary.ts(58,24): error TS18046: 'error' is of type 'unknown'.
+src/hooks/useSaveToLibrary.ts(61,16): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/hooks/useScrollSync.ts(30,47): error TS7006: Parameter 'instruction' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(51,42): error TS7006: Parameter 'location' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(75,40): error TS7006: Parameter 'element' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(103,41): error TS7006: Parameter 'element' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(109,36): error TS2339: Property 'classList' does not exist on type 'never'.
+src/hooks/useScrollSync.ts(116,5): error TS2322: Type 'Timeout' is not assignable to type 'null'.
+src/hooks/useScrollSync.ts(122,42): error TS7006: Parameter 'instruction' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(141,45): error TS7006: Parameter 'beforeText' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(141,57): error TS7006: Parameter 'afterText' implicitly has an 'any' type.
+src/hooks/useScrollSync.ts(167,36): error TS2339: Property 'classList' does not exist on type 'never'.
+src/hooks/useSearchState.ts(19,5): error TS7031: Binding element 'onRemoteSearch' implicitly has an 'any' type.
+src/hooks/useSearchState.ts(20,5): error TS7031: Binding element 'onClearRemoteSearch' implicitly has an 'any' type.
+src/hooks/useSharepicGeneration.ts(175,29): error TS2339: Property 'split' does not exist on type '{}'.
+src/hooks/useSharepicGeneration.ts(180,38): error TS2345: Argument of type '{ type: any; data: {}; }' is not assignable to parameter of type 'SharepicAttachment'.
+  Types of property 'data' are incompatible.
+    Type '{}' is not assignable to type 'string'.
+src/hooks/useSwipeNavigation.ts(5,31): error TS7031: Binding element 'onSwipeLeft' implicitly has an 'any' type.
+src/hooks/useSwipeNavigation.ts(5,44): error TS7031: Binding element 'onSwipeRight' implicitly has an 'any' type.
+src/hooks/useSwipeNavigation.ts(11,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hooks/useSwipeNavigation.ts(19,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hooks/useSwipeNavigation.ts(27,42): error TS18047: 'touchStartY.current' is possibly 'null'.
+src/hooks/useTabIndex.ts(16,29): error TS7006: Parameter 'pageType' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(23,24): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ PRESS_SOCIAL: { thema: number; details: number; webSearch: number; privacyMode: number; attachment: number; platformSelector: number; knowledgeSourceSelector: number; knowledgeSelector: number; ... 4 more ...; submit: number; }; ... 12 more ...; HOME: { ...; }; }'.
+src/hooks/useTabIndex.ts(42,22): error TS7006: Parameter 'elementKey' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(42,34): error TS7006: Parameter 'isVisible' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(53,21): error TS7006: Parameter 'elementKey' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(62,11): error TS7006: Parameter 'elementKey' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(102,33): error TS7006: Parameter 'pageType' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(102,43): error TS7006: Parameter 'elementKeys' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(107,25): error TS7006: Parameter 'key' implicitly has an 'any' type.
+src/hooks/useTabIndex.ts(108,7): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{}'.
+src/hooks/useTabIndex.ts(127,37): error TS7006: Parameter 'pageType' implicitly has an 'any' type.
+src/hooks/useTabNavigation.ts(11,34): error TS7006: Parameter 'initialTab' implicitly has an 'any' type.
+src/hooks/useTabNavigation.ts(14,41): error TS7006: Parameter 'tabKey' implicitly has an 'any' type.
+src/hooks/useTabNavigation.ts(19,51): error TS2339: Property 'key' does not exist on type 'never'.
+src/hooks/useTabNavigation.ts(20,35): error TS2339: Property 'label' does not exist on type 'never'.
+src/hooks/useTabNavigation.ts(25,17): error TS2349: This expression is not callable.
+  Type 'never' has no call signatures.
+src/hooks/useTabNavigation.ts(30,46): error TS7006: Parameter 'tabKey' implicitly has an 'any' type.
+src/hooks/useTextAutocomplete.ts(95,34): error TS7006: Parameter 'searchTerm' implicitly has an 'any' type.
+src/hooks/useTextAutocomplete.ts(102,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hooks/useTextAutocomplete.ts(120,23): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/hooks/useTextAutocomplete.ts(134,23): error TS2345: Argument of type 'string' is not assignable to parameter of type 'SetStateAction<null>'.
+src/hooks/useTextAutocomplete.ts(154,44): error TS2339: Property 'selectionStart' does not exist on type 'never'.
+src/hooks/useTextAutocomplete.ts(164,65): error TS2339: Property 'length' does not exist on type 'never'.
+src/hooks/useTextAutocomplete.ts(165,28): error TS2339: Property 'setSelectionRange' does not exist on type 'never'.
+src/hooks/useTextAutocomplete.ts(166,28): error TS2339: Property 'focus' does not exist on type 'never'.
+src/hooks/useTextAutocomplete.ts(172,38): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hooks/useUserInstructions.ts(44,10): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ antrag: any; antragGliederung: any; social: any; universal: any; gruenejugend: any; rede: any; buergeranfragen: any; }'.
+  No index signature with a parameter of type 'string' was found on type '{ antrag: any; antragGliederung: any; social: any; universal: any; gruenejugend: any; rede: any; buergeranfragen: any; }'.
+src/index.tsx(9,25): error TS2345: Argument of type 'HTMLElement | null' is not assignable to parameter of type 'Container'.
+  Type 'null' is not assignable to type 'Container'.
+src/pages/MobileEditorPage.tsx(13,27): error TS2304: Cannot find name 'useState'.
+src/pages/MobileEditorPage.tsx(14,33): error TS2304: Cannot find name 'useState'.
+src/pages/MobileEditorPage.tsx(15,24): error TS2304: Cannot find name 'useAuthStore'.
+src/pages/MobileEditorPage.tsx(17,3): error TS2304: Cannot find name 'useEffect'.
+src/pages/MobileEditorPage.tsx(51,24): error TS2304: Cannot find name 'useCallback'.
+src/pages/MobileEditorPage.tsx(59,24): error TS2304: Cannot find name 'useCallback'.
+src/stores/canvasEditorStore.ts(381,41): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(384,51): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(387,41): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(390,48): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(396,45): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(399,44): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(402,51): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/canvasEditorStore.ts(411,5): error TS2554: Expected 0-1 arguments, but got 2.
+src/stores/chatStore.ts(439,53): error TS2345: Argument of type 'string | { content: string | undefined; sharepic: any; sharepicTitle: string | undefined; sharepicDownloadText: string | undefined; sharepicDownloadFilename: string | undefined; showEditButton: boolean; sharepicMeta: any; } | undefined' is not assignable to parameter of type 'StoredContent'.
+  Type 'undefined' is not assignable to type 'StoredContent'.
+src/stores/imageStudioStore.ts(151,68): error TS2322: Type '{ setCategory: (category: string | null, subcategory?: string | null | undefined) => void; setSubcategory: (subcategory: string | null) => void; setType: (type: string | null) => void; ... 137 more ...; aiGeneratedContent: boolean; }' is not assignable to type 'ImageStudioStore'.
+  Property 'setAllyPlacement' is missing in type '{ setCategory: (category: string | null, subcategory?: string | null | undefined) => void; setSubcategory: (subcategory: string | null) => void; setType: (type: string | null) => void; ... 137 more ...; aiGeneratedContent: boolean; }' but required in type 'ImageStudioActions'.
+src/stores/sharepicStore.ts(365,21): error TS18048: 'sharepicData.text' is possibly 'undefined'.
+src/stores/sharepicStore.ts(372,50): error TS18048: 'sharepicData.text' is possibly 'undefined'.
+src/stores/sharepicStore.ts(376,31): error TS18048: 'sharepicData.text' is possibly 'undefined'.
+src/stores/sharepicStore.ts(378,25): error TS18048: 'sharepicData.text' is possibly 'undefined'.
+src/stores/sharepicStore.ts(379,24): error TS18048: 'sharepicData.text' is possibly 'undefined'.
+src/stores/sharepicStore.ts(391,21): error TS18048: 'sharepicData.text' is possibly 'undefined'.
+src/stores/subtitlerExportStore.ts(376,29): error TS2345: Argument of type 'Subtitle[] | undefined' is not assignable to parameter of type 'Subtitle[]'.
+  Type 'undefined' is not assignable to type 'Subtitle[]'.
+src/stores/subtitlerExportStore.ts(385,22): error TS18047: 'response.body' is possibly 'null'.
+src/stores/subtitlerExportStore.ts(424,16): error TS18046: 'error' is of type 'unknown'.
+src/utils/campaignLoader.ts(70,5): error TS2322: Type 'Campaign | null | undefined' is not assignable to type 'Campaign | null'.
+  Type 'undefined' is not assignable to type 'Campaign | null'.
+src/utils/campaignLoader.ts(101,3): error TS2322: Type '(Campaign | null)[]' is not assignable to type 'Campaign[]'.
+  Type 'Campaign | null' is not assignable to type 'Campaign'.
+    Type 'null' is not assignable to type 'Campaign'.
+src/utils/campaignLoader.ts(103,22): error TS18047: 'a' is possibly 'null'.
+src/utils/campaignLoader.ts(103,39): error TS18047: 'b' is possibly 'null'.
+src/utils/canvaImageHelper.ts(224,3): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.

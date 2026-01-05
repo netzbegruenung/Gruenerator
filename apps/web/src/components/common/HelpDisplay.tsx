@@ -27,7 +27,7 @@ const HelpDisplay = ({ content,
   fallbackContent,
   fallbackTips,
   layout = 'default',
-  features = null }: HelpDisplayProps): JSX.Element | null => {
+  features = [] }: HelpDisplayProps): JSX.Element | null => {
   // Check if any generated text exists in the store
   const generatedTexts = useGeneratedTextStore(state => state.generatedTexts);
   const hasAnyGeneratedText = Object.values(generatedTexts).some(text => text && text.length > 0);
@@ -49,8 +49,8 @@ const HelpDisplay = ({ content,
   const showNewFeatureStyle = isNewFeature && !hasSeenFeature;
 
   const isHidden = forceHidden ||
-                   hasGeneratedContent ||
-                   hasAnyGeneratedText;
+    hasGeneratedContent ||
+    hasAnyGeneratedText;
 
   if (!displayContent || isHidden) {
     return null;
@@ -62,9 +62,9 @@ const HelpDisplay = ({ content,
 
   const featureItems = layout === 'cards'
     ? (features || displayTips?.map((tip, idx) => ({
-        title: `Tipp ${idx + 1}`,
-        description: typeof tip === 'string' ? tip : ''
-      })) || [])
+      title: `Tipp ${idx + 1}`,
+      description: typeof tip === 'string' ? tip : ''
+    })) || [])
     : [];
 
   useEffect(() => {
@@ -163,7 +163,7 @@ const HelpDisplay = ({ content,
                             <>
                               <strong>{prefix}</strong>
                               {description}
-                              <ul style={{marginTop: '4px'}}>
+                              <ul style={{ marginTop: '4px' }}>
                                 {formatItems.map((format, idx) => (
                                   <li key={idx}>{format}</li>
                                 ))}

@@ -3,6 +3,17 @@ import { motion } from 'motion/react';
 import Icon from '../common/Icon';
 import { BasePopup, PopupSlider } from '../common/Popup';
 
+interface Slide {
+  id: number;
+  title: string;
+  subtitle: string;
+  content: string;
+  icon: string;
+  iconCategory?: string;
+  gradient: string;
+  isStartScreen?: boolean;
+}
+
 const IMAGINE_UPDATE_CONFIG = {
   storageKey: 'imagineUpdateShown2025',
   slides: [
@@ -78,10 +89,16 @@ const IMAGINE_UPDATE_CONFIG = {
       iconCategory: 'ui',
       gradient: 'gradient-neutral',
     },
-  ],
+  ] as Slide[],
 };
 
-const StartScreenSlide = ({ slide, isMobile, onNext }) => (
+interface StartScreenSlideProps {
+  slide: Slide;
+  isMobile: boolean;
+  onNext: () => void;
+}
+
+const StartScreenSlide = ({ slide, isMobile, onNext }: StartScreenSlideProps) => (
   <>
     <div className="popup-particles">
       {[...Array(isMobile ? 8 : 20)].map((_, i) => (
@@ -176,7 +193,12 @@ const StartScreenSlide = ({ slide, isMobile, onNext }) => (
   </>
 );
 
-const ContentSlide = ({ slide, isMobile }) => (
+interface ContentSlideProps {
+  slide: Slide;
+  isMobile: boolean;
+}
+
+const ContentSlide = ({ slide, isMobile }: ContentSlideProps) => (
   <div className="popup-slide-content">
     <motion.div
       className="popup-slide-text"
@@ -252,7 +274,13 @@ const ImagineUpdatePopup = () => {
     window.open('/', '_self');
   };
 
-  const renderSlide = ({ slide, isMobile: isMobileView, onNext }) => (
+  interface RenderSlideProps {
+    slide: Slide;
+    isMobile: boolean;
+    onNext: () => void;
+  }
+
+  const renderSlide = ({ slide, isMobile: isMobileView, onNext }: RenderSlideProps) => (
     <div className={`popup-slide ${slide.gradient} ${slide.isStartScreen ? 'start-screen' : ''}`}>
       {slide.isStartScreen ? (
         <StartScreenSlide slide={slide} isMobile={isMobileView} onNext={onNext} />
@@ -274,7 +302,12 @@ const ImagineUpdatePopup = () => {
     </div>
   );
 
-  const renderFooter = ({ isLastSlide, onClose }) => {
+  interface RenderFooterProps {
+    isLastSlide: boolean;
+    onClose: () => void;
+  }
+
+  const renderFooter = ({ isLastSlide, onClose }: RenderFooterProps) => {
     if (!isLastSlide) return null;
 
     return (
@@ -305,7 +338,7 @@ const ImagineUpdatePopup = () => {
         <PopupSlider
           slides={IMAGINE_UPDATE_CONFIG.slides}
           onClose={onClose}
-          renderSlide={(props) => renderSlide({ ...props, isMobile })}
+          renderSlide={(props: any) => renderSlide({ ...props, isMobile })}
           renderFooter={renderFooter}
         />
       )}

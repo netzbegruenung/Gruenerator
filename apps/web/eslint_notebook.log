@@ -1,0 +1,13 @@
+npm warn Unknown project config "node-linker". This will stop working in the next major version of npm.
+Warning: React version not specified in eslint-plugin-react settings. See https://github.com/jsx-eslint/eslint-plugin-react#configuration .
+
+/home/morit/gruenerator/apps/web/src/features/notebook/stores/notebookStore.js
+  265:38  error  '_' is assigned a value but never used  no-unused-vars
+  290:34  error  '_' is assigned a value but never used  no-unused-vars
+  306:34  error  '_' is assigned a value but never used  no-unused-vars
+  333:38  error  '_' is assigned a value but never used  no-unused-vars
+
+✖ 4 problems (4 errors, 0 warnings)
+
+(node:80089) ESLintRCWarning: You are using an eslintrc configuration file, which is deprecated and support will be removed in v10.0.0. Please migrate to an eslint.config.js file. See https://eslint.org/docs/latest/use/configure/migration-guide for details. An eslintrc configuration file is used because you have the ESLINT_USE_FLAT_CONFIG environment variable set to false. If you want to use an eslint.config.js file, remove the environment variable. If you want to find the location of the eslintrc configuration file, use the --debug flag.
+(Use `node --trace-warnings ...` to show where the warning was created)

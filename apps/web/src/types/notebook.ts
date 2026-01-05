@@ -14,12 +14,16 @@ export interface NotebookCollection {
   is_public: boolean;
   public_url_token?: string | null;
   view_count: number;
+  last_accessed?: string;
+  auto_sync?: boolean;
+  remove_missing_on_sync?: boolean;
   created_at: string;
   updated_at: string;
   document_count?: number;
-  documents?: string[];
-  wolke_share_links?: string[];
+  documents?: any[];
+  wolke_share_links?: any[];
   selection_mode?: 'documents' | 'wolke' | 'mixed';
+  [key: string]: any;
 }
 
 /**

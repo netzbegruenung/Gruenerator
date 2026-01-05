@@ -5,7 +5,9 @@ import '../../../assets/styles/components/ui/image-slider.css';
 // Lazy load react-image-gallery and its styles
 const loadImageGallery = async () => {
   const [galleryModule, styleSheet] = await Promise.all([
+    // @ts-ignore - react-image-gallery types are missing
     import('react-image-gallery'),
+    // @ts-ignore - CSS import
     import('react-image-gallery/styles/css/image-gallery.css')
   ]);
 
@@ -32,9 +34,9 @@ const ImageSlider = ({ images,
   className = '',
   showControls = true }: ImageSliderProps): JSX.Element => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [ImageGallery, setImageGallery] = useState(null);
+  const [ImageGallery, setImageGallery] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState(null);
+  const [loadError, setLoadError] = useState<any>(null);
 
   // Load image gallery component when needed
   const handleLoadGallery = useCallback(async () => {
@@ -64,7 +66,7 @@ const ImageSlider = ({ images,
     originalAlt: img.alt
   }));
 
-  const handleClick = (event) => {
+  const handleClick = (event: any) => {
     // Nur wenn direkt auf das Bild geklickt wurde (nicht auf die Navigationspfeile)
     if (event.target.classList.contains('image-gallery-image')) {
       setIsFullscreen(true);
@@ -126,23 +128,25 @@ const ImageSlider = ({ images,
   // Render the loaded image gallery
   return (
     <div className={`image-slider ${className}`}>
-      <ImageGallery
-        items={galleryImages}
-        showThumbnails={false}
-        showFullscreenButton={false}
-        showPlayButton={false}
-        showBullets={galleryImages.length > 1}
-        showNav={showControls && galleryImages.length > 1}
-        onClick={handleClick}
-        onImageLoad={onLoad}
-        onImageError={onError}
-        lazyLoad={true}
-        slideDuration={300}
-        additionalClass="template-gallery-slider"
-        isFullscreen={isFullscreen}
-        onScreenChange={setIsFullscreen}
-        useBrowserFullscreen={false}
-      />
+      {ImageGallery && (
+        <ImageGallery
+          items={galleryImages}
+          showThumbnails={false}
+          showFullscreenButton={false}
+          showPlayButton={false}
+          showBullets={galleryImages.length > 1}
+          showNav={showControls && galleryImages.length > 1}
+          onClick={handleClick}
+          onImageLoad={onLoad}
+          onImageError={onError}
+          lazyLoad={true}
+          slideDuration={300}
+          additionalClass="template-gallery-slider"
+          isFullscreen={isFullscreen}
+          onScreenChange={setIsFullscreen}
+          useBrowserFullscreen={false}
+        />
+      )}
     </div>
   );
 };

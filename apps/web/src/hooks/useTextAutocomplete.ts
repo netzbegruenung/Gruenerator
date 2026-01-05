@@ -77,12 +77,12 @@ export function useTextAutocomplete(value: string, setValue: (value: string) => 
     addHashtagOnAccept = true
   } = options;
 
-  const [suggestion, setSuggestion] = useState(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [suggestionSuffix, setSuggestionSuffix] = useState('');
   const [searchStart, setSearchStart] = useState(-1);
   const [ghostPrefix, setGhostPrefix] = useState('');
   const [hasHashtag, setHasHashtag] = useState(true);
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const clearSuggestion = useCallback(() => {
     setSuggestion(null);
@@ -92,14 +92,14 @@ export function useTextAutocomplete(value: string, setValue: (value: string) => 
     setHasHashtag(true);
   }, []);
 
-  const findMatch = useCallback((searchTerm) => {
+  const findMatch = useCallback((searchTerm: string) => {
     const termLower = searchTerm.toLowerCase();
     return dictionary.find(word =>
       word.toLowerCase().startsWith(termLower) && word.toLowerCase() !== termLower
     );
   }, [dictionary]);
 
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart;
     setValue(newValue);
@@ -169,7 +169,7 @@ export function useTextAutocomplete(value: string, setValue: (value: string) => 
     return true;
   }, [value, suggestion, searchStart, setValue, clearSuggestion, addHashtagOnAccept]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!suggestion) return;
 
     if (e.key === 'Tab') {

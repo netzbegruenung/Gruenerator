@@ -37,7 +37,7 @@ const SubmitButton = ({ onClick,
   iconOnly = false,
   disabled }: SubmitButtonProps): JSX.Element => {
   const [internalSuccess, setInternalSuccess] = useState(false);
-  const timerRef = useRef(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (success && !internalSuccess) {
@@ -57,14 +57,14 @@ const SubmitButton = ({ onClick,
     };
   }, [success, internalSuccess]);
 
-  const handleClick = (event) => {
+  const handleClick = (event: React.MouseEvent) => {
     if (!loading && onClick) {
-      const activeElement = document.activeElement;
+      const activeElement = document.activeElement as HTMLElement | null;
 
       if (activeElement && (
         activeElement.closest('.react-select') ||
         activeElement.closest('.react-select__input') ||
-        activeElement.className?.includes('react-select')
+        (typeof activeElement.className === 'string' && activeElement.className.includes('react-select'))
       )) {
         return;
       }

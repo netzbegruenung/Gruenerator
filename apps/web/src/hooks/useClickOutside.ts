@@ -1,24 +1,18 @@
 import { useEffect, useRef } from 'react';
 
-/**
- * Hook to handle clicks outside of a referenced element
- * @param {Function} callback - Function to call when clicking outside
- * @param {boolean} isActive - Whether the hook should be active (default: true)
- * @returns {Object} ref - Ref to attach to the element you want to detect outside clicks for
- */
-const useClickOutside = (callback, isActive = true) => {
-  const ref = useRef(null);
+const useClickOutside = <T extends HTMLElement = HTMLElement>(callback: () => void, isActive = true) => {
+  const ref = useRef<T>(null);
 
   useEffect(() => {
     if (!isActive) return;
 
-    const handleClickOutside = (event) => {
-      if (ref.current && !ref.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
         callback();
       }
     };
 
-    const handleEscapeKey = (event) => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         callback();
       }

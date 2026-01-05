@@ -1,7 +1,12 @@
 import '../../assets/styles/components/popups/help.css';
 
-const EditorMaintenancePopup = ({ isVisible, onClose }) => {
-  const handleOverlayClick = (e) => {
+interface EditorMaintenancePopupProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+const EditorMaintenancePopup = ({ isVisible, onClose }: EditorMaintenancePopupProps) => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && window.innerWidth <= 768) {
       onClose();
     }

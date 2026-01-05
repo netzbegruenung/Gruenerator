@@ -5,7 +5,7 @@
  * Used by MCP server, API, and other services.
  */
 
-import type { CollectionConfig, CollectionConfigMap, CollectionKey } from './types.ts';
+import type { CollectionConfig, CollectionConfigMap, CollectionKey } from './types.js';
 
 /**
  * All available Qdrant collections for Green Party content

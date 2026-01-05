@@ -4,13 +4,21 @@ import { HiX } from 'react-icons/hi';
 import { useTagAutocomplete } from '../TemplateModal';
 import '../TemplateModal/template-modal.css';
 
+interface EditTemplateModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess?: () => void;
+    onSave: (id: string, data: any) => Promise<void>;
+    template: any;
+}
+
 const EditTemplateModal = ({
     isOpen,
     onClose,
     onSuccess,
     onSave,
     template
-}) => {
+}: EditTemplateModalProps) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [externalUrl, setExternalUrl] = useState('');
@@ -18,7 +26,7 @@ const EditTemplateModal = ({
     const [isPrivate, setIsPrivate] = useState(false);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitError, setSubmitError] = useState(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const tagAutocomplete = useTagAutocomplete(description, setDescription);
 
@@ -60,20 +68,20 @@ const EditTemplateModal = ({
 
             onSuccess?.();
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             setSubmitError(error.message || 'Fehler beim Speichern der Vorlage');
         } finally {
             setIsSubmitting(false);
         }
     }, [template, title, description, externalUrl, isPrivate, onSave, onSuccess, onClose]);
 
-    const handleBackdropClick = useCallback((e) => {
+    const handleBackdropClick = useCallback((e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             onClose();
         }
     }, [onClose]);
 
-    const handleKeyDown = useCallback((e) => {
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Escape') {
             onClose();
         }
@@ -114,7 +122,7 @@ const EditTemplateModal = ({
                             <img
                                 src={thumbnailUrl}
                                 alt="Vorschau"
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
                         </div>
                     )}

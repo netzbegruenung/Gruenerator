@@ -77,7 +77,11 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const isEditable = image.imageMetadata?.sharepicType && image.imageMetadata?.hasOriginalImage;
+  // Allow editing if we have sharepicType and either original image OR content data
+  const isEditable = image.imageMetadata?.sharepicType && (
+    image.imageMetadata?.hasOriginalImage ||
+    (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0)
+  );
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -270,6 +274,7 @@ const ImageGallery = () => {
   const handleEdit = useCallback((image: GalleryImage) => {
     const metadata = image.imageMetadata || {};
     const sharepicType = metadata.sharepicType;
+    console.log('[ImageGallery] handleEdit called with:', { shareToken: image.shareToken, metadata, sharepicType });
 
     if (!sharepicType) {
       console.warn('Cannot edit: no sharepicType in metadata');
@@ -297,7 +302,7 @@ const ImageGallery = () => {
       state: {
         galleryEditMode: true,
         shareToken: image.shareToken,
-        content: metadata.content || {},
+        content: { ...metadata.content, sharepicType },
         styling: metadata.styling || {},
         originalImageUrl: `${baseURL}/share/${image.shareToken}/original`,
         title: image.title,
@@ -422,7 +427,7 @@ const ImageGallery = () => {
           image: null,
           type: selectedImage.imageType,
           metadata: selectedImage.imageMetadata || {}
-        } : null}
+        } : undefined}
         defaultTitle={selectedImage?.title || ''}
       />
     </div>
