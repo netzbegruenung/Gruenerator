@@ -35,11 +35,6 @@ export function CanvasEditorLayout({
           {children}
         </div>
       </div>
-      <div className="canvas-editor-layout__footer">
-        <div className="canvas-editor-layout__actions">
-          {actions}
-        </div>
-      </div>
     </div>
   );
 }

@@ -50,13 +50,13 @@ interface DisplaySectionProps {
   onReset?: () => void;
   renderEmptyState?: () => ReactNode;
   customEditContent?: ReactNode;
-  customRenderer?: (props: {
+  customRenderer?: ((props: {
     content: unknown;
     generatedContent: unknown;
     componentName: string;
     helpContent?: HelpContent | null;
     onEditModeToggle?: () => void;
-  }) => ReactNode;
+  }) => ReactNode) | null;
   customExportOptions?: CustomExportOption[];
   hideDefaultExportOptions?: boolean;
   isStartMode?: boolean;
@@ -211,12 +211,12 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
 
   const actionsNode = hasRenderableContent
     ? (renderActions
-        ? renderActions(actionButtons)
-        : (
-            <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
-              {actionButtons}
-            </div>
-          ))
+      ? renderActions(actionButtons)
+      : (
+        <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
+          {actionButtons}
+        </div>
+      ))
     : null;
 
   return (

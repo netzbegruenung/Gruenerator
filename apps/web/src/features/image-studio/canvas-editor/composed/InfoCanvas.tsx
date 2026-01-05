@@ -36,6 +36,7 @@ export interface InfoCanvasProps {
   body: string;
   alternatives?: Array<{ header?: string; subheader?: string; body?: string }>;
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
   onCancel: () => void;
   onHeaderChange?: (header: string) => void;
   onSubheaderChange?: (subheader: string) => void;
@@ -50,6 +51,7 @@ export function InfoCanvas({
   body: initialBody,
   alternatives = [],
   onExport,
+  onSave,
   onCancel,
   onHeaderChange,
   onSubheaderChange,
@@ -68,8 +70,9 @@ export function InfoCanvas({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport });
+  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport, onSave });
 
   const snapGuides = useSnapGuides();
   const snapLines = useSnapLines();
@@ -115,8 +118,8 @@ export function InfoCanvas({
   const layout = useMemo(() => calculateInfoLayout(headerFontSize, bodyFontSize), [headerFontSize, bodyFontSize]);
   const fontColor = TEXT_COLORS[backgroundColor] || '#ffffff';
   const backgroundImageSrc = BACKGROUND_IMAGES[backgroundColor];
-  const [bgImage] = useImage(backgroundImageSrc);
-  const [arrowImage] = useImage(config.arrow.src);
+  const [bgImage] = useImage(backgroundImageSrc, 'anonymous');
+  const [arrowImage] = useImage(config.arrow.src, 'anonymous');
 
   const headerLineHeight = headerFontSize * config.header.lineHeightRatio;
   const estimatedHeaderHeight = headerLineHeight * 3;
@@ -207,18 +210,14 @@ export function InfoCanvas({
     nameFontSize: customBodyFontSize ?? config.body.fontSize,
     onQuoteFontSizeChange: handleHeaderFontSizeChange,
     onNameFontSizeChange: handleBodyFontSizeChange,
+    onExport: handleExport,
   });
 
   return (
     <CanvasEditorLayout
       sidebar={panel}
       tabBar={tabBar}
-      actions={
-        <>
-          <button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
-          <button className="btn btn-primary" onClick={handleExport}>Fertig</button>
-        </>
-      }
+      actions={null}
     >
       <div className="info-canvas-wrapper">
         <CanvasStage ref={stageRef} width={config.canvas.width} height={config.canvas.height} responsive maxContainerWidth={900} onStageClick={handleStageClick} className="info-stage">

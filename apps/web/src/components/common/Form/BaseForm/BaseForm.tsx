@@ -69,7 +69,9 @@ const getBaseContainerClasses = ({ title, generatedContent, isFormVisible, isEdi
   const classes = [
     'base-container',
     generatedContent && (
-      typeof generatedContent === 'string' ? generatedContent.length > 0 : generatedContent?.content?.length > 0
+      typeof generatedContent === 'string'
+        ? generatedContent.length > 0
+        : (generatedContent as any).content?.length > 0 || (generatedContent as any).sharepic
     ) ? 'has-generated-content' : '',
     isEditModeActive ? 'edit-mode-active' : '',
     isStartMode ? 'base-container--start-mode' : ''
@@ -200,8 +202,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   const baseFormRef = useRef(null);
   const formSectionRef = useRef(null);
   const displaySectionRef = useRef(null);
-  const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState(null);
-  const editSubmitHandlerRef = useRef(null);
+  const [inlineHelpContentOverride, setInlineHelpContentOverride] = useState<HelpContent | null>(null);
+  const editSubmitHandlerRef = useRef<(() => void | Promise<void>) | null>(null);
 
   // Batched store selectors using useShallow for optimal performance
   // This reduces subscriptions from 24 to 3, preventing cascade re-renders
@@ -597,7 +599,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }, [generatedContent, setGeneratedText, componentName]);
 
   // Function to get exportable content
-  const getExportableContentCallback = useCallback((content: GeneratedContent | string | null) => {
+  const getExportableContentCallback = useCallback((content: any) => {
     return getExportableContent(content, value);
   }, [value]);
 
@@ -840,7 +842,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
 
   return (
     <>
-      { headerContent }
+      {headerContent}
       <motion.div
         /* layout */
         transition={{ duration: 0.25, ease: "easeOut" }}

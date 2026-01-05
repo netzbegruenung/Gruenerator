@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion } from "motion/react";
 import { HiInformationCircle } from 'react-icons/hi';
-import type { UseQueryResult } from '@tanstack/react-query';
+import { UseQueryResult } from '@tanstack/react-query';
 
 // Common components
 import Spinner from '../../../../../../../components/common/Spinner';
@@ -18,7 +18,7 @@ import { useRovingTabindex } from '../../../../../../../hooks/useKeyboardNavigat
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 
 // Utils
-import { handleError, type ErrorState, type SetErrorFn } from '../../../../../../../components/utils/errorHandling';
+import { handleError, ErrorState, SetErrorFn } from '../../../../../../../components/utils/errorHandling';
 
 // Adapter to convert string-based error handler to SetErrorFn
 const createErrorAdapter = (onErrorMessage: (message: string) => void): SetErrorFn => {
@@ -146,7 +146,7 @@ const NotebooksSection = ({
                 <p>Deine Notebooks konnten nicht geladen werden.</p>
                 <p><i>{qaError.message || 'Bitte versuche es später erneut.'}</i></p>
                 <button
-                    onClick={() => qaQuery?.refetch()}
+                    onClick={() => qaQuery?.refetch?.()}
                     className="profile-action-button profile-secondary-button"
                 >
                     Erneut versuchen

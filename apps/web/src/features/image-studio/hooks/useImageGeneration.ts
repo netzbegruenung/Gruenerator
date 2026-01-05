@@ -40,8 +40,6 @@ interface TemplateImageFormData {
   locationName?: string;
   address?: string;
   veranstaltungFieldFontSizes?: Record<string, number>;
-  description?: string;
-  mood?: string;
   headline?: string;
   subtext?: string;
   headlineFontSize?: number;
@@ -109,7 +107,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
   const veranstaltungSubmit = useApiSubmit('veranstaltung_claude');
   const simpleSubmit = useApiSubmit('simple_claude');
-  const text2SharepicSubmit = useApiSubmit('sharepic/text2sharepic/generate-ai');
 
   const generateText = useCallback(async (type: string, formData: TextFormData): Promise<TextGenerationResult | null> => {
     const config = getTypeConfig(type);
@@ -163,14 +160,16 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
       const response = await submitFn(dataToSend);
 
       if (isSimpleType) {
-        if (!response || !response.headline) {
+        const mainSimple = response.mainSimple || response;
+        if (!mainSimple || !mainSimple.headline) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
-        return {
-          headline: response.headline,
-          subtext: response.subtext || '',
+        const result = {
+          headline: mainSimple.headline,
+          subtext: mainSimple.subtext || '',
           alternatives: response.alternatives || []
         };
+        return result;
       } else if (isQuoteType) {
         if (!response || !response.quote) {
           throw new Error('Unerwartete Antwortstruktur von der API');
@@ -332,21 +331,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   const generateTemplateImage = useCallback(async (type: string, formData: TemplateImageFormData): Promise<string> => {
     const config = getTypeConfig(type);
 
-    if (type === IMAGE_STUDIO_TYPES.TEXT2SHAREPIC) {
-      const requestData = {
-        description: formData.description,
-        mood: formData.mood || undefined
-      };
-
-      const response = await text2SharepicSubmit.submitForm(requestData);
-
-      if (!response || !response.image) {
-        throw new Error('Keine Bilddaten empfangen');
-      }
-
-      return response.image;
-    }
-
     const formDataToSend = new FormData();
     const needsImageUpload = config?.requiresImage;
 
@@ -449,7 +433,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     });
 
     return response.data.image;
-  }, [text2SharepicSubmit]);
+  }, []);
 
   const generateKiImage = useCallback(async (type: string, formData: KiImageFormData): Promise<string> => {
     const config = getTypeConfig(type);
@@ -495,8 +479,8 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     }
 
     if (type === IMAGE_STUDIO_TYPES.GREEN_EDIT ||
-        type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
-        type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT) {
+      type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
+      type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT) {
 
       const imageToUse = formData.uploadedImage;
       if (!imageToUse) {
@@ -556,8 +540,8 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           return 'Bitte gib eine Beschreibung ein';
         }
       } else if (type === IMAGE_STUDIO_TYPES.GREEN_EDIT ||
-                 type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
-                 type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT) {
+        type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
+        type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT) {
         if (!kiData.uploadedImage) {
           return 'Bitte lade zuerst ein Bild hoch';
         }

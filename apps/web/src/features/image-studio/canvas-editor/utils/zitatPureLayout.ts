@@ -3,6 +3,7 @@
  * Exact values extracted from apps/api/routes/sharepic/sharepic_canvas/zitat_pure_canvas.ts
  * to ensure 1:1 visual match between frontend and backend rendering
  */
+import { wrapText } from './textUtils';
 
 export const ZITAT_PURE_CONFIG = {
   canvas: {
@@ -71,31 +72,7 @@ export interface LayoutResult {
   quoteLines: string[];
 }
 
-export function wrapText(
-  text: string,
-  maxWidth: number,
-  fontSize: number,
-  charWidthRatio = 0.5
-): string[] {
-  const charWidth = fontSize * charWidthRatio;
-  const maxCharsPerLine = Math.floor(maxWidth / charWidth);
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
 
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (testLine.length <= maxCharsPerLine) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-
-  return lines;
-}
 
 export function calculateDynamicFontSize(
   text: string,
@@ -169,9 +146,9 @@ export function calculateZitatPureLayout(quoteText: string): LayoutResult {
   const authorFontSize =
     quoteLines.length <= config.dynamicScaling.lineThreshold
       ? Math.min(
-          config.author.fontSize * config.dynamicScaling.scaleFactor,
-          config.dynamicScaling.maxAuthorFont
-        )
+        config.author.fontSize * config.dynamicScaling.scaleFactor,
+        config.dynamicScaling.maxAuthorFont
+      )
       : config.author.fontSize;
 
   return calculateVerticalLayout(quoteText, quoteFontSize, authorFontSize);

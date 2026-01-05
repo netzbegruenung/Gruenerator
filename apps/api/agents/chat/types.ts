@@ -68,6 +68,8 @@ export interface ChatContext {
   lastAgent?: string;
   /** Current topic of conversation */
   topic?: string;
+  /** When true, AI returns only the single best intent (used by Image Studio) */
+  singleIntentOnly?: boolean;
 }
 
 /**

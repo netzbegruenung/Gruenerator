@@ -163,7 +163,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
         : currentValues === bestMatch.value;
 
       if (!alreadySelected) {
-        setPendingAutoSelect(bestMatch.value);
+        setPendingAutoSelect(bestMatch.value || null);
 
         autoSelectTimeoutRef.current = setTimeout(() => {
           if (isMulti) {
@@ -217,8 +217,8 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     const selectRef = useRef<any>(null);
     const selectedValue = isMulti
       ? (value ? value.map((val: any) =>
-          selectOptions.find(option => option.value === val)
-        ).filter(Boolean) : [])
+        selectOptions.find(option => option.value === val)
+      ).filter(Boolean) : [])
       : (value ? selectOptions.find(option => option.value === value) : null);
 
     return (
@@ -327,8 +327,8 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
             isDisabled={disabled}
             value={isMulti
               ? (field.value ? field.value.map((val: any) =>
-                  selectOptions.find(option => option.value === val)
-                ).filter(Boolean) : [])
+                selectOptions.find(option => option.value === val)
+              ).filter(Boolean) : [])
               : (field.value ? selectOptions.find(option => option.value === field.value) : null)
             }
             onChange={(selectedOptions: any) => {

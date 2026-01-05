@@ -17,8 +17,8 @@ const FilterPopover = ({ isOpen,
   children,
   anchorRef,
   title = "Filter",
-  className = "" }: FilterPopoverProps): JSX.Element => {
-  const popoverRef = useClickOutside(onClose, isOpen);
+  className = "" }: FilterPopoverProps): JSX.Element | null => {
+  const popoverRef = useClickOutside<HTMLDivElement>(onClose, isOpen);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   // Calculate position based on anchor element

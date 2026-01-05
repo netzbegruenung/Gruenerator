@@ -1,5 +1,5 @@
-export { useCanvasLayers } from './useCanvasLayers';
-export type { UseCanvasLayersOptions, UseCanvasLayersReturn } from './useCanvasLayers';
+export { useCanvasLayers } from './useCanvasLayers.js';
+export type { UseCanvasLayersOptions, UseCanvasLayersReturn } from './useCanvasLayers.js';
 
-export { useCanvasHistory } from './useCanvasHistory';
-export type { UseCanvasHistoryOptions, UseCanvasHistoryReturn } from './useCanvasHistory';
+export { useCanvasHistory } from './useCanvasHistory.js';
+export type { UseCanvasHistoryOptions, UseCanvasHistoryReturn } from './useCanvasHistory.js';

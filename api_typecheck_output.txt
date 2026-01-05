@@ -1,0 +1,15 @@
+
+> @gruenerator/api@1.0.0 typecheck /home/morit/gruenerator/apps/api
+> tsc --noEmit
+
+../../packages/shared/src/canvas-editor/index.ts(1,15): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './types.js'?
+../../packages/shared/src/canvas-editor/index.ts(2,15): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './hooks/index.js'?
+../../packages/shared/src/search/collections/index.ts(14,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './types.js'?
+../../packages/shared/src/search/collections/index.ts(25,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './config.js'?
+../../packages/shared/src/search/filters/index.ts(17,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './types.js'?
+../../packages/shared/src/search/filters/index.ts(30,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './QdrantFilterBuilder.js'?
+../../packages/shared/src/utils/index.ts(10,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './textNormalization.js'?
+../../packages/shared/src/utils/index.ts(18,8): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './stringDistance.js'?
+/home/morit/gruenerator/apps/api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @gruenerator/api@1.0.0 typecheck: `tsc --noEmit`
+Exit status 2

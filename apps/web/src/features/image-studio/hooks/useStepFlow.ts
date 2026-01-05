@@ -2,9 +2,11 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { usePreloadStore } from './usePreloadStore';
 import { useImageGeneration } from './useImageGeneration';
-import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS } from '../utils/typeConfig';
+import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS, TypeConfig } from '../utils/typeConfig';
 import apiClient from '../../../components/utils/apiClient';
 import { removeBackground } from '../../../services/backgroundRemoval';
+
+// ... (interfaces)
 
 interface FlowStep {
   id: string;
@@ -15,13 +17,13 @@ interface FlowStep {
     subtitle?: string;
     helpText?: string;
   };
-  stepTitle: string;
+  stepTitle: string | null;
   stepSubtitle: string | null;
   afterComplete: string | null;
 }
 
 interface BgRemovalProgress {
-  phase: string;
+  phase: 'downloading' | 'processing' | 'compressing';
   progress: number;
   message: string;
 }
@@ -51,12 +53,14 @@ interface UseStepFlowReturn {
   error: string;
   bgRemovalProgress: BgRemovalProgress | null;
   transparentImage: string | null;
+  typeConfig: TypeConfig | null;
   goNext: () => Promise<boolean>;
   goBack: () => boolean;
   reset: () => void;
   getFieldValue: (fieldName: string) => string;
   setError: (error: string) => void;
   handleCanvasExport: (dataUrl: string) => void;
+  handleCanvasSave: (dataUrl: string) => void;
   goBackToCanvas: () => void;
 }
 
@@ -112,8 +116,8 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
   const { generateText, generateImage, loading, error, setError } = useImageGeneration();
 
-  const typeConfig = useMemo(() => getTypeConfig(type), [type]);
-  const fieldConfig = useMemo(() => getTemplateFieldConfig(type), [type]);
+  const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
+  const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
 
   const flowSteps = useMemo((): FlowStep[] => {
     if (!fieldConfig) return [];
@@ -241,8 +245,8 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {
-        const mappedData = fieldConfig.responseMapping(result);
-        updateFormData(mappedData);
+        const mappedData = fieldConfig.responseMapping(result as any);
+        updateFormData(mappedData as any);
         setSloganAlternatives(result.alternatives || []);
       }
       return true;
@@ -266,7 +270,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         name,
         header, subheader, body,
         headline, subtext,
-        uploadedImage: uploadedImage || selectedImage,
+        uploadedImage: (uploadedImage || selectedImage) as any,
         fontSize,
         colorScheme,
         balkenOffset,
@@ -370,6 +374,12 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     setCurrentStep(FORM_STEPS.RESULT);
   }, [setGeneratedImage, setCurrentStep]);
 
+  const handleCanvasSave = useCallback((dataUrl: string) => {
+    // Just update the image, don't change step
+    // This triggers useTemplateResultAutoSave or useTemplateResultActions logic
+    setGeneratedImage(dataUrl);
+  }, [setGeneratedImage]);
+
   const goBackToCanvas = useCallback(() => {
     setCurrentStep(FORM_STEPS.CANVAS_EDIT);
   }, [setCurrentStep]);
@@ -409,8 +419,8 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         const formData = { thema, name };
         const result = await generateText(type!, formData);
         if (result && fieldConfig?.responseMapping) {
-          const mappedData = fieldConfig.responseMapping(result);
-          updateFormData(mappedData);
+          const mappedData = fieldConfig.responseMapping(result as any);
+          updateFormData(mappedData as any);
           setSloganAlternatives(result.alternatives || []);
         }
         setSlogansReady(true);
@@ -419,7 +429,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
       const imageResult = await imagePromise;
       if (imageResult) {
-        setPreloadedImageResult(imageResult);
+        setPreloadedImageResult(imageResult as any);
       }
 
       textPromise.catch(err => {
@@ -528,6 +538,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     getFieldValue,
     setError,
     handleCanvasExport,
+    handleCanvasSave,
     goBackToCanvas
   };
 };

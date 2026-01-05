@@ -8,23 +8,23 @@ export function AssetsSection({
 }: AssetsSectionProps) {
   return (
     <div className="sidebar-section sidebar-section--assets">
-      <div className="assets-grid">
+      <div className="sidebar-card-grid">
         {assets.map((asset) => (
           <button
             key={asset.id}
-            className={`asset-card ${asset.visible ? 'asset-card--active' : 'asset-card--inactive'}`}
+            className={`sidebar-selectable-card ${asset.visible ? 'sidebar-selectable-card--active' : 'sidebar-selectable-card--inactive'}`}
             onClick={() => onAssetToggle(asset.id, !asset.visible)}
             type="button"
             title={asset.visible ? `${asset.label} ausblenden` : `${asset.label} einblenden`}
           >
-            <div className="asset-card__preview">
+            <div className="sidebar-selectable-card__preview">
               <img
                 src={asset.src}
                 alt={asset.label}
-                className="asset-card__image"
+                className="asset-image"
               />
               {asset.visible && (
-                <span className="asset-card__check">
+                <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
                   <FaCheck size={8} />
                 </span>
               )}
@@ -32,6 +32,9 @@ export function AssetsSection({
           </button>
         ))}
       </div>
+      <p className="sidebar-hint">
+        Aktiviere oder deaktiviere dekorative Elemente wie die Sonnenblume. Diese Elemente können dein Design auflockern, sollten aber den Text nicht verdecken. Weniger ist oft mehr.
+      </p>
     </div>
   );
 }

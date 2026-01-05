@@ -1,0 +1,9 @@
+
+> @gruenerator/api@1.0.0 typecheck /home/morit/gruenerator/apps/api
+> tsc --noEmit
+
+../../packages/shared/src/canvas-editor/hooks/useCanvasHistory.ts(7,48): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean '../types.js'?
+../../packages/shared/src/canvas-editor/hooks/useCanvasLayers.ts(7,63): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean '../types.js'?
+/home/morit/gruenerator/apps/api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @gruenerator/api@1.0.0 typecheck: `tsc --noEmit`
+Exit status 2

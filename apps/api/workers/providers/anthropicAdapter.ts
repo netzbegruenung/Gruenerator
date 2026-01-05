@@ -18,27 +18,27 @@ interface AnthropicRequestConfig {
 }
 
 /**
- * Fallback to IONOS provider when Claude fails
+ * Fallback to Telekom provider when Claude fails
  */
-async function executeWithIonosFallback(requestId: string, data: AIRequestData, originalError: Error): Promise<AIWorkerResult> {
-  console.log(`[Anthropic Adapter ${requestId}] Claude API failed, falling back to IONOS: ${originalError.message}`);
+async function executeWithTelekomFallback(requestId: string, data: AIRequestData, originalError: Error): Promise<AIWorkerResult> {
+  console.log(`[Anthropic Adapter ${requestId}] Claude API failed, falling back to Telekom: ${originalError.message}`);
 
   // Dynamic import to avoid circular dependencies
-  const { getIonosClient } = await import('../clients/ionosClient.js');
-  const client = getIonosClient();
+  const { getTelekomClient } = await import('../clients/telekomClient.js');
+  const client = getTelekomClient();
 
   const { messages, systemPrompt, options = {}, metadata: requestMetadata = {} } = data;
 
-  interface IonosMessage {
+  interface TelekomMessage {
     role: string;
     content: string;
   }
 
-  const ionosMessages: IonosMessage[] = [];
-  if (systemPrompt) ionosMessages.push({ role: 'system', content: systemPrompt });
+  const telekomMessages: TelekomMessage[] = [];
+  if (systemPrompt) telekomMessages.push({ role: 'system', content: systemPrompt });
   if (messages) {
     messages.forEach((msg) => {
-      ionosMessages.push({
+      telekomMessages.push({
         role: msg.role,
         content: typeof msg.content === 'string'
           ? msg.content
@@ -49,16 +49,15 @@ async function executeWithIonosFallback(requestId: string, data: AIRequestData, 
     });
   }
 
-  const ionosConfig = {
-    model: 'openai/gpt-oss-120b',
-    messages: ionosMessages,
+  const telekomConfig = {
+    model: 'Llama-3.1-70B-Instruct',
+    messages: telekomMessages,
     max_tokens: options.max_tokens || 4096,
-    temperature: options.temperature || 0,
-    top_p: options.top_p || 0.1,
+    temperature: options.temperature || 0.5,
     stream: false
   };
 
-  const response = await client.chat.completions.create(ionosConfig);
+  const response = await client.chat.completions.create(telekomConfig);
   const choice = response.choices && response.choices[0];
   const responseContent = choice?.message?.content || null;
   const stopReason = choice?.finish_reason || 'stop';
@@ -70,10 +69,10 @@ async function executeWithIonosFallback(requestId: string, data: AIRequestData, 
     raw_content_blocks: [{ type: 'text', text: responseContent || '' }],
     success: true,
     metadata: mergeMetadata(requestMetadata, {
-      provider: 'ionos',
+      provider: 'telekom',
       fallbackFrom: 'claude',
       fallbackReason: originalError.message,
-      model: response.model || 'openai/gpt-oss-120b',
+      model: response.model || 'Llama-3.1-70B-Instruct',
       timestamp: new Date().toISOString(),
       requestId,
       usage: response.usage
@@ -172,16 +171,16 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       })
     };
   } catch (error) {
-    // Fallback to IONOS on any Claude API error
+    // Fallback to Telekom on any Claude API error
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.warn(`[Anthropic Adapter ${requestId}] Claude API error: ${errorMessage}`);
 
-    // Check if IONOS is available for fallback
-    if (process.env.IONOS_API_TOKEN) {
+    // Check if Telekom is available for fallback
+    if (process.env.TELEKOM_API_KEY) {
       try {
-        return await executeWithIonosFallback(requestId, data, error instanceof Error ? error : new Error(errorMessage));
-      } catch (ionosError) {
-        console.error(`[Anthropic Adapter ${requestId}] IONOS fallback also failed:`, ionosError);
+        return await executeWithTelekomFallback(requestId, data, error instanceof Error ? error : new Error(errorMessage));
+      } catch (telekomError) {
+        console.error(`[Anthropic Adapter ${requestId}] Telekom fallback also failed:`, telekomError);
         // Re-throw original error if fallback fails
         throw error;
       }
@@ -193,3 +192,4 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 }
 
 export { execute };
+```

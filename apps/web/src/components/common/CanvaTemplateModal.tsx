@@ -28,17 +28,17 @@ const CanvaTemplateModal = ({ url,
   onClose }: CanvaTemplateModalProps): JSX.Element => {
   const modalRef = useRef(null);
 
-  const formatLinesForCopy = (lines) => {
+  const formatLinesForCopy = (lines: CanvaTemplateModalProps['sharepicLines']) => {
     if (!lines) return '';
     return [1, 2, 3, 4, 5]
-      .map(n => lines[`line${n}`])
+      .map(n => (lines as any)[`line${n}`])
       .filter(Boolean)
       .join('\n');
   };
 
-  const hasLines = sharepicLines && [1, 2, 3, 4, 5].some(n => sharepicLines[`line${n}`]);
+  const hasLines = sharepicLines && [1, 2, 3, 4, 5].some(n => (sharepicLines as any)[`line${n}`]);
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }

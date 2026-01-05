@@ -94,12 +94,12 @@ const DropdownPortal = ({ triggerRef,
 
   useEffect(() => {
     if (isOpen) {
-      const handleClickOutside = (event) => {
+      const handleClickOutside = (event: MouseEvent) => {
         if (
           triggerRef?.current &&
-          !triggerRef.current.contains(event.target) &&
+          !triggerRef.current.contains(event.target as Node) &&
           dropdownRef.current &&
-          !dropdownRef.current.contains(event.target)
+          !dropdownRef.current.contains(event.target as Node)
         ) {
           onClose();
         }

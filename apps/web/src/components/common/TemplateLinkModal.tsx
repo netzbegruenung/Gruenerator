@@ -6,16 +6,22 @@ import * as canvaUtils from '../utils/canvaUtils';
  * Modal component for adding template links to Canva designs
  * Allows users to link their own Canva URLs to server templates
  */
-const TemplateLinkModal = ({ template, onClose, onSubmit }) => {
+interface TemplateLinkModalProps {
+    template: any;
+    onClose: () => void;
+    onSubmit: (url: string) => Promise<void> | void;
+}
+
+const TemplateLinkModal = ({ template, onClose, onSubmit }: TemplateLinkModalProps) => {
     const [canvaUrl, setCanvaUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [validationError, setValidationError] = useState('');
 
-    const validateCanvaUrl = (url) => {
+    const validateCanvaUrl = (url: string) => {
         return canvaUtils.validateCanvaUrl(url);
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const error = validateCanvaUrl(canvaUrl);
@@ -36,7 +42,7 @@ const TemplateLinkModal = ({ template, onClose, onSubmit }) => {
         }
     };
 
-    const handleUrlChange = (e) => {
+    const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setCanvaUrl(e.target.value);
         setValidationError('');
     };

@@ -1,12 +1,12 @@
 
-const groupLabels = {
+const groupLabels: Record<string, string> = {
   manual: 'Dokumente',
   wolke: 'Wolke Dokumente',
   url: 'Websites',
   gruenerierte_texte: 'Grünerierte Texte',
 };
 
-const groupIcons = {
+const groupIcons: Record<string, string> = {
   manual: '📁',
   wolke: '☁️',
   url: '🌐',

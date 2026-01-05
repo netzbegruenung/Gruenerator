@@ -136,8 +136,6 @@ export interface ImageStudioState {
   header: string;
   subheader: string;
   body: string;
-  description: string;
-  mood: string;
   headline: string;
   subtext: string;
 
@@ -335,7 +333,7 @@ export interface ImageStudioActions {
   hasRateLimit: () => boolean;
 
   // AI prompt generation (from chat input)
-  loadFromAIGeneration: (sharepicType: string, generatedData: Record<string, string>) => void;
+  loadFromAIGeneration: (sharepicType: string, generatedData: Record<string, string>, selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null) => void;
 }
 
 // Constants exposed on store

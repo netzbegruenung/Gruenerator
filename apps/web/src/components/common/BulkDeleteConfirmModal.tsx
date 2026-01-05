@@ -13,6 +13,15 @@ import Spinner from './Spinner';
  * @param {boolean} props.isDeleting - Whether deletion is in progress
  * @returns {JSX.Element|null} Confirmation modal or null if not open
  */
+interface BulkDeleteConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  itemCount: number;
+  itemType?: string;
+  isDeleting?: boolean;
+}
+
 const BulkDeleteConfirmModal = ({
   isOpen,
   onClose,
@@ -20,11 +29,11 @@ const BulkDeleteConfirmModal = ({
   itemCount,
   itemType = 'Elemente',
   isDeleting = false
-}) => {
-  const modalRef = useRef(null);
+}: BulkDeleteConfirmModalProps) => {
+  const modalRef = useRef<HTMLDivElement>(null);
   const [confirmText, setConfirmText] = useState('');
   const [isConfirmValid, setIsConfirmValid] = useState(false);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -45,7 +54,7 @@ const BulkDeleteConfirmModal = ({
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget && !isDeleting) {
       onClose();
     }
@@ -57,7 +66,7 @@ const BulkDeleteConfirmModal = ({
     }
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && isConfirmValid && !isDeleting) {
       handleConfirm();
     } else if (e.key === 'Escape' && !isDeleting) {

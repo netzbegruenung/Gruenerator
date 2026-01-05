@@ -1,0 +1,7 @@
+
+
+> @gruenerator/sites@1.0.0 build /home/morit/gruenerator/apps/sites
+> vite build
+
+[36mvite v7.3.0 [32mbuilding client environment for production...[36m[39m
+[2K[1Gtransforming (1) [2m[2K[1Gtransforming (7) [2m[2K[1Gtransforming (10) [2[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1Gtransforming (45) [2[2K[1G[2K[1Gtransforming (55) [2[2K[1G[2K[1G[2K[1Gtransforming (84) [2[2K[1Gtransforming (88) [2[2K[1Gtransforming (111) [[2K[1Gtransforming (148) [[2K[1Gtransforming (168) [[2K[1Gtransforming (191) [[2K[1Gtransforming (204) [[2K[1Gtransforming (281) [[2K[1Gtransforming (288) [[2K[1Gtransforming (383) [[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1Gtransforming (399) [

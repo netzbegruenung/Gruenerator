@@ -26,7 +26,7 @@ const CategorySelector = ({ categories,
         <button
           key={category.id}
           className={`category-button ${activeCategory === category.id ? 'active' : ''}`}
-          onClick={() => onCategoryChange(category.id)}
+          onClick={() => category.id && onCategoryChange(category.id)}
           aria-pressed={activeCategory === category.id}
           disabled={category.disabled}
         >

@@ -69,7 +69,7 @@ const ShareMediaModal = ({ isOpen,
 
       if (mediaType === 'video') {
         if (exportToken) {
-          share = await createVideoShareFromToken(exportToken, shareTitle || null, projectId);
+          share = await createVideoShareFromToken(exportToken, shareTitle || undefined, projectId);
         } else if (projectId) {
           share = await createVideoShare({ projectId, title: shareTitle || undefined });
         }
@@ -90,7 +90,7 @@ const ShareMediaModal = ({ isOpen,
       }
 
       if (share && onShareCreated) {
-        onShareCreated(share);
+        onShareCreated(share as unknown as ShareData);
       }
     } catch (err) {
       console.error('Failed to create share:', err);

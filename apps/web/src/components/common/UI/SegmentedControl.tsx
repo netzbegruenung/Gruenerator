@@ -28,7 +28,7 @@ const SegmentedControl = ({
 }: SegmentedControlProps): JSX.Element => {
 
   // Handle button click
-  const handleClick = useCallback((value, stepDisabled) => {
+  const handleClick = useCallback((value: string | number, stepDisabled?: boolean) => {
     // Only call onChange if the specific step is not disabled,
     // the whole control is not disabled, and the value actually changes
     if (!stepDisabled && !disabled && value !== currentValue) {
@@ -56,7 +56,7 @@ const SegmentedControl = ({
               onClick={() => handleClick(step.value, step.disabled)}
               disabled={isDisabled}
               aria-pressed={isActive} // Indicates the pressed state for assistive technologies
-              // aria-label={step.label} // Optionally, if label text is not descriptive enough
+            // aria-label={step.label} // Optionally, if label text is not descriptive enough
             >
               {step.label}
             </button>

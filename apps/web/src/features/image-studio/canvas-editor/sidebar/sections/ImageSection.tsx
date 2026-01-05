@@ -9,16 +9,10 @@ export function ImageSection({
 }: ImageSectionProps) {
   return (
     <div className="sidebar-section sidebar-section--image">
-      <div className="image-section__info">
-        <p className="image-section__hint">
-          Ziehe das Bild um es zu verschieben. Nutze den Schieberegler zum Zoomen.
-        </p>
-      </div>
-
       <div className="image-section__controls">
         <label className="image-section__label">
           Zoom
-          <div className="image-section__slider-row">
+          <div className="sidebar-slider-row">
             <input
               type="range"
               min={1}
@@ -26,15 +20,15 @@ export function ImageSection({
               step={0.1}
               value={scale}
               onChange={(e) => onScaleChange(parseFloat(e.target.value))}
-              className="image-section__slider"
+              className="sidebar-slider"
             />
-            <span className="image-section__value">{Math.round(scale * 100)}%</span>
+            <span className="sidebar-slider-value">{Math.round(scale * 100)}%</span>
           </div>
         </label>
 
         <button
           type="button"
-          className="image-section__reset-btn"
+          className="sidebar-reset-btn"
           onClick={onReset}
           title="Position zurücksetzen"
         >
@@ -42,6 +36,10 @@ export function ImageSection({
           Zurücksetzen
         </button>
       </div>
+
+      <p className="sidebar-hint">
+        Klicke auf das Bild und ziehe es, um die Position anzupassen. Mit dem Zoom-Regler kannst du den Bildausschnitt vergrößern oder verkleinern. Achte darauf, dass wichtige Bildelemente sichtbar bleiben.
+      </p>
     </div>
   );
 }

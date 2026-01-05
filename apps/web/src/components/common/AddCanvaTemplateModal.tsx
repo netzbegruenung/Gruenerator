@@ -13,12 +13,19 @@ import Spinner from './Spinner';
  * @param {Function} props.onError - Error callback
  * @returns {JSX.Element|null} Add template modal or null if not open
  */
+interface AddCanvaTemplateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: (data: any, message: string) => void;
+  onError?: (message: string) => void;
+}
+
 const AddCanvaTemplateModal = ({
   isOpen,
   onClose,
   onSuccess,
   onError
-}) => {
+}: AddCanvaTemplateModalProps) => {
   const modalRef = useRef(null);
   const [url, setUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,13 +35,13 @@ const AddCanvaTemplateModal = ({
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  const validateCanvaUrl = (inputUrl) => {
+  const validateCanvaUrl = (inputUrl: string) => {
     // First validate basic URL format
     const basicValidation = validateUrl(inputUrl);
     if (!basicValidation.isValid) {
@@ -69,7 +76,7 @@ const AddCanvaTemplateModal = ({
     }
   };
 
-  const handleUrlChange = (e) => {
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputUrl = e.target.value;
     setUrl(inputUrl);
     setValidationError('');
@@ -79,12 +86,12 @@ const AddCanvaTemplateModal = ({
       const normalizedUrl = normalizeUrl(inputUrl);
       const validation = validateCanvaUrl(normalizedUrl);
       if (!validation.isValid) {
-        setValidationError(validation.error);
+        setValidationError(validation.error || '');
       }
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!url.trim()) {
@@ -96,7 +103,7 @@ const AddCanvaTemplateModal = ({
     const validation = validateCanvaUrl(normalizedUrl);
 
     if (!validation.isValid) {
-      setValidationError(validation.error);
+      setValidationError(validation.error || '');
       return;
     }
 
@@ -112,7 +119,7 @@ const AddCanvaTemplateModal = ({
       } else {
         setValidationError(result.message || 'Fehler beim Hinzufügen der Canva Vorlage.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AddCanvaTemplateModal] Error creating template:', error);
       const errorMessage = error.message || 'Fehler beim Hinzufügen der Canva Vorlage.';
       setValidationError(errorMessage);

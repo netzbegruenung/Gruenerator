@@ -39,9 +39,9 @@ interface LoginPageProps {
 }
 
 const LoginPage = ({ mode = 'standalone',
-  pageName = null,
-  customMessage = null,
-  onClose = null }: LoginPageProps): JSX.Element => {
+  pageName,
+  customMessage,
+  onClose }: LoginPageProps): JSX.Element => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -61,7 +61,7 @@ const LoginPage = ({ mode = 'standalone',
   const successMessage = location.state?.message;
 
   // Auto-detect page name if not provided and in required mode
-  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname, t) : null);
+  const displayPageName = pageName || (mode === 'required' ? getPageName(location.pathname, t) : undefined);
 
   // Handle modal close
   const handleClose = useCallback(() => {

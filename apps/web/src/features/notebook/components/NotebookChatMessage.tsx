@@ -11,7 +11,7 @@ import '../../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-const NotebookChatMessage = ({ msg, index }) => {
+const NotebookChatMessage = ({ msg, index }: { msg: any; index: number }) => {
   const hasResultData = msg.type === 'assistant' && msg.resultData;
   const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
 

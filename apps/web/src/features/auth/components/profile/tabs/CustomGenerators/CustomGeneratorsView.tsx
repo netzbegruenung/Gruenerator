@@ -28,8 +28,9 @@ import {
     QUERY_KEYS
 } from '../../../../hooks/useProfileData';
 import { useProfileStore } from '../../../../../../stores/profileStore';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, UseQueryResult } from '@tanstack/react-query';
 import apiClient from '../../../../../../components/utils/apiClient';
+import { NotebookCollection } from '../../../../../../types/notebook';
 
 // Styles for generator/notebook list buttons
 import '../../../../../generators/styles/custom-generators-tab.css';
@@ -61,11 +62,7 @@ interface Site {
     is_published?: boolean;
 }
 
-interface NotebookCollection {
-    id: string;
-    name?: string;
-    [key: string]: unknown;
-}
+// Shared NotebookCollection is now imported
 
 interface AvailableDocument {
     id: string;
@@ -399,12 +396,12 @@ const CustomGeneratorsView = ({
                         isActive={isActive}
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
-                        qaId={selectedQAId}
+                        qaId={selectedQAId!}
                         onBack={handleBackToNotebooks}
                         onViewQA={handleViewQA}
                         notebookCollections={notebookCollections as NotebookCollection[]}
                         qaQuery={{
-                            query: qaQuery.query as import('@tanstack/react-query').UseQueryResult<NotebookCollection[], Error>
+                            query: qaQuery.query as UseQueryResult<NotebookCollection[], Error>
                         }}
                         availableDocuments={(Array.isArray(availableDocuments.data) ? availableDocuments.data : []) as AvailableDocument[]}
                     />
@@ -592,7 +589,7 @@ const CustomGeneratorsView = ({
                         <DropdownButton
                             onCreateNotebook={handleCreateNotebook}
                             onCreateCustomGenerator={handleCreateGenerator}
-                            onCreateSite={site ? null : handleCreateSite}
+                            onCreateSite={site ? undefined : handleCreateSite}
                             showNotebook={isQAEnabled}
                             showSite={isSitesEnabled && !site}
                             variant="navigation"

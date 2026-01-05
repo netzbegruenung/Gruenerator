@@ -113,27 +113,27 @@ const CitationSourcesDisplay = ({
       group.citations.push(citation);
 
       // Check if citation text differs significantly from additional content
-      if (group.additionalContent &&
-          !group.additionalContent.includes(citation.cited_text.substring(0, 50))) {
+      if (group.additionalContent && citation.cited_text &&
+        !group.additionalContent.includes(citation.cited_text.substring(0, 50))) {
         group.hasAdditionalContext = true;
       }
     });
 
     // Sort citations within each group by index
     groupMap.forEach(group => {
-      group.citations.sort((a, b) => a.index - b.index);
+      group.citations.sort((a: Citation, b: Citation) => (a.index || 0) - (b.index || 0));
     });
 
     // Sort documents by lowest citation index (so documents appear in order of first citation)
-    return Array.from(groupMap.values()).sort((a, b) => {
-      const aMinIndex = a.citations.length > 0 ? Math.min(...a.citations.map(c => c.index)) : Infinity;
-      const bMinIndex = b.citations.length > 0 ? Math.min(...b.citations.map(c => c.index)) : Infinity;
+    return Array.from(groupMap.values()).sort((a: any, b: any) => {
+      const aMinIndex = a.citations.length > 0 ? Math.min(...a.citations.map((c: Citation) => c.index || 0)) : Infinity;
+      const bMinIndex = b.citations.length > 0 ? Math.min(...b.citations.map((c: Citation) => c.index || 0)) : Infinity;
       return aMinIndex - bMinIndex;
     });
   }, [sources, citations, linkConfig]);
 
   // Handle document link click
-  const handleDocumentClick = useCallback((documentId, url) => {
+  const handleDocumentClick = useCallback((documentId: string | undefined, url: string | null) => {
     if (linkConfig.type === 'vectorDocument' && documentId) {
       // Navigate to the document view page
       navigate(`/documents/${documentId}`);
@@ -182,7 +182,7 @@ const CitationSourcesDisplay = ({
             <div className="ask-document-header">
               <h5
                 className={`ask-document-title ${linkConfig.type !== 'none' ? 'clickable-link' : ''}`}
-                onClick={() => linkConfig.type !== 'none' && (group.documentId || group.url) && handleDocumentClick(group.documentId, group.url)}
+                onClick={() => linkConfig.type !== 'none' && (group.documentId || group.url) && handleDocumentClick(group.documentId, group.url ?? null)}
               >
                 {group.documentTitle}
               </h5>
@@ -196,7 +196,7 @@ const CitationSourcesDisplay = ({
             {/* Show citations from this document */}
             {group.citations.length > 0 && (
               <div className="ask-document-citations">
-                {group.citations.map((citation, idx) => (
+                {group.citations.map((citation: Citation, idx: number) => (
                   <div key={idx} className="ask-citation-inline">
                     <span className="citation-number">{citation.index}</span>
                     <span className="citation-text">"{citation.cited_text?.replace(/\*\*/g, '') || ''}"</span>
@@ -216,7 +216,7 @@ const CitationSourcesDisplay = ({
             {linkConfig.type !== 'none' && (group.documentId || group.url) && (
               <button
                 className="ask-document-link"
-                onClick={() => handleDocumentClick(group.documentId, group.url)}
+                onClick={() => handleDocumentClick(group.documentId, group.url ?? null)}
               >
                 {linkConfig.type === 'external' ? 'Artikel öffnen →' : 'Dokument öffnen →'}
               </button>
@@ -238,7 +238,7 @@ const CitationSourcesDisplay = ({
                 <div className="ask-additional-source-header">
                   <span
                     className={`ask-additional-source-title ${linkConfig.type !== 'none' && (source.document_id || source.url) ? 'clickable-link' : ''}`}
-                    onClick={() => linkConfig.type !== 'none' && (source.document_id || source.url) && handleDocumentClick(source.document_id, source.url)}
+                    onClick={() => linkConfig.type !== 'none' && (source.document_id || source.url) && handleDocumentClick(source.document_id, source.url ?? null)}
                   >
                     {source.document_title}
                   </span>

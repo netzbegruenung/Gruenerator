@@ -39,6 +39,8 @@ export function useCanvasSidebar({
   nameFontSize,
   onQuoteFontSizeChange,
   onNameFontSizeChange,
+  onExport,
+  onSave,
 }: CanvasSidebarProps): CanvasSidebarReturn {
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>(null);
   const [isDesktop, setIsDesktop] = useState(
@@ -52,8 +54,15 @@ export function useCanvasSidebar({
   }, []);
 
   const handleTabClick = useCallback((tabId: SidebarTabId) => {
-    setActiveTab((current) => (current === tabId ? null : tabId));
-  }, []);
+    setActiveTab((current) => {
+      const newValue = current === tabId ? null : tabId;
+      return newValue;
+    });
+  }, [activeTab]);
+
+  const handleClose = useCallback(() => {
+    setActiveTab(null);
+  }, [activeTab]);
 
   // On desktop, hide fontsize tab (merged into text)
   const visibleTabs = useMemo(() =>
@@ -127,11 +136,14 @@ export function useCanvasSidebar({
         tabs={visibleTabs}
         activeTab={activeTab}
         onTabClick={handleTabClick}
+        onExport={onExport}
+        onSave={onSave}
+
         disabledTabs={disabledTabs}
       />
     ),
     panel: (
-      <SidebarPanel isOpen={activeTab !== null}>
+      <SidebarPanel isOpen={activeTab !== null} onClose={handleClose}>
         {renderSectionContent()}
       </SidebarPanel>
     ),

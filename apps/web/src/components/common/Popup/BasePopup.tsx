@@ -40,7 +40,7 @@ const BasePopup = ({
     onClose?.();
   }, [storageKey, onClose]);
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = (e: React.MouseEvent) => {
     if (closeOnOverlayClick && e.target === e.currentTarget) {
       handleClose();
     }
@@ -49,7 +49,7 @@ const BasePopup = ({
   useEffect(() => {
     if (!closeOnEscape || !isVisible) return;
 
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         handleClose();

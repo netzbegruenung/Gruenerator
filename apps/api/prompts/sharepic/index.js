@@ -6,7 +6,6 @@ const zitat = require('./zitat.json');
 const zitat_pure = require('./zitat_pure.json');
 const headline = require('./headline.json');
 const info = require('./info.json');
-const text2sharepic = require('./text2sharepic.json');
 const veranstaltung = require('./veranstaltung.json');
 const simple = require('./simple.json');
 
@@ -16,7 +15,6 @@ export {
   zitat_pure,
   headline,
   info,
-  text2sharepic,
   veranstaltung,
   simple
 };
@@ -27,7 +25,6 @@ export default {
   zitat_pure,
   headline,
   info,
-  text2sharepic,
   veranstaltung,
   simple
 };

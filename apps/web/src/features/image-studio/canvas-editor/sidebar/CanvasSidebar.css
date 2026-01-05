@@ -1,3 +1,5 @@
+@import './SidebarPrimitives.css';
+
 .canvas-sidebar {
   display: flex;
   position: fixed;
@@ -267,39 +269,54 @@
 }
 
 /* Mobile Responsive */
-@media (max-width: 900px) {
+@media (max-width: 899px) {
   .canvas-sidebar {
+    position: static;
+    display: contents;
+  }
+
+  /* Mobile: Bottom Tab Bar - Fixed horizontal scrollable */
+  .canvas-sidebar .sidebar-tab-bar,
+  .sidebar-tab-bar {
     position: fixed;
+    bottom: 0;
     left: 0;
     right: 0;
-    top: auto;
-    bottom: 0;
-    flex-direction: column;
-    height: auto;
     width: 100%;
-  }
-
-  /* Remove left margin on mobile */
-  .canvas-editor-layout--with-sidebar {
-    margin-left: 0;
-    padding-bottom: 56px;
-  }
-
-  .canvas-sidebar .sidebar-tab-bar {
+    height: 64px;
     flex-direction: row;
-    width: 100%;
-    height: 56px;
-    padding-top: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    background: var(--background-color);
     border-right: none;
     border-top: 1px solid var(--border-subtle);
-    justify-content: center;
-    order: 2;
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    padding-bottom: calc(var(--spacing-xsmall) + env(safe-area-inset-bottom));
+    gap: var(--spacing-xsmall);
+    align-items: center;
+    justify-content: flex-start;
+    z-index: 100;
   }
 
+  /* Hide scrollbar on WebKit browsers */
+  .canvas-sidebar .sidebar-tab-bar::-webkit-scrollbar,
+  .sidebar-tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Tab buttons on mobile */
+  .sidebar-tab-bar__tab {
+    flex-shrink: 0;
+  }
+
+  /* Active indicator - top border on mobile */
   .sidebar-tab-bar__tab--active::before {
     left: 50%;
     top: 0;
+    bottom: auto;
     transform: translateX(-50%);
     width: 24px;
     height: 3px;
@@ -310,24 +327,92 @@
   .sidebar-tab-bar__separator {
     width: 1px;
     height: 32px;
-    margin: 0 var(--spacing-small);
+    margin: 0 var(--spacing-xsmall);
+    flex-shrink: 0;
   }
 
-  /* Mobile: overlay covers full screen */
-  .sidebar-panel-overlay {
-    left: 0;
-  }
-
-  /* Mobile: bottom sheet */
+  /* Mobile: Bottom Sheet Panel */
   .sidebar-panel {
+    position: fixed;
     top: auto;
     right: 0;
-    bottom: 0;
+    bottom: 64px;
     left: 0;
     width: 100%;
-    max-height: 85vh;
+    max-width: 100%;
+    min-width: 0;
+    max-height: calc(70vh - 64px);
+    padding-top: 0;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(calc(100% + 64px));
+    transition: none;
+    z-index: 99;
+  }
+
+  .sidebar-panel--open {
+    transform: translateY(0);
+  }
+
+  /* Backdrop for mobile bottom sheet */
+  .sidebar-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 98;
+  }
+
+  .sidebar-panel-backdrop--visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Drag Handle for bottom sheet */
+  .sidebar-panel__drag-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--spacing-small) 0;
+    margin-bottom: var(--spacing-xsmall);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .sidebar-panel__drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .sidebar-panel__drag-indicator {
+    width: 40px;
+    height: 4px;
+    background: var(--font-color-secondary);
+    border-radius: 2px;
+    transition: background-color 0.2s ease, width 0.2s ease;
+  }
+
+  .sidebar-panel__drag-handle:active .sidebar-panel__drag-indicator {
+    width: 50px;
+    background: var(--primary-600);
+  }
+
+  /* Panel content adjustments for mobile - only bottom padding */
+  .sidebar-panel__content {
+    max-height: calc(70vh - 120px);
+    padding: 0 0 var(--spacing-medium) 0;
+  }
+
+  /* Sections on mobile - side and bottom padding, centered */
+  .sidebar-section {
+    padding: 0 var(--spacing-medium) var(--spacing-small) var(--spacing-medium);
+    align-items: center;
+  }
+  
+  /* Add safe spacing at bottom of canvas for mobile */
+  .canvas-wrapper {
+    padding-bottom: 64px;
   }
 }
 

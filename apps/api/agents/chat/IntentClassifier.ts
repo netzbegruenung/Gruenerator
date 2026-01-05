@@ -334,8 +334,22 @@ REGELN:
 - Bei "conversation" → NUR {"agent": "universal"}, NIEMALS mehrere Intents!
 - Bei "document_query" → NUR {"agent": "universal"}
 - Bei "content_creation" → passende Agents (social, sharepic, antrag, imagine, etc.)
+
+SHAREPIC-SPEZIFISCHE REGELN (WICHTIG!):
+- "zitat", "quote", "spruch", "aussage" → IMMER agent: "zitat" (NICHT dreizeilen!)
+- "dreizeilen", "slogan", "drei zeilen", "3 zeilen" → agent: "dreizeilen"
+- "info", "fakten", "information" → agent: "info"
+- "sharepic" OHNE spezifischen Typ → agent: "sharepic_auto"
 - Mit Bild + zitat → zitat_with_image
 - Ohne Bild + zitat → zitat
+
+BEISPIELE SHAREPIC:
+- "Erstelle ein Zitat zum Thema Klimaschutz" → agent: "zitat" (NICHT dreizeilen!)
+- "Mach einen Slogan über Windenergie" → agent: "dreizeilen"
+- "Sharepic mit 3 Zeilen" → agent: "dreizeilen"
+- "Quote von Annalena Baerbock" → agent: "zitat"
+
+ANDERE REGELN:
 - "bild erstellen", "generiere bild", "visualisiere", "illustriere", "flux", "ki-bild" → imagine
 - Mit Bild + "transformiere"/"begrüne"/"bearbeite" → imagine (für Bildbearbeitung)
 - Im Zweifel: "conversation" mit "universal" (weniger ist mehr!)
@@ -362,7 +376,7 @@ Beispiele für requestType:
 - "Sharepic und Instagram Post" → content_creation, [sharepic_auto, instagram]
 
 Antworte als JSON:
-{"requestType": "conversation|document_query|content_creation", "subIntent": "summarize|translate|compare|explain|brainstorm|general", "intents": [{"agent": "...", "confidence": 0.9}]}`;
+{"requestType": "conversation|document_query|content_creation", "subIntent": "summarize|translate|compare|explain|brainstorm|general", "intents": [{"agent": "...", "confidence": 0.9}]}${context.singleIntentOnly ? '\n\nWICHTIG: Gib NUR EINEN Intent zurück - den besten Match! Keine mehreren Intents.' : ''}`;
 
   try {
     console.log('[IntentClassifier] Calling AI for multi-intent classification');
@@ -415,8 +429,8 @@ Antworte als JSON:
       parsedIntents = [parsedIntents];
     }
 
-    // Validate and enrich intents
-    const validIntents = parsedIntents
+    // Validate and enrich intents - pick only the highest confidence intent for sharepic requests
+    let validIntents = parsedIntents
       .filter(intent => intent && intent.agent && AGENT_MAPPINGS[intent.agent])
       .map(intent => ({
         agent: intent.agent,
@@ -427,6 +441,19 @@ Antworte als JSON:
         },
         confidence: intent.confidence || 0.8
       }));
+
+    // For sharepic intents, only keep the highest confidence one to avoid multi-intent confusion
+    const sharepicAgents = ['zitat', 'zitat_with_image', 'dreizeilen', 'info', 'sharepic_auto', 'quote'];
+    const sharepicIntents = validIntents.filter(i => sharepicAgents.includes(i.agent));
+    if (sharepicIntents.length > 1) {
+      // Sort by confidence and keep only the best one
+      sharepicIntents.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+      const bestSharepic = sharepicIntents[0];
+      console.log('[IntentClassifier] Multiple sharepic intents detected, keeping best:', bestSharepic.agent);
+      // Replace all sharepic intents with just the best one
+      validIntents = validIntents.filter(i => !sharepicAgents.includes(i.agent));
+      validIntents.push(bestSharepic);
+    }
 
     if (validIntents.length === 0) {
       console.warn('[IntentClassifier] No valid intents found in AI response');

@@ -13,6 +13,8 @@ import {
   INITIAL_SCALE,
   type ProfilbildCanvasProps
 } from '@gruenerator/shared/canvas-editor';
+import { CanvasEditorLayout } from './layouts';
+import { SidebarTabBar } from './sidebar';
 import './ProfilbildCanvas.css';
 
 interface ImageState {
@@ -27,8 +29,9 @@ export function ProfilbildCanvas({
   backgroundColor = DEFAULT_BACKGROUND_COLOR,
   canvasSize = DEFAULT_CANVAS_SIZE,
   onExport,
-  onCancel
-}: ProfilbildCanvasProps) {
+  onCancel,
+  onSave
+}: ProfilbildCanvasProps & { onSave?: (base64: string) => void }) {
   const stageRef = useRef<Konva.Stage>(null);
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -120,24 +123,36 @@ export function ProfilbildCanvas({
   }, []);
 
   const handleExport = useCallback(() => {
-    if (!stageRef.current) return;
-
     setIsSelected(false);
-    if (trRef.current) {
-      trRef.current.nodes([]);
-    }
-
     setTimeout(() => {
       if (!stageRef.current) return;
-
       const dataUrl = stageRef.current.toDataURL({
-        pixelRatio: canvasSize / containerSize.width,
-        mimeType: 'image/png'
+        pixelRatio: 1 / displayScale,
       });
-
       onExport(dataUrl);
     }, 50);
-  }, [canvasSize, containerSize.width, onExport]);
+  }, [displayScale, onExport]);
+
+  const handleSave = useCallback(() => {
+    setIsSelected(false);
+    setTimeout(() => {
+      if (!stageRef.current) return;
+      const dataUrl = stageRef.current.toDataURL({
+        pixelRatio: 1 / displayScale,
+      });
+      onSave?.(dataUrl);
+    }, 50);
+  }, [displayScale, onSave]);
+
+  const tabBar = (
+    <SidebarTabBar
+      tabs={[]}
+      activeTab={null}
+      onTabClick={() => { }}
+      onExport={handleExport}
+      onSave={handleSave}
+    />
+  );
 
   if (!image || !imageState) {
     return (
@@ -149,11 +164,8 @@ export function ProfilbildCanvas({
   }
 
   return (
-    <div className="profilbild-canvas-container">
-      <div
-        className="profilbild-canvas-wrapper"
-        style={{ width: containerSize.width, height: containerSize.height }}
-      >
+    <CanvasEditorLayout sidebar={null} tabBar={tabBar} actions={null}>
+      <div className="profilbild-canvas-wrapper" style={{ width: containerSize.width, height: containerSize.height }}>
         <Stage
           ref={stageRef}
           width={containerSize.width}
@@ -163,27 +175,8 @@ export function ProfilbildCanvas({
           onTouchStart={checkDeselect}
         >
           <Layer>
-            <Rect
-              x={0}
-              y={0}
-              width={canvasSize}
-              height={canvasSize}
-              fill={backgroundColor}
-              listening={false}
-            />
-            <KonvaImage
-              ref={imageRef}
-              image={image}
-              x={imageState.x}
-              y={imageState.y}
-              width={imageState.width}
-              height={imageState.height}
-              draggable
-              onClick={() => setIsSelected(true)}
-              onTap={() => setIsSelected(true)}
-              onDragEnd={handleDragEnd}
-              onTransformEnd={handleTransformEnd}
-            />
+            <Rect x={0} y={0} width={canvasSize} height={canvasSize} fill={backgroundColor} listening={false} />
+            <KonvaImage ref={imageRef} image={image} x={imageState.x} y={imageState.y} width={imageState.width} height={imageState.height} draggable onClick={() => setIsSelected(true)} onTap={() => setIsSelected(true)} onDragEnd={handleDragEnd} onTransformEnd={handleTransformEnd} />
             {isSelected && (
               <Transformer
                 ref={trRef}
@@ -194,12 +187,8 @@ export function ProfilbildCanvas({
                 boundBoxFunc={(oldBox, newBox) => {
                   const minSize = 20;
                   const maxSize = canvasSize * 2;
-                  if (newBox.width < minSize || newBox.height < minSize) {
-                    return oldBox;
-                  }
-                  if (newBox.width > maxSize || newBox.height > maxSize) {
-                    return oldBox;
-                  }
+                  if (newBox.width < minSize || newBox.height < minSize) return oldBox;
+                  if (newBox.width > maxSize || newBox.height > maxSize) return oldBox;
                   return newBox;
                 }}
               />
@@ -207,16 +196,7 @@ export function ProfilbildCanvas({
           </Layer>
         </Stage>
       </div>
-
-      <div className="profilbild-canvas-actions">
-        <button className="btn btn-secondary" onClick={onCancel}>
-          Abbrechen
-        </button>
-        <button className="btn btn-primary" onClick={handleExport}>
-          Fertig
-        </button>
-      </div>
-    </div>
+    </CanvasEditorLayout>
   );
 }
 

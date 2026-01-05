@@ -116,9 +116,11 @@ export function parseSharepicForEditing(
 }
 
 export async function loadGalleryEditData(editData: GalleryEditData): Promise<Record<string, unknown>> {
+  console.log('[loadGalleryEditData] Input:', editData);
   const { shareToken, content, styling, originalImageUrl, title } = editData;
   const sharepicType = content?.sharepicType || styling?.sharepicType;
   const mappedType = sharepicType ? (LEGACY_TYPE_MAP[sharepicType] || sharepicType) : null;
+  console.log('[loadGalleryEditData] sharepicType:', sharepicType, '-> mappedType:', mappedType);
 
   const formData: Record<string, unknown> = {
     galleryEditMode: true,
@@ -128,7 +130,8 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
     hasOriginalImage: true,
     category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
     type: mappedType,
-    currentStep: FORM_STEPS.RESULT,
+    // Use CANVAS_EDIT step for canvas-enabled templates so they open in the canvas editor
+    currentStep: FORM_STEPS.CANVAS_EDIT,
     editingSource: 'gallery'
   };
 
@@ -238,15 +241,25 @@ export async function loadEditSessionData(editSessionId: string): Promise<Record
   }
 }
 
+export interface AISelectedImage {
+  filename: string;
+  path: string;
+  alt_text: string;
+  category?: string;
+}
+
 export function parseAIGeneratedData(
   sharepicType: string,
-  generatedData: Record<string, string>
+  generatedData: Record<string, string>,
+  selectedImage?: AISelectedImage | null
 ): Record<string, unknown> {
   const typeMap: Record<string, string> = {
     'dreizeilen': IMAGE_STUDIO_TYPES.DREIZEILEN,
     'zitat-pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
     'zitat_pure': IMAGE_STUDIO_TYPES.ZITAT_PURE,
-    'info': IMAGE_STUDIO_TYPES.INFO
+    'info': IMAGE_STUDIO_TYPES.INFO,
+    'veranstaltung': IMAGE_STUDIO_TYPES.VERANSTALTUNG,
+    'simple': IMAGE_STUDIO_TYPES.SIMPLE
   };
 
   const mappedType = typeMap[sharepicType] || sharepicType;
@@ -270,6 +283,26 @@ export function parseAIGeneratedData(
     formData.header = generatedData.header || '';
     formData.subheader = generatedData.subheader || '';
     formData.body = generatedData.body || '';
+  } else if (mappedType === IMAGE_STUDIO_TYPES.VERANSTALTUNG) {
+    formData.eventTitle = generatedData.eventTitle || '';
+    formData.weekday = generatedData.weekday || '';
+    formData.date = generatedData.date || '';
+    formData.time = generatedData.time || '';
+    formData.locationName = generatedData.locationName || '';
+    formData.address = generatedData.address || '';
+    formData.beschreibung = generatedData.beschreibung || '';
+  } else if (mappedType === IMAGE_STUDIO_TYPES.SIMPLE) {
+    formData.headline = generatedData.headline || '';
+    formData.subtext = generatedData.subtext || '';
+  }
+
+  // Add selected image if provided
+  if (selectedImage?.path) {
+    // Use same baseURL pattern as apiClient for consistent URL resolution
+    const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+    const fullImagePath = `${apiBaseUrl}${selectedImage.path}`;
+    formData.uploadedImage = fullImagePath;
+    formData.credit = selectedImage.alt_text || '';
   }
 
   return formData;

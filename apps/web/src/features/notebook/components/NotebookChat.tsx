@@ -22,13 +22,14 @@ const NotebookChat = () => {
 
   useEffect(() => {
     const loadCollection = async () => {
+      if (!id) return;
       setLoading(true);
       let found = getQACollection(id);
       if (!found) {
         await fetchQACollections();
         found = getQACollection(id);
       }
-      setCollection(found);
+      setCollection(found || null);
       setLoading(false);
     };
     if (id && user) loadCollection();
@@ -98,7 +99,7 @@ const NotebookChat = () => {
       <ChatWorkbenchLayout
         mode={effectiveMode}
         modes={{ chat: { label: 'Chat' } }}
-        onModeChange={() => {}}
+        onModeChange={() => { }}
         title={collection?.name || ''}
         messages={chatMessages}
         onSubmit={handleSubmitQuestion}

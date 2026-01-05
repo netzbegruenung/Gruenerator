@@ -13,7 +13,7 @@ const FloatingActionButton = ({ icon,
   onClick,
   visible = true,
   position = 'top-left',
-  className = '' }: FloatingActionButtonProps): JSX.Element => {
+  className = '' }: FloatingActionButtonProps): JSX.Element | null => {
   if (!visible) return null;
 
   return (

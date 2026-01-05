@@ -1,9 +1,3 @@
-.sidebar-section--gradient {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-small);
-}
-
 .gradient-toggle {
   display: flex;
   align-items: center;
@@ -42,52 +36,4 @@
   font-size: var(--font-size-small);
   font-weight: 500;
   color: var(--font-color);
-}
-
-.gradient-opacity__slider-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-small);
-}
-
-.gradient-opacity__slider {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--border-subtle);
-  appearance: none;
-  cursor: pointer;
-}
-
-.gradient-opacity__slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--primary-600);
-  cursor: grab;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.gradient-opacity__slider::-webkit-slider-thumb:active {
-  cursor: grabbing;
-}
-
-.gradient-opacity__value {
-  min-width: 48px;
-  text-align: right;
-  font-size: var(--font-size-small);
-  color: var(--font-color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.gradient-section__hint {
-  margin: 0;
-  padding: var(--spacing-xsmall);
-  background: var(--background-color-alt);
-  border-radius: var(--card-border-radius-small, 8px);
-  font-size: var(--font-size-small);
-  color: var(--font-color-muted);
-  line-height: 1.4;
 }

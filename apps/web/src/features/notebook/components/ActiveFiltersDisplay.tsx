@@ -4,16 +4,16 @@ import useNotebookStore from '../stores/notebookStore';
 import '../styles/notebook-filters.css';
 
 interface ActiveFiltersDisplayProps {
-  collectionId?: string;
-  collectionIds?: string[];
-  collections?: {
-    id?: string;
-    name?: string
-  }[];
-  className?: string;
+    collectionId?: string;
+    collectionIds?: string[];
+    collections?: {
+        id?: string;
+        name?: string
+    }[];
+    className?: string;
 }
 
-const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, className = '' }: ActiveFiltersDisplayProps): JSX.Element => {
+const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, className = '' }: ActiveFiltersDisplayProps): JSX.Element | null => {
     const {
         getFiltersForCollection,
         getFilterValuesForCollection,
@@ -37,7 +37,7 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
     const isMulti = normalizedCollections.length > 1;
 
     const activeFiltersList = useMemo(() => {
-        const allFilters = [];
+        const allFilters: any[] = [];
 
         normalizedCollections.forEach(collection => {
             const activeFilters = getFiltersForCollection(collection.id);
@@ -61,7 +61,7 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
         return allFilters;
     }, [normalizedCollections, getFiltersForCollection, getFilterValuesForCollection]);
 
-    const handleRemove = (cId, field, value) => {
+    const handleRemove = (cId: string | undefined, field: string, value: any) => {
         removeActiveFilter(cId, field, value);
     };
 

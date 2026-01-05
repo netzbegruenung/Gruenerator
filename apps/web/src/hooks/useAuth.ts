@@ -191,10 +191,10 @@ const checkServerHealth = async () => {
 const useServerAvailability = (skipCheck = false) => {
   const [isServerAvailable, setIsServerAvailable] = useState(true); // Start optimistic
   const [isChecking, setIsChecking] = useState(false); // Start false
-  
+
   useEffect(() => {
     const isDevelopment = import.meta.env.DEV;
-    
+
     if (!isDevelopment || skipCheck) {
       setIsServerAvailable(true);
       setIsChecking(false);
@@ -203,19 +203,19 @@ const useServerAvailability = (skipCheck = false) => {
 
     // Start checking only in development and only if not skipped
     setIsChecking(true);
-    
+
     let checkCount = 0;
     const maxChecks = 5; // Reduced from 20 to 5 checks
-    
+
     const checkServer = async () => {
       const available = await checkServerHealth();
-      
+
       if (available) {
         setIsServerAvailable(true);
         setIsChecking(false);
         return;
       }
-      
+
       checkCount++;
       if (checkCount >= maxChecks) {
         // Optimistic: assume available after max checks
@@ -223,7 +223,7 @@ const useServerAvailability = (skipCheck = false) => {
         setIsChecking(false);
         return;
       }
-      
+
       // Faster backoff: 200ms, 400ms, 800ms
       const delay = Math.min(200 * Math.pow(2, checkCount), 1000);
       setTimeout(checkServer, delay);
@@ -294,7 +294,7 @@ const setCachedAuthState = (data: AuthData) => {
  */
 export const useAuth = (options: AuthOptions = {}) => {
   const { skipAuth = false, lazy = false, instant = false } = options;
-  
+
   const {
     user,
     isAuthenticated,
@@ -335,29 +335,31 @@ export const useAuth = (options: AuthOptions = {}) => {
       isLoggingOut: false,
       isAuthResolved: true,
       isInitialLoad: false,
+      hasCachedData: false,
       selectedMessageColor: '#008939',
       igelModus: false,
       login,
-      logout: () => {},
-      updateUserMessageColor: () => {},
-      setIgelModus: () => {},
-      register: () => {},
-      deleteAccount: () => {},
-      sendPasswordResetEmail: () => {},
-      updatePassword: () => {},
-      updateProfile: () => {},
-      updateAvatar: () => {},
-      refetchAuth: () => {},
+      logout: () => { },
+      updateUserMessageColor: async () => { },
+      setIgelModus: async () => false,
+      register: () => { },
+      deleteAccount: async () => ({ success: false, message: '' }),
+      sendPasswordResetEmail: async () => ({ success: false, message: '' }),
+      updatePassword: () => { },
+      updateProfile: async () => ({}),
+      updateAvatar: async () => ({}),
+      refetchAuth: () => { },
+      setLoginIntent: () => { },
       session: null,
       supabase: null,
-      canManageAccount: false,
+      canManageAccount: () => false,
     };
   }
 
   // Load cached state immediately for instant mode
   const cachedAuth = instant ? getCachedAuthState() : null;
   const [hasCachedData] = useState(!!cachedAuth);
-  
+
   // Initialize with cached data if available
   useEffect(() => {
     if (cachedAuth && !hasInitializedFromCache) {
@@ -372,7 +374,7 @@ export const useAuth = (options: AuthOptions = {}) => {
   const hasRecentlyLoggedOut = isRecentlyLoggedOut();
 
   // Always allow auth on login page (conscious user action)
-  const isOnLoginPage = typeof window !== 'undefined' && 
+  const isOnLoginPage = typeof window !== 'undefined' &&
     (window.location.pathname === '/login' || window.location.pathname === '/auth/login');
 
   // Query configuration for different loading strategies
@@ -440,7 +442,7 @@ export const useAuth = (options: AuthOptions = {}) => {
         } catch (error) {
           // Ignore localStorage errors
         }
-        
+
         // Prevent infinite loop by only setting state if user is different
         if (authData.user.id !== currentUser?.id) {
           setAuthState({
@@ -489,11 +491,11 @@ export const useAuth = (options: AuthOptions = {}) => {
 
   // Calculate loading states with optimizations
   const isCombinedLoading = (
-    (!hasCachedData && isChecking) || 
-    (!hasCachedData && isQueryLoading) || 
+    (!hasCachedData && isChecking) ||
+    (!hasCachedData && isQueryLoading) ||
     (isLoading && !authData && !hasCachedData)
   );
-    
+
   const isAuthResolved = (
     hasCachedData ||
     (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut) ||
@@ -521,7 +523,7 @@ export const useAuth = (options: AuthOptions = {}) => {
     loading: isCombinedLoading,
     error,
     isLoggingOut,
-    
+
     // Enhanced loading states
     isAuthResolved,
     isInitialLoad: !hasCachedData && (isChecking || (isQueryLoading && !authData)),
@@ -532,7 +534,7 @@ export const useAuth = (options: AuthOptions = {}) => {
     login,
     logout,
     setLoginIntent,
-    
+
     updateUserMessageColor,
     setIgelModus,
 
@@ -542,9 +544,9 @@ export const useAuth = (options: AuthOptions = {}) => {
     updatePassword,
     updateProfile,
     updateAvatar,
-    
+
     refetchAuth,
-    
+
     // Legacy compatibility
     session: useAuthStore.getState().supabaseSession,
     supabase: null,

@@ -1,16 +1,12 @@
 import type { RefObject, ChangeEvent } from 'react';
 import type { VeranstaltungFieldFontSizes, SloganAlternative } from '../../../stores/imageStudioStore';
 
-export interface FieldConfigField {
-  name: string;
-  label: string;
-  placeholder?: string;
-}
+import type { InputField } from '../utils/typeConfig';
 
 export interface FieldConfig {
   showImageUpload?: boolean;
   showGroupedFontSizeControl?: boolean;
-  previewFields?: FieldConfigField[];
+  previewFields?: InputField[];
   showPreviewLabels?: boolean;
   showCredit?: boolean;
   showFontSizeControl?: boolean;

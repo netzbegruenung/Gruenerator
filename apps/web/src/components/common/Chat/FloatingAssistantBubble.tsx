@@ -36,8 +36,8 @@ const FloatingAssistantBubble = ({ message,
   isProcessing = false }: FloatingAssistantBubbleProps): JSX.Element => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const autoDismissTimerRef = useRef(null);
-  const bubbleRef = useRef(null);
+  const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
 
   const startAutoDismissTimer = useCallback(() => {
     if (autoDismissTimerRef.current) {
@@ -82,7 +82,7 @@ const FloatingAssistantBubble = ({ message,
 
   const previewText = message?.content
     ? message.content.slice(0, PREVIEW_LENGTH) +
-      (message.content.length > PREVIEW_LENGTH ? '...' : '')
+    (message.content.length > PREVIEW_LENGTH ? '...' : '')
     : '';
 
   const bubbleVariants = {
@@ -154,7 +154,7 @@ const FloatingAssistantBubble = ({ message,
               {message.actions && message.actions.length > 0 && (
                 <ChatActionButtons
                   actions={message.actions}
-                  onAction={onActionClick}
+                  onAction={onActionClick || (() => { })}
                   disabled={isProcessing}
                 />
               )}

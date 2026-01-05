@@ -1,6 +1,6 @@
 import { JSX, lazy, Suspense, useState, useCallback, useEffect, useMemo, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
-const Select = lazy(() => import('react-select'));
+const Select = lazy(() => import('react-select')) as any;
 import { HiRefresh, HiExclamationCircle, HiCheck, HiTemplate } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import * as canvaUtils from '../../../components/utils/canvaUtils';
@@ -208,7 +208,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
 
   const handleCanvaLogin = useCallback(async () => {
     try {
-      await canvaUtils.initiateCanvaLogin((error) => {
+      await canvaUtils.initiateCanvaLogin((error: any) => {
         console.error('[CanvaSelector] Canva login error:', error);
       });
     } catch (error) {
@@ -259,7 +259,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designsError) {
-    const errorContent: ReactElement = (
+    const errorContent: any = (
       <div className="canva-selector-message error">
         <HiExclamationCircle className="icon" />
         <h4>Fehler beim Laden</h4>
@@ -290,7 +290,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designsLoading) {
-    const loadingContent: ReactElement = (
+    const loadingContent: any = (
       <div className="canva-selector-loading">
         <div className="loading-spinner"></div>
         <p>Lade deine Canva-Designs...</p>
@@ -313,7 +313,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designs.length === 0) {
-    const emptyContent: ReactElement = (
+    const emptyContent: any = (
       <div className="canva-selector-message">
         <HiTemplate className="icon" />
         <h4>Keine Designs gefunden</h4>
@@ -445,14 +445,14 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
                 className="canva-select"
                 options={designOptions}
                 value={selectedOption}
-                onChange={handleDesignSelect}
+                onChange={(newValue: any) => handleDesignSelect(newValue)}
                 formatOptionLabel={formatOptionLabel}
                 placeholder="Canva-Design suchen und auswählen..."
                 isDisabled={externalLoading}
                 isSearchable={true}
                 isClearable={true}
                 filterOption={() => true}
-                onInputChange={(inputValue) => {
+                onInputChange={(inputValue: string) => {
                   setCurrentSearchTerm(inputValue);
                 }}
                 menuPortalTarget={document.body}

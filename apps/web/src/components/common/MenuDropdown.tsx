@@ -51,7 +51,7 @@ const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight =
     });
   }, [alignRight]);
 
-  const handleToggle = useCallback((e) => {
+  const handleToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOpen(prev => !prev);
   }, []);
@@ -64,13 +64,13 @@ const MenuDropdown = ({ trigger, children, onClose, className = '', alignRight =
   // Handle click outside to close and position dropdown
   useEffect(() => {
     if (isOpen) {
-      const handleClickOutside = (event) => {
+      const handleClickOutside = (event: MouseEvent) => {
         // Improved click outside detection
         if (
           triggerRef.current &&
-          !triggerRef.current.contains(event.target) &&
+          !triggerRef.current.contains(event.target as Node) &&
           dropdownRef.current &&
-          !dropdownRef.current.contains(event.target)
+          !dropdownRef.current.contains(event.target as Node)
         ) {
           handleClose();
         }

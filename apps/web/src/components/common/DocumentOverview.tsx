@@ -96,7 +96,7 @@ interface DocumentOverviewProps {
     onView?: (item: DocumentItem) => void;
     onRefreshDocument?: (id: string) => Promise<void>;
     onShare?: (item: DocumentItem) => void;
-    documentTypes?: Record<string, unknown>;
+    documentTypes?: Record<string, string>;
     itemType?: 'document' | 'notebook';
     searchFields?: string[];
     sortOptions?: SortOption[];
@@ -668,7 +668,7 @@ const DocumentOverview = ({
                 {itemType === 'document' && item.source_type && (
                     <span>
                         {item.source_type === 'wolke' ? '☁️' :
-                         item.source_type === 'url' ? '🔗' : '📁'}
+                            item.source_type === 'url' ? '🔗' : '📁'}
                     </span>
                 )}
                 {item.similarity_score != null && (
@@ -833,153 +833,153 @@ const DocumentOverview = ({
             </div>
 
             <div className="document-overview-content">
-                    {/* Search and Sort Controls */}
-                    <div className="document-overview-controls">
-                        {enableLocalSearch && (
-                          <div className="search-container" style={{ maxWidth: '250px', flexShrink: 0 }}>
-                              <HiOutlineSearch className="search-icon" />
-                              <input
-                                  type="text"
-                                  className="form-input search-input"
-                                  placeholder={searchPlaceholder}
-                                  value={searchState.searchQuery}
-                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => searchState.setSearchQuery(e.target.value)}
-                                  style={{ fontSize: '14px' }}
-                              />
-                          </div>
-                        )}
-                        {remoteSearchEnabled && (
-                            <div className="search-mode-controls" style={{ marginLeft: '8px' }}>
-                                <select
-                                    className="form-select"
-                                    value={searchState.searchMode}
-                                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => searchState.setSearchMode(e.target.value)}
-                                    title="Suchmodus"
-                                >
-                                    <option value="intelligent">Intelligent</option>
-                                    <option value="fulltext">Volltext</option>
-                                </select>
-                            </div>
-                        )}
-
-                        {/* Category Filter */}
-                        <div className="category-filter-container">
-                            <EnhancedSelect
-                                options={categoryOptions}
-                                value={categoryOptions.find(opt => opt.value === selectedCategory)}
-                                onChange={(selectedOption) => {
-                                    const option = selectedOption as { value: string; label: string } | null;
-                                    setSelectedCategory(option?.value || 'all');
-                                }}
-                                enableIcons={true}
-                                placeholder="Kategorie wählen..."
-                                className="category-filter-select"
-                                isSearchable={false}
-                                isClearable={false}
+                {/* Search and Sort Controls */}
+                <div className="document-overview-controls">
+                    {enableLocalSearch && (
+                        <div className="search-container" style={{ maxWidth: '250px', flexShrink: 0 }}>
+                            <HiOutlineSearch className="search-icon" />
+                            <input
+                                type="text"
+                                className="form-input search-input"
+                                placeholder={searchPlaceholder}
+                                value={searchState.searchQuery}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => searchState.setSearchQuery(e.target.value)}
+                                style={{ fontSize: '14px' }}
                             />
                         </div>
-
-                        <div className="sort-controls">
+                    )}
+                    {remoteSearchEnabled && (
+                        <div className="search-mode-controls" style={{ marginLeft: '8px' }}>
                             <select
                                 className="form-select"
-                                value={sortBy}
-                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
+                                value={searchState.searchMode}
+                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => searchState.setSearchMode(e.target.value)}
+                                title="Suchmodus"
                             >
-                                {[...sortOptions, ...(remoteSearchEnabled && searchState.hasQuery ? [{ value: 'similarity_score', label: 'Relevanz' }] : [])].map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
+                                <option value="intelligent">Intelligent</option>
+                                <option value="fulltext">Volltext</option>
                             </select>
-                            <button
-                                className="sort-order-button"
-                                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                title={sortOrder === 'asc' ? 'Aufsteigend sortiert' : 'Absteigend sortiert'}
-                            >
-                                {sortOrder === 'asc' ? '↑' : '↓'}
-                            </button>
-
-                            {/* Select all checkbox - positioned next to sort controls */}
-                            <SelectAllCheckbox
-                                enabled={enableBulkSelect && !!onBulkDelete}
-                                disabledWhenRemote={true}
-                                isRemoteActive={remoteSearchEnabled && searchState.hasQuery}
-                                filteredItems={categoryFilteredItems}
-                                itemType={itemType}
-                                selectedItemIds={selectedItemIds}
-                                onToggleAll={handleSelectAll}
-                            />
                         </div>
+                    )}
+
+                    {/* Category Filter */}
+                    <div className="category-filter-container">
+                        <EnhancedSelect
+                            options={categoryOptions}
+                            value={categoryOptions.find(opt => opt.value === selectedCategory)}
+                            onChange={(selectedOption) => {
+                                const option = selectedOption as { value: string; label: string } | null;
+                                setSelectedCategory(option?.value || 'all');
+                            }}
+                            enableIcons={true}
+                            placeholder="Kategorie wählen..."
+                            className="category-filter-select"
+                            isSearchable={false}
+                            isClearable={false}
+                        />
                     </div>
 
-                    {/* Items Grid (supports remote results) */}
-                    {(() => {
-                        const usingRemote = remoteSearchEnabled && searchState.hasQuery;
-                        const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : categoryFilteredItems;
+                    <div className="sort-controls">
+                        <select
+                            className="form-select"
+                            value={sortBy}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSortBy(e.target.value)}
+                        >
+                            {[...sortOptions, ...(remoteSearchEnabled && searchState.hasQuery ? [{ value: 'similarity_score', label: 'Relevanz' }] : [])].map(option => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            className="sort-order-button"
+                            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                            title={sortOrder === 'asc' ? 'Aufsteigend sortiert' : 'Absteigend sortiert'}
+                        >
+                            {sortOrder === 'asc' ? '↑' : '↓'}
+                        </button>
 
-                        if (itemsToShow.length === 0) {
-                            if (!searchState.hasQuery) {
-                                return renderEmptyState();
-                            }
-
-                            // Handle empty search results
-                            const status = searchState.getSearchStatus(isRemoteSearchingValue);
-                            if (status) {
-                                return (
-                                    <div className="document-overview-empty-state">
-                                        <p>{status}</p>
-                                    </div>
-                                );
-                            }
-
-                            if (searchState.shouldShowNoResults(0, isRemoteSearchingValue)) {
-                                return (
-                                    <div className="document-overview-empty-state">
-                                        <p>Keine Ergebnisse gefunden für "{searchState.searchQuery}"</p>
-                                    </div>
-                                );
-                            }
-
-                            return null;
-                        }
-
-                        // Sort items by selected sort
-                        const sorted = [...itemsToShow].sort((a, b) => {
-                            const valA = getSortValue(a, sortBy);
-                            const valB = getSortValue(b, sortBy);
-                            return sortOrder === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-                        });
-
-                        return (
-                            <div className="document-overview-grid">
-                                {sorted.map((item) => (
-                                    cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
-                                ))}
-                            </div>
-                        );
-                    })()}
+                        {/* Select all checkbox - positioned next to sort controls */}
+                        <SelectAllCheckbox
+                            enabled={enableBulkSelect && !!onBulkDelete}
+                            disabledWhenRemote={true}
+                            isRemoteActive={remoteSearchEnabled && searchState.hasQuery}
+                            filteredItems={categoryFilteredItems}
+                            itemType={itemType}
+                            selectedItemIds={selectedItemIds}
+                            onToggleAll={handleSelectAll}
+                        />
+                    </div>
                 </div>
 
-                {/* Bulk delete section at the end for better UX */}
-                {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
-                    <div className="document-overview-bulk-actions" style={{
-                        padding: 'var(--spacing-medium)',
-                        borderTop: '1px solid var(--border-color)',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        backgroundColor: 'var(--background-secondary)'
-                    }}>
-                        <button
-                            type="button"
-                            className="pabtn pabtn--delete pabtn--s"
-                            onClick={() => setShowBulkDeleteModal(true)}
-                            disabled={isBulkDeleting}
-                        >
-                            <HiOutlineTrash className="pabtn__icon" />
-                            <span className="pabtn__label">{selectedItemIds.size} löschen</span>
-                        </button>
-                    </div>
-                )}
+                {/* Items Grid (supports remote results) */}
+                {(() => {
+                    const usingRemote = remoteSearchEnabled && searchState.hasQuery;
+                    const itemsToShow = usingRemote ? normalizeRemoteResults(remoteResults) : categoryFilteredItems;
+
+                    if (itemsToShow.length === 0) {
+                        if (!searchState.hasQuery) {
+                            return renderEmptyState();
+                        }
+
+                        // Handle empty search results
+                        const status = searchState.getSearchStatus(isRemoteSearchingValue);
+                        if (status) {
+                            return (
+                                <div className="document-overview-empty-state">
+                                    <p>{status}</p>
+                                </div>
+                            );
+                        }
+
+                        if (searchState.shouldShowNoResults(0, isRemoteSearchingValue)) {
+                            return (
+                                <div className="document-overview-empty-state">
+                                    <p>Keine Ergebnisse gefunden für "{searchState.searchQuery}"</p>
+                                </div>
+                            );
+                        }
+
+                        return null;
+                    }
+
+                    // Sort items by selected sort
+                    const sorted = [...itemsToShow].sort((a, b) => {
+                        const valA = getSortValue(a, sortBy);
+                        const valB = getSortValue(b, sortBy);
+                        return sortOrder === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+                    });
+
+                    return (
+                        <div className="document-overview-grid">
+                            {sorted.map((item) => (
+                                cardRenderer ? cardRenderer(item) : renderDefaultCard(item)
+                            ))}
+                        </div>
+                    );
+                })()}
+            </div>
+
+            {/* Bulk delete section at the end for better UX */}
+            {enableBulkSelect && onBulkDelete && selectedItemIds.size > 0 && (
+                <div className="document-overview-bulk-actions" style={{
+                    padding: 'var(--spacing-medium)',
+                    borderTop: '1px solid var(--border-color)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    backgroundColor: 'var(--background-secondary)'
+                }}>
+                    <button
+                        type="button"
+                        className="pabtn pabtn--delete pabtn--s"
+                        onClick={() => setShowBulkDeleteModal(true)}
+                        disabled={isBulkDeleting}
+                    >
+                        <HiOutlineTrash className="pabtn__icon" />
+                        <span className="pabtn__label">{selectedItemIds.size} löschen</span>
+                    </button>
+                </div>
+            )}
 
             {/* Preview Modal */}
             {showPreview && renderPreview()}

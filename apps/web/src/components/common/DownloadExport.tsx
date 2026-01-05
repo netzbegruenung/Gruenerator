@@ -5,7 +5,13 @@ import { useExportStore } from '../../stores/core/exportStore';
 import { extractFormattedText } from '../utils/contentExtractor';
 
 // === MAIN COMPONENT ===
-const DownloadExport = ({ content, title, className = 'action-button' }) => {
+interface DownloadExportProps {
+  content: any;
+  title?: string;
+  className?: string;
+}
+
+const DownloadExport = ({ content, title, className = 'action-button' }: DownloadExportProps) => {
   const [showFormatSelector, setShowFormatSelector] = useState(false);
 
   // Use export store for state and actions
@@ -27,7 +33,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
     try {
       // Preprocess content to ensure consistent formatting for export
       const formattedContent = await extractFormattedText(content);
-      await generateDOCX(formattedContent, title);
+      await generateDOCX(formattedContent, title || 'Download');
     } catch (error) {
       console.error('DOCX download failed:', error);
     }
@@ -53,13 +59,13 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
   //   }
   // }, [loadPDFLibrary]);
 
-  const loadDOCX = useCallback(async () => {}, []);
+  const loadDOCX = useCallback(async () => { }, []);
 
   const handleDownloadClick = () => {
     setShowFormatSelector(!showFormatSelector);
   };
 
-  const handleFormatSelect = useCallback((format) => {
+  const handleFormatSelect = useCallback((format: 'docx' | 'pdf') => {
     setShowFormatSelector(false);
 
     if (format === 'docx') {
@@ -72,8 +78,8 @@ const DownloadExport = ({ content, title, className = 'action-button' }) => {
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showFormatSelector && !event.target.closest('.download-export')) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showFormatSelector && !(event.target as HTMLElement).closest('.download-export')) {
         setShowFormatSelector(false);
       }
     };

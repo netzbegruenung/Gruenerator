@@ -33,7 +33,7 @@ const CitationBadge = ({ citationIndex, citation }: CitationBadgeProps): JSX.Ele
 
   const handleClick = () => {
     if (citation) {
-      setSelectedCitation(citation);
+      setSelectedCitation(citation as any); // Type cast to match store expectations if needed
     }
   };
 

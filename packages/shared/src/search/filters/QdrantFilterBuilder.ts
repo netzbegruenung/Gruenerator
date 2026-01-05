@@ -13,7 +13,7 @@ import type {
   QdrantTextCondition,
   FilterSpec,
   CommonFilterField
-} from './types.ts';
+} from './types.js';
 
 /**
  * Common filterable fields used across collections

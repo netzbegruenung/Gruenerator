@@ -3,6 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import Icon from '../Icon';
 import './base-popup.css';
 
+interface PopupSliderProps {
+  slides: any[];
+  onClose: () => void;
+  renderSlide: (props: any) => React.ReactNode;
+  renderFooter?: (props: any) => React.ReactNode;
+  autoPlay?: boolean;
+  autoPlayInterval?: number;
+}
+
 const PopupSlider = ({
   slides,
   onClose,
@@ -10,13 +19,13 @@ const PopupSlider = ({
   renderFooter,
   autoPlay = false,
   autoPlayInterval = 4000,
-}) => {
+}: PopupSliderProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(autoPlay);
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const intervalRef = useRef(null);
+  const intervalRef = useRef<any>(null);
 
   const totalSlides = slides.length;
 
@@ -44,7 +53,7 @@ const PopupSlider = ({
   }, [isAutoPlaying, totalSlides, autoPlayInterval]);
 
   useEffect(() => {
-    const handleKeyDown = (event) => {
+    const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
         case 'ArrowLeft':
           event.preventDefault();
@@ -63,12 +72,12 @@ const PopupSlider = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [totalSlides]);
 
-  const handleTouchStart = (e) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
   };
 
-  const handleTouchMove = (e) => {
+  const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
@@ -97,7 +106,7 @@ const PopupSlider = ({
     setIsAutoPlaying(false);
   }, [totalSlides]);
 
-  const handleDotClick = (index) => {
+  const handleDotClick = (index: number) => {
     setCurrentSlide(index);
     setIsAutoPlaying(false);
   };
@@ -153,7 +162,7 @@ const PopupSlider = ({
       </div>
 
       <div className="popup-slider-dots">
-        {slides.map((_, index) => (
+        {slides.map((_, index: number) => (
           <button
             key={index}
             className={`popup-slider-dot ${index === currentSlide ? 'popup-slider-dot--active' : ''}`}

@@ -108,42 +108,6 @@ export const COLOR_SCHEMES: ColorScheme[] = [
     ],
   },
   {
-    id: 'klee-sand',
-    label: 'Klee & Sand',
-    colors: [
-      { background: COLORS.KLEE, text: COLORS.SAND },
-      { background: COLORS.SAND, text: COLORS.KLEE },
-      { background: COLORS.SAND, text: COLORS.KLEE },
-    ],
-  },
-  {
-    id: 'all-tanne',
-    label: 'Alles Tanne',
-    colors: [
-      { background: COLORS.TANNE, text: COLORS.SAND },
-      { background: COLORS.TANNE, text: COLORS.SAND },
-      { background: COLORS.TANNE, text: COLORS.SAND },
-    ],
-  },
-  {
-    id: 'all-klee',
-    label: 'Alles Klee',
-    colors: [
-      { background: COLORS.KLEE, text: COLORS.SAND },
-      { background: COLORS.KLEE, text: COLORS.SAND },
-      { background: COLORS.KLEE, text: COLORS.SAND },
-    ],
-  },
-  {
-    id: 'tanne-klee',
-    label: 'Tanne & Klee',
-    colors: [
-      { background: COLORS.TANNE, text: COLORS.SAND },
-      { background: COLORS.KLEE, text: COLORS.SAND },
-      { background: COLORS.TANNE, text: COLORS.SAND },
-    ],
-  },
-  {
     id: 'sand-tanne',
     label: 'Sand & Tanne',
     colors: [

@@ -4,11 +4,12 @@ import { HiCheck, HiRefresh, HiStar } from 'react-icons/hi';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { usePreloadStore } from '../hooks/usePreloadStore';
 import { useImageSourceStore } from '../hooks/useImageSourceStore';
+import { StockImage } from '../services/imageSourceService';
 import UnsplashAttribution from '../../../components/common/UnsplashAttribution';
 import apiClient from '../../../components/utils/apiClient';
 import './StockImagesGrid.css';
 
-const CATEGORY_LABELS = {
+const CATEGORY_LABELS: Record<string, string> = {
   empfohlen: 'Empfohlen',
   all: 'Alle',
   environment: 'Umwelt',
@@ -19,7 +20,11 @@ const CATEGORY_LABELS = {
   education: 'Bildung'
 };
 
-const StockImagesGrid = ({ onImageSelect }) => {
+interface StockImagesGridProps {
+  onImageSelect?: (image: StockImage) => void;
+}
+
+const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
   const { thema, line1, setUploadedImage, setFile } = useImageStudioStore();
   const { preloadedImageResult } = usePreloadStore();
   const {
@@ -34,9 +39,9 @@ const StockImagesGrid = ({ onImageSelect }) => {
   } = useImageSourceStore();
 
   const [isAiSuggesting, setIsAiSuggesting] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(null);
-  const [recommendedImage, setRecommendedImage] = useState(null);
-  const [recommendedCategory, setRecommendedCategory] = useState(null);
+  const [aiSuggestion, setAiSuggestion] = useState<{ selectedImage: StockImage } | null>(null);
+  const [recommendedImage, setRecommendedImage] = useState<StockImage | null>(null);
+  const [recommendedCategory, setRecommendedCategory] = useState<string | null>(null);
   const hasAutoSuggested = useRef(false);
 
   useEffect(() => {
@@ -47,7 +52,7 @@ const StockImagesGrid = ({ onImageSelect }) => {
 
   const [localCategory, setLocalCategory] = useState('all');
 
-  const handleCategoryChange = useCallback((category) => {
+  const handleCategoryChange = useCallback((category: string) => {
     setLocalCategory(category);
     // Only call store for real categories (not 'empfohlen' which is local-only)
     if (category !== 'empfohlen') {
@@ -55,7 +60,7 @@ const StockImagesGrid = ({ onImageSelect }) => {
     }
   }, [setStockImageCategory]);
 
-  const handleImageClick = useCallback(async (image) => {
+  const handleImageClick = useCallback(async (image: StockImage) => {
     try {
       const file = await selectStockImage(image);
       if (file) {
@@ -110,7 +115,7 @@ const StockImagesGrid = ({ onImageSelect }) => {
       );
       if (matchingImage) {
         setRecommendedImage(matchingImage);
-        setRecommendedCategory(preloadedImageResult.category);
+        setRecommendedCategory(preloadedImageResult.category || null);
         hasAutoSuggested.current = true;
       }
     }
@@ -238,8 +243,8 @@ const StockImagesGrid = ({ onImageSelect }) => {
 
                 <div className="stock-images-grid__attribution">
                   <UnsplashAttribution
-                    photographer={image.attribution?.photographer}
-                    profileUrl={image.attribution?.profileUrl}
+                    photographer={image.attribution?.photographer || ''}
+                    profileUrl={image.attribution?.profileUrl || ''}
                     compact
                   />
                 </div>

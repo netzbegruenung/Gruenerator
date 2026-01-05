@@ -73,7 +73,7 @@ const DeleteWarningTooltip = ({
     }
   }, [isVisible, updatePosition]);
 
-  const handleClick = (e) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (disabled) return;
@@ -99,9 +99,9 @@ const DeleteWarningTooltip = ({
     setConfirmStep(0);
   };
 
-  const handleClickOutside = useCallback((e) => {
-    if (tooltipRef.current && !tooltipRef.current.contains(e.target) &&
-        triggerRef.current && !triggerRef.current.contains(e.target)) {
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node) &&
+      triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
       handleCancel();
     }
   }, []);

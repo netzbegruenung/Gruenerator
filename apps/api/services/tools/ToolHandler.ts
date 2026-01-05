@@ -85,7 +85,7 @@ export class ToolHandler {
 
     const targetProvider = provider.toLowerCase() as AIProvider;
     const isClaudeProvider = targetProvider === 'claude';
-    const isOpenAIProvider: boolean = ['openai', 'litellm', 'ionos', 'mistral'].includes(targetProvider);
+    const isOpenAIProvider: boolean = ['openai', 'litellm', 'ionos', 'mistral', 'telekom'].includes(targetProvider);
 
     return tools.map(tool => {
       const isOpenAIFormat = 'type' in tool && tool.type === 'function' && 'function' in tool;

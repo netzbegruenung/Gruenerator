@@ -5,3 +5,4 @@ export * from './veranstaltungLayout';
 export * from './dreizeilenLayout';
 export * from './simpleLayout';
 export * from './snapping';
+export * from './textUtils';

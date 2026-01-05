@@ -1,0 +1,7 @@
+
+
+> @gruenerator/desktop@1.0.0 build /home/morit/gruenerator/apps/desktop
+> tauri build
+
+[1m[32m        Info[0m Looking up installed tauri packages to check mismatched versions...
+[1m[32m     Running[0m beforeBuildCommand `cd ../.. && pnpm exec cross-env TAURI_ENV_PLATFORM=desktop VITE_API_BASE_URL=https://gruenerator.de/api pnpm --filter @gruenerator/web build`

@@ -63,3 +63,11 @@
   outline: none;
   background: var(--background-color);
 }
+
+/* Center on mobile */
+@media (max-width: 899px) {
+  .sidebar-section--fontsize {
+    width: 100%;
+    align-items: center;
+  }
+}

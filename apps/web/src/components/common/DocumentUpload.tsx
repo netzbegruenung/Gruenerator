@@ -32,6 +32,7 @@ interface DocumentType {
   id: string;
   title: string;
   status: string;
+  created_at?: string | number | Date;
   page_count?: number;
   ocr_text?: string;
   [key: string]: unknown;
@@ -57,7 +58,7 @@ export interface DocumentUploadRef {
   hideUploadForm: () => void;
 }
 
-interface WolkeFile {
+interface DocumentUploadWolkeFile {
   name: string;
   shareLinkId: string;
   [key: string]: unknown;
@@ -68,7 +69,7 @@ const DocumentPreview = ({ document }: DocumentPreviewProps) => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewText, setPreviewText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDocumentContent = async () => {
     if (previewText) {
@@ -166,7 +167,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   const [dragActive, setDragActive] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [showUploadForm, setShowUploadForm] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [ocrMethod, setOcrMethod] = useState('tesseract');
 
   // Upload mode state
@@ -175,12 +176,12 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
 
   // Wolke import state
-  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState([]);
+  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState<any[]>([]);
   const [wolkeImportProgress, setWolkeImportProgress] = useState(0);
 
   // Use controlled state when forceShowUploadForm is true
   const isFormVisible = forceShowUploadForm || showUploadForm;
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useOptimizedAuth();
 
@@ -308,7 +309,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, [handleFileSelect]);
 
   // Handle Wolke file selection
-  const handleWolkeFilesSelected = (files: WolkeFile[]) => {
+  const handleWolkeFilesSelected = (files: any[]) => {
     setSelectedWolkeFiles(files);
     // Always auto-generate title based on selection
     if (files.length === 1) {
@@ -644,7 +645,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                         </label>
                         <WolkeFilePicker
                           onFilesSelected={handleWolkeFilesSelected}
-                          onCancel={() => {}} // No cancel needed for inline mode
+                          onCancel={() => { }} // No cancel needed for inline mode
                           selectedFiles={selectedWolkeFiles}
                           inline={true}
                         />
@@ -701,13 +702,13 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                       <>
                         <Spinner size="small" />
                         {uploadMode === 'file' ? 'Wird hochgeladen...' :
-                         uploadMode === 'url' ? 'Website wird verarbeitet...' :
-                         'Wolke-Dateien werden importiert...'}
+                          uploadMode === 'url' ? 'Website wird verarbeitet...' :
+                            'Wolke-Dateien werden importiert...'}
                       </>
                     ) : (
                       uploadMode === 'file' ? 'Hochladen' :
-                      uploadMode === 'url' ? 'Website crawlen' :
-                      'Wolke-Dateien importieren'
+                        uploadMode === 'url' ? 'Website crawlen' :
+                          'Wolke-Dateien importieren'
                     )}
                   </button>
                   {uploadMode === 'file' && selectedFile && (
@@ -843,7 +844,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                     </label>
                     <WolkeFilePicker
                       onFilesSelected={handleWolkeFilesSelected}
-                      onCancel={() => {}} // No cancel needed for inline mode
+                      onCancel={() => { }} // No cancel needed for inline mode
                       selectedFiles={selectedWolkeFiles}
                       inline={true}
                     />
@@ -887,7 +888,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
               */}
 
               {/* Action Buttons */}
-              <div className="profile-actions" style={{justifyContent: 'flex-start', gap: '10px'}}>
+              <div className="profile-actions" style={{ justifyContent: 'flex-start', gap: '10px' }}>
                 <button
                   onClick={handleUpload}
                   className="btn-primary size-s"
@@ -901,13 +902,13 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                     <>
                       <Spinner size="small" />
                       {uploadMode === 'file' ? 'Wird hochgeladen...' :
-                       uploadMode === 'url' ? 'Website wird verarbeitet...' :
-                       'Wolke-Dateien werden importiert...'}
+                        uploadMode === 'url' ? 'Website wird verarbeitet...' :
+                          'Wolke-Dateien werden importiert...'}
                     </>
                   ) : (
                     uploadMode === 'file' ? 'Hochladen' :
-                    uploadMode === 'url' ? 'Website crawlen' :
-                    'Wolke-Dateien importieren'
+                      uploadMode === 'url' ? 'Website crawlen' :
+                        'Wolke-Dateien importieren'
                   )}
                 </button>
                 {uploadMode === 'file' && selectedFile && (
@@ -967,7 +968,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                           <span className="document-pages">{document.page_count} Seiten</span>
                         )}
                         <span className="document-date">
-                          {new Date(document.created_at).toLocaleDateString('de-DE')}
+                          {document.created_at && new Date(document.created_at).toLocaleDateString('de-DE')}
                         </span>
                       </div>
                     </div>

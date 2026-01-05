@@ -33,7 +33,6 @@ import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.j
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
 import sharepicClaudeRoute, { handleClaudeRequest } from './routes/sharepic/sharepic_claude/index.js';
-import text2SharepicRoute from './routes/sharepic/text2sharepic.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
@@ -57,6 +56,7 @@ import { oparlRouter } from './routes/oparl/index.js';
 import voiceRouter from './routes/voice/voiceController.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
+import promptRoute from './routes/sharepic/promptRoute.js';
 
 const log = createLogger('Routes');
 
@@ -157,7 +157,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/campaign_generate', campaignGenerateRoute);
   app.use('/api/dreizeilen_claude', sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', editSessionRouter);
-  app.use('/api/sharepic/text2sharepic', text2SharepicRoute);
+  app.use('/api/sharepic', promptRoute);
 
   app.post('/api/zitat_claude', async (req: Request, res: Response): Promise<void> => {
     await handleClaudeRequest(req as any, res, 'zitat');

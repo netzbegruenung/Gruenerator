@@ -1,0 +1,17 @@
+
+
+> @gruenerator/web@1.0.0 build /home/morit/gruenerator/apps/web
+> cross-env NODE_OPTIONS=--max-old-space-size=2048 vite build
+
+[36mvite v7.3.0 [32mbuilding client environment for production...[36m[39m
+[2K[1Gtransforming (1) [2m[2K[1Gtransforming (5) [2m[2K[1Gtransforming (9) [2m[2K[1Gtransforming (11) [2[2K[1Gtransforming (18) [2[2K[1G[2K[1Gtransforming (23) [2[2K[1Gtransforming (31) [2[2K[1Gtransforming (37) [2[2K[1Gtransforming (44) [2[2K[1Gtransforming (61) [2[2K[1Gtransforming (65) [2[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1Gtransforming (80) [2[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1G[2K[1Gtransforming (101) [[2K[1Gtransforming (115) [[2K[1Gtransforming (131) [[2K[1Gtransforming (146) [[2K[1Gtransforming (167) [[2K[1Gtransforming (180) [[2K[1G[2K[1G[2K[1Gtransforming (193) [[2K[1Gtransforming (197) [[2K[1Gtransforming (207) [[2K[1Gtransforming (224) [[2K[1Gtransforming (247) [[2K[1Gtransforming (256) [[2K[1Gtransforming (273) [[2K[1Gtransforming (290) [[2K[1G[32m✓[39m 311 modules transformed.
+[2K[1G[31m✗[39m Build failed in 4.28s
+[31merror during build:
+[31mCould not resolve "./common/GenericModal" from "src/components/SharepicMasterEditorModal.tsx"[31m
+file: [36m/home/morit/gruenerator/apps/web/src/components/SharepicMasterEditorModal.tsx[31m
+    at getRollupError (file:///home/morit/gruenerator/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///home/morit/gruenerator/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///home/morit/gruenerator/node_modules/rollup/dist/es/shared/node-entry.js:21661:24)
+    at ModuleLoader.resolveDynamicImport (file:///home/morit/gruenerator/node_modules/rollup/dist/es/shared/node-entry.js:21721:58)
+    at async file:///home/morit/gruenerator/node_modules/rollup/dist/es/shared/node-entry.js:21605:32[39m
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 1.[39m

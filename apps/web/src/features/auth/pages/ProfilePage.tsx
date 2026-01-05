@@ -97,7 +97,7 @@ const TabButton = ({
 const ProfilePage = () => {
   const navigate = useNavigate();
   const { tab, subtab, subsubtab } = useParams();
-  const tabsContainerRef = useRef(null);
+  const tabsContainerRef = useRef<HTMLElement>(null);
 
   // Authentication and loading states
   const {
@@ -360,8 +360,8 @@ const ProfilePage = () => {
           <h1>Mein Profil</h1>
         </div> */}
 
-        {/* Tab Navigation - Hidden since navigation is now in profile button menu */}
-        {/* <div
+      {/* Tab Navigation - Hidden since navigation is now in profile button menu */}
+      {/* <div
           ref={tabsContainerRef}
           className="profile-tabs"
           role="tablist"
@@ -414,7 +414,7 @@ const ProfilePage = () => {
         <Suspense fallback={<div className="profile-tab-loading"></div>}>
           {activeTab === 'profile' && (
             <ProfileInfoTab
-              user={user}
+              user={user || undefined}
               onSuccessMessage={handleSuccessMessage}
               onErrorProfileMessage={handleErrorMessage}
               deleteAccount={async (options: { confirm: string }) => {

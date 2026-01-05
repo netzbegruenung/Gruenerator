@@ -72,7 +72,7 @@ const DropdownButton = ({
     });
   }, []);
 
-  const handleToggle = useCallback((e) => {
+  const handleToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOpen(prev => !prev);
   }, []);
@@ -103,12 +103,12 @@ const DropdownButton = ({
   // Handle click outside to close and position dropdown
   useEffect(() => {
     if (isOpen) {
-      const handleClickOutside = (event) => {
+      const handleClickOutside = (event: MouseEvent) => {
         if (
           triggerRef.current &&
-          !triggerRef.current.contains(event.target) &&
+          !triggerRef.current.contains(event.target as Node) &&
           dropdownRef.current &&
-          !dropdownRef.current.contains(event.target)
+          !dropdownRef.current.contains(event.target as Node)
         ) {
           handleClose();
         }
@@ -205,7 +205,7 @@ const DropdownButton = ({
             <button
               className="dropdown-button-option"
               onClick={() => {
-                onCreateNotebook();
+                onCreateNotebook?.();
                 handleClose();
               }}
               aria-label="Neues Notebook erstellen"
@@ -220,7 +220,7 @@ const DropdownButton = ({
             <button
               className="dropdown-button-option"
               onClick={() => {
-                onCreateSite();
+                onCreateSite?.();
                 handleClose();
               }}
               aria-label="Neue Site erstellen"

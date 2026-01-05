@@ -30,11 +30,11 @@ const GalleryContainer = ({ initialContentType,
 
   const firstAvailableType = typeOrder.find((id) => GALLERY_CONTENT_TYPES[id]);
   const [contentType, setContentType] = useState(
-    GALLERY_CONTENT_TYPES[initialContentType] ? initialContentType : (firstAvailableType || DEFAULT_GALLERY_TYPE)
+    (initialContentType && GALLERY_CONTENT_TYPES[initialContentType]) ? initialContentType : (firstAvailableType || DEFAULT_GALLERY_TYPE)
   );
   const [previewTemplate, setPreviewTemplate] = useState(null);
 
-  const handleOpenPreview = useCallback((template) => setPreviewTemplate(template), []);
+  const handleOpenPreview = useCallback((template: any) => setPreviewTemplate(template), []);
   const handleClosePreview = useCallback(() => setPreviewTemplate(null), []);
 
   const {
@@ -60,14 +60,14 @@ const GalleryContainer = ({ initialContentType,
   const placeholder = 'Durchsuchen...';
   const showCategoryFilter = activeConfig.allowCategoryFilter !== false && Array.isArray(categories) && categories.length > 0;
 
-  const handleContentTypeChange = (nextType) => {
+  const handleContentTypeChange = (nextType: string) => {
     if (!GALLERY_CONTENT_TYPES[nextType]) return;
     setContentType(nextType);
   };
 
-  const renderList = (list, rendererId) => {
+  const renderList = (list: any[], rendererId: string) => {
     if (!Array.isArray(list) || list.length === 0) return null;
-    const adapter = cardAdapters[rendererId] || cardAdapters.default;
+    const adapter = cardAdapters[rendererId as keyof typeof cardAdapters] || cardAdapters.default;
     const adapterOptions = rendererId === 'vorlagen'
       ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
       : {};
@@ -98,7 +98,7 @@ const GalleryContainer = ({ initialContentType,
     if (sections && Object.keys(sections).length > 0) {
       return (
         <div className="all-content-container">
-          {activeConfig.sectionOrder.map((sectionId) => {
+          {activeConfig.sectionOrder?.map((sectionId: string) => {
             const list = sections[sectionId] || [];
             if (!list.length) return null;
             return (
@@ -139,7 +139,7 @@ const GalleryContainer = ({ initialContentType,
             contentTypes={typeOptions}
             activeContentType={contentType}
             onContentTypeChange={(id: string) => handleContentTypeChange(id)}
-            categories={categories || []}
+            categories={(categories as any[]) || []}
             selectedCategory={selectedCategory}
             onCategoryChange={(id: string) => setSelectedCategory(id)}
             showCategoryFilter={showCategoryFilter}

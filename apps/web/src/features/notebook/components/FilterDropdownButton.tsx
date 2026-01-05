@@ -5,48 +5,48 @@ import DateRangeFilter from './DateRangeFilter';
 import '../styles/notebook-filters.css';
 
 interface FilterDropdownButtonProps {
-  collectionId?: string;
-  collectionIds?: string[];
-  collections?: {
-    id?: string;
-    name?: string
-  }[];
-  disabled?: boolean;
-  className?: string;
+    collectionId?: string;
+    collectionIds?: string[];
+    collections?: {
+        id?: string;
+        name?: string
+    }[];
+    disabled?: boolean;
+    className?: string;
 }
 
 interface NormalizedCollection {
-  id?: string;
-  name?: string | null;
+    id?: string;
+    name?: string | null;
 }
 
 interface FilterValueItem {
-  value: string;
-  count?: number;
+    value: string;
+    count?: number;
 }
 
 interface FilterField {
-  field: string;
-  label: string;
-  type: string;
-  values: (string | FilterValueItem)[];
-  min?: unknown;
-  max?: unknown;
-  activeValue?: string[] | { date_from?: string; date_to?: string } | null;
+    field: string;
+    label: string;
+    type: string;
+    values: (string | FilterValueItem)[];
+    min?: unknown;
+    max?: unknown;
+    activeValue?: string[] | { date_from?: string; date_to?: string } | null;
 }
 
 interface FilterGroup {
-  collectionId?: string;
-  collectionName?: string | null;
-  loading: boolean;
-  fields: FilterField[];
+    collectionId?: string;
+    collectionName?: string | null;
+    loading: boolean;
+    fields: FilterField[];
 }
 
 const FilterDropdownButton = ({ collectionId,
     collectionIds,
     collections,
     disabled = false,
-    className = '' }: FilterDropdownButtonProps): JSX.Element => {
+    className = '' }: FilterDropdownButtonProps): JSX.Element | null => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [expandedCollections, setExpandedCollections] = useState<Record<string, boolean>>({});
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -161,7 +161,7 @@ const FilterDropdownButton = ({ collectionId,
         return groups;
     }, [normalizedCollections, filterValuesCache, loadingFilters, activeFilters, getFilterValuesForCollection, getFiltersForCollection, isLoadingFilters]);
 
-    const handleChipClick = (collectionIdParam: string | undefined, field: string, value: string | { date_from?: string; date_to?: string }): void => {
+    const handleChipClick = (collectionIdParam: string | undefined, field: string, value: string | { date_from?: string; date_to?: string } | null): void => {
         setActiveFilter(collectionIdParam, field, value);
     };
 
@@ -255,47 +255,48 @@ const FilterDropdownButton = ({ collectionId,
                                                     const dateActiveValue = activeValue as { date_from?: string; date_to?: string } | undefined;
                                                     const arrayActiveValue = activeValue as string[] | undefined;
                                                     return (
-                                                    <div key={`${group.collectionId}-${field}`} className="notebook-filter-group">
-                                                        {type === 'date_range' ? (
-                                                            <DateRangeFilter
-                                                                label={label}
-                                                                min={min}
-                                                                max={max}
-                                                                dateFrom={dateActiveValue?.date_from}
-                                                                dateTo={dateActiveValue?.date_to}
-                                                                onDateFromChange={(value: string) => handleChipClick(group.collectionId, field, { date_from: value, date_to: dateActiveValue?.date_to })}
-                                                                onDateToChange={(value: string) => handleChipClick(group.collectionId, field, { date_from: dateActiveValue?.date_from, date_to: value })}
-                                                                onClear={() => setActiveFilter(group.collectionId, field, null)}
-                                                            />
-                                                        ) : (
-                                                            <>
-                                                                <span className="notebook-filter-group-label">{label}</span>
-                                                                <div className="notebook-filter-chips">
-                                                                    {values.map((item: string | FilterValueItem) => {
-                                                                        const isObject = typeof item === 'object' && item !== null;
-                                                                        const displayValue = isObject ? (item as FilterValueItem).value : item as string;
-                                                                        const count = isObject ? (item as FilterValueItem).count : null;
-                                                                        const isActive = arrayActiveValue?.includes(displayValue);
-                                                                        return (
-                                                                            <button
-                                                                                key={displayValue}
-                                                                                type="button"
-                                                                                className={`notebook-filter-chip ${isActive ? 'active' : ''}`}
-                                                                                onClick={() => handleChipClick(group.collectionId, field, displayValue)}
-                                                                            >
-                                                                                {isActive && <HiCheck className="notebook-filter-chip-check" />}
-                                                                                <span>{displayValue}</span>
-                                                                                {count !== null && count !== undefined && (
-                                                                                    <span className="notebook-filter-chip-count">({count})</span>
-                                                                                )}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                )})
+                                                        <div key={`${group.collectionId}-${field}`} className="notebook-filter-group">
+                                                            {type === 'date_range' ? (
+                                                                <DateRangeFilter
+                                                                    label={label}
+                                                                    min={min}
+                                                                    max={max}
+                                                                    dateFrom={dateActiveValue?.date_from}
+                                                                    dateTo={dateActiveValue?.date_to}
+                                                                    onDateFromChange={(value: string | null) => handleChipClick(group.collectionId, field, { date_from: value || undefined, date_to: dateActiveValue?.date_to })}
+                                                                    onDateToChange={(value: string | null) => handleChipClick(group.collectionId, field, { date_from: dateActiveValue?.date_from, date_to: value || undefined })}
+                                                                    onClear={() => handleChipClick(group.collectionId, field, null)}
+                                                                />
+                                                            ) : (
+                                                                <>
+                                                                    <span className="notebook-filter-group-label">{label}</span>
+                                                                    <div className="notebook-filter-chips">
+                                                                        {values.map((item: string | FilterValueItem) => {
+                                                                            const isObject = typeof item === 'object' && item !== null;
+                                                                            const displayValue = isObject ? (item as FilterValueItem).value : item as string;
+                                                                            const count = isObject ? (item as FilterValueItem).count : null;
+                                                                            const isActive = arrayActiveValue?.includes(displayValue);
+                                                                            return (
+                                                                                <button
+                                                                                    key={displayValue}
+                                                                                    type="button"
+                                                                                    className={`notebook-filter-chip ${isActive ? 'active' : ''}`}
+                                                                                    onClick={() => handleChipClick(group.collectionId, field, displayValue)}
+                                                                                >
+                                                                                    {isActive && <HiCheck className="notebook-filter-chip-check" />}
+                                                                                    <span>{displayValue}</span>
+                                                                                    {count !== null && count !== undefined && (
+                                                                                        <span className="notebook-filter-chip-count">({count})</span>
+                                                                                    )}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })
                                             )}
                                         </div>
                                     )}

@@ -25,6 +25,7 @@ export interface ZitatCanvasProps {
   imageSrc: string;
   alternatives?: string[];
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
   onCancel: () => void;
   onQuoteChange?: (quote: string) => void;
   onNameChange?: (name: string) => void;
@@ -38,6 +39,7 @@ export function ZitatCanvas({
   imageSrc,
   alternatives = [],
   onExport,
+  onSave,
   onCancel,
   onQuoteChange,
   onNameChange,
@@ -55,8 +57,9 @@ export function ZitatCanvas({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport });
+  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport, onSave });
 
   const snapGuides = useSnapGuides();
   const snapLines = useSnapLines();
@@ -65,6 +68,11 @@ export function ZitatCanvas({
   // Content state
   const [quote, setQuote] = useState(initialQuote);
   const [name, setName] = useState(initialName);
+
+  // ... (skipping unchanged lines in thought block, but replace requires exact match)
+  // Wait, I can't skip lines in replacement content if I target a large block.
+  // I should split this into smaller edits.
+
 
   // Background image state
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 });
@@ -89,6 +97,23 @@ export function ZitatCanvas({
 
   // Sidebar state
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 900
+  );
+
+  const handleTabClick = useCallback((tabId: SidebarTabId) => {
+    setActiveTab((current) => (current === tabId ? null : tabId));
+  }, []);
+
+  const handlePanelClose = useCallback(() => {
+    setActiveTab(null);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // State restoration callback
   const handleRestore = useCallback((state: Record<string, unknown>) => {
@@ -220,7 +245,7 @@ export function ZitatCanvas({
     { id: 'quote-mark', src: config.quotationMark.src, label: 'Anführungszeichen', visible: assetVisibility['quote-mark'] },
   ], [assetVisibility, config]);
 
-  const tabs: SidebarTab[] = useMemo(() => [
+  const allTabs: SidebarTab[] = useMemo(() => [
     { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
     { id: 'fontsize', icon: PiTextAa, label: 'Schriftgröße', ariaLabel: 'Schriftgröße anpassen' },
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
@@ -228,12 +253,25 @@ export function ZitatCanvas({
     { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Zitate' },
   ], []);
 
+  const visibleTabs = useMemo(() =>
+    isDesktop ? allTabs.filter(t => t.id !== 'fontsize') : allTabs,
+    [isDesktop, allTabs]
+  );
+
   const disabledTabs = useMemo(() => alternatives.length === 0 ? ['alternatives'] as SidebarTabId[] : [], [alternatives]);
 
   const renderActivePanel = () => {
     switch (activeTab) {
-      case 'text': return <TextSection quote={quote} name={name} onQuoteChange={handleQuoteTextChange} onNameChange={handleNameTextChange} />;
-      case 'fontsize': return <FontSizeSection quoteFontSize={customQuoteFontSize ?? layout.quoteFontSize} nameFontSize={customNameFontSize ?? layout.authorFontSize} onQuoteFontSizeChange={handleQuoteFontSizeChange} onNameFontSizeChange={handleNameFontSizeChange} />;
+      case 'text':
+        return (
+          <>
+            <TextSection quote={quote} name={name} onQuoteChange={handleQuoteTextChange} onNameChange={handleNameTextChange} />
+            {isDesktop && (
+              <FontSizeSection quoteFontSize={customQuoteFontSize ?? layout.quoteFontSize} nameFontSize={customNameFontSize ?? layout.authorFontSize} onQuoteFontSizeChange={handleQuoteFontSizeChange} onNameFontSizeChange={handleNameFontSizeChange} />
+            )}
+          </>
+        );
+      case 'fontsize': return <FontSizeSection quoteFontSize={customQuoteFontSize ?? layout.quoteFontSize} nameFontSize={customNameFontSize ?? layout.authorFontSize} onQuoteFontSizeChange={handleQuoteFontSizeChange} onNameFontSizeChange={handleNameFontSizeChange} onExport={handleExport} />;
       case 'image': return <ImageSection scale={imageScale} onScaleChange={handleImageScaleChange} onReset={handleImageReset} />;
       case 'gradient': return <GradientSection enabled={gradientEnabled} onToggle={handleGradientToggle} opacity={gradientOpacity} onOpacityChange={handleGradientOpacityChange} />;
       case 'assets': return <AssetsSection assets={sidebarAssets} onAssetToggle={handleAssetToggle} />;
@@ -242,19 +280,14 @@ export function ZitatCanvas({
     }
   };
 
-  const tabBar = <SidebarTabBar tabs={tabs} activeTab={activeTab} onTabClick={setActiveTab} disabledTabs={disabledTabs} />;
-  const panel = <SidebarPanel isOpen={activeTab !== null}>{renderActivePanel()}</SidebarPanel>;
+  const tabBar = <SidebarTabBar tabs={visibleTabs} activeTab={activeTab} onTabClick={handleTabClick} disabledTabs={disabledTabs} onExport={handleExport} onSave={handleSave} />;
+  const panel = <SidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>{renderActivePanel()}</SidebarPanel>;
 
   return (
     <CanvasEditorLayout
       sidebar={panel}
       tabBar={tabBar}
-      actions={
-        <>
-          <button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button>
-          <button className="btn btn-primary" onClick={handleExport}>Fertig</button>
-        </>
-      }
+      actions={null}
     >
       <div className="zitat-canvas-wrapper">
         <CanvasStage ref={stageRef} width={config.canvas.width} height={config.canvas.height} responsive maxContainerWidth={900} onStageClick={handleStageClick} className="zitat-stage">

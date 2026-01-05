@@ -29,6 +29,7 @@ export interface VeranstaltungCanvasProps {
   imageSrc: string;
   alternatives?: Array<{ eventTitle?: string; beschreibung?: string; weekday?: string; date?: string; time?: string; locationName?: string; address?: string }>;
   onExport: (base64: string) => void;
+  onSave?: (base64: string) => void;
   onCancel: () => void;
   onEventTitleChange?: (eventTitle: string) => void;
   onBeschreibungChange?: (beschreibung: string) => void;
@@ -47,6 +48,7 @@ export function VeranstaltungCanvas({
   imageSrc,
   alternatives = [],
   onExport,
+  onSave,
   onCancel,
   onEventTitleChange,
   onBeschreibungChange,
@@ -54,6 +56,23 @@ export function VeranstaltungCanvas({
   const config = VERANSTALTUNG_CONFIG;
   const stageRef = useRef<CanvasStageRef>(null);
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' && window.innerWidth >= 900
+  );
+
+  const handleTabClick = useCallback((tabId: SidebarTabId) => {
+    setActiveTab((current) => (current === tabId ? null : tabId));
+  }, []);
+
+  const handlePanelClose = useCallback(() => {
+    setActiveTab(null);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 900);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Shared hooks
   useCanvasStoreSetup('veranstaltung', stageRef);
@@ -65,8 +84,9 @@ export function VeranstaltungCanvas({
     handleSnapChange,
     handlePositionChange,
     handleExport,
+    handleSave,
     getSnapTargets,
-  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport });
+  } = useCanvasInteractions<SelectedElement>({ stageRef, onExport, onSave });
 
   const snapGuides = useSnapGuides();
   const snapLines = useSnapLines();
@@ -110,7 +130,7 @@ export function VeranstaltungCanvas({
   const eventTitleFontSize = customEventTitleFontSize ?? config.eventTitle.fontSize;
   const beschreibungFontSize = customBeschreibungFontSize ?? config.description.fontSize;
   const layout = useMemo(() => calculateVeranstaltungLayout(eventTitleFontSize, beschreibungFontSize), [eventTitleFontSize, beschreibungFontSize]);
-  const [backgroundImage] = useImage(imageSrc);
+  const [backgroundImage] = useImage(imageSrc, 'anonymous');
   const bgImageDimensions = useImageCoverFit(backgroundImage, config.canvas.width, config.photo.height, imageScale);
 
   // Update element positions for snapping
@@ -164,18 +184,31 @@ export function VeranstaltungCanvas({
   }, [onEventTitleChange, onBeschreibungChange, saveToHistory, collectStateRef, eventTitle, beschreibung]);
 
   // Sidebar configuration
-  const tabs: SidebarTab[] = useMemo(() => [
+  const allTabs: SidebarTab[] = useMemo(() => [
     { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
     { id: 'fontsize', icon: PiTextAa, label: 'Schriftgröße', ariaLabel: 'Schriftgröße anpassen' },
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
   ], []);
 
+  const visibleTabs = useMemo(() =>
+    isDesktop ? allTabs.filter(t => t.id !== 'fontsize') : allTabs,
+    [isDesktop, allTabs]
+  );
+
   const disabledTabs = useMemo(() => alternatives.length === 0 ? ['alternatives'] as SidebarTabId[] : [], [alternatives]);
 
   const renderActivePanel = () => {
     switch (activeTab) {
-      case 'text': return <TextSection quote={eventTitle} name={beschreibung} onQuoteChange={handleEventTitleTextChange} onNameChange={handleBeschreibungTextChange} quoteLabel="Event-Titel" nameLabel="Beschreibung" />;
+      case 'text':
+        return (
+          <>
+            <TextSection quote={eventTitle} name={beschreibung} onQuoteChange={handleEventTitleTextChange} onNameChange={handleBeschreibungTextChange} quoteLabel="Event-Titel" nameLabel="Beschreibung" />
+            {isDesktop && (
+              <FontSizeSection quoteFontSize={customEventTitleFontSize ?? config.eventTitle.fontSize} nameFontSize={customBeschreibungFontSize ?? config.description.fontSize} onQuoteFontSizeChange={handleEventTitleFontSizeChange} onNameFontSizeChange={handleBeschreibungFontSizeChange} quoteLabel="Event-Titel" nameLabel="Beschreibung" />
+            )}
+          </>
+        );
       case 'fontsize': return <FontSizeSection quoteFontSize={customEventTitleFontSize ?? config.eventTitle.fontSize} nameFontSize={customBeschreibungFontSize ?? config.description.fontSize} onQuoteFontSizeChange={handleEventTitleFontSizeChange} onNameFontSizeChange={handleBeschreibungFontSizeChange} quoteLabel="Event-Titel" nameLabel="Beschreibung" />;
       case 'image': return <ImageSection scale={imageScale} onScaleChange={handleImageScaleChange} onReset={handleImageReset} />;
       case 'alternatives': return <AlternativesSection alternatives={alternatives.map(a => a.eventTitle || '')} currentQuote={eventTitle} onAlternativeSelect={(altTitle) => { const alt = alternatives.find(a => a.eventTitle === altTitle); if (alt) handleSelectAlternative(alt); }} />;
@@ -183,14 +216,14 @@ export function VeranstaltungCanvas({
     }
   };
 
-  const tabBar = <SidebarTabBar tabs={tabs} activeTab={activeTab} onTabClick={setActiveTab} disabledTabs={disabledTabs} />;
-  const panel = <SidebarPanel isOpen={activeTab !== null}>{renderActivePanel()}</SidebarPanel>;
+  const tabBar = <SidebarTabBar tabs={visibleTabs} activeTab={activeTab} onTabClick={handleTabClick} onExport={handleExport} onSave={handleSave} disabledTabs={disabledTabs} />;
+  const panel = <SidebarPanel isOpen={activeTab !== null} onClose={handlePanelClose}>{renderActivePanel()}</SidebarPanel>;
 
   const eventTitleLineHeight = eventTitleFontSize * config.eventTitle.lineHeightRatio;
   const beschreibungY = layout.eventTitle.y + eventTitleLineHeight * 2 + config.eventTitle.gapBelow;
 
   return (
-    <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={<><button className="btn btn-secondary" onClick={onCancel}>Abbrechen</button><button className="btn btn-primary" onClick={handleExport}>Fertig</button></>}>
+    <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={null}>
       <div className="veranstaltung-canvas-wrapper">
         <CanvasStage ref={stageRef} width={config.canvas.width} height={config.canvas.height} responsive maxContainerWidth={900} onStageClick={handleStageClick} className="veranstaltung-stage">
           <Group clipFunc={(ctx) => { ctx.rect(0, 0, config.canvas.width, config.photo.height); }}>

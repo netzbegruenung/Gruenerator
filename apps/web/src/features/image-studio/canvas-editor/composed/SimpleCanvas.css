@@ -12,13 +12,6 @@
   box-shadow: var(--shadow-lg);
 }
 
-.sidebar-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-medium);
-  padding: var(--spacing-medium);
-}
-
 .sidebar-field {
   display: flex;
   flex-direction: column;
@@ -150,6 +143,7 @@
   background: var(--input-background);
   color: var(--font-color);
   font-size: var(--font-size-base);
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 

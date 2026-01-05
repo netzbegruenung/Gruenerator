@@ -43,11 +43,11 @@ const LoginRequired = ({
     if (!limitInfo) return message;
 
     const { count, limit, timeUntilReset, resourceType } = limitInfo;
-    const resourceLabel = {
+    const resourceLabel = (resourceType ? ({
       text: 'Textgenerierungen',
       image: 'Bildgenerierungen',
       pdf_export: 'PDF-Exporte'
-    }[resourceType] || 'Generierungen';
+    } as Record<string, string>)[resourceType] : undefined) || 'Generierungen';
 
     return `Du hast dein Tageslimit von ${limit} kostenlosen ${resourceLabel} erreicht (${count}/${limit} genutzt). ${timeUntilReset ? `Das Limit wird in ${timeUntilReset} zurückgesetzt.` : 'Das Limit wird um Mitternacht zurückgesetzt.'}\n\nMelde dich an für unbegrenzte Nutzung!`;
   };

@@ -24,6 +24,8 @@ export function isProviderAvailable(provider: ProviderName): boolean {
       return !!process.env.MISTRAL_API_KEY;
     case 'claude':
       return !!process.env.CLAUDE_API_KEY;
+    case 'telekom':
+      return !!process.env.TELEKOM_API_KEY;
     default:
       return false;
   }
@@ -40,6 +42,8 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
       return 'gpt-oss:120b';
     case 'mistral':
       return 'mistral-medium-latest';
+    case 'telekom':
+      return 'Llama-3.1-70B-Instruct';
     default:
       return 'gpt-oss:120b';
   }
@@ -58,6 +62,8 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
       return 'openai/gpt-oss-120b';
     case 'litellm':
       return 'gpt-oss:120b';
+    case 'telekom':
+      return 'Llama-3.1-70B-Instruct';
     default:
       return 'mistral-medium-latest';
   }

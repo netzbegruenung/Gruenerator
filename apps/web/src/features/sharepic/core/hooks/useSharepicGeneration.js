@@ -8,11 +8,9 @@ export const useSharepicGeneration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const quoteSubmit = useApiSubmit('zitat_claude');
-  const dreizeilenSubmit = useApiSubmit('dreizeilen_claude');
-  const infoSubmit = useApiSubmit('info_claude');
-  const zitatPureSubmit = useApiSubmit('zitat_pure_claude');
+  const veranstaltungSubmit = useApiSubmit('veranstaltung_claude');
+  const simpleSubmit = useApiSubmit('simple_claude');
   const campaignSubmit = useApiSubmit('campaign_generate');
-  const text2SharepicSubmit = useApiSubmit('sharepic/text2sharepic/generate-ai');
   // const abyssaleSubmit = useApiSubmit('zitat_abyssale'); // Commented out for now
 
   const generateText = useCallback(async (type, formData) => {
@@ -81,7 +79,7 @@ export const useSharepicGeneration = () => {
           submitFn = dreizeilenSubmit.submitForm;
           break;
       }
-      
+
       const dataToSend = {
         ...formData,
         source: 'sharepicgenerator',
@@ -102,7 +100,7 @@ export const useSharepicGeneration = () => {
         responseKeys: response ? Object.keys(response) : [],
         response
       });
-      
+
       // Handle different response structures based on type
       if (isQuoteType) {
         if (!response || !response.quote) {
@@ -173,24 +171,6 @@ export const useSharepicGeneration = () => {
         return response.data.image;
       }
 
-      // Handle Text2Sharepic type - uses AI-powered generation
-      if (formData.type === SHAREPIC_TYPES.TEXT2SHAREPIC) {
-        const requestData = {
-          description: formData.description,
-          mood: formData.mood || undefined
-        };
-
-        console.log('Generating Text2Sharepic image:', requestData);
-
-        const response = await text2SharepicSubmit.submitForm(requestData);
-
-        if (!response || !response.image) {
-          throw new Error('Keine Bilddaten empfangen');
-        }
-
-        return response.image;
-      }
-
       // Standard (non-campaign) types
       const formDataToSend = new FormData();
 
@@ -222,9 +202,9 @@ export const useSharepicGeneration = () => {
           throw new Error('Header und Body sind erforderlich');
         }
         formDataToSend.append('header', formData.header);
-        
+
         // Combine subheader and body - subheader becomes first sentence (bold)
-        const combinedBody = formData.subheader && formData.body 
+        const combinedBody = formData.subheader && formData.body
           ? `${formData.subheader}. ${formData.body}`
           : formData.subheader || formData.body || '';
         formDataToSend.append('body', combinedBody);
@@ -297,7 +277,7 @@ export const useSharepicGeneration = () => {
           endpoint = 'dreizeilen_canvas';
           break;
       }
-        
+
       const response = await apiClient.post(endpoint, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -312,7 +292,7 @@ export const useSharepicGeneration = () => {
     } finally {
       setLoading(false);
     }
-  }, [text2SharepicSubmit]);
+  }, []);
 
   // Commented out for now - Abyssale professional template mode
   // const generateAbyssaleImage = useCallback(async (formData) => {

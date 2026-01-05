@@ -13,24 +13,24 @@ import '../../../assets/styles/components/profile/profile-action-buttons.css';
  * Uses EnhancedSelect with wolkeStore integration
  */
 interface WolkeShareLink {
-  id?: string;
-  label?: string;
-  display_name?: string;
-  share_link?: string;
+    id?: string;
+    label?: string;
+    display_name?: string;
+    share_link?: string;
 }
 
 interface WolkeSelectorProps {
-  label?: string;
-  placeholder?: string;
-  helpText?: string;
-  isMulti?: boolean;
-  value: WolkeShareLink[];
-  onChange: (selectedLinks: WolkeShareLink[]) => void;
-  className?: string;
-  error?: string;
-  required?: boolean;
-  scope?: 'personal' | 'group';
-  scopeId?: string;
+    label?: string;
+    placeholder?: string;
+    helpText?: string;
+    isMulti?: boolean;
+    value: WolkeShareLink[];
+    onChange: (selectedLinks: WolkeShareLink[]) => void;
+    className?: string;
+    error?: string;
+    required?: boolean;
+    scope?: 'personal' | 'group';
+    scopeId?: string;
 }
 
 const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
@@ -43,7 +43,7 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
     error,
     required = false,
     scope = 'personal', // 'personal' or 'group'
-    scopeId = null, // group ID if scope is 'group'
+    scopeId = '', // group ID if scope is 'group'
     ...selectProps }: WolkeSelectorProps): JSX.Element => {
     const {
         shareLinks,
@@ -126,9 +126,9 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
     }, [shareLinks, syncStatuses, scope]);
 
     // Handle selection changes
-    const handleChange = (selectedOptions) => {
+    const handleChange = (selectedOptions: any) => {
         const shareLinks = selectedOptions
-            ? selectedOptions.map(option => option.shareLink)
+            ? (Array.isArray(selectedOptions) ? selectedOptions : [selectedOptions]).map((option: any) => option.shareLink)
             : [];
 
         if (onChange) {
@@ -203,7 +203,7 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
                 label={label}
                 helpText={helpText}
                 required={required}
-                error={currentError}
+                error={currentError || undefined}
                 enableIcons={true}
                 enableSubtitles={true}
                 enableTags={true}
@@ -211,7 +211,7 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
                 isSearchable={true}
                 placeholder={placeholder}
                 options={wolkeOptions}
-                value={isMulti ? selectValue : selectValue[0] || null}
+                value={isMulti ? (selectValue as any) : (selectValue ? (selectValue as any)[0] || null : null)}
                 onChange={handleChange}
                 isLoading={isLoadingData}
                 noOptionsMessage={() => 'Keine passenden Wolke-Ordner gefunden'}

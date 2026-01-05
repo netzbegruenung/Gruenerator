@@ -7,7 +7,7 @@ interface CitationPopupProps {
     document_title?: string;
     similarity_score?: number
   };
-  badgeRef: RefObject<HTMLSpanElement>;
+  badgeRef: RefObject<HTMLSpanElement | null>;
 }
 
 const CitationPopup = ({ citation, badgeRef }: CitationPopupProps): JSX.Element | null => {
