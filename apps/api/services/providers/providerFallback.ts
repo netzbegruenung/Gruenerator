@@ -24,9 +24,6 @@ export function isProviderAvailable(provider: ProviderName): boolean {
       return !!process.env.MISTRAL_API_KEY;
     case 'claude':
       return !!process.env.CLAUDE_API_KEY;
-    case 'bedrock':
-      // Bedrock uses AWS credentials, check for region or access key
-      return !!(process.env.AWS_REGION || process.env.AWS_ACCESS_KEY_ID);
     default:
       return false;
   }
@@ -55,10 +52,10 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
   switch (provider) {
     case 'mistral':
       return 'magistral-medium-latest';
-    case 'bedrock':
-      return 'anthropic.claude-3-5-sonnet-20241022-v2:0';
     case 'claude':
       return 'claude-sonnet-4-20250514';
+    case 'ionos':
+      return 'openai/gpt-oss-120b';
     case 'litellm':
       return 'gpt-oss:120b';
     default:
@@ -67,9 +64,9 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
 }
 
 /**
- * Sharepic-specific fallback chain: Mistral (Magistral) → Claude API → Bedrock (older Sonnet) → LiteLLM
+ * Sharepic-specific fallback chain: Mistral (Magistral) → Claude API → IONOS → LiteLLM
  */
-export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'claude', 'bedrock', 'litellm'];
+export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'claude', 'ionos', 'litellm'];
 
 /**
  * Try privacy-friendly providers in order, using a caller-supplied executor.
@@ -78,7 +75,7 @@ export const SHAREPIC_FALLBACK_CHAIN: ProviderName[] = ['mistral', 'claude', 'be
  * @param execForProvider - Async function that executes the request for a given provider
  * @param requestId - Request ID for logging
  * @param data - Request data to be passed to executor
- * @param chain - Provider chain to try in order (default: LiteLLM → Mistral → IONOS → Bedrock)
+ * @param chain - Provider chain to try in order (default: LiteLLM → Mistral → IONOS)
  * @throws {Error} When no providers are configured or all providers fail
  * @returns The successful response from the first working provider
  */
@@ -86,7 +83,7 @@ export async function tryPrivacyModeProviders(
   execForProvider: ProviderExecutor,
   requestId: string,
   data: PrivacyProviderData,
-  chain: ProviderName[] = ['litellm', 'mistral', 'ionos', 'bedrock']
+  chain: ProviderName[] = ['litellm', 'mistral', 'ionos']
 ): Promise<ExecutionResponse> {
   let lastError: Error | undefined;
   const attemptedProviders: ProviderName[] = [];
@@ -130,7 +127,7 @@ export async function tryPrivacyModeProviders(
   }
 
   if (attemptedProviders.length === 0) {
-    throw new Error('No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, IONOS_API_TOKEN, or AWS credentials');
+    throw new Error('No privacy mode providers are configured. Please set LITELLM_API_KEY, MISTRAL_API_KEY, or IONOS_API_TOKEN');
   }
 
   const msg = lastError?.message || 'Unknown error';
@@ -139,7 +136,7 @@ export async function tryPrivacyModeProviders(
 
 /**
  * Sharepic-specific fallback with higher quality models.
- * Uses Magistral → Claude API → Bedrock Sonnet 3.5 → LiteLLM chain.
+ * Uses Magistral → Claude API → IONOS → LiteLLM chain.
  */
 export async function trySharepicFallbackProviders(
   execForProvider: ProviderExecutor,

@@ -9,17 +9,17 @@ const Datenschutz = () => {
       <h2>Kurzzusammenfassung</h2>
       <p>
         <strong>Der <a href={PRIMARY_URL}>GRUENERATOR</a> verarbeitet nur die Texte, die Du aktiv in die Eingabefelder eingibst.
-        Diese werden zur AI-Bearbeitung an unseren europäischen Technologiepartner
-        <a href="https://mistral.ai/">Mistral AI</a> weitergeleitet. Deine Daten werden dort nicht zum Training der KI verwendet. Bei Aktivierung des <strong>Pro-Modus</strong> werden Deine Eingaben alternativ an <strong>Amazon Web Services (AWS)</strong> in der EU weitergeleitet und dort durch Anthropic's Claude-Modell verarbeitet. AWS fungiert dabei als Auftragsverarbeiter. Deine Daten werden auch hier nicht zum Training der KI verwendet. Bei Nutzung des <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt,
-        werden Deine Suchanfragen ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also darauf, dass Du keine
-        personenbezogenen oder vertraulichen Daten eingibst oder sprichst.</strong>
+          Diese werden zur AI-Bearbeitung an unseren europäischen Technologiepartner
+          <a href="https://mistral.ai/">Mistral AI</a> weitergeleitet. Deine Daten werden dort nicht zum Training der KI verwendet. Bei Aktivierung des <strong>Pro-Modus</strong> werden Deine Eingaben alternativ an <strong>IONOS SE</strong> in Deutschland weitergeleitet und dort mit hochqualitativen KI-Modellen verarbeitet. IONOS fungiert dabei als Auftragsverarbeiter. Deine Daten werden auch hier nicht zum Training der KI verwendet. Bei Nutzung des <strong>Grünerator Imagine</strong> zur Bildbearbeitung werden Deine hochgeladenen Bilder direkt an <strong>Black Forest Labs</strong> auf EU-Servern weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt,
+          werden Deine Suchanfragen ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also darauf, dass Du keine
+          personenbezogenen oder vertraulichen Daten eingibst oder sprichst.</strong>
       </p>
       <p>
         <strong>Hinweis zu den KI-Modi:</strong> Du hast jederzeit die Wahl zwischen verschiedenen Optionen:
       </p>
       <ul>
         <li><strong>Standard-Modus:</strong> Mistral AI (EU)</li>
-        <li><strong>Pro-Modus:</strong> AWS Claude (EU)</li>
+        <li><strong>Pro-Modus:</strong> IONOS SE (Deutschland)</li>
         <li><strong>Privacy-Modus:</strong> netzbegrünung e.V. (Deutschland) - maximaler Datenschutz durch grüne Netzkultur</li>
       </ul>
       <p>Die Auswahl triffst Du bei jeder einzelnen Anfrage selbst.</p>
@@ -37,7 +37,7 @@ const Datenschutz = () => {
       <p>
         <u>Hinweis:</u><br />
         Die <a href="https://netzbegruenung.de/">netzbegrünung – Verein für grüne Netzkultur
-        e.V.</a> arbeitet daran alle Daten selbst zu verarbeiten, damit Du den GRUENERATOR schon bald komplett sorg- und
+          e.V.</a> arbeitet daran alle Daten selbst zu verarbeiten, damit Du den GRUENERATOR schon bald komplett sorg- und
         bedenklos nutzen kannst. Falls Du dieses Ziel unterstützen willst,
         kannst Du das mit einer
         <a href="https://netzbegruenung.de/verein/spenden/">Spende</a> oder einer
@@ -49,7 +49,7 @@ const Datenschutz = () => {
         Die von Dir getätigten Eingaben werden zur Bearbeitung an unseren Partner Mistral AI weitergeleitet. Deine Daten werden dort nicht zum KI-Training genutzt und nicht dauerhaft gespeichert. Mit dem Absenden Deiner Eingabe beachtest Du die <a href="https://mistral.ai/terms/">Nutzungsbedingungen von Mistral AI</a>, die Deine Daten empfangen und verarbeiten.
       </p>
       <p>
-        Bei Aktivierung des Pro-Modus im GRUENERATOR werden Deine Eingaben an AWS/Claude weitergeleitet. Mit der Aktivierung des Pro-Modus akzeptierst Du, dass die Verarbeitung unter den AWS-Servicebedingungen und dem AWS Data Processing Addendum erfolgt. Du kannst für jede Anfrage individuell entscheiden, ob Du den Pro-Modus nutzen möchtest.
+        Bei Aktivierung des Pro-Modus im GRUENERATOR werden Deine Eingaben an IONOS SE weitergeleitet. Mit der Aktivierung des Pro-Modus akzeptierst Du, dass die Verarbeitung unter den IONOS-Servicebedingungen erfolgt. Du kannst für jede Anfrage individuell entscheiden, ob Du den Pro-Modus nutzen möchtest.
       </p>
       <p>
         <strong>Grünerator Imagine:</strong> Bei Nutzung der Bildbearbeitungsfunktion werden Deine Bilder an Black Forest Labs weitergeleitet. Mit dem Upload stimmst Du der Verarbeitung gemäß den <a href="https://blackforestlabs.ai/privacy-policy/">Datenschutzbestimmungen</a> und <a href="https://blackforestlabs.ai/terms-of-service/">Nutzungsbedingungen</a> von Black Forest Labs zu. Bitte lade keine Bilder hoch, die personenbezogene Daten Dritter enthalten, für deren Verarbeitung Du keine Rechtsgrundlage hast.
@@ -61,13 +61,13 @@ const Datenschutz = () => {
       <h2>Datenschutzhinweise</h2>
       <p>
         Informationen über die Verarbeitung Ihrer Daten gemäß <a href="https://dejure.org/gesetze/DSGVO/13.html">Art. 13 der
-        Datenschutz-Grundverordnung (DS-GVO)</a>
+          Datenschutz-Grundverordnung (DS-GVO)</a>
       </p>
 
       <h3>1. Verantwortlicher und Datenschutzbeauftragter</h3>
       <p>
         Verantwortlich für diese Website ist Moritz Wächter, Villestr. 6-8, 53347 Alfter,
-       info@moritz-waechter.de.
+        info@moritz-waechter.de.
       </p>
 
       <h3>2. Daten, die für die Bereitstellung der Website und die Erstellung der Protokolldateien verarbeitet werden</h3>
@@ -109,16 +109,16 @@ const Datenschutz = () => {
       <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
       <p>
         Die Daten werden auf der Grundlage <a href="https://dejure.org/gesetze/DSGVO/6.html">des Art. 6 Abs. 1 Buchstabe f
-        DS-GVO</a> verarbeitet.
+          DS-GVO</a> verarbeitet.
       </p>
 
       <h4>c. Gibt es neben dem Verantwortlichen weitere Empfänger der personenbezogenen Daten?</h4>
       <p>
         Die Website wird bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Deutschland, info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
         Auftragsverarbeiter.
-        Bei Aktivierung des Pro-Modus fungiert zusätzlich Amazon Web Services EMEA SARL als Auftragsverarbeiter für die KI-Textgenerierung mittels Claude.
+        Bei Aktivierung des Pro-Modus fungiert zusätzlich IONOS SE als Auftragsverarbeiter für die KI-Textgenerierung mit hochqualitativen Modellen.
         Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs Inc. als Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI. Beim Reel-Grünerator fungiert <strong>Gladia SAS</strong> als Auftragsverarbeiter für die Audiotranskription mit ausschließlicher EU-Datenverarbeitung.
-    </p>
+      </p>
 
       <p>
         Darüber hinaus nutzen wir für die Bereitstellung der KI-Funktionen und der Suchfunktion spezialisierte technische Dienstleister, die als unsere Auftragsverarbeiter agieren.
@@ -145,12 +145,13 @@ const Datenschutz = () => {
         <li>Details: <a href="https://mistral.ai/privacy-policy/">Datenschutzerklärung</a> und <a href="https://mistral.ai/terms/">Nutzungsbedingungen</a></li>
       </ul>
 
-      <p><strong>2. AWS/Anthropic Claude</strong> (Amazon Web Services EMEA SARL, Luxemburg)</p>
+      <p><strong>2. IONOS SE</strong> (Elgendorfer Str. 57, 56410 Montabaur, Deutschland)</p>
       <ul>
         <li>Zweck: Pro-Modus (erweiterte KI bei aktiver Auswahl)</li>
-        <li>Server: EU (Frankfurt/Irland)</li>
+        <li>Server: Deutschland</li>
         <li>Aktivierung: Standardmäßig deaktiviert, Du entscheidest bei jeder Anfrage</li>
-        <li>Zertifizierungen: ISO 27001/27017/27018, CISPE Code of Conduct</li>
+        <li>Besonderheit: Deutscher Anbieter mit vollständiger EU-Datenverarbeitung</li>
+        <li>Details: <a href="https://www.ionos.de/terms-gtc/datenschutzerklaerung/">Datenschutzerklärung</a></li>
       </ul>
 
       <p><strong>3. Black Forest Labs Inc.</strong></p>
@@ -185,7 +186,7 @@ const Datenschutz = () => {
           </ul>
         </li>
         <li>Besonderheit: Vollständige Datenkontrolle durch grüne Netzkultur, keine kommerzielle Datennutzung</li>
-        <li>Backup-Provider: IONOS SE (bei Ausfall) - Stateless Service in Berlin</li>
+        <li>Backup-Provider: Claude API (bei Ausfall) - EU-Server mit automatischem Fallback</li>
       </ul>
 
       <p><strong>6. SearXNG (selbstgehostet)</strong></p>
@@ -317,7 +318,7 @@ const Datenschutz = () => {
       <h4>a. Recht auf Auskunft</h4>
       <p>
         Du kannst Auskunft nach <a href="https://dejure.org/gesetze/DSGVO/15.html">Art. 15
-        DS-GVO</a> über Deine personenbezogenen Daten verlangen, die wir verarbeiten.
+          DS-GVO</a> über Deine personenbezogenen Daten verlangen, die wir verarbeiten.
       </p>
 
       <p>
@@ -339,20 +340,20 @@ const Datenschutz = () => {
       <p>
         Sollten die Sie betreffenden Angaben nicht (mehr) zutreffend sein,
         kannst Du nach <a href="https://dejure.org/gesetze/DSGVO/16.html">Art. 16
-        DS-GVO</a> eine Berichtigung verlangen. Sollten Deine Daten unvollständig sein, kannst Du eine
+          DS-GVO</a> eine Berichtigung verlangen. Sollten Deine Daten unvollständig sein, kannst Du eine
         Vervollständigung verlangen.
       </p>
 
       <h4>d. Recht auf Löschung</h4>
       <p>
         Du kannst nach <a href="https://dejure.org/gesetze/DSGVO/17.html">Art. 17
-        DS-GVO</a> die Löschung Deiner personenbezogenen Daten verlangen.
+          DS-GVO</a> die Löschung Deiner personenbezogenen Daten verlangen.
       </p>
 
       <h4>e. Recht auf Einschränkung der Verarbeitung</h4>
       <p>
         Du hast nach <a href="https://dejure.org/gesetze/DSGVO/18.html">Art. 18
-        DS-GVO</a> das Recht, eine Einschränkung der Verarbeitung Deiner personenbezogenen Daten zu
+          DS-GVO</a> das Recht, eine Einschränkung der Verarbeitung Deiner personenbezogenen Daten zu
         verlangen.
       </p>
 
@@ -361,7 +362,7 @@ const Datenschutz = () => {
         Wenn Du der Ansicht bist, dass die Verarbeitung Deiner
         personenbezogenen Daten gegen Datenschutzrecht verstößt, hast Du
         nach <a href="https://dejure.org/gesetze/DSGVO/77.html">Art. 77 Abs. 1
-        DS-GVO</a> das Recht, Dich bei einer Datenschutzaufsichtsbehörde eigener Wahl zu beschweren.
+          DS-GVO</a> das Recht, Dich bei einer Datenschutzaufsichtsbehörde eigener Wahl zu beschweren.
       </p>
 
       <h4>g. Recht auf Datenübertragbarkeit</h4>
@@ -370,10 +371,10 @@ const Datenschutz = () => {
         Speicherung der Protokolldateien sind für den Betrieb der
         Internetseite zwingend erforderlich. Sie beruhen daher nicht auf
         einer Einwilligung nach <a href="https://dejure.org/gesetze/DSGVO/6.html">Art. 6 Abs. 1 Buchstabe a
-        DS-GVO</a> oder auf einem Vertrag <a href="https://dejure.org/gesetze/DSGVO/6.html">nach Art. 6 Abs. 1 Buchstabe b
-        DS-GVO</a>, sondern sind <a href="https://dejure.org/gesetze/DSGVO/6.html">nach Art. 6 Abs. 1 Buchstabe f
-        DS-GVO</a> gerechtfertigt. Die Voraussetzungen des <a href="https://dejure.org/gesetze/DSGVO/20.html">Art. 20 Abs. 1
-        DSGVO</a> sind demnach insoweit nicht erfüllt.
+          DS-GVO</a> oder auf einem Vertrag <a href="https://dejure.org/gesetze/DSGVO/6.html">nach Art. 6 Abs. 1 Buchstabe b
+            DS-GVO</a>, sondern sind <a href="https://dejure.org/gesetze/DSGVO/6.html">nach Art. 6 Abs. 1 Buchstabe f
+              DS-GVO</a> gerechtfertigt. Die Voraussetzungen des <a href="https://dejure.org/gesetze/DSGVO/20.html">Art. 20 Abs. 1
+                DSGVO</a> sind demnach insoweit nicht erfüllt.
       </p>
 
       <h3>II. Recht auf Widerspruch gemäß Art. 21 Abs. 1 DS-GVO</h3>
@@ -381,7 +382,7 @@ const Datenschutz = () => {
         Du hast das Recht, aus Gründen, die sich aus Deiner besonderen
         Situation ergeben, jederzeit gegen die Verarbeitung Deiner
         personenbezogenen Daten, die aufgrund von <a href="https://dejure.org/gesetze/DSGVO/6.html">Artikel 6 Abs. 1
-        Buchstabe f DS-GVO</a> erfolgt, Widerspruch einzulegen. Der Verantwortliche verarbeitet die
+          Buchstabe f DS-GVO</a> erfolgt, Widerspruch einzulegen. Der Verantwortliche verarbeitet die
         personenbezogenen Daten dann nicht mehr, es sei denn, er kann
         zwingende schutzwürdige Gründe für die Verarbeitung nachweisen, die
         die Interessen, Rechte und Freiheiten der betroffenen Person

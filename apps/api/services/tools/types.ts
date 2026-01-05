@@ -5,7 +5,7 @@
 /**
  * AI Provider types
  */
-export type AIProvider = 'claude' | 'bedrock' | 'openai' | 'mistral' | 'litellm' | 'ionos';
+export type AIProvider = 'claude' | 'openai' | 'mistral' | 'litellm' | 'ionos';
 
 /**
  * Claude/Bedrock tool format
