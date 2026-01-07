@@ -126,4 +126,4 @@ apps/web/typecheck_output_full.txt
 
 # Turbo
 .turbo/
-**/ .turbo/
+**/.turbo/
