@@ -205,7 +205,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
       </div>
 
       <div className="stock-images-grid__grid">
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence>
           {filteredImages.map((image, index) => {
             const isSelected = selectedStockImage?.filename === image.filename;
             const imgSrc = `${apiClient.defaults.baseURL}/image-picker/stock-image/${image.filename}?size=thumb`;

@@ -167,6 +167,8 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
               transparentImage={transparentImage}
               currentStepId={currentStep.id}
               direction={direction}
+              onHeadlineChange={(headline) => updateFormData({ headline })}
+              onSubtextChange={(subtext) => updateFormData({ subtext })}
             />
           )}
         </AnimatePresence>

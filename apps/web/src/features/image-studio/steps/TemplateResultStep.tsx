@@ -17,13 +17,8 @@ import { Lightbox } from '../components/Lightbox';
 import { EditPanel } from '../components/EditPanel';
 import { TemplateResultActionButtons } from '../components/TemplateResultActionButtons';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
-import {
-  ZitatPureCanvas,
-  ZitatCanvas,
-  InfoCanvas,
-  VeranstaltungCanvas,
-  DreizeilenCanvas
-} from '../canvas-editor';
+import { DreizeilenCanvas } from '../canvas-editor';
+import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
 import type { TemplateResultStepProps, SloganAlternativeWithIndex, SloganAlternative, VeranstaltungFieldFontSizes } from '../types/templateResultTypes';
 
 const CANVAS_SUPPORTED_TYPES = [
@@ -154,11 +149,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   const renderCanvasEditor = useCallback(() => {
     if (!type) return null;
 
-    const canvasProps = {
-      onExport: handleCanvasExport,
-      onCancel: handleCanvasCancel,
-    };
-
     switch (type) {
       case IMAGE_STUDIO_TYPES.DREIZEILEN:
         return (
@@ -168,58 +158,75 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
             line3={line3 || ''}
             imageSrc={uploadedImageUrl}
             alternatives={sloganAlternatives}
-            {...canvasProps}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
           />
         );
       case IMAGE_STUDIO_TYPES.ZITAT:
         return (
-          <ZitatCanvas
-            quote={quote || ''}
-            name={name || ''}
+          <ControllableCanvasWrapper
+            type="zitat"
+            initialState={{
+              quote: quote || '',
+              name: name || '',
+              alternatives: sloganAlternatives?.map((a: SloganAlternative) => a.quote || '') || [],
+            }}
             imageSrc={uploadedImageUrl || ''}
-            alternatives={sloganAlternatives?.map((a: SloganAlternative) => a.quote || '')}
-            {...canvasProps}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
           />
         );
       case IMAGE_STUDIO_TYPES.ZITAT_PURE:
         return (
-          <ZitatPureCanvas
-            quote={quote || ''}
-            name={name || ''}
-            alternatives={sloganAlternatives?.map((a: SloganAlternative) => a.quote || '')}
-            {...canvasProps}
+          <ControllableCanvasWrapper
+            type="zitat-pure"
+            initialState={{
+              quote: quote || '',
+              name: name || '',
+              alternatives: sloganAlternatives?.map((a: SloganAlternative) => a.quote || '') || [],
+            }}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
           />
         );
       case IMAGE_STUDIO_TYPES.INFO:
         return (
-          <InfoCanvas
-            header={header || ''}
-            subheader={subheader || ''}
-            body={body || ''}
-            alternatives={sloganAlternatives}
-            {...canvasProps}
+          <ControllableCanvasWrapper
+            type="info"
+            initialState={{
+              header: header || '',
+              body: body || '',
+              alternatives: sloganAlternatives || [],
+            }}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
           />
         );
       case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
         return (
-          <VeranstaltungCanvas
-            eventTitle={eventTitle || ''}
-            beschreibung={beschreibung || ''}
-            weekday={weekday || ''}
-            date={date || ''}
-            time={time || ''}
-            locationName={locationName || ''}
-            address={address || ''}
+          <ControllableCanvasWrapper
+            type="veranstaltung"
+            initialState={{
+              eventTitle: eventTitle || '',
+              beschreibung: beschreibung || '',
+              weekday: weekday || '',
+              date: date || '',
+              time: time || '',
+              locationName: locationName || '',
+              address: address || '',
+              alternatives: sloganAlternatives || [],
+            }}
             imageSrc={uploadedImageUrl || ''}
-            {...canvasProps}
+            onExport={handleCanvasExport}
+            onCancel={handleCanvasCancel}
           />
         );
       default:
         return null;
     }
   }, [
-    type, line1, line2, line3, quote, name, header, subheader, body,
-    eventTitle, weekday, date, time, locationName, address,
+    type, line1, line2, line3, quote, name, header, body,
+    eventTitle, beschreibung, weekday, date, time, locationName, address,
     uploadedImageUrl, sloganAlternatives, handleCanvasExport, handleCanvasCancel
   ]);
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { ProfilbildCanvas, ZitatPureCanvas, ZitatCanvas, InfoCanvas, VeranstaltungCanvas, DreizeilenCanvas, SimpleCanvas } from '../canvas-editor';
+import { ProfilbildCanvas, DreizeilenCanvas } from '../canvas-editor';
+import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 import { slideVariants } from '../components/StepFlow';
 
@@ -15,6 +16,8 @@ export interface CanvasEditStepProps {
     transparentImage: string | null;
     currentStepId: string;
     direction: number;
+    onHeadlineChange?: (headline: string) => void;
+    onSubtextChange?: (subtext: string) => void;
 }
 
 const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
@@ -27,7 +30,9 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
     handleBack,
     transparentImage,
     currentStepId,
-    direction
+    direction,
+    onHeadlineChange,
+    onSubtextChange
 }) => {
     return (
         <>
@@ -62,12 +67,14 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="typeform-field typeform-field--canvas-edit"
                 >
-                    <ZitatPureCanvas
-                        quote={getFieldValue('quote')}
-                        name={getFieldValue('name')}
-                        alternatives={sloganAlternatives.map((alt: { quote?: string }) => alt.quote || '')}
+                    <ControllableCanvasWrapper
+                        type="zitat-pure"
+                        initialState={{
+                            quote: getFieldValue('quote') || '',
+                            name: getFieldValue('name') || '',
+                            alternatives: sloganAlternatives.map((alt: { quote?: string }) => alt.quote || ''),
+                        }}
                         onExport={handleCanvasExport}
-                        onSave={handleCanvasSave}
                         onCancel={handleBack}
                     />
                 </motion.div>
@@ -84,13 +91,15 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="typeform-field typeform-field--canvas-edit"
                 >
-                    <ZitatCanvas
-                        quote={getFieldValue('quote')}
-                        name={getFieldValue('name')}
+                    <ControllableCanvasWrapper
+                        type="zitat"
+                        initialState={{
+                            quote: getFieldValue('quote') || '',
+                            name: getFieldValue('name') || '',
+                            alternatives: sloganAlternatives.map((alt: { quote?: string }) => alt.quote || ''),
+                        }}
                         imageSrc={uploadedImageUrl}
-                        alternatives={sloganAlternatives.map((alt: { quote?: string }) => alt.quote || '')}
                         onExport={handleCanvasExport}
-                        onSave={handleCanvasSave}
                         onCancel={handleBack}
                     />
                 </motion.div>
@@ -107,13 +116,14 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="typeform-field typeform-field--canvas-edit"
                 >
-                    <InfoCanvas
-                        header={getFieldValue('header')}
-                        subheader={getFieldValue('subheader')}
-                        body={getFieldValue('body')}
-                        alternatives={sloganAlternatives}
+                    <ControllableCanvasWrapper
+                        type="info"
+                        initialState={{
+                            header: getFieldValue('header') || '',
+                            body: getFieldValue('body') || '',
+                            alternatives: sloganAlternatives,
+                        }}
                         onExport={handleCanvasExport}
-                        onSave={handleCanvasSave}
                         onCancel={handleBack}
                     />
                 </motion.div>
@@ -130,18 +140,20 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="typeform-field typeform-field--canvas-edit"
                 >
-                    <VeranstaltungCanvas
-                        eventTitle={getFieldValue('eventTitle')}
-                        beschreibung={getFieldValue('beschreibung')}
-                        weekday={getFieldValue('weekday')}
-                        date={getFieldValue('date')}
-                        time={getFieldValue('time')}
-                        locationName={getFieldValue('locationName')}
-                        address={getFieldValue('address')}
+                    <ControllableCanvasWrapper
+                        type="veranstaltung"
+                        initialState={{
+                            eventTitle: getFieldValue('eventTitle') || '',
+                            beschreibung: getFieldValue('beschreibung') || '',
+                            weekday: getFieldValue('weekday') || '',
+                            date: getFieldValue('date') || '',
+                            time: getFieldValue('time') || '',
+                            locationName: getFieldValue('locationName') || '',
+                            address: getFieldValue('address') || '',
+                            alternatives: sloganAlternatives,
+                        }}
                         imageSrc={uploadedImageUrl}
-                        alternatives={sloganAlternatives}
                         onExport={handleCanvasExport}
-                        onSave={handleCanvasSave}
                         onCancel={handleBack}
                     />
                 </motion.div>
@@ -182,13 +194,20 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     className="typeform-field typeform-field--canvas-edit"
                 >
-                    <SimpleCanvas
-                        headline={getFieldValue('headline') || ''}
-                        subtext={getFieldValue('subtext') || ''}
+                    <ControllableCanvasWrapper
+                        type="simple"
+                        initialState={{
+                            headline: getFieldValue('headline') || '',
+                            subtext: getFieldValue('subtext') || '',
+                            alternatives: sloganAlternatives,
+                        }}
                         imageSrc={uploadedImageUrl}
                         onExport={handleCanvasExport}
-                        onSave={handleCanvasSave}
                         onCancel={handleBack}
+                        onStateChange={(state) => {
+                            if (state.headline !== undefined) onHeadlineChange?.(state.headline);
+                            if (state.subtext !== undefined) onSubtextChange?.(state.subtext);
+                        }}
                     />
                 </motion.div>
             )}
@@ -197,3 +216,4 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
 };
 
 export default CanvasEditStep;
+
