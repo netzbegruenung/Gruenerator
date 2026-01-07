@@ -31,7 +31,7 @@ export const ZITAT_CONFIG = {
   },
   quote: {
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic' as const,
+    fontStyle: 'normal' as const,
     fontSize: 60,
     minFontSize: 45,
     maxFontSize: 80,
@@ -43,7 +43,7 @@ export const ZITAT_CONFIG = {
   },
   author: {
     fontFamily: 'GrueneTypeNeue',
-    fontStyle: 'italic' as const,
+    fontStyle: 'normal' as const,
     fontSizeRatio: 0.67, // nameFontSize = fontSize * 0.67
     color: '#ffffff',
     x: 50,
