@@ -9,7 +9,7 @@
 
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
-import type Konva from 'konva';
+import Konva from 'konva';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
@@ -36,6 +36,8 @@ export interface CanvasImageProps {
   snapTargets?: SnapTarget[];
   onPositionChange?: (id: string, x: number, y: number, width: number, height: number) => void;
   onSnapLinesChange?: (lines: SnapLine[]) => void;
+  listening?: boolean;
+  color?: string;
 }
 
 const DEFAULT_IMAGE_ANCHORS: TransformAnchor[] = [
@@ -60,13 +62,15 @@ function CanvasImageInner({
   onDeselect,
   onDragEnd,
   onTransformEnd,
-  snapToCenter = false,
+  snapToCenter = true,
   stageWidth,
   stageHeight,
   onSnapChange,
   snapTargets,
   onPositionChange,
   onSnapLinesChange,
+  listening,
+  color,
 }: CanvasImageProps) {
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -79,6 +83,13 @@ function CanvasImageInner({
       trRef.current.nodes([]);
     }
   }, [selected]);
+
+  useEffect(() => {
+    if (imageRef.current && image) {
+      // Small timeout to ensure image is ready or just cache
+      imageRef.current.cache();
+    }
+  }, [image, width, height, color]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
@@ -105,13 +116,14 @@ function CanvasImageInner({
 
       if (!stageWidth || !stageHeight) return;
 
-      if (snapTargets && snapTargets.length > 0) {
+      // Always use the more powerful element snap calculator if any snapping is enabled
+      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets,
+          snapTargets || [], // Pass empty array if undefined
           stageWidth,
           stageHeight
         );
@@ -119,18 +131,6 @@ function CanvasImageInner({
         node.position({ x: result.x, y: result.y });
         onSnapChange?.(result.snapH, result.snapV);
         onSnapLinesChange?.(result.snapLines);
-      } else if (snapToCenter) {
-        const { x, y, snapH, snapV } = calculateSnapPosition(
-          node.x(),
-          node.y(),
-          nodeWidth,
-          nodeHeight,
-          stageWidth,
-          stageHeight
-        );
-
-        node.position({ x, y });
-        onSnapChange?.(snapH, snapV);
       }
     },
     [snapToCenter, stageWidth, stageHeight, onSnapChange, snapTargets, onSnapLinesChange]
@@ -190,6 +190,11 @@ function CanvasImageInner({
         onDragMove={handleDragMove}
         onTransform={handleTransform}
         onTransformEnd={handleTransformEnd}
+        listening={listening}
+        filters={color ? [Konva.Filters.RGB] : []}
+        red={color ? parseInt(color.slice(1, 3), 16) : undefined}
+        green={color ? parseInt(color.slice(3, 5), 16) : undefined}
+        blue={color ? parseInt(color.slice(5, 7), 16) : undefined}
       />
       {selected && (
         <Transformer
@@ -224,6 +229,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'stageWidth',
     'stageHeight',
     'snapToCenter',
+    'listening',
   ];
 
   for (const key of keysToCompare) {

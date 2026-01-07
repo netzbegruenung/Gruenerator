@@ -12,3 +12,11 @@ export type { SnapGuidelinesProps } from './SnapGuidelines';
 
 export { CanvasImage } from './CanvasImage';
 export type { CanvasImageProps } from './CanvasImage';
+
+export { CanvasIcons } from './CanvasIcons';
+
+export { BalkenGroup } from './BalkenGroup';
+export type { BalkenGroupProps, BalkenMode, BalkenInstance } from './BalkenGroup';
+
+export { ShapePrimitive } from './ShapePrimitive';
+
