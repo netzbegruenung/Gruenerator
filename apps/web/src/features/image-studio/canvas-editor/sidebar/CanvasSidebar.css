@@ -36,22 +36,35 @@
 
 .sidebar-tab-bar__tab {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 56px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   border: none;
   background: transparent;
   border-radius: var(--card-border-radius-small, 8px);
   cursor: pointer;
   color: var(--font-color);
   transition: background-color 0.2s ease, color 0.2s ease;
+  padding: 4px;
 }
 
 .sidebar-tab-bar__tab svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.sidebar-tab-bar__label {
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .sidebar-tab-bar__tab:hover:not(:disabled) {
@@ -100,7 +113,7 @@
   position: fixed;
   background: var(--background-color);
   padding: 0;
-  padding-top: 120px;
+  padding-top: 100px;
   overflow: hidden;
   z-index: 101;
   display: flex;
@@ -112,7 +125,7 @@
   right: auto;
   width: auto;
   min-width: 120px;
-  max-width: 400px;
+  max-width: 320px;
   border-radius: 0 0 12px 0;
   box-shadow: 8px 0 24px rgba(0, 0, 0, 0.1);
   border-left: none;
@@ -122,10 +135,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--spacing-medium);
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-medium);
+  gap: 12px;
 }
 
 /* Section Styles (enhanced from EditPanel) */
@@ -288,7 +301,8 @@
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: none;
+    /* Firefox */
     background: var(--background-color);
     border-right: none;
     border-top: 1px solid var(--border-subtle);
@@ -307,9 +321,26 @@
     display: none;
   }
 
-  /* Tab buttons on mobile */
+  /* Tab buttons on mobile - column layout with labels */
   .sidebar-tab-bar__tab {
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 56px;
+    height: 56px;
+    padding: 4px 8px;
+  }
+
+  .sidebar-tab-bar__label {
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   /* Active indicator - top border on mobile */
@@ -406,10 +437,9 @@
 
   /* Sections on mobile - side and bottom padding, centered */
   .sidebar-section {
-    padding: 0 var(--spacing-medium) var(--spacing-small) var(--spacing-medium);
-    align-items: center;
+    padding: 0 var(--spacing-medium) 0 var(--spacing-small);
   }
-  
+
   /* Add safe spacing at bottom of canvas for mobile */
   .canvas-wrapper {
     padding-bottom: 64px;

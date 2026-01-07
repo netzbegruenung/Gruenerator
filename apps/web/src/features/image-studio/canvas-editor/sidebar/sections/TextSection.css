@@ -2,19 +2,99 @@
 .sidebar-section--text {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-small);
-  width: 320px;
+  gap: var(--spacing-xsmall);
+  width: 100%;
+  padding-top: var(--spacing-medium);
 }
 
-/* When followed by fontsize section (desktop combined view) */
-.sidebar-section--text + .sidebar-section--fontsize {
-  margin-top: var(--spacing-small);
-  padding-top: var(--spacing-medium);
-  border-top: 1px solid var(--border-subtle);
+/* Text Control Wrapper */
+.text-control-wrapper {
+  display: flex;
+  gap: var(--spacing-xsmall);
+  align-items: center;
+}
+
+.text-control-input {
+  flex: 1;
+  position: relative;
+}
+
+.text-control-input .form-textarea,
+.text-control-input .form-input {
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  resize: none;
+}
+
+/* Header style text area */
+.text-control-input .form-textarea.is-header {
+  font-weight: bold;
+  font-family: inherit;
+}
+
+/* Remove button overlaid or integrated */
+.text-control-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0.6;
+}
+
+.text-control-remove:hover {
+  opacity: 1;
+  background-color: var(--background-hover);
+}
+
+
+/* Action buttons container */
+.text-section-actions {
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-small);
+  padding: 0;
+}
+
+.text-preview-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-medium);
+  background-color: var(--background-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+  width: 100%;
+  text-align: center;
+  font-weight: 600;
+  height: 80px;
+}
+
+.text-preview-btn:hover {
+  background-color: var(--background-hover);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.text-preview-btn:active {
+  transform: translateY(0);
 }
 
 .sidebar-section--text .form-textarea {
   resize: none;
+}
+
+/* Additional Texts List */
+.additional-texts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  margin-top: var(--spacing-small);
+  padding-top: var(--spacing-small);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Thin scrollbar for panel content */

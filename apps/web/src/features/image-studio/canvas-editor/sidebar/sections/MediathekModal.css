@@ -1,0 +1,23 @@
+.mediathek-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    min-height: 500px;
+}
+
+.mediathek-modal-description {
+    font-family: 'PT Sans', sans-serif;
+    color: var(--grey-600);
+    font-size: 14px;
+    margin: 0;
+}
+
+.mediathek-modal .generic-modal-body {
+    padding: var(--spacing-lg);
+}
+
+@media (max-width: 768px) {
+    .mediathek-modal-content {
+        min-height: auto;
+    }
+}

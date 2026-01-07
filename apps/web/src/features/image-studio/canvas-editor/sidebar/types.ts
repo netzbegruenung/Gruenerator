@@ -1,6 +1,6 @@
 import type { IconType } from 'react-icons';
 
-export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'gradient' | 'position';
+export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'position' | 'image-background';
 
 export interface SidebarTab {
   id: SidebarTabId;
@@ -27,6 +27,20 @@ export interface TextSectionProps {
   name: string;
   onQuoteChange: (quote: string) => void;
   onNameChange: (name: string) => void;
+  onAddHeader?: () => void;
+  onAddText?: () => void;
+  additionalTexts?: AdditionalText[];
+  onUpdateAdditionalText?: (id: string, text: string) => void;
+  onRemoveAdditionalText?: (id: string) => void;
+  // Font Size Props
+  quoteFontSize?: number;
+  nameFontSize?: number;
+  onQuoteFontSizeChange?: (size: number) => void;
+  onNameFontSizeChange?: (size: number) => void;
+  onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
+  // Alternatives Props
+  alternatives?: string[];
+  onAlternativeSelect?: (alternative: string) => void;
 }
 
 export interface FontSizeSectionProps {
@@ -40,11 +54,18 @@ export interface BackgroundSectionProps {
   colors: BackgroundColorOption[];
   currentColor: string;
   onColorChange: (color: string) => void;
+  gradientOpacity?: number;
+  onGradientOpacityChange?: (opacity: number) => void;
 }
 
 export interface AssetsSectionProps {
   assets: AssetItem[];
   onAssetToggle: (assetId: string, visible: boolean) => void;
+  recommendedAssetIds?: string[];
+  // Icons feature props (optional - section won't show if not provided)
+  selectedIcons?: string[];
+  onIconToggle?: (iconId: string, selected: boolean) => void;
+  maxIconSelections?: number;
 }
 
 export interface AlternativesSectionProps {
@@ -60,10 +81,8 @@ export interface ImageSectionProps {
 }
 
 export interface GradientSectionProps {
-  enabled: boolean;
-  onToggle: (enabled: boolean) => void;
-  opacity?: number;
-  onOpacityChange?: (opacity: number) => void;
+  opacity: number;
+  onOpacityChange: (opacity: number) => void;
 }
 
 export interface SidebarTabBarProps {
@@ -91,13 +110,31 @@ export interface CanvasSidebarProps {
   backgroundColors: BackgroundColorOption[];
   onBackgroundChange: (color: string) => void;
   assets: AssetItem[];
-  onAssetToggle: (assetId: string, visible: boolean) => void;
+  onAssetToggle: (id: string, visible: boolean) => void;
+  recommendedAssetIds?: string[];
   alternatives: string[];
-  onAlternativeSelect: (alternative: string) => void;
-  quoteFontSize?: number;
-  nameFontSize?: number;
-  onQuoteFontSizeChange?: (size: number) => void;
+  onAlternativeSelect: (quote: string) => void;
+  quoteFontSize: number;
+  nameFontSize: number;
+  onQuoteFontSizeChange: (size: number) => void;
   onNameFontSizeChange?: (size: number) => void;
   onExport?: () => void;
   onSave?: () => void;
+  onAddHeader?: () => void;
+  onAddText?: () => void;
+  additionalTexts?: AdditionalText[];
+  onUpdateAdditionalText?: (id: string, text: string) => void;
+  onRemoveAdditionalText?: (id: string) => void;
+  onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
+}
+
+export interface AdditionalText {
+  id: string;
+  text: string;
+  type: 'header' | 'body';
+  x?: number;
+  y?: number;
+  width?: number;
+  fontSize?: number;
+  align?: 'left' | 'center' | 'right';
 }

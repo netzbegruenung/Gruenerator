@@ -1,0 +1,122 @@
+/* SubsectionTabBar - Secondary navigation bar positioned above main tab bar */
+
+/* Stacked layout (desktop) */
+.subsection-stacked {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Mobile content area - needs bottom padding to avoid bar overlap */
+.subsection-content-mobile {
+    padding-bottom: 24px;
+    padding-top: var(--spacing-medium);
+    padding-left: var(--spacing-medium);
+    padding-right: var(--spacing-medium);
+    /* Height of subsection bar */
+}
+
+.subsection-content-mobile>* {
+    animation: subsectionFadeIn 0.15s ease-out;
+}
+
+@keyframes subsectionFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Fixed bar - positioned above main tab bar (bottom: 64px), same height as main bar */
+.subsection-bar-fixed {
+    position: fixed;
+    bottom: 64px;
+    left: 0;
+    right: 0;
+    height: 64px;
+    /* Same as main tab bar */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: var(--background-color);
+    border-top: 1px solid var(--border-subtle);
+    z-index: 99;
+    padding: 0;
+}
+
+.subsection-bar-fixed__tab {
+    flex: 1;
+    max-width: 100px;
+    height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--grey-400);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    padding: 4px 8px;
+}
+
+.subsection-bar-fixed__label {
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.subsection-bar-fixed__tab:hover {
+    color: var(--grey-600);
+}
+
+.subsection-bar-fixed__tab--active {
+    color: var(--primary-600);
+    background: var(--primary-100);
+}
+
+/* Active indicator - top line */
+.subsection-bar-fixed__tab--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 2px;
+    background: var(--primary-600);
+    border-radius: 0 0 2px 2px;
+}
+
+/* Safe area adjustment */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .subsection-bar-fixed {
+        bottom: calc(64px + env(safe-area-inset-bottom));
+    }
+
+    .subsection-content-mobile {
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+}
+
+/* Hide drag handle when subsection bar is active */
+body:has(#subsection-bar-portal:not(:empty)) .sidebar-panel__drag-handle {
+    display: none;
+}
+
+/* Hide shadow of main tab bar when subsection bar is present - make it look unified */
+body:has(#subsection-bar-portal:not(:empty)) .sidebar-tab-bar {
+    box-shadow: none;
+}

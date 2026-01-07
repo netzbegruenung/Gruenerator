@@ -1,0 +1,80 @@
+/* IconsSection Styles */
+
+.sidebar-section--icons {
+    width: 100%;
+}
+
+/* Search Input */
+.icons-search {
+    position: relative;
+    width: 100%;
+    flex-shrink: 0;
+    margin: 0 0 8px 0;
+}
+
+.icons-search__icon {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary, #999);
+    pointer-events: none;
+}
+
+.icons-search__input {
+    width: 100%;
+    padding: 8px 0 8px 32px;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    font-size: var(--font-size-sm, 13px);
+    background: transparent;
+    transition: border-color 0.2s;
+}
+
+.icons-search__input:focus {
+    outline: none;
+    border-bottom-color: var(--primary-600);
+    box-shadow: none;
+}
+
+.icons-search__input::placeholder {
+    color: var(--text-tertiary, #999);
+}
+
+.icons-search__spinner {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    border: 2px solid #e0e0e0;
+    border-top-color: var(--primary-500, #46962b);
+    border-radius: 50%;
+    animation: icons-spin 0.6s linear infinite;
+}
+
+@keyframes icons-spin {
+    to {
+        transform: translateY(-50%) rotate(360deg);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 899px) {
+    .sidebar-section--icons {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+}
+
+/* Icon preview - uses shared card styles from SidebarPrimitives */
+.sidebar-section--icons .sidebar-selectable-card__preview {
+    color: var(--font-color);
+}
+
+/* Dark mode hover */
+[data-theme="dark"] .sidebar-selectable-card:hover:not(:disabled) {
+    background: var(--hover-color-alt, #333);
+}

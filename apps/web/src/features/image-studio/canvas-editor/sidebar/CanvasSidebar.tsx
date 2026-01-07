@@ -33,6 +33,7 @@ export function useCanvasSidebar({
   onBackgroundChange,
   assets,
   onAssetToggle,
+  recommendedAssetIds,
   alternatives,
   onAlternativeSelect,
   quoteFontSize,
@@ -41,6 +42,12 @@ export function useCanvasSidebar({
   onNameFontSizeChange,
   onExport,
   onSave,
+  onAddHeader,
+  onAddText,
+  additionalTexts,
+  onUpdateAdditionalText,
+  onRemoveAdditionalText,
+  onUpdateAdditionalTextFontSize,
 }: CanvasSidebarProps): CanvasSidebarReturn {
   const [activeTab, setActiveTab] = useState<SidebarTabId | null>(null);
   const [isDesktop, setIsDesktop] = useState(
@@ -76,22 +83,22 @@ export function useCanvasSidebar({
     switch (activeTab) {
       case 'text':
         return (
-          <>
-            <TextSection
-              quote={quote}
-              name={name}
-              onQuoteChange={onQuoteChange}
-              onNameChange={onNameChange}
-            />
-            {isDesktop && (
-              <FontSizeSection
-                quoteFontSize={quoteFontSize}
-                nameFontSize={nameFontSize}
-                onQuoteFontSizeChange={onQuoteFontSizeChange}
-                onNameFontSizeChange={onNameFontSizeChange}
-              />
-            )}
-          </>
+          <TextSection
+            quote={quote}
+            name={name}
+            onQuoteChange={onQuoteChange}
+            onNameChange={onNameChange}
+            onAddHeader={onAddHeader}
+            onAddText={onAddText}
+            additionalTexts={additionalTexts}
+            onUpdateAdditionalText={onUpdateAdditionalText}
+            onRemoveAdditionalText={onRemoveAdditionalText}
+            quoteFontSize={quoteFontSize}
+            nameFontSize={nameFontSize}
+            onQuoteFontSizeChange={onQuoteFontSizeChange}
+            onNameFontSizeChange={onNameFontSizeChange}
+            onUpdateAdditionalTextFontSize={onUpdateAdditionalTextFontSize}
+          />
         );
       case 'fontsize':
         return (
@@ -115,6 +122,7 @@ export function useCanvasSidebar({
           <AssetsSection
             assets={assets}
             onAssetToggle={onAssetToggle}
+            recommendedAssetIds={recommendedAssetIds}
           />
         );
       case 'alternatives':
