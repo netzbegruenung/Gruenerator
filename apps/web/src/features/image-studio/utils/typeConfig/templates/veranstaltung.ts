@@ -14,6 +14,7 @@ export const veranstaltungTypeConfig: TemplateTypeConfig = {
   previewImage: '/imagine/previews/veranstaltung-preview.png',
   requiresImage: true,
   hasTextGeneration: true,
+  hasTextCanvasEdit: true,
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {

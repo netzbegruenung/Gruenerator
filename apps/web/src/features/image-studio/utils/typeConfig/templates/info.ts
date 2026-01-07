@@ -14,6 +14,7 @@ export const infoTypeConfig: TemplateTypeConfig = {
   previewImage: '/imagine/previews/info-preview.png',
   requiresImage: false,
   hasTextGeneration: true,
+  hasTextCanvasEdit: true,
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {

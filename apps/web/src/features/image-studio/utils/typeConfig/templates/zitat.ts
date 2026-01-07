@@ -14,8 +14,11 @@ export const zitatTypeConfig: TemplateTypeConfig = {
   previewImage: '/imagine/previews/zitat-preview.png',
   requiresImage: true,
   hasTextGeneration: true,
+  hasTextCanvasEdit: true,
   usesFluxApi: false,
   hasRateLimit: false,
+  inputBeforeImage: true,
+  parallelPreload: true,
   endpoints: {
     text: '/zitat_claude',
     canvas: '/zitat_canvas'

@@ -1,28 +1,28 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
-// Import all original, unmodified canvas components
+// Import DreizeilenCanvas separately (kept as special case)
 import { DreizeilenCanvas } from './composed/DreizeilenCanvas';
-import { ZitatCanvas } from './composed/ZitatCanvas';
-import { ZitatPureCanvas } from './composed/ZitatPureCanvas';
-import { InfoCanvas } from './composed/InfoCanvas';
-import { VeranstaltungCanvas } from './composed/VeranstaltungCanvas';
 import { ProfilbildCanvas } from './ProfilbildCanvas';
-import { SimpleCanvas } from './composed/SimpleCanvas';
+
+// Import GenericCanvas for config-driven canvases
+import { GenericCanvas } from './components/GenericCanvas';
+
+// Import full configs
+import { zitatPureFullConfig } from './configs/zitat_pure_full.config';
+import { simpleFullConfig } from './configs/simple_full.config';
+import { zitatFullConfig } from './configs/zitat_full.config';
+import { infoFullConfig } from './configs/info_full.config';
+import { veranstaltungFullConfig } from './configs/veranstaltung_full.config';
 
 import type { DreizeilenCanvasProps } from './composed/DreizeilenCanvas';
-import type { ZitatCanvasProps } from './composed/ZitatCanvas';
-import type { ZitatPureCanvasProps } from './composed/ZitatPureCanvas';
-import type { InfoCanvasProps } from './composed/InfoCanvas';
-import type { VeranstaltungCanvasProps } from './composed/VeranstaltungCanvas';
 import type { ProfilbildCanvasProps } from '@gruenerator/shared/canvas-editor';
-import type { SimpleCanvasProps } from './composed/SimpleCanvas';
 
 type CanvasState = Record<string, any>;
 
 export interface ControllableCanvasWrapperProps {
   type: string;
   initialState: CanvasState;
-  imageSrc?: string; // This is the source image for editing, e.g., uploaded background
+  imageSrc?: string;
   onExport: (base64: string) => void;
   onCancel: () => void;
   onStateChange?: (newState: CanvasState) => void;
@@ -31,7 +31,7 @@ export interface ControllableCanvasWrapperProps {
 export function ControllableCanvasWrapper({
   type,
   initialState,
-  imageSrc, // The source image, not the already generated one
+  imageSrc,
   onExport,
   onCancel,
   onStateChange,
@@ -39,13 +39,11 @@ export function ControllableCanvasWrapper({
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
 
-  // If the external initial state changes, update the internal state and force a remount
   useEffect(() => {
     setInternalState(initialState);
     setComponentKey(Date.now());
   }, [initialState]);
 
-  // Create a unified state change handler
   const handlePartChange = useCallback((change: Partial<CanvasState>) => {
     const newState = { ...internalState, ...change };
     setInternalState(newState);
@@ -58,8 +56,18 @@ export function ControllableCanvasWrapper({
     onCancel,
   };
 
+  // Create callbacks object for GenericCanvas
+  const createCallbacks = useCallback((keys: string[]) => {
+    const callbacks: Record<string, (val: any) => void> = {};
+    keys.forEach(key => {
+      callbacks[`on${key.charAt(0).toUpperCase() + key.slice(1)}Change`] = (val: any) => handlePartChange({ [key]: val });
+    });
+    return callbacks;
+  }, [handlePartChange]);
+
   const renderCanvas = () => {
     switch (type) {
+      // Dreizeilen stays as special case
       case 'dreizeilen':
         return (
           <DreizeilenCanvas
@@ -67,79 +75,110 @@ export function ControllableCanvasWrapper({
             line1={internalState.line1 || ''}
             line2={internalState.line2 || ''}
             line3={internalState.line3 || ''}
-            imageSrc={imageSrc} // Pass source image
+            imageSrc={imageSrc}
             onLine1Change={(line1) => handlePartChange({ line1 })}
             onLine2Change={(line2) => handlePartChange({ line2 })}
             onLine3Change={(line3) => handlePartChange({ line3 })}
           />
         );
+
+      // Config-driven canvases using GenericCanvas
       case 'zitat':
         return (
-          <ZitatCanvas
-            {...commonProps}
-            quote={internalState.quote || ''}
-            name={internalState.name || ''}
-            imageSrc={imageSrc || ''} // Pass source image
-            onQuoteChange={(quote) => handlePartChange({ quote })}
-            onNameChange={(name) => handlePartChange({ name })}
+          <GenericCanvas
+            key={componentKey}
+            config={zitatFullConfig}
+            initialProps={{
+              quote: internalState.quote || '',
+              name: internalState.name || '',
+              imageSrc: imageSrc || '',
+              alternatives: internalState.alternatives || [],
+            }}
+            onExport={onExport}
+            onCancel={onCancel}
+            callbacks={createCallbacks(['quote', 'name'])}
           />
         );
+
       case 'zitat-pure':
         return (
-          <ZitatPureCanvas
-            {...commonProps}
-            quote={internalState.quote || ''}
-            name={internalState.name || ''}
-            onQuoteChange={(quote) => handlePartChange({ quote })}
-            onNameChange={(name) => handlePartChange({ name })}
+          <GenericCanvas
+            key={componentKey}
+            config={zitatPureFullConfig}
+            initialProps={{
+              quote: internalState.quote || '',
+              name: internalState.name || '',
+              alternatives: internalState.alternatives || [],
+            }}
+            onExport={onExport}
+            onCancel={onCancel}
+            callbacks={createCallbacks(['quote', 'name'])}
           />
         );
+
       case 'info':
         return (
-          <InfoCanvas
-            {...commonProps}
-            header={internalState.header || ''}
-            subheader={internalState.subheader || ''}
-            body={internalState.body || ''}
-            onHeaderChange={(header) => handlePartChange({ header })}
-            onSubheaderChange={(subheader) => handlePartChange({ subheader })}
-            onBodyChange={(body) => handlePartChange({ body })}
+          <GenericCanvas
+            key={componentKey}
+            config={infoFullConfig}
+            initialProps={{
+              header: internalState.header || '',
+              body: internalState.body || '',
+              alternatives: internalState.alternatives || [],
+            }}
+            onExport={onExport}
+            onCancel={onCancel}
+            callbacks={createCallbacks(['header', 'body'])}
           />
         );
+
       case 'veranstaltung':
         return (
-          <VeranstaltungCanvas
-            {...commonProps}
-            eventTitle={internalState.eventTitle || ''}
-            beschreibung={internalState.beschreibung || ''}
-            weekday={internalState.weekday || ''}
-            date={internalState.date || ''}
-            time={internalState.time || ''}
-            locationName={internalState.locationName || ''}
-            address={internalState.address || ''}
-            imageSrc={imageSrc || ''} // Pass source image
-            onEventTitleChange={(eventTitle) => handlePartChange({ eventTitle })}
-            onBeschreibungChange={(beschreibung) => handlePartChange({ beschreibung })}
+          <GenericCanvas
+            key={componentKey}
+            config={veranstaltungFullConfig}
+            initialProps={{
+              eventTitle: internalState.eventTitle || '',
+              beschreibung: internalState.beschreibung || '',
+              weekday: internalState.weekday || '',
+              date: internalState.date || '',
+              time: internalState.time || '',
+              locationName: internalState.locationName || '',
+              address: internalState.address || '',
+              imageSrc: imageSrc || '',
+              alternatives: internalState.alternatives || [],
+            }}
+            onExport={onExport}
+            onCancel={onCancel}
+            callbacks={createCallbacks(['eventTitle', 'beschreibung'])}
           />
         );
+
+      case 'simple':
+        return (
+          <GenericCanvas
+            key={componentKey}
+            config={simpleFullConfig}
+            initialProps={{
+              headline: internalState.headline || '',
+              subtext: internalState.subtext || '',
+              imageSrc: imageSrc || '',
+              alternatives: internalState.alternatives || [],
+            }}
+            onExport={onExport}
+            onCancel={onCancel}
+            callbacks={createCallbacks(['headline', 'subtext'])}
+          />
+        );
+
       case 'profilbild':
         return (
           <ProfilbildCanvas
             {...commonProps}
-            transparentImage={imageSrc || ''} // Pass source image as transparentImage
+            transparentImage={imageSrc || ''}
           />
         );
-      case 'simple':
-        return (
-          <SimpleCanvas
-            {...commonProps}
-            headline={internalState.headline || ''}
-            subtext={internalState.subtext || ''}
-            imageSrc={imageSrc || ''} // Pass source image
-            onHeadlineChange={(headline) => handlePartChange({ headline })}
-            onSubtextChange={(subtext) => handlePartChange({ subtext })}
-          />
-        );
+
       default:
         return <div>Editor type "{type}" not found.</div>;
     }
