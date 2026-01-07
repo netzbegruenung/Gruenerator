@@ -12,3 +12,4 @@ export type { UseCanvasHistorySetupResult } from './useCanvasHistorySetup';
 
 export { useImageCoverFit } from './useImageCoverFit';
 export type { CoverFitDimensions } from './useImageCoverFit';
+export * from './useCanvasBackgroundLock';
