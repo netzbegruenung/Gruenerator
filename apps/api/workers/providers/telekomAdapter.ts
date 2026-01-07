@@ -2,22 +2,9 @@ import { getTelekomClient } from '../clients/telekomClient.js';
 import { mergeMetadata } from './adapterUtils.js';
 import ToolHandler from '../../services/tools/index.js';
 import type { AIRequestData, AIWorkerResult, Message, ToolCall } from '../types.js';
+import type { ChatCompletionMessageParam, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 
-interface TelekomMessage {
-    role: string;
-    content: string;
-}
 
-interface TelekomConfig {
-    model: string;
-    messages: TelekomMessage[];
-    max_tokens: number;
-    temperature: number;
-    stream: boolean;
-    tools?: unknown[];
-    tool_choice?: unknown;
-    [key: string]: unknown;
-}
 
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
     const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
@@ -34,33 +21,35 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
     const client = getTelekomClient();
 
-    const telekomMessages: TelekomMessage[] = [];
+    const telekomMessages: ChatCompletionMessageParam[] = [];
     if (systemPrompt) telekomMessages.push({ role: 'system', content: systemPrompt });
     if (messages) {
         messages.forEach((msg: Message) => {
+            const content = typeof msg.content === 'string'
+                ? msg.content
+                : Array.isArray(msg.content)
+                    ? msg.content.map(c => (c as { text?: string; content?: string }).text || (c as { text?: string; content?: string }).content || '').join('\n')
+                    : String(msg.content);
+
             telekomMessages.push({
-                role: msg.role,
-                content: typeof msg.content === 'string'
-                    ? msg.content
-                    : Array.isArray(msg.content)
-                        ? msg.content.map(c => (c as { text?: string; content?: string }).text || (c as { text?: string; content?: string }).content || '').join('\n')
-                        : String(msg.content)
+                role: msg.role as 'user' | 'assistant' | 'system',
+                content
             });
         });
     }
 
-    const telekomConfig: TelekomConfig = {
+    const telekomConfig: ChatCompletionCreateParamsNonStreaming = {
         model,
         messages: telekomMessages,
         max_tokens: options.max_tokens || 4096,
         temperature: options.temperature !== undefined ? options.temperature : 0.5,
-        stream: false
+        stream: false as const
     };
 
     const toolsPayload = ToolHandler.prepareToolsPayload(options, 'telekom', requestId, type);
     if (toolsPayload.tools) {
-        telekomConfig.tools = toolsPayload.tools;
-        if (toolsPayload.tool_choice) telekomConfig.tool_choice = toolsPayload.tool_choice;
+        telekomConfig.tools = toolsPayload.tools as any; // ToolHandler returns OpenAI format for 'telekom' provider
+        if (toolsPayload.tool_choice) telekomConfig.tool_choice = toolsPayload.tool_choice as any;
     }
 
     const response = await client.chat.completions.create(telekomConfig);
@@ -72,8 +61,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     const normalizedToolCalls: ToolCall[] | undefined = toolCalls.length > 0
         ? toolCalls.map(tc => ({
             id: tc.id,
-            name: tc.function.name,
-            input: JSON.parse(tc.function.arguments || '{}')
+            name: tc.type === 'function' ? tc.function.name : tc.id,
+            input: tc.type === 'function' ? JSON.parse(tc.function.arguments || '{}') : {}
         }))
         : undefined;
 

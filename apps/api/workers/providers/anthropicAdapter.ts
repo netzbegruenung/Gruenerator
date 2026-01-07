@@ -4,6 +4,7 @@ import config from '../worker.config.js';
 import { mergeMetadata } from './adapterUtils.js';
 import * as typeProfiles from '../../config/typeProfiles.js';
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+import type { ChatCompletionMessageParam, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 
 const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
@@ -20,6 +21,7 @@ interface AnthropicRequestConfig {
 /**
  * Fallback to Telekom provider when Claude fails
  */
+/*
 async function executeWithTelekomFallback(requestId: string, data: AIRequestData, originalError: Error): Promise<AIWorkerResult> {
   console.log(`[Anthropic Adapter ${requestId}] Claude API failed, falling back to Telekom: ${originalError.message}`);
 
@@ -29,32 +31,29 @@ async function executeWithTelekomFallback(requestId: string, data: AIRequestData
 
   const { messages, systemPrompt, options = {}, metadata: requestMetadata = {} } = data;
 
-  interface TelekomMessage {
-    role: string;
-    content: string;
-  }
-
-  const telekomMessages: TelekomMessage[] = [];
+  const telekomMessages: ChatCompletionMessageParam[] = [];
   if (systemPrompt) telekomMessages.push({ role: 'system', content: systemPrompt });
   if (messages) {
     messages.forEach((msg) => {
+      const content = typeof msg.content === 'string'
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.map(c => (c as { text?: string; content?: string }).text || (c as { text?: string; content?: string }).content || '').join('\n')
+          : String(msg.content);
+
       telekomMessages.push({
-        role: msg.role,
-        content: typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? msg.content.map(c => (c as { text?: string; content?: string }).text || (c as { text?: string; content?: string }).content || '').join('\n')
-            : String(msg.content)
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content
       });
     });
   }
 
-  const telekomConfig = {
+  const telekomConfig: ChatCompletionCreateParamsNonStreaming = {
     model: 'Llama-3.1-70B-Instruct',
     messages: telekomMessages,
     max_tokens: options.max_tokens || 4096,
     temperature: options.temperature || 0.5,
-    stream: false
+    stream: false as const
   };
 
   const response = await client.chat.completions.create(telekomConfig);
@@ -79,6 +78,7 @@ async function executeWithTelekomFallback(requestId: string, data: AIRequestData
     })
   };
 }
+*/
 
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
   const { prompt, systemPrompt, messages, options = {}, type, metadata: requestMetadata = {}, fileMetadata } = data;
@@ -171,10 +171,14 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       })
     };
   } catch (error) {
-    // Fallback to Telekom on any Claude API error
+    // Telekom fallback commented out - may use later
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn(`[Anthropic Adapter ${requestId}] Claude API error: ${errorMessage}`);
+    console.error(`[Anthropic Adapter ${requestId}] Claude API error: ${errorMessage}`);
 
+    // Re-throw error (Telekom fallback disabled)
+    throw error;
+
+    /* TELEKOM FALLBACK - COMMENTED OUT
     // Check if Telekom is available for fallback
     if (process.env.TELEKOM_API_KEY) {
       try {
@@ -188,8 +192,8 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
     // No fallback available, re-throw
     throw error;
+    */
   }
 }
 
 export { execute };
-```
