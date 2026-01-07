@@ -14,6 +14,7 @@ export const zitatPureTypeConfig: TemplateTypeConfig = {
   previewImage: '/imagine/previews/zitat-pure-preview.png',
   requiresImage: false,
   hasTextGeneration: true,
+  hasTextCanvasEdit: true,
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {

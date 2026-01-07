@@ -1,12 +1,2 @@
-export { ZitatPureCanvas } from './ZitatPureCanvas';
-export type { ZitatPureCanvasProps } from './ZitatPureCanvas';
-export { ZitatCanvas } from './ZitatCanvas';
-export type { ZitatCanvasProps } from './ZitatCanvas';
-export { InfoCanvas } from './InfoCanvas';
-export type { InfoCanvasProps } from './InfoCanvas';
-export { VeranstaltungCanvas } from './VeranstaltungCanvas';
-export type { VeranstaltungCanvasProps } from './VeranstaltungCanvas';
 export { DreizeilenCanvas } from './DreizeilenCanvas';
 export type { DreizeilenCanvasProps, DreizeilenAlternative } from './DreizeilenCanvas';
-export { SimpleCanvas } from './SimpleCanvas';
-export type { SimpleCanvasProps } from './SimpleCanvas';
