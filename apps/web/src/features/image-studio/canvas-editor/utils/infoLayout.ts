@@ -47,6 +47,13 @@ export const INFO_CONFIG = {
     maxFontSize: 60,
     lineHeightRatio: 1.4,
     color: '#ffffff',
+    y: 0, // Dynamic - calculated from header height
+  },
+  sunflower: {
+    x: 540, // Center horizontally
+    y: 675, // Center vertically
+    size: 800,
+    src: '/sunflower.svg',
   },
   backgrounds: {
     tanne: '/Info_bg_tanne.png',
@@ -91,6 +98,7 @@ export function calculateInfoLayout(
     },
     body: {
       x: INFO_CONFIG.body.leftMargin,
+      y: INFO_CONFIG.body.y, // Dynamic - set at runtime
       maxWidth: INFO_CONFIG.body.maxWidth,
       fontSize: bodyFontSize,
       lineHeight: bodyLineHeight,

@@ -15,7 +15,7 @@ export interface SimpleConfig {
     maxWidth: number;
     fontSize: number;
     fontFamily: string;
-    fontStyle: string;
+    fontStyle: 'bold' | 'normal' | 'italic' | 'bold italic';
     color: string;
     lineHeightRatio: number;
   };
@@ -25,7 +25,7 @@ export interface SimpleConfig {
     maxWidth: number;
     fontSize: number;
     fontFamily: string;
-    fontStyle: string;
+    fontStyle: 'bold' | 'normal' | 'italic' | 'bold italic';
     color: string;
     lineHeightRatio: number;
   };
