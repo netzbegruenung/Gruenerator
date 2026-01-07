@@ -1,9 +1,118 @@
-.sidebar-section--assets {
-  width: fit-content;
+.sidebar-section--assets,
+.sidebar-section--assets-wrapper {
+  width: 100%;
 }
 
+/* Unified search input */
+.assets-search {
+  position: relative;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.assets-search__icon {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary, #999);
+  pointer-events: none;
+}
+
+.assets-search__input {
+  width: 100%;
+  padding: 8px 0 8px 28px;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  font-size: var(--font-size-sm, 13px);
+  background: transparent;
+  transition: border-color 0.2s;
+}
+
+.assets-search__input:focus {
+  outline: none;
+  border-bottom-color: var(--primary-600);
+}
+
+.assets-search__input::placeholder {
+  color: var(--text-tertiary, #999);
+}
+
+.assets-no-results {
+  font-size: 0.875rem;
+  color: var(--text-tertiary, #999);
+  text-align: center;
+  padding: 2rem 1rem;
+  margin: 0;
+}
+
+/* Normalize all asset images to consistent visual weight */
 .sidebar-section--assets .asset-image {
-  max-width: 100%;
-  max-height: 100%;
+  width: 60%;
+  height: 60%;
+  max-width: 32px;
+  max-height: 32px;
   object-fit: contain;
+}
+
+/* Section headers */
+.assets-section-header,
+.sidebar-section .assets-section-header {
+  font-family: var(--font-family-sans, 'PT Sans', sans-serif);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem 0;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.assets-section-header:first-child {
+  margin-top: 0;
+}
+
+.assets-section-header--secondary {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 899px) {
+  .sidebar-section--assets {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 0 !important;
+    margin: 0 !important;
+    scrollbar-width: none;
+  }
+
+  .sidebar-section--assets::-webkit-scrollbar {
+    display: none;
+  }
+
+  .assets-group {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .assets-section-header {
+    display: none;
+  }
+}
+
+/* Preview container - inherits from SidebarPrimitives */
+.sidebar-section--assets .sidebar-selectable-card__preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }

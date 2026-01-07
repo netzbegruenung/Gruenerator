@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FaUndo, FaRedo, FaCheck, FaSave } from 'react-icons/fa';
+import { FaCheck, FaSave } from 'react-icons/fa';
 import { useCanvasEditorStore } from '../../../../stores/canvasEditorStore';
 import type { SidebarTabBarProps, SidebarTabId } from './types';
 
-// Stable selectors - avoid object creation on each render
-const selectCanUndo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.historyIndex > 0;
-const selectCanRedo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.historyIndex < s.history.length - 1;
-const selectUndo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.undo;
-const selectRedo = (s: ReturnType<typeof useCanvasEditorStore.getState>) => s.redo;
+
 
 export function SidebarTabBar({
   tabs,
@@ -18,10 +14,7 @@ export function SidebarTabBar({
   disabledTabs = [],
   horizontal = false,
 }: SidebarTabBarProps) {
-  const canUndo = useCanvasEditorStore(selectCanUndo);
-  const canRedo = useCanvasEditorStore(selectCanRedo);
-  const undo = useCanvasEditorStore(selectUndo);
-  const redo = useCanvasEditorStore(selectRedo);
+
 
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth < 900
@@ -59,33 +52,15 @@ export function SidebarTabBar({
             title={tab.label}
             type="button"
           >
-            <Icon size={24} />
+            <Icon size={isMobile ? 20 : 22} />
+            <span className="sidebar-tab-bar__label">{tab.label}</span>
           </button>
         );
       })}
 
-      <div className="sidebar-tab-bar__separator" />
 
-      <button
-        className="sidebar-tab-bar__tab sidebar-tab-bar__tab--undo"
-        onClick={undo}
-        disabled={!canUndo}
-        aria-label="Rückgängig"
-        title="Rückgängig (Strg+Z)"
-        type="button"
-      >
-        <FaUndo size={18} />
-      </button>
-      <button
-        className="sidebar-tab-bar__tab sidebar-tab-bar__tab--redo"
-        onClick={redo}
-        disabled={!canRedo}
-        aria-label="Wiederholen"
-        title="Wiederholen (Strg+Y)"
-        type="button"
-      >
-        <FaRedo size={18} />
-      </button>
+
+      <div className="sidebar-tab-bar__separator" />
 
       {(onExport || onSave) && (
         <>

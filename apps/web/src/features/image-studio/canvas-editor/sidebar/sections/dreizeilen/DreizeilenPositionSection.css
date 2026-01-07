@@ -1,148 +1,176 @@
 .sidebar-section--dreizeilen-position {
-  gap: var(--spacing-medium);
-}
-
-.sidebar-section--dreizeilen-position .sidebar-slider-value--badge {
-  align-self: center;
-}
-
-/* Subtle divider between group and individual controls */
-.individual-bar-controls-divider {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-xsmall) 0;
-  margin: var(--spacing-xsmall) 0;
-  position: relative;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px;
 }
 
-.individual-bar-controls-divider::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: var(--border-subtle);
+/* Subsection styling */
+.position-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.individual-bar-controls-divider span {
-  position: relative;
+.position-subheader {
   font-size: 11px;
   font-weight: 600;
   color: var(--font-color-secondary);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  background: var(--background-color);
-  padding: 0 var(--spacing-small);
-  z-index: 1;
+}
+
+/* Color Scheme Grid */
+.color-scheme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+}
+
+.color-scheme-card {
+  position: relative;
+  padding: 8px;
+  background: var(--card-background);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-scheme-card:hover {
+  border-color: var(--primary-400);
+}
+
+.color-scheme-card--active {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px var(--primary-100);
+}
+
+.color-scheme-card__check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  background: var(--primary-500);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-scheme-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.color-scheme-preview__bar {
+  height: 8px;
+  border-radius: 2px;
+  transform: skewX(-12deg);
 }
 
 /* Individual bar controls container */
 .individual-bar-controls {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xsmall);
-  padding: var(--spacing-small);
+  gap: 8px;
+  padding: 12px;
   background: var(--card-background);
   border: var(--card-border);
-  border-radius: var(--card-border-radius-small);
+  border-radius: 8px;
 }
 
 /* Bar control row - each individual bar */
 .bar-control-row {
   display: flex;
   align-items: center;
-  gap: var(--spacing-small);
+  justify-content: center;
+  gap: 12px;
 }
 
-/* Bar preview wrapper with stagger offset */
-.bar-preview-wrapper {
+/* Arrow nudge buttons */
+.bar-nudge-btn {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
-  min-width: 60px;
-  transition: padding-left 0.2s ease;
+  justify-content: center;
+  background: var(--grey-100);
+  border: 1px solid var(--grey-300);
+  border-radius: 6px;
+  color: var(--grey-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bar-nudge-btn:hover {
+  background: var(--primary-50);
+  border-color: var(--primary-400);
+  color: var(--primary-600);
+}
+
+.bar-nudge-btn:active {
+  transform: scale(0.95);
 }
 
 /* Mini parallelogram bar preview */
 .bar-preview {
-  width: 48px;
-  height: 18px;
-  position: relative;
-  border-radius: 2px;
-  transform: skewX(-12deg);
+  width: 80px;
+  height: 20px;
+  border-radius: 3px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .bar-control-row:hover .bar-preview {
-  transform: skewX(-12deg) scale(1.05);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
-/* Custom bar slider */
-.bar-slider {
-  flex: 1;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--border-subtle);
-  appearance: none;
-  cursor: pointer;
-  transition: background 0.2s ease;
+/* Sidebar slider adjustments */
+.sidebar-section--dreizeilen-position .sidebar-slider-row--with-bounds {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.bar-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--slider-color, var(--primary-600));
-  cursor: grab;
-  border: 2px solid var(--background-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+.sidebar-section--dreizeilen-position .sidebar-slider-bound {
+  font-size: 11px;
+  color: var(--grey-500);
+  white-space: nowrap;
 }
 
-.bar-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+.sidebar-slider-bounds {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
 }
 
-.bar-slider::-webkit-slider-thumb:active {
-  cursor: grabbing;
-  transform: scale(1.1);
+.sidebar-slider-bounds span {
+  font-size: 10px;
+  color: var(--text-tertiary, #999);
 }
 
-.bar-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--slider-color, var(--primary-600));
-  cursor: grab;
-  border: 2px solid var(--background-color);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.bar-slider::-moz-range-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-}
-
-.bar-slider::-moz-range-thumb:active {
-  cursor: grabbing;
-  transform: scale(1.1);
-}
-
-/* Compact value badge */
-.bar-value-badge {
-  min-width: 48px;
-  text-align: center;
-  font-size: 12px;
+/* Reset button */
+.sidebar-reset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: var(--grey-100);
+  border: 1px solid var(--grey-300);
+  border-radius: 8px;
+  color: var(--grey-700);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--font-color);
-  background: var(--background-color);
-  padding: 2px var(--spacing-xsmall);
-  border-radius: 4px;
-  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-reset-btn:hover {
+  background: var(--grey-200);
+  border-color: var(--grey-400);
 }

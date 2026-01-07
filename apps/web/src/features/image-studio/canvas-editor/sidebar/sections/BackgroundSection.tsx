@@ -1,12 +1,17 @@
 import { FaCheck } from 'react-icons/fa';
 import type { BackgroundSectionProps } from '../types';
+import { SidebarSlider } from '../components/SidebarSlider';
 import './BackgroundSection.css';
 
 export function BackgroundSection({
   colors,
   currentColor,
   onColorChange,
+  gradientOpacity,
+  onGradientOpacityChange,
 }: BackgroundSectionProps) {
+  const showGradient = gradientOpacity !== undefined && onGradientOpacityChange !== undefined;
+
   return (
     <div className="sidebar-section sidebar-section--background">
       <div className="sidebar-card-grid">
@@ -35,6 +40,21 @@ export function BackgroundSection({
           );
         })}
       </div>
+
+      {showGradient && (
+        <div style={{ marginTop: 'var(--spacing-large)' }}>
+          <SidebarSlider
+            label="Gradient-Overlay"
+            value={gradientOpacity}
+            onValueChange={onGradientOpacityChange}
+            min={0}
+            max={1}
+            step={0.01}
+            unit="%"
+          />
+        </div>
+      )}
+
       <p className="sidebar-hint">
         Wähle eine passende Hintergrundfarbe für dein Design. Die Farbe sollte gut mit dem Text harmonieren und für ausreichend Kontrast sorgen. Sand (hell) eignet sich für dunkle Texte, grüne Töne für helle Texte.
       </p>
