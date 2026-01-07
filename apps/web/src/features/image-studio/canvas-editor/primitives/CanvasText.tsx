@@ -24,6 +24,9 @@ export interface CanvasTextProps {
   fontFamily?: string;
   fontStyle?: 'normal' | 'italic' | 'bold' | 'bold italic';
   fill?: string;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
   stroke?: string;
   strokeWidth?: number;
   align?: 'left' | 'center' | 'right';
@@ -34,6 +37,7 @@ export interface CanvasTextProps {
   draggable?: boolean;
   selected?: boolean;
   editable?: boolean;
+  opacity?: number;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
   onDeselect?: () => void;
@@ -62,6 +66,9 @@ function CanvasTextInner({
   fontFamily = 'Arial',
   fontStyle = 'normal',
   fill = '#000000',
+  rotation,
+  scaleX,
+  scaleY,
   stroke,
   strokeWidth,
   align = 'left',
@@ -72,6 +79,7 @@ function CanvasTextInner({
   draggable = true,
   selected = false,
   editable = false,
+  opacity = 1,
   transformConfig,
   onSelect,
   onDeselect,
@@ -79,7 +87,7 @@ function CanvasTextInner({
   onDragEnd,
   onTransformEnd,
   onFontSizeChange,
-  snapToCenter = false,
+  snapToCenter = true,
   stageWidth,
   stageHeight,
   onSnapChange,
@@ -131,14 +139,14 @@ function CanvasTextInner({
 
       if (!stageWidth || !stageHeight) return;
 
-      // Use element snapping if targets provided, otherwise fall back to center-only
-      if (snapTargets && snapTargets.length > 0) {
+      // Use element snapping if targets provided or center snapping enabled
+      if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets,
+          snapTargets || [],
           stageWidth,
           stageHeight
         );
@@ -146,18 +154,6 @@ function CanvasTextInner({
         node.position({ x: result.x, y: result.y });
         onSnapChange?.(result.snapH, result.snapV);
         onSnapLinesChange?.(result.snapLines);
-      } else if (snapToCenter) {
-        const { x, y, snapH, snapV } = calculateSnapPosition(
-          node.x(),
-          node.y(),
-          nodeWidth,
-          nodeHeight,
-          stageWidth,
-          stageHeight
-        );
-
-        node.position({ x, y });
-        onSnapChange?.(snapH, snapV);
       }
     },
     [snapToCenter, stageWidth, stageHeight, onSnapChange, snapTargets, onSnapLinesChange]
@@ -304,6 +300,10 @@ function CanvasTextInner({
         fontFamily={fontFamily}
         fontStyle={fontStyle}
         fill={fill}
+        rotation={rotation}
+        scaleX={scaleX}
+        scaleY={scaleY}
+        opacity={opacity}
         stroke={stroke}
         strokeWidth={strokeWidth}
         align={align}
@@ -349,7 +349,7 @@ export const CanvasText = memo(CanvasTextInner, (prevProps, nextProps) => {
   const keysToCompare: (keyof CanvasTextProps)[] = [
     'id', 'text', 'x', 'y', 'width', 'fontSize', 'fontFamily', 'fontStyle',
     'fill', 'stroke', 'strokeWidth', 'align', 'verticalAlign', 'lineHeight',
-    'wrap', 'padding', 'draggable', 'selected', 'editable',
+    'wrap', 'padding', 'draggable', 'selected', 'editable', 'opacity',
     'stageWidth', 'stageHeight', 'snapToCenter'
   ];
 

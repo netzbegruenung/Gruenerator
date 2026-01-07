@@ -1,0 +1,223 @@
+.floating-tap-bar-container {
+    /* Positioned statically in the flex column */
+    position: relative;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 24px;
+    /* Increased padding between bar and image */
+    pointer-events: none;
+    /* Allow clicks to pass through empty space if needed, though mostly occupied */
+    height: 48px;
+    /* Reserve height so it doesn't jump? Optional, but good for layout stability */
+}
+
+/* Ensure the bar content itself captures events */
+.floating-tap-bar {
+    pointer-events: auto;
+    background: #ffffff;
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    /* Fully rounded capsule for better "toolbar" feel */
+    padding: 6px;
+    /* Tighter padding */
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    animation: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    /* Smooth resize on expand */
+}
+
+[data-theme="dark"] .floating-tap-bar {
+    background: var(--surface-card);
+    border-color: var(--border-subtle);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes slideDownFade {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Floating Color Picker Module */
+.floating-color-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 4px;
+}
+
+/* Collapsible state styles */
+.floating-color-picker--collapsed {
+    width: auto;
+}
+
+.floating-color-picker--expanded {
+    animation: expandWidth 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-color-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    flex-shrink: 0;
+    /* Prevent squishing */
+}
+
+/* Trigger button specific styles */
+.floating-color-trigger {
+    border: 2px solid var(--border-default);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+
+
+.floating-color-btn:hover {
+    transform: translateY(-2px);
+}
+
+.floating-color-btn:active {
+    transform: scale(0.9);
+}
+
+.floating-color-btn--active {
+    transform: scale(1.1);
+    border-color: var(--primary-600);
+    z-index: 1;
+}
+
+.floating-color-btn--active::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border: 2px solid var(--primary-600);
+    border-radius: 50%;
+    animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes expandWidth {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* History Controls */
+.floating-history-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.floating-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    /* Default icon color */
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.floating-icon-btn:hover:not(:disabled) {
+    background-color: var(--background-hover);
+    color: var(--primary-600);
+}
+
+.floating-icon-btn:active:not(:disabled) {
+    background-color: var(--background-active);
+}
+
+.floating-icon-btn:disabled {
+    opacity: 0.3;
+    /* Distinct disabled state */
+    cursor: not-allowed;
+    color: var(--text-tertiary);
+}
+
+/* Separator */
+.floating-separator {
+    width: 1px;
+    height: 20px;
+    background-color: var(--border-default);
+    margin: 0 4px;
+}
+
+/* Font Size Control */
+.floating-font-size-control {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--background-subtle, #f5f5f5);
+    border-radius: 999px;
+    padding: 2px 4px;
+    /* Encapsulated look */
+}
+
+.floating-font-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 24px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.floating-font-btn {
+    width: 24px;
+    height: 24px;
+    /* Smaller than main icons */
+}
+
+[data-theme="dark"] .floating-font-size-control {
+    background: var(--surface-hover);
+}
+
+/* Layer Controls */
+.floating-layer-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}

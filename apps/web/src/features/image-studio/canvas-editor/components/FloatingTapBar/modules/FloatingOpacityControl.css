@@ -1,0 +1,74 @@
+.floating-opacity-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    color: var(--text-primary);
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.floating-opacity-icon {
+    color: var(--text-secondary);
+}
+
+.floating-opacity-val {
+    font-size: 11px;
+    font-weight: 500;
+    width: 30px;
+    text-align: right;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+}
+
+/* Radix Slider Styles */
+.FloatingSliderRoot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    user-select: none;
+    touch-action: none;
+    width: 80px;
+    height: 20px;
+}
+
+.FloatingSliderTrack {
+    background-color: var(--action-ghost-hover, rgba(0, 0, 0, 0.06));
+    position: relative;
+    flex-grow: 1;
+    border-radius: 9999px;
+    height: 3px;
+}
+
+.FloatingSliderRange {
+    position: absolute;
+    background-color: var(--primary-600, #008125);
+    border-radius: 9999px;
+    height: 100%;
+}
+
+.FloatingSliderThumb {
+    display: block;
+    width: 12px;
+    height: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    cursor: grab;
+}
+
+[data-theme="dark"] .FloatingSliderTrack {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .FloatingSliderThumb {
+    background-color: #ffffff;
+}
+
+transform: scale(1.1);
+}
+
+.FloatingSliderThumb:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(108, 205, 135, 0.5);
+}
