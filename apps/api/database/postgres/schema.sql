@@ -891,8 +891,25 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS alt_text TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS upload_source TEXT DEFAULT 'upload';
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_filename TEXT;
 
+-- Template feature columns for canvas editor
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT FALSE;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAULT 'private'
+    CHECK (template_visibility IN ('private', 'unlisted', 'public'));
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_use_count INTEGER DEFAULT 0;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
+
 -- Media library indexes
 CREATE INDEX IF NOT EXISTS idx_shared_media_library ON shared_media(user_id, is_library_item, created_at DESC);
+
+-- Template indexes for efficient discovery
+CREATE INDEX IF NOT EXISTS idx_shared_media_templates
+    ON shared_media(is_template, template_visibility, created_at DESC)
+    WHERE is_template = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_shared_media_public_templates
+    ON shared_media(is_template, template_visibility, image_type, created_at DESC)
+    WHERE is_template = TRUE AND template_visibility = 'public';
 
 -- Download tracking table for shared media
 CREATE TABLE IF NOT EXISTS shared_media_downloads (
