@@ -9,6 +9,9 @@ import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import Button from '../../components/common/SubmitButton';
+import { useOptimizedAuth } from '../../hooks/useAuth';
+import { useTemplateClone } from './hooks/useTemplateClone';
+import Spinner from '../../components/common/Spinner';
 import {
   IMAGE_STUDIO_TYPES,
   KI_SUBCATEGORIES,
@@ -58,11 +61,24 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
 
   const { generateText, generateImage, loading, error, setError } = useImageGeneration();
   const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
+  const { cloneTemplate, isCloning } = useTemplateClone();
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isAlternativesExpanded, setIsAlternativesExpanded] = useState(false);
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
+
+  // Get user locale from auth store
+  const { user } = useOptimizedAuth();
+  const isAustrianUser = user?.locale === 'de-AT';
+
+  // Auto-route Austrian users to KI category
+  useEffect(() => {
+    if (isAustrianUser && !category) {
+      console.log('[ImageStudioPage] Austrian user detected, auto-routing to KI category');
+      setCategory('ki', null);
+    }
+  }, [isAustrianUser, category, setCategory]);
 
   useEffect(() => {
     if (!urlCategory) return;
@@ -117,6 +133,14 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
 
     loadGalleryEdit();
   }, [location.state, loadGalleryEditData]);
+
+  // Handle template cloning from URL query parameter
+  useEffect(() => {
+    const templateToken = searchParams.get('template');
+    if (templateToken) {
+      cloneTemplate(templateToken);
+    }
+  }, [searchParams, cloneTemplate]);
 
   // Handle editSession from URL (from PresseSocialGenerator or other sources)
   useEffect(() => {

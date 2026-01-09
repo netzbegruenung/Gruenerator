@@ -165,7 +165,10 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
           <div className="type-selector-content">
             {flowTitle && (
               <div className="template-studio-flow-header">
-                <h1>{flowTitle}</h1>
+                <h1>
+                  {flowTitle}
+                  <span className="early-access-badge-inline">Early Access</span>
+                </h1>
                 {flowSubtitle && (
                   <p className="flow-subtitle">{flowSubtitle}</p>
                 )}
@@ -185,7 +188,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                   onAnimationStart={handleAnimationStart}
                   onAnimationComplete={handleAnimationComplete}
                 >
-                  {(currentStep === FORM_STEPS.INPUT || currentStep === FORM_STEPS.CANVAS_EDIT) && (
+                  {(currentStep === FORM_STEPS.IMAGE_UPLOAD || currentStep === FORM_STEPS.INPUT || currentStep === FORM_STEPS.CANVAS_EDIT) && (
                     <StepFlow
                       onBack={onBack}
                       onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}

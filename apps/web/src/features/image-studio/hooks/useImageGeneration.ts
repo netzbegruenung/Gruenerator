@@ -328,6 +328,61 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     }
   }, [quoteSubmit, dreizeilenSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit]);
 
+  const fetchAlternativesInBackground = useCallback(async (
+    type: string,
+    formData: TextFormData,
+    onComplete: (alternatives: any[]) => void,
+    onError?: (error: string) => void
+  ) => {
+    try {
+      const dataToSend = {
+        ...formData,
+        source: 'image-studio',
+        count: 5
+      };
+
+      let submitFn: (data: any) => Promise<any>;
+
+      switch (type) {
+        case IMAGE_STUDIO_TYPES.ZITAT:
+          submitFn = quoteSubmit.submitForm;
+          break;
+        case IMAGE_STUDIO_TYPES.ZITAT_PURE:
+          submitFn = zitatPureSubmit.submitForm;
+          break;
+        case IMAGE_STUDIO_TYPES.INFO:
+          submitFn = infoSubmit.submitForm;
+          break;
+        case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
+          submitFn = veranstaltungSubmit.submitForm;
+          break;
+        case IMAGE_STUDIO_TYPES.SIMPLE:
+          submitFn = simpleSubmit.submitForm;
+          break;
+        case IMAGE_STUDIO_TYPES.DREIZEILEN:
+        default:
+          submitFn = dreizeilenSubmit.submitForm;
+          break;
+      }
+
+      const response = await submitFn(dataToSend);
+      const alternatives = response.alternatives || [];
+
+      if (alternatives.length > 0) {
+        onComplete(alternatives);
+      } else {
+        onComplete([]);
+      }
+
+    } catch (err) {
+      console.error('[Background alternatives] Fetch failed:', err);
+      if (onError) {
+        onError(err instanceof Error ? err.message : 'Unknown error');
+      }
+      onComplete([]);
+    }
+  }, [dreizeilenSubmit, quoteSubmit, infoSubmit, zitatPureSubmit, veranstaltungSubmit, simpleSubmit]);
+
   const generateTemplateImage = useCallback(async (type: string, formData: TemplateImageFormData): Promise<string> => {
     const config = getTypeConfig(type);
 
@@ -626,6 +681,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   return {
     generateText,
     generateAlternatives,
+    fetchAlternativesInBackground,
     generateImage,
     generateTemplateImage,
     generateKiImage,

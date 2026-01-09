@@ -1,0 +1,164 @@
+/* Template Feature Styles - Using only existing semantic CSS variables */
+
+/* Override share section elements for consistent small text */
+.share-subsection .share-message,
+.share-subsection .share-status,
+.share-subsection .share-status span,
+.share-subsection .template-info,
+.share-subsection .template-visibility-selector,
+.share-subsection .template-visibility-selector select,
+.share-subsection .template-link-display,
+.share-subsection .template-link-display input {
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+/* Template visibility selector */
+.template-visibility-selector {
+  margin-bottom: var(--spacing-medium);
+  text-align: left;
+}
+
+.template-visibility-selector label {
+  display: block;
+  margin-bottom: var(--spacing-xsmall);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--font-color-disabled);
+  text-align: left;
+}
+
+/* Template link display */
+.template-link-display {
+  margin: var(--spacing-medium) 0;
+  text-align: left;
+}
+
+.template-link-display label {
+  display: block;
+  margin-bottom: var(--spacing-xsmall);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--font-color-disabled);
+  text-align: left;
+}
+
+.template-info {
+  margin-top: var(--spacing-small);
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  font-weight: 400;
+  text-align: left;
+}
+
+/* Template attribution banner */
+.template-attribution {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  background: var(--background-color-alt);
+  border-radius: var(--card-border-radius-small);
+  margin-bottom: var(--spacing-medium);
+  border: var(--border-subtle);
+  text-align: left;
+}
+
+.template-attribution__label {
+  font-size: 0.75rem;
+  color: var(--font-color-disabled);
+  font-weight: 400;
+}
+
+.template-attribution__creator {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--font-color-green);
+}
+
+/* Gallery template badge */
+.gallery-card__template-badge {
+  position: absolute;
+  top: var(--spacing-small);
+  right: var(--spacing-small);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  background: var(--interactive-accent-color);
+  color: var(--button-text-color);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Template loading state */
+.template-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--spacing-medium);
+  text-align: center;
+}
+
+.template-loading p {
+  color: var(--font-color-disabled);
+  font-size: 0.75rem;
+}
+
+/* Image Gallery template badge */
+.image-gallery-template-badge {
+  position: absolute;
+  top: var(--spacing-small);
+  left: var(--spacing-small);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  background: var(--interactive-accent-color);
+  color: var(--button-text-color);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  z-index: 2;
+}
+
+/* Image Gallery template action button */
+.image-gallery-action-btn--template {
+  background: var(--button-background-color);
+  color: var(--button-text-color);
+}
+
+.image-gallery-action-btn--template:hover {
+  background: var(--button-hover-color);
+  transform: translateY(-2px);
+}
+
+/* Download button with spinner */
+.btn .spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: var(--spacing-xsmall);
+  vertical-align: middle;
+}
+
+/* Success state animation */
+.share-status--success {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

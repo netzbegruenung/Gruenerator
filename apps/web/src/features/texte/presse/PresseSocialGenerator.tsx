@@ -25,6 +25,7 @@ import PlatformSelector from '../../../components/common/PlatformSelector';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import { getIcon } from '../../../config/icons';
+import { isDesktopApp } from '../../../utils/platform';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { prepareFilesForSubmission } from '../../../utils/fileAttachmentUtils';
 import usePlatformAutoDetect from '../../../hooks/usePlatformAutoDetect';
@@ -694,7 +695,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          useStartPageLayout={true}
+          useStartPageLayout={isDesktopApp()}
           startPageDescription="Erstelle professionelle Texte für Social Media und Presse. Wähle deine Plattformen und lass dich von KI unterstützen."
           title={firstName ? `Hallo ${firstName}! Welche Botschaft willst du heute grünerieren?` : "Welche Botschaft willst du heute grünerieren?"}
           onSubmit={() => void handleSubmit(onSubmitRHF)()}

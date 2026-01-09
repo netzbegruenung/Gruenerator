@@ -88,7 +88,10 @@ const ImageStudioTypeSelector: React.FC = () => {
             <div className="type-selector-screen">
                 <div className="type-selector-content">
                     <div className="type-selector-header-wrapper">
-                        <h1>Wie soll dein Sharepic aussehen?</h1>
+                        <h1>
+                            Wie soll dein Sharepic aussehen?
+                            <span className="early-access-badge-inline">Early Access</span>
+                        </h1>
                     </div>
                     <div className="type-options-grid type-options-grid--three">
                         {typesInCategory.map((config) => {

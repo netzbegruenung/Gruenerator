@@ -262,6 +262,34 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.early-access-badge-inline {
+  background: linear-gradient(135deg, var(--klee) 0%, var(--sonne) 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+
+.type-selector-header-wrapper h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .early-access-badge-inline {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+  }
+}
+
 .type-card {
   background: var(--background-color-alt);
   border-radius: 12px;
@@ -462,6 +490,31 @@
   }
 
   .type-card {
+    padding: 0;
+  }
+
+  /* Minimal padding for canvas editors - more specific selector overrides typeform-fields.css */
+  .typeform-content.typeform-content {
+    padding: var(--spacing-xxsmall);
+  }
+
+  .typeform-content .type-selector-content .type-selector-screen {
+    padding: var(--spacing-xxsmall);
+  }
+
+  .typeform-content .type-selector-content {
+    padding: 0 var(--spacing-xxsmall);
+  }
+
+  .typeform-content .type-selector-content h1 {
+    font-size: 2rem;
+  }
+
+  .typeform-content .type-selector-content .type-options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .typeform-content .type-selector-content .type-card {
     padding: 0;
   }
 }
