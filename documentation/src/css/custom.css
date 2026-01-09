@@ -1,0 +1,151 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  /* Primary Color System ("Tanne") - Primary digital interaction color */
+  --primary-50: #e8f2ee;
+  --primary-100: #c8dfd5;
+  --primary-200: #a3c9b8;
+  --primary-300: #7db39a;
+  --primary-400: #60a183;
+  --primary-500: #428f6c;
+  --primary-600: #005538;  /* Base "Tanne" color */
+  --primary-700: #004a2f;
+  --primary-800: #003e26;
+  --primary-900: #00321d;
+  --primary-950: #002315;
+
+  /* Secondary Color System ("Eucalyptus") */
+  --secondary-50: #F0F4F3;
+  --secondary-100: #D5E1DC;
+  --secondary-200: #BACEC6;
+  --secondary-300: #A0BBB0;
+  --secondary-400: #85A899;
+  --secondary-500: #6A9583;
+  --secondary-600: #5F8575;  /* Base "Eucalyptus" color */
+  --secondary-700: #445F54;
+  --secondary-800: #31453C;
+  --secondary-900: #1E2A25;
+  --secondary-950: #0B0F0D;
+
+  /* Dark mode background */
+  --dark-background: #2a2a2a;
+  --dark-background-darker: #1e1e1e;
+
+  /* Primary color mapped to Tanne scale */
+  --ifm-color-primary: var(--primary-600);
+  --ifm-color-primary-dark: var(--primary-700);
+  --ifm-color-primary-darker: var(--primary-800);
+  --ifm-color-primary-darkest: var(--primary-900);
+  --ifm-color-primary-light: var(--primary-500);
+  --ifm-color-primary-lighter: var(--primary-400);
+  --ifm-color-primary-lightest: var(--primary-300);
+
+  /* Semantic color names */
+  --color-accent: var(--secondary-100);
+  --color-secondary: var(--secondary-600);
+
+  /* Gradients using tanne and eucalyptus */
+  --background-gradient: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+  --accent-gradient: linear-gradient(to right, var(--primary-500) 0%, var(--primary-600) 100%);
+
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-font-family-base: 'Open Sans', ui-sans-serif, system-ui;
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  /* Primary color mapped to lighter tanne tones for dark mode */
+  --ifm-color-primary: var(--primary-400);
+  --ifm-color-primary-dark: var(--primary-500);
+  --ifm-color-primary-darker: var(--primary-600);
+  --ifm-color-primary-darkest: var(--primary-700);
+  --ifm-color-primary-light: var(--primary-300);
+  --ifm-color-primary-lighter: var(--primary-200);
+  --ifm-color-primary-lightest: var(--primary-100);
+
+  /* Semantic colors for dark mode */
+  --color-accent: var(--secondary-200);
+  --color-secondary: var(--secondary-500);
+
+  /* Gradients for dark mode */
+  --background-gradient: linear-gradient(135deg, var(--primary-800) 0%, var(--primary-900) 100%);
+  --accent-gradient: linear-gradient(to right, var(--primary-400) 0%, var(--primary-600) 100%);
+
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Algolia DocSearch styling for light theme */
+[data-theme='light'] .DocSearch {
+  /* --docsearch-primary-color: var(--ifm-color-primary); */
+  /* --docsearch-text-color: var(--ifm-font-color-base); */
+  --docsearch-muted-color: var(--ifm-color-secondary-darkest);
+  --docsearch-container-background: rgba(94, 100, 112, 0.7);
+  /* Modal */
+  --docsearch-modal-background: var(--ifm-color-secondary-lighter);
+  /* Search box */
+  --docsearch-searchbox-background: var(--ifm-color-secondary);
+  --docsearch-searchbox-focus-background: var(--ifm-color-white);
+  /* Hit */
+  --docsearch-hit-color: var(--ifm-font-color-base);
+  --docsearch-hit-active-color: var(--ifm-color-white);
+  --docsearch-hit-background: var(--ifm-color-white);
+  /* Footer */
+  --docsearch-footer-background: var(--ifm-color-white);
+}
+
+/* Algolia DocSearch styling for dark theme */
+[data-theme='dark'] .DocSearch {
+  --docsearch-text-color: var(--ifm-font-color-base);
+  --docsearch-muted-color: var(--ifm-color-secondary-darkest);
+  --docsearch-container-background: rgba(47, 55, 69, 0.7);
+  /* Modal */
+  --docsearch-modal-background: var(--ifm-background-color);
+  /* Search box */
+  --docsearch-searchbox-background: var(--ifm-background-color);
+  --docsearch-searchbox-focus-background: var(--ifm-color-black);
+  /* Hit */
+  --docsearch-hit-color: var(--ifm-font-color-base);
+  --docsearch-hit-active-color: var(--ifm-color-white);
+  --docsearch-hit-background: var(--ifm-color-emphasis-100);
+  /* Footer */
+  --docsearch-footer-background: var(--ifm-background-surface-color);
+  --docsearch-key-gradient: linear-gradient(
+    -26.5deg,
+    var(--ifm-color-emphasis-200) 0%,
+    var(--ifm-color-emphasis-100) 100%
+  );
+}
+
+/* Dark mode header text styling */
+[data-theme='dark'] .hero__title,
+[data-theme='dark'] .hero__subtitle,
+[data-theme='dark'] .button--outline {
+  color: white !important;
+}
+
+/* White gradient text for Grünerator in hero title */
+.titleGreen {
+  color: white !important;
+  background: none !important;
+  -webkit-text-fill-color: white !important;
+  text-shadow: none !important;
+}
+
+/* Minimal search bar styling */
+:root {
+  --search-local-modal-width: 600px;
+  --search-local-spacing: 8px;
+  --search-local-hit-height: 44px;
+  --search-local-modal-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --search-local-hit-shadow: none;
+}
+
+[data-theme='dark'] {
+  --search-local-modal-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}

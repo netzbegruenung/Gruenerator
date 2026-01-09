@@ -280,6 +280,35 @@ npm run test:auth   # Authentication tests
 
 ---
 
+## Documentation
+
+User-facing documentation is maintained in the `/documentation` directory using Docusaurus.
+
+### Development
+```bash
+pnpm run dev:documentation     # Start documentation dev server (localhost:3000)
+pnpm run build:documentation   # Build documentation site
+```
+
+### Documentation Structure
+```
+documentation/
+├── docs/           # Main documentation pages
+│   ├── Grundlagen/        # Basics and guides
+│   ├── Profil/            # Profile and cloud features
+│   ├── gruenerieren/      # Content generation features
+│   ├── llm-basics/        # AI/LLM fundamentals
+│   └── ueber-den-gruenerator/  # About Grünerator
+├── blog/           # News and updates
+├── src/            # Custom pages and components
+└── static/         # Images and assets
+```
+
+### Deployment
+Documentation is deployed to: https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de
+
+---
+
 ## Roadmap
 
 - [x] Core text generation
