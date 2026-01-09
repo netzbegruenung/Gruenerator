@@ -36,6 +36,7 @@ apps/web/node_modules/.cache
 *.pack
 apps/api/local_cache/
 apps/api/fastembed_cache/
+.docusaurus
 
 # Playwright MCP files
 .playwright-mcp/

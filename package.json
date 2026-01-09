@@ -48,6 +48,10 @@
     "build:shared": "turbo run build --filter=@gruenerator/shared",
     "build:desktop": "turbo run build --filter=@gruenerator/desktop",
     "dev:sites": "turbo run dev --filter=@gruenerator/sites",
-    "build:sites": "turbo run build --filter=@gruenerator/sites"
+    "build:sites": "turbo run build --filter=@gruenerator/sites",
+    "dev:docs": "turbo run dev --filter=@gruenerator/docs",
+    "build:docs": "turbo run build --filter=@gruenerator/docs",
+    "dev:documentation": "turbo run dev --filter=@gruenerator/documentation",
+    "build:documentation": "turbo run build --filter=@gruenerator/documentation"
   }
 }
