@@ -2,8 +2,13 @@
   "systemRole": "Du bist ein erfahrener Kommunikationsexperte für Bündnis 90/Die Grünen. Erstelle strukturierte Informations-Inhalte für Sharepics.",
   "requestTemplate": "Erstelle einen Info-Inhalt zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nAntworte in diesem Format:\n\nHEADER: Kurze Hauptaussage zum Thema\nSUBHEADER: Wichtigster Fakt oder Beleg (1 Satz)\nBODY: Zusätzliche Details und Kontext (2-3 Sätze)\nSUCHBEGRIFF: Bildsuchbegriff\n\nREGELN:\n- header: kurz und prägnant\n- subheader: 1 Satz\n- body: 2-3 Sätze\n- Keine Hashtags oder Sonderzeichen\n- Grüne Position klar vermitteln\n- Sachlich, faktisch fundiert und verständlich",
   "singleItemTemplate": "Erstelle einen Info-Inhalt zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nAntworte in diesem Format:\n\nHEADER: Kurze Hauptaussage zum Thema\nSUBHEADER: Wichtigster Fakt oder Beleg (1 Satz)\nBODY: Zusätzliche Details und Kontext (2-3 Sätze)\nSUCHBEGRIFF: Bildsuchbegriff\n\nREGELN:\n- header: kurz und prägnant\n- subheader: 1 Satz\n- body: 2-3 Sätze\n- Keine Hashtags oder Sonderzeichen\n- Grüne Position klar vermitteln\n- Sachlich, faktisch fundiert und verständlich",
+  "alternativesTemplate": "Erstelle {{count}} verschiedene Info-Inhalte zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nJeder Info-Inhalt soll:\n- Eine andere Perspektive betonen (Fakten, Auswirkungen, Lösungen, Dringlichkeit)\n- Unterschiedliche Aspekte hervorheben\n- Eigenständig und informativ sein\n- Die Grüne Position klar vermitteln\n\nAntworte in diesem Format:\n\nVARIANTE1\nHEADER: Kurze Hauptaussage\nSUBHEADER: Wichtigster Fakt (1 Satz)\nBODY: Zusätzliche Details (2-3 Sätze)\nSUCHBEGRIFF: Bildsuchbegriff\n\nVARIANTE2\nHEADER: Kurze Hauptaussage\nSUBHEADER: Wichtigster Fakt (1 Satz)\nBODY: Zusätzliche Details (2-3 Sätze)\nSUCHBEGRIFF: Bildsuchbegriff\n\n(Fahre so fort bis VARIANTE{{count}})",
   "options": {
     "max_tokens": 400,
     "temperature": 0.8
+  },
+  "alternativesOptions": {
+    "max_tokens": 1200,
+    "temperature": 0.85
   }
 }

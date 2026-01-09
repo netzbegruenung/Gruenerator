@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 import prompts from '../../../prompts/sharepic/index.js';
 import { createLogger } from '../../../utils/logger.js';
-import { parseLabeledText, sanitizeField, truncateField } from '../../../utils/sharepic/textParser.js';
+import { parseLabeledText, parseLabeledTextBatch, sanitizeField, truncateField } from '../../../utils/sharepic/textParser.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
 import type { SharepicRequest, PromptConfig } from './types.js';
 
@@ -109,7 +109,7 @@ export async function handleUnifiedRequest(
   const promptConfig = rawPromptConfig as PromptConfig;
   const template = count === 1
     ? (promptConfig.singleItemTemplate || promptConfig.requestTemplate || '')
-    : (promptConfig.requestTemplate || promptConfig.singleItemTemplate || '');
+    : (promptConfig.alternativesTemplate || promptConfig.requestTemplate || '');
   const options = count === 1
     ? promptConfig.options
     : (promptConfig.alternativesOptions || promptConfig.options);
@@ -148,30 +148,61 @@ export async function handleUnifiedRequest(
       const content = result.content || '';
       log.debug(`[${type}] Attempt ${attempts} response:`, content.substring(0, 200));
 
-      const parseResult = parseLabeledText(content, config.fields);
+      let mainData: Record<string, unknown> | string;
+      let alternatives: Array<Record<string, unknown> | string> = [];
+      let searchTerms: string[] = [];
 
-      if (!parseResult.success) {
-        lastError = parseResult.error || 'Parse failed';
-        log.warn(`[${type}] Attempt ${attempts} parse error:`, lastError);
-        continue;
-      }
+      if (count > 1) {
+        const parseResults = parseLabeledTextBatch(content, config.fields, count);
 
-      const processedData: Record<string, string> = {};
-      for (const [key, value] of Object.entries(parseResult.data)) {
-        let processed = sanitizeField(value);
-        if (config.maxLengths?.[key]) {
-          processed = truncateField(processed, config.maxLengths[key]);
+        if (parseResults.length === 0) {
+          lastError = 'No valid alternatives parsed';
+          log.warn(`[${type}] Attempt ${attempts} parse error: ${lastError}`);
+          continue;
         }
-        processedData[key] = processed;
-      }
 
-      const mainData = mapToResponseFormat(type, processedData);
-      const searchTerms = processedData.suchbegriff ? [processedData.suchbegriff] : [];
+        const processedResults = parseResults.map(parseResult => {
+          const processedData: Record<string, string> = {};
+          for (const [key, value] of Object.entries(parseResult.data)) {
+            let processed = sanitizeField(value);
+            if (config.maxLengths?.[key]) {
+              processed = truncateField(processed, config.maxLengths[key]);
+            }
+            processedData[key] = processed;
+          }
+          return processedData;
+        });
+
+        mainData = mapToResponseFormat(type, processedResults[0]);
+        alternatives = processedResults.slice(1).map(data => mapToResponseFormat(type, data));
+        searchTerms = processedResults.flatMap(data => data.suchbegriff ? [data.suchbegriff] : []);
+
+      } else {
+        const parseResult = parseLabeledText(content, config.fields);
+
+        if (!parseResult.success) {
+          lastError = parseResult.error || 'Parse failed';
+          log.warn(`[${type}] Attempt ${attempts} parse error:`, lastError);
+          continue;
+        }
+
+        const processedData: Record<string, string> = {};
+        for (const [key, value] of Object.entries(parseResult.data)) {
+          let processed = sanitizeField(value);
+          if (config.maxLengths?.[key]) {
+            processed = truncateField(processed, config.maxLengths[key]);
+          }
+          processedData[key] = processed;
+        }
+
+        mainData = mapToResponseFormat(type, processedData);
+        searchTerms = processedData.suchbegriff ? [processedData.suchbegriff] : [];
+      }
 
       const response: Record<string, unknown> = {
         success: true,
         [config.mainKey]: mainData,
-        alternatives: [],
+        alternatives,
         searchTerms
       };
 

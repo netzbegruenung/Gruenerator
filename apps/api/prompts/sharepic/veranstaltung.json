@@ -2,8 +2,13 @@
   "systemRole": "Du bist ein erfahrener Event-Kommunikator für Bündnis 90/Die Grünen. Du erstellst prägnante, einladende Texte für Veranstaltungsankündigungen. Deine Texte sind aktivierend, freundlich und vermitteln die Werte der Grünen.",
   "requestTemplate": "Erstelle eine Veranstaltungsankündigung basierend auf dieser Beschreibung:\n\n{{thema}}\n\nAntworte in diesem Format:\n\nTITEL: Kurzer, prägnanter Titel (max 30 Zeichen)\nTAG: Wochentag (z.B. Montag)\nDATUM: Format TT.MM.JJ\nZEIT: Uhrzeit (z.B. 19 Uhr)\nORT: Name des Veranstaltungsortes (max 40 Zeichen)\nADRESSE: Straße und Hausnummer (max 40 Zeichen)\nBESCHREIBUNG: Einladender Satz (max 150 Zeichen)\nSUCHBEGRIFF: Ein Wort für Bildsuche\n\nWichtig:\n- Beschreibung soll einladend und aktivierend sein\n- Extrahiere Datum, Uhrzeit und Ort exakt aus der Beschreibung\n- Falls kein Datum angegeben: TT.MM.JJ als Platzhalter",
   "singleItemTemplate": "Erstelle eine Veranstaltungsankündigung basierend auf dieser Beschreibung:\n\n{{thema}}\n\nAntworte in diesem Format:\n\nTITEL: Kurzer, prägnanter Titel (max 30 Zeichen)\nTAG: Wochentag (z.B. Montag)\nDATUM: Format TT.MM.JJ\nZEIT: Uhrzeit (z.B. 19 Uhr)\nORT: Name des Veranstaltungsortes (max 40 Zeichen)\nADRESSE: Straße und Hausnummer (max 40 Zeichen)\nBESCHREIBUNG: Einladender Satz (max 150 Zeichen)\nSUCHBEGRIFF: Ein Wort für Bildsuche\n\nWichtig:\n- Beschreibung soll einladend und aktivierend sein\n- Extrahiere Datum, Uhrzeit und Ort exakt aus der Beschreibung\n- Falls kein Datum angegeben: TT.MM.JJ als Platzhalter",
+  "alternativesTemplate": "Erstelle {{count}} verschiedene Veranstaltungsankündigungen basierend auf dieser Beschreibung:\n\n{{thema}}\n\nJede Ankündigung soll:\n- Eine andere Tonalität haben (einladend, aktivierend, informativ, emotional)\n- Unterschiedliche Aspekte der Veranstaltung betonen\n- Die gleichen Fakten (Datum, Zeit, Ort) verwenden\n- Eigenständige Beschreibungen haben\n\nAntworte in diesem Format:\n\nVARIANTE1\nTITEL: Kurzer Titel (max 30 Zeichen)\nTAG: Wochentag\nDATUM: Format TT.MM.JJ\nZEIT: Uhrzeit\nORT: Veranstaltungsort (max 40 Zeichen)\nADRESSE: Straße und Hausnummer (max 40 Zeichen)\nBESCHREIBUNG: Einladender Satz (max 150 Zeichen)\nSUCHBEGRIFF: Bildsuchbegriff\n\nVARIANTE2\nTITEL: Kurzer Titel (max 30 Zeichen)\nTAG: Wochentag\nDATUM: Format TT.MM.JJ\nZEIT: Uhrzeit\nORT: Veranstaltungsort (max 40 Zeichen)\nADRESSE: Straße und Hausnummer (max 40 Zeichen)\nBESCHREIBUNG: Einladender Satz (max 150 Zeichen)\nSUCHBEGRIFF: Bildsuchbegriff\n\n(Fahre so fort bis VARIANTE{{count}})",
   "options": {
     "max_tokens": 400,
     "temperature": 0.7
+  },
+  "alternativesOptions": {
+    "max_tokens": 1200,
+    "temperature": 0.75
   }
 }

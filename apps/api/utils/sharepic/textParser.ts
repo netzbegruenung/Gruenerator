@@ -82,6 +82,64 @@ export function parseLabeledText(content: string | null | undefined, expectedFie
 }
 
 /**
+ * Parse multiple labeled text variants from a single AI response.
+ *
+ * Expected format:
+ * VARIANTE1
+ * LABEL1: value1
+ * LABEL2: value2
+ *
+ * VARIANTE2
+ * LABEL1: value1
+ * LABEL2: value2
+ *
+ * @param content - Raw AI response with multiple variants
+ * @param expectedFields - Array of field names to extract (lowercase)
+ * @param count - Expected number of variants
+ * @returns Array of ParseResult objects
+ */
+export function parseLabeledTextBatch(
+  content: string | null | undefined,
+  expectedFields: string[],
+  count: number
+): ParseResult[] {
+  if (!content || typeof content !== 'string') {
+    log.warn('[textParser] Batch parse failed: empty or invalid content');
+    return [];
+  }
+
+  const cleaned = content.replace(/```[\s\S]*?```/g, '').trim();
+
+  if (!cleaned) {
+    log.warn('[textParser] Batch parse failed: content empty after cleanup');
+    return [];
+  }
+
+  const variantPattern = /(?:VARIANTE|VARIANT)\s*\d+/gi;
+  const variants = cleaned.split(variantPattern).filter(s => s.trim());
+
+  if (variants.length === 0) {
+    log.warn('[textParser] No variants found in content');
+    return [];
+  }
+
+  const results: ParseResult[] = [];
+
+  for (let i = 0; i < Math.min(variants.length, count); i++) {
+    const parsed = parseLabeledText(variants[i], expectedFields);
+    if (parsed.success) {
+      results.push(parsed);
+      log.debug(`[textParser] Batch variant ${i + 1} parsed successfully`);
+    } else {
+      log.warn(`[textParser] Batch variant ${i + 1} parse failed: ${parsed.error}`);
+    }
+  }
+
+  log.info(`[textParser] Batch parse complete: ${results.length}/${count} variants parsed`);
+  return results;
+}
+
+/**
  * Sanitize a field value by removing markdown and normalizing whitespace
  */
 export function sanitizeField(value: string | undefined | null): string {

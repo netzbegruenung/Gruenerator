@@ -2,8 +2,13 @@
   "systemRole": "Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Erstelle kurze, prägnante Slogans für Sharepics.",
   "requestTemplate": "Erstelle einen dreizeiligen Slogan zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nDer Slogan soll:\n- Einen durchgängigen Gedanken über drei Zeilen vermitteln\n- Die Werte der Grünen widerspiegeln\n- Inspirierend und zukunftsorientiert sein\n- Für eine breite Zielgruppe geeignet sein\n- Fachbegriffe vermeiden\n\nAntworte in diesem Format:\n\nZEILE1: Erste Zeile (sehr kurz, 1-2 Worte)\nZEILE2: Zweite Zeile (sehr kurz, 1-2 Worte)\nZEILE3: Dritte Zeile (sehr kurz, 1-2 Worte)\nSUCHBEGRIFF: Ein Wort für Bildsuche",
   "singleItemTemplate": "Erstelle einen dreizeiligen Slogan zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nDer Slogan soll:\n- Einen durchgängigen Gedanken über drei Zeilen vermitteln\n- Die Werte der Grünen widerspiegeln\n- Inspirierend und zukunftsorientiert sein\n- Für eine breite Zielgruppe geeignet sein\n- Fachbegriffe vermeiden\n\nAntworte in diesem Format:\n\nZEILE1: Erste Zeile (sehr kurz, 1-2 Worte)\nZEILE2: Zweite Zeile (sehr kurz, 1-2 Worte)\nZEILE3: Dritte Zeile (sehr kurz, 1-2 Worte)\nSUCHBEGRIFF: Ein Wort für Bildsuche",
+  "alternativesTemplate": "Erstelle {{count}} verschiedene dreizeilige Slogans zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nJeder Slogan soll:\n- Eine andere Tonalität haben (inspirierend, sachlich, emotional, aktivierend)\n- Einen anderen Aspekt betonen (Zukunft, Gegenwart, Problem, Lösung)\n- Eigenständig und einzigartig sein\n- Die Werte der Grünen widerspiegeln\n- Fachbegriffe vermeiden\n\nAntworte in diesem Format:\n\nVARIANTE1\nZEILE1: Erste Zeile (sehr kurz, 1-2 Worte)\nZEILE2: Zweite Zeile (sehr kurz, 1-2 Worte)\nZEILE3: Dritte Zeile (sehr kurz, 1-2 Worte)\nSUCHBEGRIFF: Ein Wort für Bildsuche\n\nVARIANTE2\nZEILE1: Erste Zeile (sehr kurz, 1-2 Worte)\nZEILE2: Zweite Zeile (sehr kurz, 1-2 Worte)\nZEILE3: Dritte Zeile (sehr kurz, 1-2 Worte)\nSUCHBEGRIFF: Ein Wort für Bildsuche\n\n(Fahre so fort bis VARIANTE{{count}})",
   "options": {
     "max_tokens": 150,
     "temperature": 0.9
+  },
+  "alternativesOptions": {
+    "max_tokens": 800,
+    "temperature": 0.95
   }
 }
