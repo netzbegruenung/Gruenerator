@@ -270,6 +270,53 @@ router.get('/stock-catalog', async (req: AuthenticatedRequest, res: Response<Sto
 });
 
 /**
+ * POST /download-track
+ * Track Unsplash image download (required by Unsplash API guidelines)
+ * Called when user selects an image for use in canvas
+ */
+router.post('/download-track', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { filename, downloadLocation } = req.body;
+
+    if (!filename || typeof filename !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid filename is required',
+        code: 'INVALID_FILENAME'
+      });
+    }
+
+    // Only track if downloadLocation exists (real Unsplash images)
+    // Local stock images won't have this field
+    if (downloadLocation && typeof downloadLocation === 'string') {
+      try {
+        // Make request to Unsplash download endpoint
+        // This doesn't return useful data, it's just for tracking
+        await fetch(downloadLocation);
+        log.debug(`[ImagePicker API] Download tracked for ${filename}`);
+      } catch (error) {
+        log.warn(`[ImagePicker API] Failed to track download for ${filename}:`, error);
+        // Don't fail the request if tracking fails
+      }
+    }
+
+    return res.json({
+      success: true,
+      tracked: !!downloadLocation,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    log.error('[ImagePicker API] Download track error:', error);
+
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to track download',
+      code: 'DOWNLOAD_TRACK_ERROR'
+    });
+  }
+});
+
+/**
  * GET /stock-image/:filename
  * Serves a stock image file directly (used for dev proxy compatibility)
  * Query params: ?size=thumb for 400px thumbnail

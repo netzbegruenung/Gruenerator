@@ -981,4 +981,187 @@ router.delete('/:shareToken', requireAuth, async (req: Request<ShareTokenParams>
   }
 });
 
+// ============================================================================
+// Template Endpoints
+// ============================================================================
+
+/**
+ * POST /:shareToken/save-as-template
+ * Convert existing shared media to template
+ */
+router.post('/:shareToken/save-as-template', requireAuth, async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const userName = req.user?.user_metadata?.full_name || req.user?.email || 'Anonymous';
+    const { shareToken } = req.params;
+    const { title, visibility = 'private' } = req.body;
+
+    if (!['private', 'unlisted', 'public'].includes(visibility)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid visibility value'
+      });
+    }
+
+    const service = await getSharedMediaService();
+
+    await service.markAsTemplate(
+      userId,
+      shareToken,
+      title || 'Template',
+      visibility,
+      userName
+    );
+
+    const templateUrl = `${process.env.BASE_URL || 'http://localhost:5173'}/sharepic?template=${shareToken}`;
+
+    log.info(`Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`);
+
+    res.json({
+      success: true,
+      templateUrl,
+      shareToken,
+      visibility
+    });
+
+  } catch (error) {
+    log.error('Failed to save as template:', error);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: 'Share not found'
+      });
+    } else if (errorMessage.includes('Not authorized')) {
+      res.status(403).json({
+        success: false,
+        error: 'Not authorized to mark this as template'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save as template'
+      });
+    }
+  }
+});
+
+/**
+ * POST /templates/:shareToken/clone
+ * Clone template to user's gallery
+ */
+router.post('/templates/:shareToken/clone', requireAuth, async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const userName = req.user?.user_metadata?.full_name || req.user?.email || 'Anonymous';
+    const { shareToken } = req.params;
+
+    const service = await getSharedMediaService();
+    const clonedShare = await service.cloneTemplate(
+      shareToken,
+      userId,
+      userName
+    );
+
+    log.info(`Template ${shareToken} cloned to ${clonedShare.shareToken} by user ${userId}`);
+
+    res.json({
+      success: true,
+      share: clonedShare,
+      message: 'Template successfully cloned'
+    });
+
+  } catch (error) {
+    log.error('Failed to clone template:', error);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: 'Template not found'
+      });
+    } else if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
+      res.status(403).json({
+        success: false,
+        error: 'Template not accessible'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clone template'
+      });
+    }
+  }
+});
+
+/**
+ * GET /templates
+ * List available templates (user's + public)
+ */
+router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { type, visibility } = req.query;
+
+    const service = await getSharedMediaService();
+    const templates = await service.getTemplates(userId, {
+      type: type as string | undefined,
+      visibility: visibility as string | undefined
+    });
+
+    res.json({
+      success: true,
+      templates
+    });
+
+  } catch (error) {
+    log.error('Failed to get templates:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve templates'
+    });
+  }
+});
+
+/**
+ * GET /templates/:shareToken
+ * Get template details (for clone preparation)
+ */
+router.get('/templates/:shareToken', async (req: Request<ShareTokenParams> & { user?: { id: string } }, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { shareToken } = req.params;
+
+    const service = await getSharedMediaService();
+    const template = await service.getTemplateByToken(
+      shareToken,
+      userId
+    );
+
+    res.json({
+      success: true,
+      template
+    });
+
+  } catch (error) {
+    log.error('Failed to get template by token:', error);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: 'Template not found'
+      });
+    } else if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
+      res.status(403).json({
+        success: false,
+        error: 'Template not accessible'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to retrieve template'
+      });
+    }
+  }
+});
+
 export default router;
