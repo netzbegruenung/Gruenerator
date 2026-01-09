@@ -29,6 +29,7 @@ export interface BalkenInstance {
     texts: string[];
     rotation: number;
     opacity?: number;
+    barOffsets?: [number, number, number];
 }
 
 export interface BalkenGroupProps {
@@ -67,6 +68,8 @@ export interface BalkenGroupProps {
     stageHeight: number;
     /** Opacity (0-1) */
     opacity?: number;
+    /** Per-line horizontal offsets for fine-tuning */
+    barOffsets?: [number, number, number];
 }
 
 interface BalkenLayout {
@@ -87,15 +90,16 @@ function calculateBalkenLayouts(
     widthScale: number,
     texts: string[],
     stageWidth: number,
-    stageHeight: number
+    stageHeight: number,
+    barOffsets?: [number, number, number]
 ): { balkens: BalkenLayout[]; bounds: { left: number; top: number; width: number; height: number } } {
     const config = DREIZEILEN_CONFIG;
     const fontSize = config.text.defaultFontSize; // 75
     const balkenHeight = fontSize * config.balken.heightFactor; // 75 * 1.6 = 120
     const padding = fontSize * config.balken.paddingFactor; // 75 * 0.3 = 22.5
 
-    // Default offsets from DreizeilenCanvas
-    const balkenOffset: [number, number, number] = config.defaults.balkenOffset; // [50, -100, 50]
+    // Use provided offsets or fall back to defaults
+    const balkenOffset: [number, number, number] = barOffsets ?? config.defaults.balkenOffset;
 
     if (mode === 'single') {
         const text = texts[0] || 'GRÜNE';
@@ -186,6 +190,7 @@ export function BalkenGroup({
     stageWidth,
     stageHeight,
     opacity = 1,
+    barOffsets,
 }: BalkenGroupProps) {
     const groupRef = useRef<Konva.Group>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
@@ -214,8 +219,8 @@ export function BalkenGroup({
     }, [texts, liveText]);
 
     const { balkens, bounds } = useMemo(
-        () => calculateBalkenLayouts(mode, widthScale, displayTexts, stageWidth, stageHeight),
-        [mode, widthScale, displayTexts, stageWidth, stageHeight]
+        () => calculateBalkenLayouts(mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets),
+        [mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets]
     );
 
     // Attach transformer when selected

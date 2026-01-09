@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaCheck, FaSave } from 'react-icons/fa';
+import { FaSave } from 'react-icons/fa';
 import { useCanvasEditorStore } from '../../../../stores/canvasEditorStore';
 import type { SidebarTabBarProps, SidebarTabId } from './types';
 
@@ -38,11 +38,12 @@ export function SidebarTabBar({
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
         const isDisabled = disabledTabs.includes(tab.id);
+        const isAlternativesLoading = tab.id === 'alternatives' && isDisabled;
 
         return (
           <button
             key={tab.id}
-            className={`sidebar-tab-bar__tab ${isActive ? 'sidebar-tab-bar__tab--active' : ''}`}
+            className={`sidebar-tab-bar__tab ${isActive ? 'sidebar-tab-bar__tab--active' : ''} ${isAlternativesLoading ? 'sidebar-tab-bar__tab--loading' : ''}`}
             onClick={() => {
               onTabClick(tab.id as SidebarTabId);
             }}
@@ -62,32 +63,18 @@ export function SidebarTabBar({
 
       <div className="sidebar-tab-bar__separator" />
 
-      {(onExport || onSave) && (
+      {onSave && (
         <>
           <div className="sidebar-tab-bar__separator" />
-          {onSave && (
-            <button
-              className="sidebar-tab-bar__tab sidebar-tab-bar__tab--save"
-              onClick={onSave}
-              aria-label="Speichern"
-              title="Speichern"
-              type="button"
-            >
-              <FaSave size={20} />
-            </button>
-          )}
-          {onExport && (
-            <button
-              className="sidebar-tab-bar__tab sidebar-tab-bar__tab--export"
-              onClick={onExport}
-              aria-label="Fertig"
-              title="Fertig"
-              type="button"
-              style={{ color: 'var(--primary-600)' }}
-            >
-              <FaCheck size={20} />
-            </button>
-          )}
+          <button
+            className="sidebar-tab-bar__tab sidebar-tab-bar__tab--save"
+            onClick={onSave}
+            aria-label="Speichern"
+            title="Speichern"
+            type="button"
+          >
+            <FaSave size={20} />
+          </button>
         </>
       )}
     </div>

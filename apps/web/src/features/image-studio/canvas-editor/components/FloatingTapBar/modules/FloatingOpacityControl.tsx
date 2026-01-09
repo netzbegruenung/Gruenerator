@@ -10,7 +10,6 @@ interface FloatingOpacityControlProps {
 
 export function FloatingOpacityControl({ opacity, onOpacityChange }: FloatingOpacityControlProps) {
     const handleValueChange = (values: number[]) => {
-        console.log('[FloatingOpacityControl] handleValueChange:', values[0]);
         onOpacityChange(values[0]);
     };
 

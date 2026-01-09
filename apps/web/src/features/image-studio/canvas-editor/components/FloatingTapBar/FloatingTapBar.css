@@ -1,16 +1,22 @@
 .floating-tap-bar-container {
-    /* Positioned statically in the flex column */
-    position: relative;
+    /* Absolutely positioned to float above canvas without affecting layout */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 100;
     display: flex;
     justify-content: center;
     width: 100%;
-    margin-bottom: 24px;
-    /* Increased padding between bar and image */
+    padding-top: 16px;
     pointer-events: none;
-    /* Allow clicks to pass through empty space if needed, though mostly occupied */
-    height: 48px;
-    /* Reserve height so it doesn't jump? Optional, but good for layout stability */
+    /* Allow clicks to pass through empty space */
+}
+
+@media (max-width: 900px) {
+    .floating-tap-bar-container {
+        padding-top: 8px;
+    }
 }
 
 /* Ensure the bar content itself captures events */
@@ -31,6 +37,14 @@
     animation: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     /* Smooth resize on expand */
+}
+
+/* Mobile-specific compact styles */
+@media (max-width: 900px) {
+    .floating-tap-bar {
+        padding: 4px;
+        gap: 0px;
+    }
 }
 
 [data-theme="dark"] .floating-tap-bar {
@@ -79,6 +93,13 @@
     transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     flex-shrink: 0;
     /* Prevent squishing */
+}
+
+@media (max-width: 900px) {
+    .floating-color-btn {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 /* Trigger button specific styles */
@@ -161,6 +182,13 @@
     transition: background-color 0.2s, color 0.2s;
 }
 
+@media (max-width: 900px) {
+    .floating-icon-btn {
+        width: 28px;
+        height: 28px;
+    }
+}
+
 .floating-icon-btn:hover:not(:disabled) {
     background-color: var(--background-hover);
     color: var(--primary-600);
@@ -177,12 +205,24 @@
     color: var(--text-tertiary);
 }
 
+.floating-icon-btn--danger:hover {
+    color: var(--error-600, #dc2626);
+    background-color: var(--error-100, #fde8e8);
+}
+
 /* Separator */
 .floating-separator {
     width: 1px;
     height: 20px;
     background-color: var(--border-default);
     margin: 0 4px;
+}
+
+@media (max-width: 900px) {
+    .floating-separator {
+        height: 16px;
+        margin: 0 0px;
+    }
 }
 
 /* Font Size Control */
@@ -196,6 +236,13 @@
     /* Encapsulated look */
 }
 
+@media (max-width: 900px) {
+    .floating-font-size-control {
+        gap: 2px;
+        padding: 2px 3px;
+    }
+}
+
 .floating-font-val {
     font-size: 13px;
     font-weight: 600;
@@ -205,10 +252,24 @@
     font-variant-numeric: tabular-nums;
 }
 
+@media (max-width: 900px) {
+    .floating-font-val {
+        font-size: 12px;
+        min-width: 20px;
+    }
+}
+
 .floating-font-btn {
     width: 24px;
     height: 24px;
     /* Smaller than main icons */
+}
+
+@media (max-width: 900px) {
+    .floating-font-btn {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 [data-theme="dark"] .floating-font-size-control {

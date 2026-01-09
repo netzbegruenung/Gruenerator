@@ -107,3 +107,207 @@
     flex-direction: column;
     gap: 20px;
 }
+
+/* Expandable Sections */
+.image-source-expandable {
+    margin-top: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.expandable-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: var(--background-color-alt);
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.expandable-header:hover {
+    background: var(--surface-secondary);
+}
+
+.expandable-header span {
+    flex: 1;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--font-color);
+}
+
+.expandable-header svg {
+    color: var(--font-color-secondary);
+}
+
+.expandable-content {
+    padding: 12px;
+    background: var(--background-color);
+}
+
+/* Unsplash Search Section */
+.unsplash-search-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.unsplash-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--background-color);
+    border: 1px solid var(--font-color);
+    border-radius: 8px;
+}
+
+.unsplash-search-bar svg {
+    color: var(--font-color-muted);
+    flex-shrink: 0;
+}
+
+.unsplash-search-bar input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--font-color);
+    font-size: 0.875rem;
+}
+
+.unsplash-search-bar button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    color: var(--font-color-muted);
+}
+
+.unsplash-search-bar button:hover {
+    color: var(--font-color);
+}
+
+.unsplash-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.unsplash-image-card {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    padding: 0;
+    background: none;
+    aspect-ratio: 4/3;
+}
+
+.unsplash-image-card:hover {
+    border-color: var(--primary-600);
+}
+
+.unsplash-image-card.selected {
+    border: 2px solid var(--primary-600);
+}
+
+.unsplash-image-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.unsplash-attribution-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 4px;
+}
+
+.unsplash-selected-check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: var(--primary-600);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.unsplash-load-more {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--primary-600);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.unsplash-load-more:hover {
+    background-color: var(--primary-700);
+}
+
+.unsplash-load-more:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.unsplash-loading,
+.unsplash-error,
+.unsplash-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--font-color-secondary);
+    font-size: 0.875rem;
+}
+
+.unsplash-error button {
+    margin-top: 8px;
+    padding: 8px 16px;
+    background-color: var(--primary-600);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+/* Stock Images Grid in Expandable */
+.expandable-content .stock-images-grid {
+    padding: 0;
+}
+
+.expandable-content .stock-images-grid__grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.expandable-content .stock-images-grid__filters {
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.expandable-content .stock-images-grid__filter-pill {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
+.expandable-content .stock-images-grid__card {
+    aspect-ratio: 4/3;
+}

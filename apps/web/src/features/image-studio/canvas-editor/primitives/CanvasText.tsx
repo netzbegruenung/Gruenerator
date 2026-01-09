@@ -128,14 +128,11 @@ function CanvasTextInner({
 
   const handleDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      // Note: Don't log every dragMove - too noisy. Uncomment if needed:
-      // console.log(`[CanvasText ${id}] handleDragMove`);
       const node = e.target as Konva.Text;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
-      // NOTE: Don't call onPositionChange here - it causes React re-renders during drag
-      // Position is reported only on dragEnd for performance (Konva best practice)
+      // Position reported on dragEnd to avoid re-renders during drag
 
       if (!stageWidth || !stageHeight) return;
 
@@ -159,12 +156,8 @@ function CanvasTextInner({
     [snapToCenter, stageWidth, stageHeight, onSnapChange, snapTargets, onSnapLinesChange]
   );
 
-  // Konva Best Practice: Let text visually scale during transform, convert to fontSize on transformEnd
-  // This prevents the feedback loop of: scale→fontSize→rerender→scale again
-  const handleTransform = useCallback(() => {
-    // During transform: Do nothing - let Konva handle visual scaling
-    // The text will appear scaled (not actual font size change) until transformEnd
-  }, []);
+  // Let Konva handle visual scaling; fontSize is committed on transformEnd
+  const handleTransform = useCallback(() => {}, []);
 
   const handleTransformEnd = useCallback(() => {
     const node = textRef.current;

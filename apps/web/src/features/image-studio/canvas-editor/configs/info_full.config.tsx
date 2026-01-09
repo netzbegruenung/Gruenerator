@@ -12,6 +12,7 @@ import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
 import type { BackgroundColorOption } from '../sidebar/types';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
+import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
 
 // ============================================================================
 // CONSTANTS
@@ -59,8 +60,9 @@ export interface InfoFullState {
     selectedIcons: string[];
     iconStates: Record<string, { x: number, y: number, scale: number, rotation: number, color?: string, opacity?: number }>;
     // Shape state
-    // Shape state
     shapeInstances: ShapeInstance[];
+    // Illustration state
+    illustrationInstances: IllustrationInstance[];
     // Additional Texts
     additionalTexts: AdditionalText[];
 }
@@ -89,6 +91,10 @@ export interface InfoFullActions {
     addShape: (type: ShapeType) => void;
     updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
     removeShape: (id: string) => void;
+    // Illustration actions
+    addIllustration: (id: string) => void;
+    updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
+    removeIllustration: (id: string) => void;
     // Additional Text actions
     addHeader: () => void;
     addText: () => void;
@@ -224,6 +230,12 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
                 onAddShape: actions.addShape,
                 onUpdateShape: actions.updateShape,
                 onRemoveShape: actions.removeShape,
+                // Illustrations
+                illustrationInstances: state.illustrationInstances,
+                selectedIllustrationId: context?.selectedElement,
+                onAddIllustration: actions.addIllustration,
+                onUpdateIllustration: actions.updateIllustration,
+                onRemoveIllustration: actions.removeIllustration,
             }),
         },
         alternatives: {
@@ -338,6 +350,7 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
         selectedIcons: [],
         iconStates: {},
         shapeInstances: [],
+        illustrationInstances: [],
         additionalTexts: [],
     }),
 
@@ -486,6 +499,36 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
             setState((prev) => ({
                 ...prev,
                 shapeInstances: prev.shapeInstances.filter(s => s.id !== id),
+            }));
+            saveToHistory({ ...getState() });
+        },
+
+        // Illustration actions
+        addIllustration: (id: string) => {
+            const newIllustration = createIllustration(
+                id,
+                INFO_CONFIG.canvas.width,
+                INFO_CONFIG.canvas.height
+            );
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: [...prev.illustrationInstances, newIllustration],
+            }));
+            saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
+        },
+        updateIllustration: (id, partial) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map(i =>
+                    i.id === id ? { ...i, ...partial } : i
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeIllustration: (id) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.filter(i => i.id !== id),
             }));
             saveToHistory({ ...getState() });
         },

@@ -1,0 +1,46 @@
+.generic-canvas-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding-bottom: 24px;
+}
+
+.generic-canvas-font-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--font-color);
+}
+
+.font-loading-text {
+    font-size: 18px;
+    margin-bottom: 12px;
+    font-family: 'PT Sans', sans-serif;
+}
+
+.font-loading-bar {
+    width: 200px;
+    height: 4px;
+    background-color: var(--background-color-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.font-loading-progress {
+    width: 40%;
+    height: 100%;
+    background-color: var(--tanne);
+    animation: slide 1.5s ease-in-out infinite;
+}
+
+@keyframes slide {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(400%);
+    }
+}

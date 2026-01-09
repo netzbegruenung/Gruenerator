@@ -61,6 +61,8 @@ export interface TextElementConfig extends BaseElementConfig {
     align?: 'left' | 'center' | 'right';
     lineHeight?: number;
     wrap?: 'word' | 'char' | 'none';
+    /** Text padding in pixels (or fontSize multiplier if 0 < value < 1) */
+    padding?: PositionValue;
     /** Enable inline editing */
     editable?: boolean;
     /** Enable dragging */
@@ -192,7 +194,29 @@ export interface SectionConfig<TState = any, TActions = any> {
     /** Component to render for this section */
     component: React.ComponentType<any>;
     /** Function to map canvas state and handlers to section props */
-    propsFactory: (state: TState, actions: TActions, context?: { selectedElement: string | null }) => Record<string, any>;
+    propsFactory: (state: TState, actions: TActions, context?: {
+        selectedElement: string | null;
+        exportedImage?: string | null;
+        autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+        shareToken?: string | null;
+        onCaptureCanvas?: () => void;
+        onDownload?: () => void;
+        onNavigateToGallery?: () => void;
+    }) => Record<string, any>;
+}
+
+// ============================================================================
+// MULTI-PAGE CONFIGURATION
+// ============================================================================
+
+/** Multi-page configuration options */
+export interface MultiPageConfig<TState> {
+    /** Enable multi-page mode */
+    enabled: boolean;
+    /** Maximum number of pages allowed (optional, unlimited if not set) */
+    maxPages?: number;
+    /** Default state for new pages */
+    defaultNewPageState?: Partial<TState>;
 }
 
 // ============================================================================
@@ -237,6 +261,17 @@ export interface FullCanvasConfig<TState = any, TActions = any> {
     features?: {
         icons?: boolean;
         shapes?: boolean;
+    };
+    /** Multi-page canvas support */
+    multiPage?: MultiPageConfig<TState>;
+    /** Font configuration for canvas rendering */
+    fonts?: {
+        /** Primary font family used in canvas (e.g., 'GrueneTypeNeue') */
+        primary: string;
+        /** Font size for preloading (affects text metrics) */
+        fontSize: number;
+        /** Whether to show loading state until font loads (default: true) */
+        requireFontLoad?: boolean;
     };
 }
 

@@ -1,0 +1,20 @@
+.zoomable-viewport-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.zoomable-viewport-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.zoomable-viewport-content {
+  user-select: none;
+}

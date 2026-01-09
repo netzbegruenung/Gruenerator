@@ -1,6 +1,6 @@
 import type { IconType } from 'react-icons';
 
-export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'position' | 'image-background';
+export type SidebarTabId = 'text' | 'fontsize' | 'background' | 'assets' | 'alternatives' | 'image' | 'position' | 'image-background' | 'share';
 
 export interface SidebarTab {
   id: SidebarTabId;
@@ -51,11 +51,27 @@ export interface FontSizeSectionProps {
 }
 
 export interface BackgroundSectionProps {
+  // Color props
   colors: BackgroundColorOption[];
   currentColor: string;
   onColorChange: (color: string) => void;
   gradientOpacity?: number;
   onGradientOpacityChange?: (opacity: number) => void;
+
+  // Image props (optional - enables image subsection)
+  currentImageSrc?: string;
+  onImageChange?: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => void;
+
+  // Context for AI suggestions (optional)
+  textContext?: string;
+}
+
+// Stock image attribution interface (imported from image service)
+export interface StockImageAttribution {
+  photographer: string;
+  profileUrl: string;
+  photoUrl: string;
+  downloadLocation?: string;
 }
 
 export interface AssetsSectionProps {
@@ -66,12 +82,6 @@ export interface AssetsSectionProps {
   selectedIcons?: string[];
   onIconToggle?: (iconId: string, selected: boolean) => void;
   maxIconSelections?: number;
-}
-
-export interface AlternativesSectionProps {
-  alternatives: string[];
-  currentQuote: string;
-  onAlternativeSelect: (alternative: string) => void;
 }
 
 export interface ImageSectionProps {

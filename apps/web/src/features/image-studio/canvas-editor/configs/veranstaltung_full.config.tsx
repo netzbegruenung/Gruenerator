@@ -12,6 +12,8 @@ import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/ver
 import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
+import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { StockImageAttribution } from '../../../services/imageSourceService';
 
 // ============================================================================
 // STATE TYPE
@@ -43,7 +45,10 @@ export interface VeranstaltungFullState {
     iconStates: Record<string, { x: number; y: number; scale: number; rotation: number; color?: string; opacity?: number }>;
     shapeInstances: ShapeInstance[];
     selectedShapeId: string | null;
+    illustrationInstances: IllustrationInstance[];
     additionalTexts: AdditionalText[];
+    // Attribution
+    imageAttribution?: StockImageAttribution | null;
 }
 
 // ============================================================================
@@ -65,11 +70,17 @@ export interface VeranstaltungFullActions {
     addShape: (type: ShapeType) => void;
     updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
     removeShape: (id: string) => void;
+    // Illustration actions
+    addIllustration: (id: string) => void;
+    updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
+    removeIllustration: (id: string) => void;
     // Additional Text actions
     addHeader: () => void;
     addText: () => void;
     updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
     removeAdditionalText: (id: string) => void;
+    // Attribution actions
+    setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 }
 
 // ============================================================================
@@ -172,7 +183,11 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
             component: ImageBackgroundSection,
             propsFactory: (state, actions) => ({
                 currentImageSrc: state.currentImageSrc,
-                onImageChange: () => { },
+                onImageChange: (_: File | null, url?: string, attribution?: StockImageAttribution | null) => {
+                    // Note: setCurrentImageSrc is handled by GenericCanvas file upload logic
+                    // Only handle attribution here
+                    if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+                },
                 scale: state.imageScale,
                 onScaleChange: actions.setImageScale,
                 isLocked: state.isBackgroundLocked,
@@ -181,7 +196,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         },
         assets: {
             component: AssetsSection,
-            propsFactory: (state, actions) => ({
+            propsFactory: (state, actions, context) => ({
                 assets: ALL_ASSETS.map(asset => ({
                     ...asset,
                     visible: state.assetVisibility[asset.id] ?? false,
@@ -191,6 +206,16 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
                 selectedIcons: state.selectedIcons,
                 onIconToggle: actions.toggleIcon,
                 onAddShape: actions.addShape,
+                shapeInstances: state.shapeInstances,
+                selectedShapeId: context?.selectedElement,
+                onUpdateShape: actions.updateShape,
+                onRemoveShape: actions.removeShape,
+                // Illustrations
+                illustrationInstances: state.illustrationInstances,
+                selectedIllustrationId: context?.selectedElement,
+                onAddIllustration: actions.addIllustration,
+                onUpdateIllustration: actions.updateIllustration,
+                onRemoveIllustration: actions.removeIllustration,
             }),
         },
         alternatives: {
@@ -302,7 +327,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         iconStates: {},
         shapeInstances: [],
         selectedShapeId: null,
+        illustrationInstances: [],
         additionalTexts: [],
+        imageAttribution: null,
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => ({
@@ -406,6 +433,35 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
             }));
             saveToHistory({ ...getState() });
         },
+        // Illustration actions
+        addIllustration: (id: string) => {
+            const newIllustration = createIllustration(
+                id,
+                VERANSTALTUNG_CONFIG.canvas.width,
+                VERANSTALTUNG_CONFIG.canvas.height
+            );
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: [...prev.illustrationInstances, newIllustration],
+            }));
+            saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
+        },
+        updateIllustration: (id, partial) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map(i =>
+                    i.id === id ? { ...i, ...partial } : i
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeIllustration: (id) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.filter(i => i.id !== id),
+            }));
+            saveToHistory({ ...getState() });
+        },
         // Additional Text actions
         addHeader: () => {
             const id = `text-${Date.now()}`;
@@ -466,6 +522,10 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
                 additionalTexts: (prev.additionalTexts || []).filter(t => t.id !== id),
             }));
             saveToHistory({ ...getState() });
+        },
+        setImageAttribution: (attribution: StockImageAttribution | null) => {
+            setState((prev) => ({ ...prev, imageAttribution: attribution }));
+            debouncedSaveToHistory({ ...getState(), imageAttribution: attribution });
         },
     }),
 };

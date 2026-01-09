@@ -8,6 +8,14 @@
     padding-right: 4px;
 }
 
+@media (max-width: 900px) {
+    .floating-opacity-control {
+        gap: 4px;
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+}
+
 .floating-opacity-icon {
     color: var(--text-secondary);
 }
@@ -30,6 +38,12 @@
     touch-action: none;
     width: 80px;
     height: 20px;
+}
+
+@media (max-width: 900px) {
+    .FloatingSliderRoot {
+        width: 30px;
+    }
 }
 
 .FloatingSliderTrack {
@@ -63,9 +77,6 @@
 
 [data-theme="dark"] .FloatingSliderThumb {
     background-color: #ffffff;
-}
-
-transform: scale(1.1);
 }
 
 .FloatingSliderThumb:focus {

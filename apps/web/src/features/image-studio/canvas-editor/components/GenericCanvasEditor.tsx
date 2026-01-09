@@ -2,11 +2,13 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { SidebarTabBar, SidebarPanel } from '../sidebar';
 import { CanvasEditorLayout } from '../layouts';
-import type { CanvasConfig } from '../configs/types';
+import { ZoomableViewport } from './ZoomableViewport';
+import type { FullCanvasConfig } from '../configs/types';
 import type { SidebarTabId } from '../sidebar/types';
+import './GenericCanvasEditor.css';
 
 interface GenericCanvasEditorProps<TState> {
-    config: CanvasConfig<TState>;
+    config: FullCanvasConfig<TState>;
     state: TState;
     actions: any; // Actions corresponding to the state
     children: React.ReactNode; // The Konva Stage / Canvas content
@@ -15,6 +17,15 @@ interface GenericCanvasEditorProps<TState> {
     onCancel?: () => void; // Optional cancel handler if needed by layout
     sidebarActions?: React.ReactNode; // Optional extra actions for the sidebar
     selectedElement?: string | null;
+    onAddPage?: () => void;
+    shareProps?: {
+        exportedImage: string | null;
+        autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+        shareToken: string | null;
+        onCaptureCanvas: () => void;
+        onDownload: () => void;
+        onNavigateToGallery: () => void;
+    };
 }
 
 export function GenericCanvasEditor<TState>({
@@ -26,6 +37,8 @@ export function GenericCanvasEditor<TState>({
     onSave,
     sidebarActions,
     selectedElement,
+    onAddPage,
+    shareProps,
 }: GenericCanvasEditorProps<TState>) {
     const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
     const [isDesktop, setIsDesktop] = useState(
@@ -72,7 +85,10 @@ export function GenericCanvasEditor<TState>({
         if (!sectionConfig) return null;
 
         const SectionComponent = sectionConfig.component;
-        const sectionProps = sectionConfig.propsFactory(state, actions, { selectedElement: selectedElement ?? null });
+        const sectionProps = sectionConfig.propsFactory(state, actions, {
+            selectedElement: selectedElement ?? null,
+            ...shareProps
+        });
 
         return <SectionComponent {...sectionProps} />;
     };
@@ -96,7 +112,25 @@ export function GenericCanvasEditor<TState>({
 
     return (
         <CanvasEditorLayout sidebar={panel} tabBar={tabBar} actions={sidebarActions}>
-            {children}
+            <div className="canvas-content-wrapper">
+                <ZoomableViewport
+                    canvasWidth={config.canvas.width}
+                    canvasHeight={config.canvas.height}
+                    defaultZoom="fit"
+                >
+                    {children}
+                </ZoomableViewport>
+
+                {onAddPage && (
+                    <button
+                        className="canvas-action-button"
+                        onClick={onAddPage}
+                        type="button"
+                    >
+                        + Neue Seite hinzufügen
+                    </button>
+                )}
+            </div>
         </CanvasEditorLayout>
     );
 }

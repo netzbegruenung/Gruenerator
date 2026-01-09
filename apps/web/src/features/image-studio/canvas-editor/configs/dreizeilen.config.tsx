@@ -2,18 +2,21 @@
 import {
     DreizeilenTextAndFontSection,
     DreizeilenPositionSection,
-    DreizeilenAlternativesSection,
+    AlternativesSection,
     AssetsSection,
-    ImageBackgroundSection
+    ImageBackgroundSection,
+    GenericShareSection
 } from '../sidebar';
 import type {
     DreizeilenAlternative,
-} from '../sidebar/sections/dreizeilen';
+} from '../sidebar/sections/AlternativesSection';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { CanvasConfig, AdditionalText } from './types';
 import type { DreizeilenState } from '../composed/DreizeilenCanvas';
+import type { StockImageAttribution } from '../../services/imageSourceService';
 import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
 import { HiSparkles, HiPhotograph } from 'react-icons/hi';
+import { FaShare } from 'react-icons/fa';
 import { BalkenIcon } from '../icons';
 import { COLOR_SCHEMES, getColorScheme } from '../utils/dreizeilenLayout';
 import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
@@ -30,6 +33,7 @@ interface DreizeilenActions {
     setSunflowerVisible: (visible: boolean) => void;
     setCurrentImageSrc: (src: string) => void;
     setImageScale: (scale: number) => void;
+    setImageAttribution?: (attribution: StockImageAttribution | null) => void;
     handleReset: () => void;
     handleSelectAlternative: (alt: DreizeilenAlternative) => void;
     handleAssetToggle: (id: string, visible: boolean) => void;
@@ -49,6 +53,7 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState> = {
         { id: 'position', icon: BalkenIcon, label: 'Balken', ariaLabel: 'Balken-Einstellungen' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Sonnenblume ein/aus' },
         { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
+        { id: 'share', icon: FaShare, label: 'Teilen', ariaLabel: 'Bild teilen' },
     ],
     sections: {
         text: {
@@ -104,7 +109,7 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState> = {
             }),
         },
         alternatives: {
-            component: DreizeilenAlternativesSection,
+            component: AlternativesSection,
             propsFactory: (state, actions: DreizeilenActions) => ({
                 alternatives: [], // The alternatives are passed as props to the canvas, not stored in state usually? 
                 // Wait, they were props in DreizeilenCanvas. We need access to them.
@@ -120,10 +125,45 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState> = {
             component: ImageBackgroundSection,
             propsFactory: (state, actions: DreizeilenActions) => ({
                 currentImageSrc: state.currentImageSrc,
-                onImageChange: (_: File | null, url?: string) => url && actions.setCurrentImageSrc(url),
+                onImageChange: (_: File | null, url?: string, attribution?: StockImageAttribution | null) => {
+                    if (url) actions.setCurrentImageSrc(url);
+                    if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+                },
                 scale: state.imageScale,
                 onScaleChange: actions.setImageScale,
             }),
+        },
+        share: {
+            component: GenericShareSection,
+            propsFactory: (state, actions: DreizeilenActions, shareProps) => {
+                // Extract text from Dreizeilen canvas state
+                const canvasText = `${state.line1}\n${state.line2}\n${state.line3}`.trim();
+
+                console.log('[dreizeilen.config] share propsFactory called with:', {
+                    shareProps: shareProps ? 'exists' : 'null',
+                    onCaptureCanvas: shareProps?.onCaptureCanvas ? typeof shareProps.onCaptureCanvas : 'missing',
+                });
+
+                const props = {
+                    exportedImage: shareProps?.exportedImage || null,
+                    autoSaveStatus: shareProps?.autoSaveStatus || 'idle',
+                    shareToken: shareProps?.shareToken || null,
+                    onCaptureCanvas: shareProps?.onCaptureCanvas || (() => {
+                        console.error('[dreizeilen.config] onCaptureCanvas fallback called - shareProps missing!');
+                    }),
+                    onDownload: shareProps?.onDownload || (() => {}),
+                    onNavigateToGallery: shareProps?.onNavigateToGallery || (() => {}),
+                    canvasText,
+                    canvasType: 'dreizeilen',
+                };
+
+                console.log('[dreizeilen.config] returning props:', {
+                    ...props,
+                    onCaptureCanvas: typeof props.onCaptureCanvas,
+                });
+
+                return props;
+            },
         }
     },
     getDisabledTabs: (state) => {

@@ -57,7 +57,7 @@ export const SIMPLE_CONFIG: SimpleConfig = {
     fontSize: 50,
     fontFamily: 'GrueneTypeNeue',
     fontStyle: 'normal',
-    color: '#FFD43B', // Sonne
+    color: '#FFFFFF', // White
     lineHeightRatio: 1.2,
   },
   gradient: {

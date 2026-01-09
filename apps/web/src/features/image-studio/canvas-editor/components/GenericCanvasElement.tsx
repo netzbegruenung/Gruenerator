@@ -100,6 +100,12 @@ const MemoizedTextElement = memo(function MemoizedTextElement({
     const opacity = customOpacity ?? resolveValue(config.opacity as any, state, layout) ?? 1;
     const fill = resolveColor(config.fill, state, layout);
 
+    // Extract padding from config (support both absolute pixels and fontSize factor)
+    const rawPadding = config.padding ? resolveValue(config.padding, state, layout) : 0;
+    const padding = rawPadding < 1 && rawPadding > 0
+        ? fontSize * rawPadding  // Treat as factor if 0 < padding < 1
+        : rawPadding;             // Otherwise use absolute pixels
+
     const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
     const handleTextChange = useCallback((newText: string) => onTextChange(config.id, newText), [onTextChange, config.id]);
     const handleFontSizeChange = useCallback((size: number) => onFontSizeChange(config.id, size), [onFontSizeChange, config.id]);
@@ -118,6 +124,7 @@ const MemoizedTextElement = memo(function MemoizedTextElement({
             align={config.align ?? 'left'}
             lineHeight={config.lineHeight ?? 1.2}
             wrap={config.wrap ?? 'word'}
+            padding={padding}
             draggable={config.draggable ?? false}
             editable={config.editable ?? false}
             opacity={opacity}
@@ -168,6 +175,12 @@ const MemoizedTextElement = memo(function MemoizedTextElement({
     const nextLayout = next.layout[next.config.id];
     if (prevLayout?.x !== nextLayout?.x || prevLayout?.y !== nextLayout?.y) return false;
     if (prevLayout?.fontSize !== nextLayout?.fontSize) return false;
+
+    // Compare padding config
+    if (prev.config.padding !== next.config.padding) return false;
+
+    // Compare layout padding if present
+    if (prevLayout?.padding !== nextLayout?.padding) return false;
 
     return true;
 });

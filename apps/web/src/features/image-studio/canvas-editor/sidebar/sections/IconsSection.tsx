@@ -7,6 +7,7 @@ export interface IconsSectionProps {
     selectedIcons: string[];
     onIconToggle: (iconId: string, selected: boolean) => void;
     maxSelections?: number;
+    isExpanded?: boolean;
 }
 
 const RECOMMENDED_ICON_IDS = [
@@ -20,11 +21,14 @@ export function IconsSection({
     selectedIcons,
     onIconToggle,
     maxSelections = 3,
+    isExpanded = false,
 }: IconsSectionProps) {
-    // Show recommended icons (no search - unified search is in AssetsSection)
-    const icons = useMemo(() => {
-        return RECOMMENDED_ICON_IDS.map(id => ALL_ICONS.find(icon => icon.id === id)).filter(Boolean);
-    }, []);
+    const recommendedIcons = useMemo(
+        () => RECOMMENDED_ICON_IDS.map(id => ALL_ICONS.find(icon => icon.id === id)).filter(Boolean),
+        []
+    );
+
+    const icons = isExpanded ? ALL_ICONS : recommendedIcons;
 
     const handleIconClick = useCallback((iconId: string) => {
         const isSelected = selectedIcons.includes(iconId);

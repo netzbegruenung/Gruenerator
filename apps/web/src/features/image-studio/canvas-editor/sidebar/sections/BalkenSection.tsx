@@ -1,4 +1,4 @@
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaCopy } from 'react-icons/fa';
 import { COLOR_SCHEMES } from '../../utils/dreizeilenLayout';
 import type { BalkenInstance, BalkenMode } from '../../primitives';
 import './BalkenSection.css';
@@ -9,6 +9,7 @@ export interface BalkenSectionProps {
     selectedBalken: BalkenInstance | null;
     onUpdateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
     onRemoveBalken: (id: string) => void;
+    onDuplicateBalken?: (id: string) => void;
 }
 
 export function BalkenSection({
@@ -16,6 +17,7 @@ export function BalkenSection({
     selectedBalken,
     onUpdateBalken,
     onRemoveBalken,
+    onDuplicateBalken,
 }: BalkenSectionProps) {
 
     return (
@@ -53,6 +55,15 @@ export function BalkenSection({
                 <div className="balken-settings">
                     <div className="sidebar-section-header">
                         <span className="sidebar-section-title">Ausgewählter Balken</span>
+                        {onDuplicateBalken && (
+                            <button
+                                className="sidebar-action-btn"
+                                onClick={() => onDuplicateBalken(selectedBalken.id)}
+                                title="Balken duplizieren"
+                            >
+                                <FaCopy size={12} />
+                            </button>
+                        )}
                         <button
                             className="sidebar-action-btn sidebar-action-btn--danger"
                             onClick={() => onRemoveBalken(selectedBalken.id)}
