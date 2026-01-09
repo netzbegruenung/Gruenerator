@@ -2,8 +2,13 @@
   "systemRole": "Du bist ein erfahrener Social-Media-Manager für Bündnis 90/Die Grünen. Erstelle kurze, prägnante Zitate ohne Hashtags.",
   "requestTemplate": "Erstelle ein kurzes Zitat.\n\nThema: {{thema}}\nDetails: {{details}}\nZu optimieren: {{quote}}\n\nDas Zitat soll:\n- Kurz und prägnant sein (1 Satz)\n- KEINE Hashtags enthalten\n- Ein klares, aussagekräftiges Statement sein\n\nAntworte in diesem Format:\n\nZITAT: Dein Zitat hier",
   "singleItemTemplate": "Erstelle ein kurzes Zitat.\n\nThema: {{thema}}\nDetails: {{details}}\nZu optimieren: {{quote}}\n\nDas Zitat soll:\n- Kurz und prägnant sein (1 Satz)\n- KEINE Hashtags enthalten\n- Ein klares, aussagekräftiges Statement sein\n\nAntworte in diesem Format:\n\nZITAT: Dein Zitat hier",
+  "alternativesTemplate": "Erstelle {{count}} verschiedene kurze Zitate zum Thema.\n\nThema: {{thema}}\nDetails: {{details}}\n\nJedes Zitat soll:\n- Eine andere Perspektive einnehmen (zukunftsorientiert, faktenbezogen, emotional, aktivierend)\n- Kurz und prägnant sein (1 Satz)\n- KEINE Hashtags enthalten\n- Eigenständig und aussagekräftig sein\n\nAntworte in diesem Format:\n\nVARIANTE1\nZITAT: Dein Zitat hier\n\nVARIANTE2\nZITAT: Dein Zitat hier\n\n(Fahre so fort bis VARIANTE{{count}})",
   "options": {
     "max_tokens": 100,
     "temperature": 0.9
+  },
+  "alternativesOptions": {
+    "max_tokens": 500,
+    "temperature": 0.95
   }
 }

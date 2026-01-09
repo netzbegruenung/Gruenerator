@@ -2,9 +2,17 @@
   "systemRole": "Du bist ein erfahrener Texter für Bündnis 90/Die Grünen. Erstelle kraftvolle, prägnante Headlines und Subtexte für Social-Media-Sharepics. Deine Texte sind direkt, emotional und aktivierend.",
   "requestTemplate": "Erstelle eine kraftvolle Headline und einen passenden Subtext zum Thema.\n\nThema: {{thema}}\n\nDer Text soll:\n- Eine kraftvolle, emotionale Headline haben (1-4 Worte, max. 50 Zeichen)\n- Einen informativen Subtext haben (URL, Datum, oder kurze Info, max. 150 Zeichen)\n- Die Werte der Grünen widerspiegeln\n- Aktivierend und inspirierend sein\n\nAntworte in diesem Format:\n\nHEADLINE: Deine Headline hier\nSUBTEXT: Dein Subtext hier\nSUCHBEGRIFF: Ein Wort für Bildsuche",
   "singleItemTemplate": "Erstelle eine kraftvolle Headline und einen passenden Subtext zum Thema.\n\nThema: {{thema}}\n\nDer Text soll:\n- Eine kraftvolle, emotionale Headline haben (1-4 Worte, max. 50 Zeichen)\n- Einen informativen Subtext haben (URL, Datum, oder kurze Info, max. 150 Zeichen)\n- Die Werte der Grünen widerspiegeln\n- Aktivierend und inspirierend sein\n\nAntworte in diesem Format:\n\nHEADLINE: Deine Headline hier\nSUBTEXT: Dein Subtext hier\nSUCHBEGRIFF: Ein Wort für Bildsuche",
+  "alternativesTemplate": "Erstelle {{count}} verschiedene kraftvolle Headlines und Subtexte zum Thema.\n\nThema: {{thema}}\n\nJede Kombination soll:\n- Eine andere emotionale Tonalität haben (inspirierend, dringend, hoffnungsvoll, entschlossen)\n- Eine kraftvolle Headline haben (1-4 Worte, max. 50 Zeichen)\n- Einen passenden Subtext haben (max. 150 Zeichen)\n- Eigenständig und wirkungsvoll sein\n\nAntworte in diesem Format:\n\nVARIANTE1\nHEADLINE: Deine Headline hier\nSUBTEXT: Dein Subtext hier\nSUCHBEGRIFF: Bildsuchbegriff\n\nVARIANTE2\nHEADLINE: Deine Headline hier\nSUBTEXT: Dein Subtext hier\nSUCHBEGRIFF: Bildsuchbegriff\n\n(Fahre so fort bis VARIANTE{{count}})",
   "options": {
     "max_tokens": 200,
     "temperature": 0.8,
+    "top_p": 1.0,
+    "provider": "mistral",
+    "model": "magistral-medium-latest"
+  },
+  "alternativesOptions": {
+    "max_tokens": 800,
+    "temperature": 0.85,
     "top_p": 1.0,
     "provider": "mistral",
     "model": "magistral-medium-latest"
