@@ -20,3 +20,7 @@ export type { BalkenGroupProps, BalkenMode, BalkenInstance } from './BalkenGroup
 
 export { ShapePrimitive } from './ShapePrimitive';
 
+export { IllustrationPrimitive } from './IllustrationPrimitive';
+export type { IllustrationPrimitiveProps } from './IllustrationPrimitive';
+
+export { AttributionOverlay } from './AttributionOverlay';

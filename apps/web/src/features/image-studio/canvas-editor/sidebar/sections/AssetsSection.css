@@ -39,12 +39,17 @@
   color: var(--text-tertiary, #999);
 }
 
-.assets-no-results {
+.assets-no-results,
+.assets-search-hint {
   font-size: 0.875rem;
   color: var(--text-tertiary, #999);
   text-align: center;
   padding: 2rem 1rem;
   margin: 0;
+}
+
+.assets-search-hint {
+  font-style: italic;
 }
 
 /* Normalize all asset images to consistent visual weight */

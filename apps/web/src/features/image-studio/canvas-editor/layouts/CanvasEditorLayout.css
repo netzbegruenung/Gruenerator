@@ -12,23 +12,22 @@
 
 .canvas-editor-layout__main {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-start;
   align-items: center;
-  padding: var(--spacing-small);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .canvas-editor-layout__canvas {
-  flex-shrink: 0;
-  max-height: calc(100vh - 80px);
-}
-
-/* Footer with action buttons */
-.canvas-editor-layout__footer {
-  padding: var(--spacing-small) var(--spacing-large);
-  background: var(--background-color);
-  border-top: 1px solid var(--border-subtle);
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  padding: var(--spacing-small);
 }
 
 .canvas-editor-layout__actions {
@@ -49,12 +48,14 @@
   }
 
   .canvas-editor-layout__main {
+    flex: 1;
     flex-direction: column;
-    padding: var(--spacing-xsmall);
+    padding: 0;
   }
 
   .canvas-editor-layout__canvas {
-    max-height: calc(100vh - 140px);
+    flex: 1;
+    padding: 0;
   }
 
   .canvas-editor-layout__actions .btn {

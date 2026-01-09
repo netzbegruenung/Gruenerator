@@ -1,7 +1,7 @@
 import React from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaCopy } from 'react-icons/fa';
 import { PiStarFill, PiHeartFill, PiCloudFill, PiArrowRightBold } from 'react-icons/pi';
-import { BRAND_COLORS, ShapeInstance, ShapeType, createShape } from '../../utils/shapes';
+import { BRAND_COLORS, ShapeInstance, ShapeType, ALL_SHAPES } from '../../utils/shapes';
 import './FormenSection.css';
 
 export interface FormenSectionProps {
@@ -9,92 +9,66 @@ export interface FormenSectionProps {
     selectedShape: ShapeInstance | null;
     onUpdateShape: (id: string, partial: Partial<ShapeInstance>) => void;
     onRemoveShape: (id: string) => void;
+    onDuplicateShape?: (id: string) => void;
+    isExpanded?: boolean;
 }
+
+interface ShapeDefinition {
+    id: ShapeType;
+    title: string;
+    renderPreview: () => React.ReactNode;
+}
+
+const SHAPES: ShapeDefinition[] = [
+    { id: 'rect', title: 'Rechteck hinzufügen', renderPreview: () => <div className="formen-preview formen-preview--rect" /> },
+    { id: 'circle', title: 'Kreis hinzufügen', renderPreview: () => <div className="formen-preview formen-preview--circle" /> },
+    { id: 'triangle', title: 'Dreieck hinzufügen', renderPreview: () => <div className="formen-preview formen-preview--triangle" /> },
+    { id: 'arrow', title: 'Pfeil hinzufügen', renderPreview: () => <PiArrowRightBold size={24} /> },
+    { id: 'star', title: 'Stern hinzufügen', renderPreview: () => <PiStarFill size={24} /> },
+    { id: 'heart', title: 'Herz hinzufügen', renderPreview: () => <PiHeartFill size={24} /> },
+    { id: 'cloud', title: 'Wolke hinzufügen', renderPreview: () => <PiCloudFill size={24} /> },
+];
 
 export function FormenSection({
     onAddShape,
     selectedShape,
     onUpdateShape,
-    onRemoveShape
+    onRemoveShape,
+    onDuplicateShape,
+    isExpanded = false,
 }: FormenSectionProps) {
+    const visibleShapes = isExpanded ? SHAPES : SHAPES.slice(0, 4);
+
     return (
         <div className="sidebar-section sidebar-section--formen">
             <div className="sidebar-card-grid">
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('rect')}
-                    title="Rechteck hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <div className="formen-preview formen-preview--rect" />
-                    </div>
-                </button>
-
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('circle')}
-                    title="Kreis hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <div className="formen-preview formen-preview--circle" />
-                    </div>
-                </button>
-
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('triangle')}
-                    title="Dreieck hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <div className="formen-preview formen-preview--triangle" />
-                    </div>
-                </button>
-
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('arrow')}
-                    title="Pfeil hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <PiArrowRightBold size={24} />
-                    </div>
-                </button>
-
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('star')}
-                    title="Stern hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <PiStarFill size={24} />
-                    </div>
-                </button>
-
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('heart')}
-                    title="Herz hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <PiHeartFill size={24} />
-                    </div>
-                </button>
-
-                <button
-                    className="sidebar-selectable-card"
-                    onClick={() => onAddShape('cloud')}
-                    title="Wolke hinzufügen"
-                >
-                    <div className="sidebar-selectable-card__preview">
-                        <PiCloudFill size={24} />
-                    </div>
-                </button>
+                {visibleShapes.map((shape) => (
+                    <button
+                        key={shape.id}
+                        className="sidebar-selectable-card"
+                        onClick={() => onAddShape(shape.id)}
+                        title={shape.title}
+                    >
+                        <div className="sidebar-selectable-card__preview">
+                            {shape.renderPreview()}
+                        </div>
+                    </button>
+                ))}
             </div>
 
             {selectedShape && (
                 <div className="formen-settings">
                     <div className="sidebar-section-header">
                         <span className="sidebar-section-title">Form bearbeiten</span>
+                        {onDuplicateShape && (
+                            <button
+                                className="sidebar-action-btn"
+                                onClick={() => onDuplicateShape(selectedShape.id)}
+                                title="Form duplizieren"
+                            >
+                                <FaCopy size={12} />
+                            </button>
+                        )}
                         <button
                             className="sidebar-action-btn sidebar-action-btn--danger"
                             onClick={() => onRemoveShape(selectedShape.id)}

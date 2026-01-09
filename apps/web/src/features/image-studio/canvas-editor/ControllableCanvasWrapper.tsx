@@ -6,11 +6,11 @@ import { ProfilbildCanvas } from './ProfilbildCanvas';
 
 // Import GenericCanvas for config-driven canvases
 import { GenericCanvas } from './components/GenericCanvas';
+import { ZitatMultiPage } from './components/ZitatMultiPage';
 
 // Import full configs
 import { zitatPureFullConfig } from './configs/zitat_pure_full.config';
 import { simpleFullConfig } from './configs/simple_full.config';
-import { zitatFullConfig } from './configs/zitat_full.config';
 import { infoFullConfig } from './configs/info_full.config';
 import { veranstaltungFullConfig } from './configs/veranstaltung_full.config';
 
@@ -85,9 +85,8 @@ export function ControllableCanvasWrapper({
       // Config-driven canvases using GenericCanvas
       case 'zitat':
         return (
-          <GenericCanvas
+          <ZitatMultiPage
             key={componentKey}
-            config={zitatFullConfig}
             initialProps={{
               quote: internalState.quote || '',
               name: internalState.name || '',

@@ -5,10 +5,14 @@ import '../FloatingTapBar.css';
 interface FloatingColorPickerProps {
     currentColor: string;
     onColorSelect: (color: string) => void;
+    isExpanded?: boolean;
+    onExpandChange?: (expanded: boolean) => void;
 }
 
-export function FloatingColorPicker({ currentColor, onColorSelect }: FloatingColorPickerProps) {
-    const [isExpanded, setIsExpanded] = React.useState(false);
+export function FloatingColorPicker({ currentColor, onColorSelect, isExpanded: externalExpanded, onExpandChange }: FloatingColorPickerProps) {
+    const [internalExpanded, setInternalExpanded] = React.useState(false);
+    const isExpanded = externalExpanded !== undefined ? externalExpanded : internalExpanded;
+    const setIsExpanded = onExpandChange || setInternalExpanded;
     const containerRef = React.useRef<HTMLDivElement>(null);
 
     // Auto-collapse on click outside

@@ -11,6 +11,8 @@ import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
+import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { StockImageAttribution } from '../../../services/imageSourceService';
 
 // ============================================================================
 // STATE TYPE
@@ -39,8 +41,12 @@ export interface SimpleFullState {
     iconStates: Record<string, { x: number, y: number, scale: number, rotation: number, color?: string, opacity?: number }>;
     // Shape state
     shapeInstances: ShapeInstance[];
+    // Illustration state
+    illustrationInstances: IllustrationInstance[];
     // Additional Texts
     additionalTexts: AdditionalText[];
+    // Attribution
+    imageAttribution?: StockImageAttribution | null;
 }
 
 // ============================================================================
@@ -68,11 +74,17 @@ export interface SimpleFullActions {
     addShape: (type: ShapeType) => void;
     updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
     removeShape: (id: string) => void;
+    // Illustration actions
+    addIllustration: (id: string) => void;
+    updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
+    removeIllustration: (id: string) => void;
     // Additional Text actions
     addHeader: () => void;
     addText: () => void;
     updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
     removeAdditionalText: (id: string) => void;
+    // Attribution actions
+    setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 }
 
 // ============================================================================
@@ -159,7 +171,11 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             component: ImageBackgroundSection,
             propsFactory: (state, actions) => ({
                 currentImageSrc: state.currentImageSrc,
-                onImageChange: () => { },
+                onImageChange: (_: File | null, url?: string, attribution?: StockImageAttribution | null) => {
+                    // Note: setCurrentImageSrc is handled by GenericCanvas file upload logic
+                    // Only handle attribution here
+                    if (attribution !== undefined) actions.setImageAttribution?.(attribution);
+                },
                 scale: state.imageScale,
                 onScaleChange: actions.setImageScale,
             }),
@@ -188,6 +204,12 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
                 onAddShape: actions.addShape,
                 onUpdateShape: actions.updateShape,
                 onRemoveShape: actions.removeShape,
+                // Illustrations
+                illustrationInstances: state.illustrationInstances,
+                selectedIllustrationId: context?.selectedElement,
+                onAddIllustration: actions.addIllustration,
+                onUpdateIllustration: actions.updateIllustration,
+                onRemoveIllustration: actions.removeIllustration,
             }),
         },
         alternatives: {
@@ -303,7 +325,9 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         iconStates: {},
         shapeInstances: [],
         selectedShapeId: null,
+        illustrationInstances: [],
         additionalTexts: [],
+        imageAttribution: null,
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => ({
@@ -459,6 +483,36 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             saveToHistory({ ...getState() });
         },
 
+        // Illustration actions
+        addIllustration: (id: string) => {
+            const newIllustration = createIllustration(
+                id,
+                SIMPLE_CONFIG.canvas.width,
+                SIMPLE_CONFIG.canvas.height
+            );
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: [...prev.illustrationInstances, newIllustration],
+            }));
+            saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
+        },
+        updateIllustration: (id, partial) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map(i =>
+                    i.id === id ? { ...i, ...partial } : i
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeIllustration: (id) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.filter(i => i.id !== id),
+            }));
+            saveToHistory({ ...getState() });
+        },
+
         // Additional Text actions
         addHeader: () => {
             const id = `text-${Date.now()}`;
@@ -519,6 +573,10 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
                 additionalTexts: (prev.additionalTexts || []).filter(t => t.id !== id),
             }));
             saveToHistory({ ...getState() });
+        },
+        setImageAttribution: (attribution: StockImageAttribution | null) => {
+            setState((prev) => ({ ...prev, imageAttribution: attribution }));
+            debouncedSaveToHistory({ ...getState(), imageAttribution: attribution });
         },
     }),
 };

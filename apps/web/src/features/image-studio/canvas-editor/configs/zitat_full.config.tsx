@@ -12,6 +12,7 @@ import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
+import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
 
 // ============================================================================
 // STATE TYPE
@@ -39,7 +40,9 @@ export interface ZitatFullState {
     iconStates: Record<string, { x: number; y: number; scale: number; rotation: number; color?: string; opacity?: number }>;
     shapeInstances: ShapeInstance[];
     selectedShapeId: string | null;
+    illustrationInstances: IllustrationInstance[];
     additionalTexts: AdditionalText[];
+    quoteMarkOffset?: { x: number; y: number };
 }
 
 // ============================================================================
@@ -62,6 +65,10 @@ export interface ZitatFullActions {
     addShape: (type: ShapeType) => void;
     updateShape: (id: string, partial: Partial<ShapeInstance>) => void;
     removeShape: (id: string) => void;
+    // Illustration actions
+    addIllustration: (id: string) => void;
+    updateIllustration: (id: string, partial: Partial<IllustrationInstance>) => void;
+    removeIllustration: (id: string) => void;
     // Additional Text actions
     addHeader: () => void;
     addText: () => void;
@@ -176,7 +183,7 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         },
         assets: {
             component: AssetsSection,
-            propsFactory: (state, actions) => ({
+            propsFactory: (state, actions, context) => ({
                 assets: ALL_ASSETS.map(asset => ({
                     ...asset,
                     visible: state.assetVisibility[asset.id] ?? false,
@@ -186,6 +193,16 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
                 selectedIcons: state.selectedIcons,
                 onIconToggle: actions.toggleIcon,
                 onAddShape: actions.addShape,
+                shapeInstances: state.shapeInstances,
+                selectedShapeId: context?.selectedElement,
+                onUpdateShape: actions.updateShape,
+                onRemoveShape: actions.removeShape,
+                // Illustrations
+                illustrationInstances: state.illustrationInstances,
+                selectedIllustrationId: context?.selectedElement,
+                onAddIllustration: actions.addIllustration,
+                onUpdateIllustration: actions.updateIllustration,
+                onRemoveIllustration: actions.removeIllustration,
             }),
         },
 
@@ -230,7 +247,9 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             width: (s: any, l: LayoutResult) => l['quote-mark']?.width ?? 100,
             height: (s: any, l: LayoutResult) => l['quote-mark']?.height ?? 100,
             src: ZITAT_CONFIG.quotationMark.src,
-            listening: false,
+            listening: true,
+            draggable: true,
+            offsetKey: 'quoteMarkOffset',
         },
         // Quote text
         {
@@ -247,6 +266,7 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             align: 'left',
             lineHeight: ZITAT_CONFIG.quote.lineHeightRatio,
             wrap: 'word',
+            padding: 0,
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customQuoteFontSize',
@@ -268,6 +288,7 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             fontFamily: `${ZITAT_CONFIG.author.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_CONFIG.author.fontStyle,
             align: 'left',
+            padding: 0,
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customNameFontSize',
@@ -283,23 +304,26 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
     createInitialState: (props) => ({
         quote: props.quote ?? '',
         name: props.name ?? '',
-        currentImageSrc: props.imageSrc ?? '',
-        imageOffset: { x: 0, y: 0 },
-        imageScale: 1,
-        gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,
-        isBackgroundLocked: true,
-        customQuoteFontSize: null,
-        customNameFontSize: null,
-        assetVisibility: {},
-        quoteOpacity: 1,
-        nameOpacity: 1,
+        // Accept both imageSrc (from wrapper) and currentImageSrc (from saved state)
+        currentImageSrc: props.currentImageSrc ?? props.imageSrc ?? '',
+        imageOffset: props.imageOffset ?? { x: 0, y: 0 },
+        imageScale: props.imageScale ?? 1,
+        gradientOpacity: props.gradientOpacity ?? ZITAT_CONFIG.gradient.bottomOpacity,
+        isBackgroundLocked: props.isBackgroundLocked ?? true,
+        customQuoteFontSize: props.customQuoteFontSize ?? null,
+        customNameFontSize: props.customNameFontSize ?? null,
+        assetVisibility: props.assetVisibility ?? {},
+        quoteOpacity: props.quoteOpacity ?? 1,
+        nameOpacity: props.nameOpacity ?? 1,
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         alternatives: props.alternatives ?? [],
-        selectedIcons: [],
-        iconStates: {},
-        shapeInstances: [],
-        selectedShapeId: null,
-        additionalTexts: [],
+        selectedIcons: props.selectedIcons ?? [],
+        iconStates: props.iconStates ?? {},
+        shapeInstances: props.shapeInstances ?? [],
+        selectedShapeId: props.selectedShapeId ?? null,
+        illustrationInstances: props.illustrationInstances ?? [],
+        additionalTexts: props.additionalTexts ?? [],
+        quoteMarkOffset: props.quoteMarkOffset ?? { x: 0, y: 0 },
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => ({
@@ -402,6 +426,35 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             setState((prev) => ({
                 ...prev,
                 shapeInstances: prev.shapeInstances.filter(s => s.id !== id),
+            }));
+            saveToHistory({ ...getState() });
+        },
+        // Illustration actions
+        addIllustration: (id: string) => {
+            const newIllustration = createIllustration(
+                id,
+                ZITAT_CONFIG.canvas.width,
+                ZITAT_CONFIG.canvas.height
+            );
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: [...prev.illustrationInstances, newIllustration],
+            }));
+            saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
+        },
+        updateIllustration: (id, partial) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map(i =>
+                    i.id === id ? { ...i, ...partial } : i
+                ) as IllustrationInstance[],
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeIllustration: (id) => {
+            setState((prev) => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.filter(i => i.id !== id),
             }));
             saveToHistory({ ...getState() });
         },

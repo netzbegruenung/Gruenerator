@@ -1,6 +1,12 @@
 /**
- * CanvasStage - Responsive Konva Stage wrapper
- * Handles responsive container sizing and provides ref methods for export
+ * CanvasStage - Dual-Scale Konva Stage wrapper
+ *
+ * Renders two Konva stages:
+ * 1. Display Stage: Visible, interactive, responsively scaled for editing
+ * 2. Export Stage: Hidden, 1:1 scale for pixel-perfect exports
+ *
+ * This architecture ensures exports are identical across all devices,
+ * regardless of display scaling.
  */
 
 import {
@@ -15,6 +21,7 @@ import {
 import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
 import type { ExportOptions, ExportFormat } from '@gruenerator/shared/canvas-editor';
+import './CanvasStage.css';
 
 export interface CanvasStageProps {
   width: number;
@@ -50,7 +57,9 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     },
     ref
   ) => {
-    const stageRef = useRef<Konva.Stage>(null);
+    const displayStageRef = useRef<Konva.Stage>(null);
+    const exportStageRef = useRef<Konva.Stage>(null);
+    const containerDivRef = useRef<HTMLDivElement>(null);
     const [containerSize, setContainerSize] = useState({ width: 400, height: 400 });
 
     const aspectRatio = width / height;
@@ -63,7 +72,11 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       }
 
       const updateSize = () => {
-        const maxW = Math.min(window.innerWidth - 48, maxContainerWidth);
+        // Use actual parent container width if available
+        const actualContainerWidth = containerDivRef.current?.parentElement?.clientWidth;
+        const maxW = actualContainerWidth
+          ? Math.min(actualContainerWidth, maxContainerWidth)
+          : Math.min(window.innerWidth - 48, maxContainerWidth);
         const maxH = maxContainerHeight ?? window.innerHeight - 200;
 
         let containerW = maxW;
@@ -74,38 +87,50 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
           containerW = containerH * aspectRatio;
         }
 
-        setContainerSize({
+        const newSize = {
           width: Math.round(containerW),
           height: Math.round(containerH),
-        });
+        };
+
+        setContainerSize(newSize);
       };
 
       updateSize();
+
+      // Use ResizeObserver for more accurate container size tracking
+      const resizeObserver = new ResizeObserver(updateSize);
+      if (containerDivRef.current?.parentElement) {
+        resizeObserver.observe(containerDivRef.current.parentElement);
+      }
+
       window.addEventListener('resize', updateSize);
-      return () => window.removeEventListener('resize', updateSize);
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener('resize', updateSize);
+      };
     }, [responsive, width, height, aspectRatio, maxContainerWidth, maxContainerHeight]);
 
     const toDataURL = useCallback(
       (options: Partial<ExportOptions> = {}): string | undefined => {
-        const stage = stageRef.current;
+        const stage = exportStageRef.current;
         if (!stage) return undefined;
 
         const format = options.format || 'png';
         const mimeType: string = `image/${format}`;
 
         return stage.toDataURL({
-          pixelRatio: options.pixelRatio ?? width / containerSize.width,
+          pixelRatio: options.pixelRatio ?? 1,
           mimeType: mimeType as 'image/png' | 'image/jpeg',
           quality: options.quality,
         });
       },
-      [width, containerSize.width]
+      []
     );
 
     useImperativeHandle(
       ref,
       () => ({
-        getStage: () => stageRef.current,
+        getStage: () => displayStageRef.current,
         toDataURL,
         getContainerSize: () => containerSize,
         getDisplayScale: () => displayScale,
@@ -114,25 +139,42 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     );
 
     return (
-      <div
-        className={className}
-        style={{
-          width: containerSize.width,
-          height: containerSize.height,
-          ...style,
-        }}
-      >
-        <Stage
-          ref={stageRef}
-          width={containerSize.width}
-          height={containerSize.height}
-          scale={{ x: displayScale, y: displayScale }}
-          onMouseDown={onStageClick}
-          onTouchStart={onStageClick}
+      <>
+        {/* Display Stage - Visible, interactive, responsively scaled */}
+        <div
+          ref={containerDivRef}
+          className={className}
+          style={{
+            width: containerSize.width,
+            height: containerSize.height,
+            ...style,
+          }}
         >
-          <Layer>{children}</Layer>
-        </Stage>
-      </div>
+          <Stage
+            ref={displayStageRef}
+            width={containerSize.width}
+            height={containerSize.height}
+            scale={{ x: displayScale, y: displayScale }}
+            onMouseDown={onStageClick}
+            onTouchStart={onStageClick}
+          >
+            <Layer>{children}</Layer>
+          </Stage>
+        </div>
+
+        {/* Export Stage - Hidden, 1:1 rendering for pixel-perfect exports */}
+        <div className="canvas-stage-export-container">
+          <Stage
+            ref={exportStageRef}
+            width={width}
+            height={height}
+            scale={{ x: 1, y: 1 }}
+            listening={false}
+          >
+            <Layer>{children}</Layer>
+          </Stage>
+        </div>
+      </>
     );
   }
 );

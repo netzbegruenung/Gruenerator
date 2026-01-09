@@ -1,71 +1,95 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { FaExchangeAlt, FaChevronDown } from 'react-icons/fa';
-import type { AlternativesSectionProps } from '../types';
+import { AlternativesRenderer } from './AlternativesCore';
+import { FaExchangeAlt, FaCheck } from 'react-icons/fa';
+import Spinner from '../../../../../components/common/Spinner';
 
-export function AlternativesSection({
-  alternatives,
-  currentQuote,
-  onAlternativeSelect,
-}: AlternativesSectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
+export interface DreizeilenAlternative {
+  line1?: string;
+  line2?: string;
+  line3?: string;
+}
 
-  if (alternatives.length === 0) {
+type Alternative = string | DreizeilenAlternative;
+
+export interface AlternativesSectionProps {
+  alternatives: Alternative[];
+
+  currentQuote?: string;
+  onAlternativeSelect?: (alternative: string) => void;
+
+  currentLine1?: string;
+  currentLine2?: string;
+  currentLine3?: string;
+  onSelectAlternative?: (alt: DreizeilenAlternative) => void;
+}
+
+export function AlternativesSection(props: AlternativesSectionProps) {
+  const { alternatives } = props;
+
+  if (!alternatives || alternatives.length === 0) {
     return (
       <div className="sidebar-section sidebar-section--alternatives">
-        <p className="sidebar-section__empty">Keine Alternativen verfügbar</p>
+        <div className="sidebar-section__header">
+          <h3>Alternativen</h3>
+        </div>
+        <div className="sidebar-section__loading">
+          <Spinner size="small" />
+          <p className="sidebar-section__hint">
+            Weitere Varianten werden generiert...
+          </p>
+        </div>
       </div>
     );
   }
 
-  const getPreview = (text: string) => {
-    return text.length > 50 ? text.slice(0, 50) + '...' : text;
-  };
+  const isStructured =
+    alternatives.length > 0 &&
+    typeof alternatives[0] === 'object' &&
+    ('line1' in alternatives[0] || 'line2' in alternatives[0] || 'line3' in alternatives[0]);
 
-  return (
-    <div className="sidebar-section sidebar-section--alternatives">
-      <button
-        className={`sidebar-section-toggle ${isOpen ? 'sidebar-section-toggle--open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        type="button"
-      >
-        <FaExchangeAlt />
-        Alternativen ({alternatives.length})
-        <FaChevronDown />
-      </button>
+  if (isStructured) {
+    const { currentLine1, currentLine2, currentLine3, onSelectAlternative } = props;
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div className="alternatives-list">
-              {alternatives.map((alt, index) => {
-                const isActive = alt === currentQuote;
-                return (
-                  <button
-                    key={index}
-                    className={`alternative-item ${isActive ? 'alternative-item--active' : ''}`}
-                    onClick={() => onAlternativeSelect(alt)}
-                    type="button"
-                    title={alt}
-                  >
-                    &ldquo;{getPreview(alt)}&rdquo;
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    return (
+      <AlternativesRenderer
+        alternatives={alternatives as DreizeilenAlternative[]}
+        isActive={(alt) =>
+          alt.line1 === currentLine1 && alt.line2 === currentLine2 && alt.line3 === currentLine3
+        }
+        getDisplayText={(alt, index) =>
+          [alt.line1, alt.line2, alt.line3].filter(Boolean).join(' / ') ||
+          `Alternative ${index + 1}`
+        }
+        onSelect={(alt) => onSelectAlternative?.(alt)}
+        layout="cards"
+        collapsible={false}
+        defaultOpen={true}
+        hintText="Hier findest du KI-generierte Textvarianten basierend auf deiner Eingabe. Klicke auf eine Alternative, um sie direkt in dein Design zu übernehmen. Du kannst die Texte anschließend noch manuell anpassen."
+        renderPreview={(alt) => {
+          const isActive =
+            alt.line1 === currentLine1 && alt.line2 === currentLine2 && alt.line3 === currentLine3;
+          return isActive ? (
+            <span className="sidebar-selectable-card__check">
+              <FaCheck size={10} />
+            </span>
+          ) : null;
+        }}
+      />
+    );
+  } else {
+    const { currentQuote, onAlternativeSelect } = props;
 
-      <p className="sidebar-hint">
-        Die KI hat alternative Textvorschläge für dich erstellt. Probiere verschiedene Varianten aus, um die beste Formulierung zu finden. Nach der Auswahl kannst du den Text noch individuell anpassen.
-      </p>
-    </div>
-  );
+    return (
+      <AlternativesRenderer
+        alternatives={alternatives as string[]}
+        isActive={(alt) => alt === currentQuote}
+        getDisplayText={(alt) => (alt.length > 50 ? alt.slice(0, 50) + '...' : alt)}
+        onSelect={(alt) => onAlternativeSelect?.(alt)}
+        layout="pills"
+        collapsible={true}
+        defaultOpen={true}
+        icon={FaExchangeAlt}
+        hintText="Die KI hat alternative Textvorschläge für dich erstellt. Probiere verschiedene Varianten aus, um die beste Formulierung zu finden. Nach der Auswahl kannst du den Text noch individuell anpassen."
+      />
+    );
+  }
 }

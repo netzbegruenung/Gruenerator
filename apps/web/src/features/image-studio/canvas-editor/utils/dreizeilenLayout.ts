@@ -168,6 +168,15 @@ export function measureTextWidth(
   if (!ctx) return text.length * fontSize * 0.5; // Fallback estimation
 
   ctx.font = `${fontSize}px ${fontFamily}, Arial, sans-serif`;
+
+  // Warn in development if font not loaded
+  if (import.meta.env.DEV) {
+    const isLoaded = document.fonts.check(`${fontSize}px ${fontFamily}`);
+    if (!isLoaded) {
+      console.warn(`[Dreizeilen] Font "${fontFamily}" not loaded, measurements may be inaccurate`);
+    }
+  }
+
   return ctx.measureText(text).width;
 }
 

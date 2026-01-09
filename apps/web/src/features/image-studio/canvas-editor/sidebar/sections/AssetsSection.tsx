@@ -1,22 +1,37 @@
 import { useState, useMemo, useDeferredValue, useCallback } from 'react';
-import { FaCheck, FaPuzzlePiece, FaShapes } from 'react-icons/fa';
+import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
-import { PiMagnifyingGlass } from 'react-icons/pi';
+import { PiMagnifyingGlass, PiSmileyWink } from 'react-icons/pi';
 import type { AssetsSectionProps, AssetItem } from '../types';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { IconsSection } from './IconsSection';
 import { BalkenSection } from './BalkenSection';
 import { FormenSection } from './FormenSection';
+import { IllustrationenSection } from './IllustrationenSection';
 import type { BalkenInstance, BalkenMode } from '../../primitives';
 import { ShapeInstance, ShapeType, ALL_SHAPES, ShapeDef } from '../../utils/shapes';
 import { ALL_ASSETS, UniversalAsset } from '../../utils/canvasAssets';
 import { ALL_ICONS, IconDef } from '../../utils/canvasIcons';
+import { IllustrationInstance, ALL_ILLUSTRATIONS, searchIllustrations, getIllustrationPath, IllustrationDef, KawaiiIllustrationType, KawaiiDef } from '../../utils/canvasIllustrations';
+import {
+  Planet,
+  Cat,
+  Ghost,
+  IceCream,
+  Browser,
+  Mug,
+  SpeechBubble,
+  Backpack,
+  CreditCard,
+  File,
+  Folder,
+} from 'react-kawaii';
 import { getEnglishSearchTerms } from '../../utils/searchTranslations';
 import { BalkenIcon } from '../../icons';
 import './AssetsSection.css';
 
 // Unified search result item type
-type SearchResultType = 'element' | 'shape' | 'icon';
+type SearchResultType = 'element' | 'shape' | 'icon' | 'illustration';
 
 interface SearchResult {
   type: SearchResultType;
@@ -29,6 +44,23 @@ interface SearchResult {
   shapeDef?: ShapeDef;
   // For icons
   iconDef?: IconDef;
+  // For illustrations
+  illustrationDef?: IllustrationDef;
+}
+
+// Map for preview components
+const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<any>> = {
+  planet: Planet,
+  cat: Cat,
+  ghost: Ghost,
+  iceCream: IceCream,
+  browser: Browser,
+  mug: Mug,
+  speechBubble: SpeechBubble,
+  backpack: Backpack,
+  creditCard: CreditCard,
+  file: File,
+  folder: Folder,
 }
 
 function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -80,6 +112,7 @@ interface SearchResultsGridProps {
   assets: AssetItem[];
   onAssetToggle: (id: string, visible: boolean) => void;
   onAddShape?: (type: ShapeType) => void;
+  onAddIllustration?: (id: string) => void;
   selectedIcons?: string[];
   onIconToggle?: (iconId: string, selected: boolean) => void;
   maxIconSelections?: number;
@@ -90,6 +123,7 @@ function SearchResultsGrid({
   assets,
   onAssetToggle,
   onAddShape,
+  onAddIllustration,
   selectedIcons = [],
   onIconToggle,
   maxIconSelections = 3,
@@ -173,6 +207,45 @@ function SearchResultsGrid({
           );
         }
 
+        if (result.type === 'illustration' && result.illustrationDef && onAddIllustration) {
+          const ill = result.illustrationDef;
+          if (ill.source === 'kawaii') {
+            const kDef = ill as KawaiiDef;
+            const PreviewComponent = PREVIEW_COMPONENTS[kDef.id];
+            return (
+              <button
+                key={`ill-${result.id}`}
+                className="sidebar-selectable-card"
+                onClick={() => onAddIllustration(ill.id)}
+                type="button"
+                title={ill.name}
+              >
+                <div className="sidebar-selectable-card__preview illustration-preview">
+                  <PreviewComponent size={32} mood="happy" color="#005437" />
+                </div>
+              </button>
+            );
+          } else {
+            return (
+              <button
+                key={`ill-${result.id}`}
+                className="sidebar-selectable-card"
+                onClick={() => onAddIllustration(ill.id)}
+                type="button"
+                title={ill.name}
+              >
+                <div className="sidebar-selectable-card__preview illustration-preview illustration-preview--svg">
+                  <img
+                    src={getIllustrationPath(ill as any)}
+                    alt={ill.name}
+                    loading="lazy"
+                  />
+                </div>
+              </button>
+            );
+          }
+        }
+
         return null;
       })}
     </div>
@@ -231,12 +304,21 @@ export interface ExtendedAssetsSectionProps extends AssetsSectionProps {
   onAddBalken?: (mode: BalkenMode) => void;
   onUpdateBalken?: (id: string, partial: Partial<BalkenInstance>) => void;
   onRemoveBalken?: (id: string) => void;
+  onDuplicateBalken?: (id: string) => void;
 
   shapeInstances?: ShapeInstance[];
   selectedShapeId?: string | null;
   onAddShape?: (type: ShapeType) => void;
   onUpdateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
   onRemoveShape?: (id: string) => void;
+  onDuplicateShape?: (id: string) => void;
+
+  illustrationInstances?: IllustrationInstance[];
+  selectedIllustrationId?: string | null;
+  onAddIllustration?: (id: string) => void;
+  onUpdateIllustration?: (id: string, partial: Partial<IllustrationInstance>) => void;
+  onRemoveIllustration?: (id: string) => void;
+  onDuplicateIllustration?: (id: string) => void;
 }
 
 export function AssetsSection({
@@ -251,18 +333,30 @@ export function AssetsSection({
   onAddBalken,
   onUpdateBalken,
   onRemoveBalken,
+  onDuplicateBalken,
   shapeInstances,
   selectedShapeId,
   onAddShape,
   onUpdateShape,
   onRemoveShape,
+  onDuplicateShape,
+  illustrationInstances,
+  selectedIllustrationId,
+  onAddIllustration,
+  onUpdateIllustration,
+  onRemoveIllustration,
+  onDuplicateIllustration,
 }: ExtendedAssetsSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
+  const [formenExpanded, setFormenExpanded] = useState(false);
+  const [iconsExpanded, setIconsExpanded] = useState(false);
+  const [illustrationenExpanded, setIllustrationenExpanded] = useState(false);
 
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   const hasBalkenFeature = onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
+  const hasIllustrationsFeature = onAddIllustration !== undefined;
 
   // Build search results
   const searchResults = useMemo(() => {
@@ -331,50 +425,53 @@ export function AssetsSection({
       }
     }
 
+    // Search illustrations
+    if (hasIllustrationsFeature) {
+      const matchingIllustrations = searchIllustrations(query);
+      matchingIllustrations.forEach(ill => {
+        results.push({
+          type: 'illustration',
+          id: ill.id,
+          name: ill.name,
+          illustrationDef: ill
+        });
+      });
+    }
+
     return results;
-  }, [deferredQuery, assets, hasShapesFeature, hasIconsFeature]);
-
-  const isSearching = searchQuery.trim().length > 0;
-
-  // Render search results mode
-  if (isSearching) {
-    return (
-      <div className="sidebar-section sidebar-section--assets">
-        <SearchInput value={searchQuery} onChange={setSearchQuery} />
-
-        {searchResults.length > 0 ? (
-          <SearchResultsGrid
-            results={searchResults}
-            assets={assets}
-            onAssetToggle={onAssetToggle}
-            onAddShape={onAddShape}
-            selectedIcons={selectedIcons}
-            onIconToggle={onIconToggle}
-            maxIconSelections={maxIconSelections}
-          />
-        ) : (
-          <p className="assets-no-results">Keine Ergebnisse für "{deferredQuery}"</p>
-        )}
-      </div>
-    );
-  }
-
-  // No subsection features - simple mode
-  if (!hasIconsFeature && !hasBalkenFeature && !hasShapesFeature) {
-    return (
-      <div className="sidebar-section sidebar-section--assets">
-        <SearchInput value={searchQuery} onChange={setSearchQuery} />
-        <GrafiksSectionContent
-          assets={assets}
-          onAssetToggle={onAssetToggle}
-          recommendedAssetIds={recommendedAssetIds}
-        />
-      </div>
-    );
-  }
+  }, [deferredQuery, assets, hasShapesFeature, hasIconsFeature, hasIllustrationsFeature]);
 
   // Build subsections
   const subsections: Subsection[] = [
+    // Search subsection
+    {
+      id: 'suche',
+      icon: FaSearch,
+      label: 'Suche',
+      content: (
+        <div className="sidebar-section sidebar-section--assets">
+          <SearchInput value={searchQuery} onChange={setSearchQuery} />
+
+          {searchQuery.trim().length > 0 && (
+            searchResults.length > 0 ? (
+              <SearchResultsGrid
+                results={searchResults}
+                assets={assets}
+                onAssetToggle={onAssetToggle}
+                onAddShape={onAddShape}
+                onAddIllustration={onAddIllustration}
+                selectedIcons={selectedIcons}
+                onIconToggle={onIconToggle}
+                maxIconSelections={maxIconSelections}
+              />
+            ) : (
+              <p className="assets-no-results">Keine Ergebnisse für "{deferredQuery}"</p>
+            )
+          )}
+        </div>
+      ),
+    },
+    // Grafiken subsection
     {
       id: 'grafiken',
       icon: FaPuzzlePiece,
@@ -406,6 +503,7 @@ export function AssetsSection({
             selectedBalken={selectedBalken}
             onUpdateBalken={onUpdateBalken ?? (() => { })}
             onRemoveBalken={onRemoveBalken ?? (() => { })}
+            onDuplicateBalken={onDuplicateBalken}
           />
         </>
       ),
@@ -414,6 +512,7 @@ export function AssetsSection({
 
   if (hasShapesFeature) {
     const selectedShape = shapeInstances?.find(s => s.id === selectedShapeId) || null;
+    const hasMoreShapes = ALL_SHAPES.length > 4;
     subsections.push({
       id: 'formen',
       icon: FaShapes,
@@ -423,12 +522,56 @@ export function AssetsSection({
           <h4 className="assets-section-header">
             <FaShapes size={14} />
             <span>Formen</span>
+            {hasMoreShapes && (
+              <button
+                className="sidebar-action-btn sidebar-action-btn--text"
+                onClick={() => setFormenExpanded(!formenExpanded)}
+              >
+                {formenExpanded ? 'Weniger anzeigen' : 'Alle anzeigen'}
+              </button>
+            )}
           </h4>
           <FormenSection
             onAddShape={onAddShape!}
             selectedShape={selectedShape}
             onUpdateShape={onUpdateShape ?? (() => { })}
             onRemoveShape={onRemoveShape ?? (() => { })}
+            onDuplicateShape={onDuplicateShape}
+            isExpanded={formenExpanded}
+          />
+        </>
+      ),
+    });
+  }
+
+  if (hasIllustrationsFeature) {
+    const selectedIllustration = illustrationInstances?.find(i => i.id === selectedIllustrationId) || null;
+    const hasMoreIllustrations = ALL_ILLUSTRATIONS.length > 4;
+    subsections.push({
+      id: 'illustrationen',
+      icon: PiSmileyWink,
+      label: 'Illustrationen',
+      content: (
+        <>
+          <h4 className="assets-section-header">
+            <PiSmileyWink size={14} />
+            <span>Illustrationen</span>
+            {hasMoreIllustrations && (
+              <button
+                className="sidebar-action-btn sidebar-action-btn--text"
+                onClick={() => setIllustrationenExpanded(!illustrationenExpanded)}
+              >
+                {illustrationenExpanded ? 'Weniger anzeigen' : 'Alle anzeigen'}
+              </button>
+            )}
+          </h4>
+          <IllustrationenSection
+            onAddIllustration={onAddIllustration!}
+            selectedIllustration={selectedIllustration}
+            onUpdateIllustration={onUpdateIllustration ?? (() => { })}
+            onRemoveIllustration={onRemoveIllustration ?? (() => { })}
+            onDuplicateIllustration={onDuplicateIllustration}
+            isExpanded={illustrationenExpanded}
           />
         </>
       ),
@@ -436,6 +579,8 @@ export function AssetsSection({
   }
 
   if (hasIconsFeature) {
+    const recommendedIconCount = 4; // Based on RECOMMENDED_ICON_IDS
+    const hasMoreIcons = ALL_ICONS.length > recommendedIconCount;
     subsections.push({
       id: 'icons',
       icon: HiSparkles,
@@ -445,11 +590,20 @@ export function AssetsSection({
           <h4 className="assets-section-header">
             <HiSparkles size={14} />
             <span>Icons</span>
+            {hasMoreIcons && (
+              <button
+                className="sidebar-action-btn sidebar-action-btn--text"
+                onClick={() => setIconsExpanded(!iconsExpanded)}
+              >
+                {iconsExpanded ? 'Weniger anzeigen' : 'Alle anzeigen'}
+              </button>
+            )}
           </h4>
           <IconsSection
             selectedIcons={selectedIcons}
             onIconToggle={onIconToggle}
             maxSelections={maxIconSelections}
+            isExpanded={iconsExpanded}
           />
         </>
       ),
@@ -458,7 +612,6 @@ export function AssetsSection({
 
   return (
     <div className="sidebar-section sidebar-section--assets-wrapper">
-      <SearchInput value={searchQuery} onChange={setSearchQuery} />
       <SubsectionTabBar subsections={subsections} defaultSubsection="grafiken" />
     </div>
   );
