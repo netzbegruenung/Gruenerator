@@ -575,6 +575,9 @@ importers:
       react-image-gallery:
         specifier: ^1.4.0
         version: 1.4.0(react@19.1.0)
+      react-kawaii:
+        specifier: ^1.6.0
+        version: 1.6.0(react@19.1.0)
       react-konva:
         specifier: ^19.2.1
         version: 19.2.1(@types/react@19.2.7)(konva@10.0.12)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -9544,6 +9547,11 @@ packages:
 
   react-is@19.2.3:
     resolution: {integrity: sha512-qJNJfu81ByyabuG7hPFEbXqNcWSU3+eVus+KJs+0ncpGfMyYdvSmxiJxbWR65lYi1I+/0HBcliO029gc4F+PnA==}
+
+  react-kawaii@1.6.0:
+    resolution: {integrity: sha512-cmz9zzuIEplDIPRrtW9MiQsszVZBRzFYFwfxbArskn+0qMLzTQJPq+6avkVDvvTHI9GzvnMc9HhVCwUq+KpJUg==}
+    peerDependencies:
+      react: 19.1.0
 
   react-konva@19.2.1:
     resolution: {integrity: sha512-sqZWCzQGpdMrU5aeunR0oxUY8UeCPbU8gnAYxMtAn6BT4coeSpiATKOctsoxRu6F56TAcF+s0c6Lul9ansNqQA==}
@@ -22528,6 +22536,10 @@ snapshots:
   react-is@18.3.1: {}
 
   react-is@19.2.3: {}
+
+  react-kawaii@1.6.0(react@19.1.0):
+    dependencies:
+      react: 19.1.0
 
   react-konva@19.2.1(@types/react@19.2.7)(konva@10.0.12)(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
