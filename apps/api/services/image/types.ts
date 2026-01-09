@@ -146,6 +146,7 @@ export interface UnsplashAttribution {
   profileUrl: string;
   photoUrl: string;
   license: string;
+  downloadLocation?: string;
 }
 
 export interface ImageWithAttribution {

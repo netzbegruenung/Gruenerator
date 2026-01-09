@@ -124,6 +124,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
   const { sitesController: sitesRouter, publicController: publicSiteRouter } = await import('./routes/sites/index.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
+  const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -220,6 +221,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchRouter);
   app.use('/api/image-picker', imagePickerRoute);
+  app.use('/api/unsplash', unsplashRouter);
   app.use('/api/web-search', webSearchRouter);
   app.use('/api/image-generation', imageGenerationRouter);
   app.use('/api/rate-limit', rateLimitRouter);

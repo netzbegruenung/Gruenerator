@@ -910,6 +910,223 @@ class SharedMediaService {
             throw new Error(`Failed to update image share: ${(error as Error).message}`);
         }
     }
+
+    /**
+     * Mark existing shared media as a template
+     */
+    async markAsTemplate(
+        userId: string,
+        shareToken: string,
+        title: string,
+        visibility: 'private' | 'unlisted' | 'public',
+        creatorName: string
+    ): Promise<void> {
+        await this.ensureInitialized();
+
+        try {
+            // Verify ownership
+            const checkQuery = `SELECT user_id FROM shared_media WHERE share_token = $1`;
+            const existing = await this.postgres!.queryOne<{ user_id: string }>(checkQuery, [shareToken]);
+
+            if (!existing) {
+                throw new Error('Share not found');
+            }
+
+            if (existing.user_id !== userId) {
+                throw new Error('Not authorized to mark this as template');
+            }
+
+            // Mark as template
+            const updateQuery = `
+                UPDATE shared_media
+                SET is_template = TRUE,
+                    template_visibility = $1,
+                    template_creator_name = $2,
+                    title = $3
+                WHERE share_token = $4
+            `;
+
+            await this.postgres!.query(updateQuery, [visibility, creatorName, title, shareToken]);
+
+            console.log(`[SharedMediaService] Marked ${shareToken} as template with visibility: ${visibility}`);
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to mark as template:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Clone a template to user's gallery
+     */
+    async cloneTemplate(
+        shareToken: string,
+        userId: string,
+        userDisplayName: string
+    ): Promise<ShareResult> {
+        await this.ensureInitialized();
+        await this.enforceUserLimit(userId);
+
+        try {
+            // 1. Fetch template
+            const templateQuery = `
+                SELECT id, user_id, media_type, image_type, image_metadata, template_visibility, template_creator_name
+                FROM shared_media
+                WHERE share_token = $1 AND is_template = TRUE
+            `;
+            const template = await this.postgres!.queryOne<{
+                id: string;
+                user_id: string;
+                media_type: string;
+                image_type: string | null;
+                image_metadata: Record<string, unknown>;
+                template_visibility: string;
+                template_creator_name: string | null;
+            }>(templateQuery, [shareToken]);
+
+            if (!template) {
+                throw new Error('Template not found');
+            }
+
+            // 2. Check visibility permissions
+            if (template.template_visibility === 'private' && template.user_id !== userId) {
+                throw new Error('Template not accessible (private)');
+            }
+
+            // 3. Deep copy metadata (all canvas state)
+            const clonedMetadata = template.image_metadata ? JSON.parse(JSON.stringify(template.image_metadata)) : {};
+
+            // 4. Create new share entry
+            const newShareToken = this.generateShareToken();
+            const insertQuery = `
+                INSERT INTO shared_media
+                (user_id, share_token, media_type, image_type, image_metadata, is_template, original_template_id, status)
+                VALUES ($1, $2, $3, $4, $5, FALSE, $6, 'processing')
+                RETURNING id, share_token, created_at
+            `;
+
+            const result = await this.postgres!.queryOne<{
+                id: string;
+                share_token: string;
+                created_at: Date;
+            }>(insertQuery, [
+                userId,
+                newShareToken,
+                template.media_type,
+                template.image_type,
+                JSON.stringify(clonedMetadata),
+                template.id
+            ]);
+
+            // 5. Increment template use count
+            const incrementQuery = `
+                UPDATE shared_media
+                SET template_use_count = template_use_count + 1
+                WHERE share_token = $1
+            `;
+            await this.postgres!.query(incrementQuery, [shareToken]);
+
+            console.log(`[SharedMediaService] Cloned template ${shareToken} to ${newShareToken} for user ${userId}`);
+
+            return {
+                id: result!.id,
+                shareToken: result!.share_token,
+                shareUrl: `/share/${result!.share_token}`,
+                createdAt: result!.created_at,
+                mediaType: template.media_type as 'image' | 'video'
+            };
+
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to clone template:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get templates (user's + public)
+     */
+    async getTemplates(
+        userId: string,
+        filters?: { type?: string; visibility?: string }
+    ): Promise<SharedMediaRow[]> {
+        await this.ensureInitialized();
+
+        try {
+            let query = `
+                SELECT
+                    id, user_id, share_token, media_type, title, image_type, image_metadata,
+                    thumbnail_path, template_visibility, template_creator_name, template_use_count,
+                    created_at
+                FROM shared_media
+                WHERE is_template = TRUE
+                    AND (user_id = $1 OR template_visibility = 'public')
+            `;
+
+            const params: unknown[] = [userId];
+            let paramIndex = 2;
+
+            if (filters?.type) {
+                query += ` AND image_type = $${paramIndex}`;
+                params.push(filters.type);
+                paramIndex++;
+            }
+
+            if (filters?.visibility && filters.visibility !== 'all') {
+                query += ` AND template_visibility = $${paramIndex}`;
+                params.push(filters.visibility);
+                paramIndex++;
+            }
+
+            query += ` ORDER BY created_at DESC`;
+
+            const templates = await this.postgres!.query<SharedMediaRow>(query, params);
+
+            console.log(`[SharedMediaService] Retrieved ${templates.length} templates for user ${userId}`);
+            return templates;
+
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to get templates:', error);
+            throw new Error('Failed to retrieve templates');
+        }
+    }
+
+    /**
+     * Get template by shareToken
+     */
+    async getTemplateByToken(
+        shareToken: string,
+        requestingUserId?: string
+    ): Promise<SharedMediaRow> {
+        await this.ensureInitialized();
+
+        try {
+            const query = `
+                SELECT
+                    id, user_id, share_token, media_type, title, image_type, image_metadata,
+                    thumbnail_path, template_visibility, template_creator_name, template_use_count,
+                    created_at
+                FROM shared_media
+                WHERE share_token = $1 AND is_template = TRUE
+            `;
+
+            const template = await this.postgres!.queryOne<SharedMediaRow>(query, [shareToken]);
+
+            if (!template) {
+                throw new Error('Template not found');
+            }
+
+            // Check access permissions
+            const visibility = template.template_visibility as string;
+            if (visibility === 'private' && template.user_id !== requestingUserId) {
+                throw new Error('Template not accessible (private)');
+            }
+
+            return template;
+
+        } catch (error) {
+            console.error('[SharedMediaService] Failed to get template by token:', error);
+            throw error;
+        }
+    }
 }
 
 let serviceInstance: SharedMediaService | null = null;

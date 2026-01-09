@@ -12,6 +12,7 @@ import type {
   UnsplashAttribution,
   ImageWithAttribution
 } from './types.js';
+import { buildUnsplashUrls as buildUrlsWithUTM } from '../../utils/unsplashUtils.js';
 
 export class UnsplashAttributionService {
   private readonly UNSPLASH_SUFFIX = '-unsplash.jpg';
@@ -74,13 +75,11 @@ export class UnsplashAttributionService {
   }
 
   /**
-   * Build Unsplash URLs for a photo
+   * Build Unsplash URLs for a photo with UTM parameters
+   * Uses utility function to ensure compliance with Unsplash API guidelines
    */
   buildUnsplashUrls(photoId: string, photographerSlug: string): UnsplashUrls {
-    return {
-      profileUrl: `https://unsplash.com/@${photographerSlug}`,
-      photoUrl: `https://unsplash.com/photos/${photoId}`
-    };
+    return buildUrlsWithUTM(photoId, photographerSlug);
   }
 
   /**
@@ -101,7 +100,8 @@ export class UnsplashAttributionService {
       photoId,
       profileUrl: urls.profileUrl,
       photoUrl: urls.photoUrl,
-      license: 'Unsplash License'
+      license: 'Unsplash License',
+      downloadLocation: `https://api.unsplash.com/photos/${photoId}/download?client_id=${process.env.UNSPLASH_ACCESS_KEY || 'demo'}`
     };
   }
 
