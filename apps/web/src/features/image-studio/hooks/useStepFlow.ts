@@ -114,7 +114,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
   const { setPreloadedImageResult, setSlogansReady } = usePreloadStore();
 
-  const { generateText, generateImage, loading, error, setError } = useImageGeneration();
+  const { generateText, generateImage, fetchAlternativesInBackground, loading, error, setError } = useImageGeneration();
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
@@ -241,13 +241,32 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     setIsProcessing(true);
 
     try {
-      const formData = { thema, name };
+      const formData = { thema, name, count: 1 };
       const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {
         const mappedData = fieldConfig.responseMapping(result as any);
         updateFormData(mappedData as any);
-        setSloganAlternatives(result.alternatives || []);
+
+        // Store original as first alternative
+        const originalAlternative = fieldConfig.alternativesMapping
+          ? fieldConfig.alternativesMapping(mappedData as any)
+          : mappedData;
+        setSloganAlternatives([originalAlternative]);
+
+        setTimeout(() => {
+          fetchAlternativesInBackground(
+            type!,
+            formData,
+            (alternatives) => {
+              // Prepend original to alternatives list
+              setSloganAlternatives([originalAlternative, ...alternatives]);
+            },
+            (error) => {
+              console.error('[StepFlow] Alternatives error:', error);
+            }
+          );
+        }, 100);
       }
       return true;
     } catch (err) {
@@ -256,13 +275,24 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     } finally {
       setIsProcessing(false);
     }
-  }, [type, thema, name, fieldConfig, generateText, updateFormData, setSloganAlternatives, setError]);
+  }, [type, thema, name, fieldConfig, generateText, fetchAlternativesInBackground, updateFormData, setSloganAlternatives, setError]);
 
   const executeTemplateImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
     setIsProcessing(true);
 
     try {
+      // Validate that we have text content for text-based types
+      if (typeConfig?.hasTextGeneration) {
+        const hasText = line1?.trim() || line2?.trim() || line3?.trim() ||
+                       quote?.trim() || header?.trim() || headline?.trim();
+
+        if (!hasText) {
+          setError('Kein Text generiert. Bitte starte die Generierung erneut.');
+          return false;
+        }
+      }
+
       const formData = {
         type: typeConfig?.legacyType || type,
         line1, line2, line3,
@@ -416,25 +446,54 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       const imagePromise = fetchAiImageSuggestion(textForSuggestion);
 
       const textPromise = (async () => {
-        const formData = { thema, name };
-        const result = await generateText(type!, formData);
-        if (result && fieldConfig?.responseMapping) {
-          const mappedData = fieldConfig.responseMapping(result as any);
-          updateFormData(mappedData as any);
-          setSloganAlternatives(result.alternatives || []);
+        try {
+          const formData = { thema, name, count: 1 };
+          const result = await generateText(type!, formData);
+
+          if (result && fieldConfig?.responseMapping) {
+            const mappedData = fieldConfig.responseMapping(result as any);
+            updateFormData(mappedData as any);
+
+            // Store original as first alternative
+            const originalAlternative = fieldConfig.alternativesMapping
+              ? fieldConfig.alternativesMapping(mappedData as any)
+              : mappedData;
+            setSloganAlternatives([originalAlternative]);
+
+            setTimeout(() => {
+              fetchAlternativesInBackground(
+                type!,
+                formData,
+                (alternatives) => {
+                  // Prepend original to alternatives list
+                  setSloganAlternatives([originalAlternative, ...alternatives]);
+                },
+                (error) => {
+                  console.error('[ParallelPreload] Alternatives error:', error);
+                }
+              );
+            }, 100);
+          }
+          setSlogansReady(true);
+          return true;
+        } catch (err) {
+          console.error('[useStepFlow] Text generation error:', err);
+          setSlogansReady(false);
+          throw err;
         }
-        setSlogansReady(true);
-        return true;
       })();
 
-      const imageResult = await imagePromise;
+      // Wait for both image and text to complete
+      const [imageResult, textResult] = await Promise.all([imagePromise, textPromise]);
+
       if (imageResult) {
         setPreloadedImageResult(imageResult as any);
       }
 
-      textPromise.catch(err => {
-        console.error('[useStepFlow] Background text generation error:', err);
-      });
+      if (!textResult) {
+        setError('Texterstellung fehlgeschlagen. Bitte versuche es erneut.');
+        return false;
+      }
 
       return true;
     } catch (err) {
@@ -445,7 +504,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     }
   }, [
     thema, name, type, fieldConfig,
-    fetchAiImageSuggestion, generateText, updateFormData,
+    fetchAiImageSuggestion, generateText, fetchAlternativesInBackground, updateFormData,
     setSloganAlternatives, setError,
     setPreloadedImageResult, setSlogansReady
   ]);

@@ -1,17 +1,5 @@
-.typeform-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 50vh;
-  width: 100%;
-  position: relative;
-}
-
-.typeform-content {
-  display: flex;
-  flex-direction: column;
-  padding: var(--spacing-medium) var(--spacing-large);
-  padding-top: var(--spacing-xlarge);
-}
+/* TypeformWizard-specific styles */
+/* Common typeform styles are in typeform-fields.css */
 
 .typeform-progress {
   display: flex;
@@ -38,37 +26,6 @@
   background: var(--interactive-accent-color);
   border-radius: 2px;
   transition: width 0.3s ease;
-}
-
-.typeform-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-large);
-}
-
-.typeform-question {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xsmall);
-}
-
-.typeform-question__text {
-  font-size: 1.75rem;
-  font-weight: 500;
-  color: var(--font-color-h);
-  line-height: 1.3;
-}
-
-.typeform-question__subheader {
-  font-size: 1rem;
-  color: var(--font-color-disabled);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.typeform-required {
-  color: var(--error-red);
-  margin-left: 4px;
 }
 
 .typeform-input-wrapper {
@@ -139,12 +96,7 @@
   border-color: var(--interactive-accent-color);
 }
 
-.typeform-error {
-  color: var(--error-red);
-  font-size: 0.9rem;
-  margin: 0;
-}
-
+/* TypeformWizard-specific action styles */
 .typeform-actions {
   display: flex;
   justify-content: space-between;
@@ -152,30 +104,12 @@
   margin-top: var(--spacing-large);
 }
 
+/* TypeformWizard-specific mobile overrides */
 @media (max-width: 768px) {
-  .typeform-content {
-    padding: var(--spacing-small) var(--spacing-medium);
-    padding-top: var(--spacing-large);
-  }
-
-  .typeform-question__text {
-    font-size: 1.5rem;
-  }
-
+  /* Input/textarea sizing specific to wizard flow */
   .typeform-input,
   .typeform-textarea {
     font-size: 1.1rem;
     padding: var(--spacing-small);
-  }
-
-  .typeform-actions {
-    flex-wrap: wrap;
-    gap: var(--spacing-small);
-  }
-}
-
-@media (max-width: 480px) {
-  .typeform-question__text {
-    font-size: 1.25rem;
   }
 }

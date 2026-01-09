@@ -162,13 +162,13 @@ export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult =
           description: 'Untertitel Reels für Social Media',
           icon: getIcon('navigation', 'reel')
         },
-        ...(!betaFeatures.isAustrian ? [{
+        {
           id: 'image-studio',
           path: '/image-studio',
           title: 'Image Studio',
-          description: 'Sharepics & KI-Bildgenerierung',
+          description: betaFeatures.isAustrian ? 'KI-Bildgenerierung & Bearbeitung' : 'Sharepics & KI-Bildgenerierung',
           icon: getIcon('navigation', 'sharepic')
-        }] : []),
+        },
       ]
     },
     tools: {

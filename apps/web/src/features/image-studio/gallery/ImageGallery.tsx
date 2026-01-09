@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaImage, FaTrash, FaShareAlt, FaDownload, FaPlus, FaClock, FaEdit } from 'react-icons/fa';
+import { FaImage, FaTrash, FaShareAlt, FaDownload, FaPlus, FaClock, FaEdit, FaSave } from 'react-icons/fa';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import type { Share } from '@gruenerator/shared';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
+import { useTemplateClone } from '../hooks/useTemplateClone';
 import './ImageGallery.css';
 
 const MAX_IMAGES = 50;
@@ -23,6 +24,9 @@ interface GalleryImageMetadata {
   sharepicType?: SharepicTypeKey;
   content?: Record<string, unknown>;
   styling?: Record<string, unknown>;
+  is_template?: boolean;
+  template_visibility?: string;
+  template_creator_name?: string;
   [key: string]: unknown;
 }
 
@@ -41,6 +45,7 @@ interface ImageGalleryCardProps {
   onDownload: (image: GalleryImage) => Promise<void>;
   onEdit: (image: GalleryImage) => void;
   onClick: (image: GalleryImage) => void;
+  onUseTemplate?: (shareToken: string) => void;
 }
 
 const formatDate = (dateString: string) => {
@@ -71,7 +76,8 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   onDelete,
   onDownload,
   onEdit,
-  onClick
+  onClick,
+  onUseTemplate
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -82,6 +88,8 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
     image.imageMetadata?.hasOriginalImage ||
     (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0)
   );
+
+  const isTemplate = image.imageMetadata?.is_template === true;
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -121,6 +129,13 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
     }
   };
 
+  const handleUseTemplate = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (onUseTemplate && image.shareToken) {
+      onUseTemplate(image.shareToken);
+    }
+  };
+
   const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
   const thumbnailUrl = image.thumbnailPath
     ? `${baseURL}/share/${image.shareToken}/preview`
@@ -149,9 +164,23 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
         {image.imageType && (
           <span className="image-gallery-type-badge">{image.imageType}</span>
         )}
+        {isTemplate && (
+          <span className="image-gallery-template-badge">
+            <FaSave /> Vorlage
+          </span>
+        )}
       </div>
 
       <div className="image-gallery-actions">
+        {isTemplate && (
+          <button
+            className="image-gallery-action-btn image-gallery-action-btn--template"
+            onClick={handleUseTemplate}
+            title="Vorlage verwenden"
+          >
+            <FaSave />
+          </button>
+        )}
         {isEditable && (
           <button
             className="image-gallery-action-btn image-gallery-action-btn--edit"
@@ -233,6 +262,7 @@ const ImageGallery = () => {
 
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const { cloneTemplate } = useTemplateClone();
 
   useEffect(() => {
     fetchUserShares('image');
@@ -309,6 +339,10 @@ const ImageGallery = () => {
       }
     });
   }, [navigate]);
+
+  const handleUseTemplate = useCallback((shareToken: string) => {
+    cloneTemplate(shareToken);
+  }, [cloneTemplate]);
 
   const handleNewImage = () => {
     navigate('/image-studio');
@@ -403,6 +437,7 @@ const ImageGallery = () => {
             onDownload={handleDownload}
             onEdit={handleEdit}
             onClick={handleImageClick}
+            onUseTemplate={handleUseTemplate}
           />
         ))}
       </div>

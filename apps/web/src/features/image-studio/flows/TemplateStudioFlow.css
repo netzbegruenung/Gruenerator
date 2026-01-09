@@ -1,4 +1,5 @@
 @import '../../../assets/styles/common/variables.css';
+@import '../../../assets/styles/components/sharepic/sharepic-type-selector.css';
 
 /* ========================================
    Template Studio Flow
@@ -21,6 +22,14 @@
   display: flex;
   flex-direction: column;
   margin-bottom: var(--spacing-large);
+}
+
+.template-studio-flow-header h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
 }
 
 .template-studio-flow-header .flow-subtitle {

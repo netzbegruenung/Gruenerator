@@ -13,10 +13,6 @@
   flex-direction: column;
 }
 
-.sharepic-editor-modal .canvas-editor-layout {
-  height: 100%;
-  min-height: 100%;
-}
 
 .canvas-loading {
   display: flex;

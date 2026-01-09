@@ -24,6 +24,12 @@ const ImageStudioCategorySelector: React.FC = () => {
     const loadFromAIGeneration = useImageStudioStore((state) => state.loadFromAIGeneration);
     const { user } = useOptimizedAuth();
 
+    // Skip category selector for Austrian users (they're auto-routed to KI)
+    const isAustrianUser = user?.locale === 'de-AT';
+    if (isAustrianUser) {
+        return null; // Category selector is skipped, routing handled by ImageStudioPage
+    }
+
     // Chat input state
     const [promptInput, setPromptInput] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
