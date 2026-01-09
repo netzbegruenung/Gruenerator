@@ -1,0 +1,97 @@
+@import '../../../../web/src/assets/styles/common/variables.css';
+
+.document-list {
+  width: 100%;
+}
+
+.create-document-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background-color: var(--primary-600);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 2rem;
+}
+
+.create-document-button:hover {
+  background-color: var(--primary-700);
+}
+
+.document-list-loading,
+.document-list-error,
+.document-list-empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--font-color-secondary);
+}
+
+.document-list-error {
+  color: var(--error-color, #dc2626);
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.document-card {
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.document-card:hover {
+  transform: scale(1.01);
+  box-shadow: var(--shadow-md);
+}
+
+.document-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.document-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-card-delete {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--font-color-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.document-card-delete:hover {
+  background-color: var(--background-hover, rgba(0, 0, 0, 0.05));
+  color: var(--error-color, #dc2626);
+}
+
+.document-card-meta {
+  font-size: 0.875rem;
+  color: var(--font-color-secondary);
+}

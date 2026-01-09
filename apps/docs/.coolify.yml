@@ -1,0 +1,55 @@
+# Coolify Configuration for Grünerator Docs
+# https://coolify.io/docs/knowledge-base/docker/compose-file
+
+# Service configuration
+services:
+  docs:
+    # Build from monorepo root
+    build:
+      context: ../..
+      dockerfile: apps/docs/Dockerfile
+
+    # Port mappings
+    ports:
+      - "3000:3000"  # HTTP server
+      - "1240:1240"  # Hocuspocus WebSocket
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Environment variables (configure in Coolify UI)
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOCUSPOCUS_PORT=1240
+      - HOCUSPOCUS_HOST=0.0.0.0
+
+      # Database - configure in Coolify
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+      # Frontend URLs - configure in Coolify
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+      - VITE_HOCUSPOCUS_URL=${VITE_HOCUSPOCUS_URL}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+
+# Coolify labels for automatic configuration
+labels:
+  coolify.managed: "true"
+  coolify.name: "gruenerator-docs"
+  coolify.http.port: "3000"
+  coolify.websocket.port: "1240"

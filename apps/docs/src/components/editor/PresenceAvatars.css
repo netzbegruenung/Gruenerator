@@ -1,0 +1,27 @@
+@import '../../../../web/src/assets/styles/common/variables.css';
+
+.presence-avatars {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.presence-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: 2px solid var(--card-background);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.collaborator-count {
+  font-size: 0.875rem;
+  color: var(--font-color-secondary);
+  white-space: nowrap;
+}
