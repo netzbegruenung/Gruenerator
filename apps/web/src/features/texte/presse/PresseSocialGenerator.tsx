@@ -592,8 +592,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
   }, [watchPlatforms, setValue]);
 
   const renderPlatformSection = (): React.ReactElement => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xsmall)' }}>
-      {/* PlatformSelector commented out - using platform tags in inputHeaderContent instead
+    <>
       <PlatformSelector
         name="platforms"
         control={control}
@@ -604,7 +603,6 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
         tabIndex={form.generator?.baseFormTabIndex?.platformSelectorTabIndex}
         enableAutoSelect={true}
       />
-      */}
       {watchSharepic && (
         <button
           type="button"
@@ -615,7 +613,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
           <Icon category="platforms" name="sharepic" size={18} />
         </button>
       )}
-    </div>
+    </>
   );
 
   const renderFormInputs = (): React.ReactElement => (
@@ -695,8 +693,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          useStartPageLayout={isDesktopApp()}
-          startPageDescription="Erstelle professionelle Texte für Social Media und Presse. Wähle deine Plattformen und lass dich von KI unterstützen."
+          useStartPageLayout={false}
           title={firstName ? `Hallo ${firstName}! Welche Botschaft willst du heute grünerieren?` : "Welche Botschaft willst du heute grünerieren?"}
           onSubmit={() => void handleSubmit(onSubmitRHF)()}
           loading={loading || sharepicLoading}
