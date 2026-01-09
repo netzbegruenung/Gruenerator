@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  docs:
+    build:
+      context: ../..
+      dockerfile: apps/docs/Dockerfile
+    container_name: gruenerator-docs
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+      - "1240:1240"
+    environment:
+      # Node.js
+      NODE_ENV: production
+
+      # Server Configuration
+      PORT: 3000
+
+      # Hocuspocus WebSocket Server
+      HOCUSPOCUS_PORT: 1240
+      HOCUSPOCUS_HOST: 0.0.0.0
+
+      # Database (PostgreSQL)
+      # Replace these with your actual database credentials
+      POSTGRES_HOST: ${POSTGRES_HOST:-host.docker.internal}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-gruenerator}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_password}
+
+      # API Base URL (for frontend API calls)
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+      VITE_API_TARGET: ${VITE_API_TARGET:-http://localhost:3001}
+
+      # Hocuspocus WebSocket URL (for frontend WebSocket connections)
+      VITE_HOCUSPOCUS_URL: ${VITE_HOCUSPOCUS_URL:-ws://localhost:1240}
+
+    # Optional: Connect to external PostgreSQL
+    # networks:
+    #   - gruenerator-network
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Optional: Define network for connecting to external services
+# networks:
+#   gruenerator-network:
+#     external: true

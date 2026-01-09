@@ -86,6 +86,7 @@ scripts/
 # Documentation (local development)
 docs/
 !apps/api/docs/
+!apps/docs/
 
 # Backup files
 backup/

@@ -1,0 +1,11 @@
+/* Add border to document area and toolbar with alt background */
+.simple-editor-wrapper {
+  border: var(--border-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.simple-editor-wrapper .tiptap-toolbar {
+  background-color: var(--background-color-alt) !important;
+  border-bottom: var(--border-subtle) !important;
+}

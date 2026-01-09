@@ -1,0 +1,92 @@
+/* Grünerator Theme Overrides for Tiptap */
+/* Maps Tiptap brand colors to Grünerator green color scheme */
+
+:root {
+  /* Override Tiptap brand colors with Grünerator primary green */
+  --tt-brand-color-50: var(--primary-50, #F0F8F4);
+  --tt-brand-color-100: var(--primary-100, #D8F0E6);
+  --tt-brand-color-200: var(--primary-200, #B1E0C9);
+  --tt-brand-color-300: var(--primary-300, #8AC9B0);
+  --tt-brand-color-400: var(--primary-400, #6BAA91);
+  --tt-brand-color-500: var(--primary-500, #52907A);
+  --tt-brand-color-600: var(--primary-600, #316049);
+  --tt-brand-color-700: var(--primary-700, #285040);
+  --tt-brand-color-800: var(--primary-800, #1F3F33);
+  --tt-brand-color-900: var(--primary-900, #1A332A);
+  --tt-brand-color-950: var(--primary-950, #123624);
+
+  /* Cursor and selection colors with Grünerator green */
+  --tt-cursor-color: var(--primary-600, #316049);
+  --tt-selection-color: rgba(82, 144, 122, 0.2); /* primary-500 with opacity */
+
+  /* Background color alignment */
+  --tt-bg-color: var(--background-color, var(--white));
+  --tt-sidebar-bg-color: var(--background-color-alt, var(--backgroundgruen));
+}
+
+.dark {
+  /* Dark mode overrides with Grünerator colors */
+  --tt-brand-color-50: var(--primary-950, #123624);
+  --tt-brand-color-100: var(--primary-900, #1A332A);
+  --tt-brand-color-200: var(--primary-800, #1F3F33);
+  --tt-brand-color-300: var(--primary-700, #285040);
+  --tt-brand-color-400: var(--primary-600, #316049);
+  --tt-brand-color-500: var(--primary-500, #52907A);
+  --tt-brand-color-600: var(--primary-400, #6BAA91);
+  --tt-brand-color-700: var(--primary-300, #8AC9B0);
+  --tt-brand-color-800: var(--primary-200, #B1E0C9);
+  --tt-brand-color-900: var(--primary-100, #D8F0E6);
+  --tt-brand-color-950: var(--primary-50, #F0F8F4);
+
+  /* Cursor and selection for dark mode */
+  --tt-cursor-color: var(--primary-400, #6BAA91);
+  --tt-selection-color: rgba(107, 170, 145, 0.3); /* primary-400 with opacity */
+
+  /* Dark mode backgrounds */
+  --tt-bg-color: var(--background-color, var(--grey-950));
+  --tt-sidebar-bg-color: var(--background-color-alt, var(--grey-800));
+}
+
+/* Ensure [data-theme="dark"] also gets these overrides */
+[data-theme="dark"] {
+  --tt-brand-color-50: var(--primary-950, #123624);
+  --tt-brand-color-100: var(--primary-900, #1A332A);
+  --tt-brand-color-200: var(--primary-800, #1F3F33);
+  --tt-brand-color-300: var(--primary-700, #285040);
+  --tt-brand-color-400: var(--primary-600, #316049);
+  --tt-brand-color-500: var(--primary-500, #52907A);
+  --tt-brand-color-600: var(--primary-400, #6BAA91);
+  --tt-brand-color-700: var(--primary-300, #8AC9B0);
+  --tt-brand-color-800: var(--primary-200, #B1E0C9);
+  --tt-brand-color-900: var(--primary-100, #D8F0E6);
+  --tt-brand-color-950: var(--primary-50, #F0F8F4);
+
+  --tt-cursor-color: var(--primary-400, #6BAA91);
+  --tt-selection-color: rgba(107, 170, 145, 0.3);
+
+  --tt-bg-color: var(--background-color, var(--grey-950));
+  --tt-sidebar-bg-color: var(--background-color-alt, var(--grey-800));
+}
+
+/* Support for prefers-color-scheme: dark */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tt-brand-color-50: var(--primary-950, #123624);
+    --tt-brand-color-100: var(--primary-900, #1A332A);
+    --tt-brand-color-200: var(--primary-800, #1F3F33);
+    --tt-brand-color-300: var(--primary-700, #285040);
+    --tt-brand-color-400: var(--primary-600, #316049);
+    --tt-brand-color-500: var(--primary-500, #52907A);
+    --tt-brand-color-600: var(--primary-400, #6BAA91);
+    --tt-brand-color-700: var(--primary-300, #8AC9B0);
+    --tt-brand-color-800: var(--primary-200, #B1E0C9);
+    --tt-brand-color-900: var(--primary-100, #D8F0E6);
+    --tt-brand-color-950: var(--primary-50, #F0F8F4);
+
+    --tt-cursor-color: var(--primary-400, #6BAA91);
+    --tt-selection-color: rgba(107, 170, 145, 0.3);
+
+    --tt-bg-color: var(--background-color, var(--grey-950));
+    --tt-sidebar-bg-color: var(--background-color-alt, var(--grey-800));
+  }
+}

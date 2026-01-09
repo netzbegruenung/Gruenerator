@@ -1,0 +1,59 @@
+/* Import shared CSS variables from web app */
+@import '../../../web/src/assets/styles/common/variables.css';
+
+/* Import Tiptap UI styles */
+@import './_variables.scss';
+
+/* Import Grünerator theme overrides */
+@import './_gruenerator-theme.scss';
+
+/* Import animations */
+@import './_keyframe-animations.scss';
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--font-color);
+}
+
+#root {
+  height: 100%;
+}
+
+/* Basic link styling */
+a {
+  color: var(--primary-600);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Basic button styling - use existing patterns from variables.css */
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Disable text selection on buttons and UI controls */
+button,
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
