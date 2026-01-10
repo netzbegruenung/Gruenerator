@@ -4,6 +4,7 @@
  */
 
 import type { DocumentMetadata, DocumentRecord, DocumentUpdateData, DeleteResult, BulkDeleteResult } from './types.js';
+import { parseMetadata } from '../../routes/documents/helpers.js';
 
 /**
  * Save document metadata (no file content)
@@ -76,12 +77,7 @@ export async function updateDocumentMetadata(
         'SELECT metadata FROM documents WHERE id = $1 AND user_id = $2',
         [documentId, userId]
       );
-      let baseMeta: Record<string, any> = {};
-      try {
-        baseMeta = current?.metadata ? JSON.parse(current.metadata) : {};
-      } catch (e) {
-        baseMeta = {};
-      }
+      const baseMeta = parseMetadata(current?.metadata);
       updateData.metadata = JSON.stringify({
         ...baseMeta,
         ...updates.additionalMetadata

@@ -39,7 +39,7 @@ export interface DocumentRecord {
   vector_count: number;
   file_size: number;
   status: string;
-  metadata?: string | null;
+  metadata?: Record<string, any> | null;
   created_at: string;
   updated_at: string;
   last_synced_at?: string | null;
