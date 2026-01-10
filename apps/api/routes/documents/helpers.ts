@@ -7,6 +7,31 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('documents:helpers');
 
 /**
+ * Safely parse document metadata that may be an object (from PostgreSQL JSONB)
+ * or a string (from serialization)
+ */
+export function parseMetadata(metadata: unknown): Record<string, any> {
+  if (!metadata) return {};
+
+  // Already an object (from PostgreSQL JSONB)
+  if (typeof metadata === 'object' && metadata !== null) {
+    return metadata as Record<string, any>;
+  }
+
+  // String that needs parsing
+  if (typeof metadata === 'string') {
+    try {
+      return JSON.parse(metadata);
+    } catch (e) {
+      log.warn('Failed to parse document metadata:', e);
+      return {};
+    }
+  }
+
+  return {};
+}
+
+/**
  * Generate a short, sentence-aware content preview
  * Extracted from original documents.mjs lines 46-54
  */
@@ -51,13 +76,7 @@ export function enrichDocumentWithPreview(
   doc: any,
   firstChunks: Record<string, string> = {}
 ): any {
-  let meta: Record<string, any> = {};
-  try {
-    meta = doc.metadata ? JSON.parse(doc.metadata) : {};
-  } catch (e) {
-    log.warn('Failed to parse document metadata:', e);
-    meta = {};
-  }
+  const meta = parseMetadata(doc.metadata);
 
   // Try multiple sources for content preview
   const preview = meta.content_preview ||
