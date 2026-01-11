@@ -45,7 +45,7 @@ export class PostgresPersistence {
 
         try {
           // Decompress snapshot
-          const decompressed = await gunzipAsync(snapshot.snapshot_data);
+          const decompressed = await gunzipAsync(snapshot.snapshot_data as Buffer);
           Y.applyUpdate(ydoc, decompressed);
           log.debug(`[Load] Applied snapshot (${decompressed.length} bytes)`);
         } catch (error) {
@@ -67,7 +67,7 @@ export class PostgresPersistence {
 
         for (const row of updatesResult) {
           try {
-            const decompressed = await gunzipAsync(row.update_data);
+            const decompressed = await gunzipAsync(row.update_data as Buffer);
             Y.applyUpdate(ydoc, decompressed);
           } catch (error) {
             log.error(`[Load] Failed to apply update: ${error}`);
@@ -89,7 +89,7 @@ export class PostgresPersistence {
 
         for (const row of updatesResult) {
           try {
-            const decompressed = await gunzipAsync(row.update_data);
+            const decompressed = await gunzipAsync(row.update_data as Buffer);
             Y.applyUpdate(ydoc, decompressed);
           } catch (error) {
             log.error(`[Load] Failed to apply update: ${error}`);
@@ -157,10 +157,10 @@ export class PostgresPersistence {
 
       const shouldCreateSnapshot =
         result.length === 0 ||
-        Date.now() - new Date(result[0].created_at).getTime() > this.SNAPSHOT_INTERVAL_MS;
+        Date.now() - new Date(result[0].created_at as string).getTime() > this.SNAPSHOT_INTERVAL_MS;
 
       if (shouldCreateSnapshot) {
-        const nextVersion = result.length > 0 ? result[0].version + 1 : 1;
+        const nextVersion = result.length > 0 ? (result[0].version as number) + 1 : 1;
 
         // Compress snapshot
         const compressed = await gzipAsync(state);
@@ -249,7 +249,7 @@ export class PostgresPersistence {
       );
 
       log.info(`[Manual Snapshot] Created version ${nextVersion} for ${documentId}: ${label || 'unlabeled'}`);
-      return nextVersion;
+      return nextVersion as number;
 
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
@@ -274,7 +274,7 @@ export class PostgresPersistence {
         return null;
       }
 
-      const decompressed = await gunzipAsync(result[0].snapshot_data);
+      const decompressed = await gunzipAsync(result[0].snapshot_data as Buffer);
       return decompressed;
 
     } catch (error) {

@@ -46,6 +46,7 @@ export interface SharedMediaRow {
   created_at: Date;
   updated_at: Date;
   sharer_name?: string;
+  template_visibility?: 'private' | 'unlisted' | 'public';
 }
 
 /**

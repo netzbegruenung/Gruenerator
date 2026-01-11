@@ -190,6 +190,8 @@ export interface WebSearchResult {
 export interface DocumentSearchResult {
   knowledge: string[];
   metadata?: any;
+  documentReferences?: any[];
+  textReferences?: any[];
 }
 
 export interface AutoSearchOptions {
