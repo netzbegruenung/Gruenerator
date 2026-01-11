@@ -23,7 +23,7 @@ export const kiSharepicTypeConfig: KiTypeConfig = {
     generate: '/imagine/create'
   },
   formComponent: 'KiSharepicForm',
-  steps: [FORM_STEPS.INPUT, FORM_STEPS.RESULT],
+  steps: [FORM_STEPS.INPUT, FORM_STEPS.IMAGE_SIZE_SELECT, FORM_STEPS.RESULT],
   variants: createVariants('sharepic'),
   validation: {
     sharepicPrompt: { required: true, minLength: 5, message: 'Bitte beschreibe dein Bild (min. 5 Zeichen)' }
@@ -54,7 +54,7 @@ export const kiSharepicFieldConfig: TemplateFieldConfig = {
   ],
   previewFields: [],
   resultFields: [],
-  afterLastInputTrigger: 'generateImage',
+  afterLastInputTrigger: undefined,
   showImageUpload: false,
   showColorControls: false,
   showFontSizeControl: false,

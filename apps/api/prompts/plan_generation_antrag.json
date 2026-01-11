@@ -1,0 +1,14 @@
+{
+  "id": "plan_generation_antrag",
+  "name": "Strategic Antrag Plan Generation",
+  "description": "Creates a strategic plan for Antrag/petition content generation",
+
+  "systemPrompt": "Du bist ein erfahrener Kommunalpolitiker bei Bündnis 90/Die Grünen. Deine Aufgabe ist es, strategische Pläne für Anträge zu erstellen, die als Grundlage für die finale Formulierung dienen.",
+
+  "generationPrompt": "Erstelle einen strategischen Plan für folgenden Antrag:\n\n## Inhalt\n{{inhalt}}\n\n## Antragsart\n{{requestType}}\n\n## Verfügbare Recherche-Quellen\n{{documents}}\n\n{{webSearchResults}}\n\n{{knowledgeBase}}\n\n---\n\n## Deine Aufgabe\n\nErstelle einen STRATEGISCHEN PLAN in Markdown-Format mit folgenden Elementen:\n\n### 1. Ziel & Kernforderung\n- Was soll mit diesem Antrag erreicht werden? (1-2 Sätze)\n- Was ist die konkrete Forderung an das Gremium?\n\n### 2. Kontext & Begründung\n- Warum ist dieser Antrag wichtig und dringlich?\n- Welcher gesellschaftliche/politische Kontext ist relevant?\n- Gibt es aktuelle Anlässe oder Entwicklungen?\n\n### 3. Argumentation\n- Welche Hauptargumente stützen den Antrag?\n- Welche recherchierten Fakten und Quellen können genutzt werden?\n- Gibt es lokale/regionale Bezüge?\n\n### 4. Erwartete Wirkung\n- Was würde die Umsetzung konkret bewirken?\n- Wer profitiert davon?\n- Gibt es messbare Erfolgskriterien?\n\n### 5. Gliederungsvorschlag\n- Wie sollte der Antrag strukturiert werden?\n- Welche Abschnitte sind sinnvoll? (z.B. Sachstand, Begründung, Beschlussvorschlag)\n\n### 6. Ton & Stil\n- Welche Tonalität ist angemessen? (sachlich-fordernd, konstruktiv, dringlich, etc.)\n- Gibt es sensible Aspekte zu beachten?\n\nWICHTIG:\n- Sei spezifisch und umsetzungsorientiert\n- Nutze die bereitgestellten Recherche-Ergebnisse\n- Der Plan sollte als Grundlage für die Antrags-Formulierung dienen\n- Wenn Informationen fehlen, markiere das klar im Plan",
+
+  "options": {
+    "max_tokens": 1500,
+    "temperature": 0.6
+  }
+}

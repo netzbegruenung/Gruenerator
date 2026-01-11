@@ -7,13 +7,13 @@ import VideoComposition from './VideoComposition';
 import SubtitleSegmentList from '../../../../components/common/SubtitleSegmentList';
 import './Timeline.css';
 
-// Types
-interface ParsedSubtitle {
-  id: number;
-  startTime: number;
-  endTime: number;
-  text: string;
-}
+// Import centralized types and utilities
+import type { SubtitleSegment } from '../../types';
+import { parseSubtitleBlocks } from '../../utils/subtitleSegmentUtils';
+import { formatDisplayTime } from '../../utils/subtitleTimeUtils';
+
+// Type alias for compatibility with existing code
+type ParsedSubtitle = SubtitleSegment;
 
 interface TextOverlay {
   id: number;
@@ -65,42 +65,9 @@ interface TimelineProps {
   onOverlayDoubleClick?: (overlay: TextOverlay) => void;
 }
 
-/**
- * Parse subtitle time string "M:SS.F" to seconds
- */
-const parseSubtitleTime = (timeStr: string): number => {
-  const match = timeStr.match(/(\d+):(\d{2})\.(\d)/);
-  if (!match) return 0;
-  const [, mins, secs, tenths] = match;
-  return parseInt(mins) * 60 + parseInt(secs) + parseInt(tenths) / 10;
-};
-
-/**
- * Parse subtitle string into array of {id, startTime, endTime, text}
- */
-const parseSubtitles = (subtitleString: string): ParsedSubtitle[] => {
-  if (!subtitleString) return [];
-
-  return subtitleString.split('\n\n')
-    .map((block, index) => {
-      const lines = block.trim().split('\n');
-      if (lines.length < 2) return null;
-
-      const timeLine = lines[0];
-      const text = lines.slice(1).join(' ');
-      const timeMatch = timeLine.match(/(\d+:\d{2}\.\d)\s*-\s*(\d+:\d{2}\.\d)/);
-
-      if (!timeMatch) return null;
-
-      return {
-        id: index,
-        startTime: parseSubtitleTime(timeMatch[1]),
-        endTime: parseSubtitleTime(timeMatch[2]),
-        text
-      };
-    })
-    .filter(Boolean);
-};
+// Removed duplicate parseSubtitleTime and parseSubtitles functions
+// Now using centralized utilities: parseSubtitleBlocks from subtitleSegmentUtils
+// This eliminates ~35 lines of duplicate code
 
 /**
  * Timeline Component
@@ -485,11 +452,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
   }, [resizing, handleResizeMove, handleResizeEnd]);
   */
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Use centralized formatDisplayTime utility (eliminates duplicate formatting)
 
   const handleSubtitleEdit = useCallback((index: number, sub: ParsedSubtitle) => {
     setEditingSubtitle({ index, ...sub });
@@ -646,14 +609,14 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
   const playheadPosition = calculatePlayheadPosition();
 
   // Parse subtitles string into structured data
-  const parsedSubtitles = useMemo(() => parseSubtitles(subtitles), [subtitles]);
+  const parsedSubtitles = useMemo(() => parseSubtitleBlocks(subtitles), [subtitles]);
 
   return (
     <div className="timeline">
       <div className="timeline__header">
         <span className="timeline__label">Timeline</span>
         <span className="timeline__duration">
-          {formatTime(currentTime)} / {formatTime(composedDuration)}
+          {formatDisplayTime(currentTime)} / {formatDisplayTime(composedDuration)}
         </span>
       </div>
 
@@ -813,7 +776,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 onTouchStart={(e) => handleSegmentTouchStart(e, index, segment.id)}
                 onTouchMove={handleSegmentTouchMove}
                 onTouchEnd={handleSegmentTouchEnd}
-                title={`${clipName}: ${formatTime(segment.start)} - ${formatTime(segment.end)}`}
+                title={`${clipName}: ${formatDisplayTime(segment.start)} - ${formatDisplayTime(segment.end)}`}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
@@ -855,7 +818,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 <div className="timeline__segment-content">
                   <span className="timeline__segment-number">{index + 1}</span>
                   <span className="timeline__segment-time">
-                    {formatTime(segment.end - segment.start)}
+                    {formatDisplayTime(segment.end - segment.start)}
                   </span>
                 </div>
 
@@ -871,9 +834,9 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
                 )}
 
                 <div className="timeline__segment-range">
-                  <span>{formatTime(segment.start)}</span>
+                  <span>{formatDisplayTime(segment.start)}</span>
                   <span>-</span>
-                  <span>{formatTime(segment.end)}</span>
+                  <span>{formatDisplayTime(segment.end)}</span>
                 </div>
               </div>
             );
@@ -892,7 +855,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
       <div className="timeline__time-markers">
         {[0, 0.25, 0.5, 0.75, 1].map((percent) => (
           <span key={percent} className="timeline__time-marker">
-            {formatTime(percent * composedDuration)}
+            {formatDisplayTime(percent * composedDuration)}
           </span>
         ))}
       </div>
@@ -932,7 +895,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
           >
             <div className="timeline__edit-popup-header">
               <span className="timeline__edit-popup-time">
-                {formatTime(editingSubtitle.startTime)} - {formatTime(editingSubtitle.endTime)}
+                {formatDisplayTime(editingSubtitle.startTime)} - {formatDisplayTime(editingSubtitle.endTime)}
               </span>
               <button
                 className="timeline__edit-popup-close"
@@ -1025,7 +988,7 @@ const Timeline = ({ subtitles, onSubtitleClick, onSubtitleUpdate, onOverlayDoubl
               )}
             />
             <div className="timeline__preview-time">
-              {formatTime(safeFrame / fps)}
+              {formatDisplayTime(safeFrame / fps)}
             </div>
           </div>
         );

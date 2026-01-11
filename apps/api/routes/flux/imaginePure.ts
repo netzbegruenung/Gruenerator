@@ -25,6 +25,8 @@ interface ImaginePureRequestBody {
   prompt: string;
   variant?: PureImageVariant;
   seed?: number;
+  width?: number;
+  height?: number;
 }
 
 interface ImageDimensions {
@@ -102,7 +104,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
     const {
       prompt,
       variant = 'illustration-pure',
-      seed
+      seed,
+      width,
+      height
     } = body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 5) {
@@ -112,6 +116,28 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       });
     }
 
+    // Validate custom dimensions if provided
+    if (width && height) {
+      if (width < 64 || height < 64) {
+        return res.status(400).json({
+          success: false,
+          error: 'Dimensions must be at least 64x64'
+        });
+      }
+      if (width % 16 !== 0 || height % 16 !== 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Dimensions must be multiples of 16'
+        });
+      }
+      if (width * height > 4_000_000) {
+        return res.status(400).json({
+          success: false,
+          error: 'Image size cannot exceed 4 megapixels'
+        });
+      }
+    }
+
     const validVariants: PureImageVariant[] = ['illustration-pure', 'realistic-pure', 'pixel-pure', 'editorial-pure'];
     const selectedVariant: PureImageVariant = validVariants.includes(variant) ? variant : 'illustration-pure';
 
@@ -119,9 +145,13 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     const fluxPromptResult = buildPurePrompt(prompt.trim(), selectedVariant);
     const fluxPrompt = fluxPromptResult.prompt;
-    const dimensions = fluxPromptResult.dimensions;
 
-    log.debug(`[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}`);
+    // Use custom dimensions if provided, otherwise use variant defaults
+    const dimensions = (width && height)
+      ? { width, height }
+      : fluxPromptResult.dimensions;
+
+    log.debug(`[ImaginePure] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${(width && height) ? ' (custom)' : ' (variant default)'}`);
 
     const flux = new FluxImageService();
     const fluxOptions: {

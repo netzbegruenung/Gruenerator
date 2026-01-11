@@ -5,6 +5,8 @@ import {
   IMAGE_STUDIO_TYPES,
   getTypeConfig
 } from '../utils/typeConfig';
+import useImageStudioStore from '../../../stores/imageStudioStore';
+import type { SloganAlternative } from '../types/storeTypes';
 
 interface TextFormData {
   thema?: string;
@@ -87,6 +89,12 @@ interface TextGenerationResult {
 interface UseImageGenerationReturn {
   generateText: (type: string, formData: TextFormData) => Promise<TextGenerationResult | null>;
   generateAlternatives: (type: string, formData: TextFormData) => Promise<TextGenerationResult | null>;
+  fetchAlternativesInBackground: (
+    type: string,
+    formData: TextFormData,
+    onComplete: (alternatives: SloganAlternative[]) => void,
+    onError?: (error: Error) => void
+  ) => Promise<void>;
   generateImage: (type: string, formData: TemplateImageFormData | KiImageFormData) => Promise<string>;
   generateTemplateImage: (type: string, formData: TemplateImageFormData) => Promise<string>;
   generateKiImage: (type: string, formData: KiImageFormData) => Promise<string>;
@@ -331,8 +339,8 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
   const fetchAlternativesInBackground = useCallback(async (
     type: string,
     formData: TextFormData,
-    onComplete: (alternatives: any[]) => void,
-    onError?: (error: string) => void
+    onComplete: (alternatives: SloganAlternative[]) => void,
+    onError?: (error: Error) => void
   ) => {
     try {
       const dataToSend = {
@@ -377,7 +385,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     } catch (err) {
       console.error('[Background alternatives] Fetch failed:', err);
       if (onError) {
-        onError(err instanceof Error ? err.message : 'Unknown error');
+        onError(err instanceof Error ? err : new Error('Unknown error'));
       }
       onComplete([]);
     }
@@ -502,10 +510,16 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
       throw new Error('Kein Generate-Endpoint fur diesen Typ konfiguriert');
     }
 
-    if (type === IMAGE_STUDIO_TYPES.PURE_CREATE) {
+    if (type === IMAGE_STUDIO_TYPES.PURE_CREATE || type === IMAGE_STUDIO_TYPES.AI_EDITOR) {
+      const { selectedImageSize } = useImageStudioStore.getState();
+
       const requestData = {
         prompt: formData.purePrompt || formData.prompt,
-        variant: formData.variant || 'illustration-pure'
+        variant: formData.variant || 'illustration-pure',
+        ...(selectedImageSize && {
+          width: selectedImageSize.width,
+          height: selectedImageSize.height
+        })
       };
 
       const response = await apiClient.post(endpoint, requestData);
@@ -518,10 +532,16 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     }
 
     if (type === IMAGE_STUDIO_TYPES.KI_SHAREPIC) {
+      const { selectedImageSize } = useImageStudioStore.getState();
+
       const requestData = {
         prompt: formData.sharepicPrompt || formData.prompt,
         title: formData.imagineTitle || formData.title,
-        variant: formData.variant || 'light-top'
+        variant: formData.variant || 'light-top',
+        ...(selectedImageSize && {
+          width: selectedImageSize.width,
+          height: selectedImageSize.height
+        })
       };
 
       const response = await apiClient.post(endpoint, requestData);

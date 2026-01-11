@@ -5,7 +5,7 @@ import { FaArrowLeft, FaEdit } from 'react-icons/fa';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useAutoSaveStore } from '../hooks/useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
-import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
+import { getTypeConfig, getTemplateFieldConfig, IMAGE_STUDIO_TYPES, FORM_STEPS } from '../utils/typeConfig';
 import { getAlternativePreview, buildPreviewValues } from '../utils/templateResultUtils';
 import { useLightbox } from '../hooks/useLightbox';
 import { useEditPanel } from '../hooks/useEditPanel';
@@ -16,9 +16,12 @@ import { useImageGeneration } from '../hooks/useImageGeneration';
 import { Lightbox } from '../components/Lightbox';
 import { EditPanel } from '../components/EditPanel';
 import { TemplateResultActionButtons } from '../components/TemplateResultActionButtons';
+import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import { DreizeilenCanvas } from '../canvas-editor';
 import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
+import { useAiEditorHistory } from '../hooks/useAiEditorHistory';
+import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
 import type { TemplateResultStepProps, SloganAlternativeWithIndex, SloganAlternative, VeranstaltungFieldFontSizes } from '../types/templateResultTypes';
 
 const CANVAS_SUPPORTED_TYPES = [
@@ -38,6 +41,8 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
 
   const {
     type,
+    category,
+    subcategory,
     thema,
     generatedImageSrc,
     line1, line2, line3,
@@ -54,6 +59,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
     updateFieldFontSize,
     handleChange,
     updateFormData,
+    setCurrentStep,
     goBack,
     sloganAlternatives,
     setSloganAlternatives,
@@ -105,6 +111,10 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
 
   const { generateAlternatives, alternativesLoading } = useImageGeneration();
 
+  // AI Editor history (undo/redo)
+  const isAiEditor = typeConfig?.hasAiEditor === true;
+  const { undo, redo, canUndo, canRedo } = useAiEditorHistory();
+
   const [isNewImage, setIsNewImage] = useState(true);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -127,6 +137,47 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   const handleSwitchToCanvas = useCallback(() => {
     setIsCanvasMode(true);
   }, []);
+
+  const handleRecreate = useCallback(() => {
+    // Clear all form data
+    updateFormData({
+      thema: '',
+      details: '',
+      line1: '',
+      line2: '',
+      line3: '',
+      quote: '',
+      name: '',
+      header: '',
+      subheader: '',
+      body: '',
+      headline: '',
+      subtext: '',
+      precisionInstruction: '',
+      precisionMode: false,
+      selectedInfrastructure: [],
+      purePrompt: '',
+      sharepicPrompt: '',
+      imagineTitle: '',
+      variant: null,
+      allyPlacement: null,
+      uploadedImage: null,
+      selectedImage: null,
+      generatedImageSrc: null,
+      sloganAlternatives: [],
+      searchTerms: []
+    });
+
+    // Get first step from type config
+    const firstStep = typeConfig?.steps?.[0] || FORM_STEPS.INPUT;
+    setCurrentStep(firstStep);
+
+    // Navigate to type route to ensure clean state
+    const route = subcategory
+      ? `/image-studio/${category}/${subcategory}`
+      : `/image-studio/${category}`;
+    navigate(route);
+  }, [typeConfig, category, subcategory, updateFormData, setCurrentStep, navigate]);
 
   const uploadedImageUrl = useMemo(() => {
     if (uploadedImage) {
@@ -157,7 +208,12 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
             line2={line2 || ''}
             line3={line3 || ''}
             imageSrc={uploadedImageUrl}
-            alternatives={sloganAlternatives}
+            alternatives={sloganAlternatives.map((alt, index): DreizeilenAlternative => ({
+              id: `alt-${index}`,
+              line1: alt.line1 || '',
+              line2: alt.line2 || '',
+              line3: alt.line3 || ''
+            }))}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
           />
@@ -335,6 +391,27 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
   }, [type, thema, name, quote, generateAlternatives, setSloganAlternatives]);
 
   if (!generatedImageSrc && !supportsCanvas) {
+    if (loading) {
+      return (
+        <div className="template-result-step template-result-step--loading-state">
+          <motion.div
+            className="loading-state"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="loading-state__spinner">
+              <div className="spinner-ring" />
+            </div>
+            <h3 className="loading-state__title">Dein Bild wird generiert...</h3>
+            <p className="loading-state__subtitle">
+              Dies kann einige Sekunden dauern. Bitte habe einen Moment Geduld.
+            </p>
+          </motion.div>
+        </div>
+      );
+    }
+
     return (
       <div className="template-result-step template-result-step--empty">
         <p>Kein Bild generiert. Bitte gehe zurück und versuche es erneut.</p>
@@ -402,7 +479,13 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
           <div className="image-result-info__header">
             <div className="image-result-info__text">
               <h2>Dein Sharepic ist fertig!</h2>
-              <p>{galleryEditMode ? 'Speichere deine Änderungen oder lade das Bild herunter.' : 'Lade es herunter oder bearbeite den Text.'}</p>
+              <p>
+                {galleryEditMode
+                  ? 'Speichere deine Änderungen oder lade das Bild herunter.'
+                  : typeConfig?.usesFluxApi
+                    ? 'Lade es herunter oder generiere eine neue Variante.'
+                    : 'Lade es herunter oder bearbeite den Text.'}
+              </p>
             </div>
 
             <TemplateResultActionButtons
@@ -418,14 +501,23 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({ onRegenerate, l
               isAltTextLoading={isAltTextLoading}
               canNativeShare={canNativeShare}
               isUpdating={isUpdating}
+              isAiType={typeConfig?.usesFluxApi || false}
+              isAiEditor={isAiEditor}
+              canUndo={canUndo()}
+              canRedo={canRedo()}
               onDownload={handleDownload}
               onShare={() => setShowShareModal(true)}
               onGalleryUpdate={handleGalleryUpdate}
               onNavigateToGallery={() => navigate('/image-studio/gallery')}
               onOpenEditPanel={supportsCanvas ? handleSwitchToCanvas : openEditPanel}
+              onRecreate={handleRecreate}
               onTextButtonClick={handleTextButtonClick}
               onShareToInstagram={handleShareToInstagram}
+              onUndo={undo}
+              onRedo={redo}
             />
+
+            {isAiEditor && <AiHistoryTimeline />}
           </div>
 
           {(altText || generatedPosts?.instagram) && (

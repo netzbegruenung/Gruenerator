@@ -61,7 +61,7 @@ const ExportDropdown = ({ content,
 
   const { isAuthenticated } = useLazyAuth();
   const location = useLocation();
-  const { submitForm, loading: docsLoading } = useApiSubmit('etherpad/create');
+  const { submitForm, loading: docsLoading } = useApiSubmit('docs/from-export');
   const getGeneratedText = useGeneratedTextStore(state => state.getGeneratedText);
 
   const { isGenerating, generateDOCX } = useExportStore();
@@ -71,13 +71,6 @@ const ExportDropdown = ({ content,
   const isMobileView = window.innerWidth <= 768;
 
   const exportedContentHashes = useRef(new Set());
-
-  // Local modal state for copy/paste instruction
-  const [showPastePopup, setShowPastePopup] = useState(false);
-  const [copySucceeded, setCopySucceeded] = useState(false);
-  const [padURL, setPadURL] = useState('');
-  const [urlCopied, setUrlCopied] = useState(false);
-  const [textCopyIcon, setTextCopyIcon] = useState(<IoCopyOutline size={20} />);
 
   // Load share links when dropdown opens
   const loadShareLinks = useCallback(async () => {
@@ -245,44 +238,63 @@ const ExportDropdown = ({ content,
 
   const handleDocsExportInner = async () => {
     setShowDropdown(false);
+
     try {
+      // Check authentication first
+      if (!isAuthenticated) {
+        alert('Bitte melde dich an, um Dokumente zu erstellen.');
+        return;
+      }
+
+      // Validate content
       if (!content) {
         alert('Kein Text zum Exportieren verfügbar. Bitte generiere erst einen Text auf dieser Seite.');
         return;
       }
 
-      const plainContent = await extractPlainText(content);
-      if (!plainContent || plainContent.trim().length === 0) {
+      // Extract formatted content (preserves HTML/Markdown)
+      const formattedContent = await extractFormattedText(content);
+      if (!formattedContent || formattedContent.trim().length === 0) {
         alert('Der extrahierte Text ist leer.');
         return;
       }
 
+      // Create document title
+      const documentTitle = title || `${getDocumentType()} - ${new Date().toLocaleDateString('de-DE')}`;
+
+      // Submit to backend
       const response = await submitForm({
-        text: plainContent,
+        content: formattedContent,
+        title: documentTitle,
         documentType: getDocumentType()
       });
 
-      try {
-        await navigator.clipboard.writeText(plainContent);
-        setCopySucceeded(true);
-      } catch (copyErr) {
-        console.warn('Clipboard copy failed:', copyErr);
-        setCopySucceeded(false);
-      } finally {
-        setShowPastePopup(true);
+      // Navigate to document
+      if (response && response.documentId) {
+        // Open in new tab to preserve current work
+        window.open(`/document/${response.documentId}`, '_blank');
+      } else {
+        throw new Error('Keine Dokument-ID in der Antwort erhalten.');
       }
 
-      if (response && response.padURL) {
-        setPadURL(response.padURL);
-      }
     } catch (err) {
-      console.error('Fehler beim Exportieren zu Textbegrünung:', err);
+      console.error('Fehler beim Erstellen des Dokuments:', err);
       const errorMessage = err instanceof Error ? err.message : String(err);
-      alert('Fehler beim Exportieren zu Textbegrünung: ' + errorMessage);
+
+      let userMessage = 'Fehler beim Erstellen des Dokuments: ';
+      if (err.response?.status === 401) {
+        userMessage = 'Bitte melde dich an, um Dokumente zu erstellen.';
+      } else if (err.response?.status === 413) {
+        userMessage = 'Der Inhalt ist zu groß (max. 1MB).';
+      } else {
+        userMessage += errorMessage;
+      }
+
+      alert(userMessage);
     }
   };
 
-  const handleDocsExport = async () => await handleExportWithAutoSave(handleDocsExportInner, 'Etherpad');
+  const handleDocsExport = async () => await handleExportWithAutoSave(handleDocsExportInner, 'Grünerator Docs');
 
   const handleCopyTextInner = async () => {
     await copyFormattedContent(
@@ -539,15 +551,17 @@ const ExportDropdown = ({ content,
               <button
                 className="format-option"
                 onClick={handleDocsExport}
-                disabled={docsLoading}
+                disabled={docsLoading || !isAuthenticated}
               >
                 <CiMemoPad size={16} />
                 <div className="format-option-content">
                   <div className="format-option-title">
-                    {docsLoading ? 'Exportiere...' : 'Textbegrünung Export'}
+                    {docsLoading ? 'Erstelle Dokument...' : 'Grünerator Docs'}
                   </div>
                   <div className="format-option-subtitle">
-                    Öffentlich verfügbar, als Link teilbar
+                    {!isAuthenticated
+                      ? 'Login erforderlich'
+                      : 'Kollaborativ bearbeiten und teilen'}
                   </div>
                 </div>
               </button>
@@ -630,57 +644,6 @@ const ExportDropdown = ({ content,
           onClose={() => setShowWolkeSetupModal(false)}
           onSubmit={handleWolkeSetup}
         />
-      )}
-
-      {/* Enhanced Textbegrünung Export Popup */}
-      {showPastePopup && (
-        <div className="modal" role="dialog" aria-labelledby="export-modal-title" onClick={() => setShowPastePopup(false)}>
-          <div className="modal-content" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-            <button className="close-button" onClick={() => setShowPastePopup(false)}>
-              <IoCloseOutline size={24} />
-            </button>
-            <h2 id="export-modal-title">Mit Textbegrünung freigeben</h2>
-
-            <p>
-              {copySucceeded
-                ? 'Text wurde in Zwischenablage kopiert! Öffne dein Dokument und füge ihn mit Strg+V ein.'
-                : 'Öffne das Textbegrünung-Dokument und füge deinen Text dort ein.'}
-            </p>
-
-            {padURL && (
-              <>
-                <div className="url-container">
-                  <input type="text" value={padURL} readOnly className="url-input" />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(padURL).then(() => {
-                        setUrlCopied(true);
-                        setTimeout(() => setUrlCopied(false), 2000);
-                      }).catch(err => console.error('Fehler beim Kopieren:', err));
-                    }}
-                    className={`copy-docs-link-button ${urlCopied ? 'copied' : ''}`}
-                  >
-                    {urlCopied ? <IoCheckmarkOutline size={20} /> : <IoCopyOutline size={20} />}
-                  </button>
-                </div>
-                <div className="button-group">
-                  <button
-                    onClick={handleCopyText}
-                    className="export-action-button"
-                  >
-                    {textCopyIcon} Text kopieren
-                  </button>
-                  <button
-                    onClick={() => { window.open(padURL, '_blank'); setShowPastePopup(false); }}
-                    className="open-button"
-                  >
-                    <IoOpenOutline size={20} /> Link öffnen
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
       )}
     </div>
   );

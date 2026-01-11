@@ -16,12 +16,12 @@ const ClipPanel = () => {
   const clipsArray = getClipsArray();
   const clipCount = getClipCount();
 
-  const handleRemoveClip = useCallback((e, clipId) => {
+  const handleRemoveClip = useCallback((e: React.MouseEvent, clipId: string) => {
     e.stopPropagation();
     removeClip(clipId);
   }, [removeClip]);
 
-  const handleDragStart = useCallback((e, clipId) => {
+  const handleDragStart = useCallback((e: React.DragEvent, clipId: string) => {
     e.dataTransfer.setData('application/clip-id', clipId);
     e.dataTransfer.effectAllowed = 'copy';
   }, []);

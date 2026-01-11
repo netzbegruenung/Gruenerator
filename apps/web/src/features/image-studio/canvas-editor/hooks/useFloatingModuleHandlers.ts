@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { FullCanvasConfig } from '../configs/types';
 import type { FloatingModuleState } from './useFloatingModuleState';
+import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 
 /**
  * Floating Module Handlers - Handlers for floating toolbar interactions
@@ -9,10 +10,10 @@ import type { FloatingModuleState } from './useFloatingModuleState';
  * for different element types (text, image, shape, icon, illustration).
  */
 
-export interface UseFloatingModuleHandlersOptions<TState> {
+export interface UseFloatingModuleHandlersOptions<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions> {
     activeFloatingModule: FloatingModuleState | null;
-    actions: any;
-    config: FullCanvasConfig;
+    actions: TActions;
+    config: FullCanvasConfig<TState, TActions>;
     state: TState;
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
     debouncedSaveToHistory: (state: any) => void;
@@ -26,8 +27,8 @@ export interface UseFloatingModuleHandlersResult {
 /**
  * Hook to handle floating toolbar interactions
  */
-export function useFloatingModuleHandlers<TState>(
-    options: UseFloatingModuleHandlersOptions<TState>
+export function useFloatingModuleHandlers<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions>(
+    options: UseFloatingModuleHandlersOptions<TState, TActions>
 ): UseFloatingModuleHandlersResult {
     const { activeFloatingModule, actions, config, state, setState, debouncedSaveToHistory } = options;
 

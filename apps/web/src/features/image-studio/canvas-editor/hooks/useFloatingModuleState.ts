@@ -24,9 +24,9 @@ export interface FloatingModuleState {
     };
 }
 
-export interface UseFloatingModuleStateOptions<TState> {
+export interface UseFloatingModuleStateOptions<TState, TActions = Record<string, unknown>> {
     selectedElement: string | null;
-    config: FullCanvasConfig;
+    config: FullCanvasConfig<TState, TActions>;
     state: TState;
     layout: LayoutResult;
 }
@@ -34,8 +34,8 @@ export interface UseFloatingModuleStateOptions<TState> {
 /**
  * Hook to compute active floating module based on selected element
  */
-export function useFloatingModuleState<TState>(
-    options: UseFloatingModuleStateOptions<TState>
+export function useFloatingModuleState<TState, TActions = Record<string, unknown>>(
+    options: UseFloatingModuleStateOptions<TState, TActions>
 ): FloatingModuleState | null {
     const { selectedElement, config, state, layout } = options;
 

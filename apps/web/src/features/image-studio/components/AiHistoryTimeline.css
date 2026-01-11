@@ -1,0 +1,131 @@
+.ai-history-timeline {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small) var(--spacing-medium);
+  background-color: var(--background-color-alt);
+  border-radius: var(--border-radius);
+  margin-top: var(--spacing-medium);
+  overflow-x: auto;
+}
+
+.ai-history-timeline-label {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--font-color-secondary);
+  white-space: nowrap;
+  margin-right: var(--spacing-xsmall);
+}
+
+.ai-history-timeline-items {
+  display: flex;
+  gap: var(--spacing-xsmall);
+  flex: 1;
+  overflow-x: auto;
+  padding: var(--spacing-xxsmall) 0;
+}
+
+.ai-history-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xxsmall);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.ai-history-item:hover {
+  transform: scale(1.05);
+}
+
+.ai-history-item-thumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--border-radius-small);
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+  background-color: var(--background-color);
+}
+
+.ai-history-item-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ai-history-item.active .ai-history-item-thumbnail {
+  border-color: var(--tanne);
+  box-shadow: 0 0 0 2px var(--tanne-light);
+}
+
+.ai-history-item.future {
+  opacity: 0.5;
+}
+
+.ai-history-item.future .ai-history-item-thumbnail {
+  filter: grayscale(50%);
+}
+
+.ai-history-item-number {
+  font-size: var(--font-size-xsmall);
+  color: var(--font-color-secondary);
+  font-weight: 500;
+}
+
+.ai-history-item.active .ai-history-item-number {
+  color: var(--tanne);
+  font-weight: 600;
+}
+
+.ai-history-item-current-indicator {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  color: var(--tanne);
+  background-color: var(--background-color);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Scrollbar styling for the timeline */
+.ai-history-timeline-items::-webkit-scrollbar {
+  height: 4px;
+}
+
+.ai-history-timeline-items::-webkit-scrollbar-track {
+  background: var(--background-color-alt);
+  border-radius: 2px;
+}
+
+.ai-history-timeline-items::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+.ai-history-timeline-items::-webkit-scrollbar-thumb:hover {
+  background: var(--font-color-secondary);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .ai-history-timeline {
+    padding: var(--spacing-xsmall) var(--spacing-small);
+  }
+
+  .ai-history-item-thumbnail {
+    width: 50px;
+    height: 50px;
+  }
+
+  .ai-history-timeline-label {
+    font-size: var(--font-size-xsmall);
+  }
+}

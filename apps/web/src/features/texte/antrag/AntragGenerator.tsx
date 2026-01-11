@@ -6,16 +6,15 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import { FormTextarea } from '../../../components/common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
-import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import PlatformSelector from '../../../components/common/PlatformSelector';
 import Icon from '../../../components/common/Icon';
-import useInteractiveGenerator from '../../../hooks/useInteractiveGenerator';
-import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
+import { PlanModeWorkflow, PlanModeToggle } from '../../../components/common/PlanMode';
 import { HiAnnotation } from 'react-icons/hi';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import { useUserDefaults } from '../../../hooks/useUserDefaults';
-import type { Question, HelpContent } from '../../../types/baseform';
+import type { HelpContent } from '../../../types/baseform';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 
 interface AntragGeneratorProps {
   showHeaderFooter?: boolean;
@@ -59,29 +58,18 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
   // State for request type - moved outside of form control
   const [selectedRequestType, setSelectedRequestType] = useState(REQUEST_TYPES.ANTRAG);
 
-  // Interactive mode state - initialized from user defaults
-  const [useInteractiveMode, setUseInteractiveMode] = useState<boolean>(
-    () => userDefaults.get('interactiveMode', true) as boolean
+  // Plan Mode state - initialized from user defaults
+  const [usePlanMode, setUsePlanMode] = useState<boolean>(
+    () => userDefaults.get('planMode', false) as boolean
   );
 
   // Sync state when user defaults hydrate from backend
   useEffect(() => {
     if (userDefaults.isHydrated) {
-      const stored = userDefaults.get('interactiveMode', true) as boolean;
-      setUseInteractiveMode(stored);
+      const stored = userDefaults.get('planMode', false) as boolean;
+      setUsePlanMode(stored);
     }
   }, [userDefaults.isHydrated]);
-
-  const [interactiveState, setInteractiveState] = useState<'initial' | 'questions' | 'generating'>('initial');
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentAnswers, setCurrentAnswers] = useState<Record<string, string | string[]>>({});
-  const [questionRound, setQuestionRound] = useState(0);
-
-  // Interactive API hook
-  const { initiateSession, continueSession, loading: interactiveLoading, error: interactiveError } = useInteractiveGenerator({
-    generatorType: 'antrag'
-  });
 
   // Custom content state for interactive mode
   const [antragContent, setAntragContent] = useState('');
@@ -89,15 +77,11 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  // Get feature state and selection from store
-  // Use proper selectors for reactive subscriptions
-  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
-  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
-  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
-  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
-
-  // Fetch user's custom instructions
-  const customPrompt = useUserInstructions('antrag', isInstructionsActive);
+  // Consolidated setup using new hook
+  const setup = useGeneratorSetup({
+    instructionType: 'antrag',
+    componentName: 'antrag-generator'
+  });
 
   // Initialize useBaseForm with knowledge system enabled
   const form = useBaseForm({
@@ -113,14 +97,15 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
     tabIndexKey: 'ANTRAG' as unknown as null,
     defaultMode: 'pro' as unknown as null,
     helpContent: {
-      content: 'Interaktiver Modus! Die KI stellt dir 6 kurze Fragen, um deinen Antrag besser zu verstehen. So entstehen passgenauere Ergebnisse.',
+      content: 'Plan-Modus! Die KI erstellt zuerst einen strategischen Plan, stellt bei Bedarf Verständnisfragen, und generiert dann basierend auf dem genehmigten Plan.',
       tips: [
-        'Beantworte die Quiz-artigen Fragen mit einem Klick',
-        'Die KI nutzt deine Antworten für ein maßgeschneidertes Ergebnis',
-        'Du kannst den interaktiven Modus jederzeit ausschalten'
+        'KI erstellt strategischen Plan für deinen Antrag',
+        'Bei Unklarheiten: KI stellt gezielte Fragen',
+        'Du genehmigst den finalen Plan vor der Generierung',
+        'Ermöglicht präzisere und durchdachtere Anträge'
       ],
       isNewFeature: true,
-      featureId: 'interactive-antrag-v1',
+      featureId: 'plan-mode-antrag-v1',
       fallbackContent: 'Dieser Grünerator erstellt strukturierte Anträge und Anfragen für politische Gremien basierend auf deiner Idee und den Details. Du kannst auch PDFs und Bilder als Hintergrundinformation anhängen.',
       fallbackTips: [
         'Wähle die Art: Antrag, Kleine oder Große Anfrage',
@@ -136,117 +121,28 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
   // Cast getValues to typed version
   const getValues = form.getValues as (name?: string) => unknown;
 
+  // Combine file attachments (no URL crawling in this generator)
+  const allAttachments = useMemo(() => [
+    ...(form.generator?.attachedFiles || [])
+  ], [form.generator?.attachedFiles]);
+
+  // Form data builder with all attachments
+  const builder = useFormDataBuilder({
+    ...setup,
+    attachments: allAttachments,
+    searchQueryFields: ['inhalt', 'gliederung'] as const
+  });
+
   const onSubmitRHF = useCallback(async (rhfData: FormValues) => {
     setStoreIsLoading(true);
 
     try {
-      // Get current feature toggle state from store
-      const features = getFeatureState();
-
-      // INTERACTIVE MODE
-      if (useInteractiveMode) {
-        // Phase 1: Initial submission → Get questions OR direct result
-        if (interactiveState === 'initial') {
-          const result = await initiateSession({
-            inhalt: rhfData.inhalt,
-            requestType: selectedRequestType,
-            locale: 'de-DE'
-          });
-
-          // AI decided no clarification needed - result ready immediately
-          if (result.status === 'completed' && result.finalResult) {
-            const content = result.finalResult;
-            setAntragContent(content);
-            setGeneratedText(componentName, content, result.metadata);
-            setStoreIsLoading(false);
-            return;
-          }
-
-          // AI needs clarification - show questions
-          if (result.questions && result.questions.length > 0) {
-            setSessionId(result.sessionId);
-            setQuestions(result.questions);
-            setQuestionRound(result.questionRound);
-            setInteractiveState('questions');
-            setStoreIsLoading(false);
-            return;
-          }
-
-          // Fallback: no questions and no result - shouldn't happen
-          console.warn('[AntragGenerator] Unexpected state - no questions and no result');
-          setStoreIsLoading(false);
-          return;
-        }
-
-        // Phase 2: Submit answers → Get follow-ups or final result
-        if (interactiveState === 'questions') {
-          // Validate all questions answered - handle both string and array answers
-          const allAnswered = questions.every(q => {
-            const answer = currentAnswers[q.id];
-
-            // Handle array answers (multi-select questions)
-            if (Array.isArray(answer)) {
-              return answer.length > 0;
-            }
-
-            // Handle string answers (single-select and yes/no questions)
-            return answer && typeof answer === 'string' && answer.trim().length > 0;
-          });
-
-          if (!allAnswered) {
-            alert('Bitte beantworte alle Fragen, um fortzufahren.');
-            setStoreIsLoading(false);
-            return;
-          }
-
-          setInteractiveState('generating');
-          const result = await continueSession(sessionId, currentAnswers);
-
-          if (result.status === 'follow_up') {
-            // More questions needed
-            setQuestions(result.questions);
-            setQuestionRound(result.questionRound);
-            setCurrentAnswers({});
-            setInteractiveState('questions');
-          } else if (result.status === 'completed') {
-            const content = result.finalResult;
-            setAntragContent(content);
-            setGeneratedText(componentName, content, result.metadata);
-            setInteractiveState('initial');
-            setSessionId(null);
-            setQuestions([]);
-            setCurrentAnswers({});
-            setQuestionRound(0);
-          }
-
-          setStoreIsLoading(false);
-          return;
-        }
-      }
-
-      // SIMPLE MODE
-      const formDataToSubmit: Record<string, unknown> = {
+      // STANDARD MODE (Plan Mode handled by PlanModeWorkflow component)
+      const formDataToSubmit = builder.buildSubmissionData({
         requestType: selectedRequestType,
         inhalt: rhfData.inhalt,
-        gliederung: rhfData.gliederung,
-        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
-        attachments: form.generator?.attachedFiles
-      };
-
-      const extractQueryFromFormData = (data: Record<string, unknown>) => {
-        const queryParts: string[] = [];
-        if (data.inhalt) queryParts.push(data.inhalt as string);
-        if (data.gliederung) queryParts.push(data.gliederung as string);
-        return queryParts.filter(part => part && (part as string).trim()).join(' ');
-      };
-
-      const searchQuery = extractQueryFromFormData(formDataToSubmit);
-
-      // Add custom prompt from user instructions (simplified)
-      formDataToSubmit.customPrompt = customPrompt;
-      formDataToSubmit.selectedDocumentIds = selectedDocumentIds || [];
-      formDataToSubmit.selectedTextIds = selectedTextIds || [];
-      formDataToSubmit.searchQuery = searchQuery || '';
+        gliederung: rhfData.gliederung
+      });
 
       const response = await submitForm(formDataToSubmit);
       if (response) {
@@ -265,24 +161,13 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
       setStoreIsLoading(false);
     }
   }, [
-    useInteractiveMode,
-    interactiveState,
-    sessionId,
-    currentAnswers,
-    questions,
-    initiateSession,
-    continueSession,
     submitForm,
     resetSuccess,
     setGeneratedText,
     setStoreIsLoading,
     componentName,
-    customPrompt,
-    form.generator,
     selectedRequestType,
-    selectedDocumentIds,
-    selectedTextIds,
-    getFeatureState
+    builder
   ]);
 
   const handleGeneratedContentChange = useCallback((content: string) => {
@@ -315,99 +200,77 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
     );
   };
 
-  const renderFormInputs = () => (
-    <>
-      {(interactiveState === 'initial' || !useInteractiveMode) && (
-        <>
-          <FormTextarea
-            name="inhalt"
-            control={control}
-            placeholder={FORM_PLACEHOLDERS.INHALT}
-            rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
-            minRows={5}
-            maxRows={15}
-            className="form-textarea-large"
-            tabIndex={form.generator?.tabIndex?.inhalt}
-          />
+  const handlePlanModeComplete = useCallback((result: any) => {
+    const content = result.content || result;
+    setAntragContent(content);
+    setGeneratedText(componentName, content, result.metadata);
+    setUsePlanMode(false); // Return to standard mode after generation
+  }, [setGeneratedText, componentName]);
 
-          <SmartInput
-            fieldType="gliederung"
-            name="gliederung"
-            control={control}
-            setValue={setValue}
-            getValues={getValues}
-            label={FORM_LABELS.GLIEDERUNG}
-            placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
-            tabIndex={form.generator?.tabIndex?.gliederung}
-            onSubmitSuccess={success ? String(getValues('gliederung') || '') : null}
-            shouldSave={success}
-            formName="antrag"
-          />
-        </>
-      )}
-
-      {useInteractiveMode && interactiveState === 'questions' && (
-        <QuestionAnswerSection
-          questions={questions}
-          answers={currentAnswers}
-          onAnswerChange={(questionId: string, value: string | string[]) => {
-            setCurrentAnswers(prev => ({ ...prev, [questionId]: value }));
+  const renderFormInputs = () => {
+    // Plan Mode: Show PlanModeWorkflow
+    if (usePlanMode) {
+      const formData = getValues() as FormValues;
+      return (
+        <PlanModeWorkflow
+          generatorType="antrag"
+          formData={{
+            inhalt: formData.inhalt,
+            requestType: selectedRequestType,
+            gliederung: formData.gliederung
           }}
-          questionRound={questionRound}
-          onSubmit={() => handleSubmit((data: Record<string, unknown>) => onSubmitRHF(data as unknown as FormValues))()}
-          loading={loading || interactiveLoading}
-          success={success}
-          submitButtonProps={computedSubmitButtonProps}
+          onComplete={handlePlanModeComplete}
+          enablePlatformSelection={false}
         />
-      )}
-    </>
-  );
-
-  // Interactive mode toggle
-  const interactiveModeToggle = useMemo(() => ({
-    isActive: useInteractiveMode,
-    onToggle: (checked: boolean) => {
-      setUseInteractiveMode(checked);
-      // Save preference to database
-      userDefaults.set('interactiveMode', checked);
-      // Reset state when toggling off
-      if (!checked) {
-        setInteractiveState('initial');
-        setSessionId(null);
-        setQuestions([]);
-        setCurrentAnswers({});
-        setQuestionRound(0);
-      }
-    },
-    label: "Interaktiver Modus",
-    icon: HiAnnotation,
-    description: "KI stellt Verständnisfragen vor der Generierung"
-  }), [useInteractiveMode, userDefaults]);
-
-  // Compute submit button text based on interactive state
-  const computedSubmitButtonProps = useMemo(() => {
-    if (!useInteractiveMode) {
-      return {}; // Use default "Grünerieren"
+      );
     }
 
-    switch (interactiveState) {
-      case 'initial':
-        return { defaultText: 'Grünerieren' };
-      case 'questions':
-        return {
-          defaultText: 'Fragen beantworten',
-          statusMessage: 'Verarbeite Antworten...'
-        };
-      case 'generating':
-        return {
-          defaultText: 'Grünerieren',
-          statusMessage: 'Grüneriere Antrag...',
-          showStatus: true
-        };
-      default:
-        return {};
+    // Standard Mode: Show regular form inputs
+    return (
+      <>
+        <FormTextarea
+          name="inhalt"
+          control={control}
+          placeholder={FORM_PLACEHOLDERS.INHALT}
+          rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
+          minRows={5}
+          maxRows={15}
+          className="form-textarea-large"
+          tabIndex={form.generator?.tabIndex?.inhalt}
+        />
+
+        <SmartInput
+          fieldType="gliederung"
+          name="gliederung"
+          control={control}
+          setValue={setValue}
+          getValues={getValues}
+          label={FORM_LABELS.GLIEDERUNG}
+          placeholder={FORM_PLACEHOLDERS.GLIEDERUNG}
+          tabIndex={form.generator?.tabIndex?.gliederung}
+          onSubmitSuccess={success ? String(getValues('gliederung') || '') : null}
+          shouldSave={success}
+          formName="antrag"
+        />
+      </>
+    );
+  };
+
+  // Plan Mode toggle
+  const planModeToggleComponent = useMemo(() => {
+    if (!usePlanMode) {
+      return (
+        <PlanModeToggle
+          isActive={usePlanMode}
+          onToggle={(checked: boolean) => {
+            setUsePlanMode(checked);
+            userDefaults.set('planMode', checked);
+          }}
+        />
+      );
     }
-  }, [useInteractiveMode, interactiveState]);
+    return null; // Hide toggle when Plan Mode is active
+  }, [usePlanMode, userDefaults]);
 
   return (
     <ErrorBoundary>
@@ -418,15 +281,17 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
           enableEditMode={true}
           title={<span className="gradient-title">{REQUEST_TYPE_TITLES[selectedRequestType] || REQUEST_TYPE_TITLES[REQUEST_TYPES.ANTRAG]}</span>}
           onSubmit={() => handleSubmit((data: Record<string, unknown>) => onSubmitRHF(data as unknown as FormValues))()}
-          loading={loading || interactiveLoading}
+          loading={loading}
           success={success}
           error={error}
           generatedContent={storeGeneratedText || antragContent}
-          interactiveModeToggle={interactiveModeToggle}
-          useInteractiveModeToggle={true}
-          submitButtonProps={computedSubmitButtonProps}
-          firstExtrasChildren={renderRequestTypeSection()}
-          hideFormExtras={useInteractiveMode && interactiveState === 'questions'}
+          firstExtrasChildren={
+            <>
+              {renderRequestTypeSection()}
+              {planModeToggleComponent}
+            </>
+          }
+          hideFormExtras={usePlanMode}
           platformOptions={form.generator?.baseFormProps?.platformOptions ?? undefined}
         >
           {renderFormInputs()}

@@ -1,3 +1,4 @@
+import type { IconType } from 'react-icons';
 import type { OriginalSharepicData, GalleryEditData } from '../services/editingSessionService';
 import {
   IMAGE_STUDIO_CATEGORIES,
@@ -6,6 +7,7 @@ import {
   FORM_STEPS
 } from '../utils/typeConfig';
 import { DEFAULT_COLORS } from '../../../components/utils/constants';
+import type { ColorScheme } from './shared';
 
 // Font size constants
 export const FONT_SIZES = {
@@ -16,15 +18,6 @@ export const FONT_SIZES = {
 
 // Type for font size keys
 export type FontSizeKey = keyof typeof FONT_SIZES;
-
-// Color scheme interface
-export interface ColorScheme {
-  primary?: string;
-  secondary?: string;
-  background?: string;
-  text?: string;
-  [key: string]: string | undefined;
-}
 
 // Veranstaltung field font sizes
 export interface VeranstaltungFieldFontSizes {
@@ -84,6 +77,25 @@ export interface ImageLimitData {
   limit: number;
   resetTime?: number;
   [key: string]: unknown;
+}
+
+// AI Editor generation history entry
+export interface GenerationHistoryEntry {
+  id: string;
+  prompt: string;
+  generatedImage: string; // base64
+  imageSize: {
+    width: number;
+    height: number;
+    label: string;
+    aspectRatio: string;
+    platform: string;
+    icon?: IconType;
+    color?: string;
+  } | null;
+  variant: string | null;
+  timestamp: number;
+  shareToken?: string;
 }
 
 // Form data update partial
@@ -174,6 +186,15 @@ export interface ImageStudioState {
   purePrompt: string;
   sharepicPrompt: string;
   allyPlacement: string | null;
+  selectedImageSize: {
+    width: number;
+    height: number;
+    label: string;
+    aspectRatio: string;
+    platform: string;
+    icon?: IconType;
+    color?: string;
+  } | null;
 
   // Cross-component editing state
   editingSource: string | null;
@@ -225,6 +246,12 @@ export interface ImageStudioState {
 
   // AI generation state (from chat prompt)
   aiGeneratedContent: boolean;
+
+  // AI Editor history (undo/redo)
+  aiEditorHistory: GenerationHistoryEntry[];
+  aiEditorHistoryIndex: number;
+  aiEditorSessionId: string | null;
+  aiEditorMode: 'create' | 'edit';
 }
 
 // Store actions interface
@@ -334,6 +361,15 @@ export interface ImageStudioActions {
 
   // AI prompt generation (from chat input)
   loadFromAIGeneration: (sharepicType: string, generatedData: Record<string, string>, selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null) => void;
+
+  // AI Editor undo/redo
+  commitAiGeneration: (image: string, prompt: string) => void;
+  undoAiGeneration: () => void;
+  redoAiGeneration: () => void;
+  canUndoAi: () => boolean;
+  canRedoAi: () => boolean;
+  setAiEditorMode: (mode: 'create' | 'edit') => void;
+  loadHistoryEntry: (index: number) => void;
 }
 
 // Constants exposed on store
@@ -359,3 +395,6 @@ export const DEFAULT_VERANSTALTUNG_FIELD_FONT_SIZES: VeranstaltungFieldFontSizes
   locationName: 50,
   address: 40
 };
+
+// Re-export ColorScheme from shared module
+export type { ColorScheme } from './shared';

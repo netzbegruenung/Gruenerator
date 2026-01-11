@@ -7,8 +7,34 @@
     <meta name="theme-color" content="#005437" />
     <link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
     <title>Kandidat*in - Bündnis 90/Die Grünen</title>
-    <script type="module" crossorigin src="./assets/index.8QDhbs89.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index.DhZsecQQ.css">
+
+    <!-- Umami Analytics (GDPR-compliant with consent) -->
+    <script>
+      (function() {
+        // Only load Umami if consent is given
+        if (localStorage.getItem('analyticsConsent') === 'true') {
+          var script = document.createElement('script');
+          script.defer = true;
+          script.src = 'https://analytics.gruenes-cms.de/script.js';
+          script.setAttribute('data-website-id', 'YOUR_SITES_WEBSITE_ID');
+          document.head.appendChild(script);
+        }
+      })();
+
+      // Consent management functions
+      window.grantAnalyticsConsent = function() {
+        localStorage.setItem('analyticsConsent', 'true');
+        window.location.reload();
+      };
+
+      window.revokeAnalyticsConsent = function() {
+        localStorage.removeItem('analyticsConsent');
+        window.location.reload();
+      };
+    </script>
+    <!-- End Umami Code -->
+    <script type="module" crossorigin src="./assets/index.Bb8vptYf.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index.MdIt6LCw.css">
   </head>
   <body>
     <div id="root"></div>

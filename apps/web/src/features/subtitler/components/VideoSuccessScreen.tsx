@@ -10,6 +10,19 @@ import '../styles/VideoSuccessScreen.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
+interface VideoSuccessScreenProps {
+  onReset: () => void;
+  onEditAgain: () => void;
+  isLoading: boolean;
+  socialText?: string;
+  uploadId?: string;
+  projectTitle?: string;
+  projectId?: string;
+  onGenerateSocialText: () => void;
+  isGeneratingSocialText: boolean;
+  videoUrl?: string;
+}
+
 const AnimatedCheckmark = () => {
   return (
     <motion.svg
@@ -58,7 +71,7 @@ const AnimatedCheckmark = () => {
   );
 };
 
-const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
+const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEditAgain, isLoading, socialText, uploadId, projectTitle, projectId, onGenerateSocialText, isGeneratingSocialText, videoUrl }) => {
   const [showSpinner, setShowSpinner] = useState(isLoading);
   const [showShareModal, setShowShareModal] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -278,7 +291,7 @@ const VideoSuccessScreen = ({ onReset, onEditAgain, isLoading, socialText, uploa
           onClose={() => setShowShareModal(false)}
           mediaType="video"
           projectId={exportStore.projectId || projectId}
-          exportToken={exportStore.exportToken}
+          exportToken={exportStore.exportToken || undefined}
           defaultTitle={projectTitle}
         />
       )}

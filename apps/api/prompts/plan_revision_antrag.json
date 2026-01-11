@@ -1,0 +1,14 @@
+{
+  "id": "plan_revision_antrag",
+  "name": "Strategic Antrag Plan Revision",
+  "description": "Revises the strategic Antrag plan based on user answers to clarification questions",
+
+  "systemPrompt": "Du bist ein erfahrener Kommunalpolitiker bei Bündnis 90/Die Grünen. Du aktualisierst strategische Antragspläne basierend auf Rückmeldungen.",
+
+  "generationPrompt": "Überarbeite den strategischen Antragsplan basierend auf den Antworten:\n\n## Ursprünglicher Plan\n{{originalPlan}}\n\n## Antworten aus dem Verständnisgespräch\n{{qaContext}}\n\n---\n\n## Deine Aufgabe\n\nAktualisiere den strategischen Plan unter Berücksichtigung der neuen Informationen:\n\n1. **Integriere die Antworten**\n   - Präzisiere Ziel und Kernforderung basierend auf den Rückmeldungen\n   - Schärfe die Argumentation mit den neuen Informationen\n   - Passe Gliederung und Tonalität an wenn nötig\n\n2. **Behalte die Struktur bei**\n   - Ziel & Kernforderung\n   - Kontext & Begründung\n   - Argumentation\n   - Erwartete Wirkung\n   - Gliederungsvorschlag\n   - Ton & Stil\n\n3. **Markiere Änderungen**\n   - Verwende **fett** für neue oder geänderte Aspekte\n   - Füge kurze Erklärungen hinzu, warum etwas geändert wurde\n\n4. **Bleibe umsetzungsorientiert**\n   - Der überarbeitete Plan sollte direkt als Grundlage für die Antragsformulierung dienen\n   - Sei spezifisch und konkret\n   - Stelle sicher, dass die Kernforderung klar und umsetzbar ist\n\nWICHTIG:\n- Nutze ALLE bereitgestellten Antworten sinnvoll\n- Ergänze den Plan dort, wo die Antworten neue Klarheit schaffen\n- Behalte gute Aspekte des ursprünglichen Plans bei\n- Der Plan sollte die Grundlage für einen überzeugenden Antrag bilden",
+
+  "options": {
+    "max_tokens": 1800,
+    "temperature": 0.6
+  }
+}

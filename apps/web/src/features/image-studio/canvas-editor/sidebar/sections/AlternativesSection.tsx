@@ -1,12 +1,7 @@
 import { AlternativesRenderer } from './AlternativesCore';
 import { FaExchangeAlt, FaCheck } from 'react-icons/fa';
 import Spinner from '../../../../../components/common/Spinner';
-
-export interface DreizeilenAlternative {
-  line1?: string;
-  line2?: string;
-  line3?: string;
-}
+import type { DreizeilenAlternative } from '../../configs/dreizeilen.types';
 
 type Alternative = string | DreizeilenAlternative;
 

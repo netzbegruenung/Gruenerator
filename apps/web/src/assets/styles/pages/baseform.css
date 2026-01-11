@@ -1,3 +1,10 @@
+/* Wrapper for entire BaseForm including RecentTextsSection */
+.base-form-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
 .base-container {
     display: flex;
     width: 100%;

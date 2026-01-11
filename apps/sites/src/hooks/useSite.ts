@@ -54,6 +54,7 @@ interface SiteData {
     actions?: Array<{ imageUrl: string; text: string; link: string }>;
     heroImage?: { imageUrl: string; title: string; subtitle: string };
     contact?: { title: string; backgroundImageUrl: string };
+    socialFeed?: { title: string; instagramUsername?: string; showFeed: boolean };
   };
   is_published: boolean;
   created_at: string;

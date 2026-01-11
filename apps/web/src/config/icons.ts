@@ -95,7 +95,8 @@ export type IconCategory = 'platforms' | 'textTypes' | 'navigation' | 'actions' 
  */
 export type PlatformIconName =
   | 'instagram' | 'facebook' | 'twitter' | 'linkedin' | 'tiktok'
-  | 'messenger' | 'sharepic' | 'pressemitteilung' | 'actionIdeas' | 'reelScript';
+  | 'messenger' | 'sharepic' | 'pressemitteilung' | 'actionIdeas' | 'reelScript'
+  | 'automatisch';
 
 /**
  * Text type icon names
@@ -156,7 +157,8 @@ export const ICONS: IconRegistry = {
     sharepic: PiImageSquare,
     pressemitteilung: PiNewspaper,
     actionIdeas: PiMagicWand,
-    reelScript: PiVideoCamera
+    reelScript: PiVideoCamera,
+    automatisch: HiSparkles
   },
 
   textTypes: {

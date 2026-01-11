@@ -17,6 +17,7 @@ export const greenEditTypeConfig: KiTypeConfig = {
   hasTextGeneration: false,
   usesFluxApi: true,
   hasRateLimit: true,
+  hasAiEditor: true,
   hasPrecisionMode: true,
   alwaysPrecision: true,
   endpoints: {

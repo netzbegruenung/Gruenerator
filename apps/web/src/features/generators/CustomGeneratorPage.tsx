@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOptimizedAuth } from '../../hooks/useAuth';
-import { Controller } from 'react-hook-form';
 import type { HelpContent, BaseFormProps } from '../../types/baseform';
 import BaseForm from '../../components/common/BaseForm';
-import FormInput from '../../components/common/Form/Input/FormInput';
-import FormTextarea from '../../components/common/Form/Input/FormTextarea';
-import EnhancedSelect from '../../components/common/EnhancedSelect';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import '../../assets/styles/components/custom-generator/custom-generator-page.css';
 import '../../assets/styles/components/ui/button.css';
@@ -15,35 +11,11 @@ import useGeneratedTextStore from '../../stores/core/generatedTextStore';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
 import useBaseForm from '../../components/common/Form/hooks/useBaseForm';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
+import { GeneratorConfig, DEFAULT_FEATURE_TOGGLES } from './types/generatorTypes';
+import DynamicFormFieldRenderer from './components/DynamicFormFieldRenderer';
 
 interface CustomGeneratorPageProps {
   showHeaderFooter?: boolean;
-}
-
-interface FormField {
-  name: string;
-  label: string;
-  type: string;
-  placeholder?: string;
-  required?: boolean;
-  defaultValue?: string;
-  options?: Array<{ value: string; label: string }>;
-}
-
-interface GeneratorConfig {
-  id: string;
-  name?: string;
-  title?: string;
-  description?: string;
-  slug: string;
-  is_owner?: boolean;
-  is_saved?: boolean;
-  owner_first_name?: string;
-  owner_last_name?: string;
-  owner_email?: string;
-  form_schema: {
-    fields: FormField[];
-  };
 }
 
 const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFooter = true }) => {
@@ -71,11 +43,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   const { submitForm, loading: isSubmitting, success: submissionSuccess, resetSuccess, error: submissionError } = useApiSubmit('/custom_generator');
 
   // Create default values for the form
-  const defaultValues: Record<string, unknown> = {
-    useWebSearchTool: false,
-    usePrivacyMode: false,
-    useBedrock: false
-  };
+  const defaultValues: Record<string, unknown> = { ...DEFAULT_FEATURE_TOGGLES };
   if (generatorConfig) {
     generatorConfig.form_schema.fields.forEach(field => {
       defaultValues[field.name] = field.defaultValue || '';
@@ -104,11 +72,7 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   // Reset form when generator config changes
   useEffect(() => {
     if (generatorConfig) {
-      const newDefaults: Record<string, unknown> = {
-        useWebSearchTool: false,
-        usePrivacyMode: false,
-        useBedrock: false
-      };
+      const newDefaults: Record<string, unknown> = { ...DEFAULT_FEATURE_TOGGLES };
       generatorConfig.form_schema.fields.forEach(field => {
         newDefaults[field.name] = field.defaultValue || '';
       });
@@ -273,85 +237,6 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     </button>
   );
 
-  const renderFormInputs = () => (
-    <>
-      {generatorConfig.form_schema.fields.map((field) => {
-        if (field.type === 'textarea') {
-          return (
-            <FormTextarea
-              key={field.name}
-              name={field.name}
-              label={field.label}
-              placeholder={field.placeholder}
-              required={field.required}
-              control={form.control}
-              defaultValue={field.defaultValue || ''}
-              rows={4}
-              rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
-              enableUrlDetection={true}
-              onUrlsDetected={handleUrlsDetected}
-            />
-          );
-        }
-
-        if (field.type === 'select') {
-          const selectOptions = (field.options || []).map(option => ({
-            value: option.value,
-            label: option.label
-          }));
-
-          return (
-            <Controller
-              key={field.name}
-              name={field.name as never}
-              control={form.control}
-              defaultValue={(field.defaultValue || '') as never}
-              rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
-              render={({ field: controllerField, fieldState }) => (
-                <EnhancedSelect
-                  inputId={`${field.name}-select`}
-                  label={field.label}
-                  options={selectOptions}
-                  placeholder={field.placeholder || 'Bitte wählen...'}
-                  value={controllerField.value ? selectOptions.find(opt => opt.value === controllerField.value) : null}
-                  onChange={(selectedOption) => {
-                    // Handle single-value select (not multi-select)
-                    const value = selectedOption && !Array.isArray(selectedOption)
-                      ? (selectedOption as { value: string | number }).value
-                      : null;
-                    controllerField.onChange(value);
-                  }}
-                  onBlur={controllerField.onBlur}
-                  isClearable={!field.required}
-                  isSearchable={false}
-                  className="react-select"
-                  classNamePrefix="react-select"
-                  error={fieldState.error?.message}
-                  required={field.required}
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                />
-              )}
-            />
-          );
-        }
-
-        return (
-          <FormInput
-            key={field.name}
-            name={field.name}
-            label={field.label}
-            placeholder={field.placeholder}
-            type={field.type}
-            required={field.required}
-            control={form.control}
-            defaultValue={field.defaultValue || ''}
-            rules={field.required ? { required: `${field.label} ist ein Pflichtfeld` } : {}}
-          />
-        );
-      })}
-    </>
-  );
 
   const baseFormProps: BaseFormProps = {
     ...(form.generator?.baseFormProps as unknown as BaseFormProps || {}),
@@ -373,7 +258,12 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     <ErrorBoundary>
       <div className={`custom-generator-page-container container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm {...baseFormProps}>
-          {renderFormInputs()}
+          <DynamicFormFieldRenderer
+            fields={generatorConfig.form_schema.fields}
+            control={form.control}
+            onUrlsDetected={handleUrlsDetected}
+            enableUrlDetection={true}
+          />
         </BaseForm>
       </div>
     </ErrorBoundary>

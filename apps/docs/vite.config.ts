@@ -32,7 +32,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 3000,
+    port: 3002,
     open: true,
     proxy: {
       '/api': {

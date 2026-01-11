@@ -75,11 +75,14 @@ class RequestEnricher {
   /**
    * Format saved texts with rich metadata (matches frontend formatting)
    * @param {Array} textData - Raw text entries from database
-   * @returns {Array} Formatted text strings
+   * @returns {Object} Formatted text strings and reference metadata
    */
-  formatSavedTexts(textData: SavedText[]): string[] {
+  formatSavedTexts(textData: SavedText[]): {
+    formatted: string[];
+    references: import('./types/requestEnrichment.js').TextReference[];
+  } {
     if (!textData || textData.length === 0) {
-      return [];
+      return { formatted: [], references: [] };
     }
 
     const typeDisplayNames = {
@@ -91,7 +94,10 @@ class RequestEnricher {
       'text': 'Allgemeiner Text'
     };
 
-    return textData.map(text => {
+    const formatted: string[] = [];
+    const references: import('./types/requestEnrichment.js').TextReference[] = [];
+
+    textData.forEach(text => {
       const textType = text.document_type || 'text';
       const typeDisplayName = typeDisplayNames[textType] || textType;
 
@@ -103,44 +109,79 @@ class RequestEnricher {
         ? new Date(text.created_at).toLocaleDateString('de-DE')
         : 'Unbekannt';
 
-      return `## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${createdDate}\n\n${plainContent}`;
+      // Add formatted string for AI knowledge array
+      formatted.push(`## Text: ${text.title}\n**Typ:** ${typeDisplayName}\n**Wörter:** ${text.word_count || 'Unbekannt'}\n**Erstellt:** ${createdDate}\n\n${plainContent}`);
+
+      // Add reference metadata for bibliography display
+      references.push({
+        title: text.title || 'Unbekannt',
+        type: typeDisplayName,
+        wordCount: text.word_count || 0,
+        createdAt: createdDate
+      });
     });
+
+    return { formatted, references };
   }
 
   /**
    * Format vector search results with detailed metadata (matches frontend formatting)
    * @param {Array} searchResults - Vector search results from API
-   * @returns {Array} Formatted document strings
+   * @returns {Object} Formatted document strings and reference metadata
    */
-  formatVectorSearchResults(searchResults: VectorSearchResult[]): string[] {
+  formatVectorSearchResults(searchResults: VectorSearchResult[]): {
+    formatted: string[];
+    references: import('./types/requestEnrichment.js').DocumentReference[];
+  } {
     if (!searchResults || searchResults.length === 0) {
-      return [];
+      return { formatted: [], references: [] };
     }
 
-    return searchResults.map(doc => {
+    const formatted: string[] = [];
+    const references: import('./types/requestEnrichment.js').DocumentReference[] = [];
+
+    searchResults.forEach(doc => {
       const contentType = doc.content_type === 'vector_search' ? 'Vector Search' :
                         doc.content_type === 'full_text' ? 'Volltext' : 'Intelligenter Auszug';
 
-      return `## Dokument: ${doc.title}\n**Datei:** ${doc.filename}\n**Seiten:** ${doc.page_count || 'Unbekannt'}\n**Inhalt:** ${contentType}\n**Info:** ${doc.search_info}\n\n${doc.content}`;
+      // Add formatted string for AI knowledge array
+      formatted.push(`## Dokument: ${doc.title}\n**Datei:** ${doc.filename}\n**Seiten:** ${doc.page_count || 'Unbekannt'}\n**Inhalt:** ${contentType}\n**Info:** ${doc.search_info}\n\n${doc.content}`);
+
+      // Add reference metadata for bibliography display
+      references.push({
+        title: doc.title,
+        filename: doc.filename,
+        pageCount: doc.page_count,
+        retrievalMethod: 'vector_search',
+        relevance: doc.similarity_score ? Math.round(doc.similarity_score * 100) : undefined
+      });
     });
+
+    return { formatted, references };
   }
 
   /**
    * Format full documents retrieved from Qdrant chunks
    * @param {Array} fullTextResults - Full text results from getMultipleDocumentsFullText
    * @param {Array} docsMetadata - Document metadata from PostgreSQL
-   * @returns {Array} Formatted document strings
+   * @returns {Object} Formatted document strings and reference metadata
    */
-  formatFullDocuments(fullTextResults: FullTextResult[], docsMetadata: any[]): string[] {
+  formatFullDocuments(fullTextResults: FullTextResult[], docsMetadata: any[]): {
+    formatted: string[];
+    references: import('./types/requestEnrichment.js').DocumentReference[];
+  } {
     if (!fullTextResults || fullTextResults.length === 0) {
-      return [];
+      return { formatted: [], references: [] };
     }
 
-    return fullTextResults.map(result => {
+    const formatted: string[] = [];
+    const references: import('./types/requestEnrichment.js').DocumentReference[] = [];
+
+    fullTextResults.forEach(result => {
       const meta = docsMetadata.find(d => d.id === result.id);
       if (!meta) {
         console.warn(`[RequestEnricher] Metadata not found for document ${result.id}`);
-        return null;
+        return;
       }
 
       // Estimate page count (roughly 2.5 chunks per page)
@@ -149,8 +190,19 @@ class RequestEnricher {
       // Calculate word count for better context understanding
       const wordCount = result.fullText.split(/\s+/).filter(w => w.length > 0).length;
 
-      return `## Dokument: ${meta.title}\n**Datei:** ${meta.filename || 'Unbekannt'}\n**Seiten:** ~${estimatedPages}\n**Wörter:** ~${wordCount}\n**Inhalt:** Volltext (${result.chunkCount} Abschnitte)\n**Info:** Dokument vollständig übermittelt - ${result.chunkCount} Chunks zusammengefügt\n\n${result.fullText}`;
-    }).filter(Boolean);
+      // Add formatted string for AI knowledge array
+      formatted.push(`## Dokument: ${meta.title}\n**Datei:** ${meta.filename || 'Unbekannt'}\n**Seiten:** ~${estimatedPages}\n**Wörter:** ~${wordCount}\n**Inhalt:** Volltext (${result.chunkCount} Abschnitte)\n**Info:** Dokument vollständig übermittelt - ${result.chunkCount} Chunks zusammengefügt\n\n${result.fullText}`);
+
+      // Add reference metadata for bibliography display
+      references.push({
+        title: meta.title,
+        filename: meta.filename || 'Unbekannt',
+        pageCount: estimatedPages,
+        retrievalMethod: 'full_text'
+      });
+    });
+
+    return { formatted, references };
   }
 
   /**
@@ -272,10 +324,10 @@ class RequestEnricher {
     if (selectedDocumentIds.length > 0 && searchQuery && !usePrivacyMode) {
       enrichmentTasks.push(
         this.performDocumentVectorSearch(selectedDocumentIds, searchQuery, options.req)
-          .then(result => ({ type: 'vectorsearch', knowledge: result.knowledge }))
+          .then(result => ({ type: 'vectorsearch', knowledge: result.knowledge, documentReferences: result.documentReferences || [] }))
           .catch(error => {
             console.log('🎯 [RequestEnricher] Vector search failed:', error.message);
-            return { type: 'vectorsearch', knowledge: [] };
+            return { type: 'vectorsearch', knowledge: [], documentReferences: [] };
           })
       );
     }
@@ -284,10 +336,10 @@ class RequestEnricher {
     if (selectedTextIds.length > 0) {
       enrichmentTasks.push(
         this.fetchTextsByIds(selectedTextIds, options.req)
-          .then(result => ({ type: 'texts', knowledge: result.knowledge }))
+          .then(result => ({ type: 'texts', knowledge: result.knowledge, textReferences: result.textReferences || [] }))
           .catch(error => {
             console.log('🎯 [RequestEnricher] Texts fetch failed:', error.message);
-            return { type: 'texts', knowledge: [] };
+            return { type: 'texts', knowledge: [], textReferences: [] };
           })
       );
     }
@@ -335,6 +387,8 @@ class RequestEnricher {
     let totalDocuments = 0;
     let webSearchSources = null;
     let autoSearchMetadata = null;
+    let allDocumentReferences: import('./types/requestEnrichment.js').DocumentReference[] = [];
+    let allTextReferences: import('./types/requestEnrichment.js').TextReference[] = [];
 
     for (const result of enrichmentResults) {
       if (result.type === 'urls' && result.documents.length > 0) {
@@ -355,6 +409,9 @@ class RequestEnricher {
           state.knowledge.push(...result.knowledge);
           console.log(`🎯 [RequestEnricher] Added vector search knowledge from ${selectedDocumentIds.length} documents`);
         }
+        if (result.documentReferences && result.documentReferences.length > 0) {
+          allDocumentReferences.push(...result.documentReferences);
+        }
       } else if (result.type === 'knowledge') {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
@@ -364,6 +421,9 @@ class RequestEnricher {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
           console.log(`🎯 [RequestEnricher] Added ${result.knowledge.length} saved texts`);
+        }
+        if (result.textReferences && result.textReferences.length > 0) {
+          allTextReferences.push(...result.textReferences);
         }
       } else if (result.type === 'autovectorsearch') {
         if (result.knowledge.length > 0) {
@@ -384,7 +444,9 @@ class RequestEnricher {
       webSearchSources,
       usePrivacyMode,
       autoSearchUsed: useAutomaticSearch && autoSearchMetadata !== null,
-      autoSelectedDocuments: autoSearchMetadata?.autoSelectedDocuments || []
+      autoSelectedDocuments: autoSearchMetadata?.autoSelectedDocuments || [],
+      documentsReferences: allDocumentReferences.length > 0 ? allDocumentReferences : undefined,
+      textsReferences: allTextReferences.length > 0 ? allTextReferences : undefined
     };
 
     console.log(`🎯 [RequestEnricher] Enrichment complete (documents=${state.documents.length}, knowledge=${state.knowledge.length})`);
@@ -645,11 +707,12 @@ class RequestEnricher {
       ]);
 
       // Step 4: Format results consistently
-      const fullDocsFormatted = this.formatFullDocuments(fullTextResults.documents, smallDocs);
-      const vectorDocsFormatted = this.formatVectorSearchResults(vectorSearchResults);
+      const fullDocsResult = this.formatFullDocuments(fullTextResults.documents, smallDocs);
+      const vectorDocsResult = this.formatVectorSearchResults(vectorSearchResults);
 
       // Step 5: Merge results
-      const allKnowledge = [...fullDocsFormatted, ...vectorDocsFormatted];
+      const allKnowledge = [...fullDocsResult.formatted, ...vectorDocsResult.formatted];
+      const allReferences = [...fullDocsResult.references, ...vectorDocsResult.references];
 
       const elapsedTime = Date.now() - startTime;
 
@@ -660,11 +723,11 @@ class RequestEnricher {
       console.log(`   - Total knowledge entries: ${allKnowledge.length}`);
       console.log(`   - Estimated tokens saved: ~${smallDocs.length * 200} (no vector search overhead)`);
 
-      return { knowledge: allKnowledge };
+      return { knowledge: allKnowledge, documentReferences: allReferences };
 
     } catch (error) {
       console.error('🎯 [RequestEnricher] Smart document retrieval error:', error);
-      return { knowledge: [] };
+      return { knowledge: [], documentReferences: [] };
     }
   }
 
@@ -736,19 +799,19 @@ class RequestEnricher {
 
       if (!textData || textData.length === 0) {
         console.log('🎯 [RequestEnricher] No texts found for provided IDs');
-        return { knowledge: [] };
+        return { knowledge: [], textReferences: [] };
       }
 
       // Format as knowledge content using new formatter
-      const textEntries = this.formatSavedTexts(textData as unknown as SavedText[]);
+      const textsResult = this.formatSavedTexts(textData as unknown as SavedText[]);
 
-      console.log(`🎯 [RequestEnricher] Successfully fetched ${textEntries.length} saved texts`);
+      console.log(`🎯 [RequestEnricher] Successfully fetched ${textsResult.formatted.length} saved texts`);
 
-      return { knowledge: textEntries };
+      return { knowledge: textsResult.formatted, textReferences: textsResult.references };
 
     } catch (error) {
       console.log('🎯 [RequestEnricher] Texts fetch error:', error.message);
-      return { knowledge: [] };
+      return { knowledge: [], textReferences: [] };
     }
   }
 

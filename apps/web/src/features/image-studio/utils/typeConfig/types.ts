@@ -91,6 +91,7 @@ export interface TypeConfigBase {
   parallelPreload?: boolean;
   usesFluxApi: boolean;
   hasRateLimit: boolean;
+  hasAiEditor?: boolean;
   hasPrecisionMode?: boolean;
   alwaysPrecision?: boolean;
   hasBackgroundRemoval?: boolean;

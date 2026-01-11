@@ -45,7 +45,7 @@ export const pureCreateFieldConfig: TemplateFieldConfig = {
   ],
   previewFields: [],
   resultFields: [],
-  afterLastInputTrigger: 'generateImage',
+  afterLastInputTrigger: undefined,
   showImageUpload: false,
   showColorControls: false,
   showFontSizeControl: false,

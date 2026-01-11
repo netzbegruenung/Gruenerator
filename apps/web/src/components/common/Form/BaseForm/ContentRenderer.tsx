@@ -227,7 +227,11 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     return processedGeneratedContent;
   }
 
-  if (typeof contentToRender === 'string') {
+  // Calculate shouldUseMarkdown BEFORE checking string type
+  const shouldUseMarkdown = useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender as string);
+
+  // If string content AND markdown rendering NOT requested → use FinetuneEditor
+  if (typeof contentToRender === 'string' && !shouldUseMarkdown) {
     return (
       <div className={`generated-content-wrapper ${isEditModeActive ? 'editable' : ''}`}>
         <Suspense fallback={<div className="finetune-loading">Editor wird geladen...</div>}>
@@ -239,8 +243,6 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
       </div>
     );
   }
-
-  const shouldUseMarkdown = useMarkdown !== null ? useMarkdown : isMarkdownContent(contentToRender as string);
 
   const createCitationComponents = (citations: Citation[]) => {
     const processCitationText = (text: unknown): ReactNode => {

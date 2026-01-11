@@ -330,9 +330,9 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
 
     calculateLayout,
 
-    createInitialState: (props) => ({
-        header: props.header ?? '',
-        body: props.body ?? '',
+    createInitialState: (props: Record<string, unknown>) => ({
+        header: (props.header as string | undefined) ?? '',
+        body: (props.body as string | undefined) ?? '',
         backgroundColor: '#005538',
         customHeaderFontSize: null,
         customBodyFontSize: null,
@@ -344,7 +344,7 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
         bodyOpacity: 1,
         assetVisibility: {},
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        alternatives: props.alternatives?.map((a: any) => a.header || '') ?? [],
+        alternatives: (props.alternatives as any[] | undefined)?.map((a: any) => a.header || '') ?? [],
         // Balken initial state
         balkenInstances: [],
         selectedIcons: [],
@@ -517,10 +517,10 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
             saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
         },
         updateIllustration: (id, partial) => {
-            setState((prev) => ({
+            setState((prev): InfoFullState => ({
                 ...prev,
-                illustrationInstances: prev.illustrationInstances.map(i =>
-                    i.id === id ? { ...i, ...partial } : i
+                illustrationInstances: prev.illustrationInstances.map((i): IllustrationInstance =>
+                    i.id === id ? { ...i, ...partial } as IllustrationInstance : i
                 ),
             }));
             debouncedSaveToHistory({ ...getState() });

@@ -84,6 +84,15 @@ export class PostgresService {
       this.lastError = null;
       console.log('[PostgresService] PostgreSQL minimal initialization successful (connection only)');
 
+      // Auto-sync schema columns
+      try {
+        await this.syncSchemaColumns();
+        console.log('[PostgresService] ✓ Schema columns synchronized');
+      } catch (error) {
+        // Graceful failure: log warning but don't throw
+        console.warn('[PostgresService] ⚠️ Schema column sync failed (non-critical):', (error as Error).message);
+      }
+
     } catch (error) {
       this.isInitialized = false;
       this.isHealthy = false;
@@ -212,25 +221,33 @@ export class PostgresService {
       if (alterStatements.length > 0) {
         console.log(`[PostgresService] Found ${alterStatements.length} missing columns to add`);
 
+        let successCount = 0;
+        let failCount = 0;
+
         const client = await this.pool!.connect();
         try {
           for (const alter of alterStatements) {
             try {
               await client.query(alter.statement);
               console.log(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
+              successCount++;
             } catch (error) {
               console.warn(`[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`, (error as Error).message);
+              failCount++;
             }
           }
         } finally {
           client.release();
         }
+
+        console.log(`[PostgresService] Schema sync complete: ${successCount} added, ${failCount} failed`);
       } else {
         console.log('[PostgresService] All schema columns are up to date');
       }
 
     } catch (error) {
       console.error('[PostgresService] Error during schema column sync:', error);
+      throw error;
     }
   }
 

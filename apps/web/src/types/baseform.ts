@@ -90,6 +90,24 @@ export interface SubmitConfig {
   buttonProps?: Record<string, unknown>;
 }
 
+/** NEW: Consolidated UI configuration (replaces 7+ individual props) */
+export interface UIConfig {
+  /** Enable knowledge base selector */
+  enableKnowledgeSelector?: boolean;
+  /** Show profile selector for user profiles */
+  showProfileSelector?: boolean;
+  /** Show image upload component */
+  showImageUpload?: boolean;
+  /** Enable edit mode for generated content */
+  enableEditMode?: boolean;
+  /** Use markdown rendering for content */
+  useMarkdown?: boolean | null;
+  /** Hide the display container completely */
+  hideDisplayContainer?: boolean;
+  /** Use start page layout with prompts */
+  useStartPageLayout?: boolean;
+}
+
 export interface FormControl {
   control?: Control<FieldValues>;
   register?: unknown;
@@ -430,7 +448,6 @@ export interface BaseFormProps {
   onEditSubmit?: ((content: string) => void | Promise<void>) | null;
 
   // Advanced configuration
-  submitConfig?: SubmitConfig | null;
   submitButtonProps?: Record<string, unknown>;
   headerContent?: ReactNode;
   defaultValues?: Record<string, unknown>;
@@ -443,6 +460,7 @@ export interface BaseFormProps {
   generatedContent?: GeneratedContent;
   onGeneratedContentChange?: ((content: string) => void) | null;
   initialContent?: string;
+  /** @deprecated Use `uiConfig.hideDisplayContainer` instead */
   hideDisplayContainer?: boolean;
   customRenderer?: ((props: {
     content: unknown;
@@ -451,6 +469,7 @@ export interface BaseFormProps {
     helpContent?: HelpContent | null;
     onEditModeToggle?: () => void;
   }) => ReactNode) | null;
+  /** @deprecated Use `uiConfig.useMarkdown` instead */
   useMarkdown?: boolean | null;
 
   // Help content
@@ -469,9 +488,19 @@ export interface BaseFormProps {
   showNextButton?: boolean;
   nextButtonText?: string;
 
-  // NEW: Consolidated features prop (preferred)
+  // NEW: Consolidated configuration props (preferred over individual props)
+  /** Consolidated feature toggle configuration */
   features?: FeaturesConfig;
+  /** Consolidated tab index configuration */
+  tabIndexConfig?: TabIndexConfig;
+  /** Consolidated platform selector configuration */
+  platformConfig?: PlatformConfig;
+  /** Consolidated submit button configuration */
+  submitConfig?: SubmitConfig | null;
+  /** Consolidated UI-related configuration */
+  uiConfig?: UIConfig;
 
+  // DEPRECATED: Legacy feature props (use features prop instead)
   /** @deprecated Use `features.webSearch` instead */
   webSearchFeatureToggle?: FeatureToggle | null;
   /** @deprecated Use `features.webSearch.enabled` instead */
@@ -503,31 +532,40 @@ export interface BaseFormProps {
   // Feature icons
   useFeatureIcons?: boolean;
 
-  // Image upload
+  // DEPRECATED: Legacy UI props (use uiConfig instead)
+  /** @deprecated Use `uiConfig.showImageUpload` instead */
   showImageUpload?: boolean;
   uploadedImage?: unknown;
   onImageChange?: ((image: unknown) => void) | null;
   onImageEditModeChange?: ((isActive: boolean) => void) | null;
 
-  // Edit mode
+  /** @deprecated Use `uiConfig.enableEditMode` instead */
   enableEditMode?: boolean;
   customEditContent?: ReactNode;
 
-  // Platform selector
+  // DEPRECATED: Legacy platform props (use platformConfig instead)
+  /** @deprecated Use `platformConfig.enabled` instead */
   enablePlatformSelector?: boolean;
+  /** @deprecated Use `platformConfig.options` instead */
   platformOptions?: PlatformOption[];
+  /** @deprecated Use `platformConfig.label` instead */
   platformSelectorLabel?: string;
+  /** @deprecated Use `platformConfig.placeholder` instead */
   platformSelectorPlaceholder?: string;
+  /** @deprecated Use `platformConfig.helpText` instead */
   platformSelectorHelpText?: string;
 
-  // Knowledge/Documents
+  // DEPRECATED: Legacy knowledge/UI props (use uiConfig instead)
+  /** @deprecated Use `uiConfig.enableKnowledgeSelector` instead */
   enableKnowledgeSelector?: boolean;
+  /** @deprecated Use `uiConfig.showProfileSelector` instead */
   showProfileSelector?: boolean;
   documentSelectorTabIndex?: number;
   knowledgeSelectorTabIndex?: number;
   knowledgeSourceSelectorTabIndex?: number;
 
   // Start page layout props
+  /** @deprecated Use `uiConfig.useStartPageLayout` instead */
   useStartPageLayout?: boolean;
   startPageDescription?: string | null;
   examplePrompts?: ExamplePrompt[];
@@ -536,15 +574,17 @@ export interface BaseFormProps {
   /** Array of platform IDs that are currently selected - used to highlight selected platform tags */
   selectedPlatforms?: string[];
 
-  // Tab index configuration
+  // DEPRECATED: Legacy tab index props (use tabIndexConfig instead)
+  /** @deprecated Use `tabIndexConfig.featureIcons` instead */
   featureIconsTabIndex?: {
     webSearch?: number;
     privacyMode?: number;
     attachment?: number;
   };
+  /** @deprecated Use `tabIndexConfig.platformSelector` or `platformConfig.tabIndex` instead */
   platformSelectorTabIndex?: number;
+  /** @deprecated Use `tabIndexConfig.submitButton` instead */
   submitButtonTabIndex?: number;
-  tabIndexConfig?: TabIndexConfig;
 
   // Submit button configuration
   submitButtonText?: string;

@@ -5,7 +5,7 @@
  * Attribution only renders during export, not in the editor UI.
  */
 
-import type { StockImageAttribution } from '../../../services/imageSourceService';
+import type { StockImageAttribution } from '../../services/imageSourceService';
 
 export interface AttributionRenderData {
   text: string;

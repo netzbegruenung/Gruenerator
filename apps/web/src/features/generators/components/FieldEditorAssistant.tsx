@@ -1,36 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import FormInput from '../../../components/common/Form/Input/FormInput';
-import FormCheckbox from '../../../components/common/Form/Input/FormCheckbox';
-
-interface SelectOption {
-  label: string;
-  value: string;
-}
-
-interface FieldData {
-  label: string;
-  name: string;
-  type: string;
-  placeholder?: string;
-  required?: boolean;
-  options?: SelectOption[];
-}
+import { GeneratorFormField } from '../types/generatorTypes';
+import { sanitizeFieldName, sanitizeOptionValue } from '../utils/sanitization';
+import { GENERATOR_VALIDATION_RULES, validateFieldNameUniqueness } from '../utils/validation';
+import { useFieldAutoSuggest } from '../hooks/useFieldAutoSuggest';
 
 interface FieldEditorAssistantProps {
-  initialFieldData?: FieldData | null;
-  onSave: (fieldData: FieldData) => void;
+  initialFieldData?: GeneratorFormField | null;
+  onSave: (fieldData: GeneratorFormField) => void;
   onCancel: () => void;
   existingFieldNames?: string[];
 }
-
-// Helper function to generate the sanitized name
-const generateSanitizedName = (label: string): string => {
-  return label
-    .toLowerCase()
-    .replace(/\s+/g, '_')
-    .replace(/[^a-z0-9_]/g, '');
-};
 
 const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFieldData, onSave, onCancel, existingFieldNames = [] }) => {
   // Initialize React Hook Form
@@ -42,7 +23,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     formState: { errors },
     reset,
     trigger
-  } = useForm<FieldData>({
+  } = useForm<GeneratorFormField>({
     defaultValues: {
       label: '',
       name: '',
@@ -84,11 +65,9 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     if (initialFieldData) {
       reset({
         ...initialFieldData,
-        // Ensure name is also initialized if passed
-        name: initialFieldData.name || generateSanitizedName(initialFieldData.label || '')
+        name: initialFieldData.name || sanitizeFieldName(initialFieldData.label || '')
       });
     } else {
-      // Reset for adding a new field
       reset({
         label: '',
         name: '',
@@ -98,35 +77,11 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
         options: [],
       });
     }
-    setError(null); // Clear errors when component initializes or data changes
-  }, [initialFieldData, reset]); // Re-run when initial data changes
+    setError(null);
+  }, [initialFieldData, reset]);
 
-  // Auto-generation effect for label changes
-  useEffect(() => {
-    if (watchedLabel) {
-      const sanitizedName = generateSanitizedName(watchedLabel);
-      setValue('name', sanitizedName, { shouldValidate: false });
-
-      // Auto-suggest field type
-      if (watchedLabel.toLowerCase().includes('beschreibung') ||
-          watchedLabel.toLowerCase().includes('text') ||
-          watchedLabel.toLowerCase().includes('inhalt') ||
-          watchedLabel.toLowerCase().includes('prompt') ||
-          watchedLabel.toLowerCase().includes('abschnitt')) {
-        setValue('type', 'textarea', { shouldValidate: false });
-      }
-
-      // Auto-suggest required status
-      if (watchedLabel.toLowerCase().includes('email') ||
-          watchedLabel.toLowerCase().includes('name') ||
-          watchedLabel.toLowerCase().includes('titel')) {
-        setValue('required', true, { shouldValidate: false });
-      }
-
-      // Clear any errors when label changes
-      setError(null);
-    }
-  }, [watchedLabel, setValue]);
+  // Use custom hook for field auto-suggestions
+  useFieldAutoSuggest({ label: watchedLabel, setValue, currentType: watchedType });
 
   // Effect to handle type changes and options initialization
   useEffect(() => {
@@ -143,24 +98,16 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
 
   // Define validation rules
   const validationRules = {
-    label: {
-      required: 'Das Label darf nicht leer sein.',
-      minLength: { value: 1, message: 'Label muss mindestens 1 Zeichen lang sein.' }
-    },
+    label: GENERATOR_VALIDATION_RULES.fieldLabel,
     name: {
-      required: 'Technischer Name konnte nicht generiert werden.',
-      validate: (value: string): string | boolean => {
-        const otherNames = initialFieldData
-          ? existingFieldNames.filter(n => n !== initialFieldData.name)
-          : existingFieldNames;
-        return !otherNames.includes(value) ||
-          `Der technische Name '${value}' wird bereits von einem anderen Feld verwendet.`;
-      }
+      ...GENERATOR_VALIDATION_RULES.fieldName,
+      validate: (value: string): string | boolean =>
+        validateFieldNameUniqueness(value, existingFieldNames, initialFieldData?.name)
     }
   };
 
   // Form submission handler
-  const onSubmit = (data: FieldData): void => {
+  const onSubmit = (data: GeneratorFormField): void => {
     setError(null);
     onSave(data);
   };
@@ -255,7 +202,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
                   value={option.label || ''}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const newLabel = e.target.value;
-                    const newValue = newLabel.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+                    const newValue = sanitizeOptionValue(newLabel);
                     updateOption(index, 'label', newLabel);
                     updateOption(index, 'value', newValue);
                   }}

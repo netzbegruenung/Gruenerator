@@ -94,4 +94,58 @@
   background-color: var(--border-subtle);
   margin-top: var(--spacing-large);
   margin-bottom: var(--spacing-large);
-} 
+}
+
+/* Headings - Essential for PR Agent markdown rendering */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: var(--spacing-large);
+  margin-bottom: var(--spacing-medium);
+  font-weight: 600;
+  color: var(--font-color);
+  line-height: 1.3;
+}
+
+/* Remove top margin from first heading */
+.markdown-content h1:first-child,
+.markdown-content h2:first-child,
+.markdown-content h3:first-child {
+  margin-top: 0;
+}
+
+/* H1 - Large, prominent, with bottom border */
+.markdown-content h1 {
+  font-size: 2em;
+  color: var(--tanne);
+  border-bottom: 2px solid var(--border-subtle);
+  padding-bottom: var(--spacing-small);
+}
+
+/* H2 - Section headings (used by PR Agent) */
+.markdown-content h2 {
+  font-size: 1.5em;
+  color: var(--tanne);
+}
+
+/* H3 - Subsection headings (used by PR Agent) */
+.markdown-content h3 {
+  font-size: 1.3em;
+}
+
+/* H4-H6 - Smaller headings */
+.markdown-content h4 {
+  font-size: 1.1em;
+}
+
+.markdown-content h5 {
+  font-size: 1em;
+}
+
+.markdown-content h6 {
+  font-size: 0.9em;
+  color: var(--font-color-secondary);
+}

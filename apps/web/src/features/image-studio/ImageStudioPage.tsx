@@ -195,7 +195,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
       if (typeConfig?.hasTextGeneration) {
 
         if (typeConfig?.usesFluxApi) {
-          if (type === IMAGE_STUDIO_TYPES.PURE_CREATE && (!purePrompt || purePrompt.trim().length < 5)) {
+          if ((type === IMAGE_STUDIO_TYPES.PURE_CREATE || type === IMAGE_STUDIO_TYPES.AI_EDITOR) && (!purePrompt || purePrompt.trim().length < 5)) {
             errors.purePrompt = 'Bitte beschreibe dein Bild (mindestens 5 Zeichen)';
           }
           if (type === IMAGE_STUDIO_TYPES.KI_SHAREPIC && (!sharepicPrompt || sharepicPrompt.trim().length < 5)) {

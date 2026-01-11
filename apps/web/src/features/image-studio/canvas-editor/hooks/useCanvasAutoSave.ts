@@ -39,12 +39,12 @@ function buildCanvasShareMetadata(
       line3: canvasState.line3 || '',
     };
     metadata.styling = {
-      fontSize: canvasState.fontSize,
-      colorScheme: canvasState.colorSchemeId,
-      balkenWidthScale: canvasState.balkenWidthScale,
-      balkenScale: canvasState.balkenScale,
-      balkenOffset: canvasState.balkenOffset,
-      barOffsets: canvasState.barOffsets,
+      fontSize: canvasState.fontSize as number | undefined,
+      colorScheme: canvasState.colorSchemeId as string | undefined,
+      balkenWidthScale: canvasState.balkenWidthScale as number | undefined,
+      balkenScale: canvasState.balkenScale as number | undefined,
+      balkenOffset: canvasState.balkenOffset as number[] | undefined,
+      barOffsets: canvasState.barOffsets as [number, number, number] | undefined,
       sunflowerPos: canvasState.sunflowerPos,
       sunflowerSize: canvasState.sunflowerSize,
       sunflowerVisible: canvasState.sunflowerVisible,

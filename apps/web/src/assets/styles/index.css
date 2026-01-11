@@ -22,6 +22,8 @@
 @import url('./components/ui/quote-form.css');
 @import url('./components/ui/LogLevelSelector.css');
 @import url('./components/help-tooltip.css');
+@import url('./components/common/auto-save-indicator.css');
+@import url('./components/common/recent-texts.css');
 @import url('./components/ui/form-select-modern.css');
 @import url('./components/ui/forms.css');
 @import url('./components/form/form-inputs.css');

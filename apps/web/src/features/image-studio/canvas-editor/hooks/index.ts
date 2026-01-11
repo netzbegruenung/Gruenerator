@@ -36,4 +36,5 @@ export { useFontLoader } from './useFontLoader';
 export type { UseFontLoaderOptions } from './useFontLoader';
 
 export { useLayerOrdering } from './useLayerOrdering';
-export type { CanvasItem, UseLayerOrderingResult } from './useLayerOrdering';
+// CanvasItem is already exported from utils/canvasLayerManager
+export type { UseLayerOrderingResult } from './useLayerOrdering';

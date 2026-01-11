@@ -9,6 +9,7 @@ import '../../../assets/styles/components/image-studio/typeform-fields.css';
 // Import extracted steps
 import InputStep from '../steps/InputStep';
 import ImageUploadStep from '../steps/ImageUploadStep';
+import ImageSizeSelectStep from '../steps/ImageSizeSelectStep';
 import CanvasEditStep from '../steps/CanvasEditStep';
 
 // Types (Keep StepFlowProps, but maybe move others if needed by steps)
@@ -137,6 +138,16 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
               direction={direction}
               loading={loading}
               bgRemovalProgress={bgRemovalProgress}
+            />
+          )}
+
+          {currentStep.type === 'image_size_select' && (
+            <ImageSizeSelectStep
+              key={currentStep.id}
+              onNext={handleNext}
+              onBack={handleBack}
+              direction={direction}
+              loading={loading}
             />
           )}
 

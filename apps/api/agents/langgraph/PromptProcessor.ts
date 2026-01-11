@@ -16,6 +16,7 @@ import { enrichRequest } from '../../utils/requestEnrichment.js';
 import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 import { sendSuccessResponseWithAttachments } from '../../utils/request/index.js';
 import { withErrorHandler, handleValidationError } from '../../utils/errors/index.js';
+import { processAutomatischPR } from './PRAgent/index.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
@@ -605,6 +606,12 @@ export async function processGraphRequest(routeType: string, req: any, res: any)
       useAutomaticSearch: useAutomaticSearch || false,
       hasOtherData: Object.keys(requestData).length
     });
+
+    // Route to PR Agent if "automatisch" platform detected
+    if (routeType === 'social' && requestData.platforms?.includes('automatisch')) {
+      console.log('[promptProcessor] Routing to PR Agent');
+      return processAutomatischPR(requestData, req, res);
+    }
 
     // Load configuration and localize it
     const baseConfig = loadPromptConfig(routeType);

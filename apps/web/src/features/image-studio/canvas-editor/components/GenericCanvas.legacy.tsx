@@ -26,6 +26,7 @@ import { FloatingLayerControls } from './FloatingTapBar/modules/FloatingLayerCon
 import type { FullCanvasConfig, LayoutResult, CanvasElementConfig } from '../configs/types';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import { useCanvasInteractions, useCanvasStoreSetup, useCanvasHistorySetup } from '../hooks';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import { useCanvasEditorStore, useSnapGuides, useSnapLines } from '../../../../stores/canvasEditorStore';
 import './GenericCanvas.css';
 
@@ -57,7 +58,7 @@ function resolveValue<T>(
 // PROPS INTERFACE
 // ============================================================================
 
-export interface GenericCanvasProps<TState, TActions> {
+export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
     /** Canvas configuration */
     config: FullCanvasConfig<TState, TActions>;
     /** Initial props from parent (text content, image sources, etc.) */
@@ -84,7 +85,7 @@ export interface GenericCanvasProps<TState, TActions> {
 // MAIN COMPONENT
 // ============================================================================
 
-function GenericCanvasInner<TState extends Record<string, any>, TActions>({
+function GenericCanvasInner<TState extends Record<string, any>, TActions extends OptionalCanvasActions>({
     config,
     initialProps,
     onExport,

@@ -7,10 +7,10 @@ import type { FullCanvasConfig } from '../configs/types';
 import type { SidebarTabId } from '../sidebar/types';
 import './GenericCanvasEditor.css';
 
-interface GenericCanvasEditorProps<TState> {
-    config: FullCanvasConfig<TState>;
+interface GenericCanvasEditorProps<TState, TActions = Record<string, unknown>> {
+    config: FullCanvasConfig<TState, TActions>;
     state: TState;
-    actions: any; // Actions corresponding to the state
+    actions: TActions;
     children: React.ReactNode; // The Konva Stage / Canvas content
     onExport: () => void;
     onSave?: () => void;
@@ -28,7 +28,7 @@ interface GenericCanvasEditorProps<TState> {
     };
 }
 
-export function GenericCanvasEditor<TState>({
+export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>({
     config,
     state,
     actions,
@@ -39,7 +39,7 @@ export function GenericCanvasEditor<TState>({
     selectedElement,
     onAddPage,
     shareProps,
-}: GenericCanvasEditorProps<TState>) {
+}: GenericCanvasEditorProps<TState, TActions>) {
     const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
     const [isDesktop, setIsDesktop] = useState(
         typeof window !== 'undefined' && window.innerWidth >= 900

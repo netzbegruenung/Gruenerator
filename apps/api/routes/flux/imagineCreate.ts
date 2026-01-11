@@ -28,6 +28,8 @@ interface ImagineCreateRequestBody {
   titleColor?: string;
   variant?: ImageVariant;
   seed?: number;
+  width?: number;
+  height?: number;
 }
 
 interface StoredImageResult {
@@ -101,7 +103,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       title,
       titleColor,
       variant = 'light-top',
-      seed
+      seed,
+      width,
+      height
     } = body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 5) {
@@ -125,6 +129,28 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       });
     }
 
+    // Validate custom dimensions if provided
+    if (width && height) {
+      if (width < 64 || height < 64) {
+        return res.status(400).json({
+          success: false,
+          error: 'Dimensions must be at least 64x64'
+        });
+      }
+      if (width % 16 !== 0 || height % 16 !== 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Dimensions must be multiples of 16'
+        });
+      }
+      if (width * height > 4_000_000) {
+        return res.status(400).json({
+          success: false,
+          error: 'Image size cannot exceed 4 megapixels'
+        });
+      }
+    }
+
     const validVariants: ImageVariant[] = ['light-top', 'realistic-top', 'pixel-top', 'editorial'];
     const selectedVariant: ImageVariant = validVariants.includes(variant) ? variant : 'light-top';
 
@@ -132,7 +158,12 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     const fluxPrompt = buildCreatePrompt(prompt.trim(), selectedVariant);
 
-    log.debug(`[ImagineCreate] Calling FLUX API with dimensions ${FLUX_WIDTH}x${FLUX_HEIGHT}`);
+    // Use custom dimensions if provided, otherwise use constants
+    const dimensions = (width && height)
+      ? { width, height }
+      : { width: FLUX_WIDTH, height: FLUX_HEIGHT };
+
+    log.debug(`[ImagineCreate] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${(width && height) ? ' (custom)' : ' (default)'}`);
 
     const flux = new FluxImageService();
     const fluxOptions: {
@@ -142,8 +173,8 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       safety_tolerance: number;
       seed?: number;
     } = {
-      width: FLUX_WIDTH,
-      height: FLUX_HEIGHT,
+      width: dimensions.width,
+      height: dimensions.height,
       output_format: 'jpeg' as const,
       safety_tolerance: 2
     };
@@ -165,7 +196,11 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       titleColor,
       variant: selectedVariant === 'editorial' || selectedVariant === 'realistic-top' || selectedVariant === 'pixel-top'
         ? 'light-top'
-        : selectedVariant as 'light-top' | 'green-bottom'
+        : selectedVariant as 'light-top' | 'green-bottom',
+      ...(width && height && {
+        outputWidth: width,
+        outputHeight: height
+      })
     });
 
     log.debug(`[ImagineCreate] Canvas composed, size: ${composedBuffer.length} bytes`);

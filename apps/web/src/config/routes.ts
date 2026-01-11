@@ -1,4 +1,5 @@
-import { lazy, type ComponentType, type LazyExoticComponent, type FC } from 'react';
+import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
+import { Navigate } from 'react-router-dom';
 import { isDesktopApp } from '../utils/platform';
 
 /**
@@ -10,6 +11,21 @@ export interface RouteConfig {
   withForm?: boolean;
   showHeaderFooter?: boolean;
 }
+
+/**
+ * Redirect components for deprecated routes
+ */
+const createRedirect = (to: string): FC<Record<string, unknown>> => {
+  return () => createElement(Navigate, { to, replace: true });
+};
+
+const AltTextRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/barrierefreiheit?type=alt-text')
+}));
+
+const LeichteSpracheRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/barrierefreiheit?type=leichte-sprache')
+}));
 
 // Statische Importe in dynamische umwandeln
 const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
@@ -65,7 +81,6 @@ const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/Kampag
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
 const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
-const AltTextGenerator = lazy(() => import('../features/texte/alttext/AltTextGenerator'));
 const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
@@ -111,7 +126,6 @@ export const GrueneratorenBundle = {
   PresseSocial: PresseSocialGenerator,
   Kampagnen: KampagnenGenerator,
   Accessibility: AccessibilityTextGenerator,
-  AltText: AltTextGenerator,
   Website: WebsiteGenerator,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
@@ -150,7 +164,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/kampagnen', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/weihnachten', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
-  { path: '/alttext', component: GrueneratorenBundle.AltText, withForm: true },
+  { path: '/alttext', component: AltTextRedirect },
+  { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
   { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { FullCanvasConfig, LayoutResult } from '../configs/types';
+import type { FullCanvasConfig, LayoutResult, AdditionalText } from '../configs/types';
 import type { ShapeInstance } from '../utils/shapes';
 import { resolveValue } from '../utils/canvasValueResolver';
 
@@ -10,17 +10,28 @@ import { resolveValue } from '../utils/canvasValueResolver';
  * and additional texts. Handles selection, text changes, position changes, transforms, etc.
  */
 
-export interface UseCanvasElementHandlersOptions<TState> {
-    config: FullCanvasConfig;
+/**
+ * Optional canvas action methods that may be present in specific configs
+ */
+export interface OptionalCanvasActions {
+    updateBalken?: (id: string, attrs: Partial<{ offset: { x: number; y: number }; scale?: number; rotation?: number; opacity?: number }>) => void;
+    updateIcon?: (id: string, attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; color?: string; opacity?: number }>) => void;
+    updateShape?: (id: string, attrs: Partial<ShapeInstance>) => void;
+    updateIllustration?: (id: string, attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; color?: string; opacity?: number }>) => void;
+    updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
+}
+
+export interface UseCanvasElementHandlersOptions<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions> {
+    config: FullCanvasConfig<TState, TActions>;
     state: TState;
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
-    actions: any;
+    actions: TActions;
     layout: LayoutResult;
     callbacks: Record<string, ((val: any) => void) | undefined>;
     setSelectedElement: (id: string | null) => void;
     updateElementPosition: (id: string, x: number, y: number, w: number, h: number) => void;
-    saveToHistory: (state: any) => void;
-    debouncedSaveToHistory: (state: any) => void;
+    saveToHistory: (state: TState) => void;
+    debouncedSaveToHistory: (state: TState) => void;
 }
 
 export interface UseCanvasElementHandlersResult {
@@ -42,8 +53,8 @@ export interface UseCanvasElementHandlersResult {
 /**
  * Hook to handle all canvas element interactions
  */
-export function useCanvasElementHandlers<TState>(
-    options: UseCanvasElementHandlersOptions<TState>
+export function useCanvasElementHandlers<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions>(
+    options: UseCanvasElementHandlersOptions<TState, TActions>
 ): UseCanvasElementHandlersResult {
     const {
         config,
@@ -92,8 +103,8 @@ export function useCanvasElementHandlers<TState>(
             }
 
             if ((state as any).additionalTexts?.find((t: any) => t.id === id)) {
-                if (actions.updateAdditionalText) {
-                    actions.updateAdditionalText(id, { fontSize: size });
+                if ((actions as any).updateAdditionalText) {
+                    (actions as any).updateAdditionalText(id, { fontSize: size });
                     debouncedSaveToHistory(state);
                 }
             }

@@ -5,6 +5,7 @@ export interface SocialLinks {
   youtube?: string;
   linkedin?: string;
   mastodon?: string;
+  [key: string]: string | undefined;
 }
 
 export interface HeroSection {

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useImageGeneration } from '../hooks/useImageGeneration';
@@ -61,6 +61,17 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const isUploadToInput = previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
 
   const [isWideStep, setIsWideStep] = useState(false);
+
+  // Debug: Log currentStep changes
+  useEffect(() => {
+    console.log('[TemplateStudioFlow] currentStep changed:', currentStep, 'FORM_STEPS:', {
+      IMAGE_UPLOAD: FORM_STEPS.IMAGE_UPLOAD,
+      INPUT: FORM_STEPS.INPUT,
+      IMAGE_SIZE_SELECT: FORM_STEPS.IMAGE_SIZE_SELECT,
+      CANVAS_EDIT: FORM_STEPS.CANVAS_EDIT,
+      RESULT: FORM_STEPS.RESULT
+    });
+  }, [currentStep]);
 
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
@@ -137,6 +148,17 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
       }
 
       setGeneratedImage(image);
+
+      // Commit to AI Editor history if type has the feature enabled
+      if (typeConfig?.hasAiEditor) {
+        const { commitAiGeneration } = useImageStudioStore.getState();
+
+        // Use appropriate prompt field based on type
+        // Edit types use precisionInstruction, AI_EDITOR uses purePrompt
+        const prompt = precisionInstruction || purePrompt || sharepicPrompt || '';
+
+        commitAiGeneration(image, prompt);
+      }
     } catch (err) {
       console.error('[TemplateStudioFlow] Image regeneration error:', err);
     }
@@ -188,15 +210,29 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                   onAnimationStart={handleAnimationStart}
                   onAnimationComplete={handleAnimationComplete}
                 >
-                  {(currentStep === FORM_STEPS.IMAGE_UPLOAD || currentStep === FORM_STEPS.INPUT || currentStep === FORM_STEPS.CANVAS_EDIT) && (
-                    <StepFlow
-                      onBack={onBack}
-                      onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}
-                      onStepChange={handleStepChange}
-                      imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
-                      startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
-                    />
-                  )}
+                  {(() => {
+                    const shouldRenderStepFlow = currentStep === FORM_STEPS.IMAGE_UPLOAD ||
+                                                  currentStep === FORM_STEPS.INPUT ||
+                                                  currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
+                                                  currentStep === FORM_STEPS.CANVAS_EDIT;
+                    console.log('[TemplateStudioFlow] Checking StepFlow render condition:', {
+                      currentStep,
+                      shouldRenderStepFlow,
+                      isImageUpload: currentStep === FORM_STEPS.IMAGE_UPLOAD,
+                      isInput: currentStep === FORM_STEPS.INPUT,
+                      isImageSizeSelect: currentStep === FORM_STEPS.IMAGE_SIZE_SELECT,
+                      isCanvasEdit: currentStep === FORM_STEPS.CANVAS_EDIT
+                    });
+                    return shouldRenderStepFlow ? (
+                      <StepFlow
+                        onBack={onBack}
+                        onComplete={() => setCurrentStep(FORM_STEPS.RESULT)}
+                        onStepChange={handleStepChange}
+                        imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
+                        startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
+                      />
+                    ) : null;
+                  })()}
 
                   {currentStep === FORM_STEPS.RESULT && (
                     <TemplateResultStep
