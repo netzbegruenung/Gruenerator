@@ -1,0 +1,311 @@
+import { Router, Request, Response } from 'express';
+import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+
+const router = Router();
+const db = getPostgresInstance();
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email?: string;
+    display_name?: string;
+  };
+}
+
+/**
+ * @route   POST /api/docs
+ * @desc    Create a new collaborative document
+ * @access  Private
+ */
+router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { title = 'Untitled Document', folder_id = null } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO collaborative_documents
+        (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
+       VALUES ($1, $2, $2, 'docs', $3, $4, false)
+       RETURNING *`,
+      [
+        title,
+        userId,
+        folder_id,
+        JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } })
+      ]
+    );
+
+    return res.status(201).json(result[0]);
+  } catch (error: any) {
+    console.error('[Docs] Error creating document:', error);
+    return res.status(500).json({ error: 'Failed to create document', details: error.message });
+  }
+});
+
+/**
+ * @route   GET /api/docs
+ * @desc    List all documents user has access to
+ * @access  Private
+ */
+router.get('/', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const result = await db.query(
+      `SELECT
+        cd.*,
+        p.display_name as creator_name,
+        le.display_name as last_editor_name
+       FROM collaborative_documents cd
+       LEFT JOIN profiles p ON cd.created_by = p.id
+       LEFT JOIN profiles le ON cd.last_edited_by = le.id
+       WHERE
+        cd.document_subtype = 'docs'
+        AND cd.is_deleted = false
+        AND (
+          cd.created_by = $1
+          OR cd.permissions ? $1::text
+          OR cd.is_public = true
+        )
+       ORDER BY cd.updated_at DESC`,
+      [userId]
+    );
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('[Docs] Error listing documents:', error);
+    return res.status(500).json({ error: 'Failed to list documents', details: error.message });
+  }
+});
+
+/**
+ * @route   GET /api/docs/:id
+ * @desc    Get a specific document's metadata
+ * @access  Private
+ */
+router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const result = await db.query(
+      `SELECT
+        cd.*,
+        p.display_name as creator_name,
+        le.display_name as last_editor_name
+       FROM collaborative_documents cd
+       LEFT JOIN profiles p ON cd.created_by = p.id
+       LEFT JOIN profiles le ON cd.last_edited_by = le.id
+       WHERE
+        cd.id = $1
+        AND cd.document_subtype = 'docs'
+        AND cd.is_deleted = false`,
+      [id]
+    );
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const document = result[0];
+
+    const hasAccess =
+      document.created_by === userId ||
+      document.is_public ||
+      (document.permissions && document.permissions[userId]);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    return res.json(document);
+  } catch (error: any) {
+    console.error('[Docs] Error fetching document:', error);
+    return res.status(500).json({ error: 'Failed to fetch document', details: error.message });
+  }
+});
+
+/**
+ * @route   PUT /api/docs/:id
+ * @desc    Update document metadata (title, folder)
+ * @access  Private
+ */
+router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, folder_id, content } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const checkResult = await db.query(
+      'SELECT permissions, created_by FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
+      [id, 'docs']
+    );
+
+    if (checkResult.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const document = checkResult[0];
+    const userPermission = document.permissions?.[userId];
+    const isOwner = document.created_by === userId;
+    const canEdit = isOwner || (userPermission && ['owner', 'editor'].includes(userPermission.level));
+
+    if (!canEdit) {
+      return res.status(403).json({ error: 'Insufficient permissions to edit document' });
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (title !== undefined) {
+      updates.push(`title = $${paramIndex++}`);
+      values.push(title);
+    }
+
+    if (folder_id !== undefined) {
+      updates.push(`folder_id = $${paramIndex++}`);
+      values.push(folder_id);
+    }
+
+    if (content !== undefined) {
+      updates.push(`content = $${paramIndex++}`);
+      values.push(content);
+    }
+
+    updates.push(`last_edited_by = $${paramIndex++}`);
+    values.push(userId);
+    updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
+
+    values.push(id);
+
+    const result = await db.query(
+      `UPDATE collaborative_documents
+       SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $${paramIndex}
+       RETURNING *`,
+      values
+    );
+
+    return res.json(result[0]);
+  } catch (error: any) {
+    console.error('[Docs] Error updating document:', error);
+    return res.status(500).json({ error: 'Failed to update document', details: error.message });
+  }
+});
+
+/**
+ * @route   DELETE /api/docs/:id
+ * @desc    Soft delete a document
+ * @access  Private (Owner only)
+ */
+router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const checkResult = await db.query(
+      'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
+      [id, 'docs']
+    );
+
+    if (checkResult.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const document = checkResult[0];
+    const userPermission = document.permissions?.[userId];
+    const isOwner = document.created_by === userId || (userPermission && userPermission.level === 'owner');
+
+    if (!isOwner) {
+      return res.status(403).json({ error: 'Only owners can delete documents' });
+    }
+
+    await db.query(
+      'UPDATE collaborative_documents SET is_deleted = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [id]
+    );
+
+    return res.json({ message: 'Document deleted successfully' });
+  } catch (error: any) {
+    console.error('[Docs] Error deleting document:', error);
+    return res.status(500).json({ error: 'Failed to delete document', details: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/docs/:id/duplicate
+ * @desc    Duplicate a document
+ * @access  Private
+ */
+router.post('/:id/duplicate', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const checkResult = await db.query(
+      'SELECT * FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
+      [id, 'docs']
+    );
+
+    if (checkResult.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const original = checkResult[0];
+
+    const hasAccess =
+      original.created_by === userId ||
+      original.is_public ||
+      (original.permissions && original.permissions[userId]);
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const newTitle = `${original.title} (Copy)`;
+    const newDoc = await db.query(
+      `INSERT INTO collaborative_documents
+        (title, created_by, last_edited_by, document_subtype, permissions, is_public, content)
+       VALUES ($1, $2, $2, 'docs', $3, false, $4)
+       RETURNING *`,
+      [
+        newTitle,
+        userId,
+        JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
+        original.content || ''
+      ]
+    );
+
+    return res.status(201).json(newDoc[0]);
+  } catch (error: any) {
+    console.error('[Docs] Error duplicating document:', error);
+    return res.status(500).json({ error: 'Failed to duplicate document', details: error.message });
+  }
+});
+
+export default router;
