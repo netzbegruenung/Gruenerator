@@ -40,7 +40,6 @@ export async function startHocuspocusServer(): Promise<void> {
           onDisconnect: true,
           onUpgrade: true,
           onRequest: false,
-          onListen: true,
           onDestroy: true,
           onConfigure: true,
         }),
@@ -55,7 +54,8 @@ export async function startHocuspocusServer(): Promise<void> {
           console.log(`[Auth-Hook] ========== onAuthenticate CALLED ==========`);
           console.log(`[Auth-Hook] Data keys: ${JSON.stringify(Object.keys(data))}`);
 
-          const { documentName, requestHeaders, requestParameters, connection } = data;
+          const { documentName, requestHeaders, requestParameters } = data;
+          const connection = (data as any).connection;
 
           console.log(`[Auth-Hook] documentName: ${documentName}`);
           log.info(`[Auth-Hook] onAuthenticate called for document: ${documentName}`);
@@ -128,7 +128,8 @@ export async function startHocuspocusServer(): Promise<void> {
        * Called when document changes
        */
       async onStoreDocument(data) {
-        const { documentName, state } = data;
+        const { documentName } = data;
+        const state = (data as any).state;
         log.debug(`[Store] Storing document: ${documentName}`);
 
         try {
@@ -144,7 +145,7 @@ export async function startHocuspocusServer(): Promise<void> {
       /**
        * Connection established
        */
-      onConnect(data) {
+      async onConnect(data) {
         const { documentName, requestParameters } = data;
         console.log(`[Connect] Client connected to document: ${documentName}`);
         log.info(`[Connect] Client connected to document: ${documentName}`);
@@ -153,7 +154,7 @@ export async function startHocuspocusServer(): Promise<void> {
       /**
        * Connection closed
        */
-      onDisconnect(data) {
+      async onDisconnect(data) {
         const { documentName } = data;
         console.log(`[Disconnect] Client disconnected from document: ${documentName}`);
         log.info(`[Disconnect] Client disconnected from document: ${documentName}`);
@@ -162,26 +163,28 @@ export async function startHocuspocusServer(): Promise<void> {
       /**
        * Request received
        */
-      onRequest(data) {
-        console.log(`[Request] Received request for: ${data.documentName}`);
-        log.info(`[Request] Received request for: ${data.documentName}`);
+      async onRequest(data) {
+        const documentName = (data as any).documentName;
+        console.log(`[Request] Received request for: ${documentName}`);
+        log.info(`[Request] Received request for: ${documentName}`);
       },
 
       /**
        * Upgrade request
        */
-      onUpgrade(data) {
+      async onUpgrade(data) {
+        const documentName = (data as any).documentName;
         console.log(`[Upgrade] WebSocket upgrade request`);
-        console.log(`[Upgrade] documentName: ${data.documentName}`);
+        console.log(`[Upgrade] documentName: ${documentName}`);
         console.log(`[Upgrade] All data keys: ${JSON.stringify(Object.keys(data))}`);
         console.log(`[Upgrade] request.url: ${data.request?.url}`);
-        log.info(`[Upgrade] WebSocket upgrade request for: ${data.documentName}`);
+        log.info(`[Upgrade] WebSocket upgrade request for: ${documentName}`);
       },
 
       /**
        * Document changed
        */
-      onChange(data) {
+      async onChange(data) {
         const { documentName } = data;
         log.debug(`[Change] Document ${documentName} changed`);
       },
@@ -189,7 +192,7 @@ export async function startHocuspocusServer(): Promise<void> {
       /**
        * Server listening
        */
-      onListen() {
+      async onListen() {
         log.info(`Hocuspocus server listening on ${HOST}:${PORT}`);
         log.info('WebSocket endpoint: ws://' + HOST + ':' + PORT);
       },
@@ -205,7 +208,7 @@ export async function startHocuspocusServer(): Promise<void> {
       /**
        * Destroy handler
        */
-      onDestroy() {
+      async onDestroy() {
         console.log('Hocuspocus server shutting down...');
         log.info('Hocuspocus server shutting down...');
       },

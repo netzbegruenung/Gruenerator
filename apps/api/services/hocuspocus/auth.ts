@@ -109,7 +109,7 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
       };
     }
 
-    const sessionData = JSON.parse(sessionString);
+    const sessionData = JSON.parse(typeof sessionString === 'string' ? sessionString : JSON.stringify(sessionString));
     log.info(`[Auth] Session data keys: ${JSON.stringify(Object.keys(sessionData))}`);
 
     const userId = sessionData?.passport?.user?.id || sessionData?.passport?.user;
@@ -148,7 +148,7 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
       return {
         authenticated: true,
         userId,
-        userName: userResult[0]?.display_name || 'Unknown User',
+        userName: (userResult[0]?.display_name as string) || 'Unknown User',
         readOnly: false,
       };
     }
@@ -205,7 +205,7 @@ export async function authenticateConnection(data: AuthenticationData): Promise<
     return {
       authenticated: true,
       userId,
-      userName: userResult[0]?.display_name || 'Unknown User',
+      userName: (userResult[0]?.display_name as string) || 'Unknown User',
       readOnly,
     };
 

@@ -45,6 +45,7 @@ export interface PromptConfig {
   systemRole: string;
   requestTemplate?: string;
   singleItemTemplate?: string;
+  alternativesTemplate?: string;
   options?: Record<string, unknown>;
   alternativesOptions?: Record<string, unknown>;
 }

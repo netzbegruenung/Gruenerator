@@ -44,11 +44,12 @@ Halte die Zusammenfassung kurz (max. 200 Wörter), präzise und sofort nutzbar.`
                     content: prompt
                 }
             ],
-            max_tokens: 500,
+            maxTokens: 500,
             temperature: 0.3
         });
 
-        const summary = response.choices?.[0]?.message?.content || '';
+        const content = response.choices?.[0]?.message?.content;
+        const summary = typeof content === 'string' ? content : '';
         return summary || 'Zusammenfassung konnte nicht erstellt werden.';
     } catch (error) {
         console.error('[ArgumentsSummarizer] Failed to generate summary:', error);

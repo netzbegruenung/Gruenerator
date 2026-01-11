@@ -62,6 +62,10 @@ interface SharedMediaService {
   getThumbnailFilePath(relativePath: string): string;
   getMediaFilePath(relativePath: string): string;
   getOriginalImagePath(shareToken: string, filename: string): string;
+  markAsTemplate(userId: string, shareToken: string, title: string, visibility: string, userName: string): Promise<void>;
+  cloneTemplate(templateToken: string, userId: string, userName: string): Promise<ShareResult>;
+  getTemplates(userId: string | null, visibility: string): Promise<SharedMediaRow[]>;
+  getTemplateByToken(templateToken: string, requestingUserId?: string): Promise<SharedMediaRow | null>;
 }
 
 interface ProjectService {
@@ -992,7 +996,7 @@ router.delete('/:shareToken', requireAuth, async (req: Request<ShareTokenParams>
 router.post('/:shareToken/save-as-template', requireAuth, async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const userName = req.user?.user_metadata?.full_name || req.user?.email || 'Anonymous';
+    const userName = req.user?.display_name || req.user?.email || 'Anonymous';
     const { shareToken } = req.params;
     const { title, visibility = 'private' } = req.body;
 
@@ -1053,7 +1057,7 @@ router.post('/:shareToken/save-as-template', requireAuth, async (req: Request<Sh
 router.post('/templates/:shareToken/clone', requireAuth, async (req: Request<ShareTokenParams> & AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const userName = req.user?.user_metadata?.full_name || req.user?.email || 'Anonymous';
+    const userName = req.user?.display_name || req.user?.email || 'Anonymous';
     const { shareToken } = req.params;
 
     const service = await getSharedMediaService();
@@ -1100,13 +1104,10 @@ router.post('/templates/:shareToken/clone', requireAuth, async (req: Request<Sha
 router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { type, visibility } = req.query;
+    const { visibility } = req.query;
 
     const service = await getSharedMediaService();
-    const templates = await service.getTemplates(userId, {
-      type: type as string | undefined,
-      visibility: visibility as string | undefined
-    });
+    const templates = await service.getTemplates(userId, visibility as string);
 
     res.json({
       success: true,
