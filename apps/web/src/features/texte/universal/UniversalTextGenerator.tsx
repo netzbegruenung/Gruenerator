@@ -11,8 +11,8 @@ import BuergeranfragenForm from './BuergeranfragenForm';
 import UniversalForm from './UniversalForm';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
-import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
-import { useUserInstructions } from '../../../hooks/useUserInstructions';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 
 // Form ref interface for child forms
 interface FormRef {
@@ -112,8 +112,29 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
 
   useOptimizedAuth();
 
-  // Get feature state from store
-  const { getFeatureState, isInstructionsActive } = useGeneratorSelectionStore();
+  // Map selected text type to instruction type
+  const getInstructionType = (textType: string) => {
+    switch (textType) {
+      case TEXT_TYPES.REDE:
+        return 'rede' as const;
+      case TEXT_TYPES.BUERGERANFRAGEN:
+        return 'buergeranfragen' as const;
+      case TEXT_TYPES.UNIVERSAL:
+        return 'universal' as const;
+      case TEXT_TYPES.WAHLPROGRAMM:
+        return 'universal' as const; // Wahlprogramm uses universal instructions
+      default:
+        return 'universal' as const;
+    }
+  };
+
+  const currentInstructionType = getInstructionType(selectedType);
+
+  // Consolidated setup using new hook
+  const setup = useGeneratorSetup({
+    instructionType: currentInstructionType,
+    componentName: 'universal-text'
+  });
 
   // Update selected type when URL changes
   useEffect(() => {
@@ -129,27 +150,6 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
       currentFormRef.current.resetForm();
     }
   }, [selectedType, currentFormRef]);
-
-  // Map selected text type to instruction type
-  const getInstructionType = (textType: string) => {
-    switch (textType) {
-      case TEXT_TYPES.REDE:
-        return 'rede';
-      case TEXT_TYPES.BUERGERANFRAGEN:
-        return 'buergeranfragen';
-      case TEXT_TYPES.UNIVERSAL:
-        return 'universal';
-      case TEXT_TYPES.WAHLPROGRAMM:
-        return 'universal'; // Wahlprogramm uses universal instructions
-      default:
-        return 'universal';
-    }
-  };
-
-  const currentInstructionType = getInstructionType(selectedType);
-
-  // Fetch user's custom instructions (simple API call, no orchestration)
-  const customPrompt = useUserInstructions(currentInstructionType, isInstructionsActive);
 
   // Memoize helpContent to prevent unnecessary re-renders
   const helpContent = useMemo(() => {
@@ -181,6 +181,19 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
     helpContent: helpContent
   } as any);
 
+  // Memoize attachments array
+  const allAttachments = useMemo(() =>
+    form.generator?.attachedFiles || [],
+    [form.generator?.attachedFiles]
+  );
+
+  // Form data builder
+  const builder = useFormDataBuilder({
+    ...setup,
+    attachments: allAttachments,
+    searchQueryFields: [] as const // Universal form has dynamic fields per type
+  });
+
   // Custom submission handler for dynamic form types
   const handleSubmit = useCallback(async () => {
     console.log('[UniversalTextGenerator] handleSubmit called', {
@@ -204,13 +217,8 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
       return;
     }
 
-    // Add feature toggles from store, custom instructions, and attachments to form data
-    const features = getFeatureState();
-    Object.assign(formData, features);
-    formData.customPrompt = customPrompt;
-    if (form.generator) {
-      formData.attachments = form.generator.attachedFiles;
-    }
+    // Build submission data using new hook
+    const formDataToSubmit = builder.buildSubmissionData(formData);
 
     setIsLoading(true);
 
@@ -219,10 +227,10 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
       const { default: apiClient } = await import('../../../components/utils/apiClient');
 
       console.log('[UniversalTextGenerator] Submitting to endpoint:', API_ENDPOINTS[selectedType]);
-      console.log('[UniversalTextGenerator] Final form data:', formData);
+      console.log('[UniversalTextGenerator] Final form data:', formDataToSubmit);
 
       // Submit to the correct endpoint for the selected type
-      const response = await apiClient.post(API_ENDPOINTS[selectedType], formData);
+      const response = await apiClient.post(API_ENDPOINTS[selectedType], formDataToSubmit);
       const responseData = response.data || response;
 
       // Handle both old string format and new {content, metadata} format
@@ -245,7 +253,7 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
     } finally {
       setIsLoading(false);
     }
-  }, [selectedType, form, currentFormRef, getFeatureState, customPrompt]);
+  }, [selectedType, form, currentFormRef, builder]);
 
   const renderForm = () => {
     const tabIndexValue = form.generator?.tabIndex;

@@ -9,19 +9,32 @@ import type { CanvasStageRef } from '../primitives/CanvasStage';
 /** Supported Konva element types */
 export type CanvasElementType = 'text' | 'image' | 'rect' | 'circle' | 'group' | 'background';
 
-/** Position that can be static or derived from state */
-export type PositionValue = number | ((state: any, layout: any) => number);
+/** Position that can be static or derived from state - now type-safe! */
+export type PositionValue<TState = Record<string, unknown>> =
+    number | ((state: TState, layout: LayoutResult) => number);
+
+/** Fill color that can be static or derived from state */
+export type FillValue<TState = Record<string, unknown>> =
+    string | ((state: TState, layout: LayoutResult) => string);
+
+/** Source value that can be static or derived from state */
+export type SourceValue<TState = Record<string, unknown>> =
+    string | ((state: TState) => string);
+
+/** Visibility condition based on state */
+export type VisibilityFunction<TState = Record<string, unknown>> =
+    (state: TState) => boolean;
 
 /** Base configuration for any canvas element */
-export interface BaseElementConfig {
+export interface BaseElementConfig<TState = Record<string, unknown>> {
     id: string;
     type: CanvasElementType;
     /** Static or state-derived x position */
-    x: PositionValue;
+    x: PositionValue<TState>;
     /** Static or state-derived y position */
-    y: PositionValue;
+    y: PositionValue<TState>;
     /** Condition for rendering this element */
-    visible?: (state: any) => boolean;
+    visible?: VisibilityFunction<TState>;
     /** Z-index order (lower = behind) */
     order?: number;
 }
@@ -44,25 +57,25 @@ export interface AdditionalText {
 }
 
 /** Text element configuration */
-export interface TextElementConfig extends BaseElementConfig {
+export interface TextElementConfig<TState = Record<string, unknown>> extends BaseElementConfig<TState> {
     type: 'text';
     /** State key for text content */
     textKey: string;
     /** Static or state-derived width */
-    width: PositionValue;
+    width: PositionValue<TState>;
     /** Static or state-derived font size */
-    fontSize: PositionValue;
+    fontSize: PositionValue<TState>;
     fontFamily: string;
     fontStyle?: 'bold' | 'normal' | 'italic' | 'bold italic';
     /** Static or state-derived fill color */
-    fill?: string | ((state: any, layout: LayoutResult) => string);
+    fill?: FillValue<TState>;
     /** State key for custom fill color override */
     fillStateKey?: string;
     align?: 'left' | 'center' | 'right';
     lineHeight?: number;
     wrap?: 'word' | 'char' | 'none';
     /** Text padding in pixels (or fontSize multiplier if 0 < value < 1) */
-    padding?: PositionValue;
+    padding?: PositionValue<TState>;
     /** Enable inline editing */
     editable?: boolean;
     /** Enable dragging */
@@ -76,22 +89,22 @@ export interface TextElementConfig extends BaseElementConfig {
     /** State key for custom position override */
     positionStateKey?: string;
     /** Opacity (0-1) */
-    opacity?: PositionValue;
+    opacity?: PositionValue<TState>;
     /** State key for custom opacity override */
     opacityStateKey?: string;
 }
 
 /** Image element configuration */
-export interface ImageElementConfig extends BaseElementConfig {
+export interface ImageElementConfig<TState = Record<string, unknown>> extends BaseElementConfig<TState> {
     type: 'image';
     /** State key for image source URL */
     srcKey?: string;
     /** Static source */
-    src?: string | ((state: any) => string);
+    src?: SourceValue<TState>;
     /** Static or state-derived width */
-    width: PositionValue;
+    width: PositionValue<TState>;
     /** Static or state-derived height */
-    height: PositionValue;
+    height: PositionValue<TState>;
     /** State key for image offset */
     offsetKey?: string;
     /** State key for image scale */
@@ -105,37 +118,37 @@ export interface ImageElementConfig extends BaseElementConfig {
     /** Listen for events */
     listening?: boolean;
     /** Opacity (0-1) */
-    opacity?: PositionValue;
+    opacity?: PositionValue<TState>;
     /** State key for custom opacity override */
     opacityStateKey?: string;
     /** Static or state-derived fill color (for filters) */
-    fill?: string | ((state: any, layout: LayoutResult) => string);
+    fill?: FillValue<TState>;
     /** State key for custom fill color override */
     fillStateKey?: string;
 }
 
 /** Rectangle element configuration */
-export interface RectElementConfig extends BaseElementConfig {
+export interface RectElementConfig<TState = Record<string, unknown>> extends BaseElementConfig<TState> {
     type: 'rect';
-    width: PositionValue;
-    height: PositionValue;
-    fill: string | ((state: any) => string);
+    width: PositionValue<TState>;
+    height: PositionValue<TState>;
+    fill: FillValue<TState>;
     listening?: boolean;
 }
 
 /** Circle element configuration */
-export interface CircleElementConfig extends BaseElementConfig {
+export interface CircleElementConfig<TState = Record<string, unknown>> extends BaseElementConfig<TState> {
     type: 'circle';
-    radius: PositionValue;
-    fill: string | ((state: any) => string);
+    radius: PositionValue<TState>;
+    fill: FillValue<TState>;
     rotation?: number;
 }
 
 /** Group element configuration (for complex nested elements) */
-export interface GroupElementConfig extends BaseElementConfig {
+export interface GroupElementConfig<TState = Record<string, unknown>> extends BaseElementConfig<TState> {
     type: 'group';
     /** Child elements within this group */
-    children: CanvasElementConfig[];
+    children: CanvasElementConfig<TState>[];
     /** Clip function config */
     clip?: {
         x: number;
@@ -147,7 +160,7 @@ export interface GroupElementConfig extends BaseElementConfig {
 }
 
 /** Background element (solid color) */
-export interface BackgroundElementConfig extends BaseElementConfig {
+export interface BackgroundElementConfig<TState = Record<string, unknown>> extends BaseElementConfig<TState> {
     type: 'background';
     width: number;
     height: number;
@@ -158,13 +171,13 @@ export interface BackgroundElementConfig extends BaseElementConfig {
 }
 
 /** Union of all element config types */
-export type CanvasElementConfig =
-    | TextElementConfig
-    | ImageElementConfig
-    | RectElementConfig
-    | CircleElementConfig
-    | GroupElementConfig
-    | BackgroundElementConfig;
+export type CanvasElementConfig<TState = Record<string, unknown>> =
+    | TextElementConfig<TState>
+    | ImageElementConfig<TState>
+    | RectElementConfig<TState>
+    | CircleElementConfig<TState>
+    | GroupElementConfig<TState>
+    | BackgroundElementConfig<TState>;
 
 // ============================================================================
 // LAYOUT CONFIGURATION
@@ -180,6 +193,7 @@ export interface LayoutResult {
         fontSize?: number;
         maxWidth?: number;
         lineHeight?: number;
+        padding?: number;
     };
 }
 
@@ -190,19 +204,21 @@ export type LayoutCalculator<TState> = (state: TState) => LayoutResult;
 // SECTION CONFIGURATION (existing, enhanced)
 // ============================================================================
 
-export interface SectionConfig<TState = any, TActions = any> {
+export interface SectionContext {
+    selectedElement: string | null;
+    exportedImage?: string | null;
+    autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+    shareToken?: string | null;
+    onCaptureCanvas?: () => void;
+    onDownload?: () => void;
+    onNavigateToGallery?: () => void;
+}
+
+export interface SectionConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>, TProps = Record<string, unknown>> {
     /** Component to render for this section */
-    component: React.ComponentType<any>;
+    component: React.ComponentType<TProps>;
     /** Function to map canvas state and handlers to section props */
-    propsFactory: (state: TState, actions: TActions, context?: {
-        selectedElement: string | null;
-        exportedImage?: string | null;
-        autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
-        shareToken?: string | null;
-        onCaptureCanvas?: () => void;
-        onDownload?: () => void;
-        onNavigateToGallery?: () => void;
-    }) => Record<string, any>;
+    propsFactory: (state: TState, actions: TActions, context?: SectionContext) => TProps;
 }
 
 // ============================================================================
@@ -223,7 +239,7 @@ export interface MultiPageConfig<TState> {
 // FULL CANVAS CONFIGURATION
 // ============================================================================
 
-export interface FullCanvasConfig<TState = any, TActions = any> {
+export interface FullCanvasConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>> {
     /** Canvas identifier */
     id: string;
     /** Canvas dimensions */
@@ -234,20 +250,20 @@ export interface FullCanvasConfig<TState = any, TActions = any> {
     /** Sidebar tabs */
     tabs: SidebarTab[];
     /** Sidebar sections */
-    sections: Record<string, SectionConfig<TState, TActions>>;
+    sections: Record<string, SectionConfig<TState, TActions, any>>;
     /** Canvas elements to render */
-    elements: CanvasElementConfig[];
+    elements: CanvasElementConfig<TState>[];
     /** Layout calculator */
     calculateLayout: LayoutCalculator<TState>;
     /** Create initial state from props */
-    createInitialState: (props: any) => TState;
+    createInitialState: (props: Record<string, unknown>) => TState;
     /** Create action handlers */
     createActions: (
         getState: () => TState,
         setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void,
         saveToHistory: (state: TState) => void,
         debouncedSaveToHistory: (state: TState) => void,
-        callbacks: Record<string, ((val: any) => void) | undefined>
+        callbacks: Record<string, ((val: unknown) => void) | undefined>
     ) => TActions;
     /** Optional function to determine disabled tabs */
     getDisabledTabs?: (state: TState) => SidebarTabId[];
@@ -279,11 +295,11 @@ export interface FullCanvasConfig<TState = any, TActions = any> {
 // LEGACY SIDEBAR-ONLY CONFIG (for backward compatibility with Dreizeilen)
 // ============================================================================
 
-export interface CanvasConfig<TState = any, TActions = any> {
+export interface CanvasConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>> {
     /** List of tabs to display in the sidebar */
     tabs: SidebarTab[];
     /** Mapping of tab IDs to section configurations */
-    sections: Record<string, SectionConfig<TState, TActions>>;
+    sections: Record<string, SectionConfig<TState, TActions, any>>;
     /** Optional function to determine disabled tabs based on state */
     getDisabledTabs?: (state: TState) => SidebarTabId[];
     /** Optional function to determine visible tabs based on state/context */

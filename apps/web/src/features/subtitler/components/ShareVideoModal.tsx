@@ -12,7 +12,13 @@ const expirationOptions = [
   { value: 30, label: '30 Tage' },
 ];
 
-const ShareVideoModal = ({ projectId, title, onClose }) => {
+interface ShareVideoModalProps {
+  projectId: string;
+  title?: string;
+  onClose: () => void;
+}
+
+const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onClose }) => {
   const [shareTitle, setShareTitle] = useState(title || 'Untertiteltes Video');
   const [expiresInDays, setExpiresInDays] = useState(expirationOptions[1]);
   const [copied, setCopied] = useState(false);
@@ -54,7 +60,7 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
     }
   };
 
-  const formatExpiration = (expiresAt) => {
+  const formatExpiration = (expiresAt: string | undefined): string => {
     if (!expiresAt) return '';
     const date = new Date(expiresAt);
     return date.toLocaleDateString('de-DE', {
@@ -149,7 +155,7 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
               <div className="share-modal-left">
                 <div className="share-qr-container">
                   <QRCode
-                    value={getShareUrl(currentShare.shareToken)}
+                    value={getShareUrl(currentShare.shareToken || '')}
                     size={160}
                     level="M"
                   />
@@ -162,7 +168,7 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
                   <input
                     type="text"
                     readOnly
-                    value={getShareUrl(currentShare.shareToken)}
+                    value={getShareUrl(currentShare.shareToken || '')}
                     className="share-link-input"
                   />
                   <button
@@ -195,7 +201,7 @@ const ShareVideoModal = ({ projectId, title, onClose }) => {
                     </button>
                   )}
                 </div>
-                <p className="share-modal-expiry">Gültig bis {formatExpiration(currentShare.expiresAt)}</p>
+                <p className="share-modal-expiry">Gültig bis {formatExpiration(currentShare.expiresAt as string | undefined)}</p>
               </div>
             </div>
 

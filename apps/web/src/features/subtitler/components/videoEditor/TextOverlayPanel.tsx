@@ -3,14 +3,19 @@ import { FiTrash2, FiCheck } from 'react-icons/fi';
 import useVideoEditorStore from '../../../../stores/videoEditorStore';
 import './TextOverlay.css';
 
-const formatTime = (seconds) => {
+const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const TextOverlayPanel = ({ overlayId, onClose }) => {
-  const inputRef = useRef(null);
+interface TextOverlayPanelProps {
+  overlayId: number;
+  onClose?: () => void;
+}
+
+const TextOverlayPanel: React.FC<TextOverlayPanelProps> = ({ overlayId, onClose }) => {
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [localText, setLocalText] = useState('');
 
   const {
@@ -34,7 +39,7 @@ const TextOverlayPanel = ({ overlayId, onClose }) => {
     }
   }, [overlay?.id]);
 
-  const handleTextChange = useCallback((e) => {
+  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setLocalText(newText);
   }, []);
@@ -45,7 +50,7 @@ const TextOverlayPanel = ({ overlayId, onClose }) => {
     }
   }, [overlayId, localText, overlay?.text, updateTextOverlay]);
 
-  const handleKeyDown = useCallback((e) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape') {
       setLocalText(overlay?.text || '');
       inputRef.current?.blur();

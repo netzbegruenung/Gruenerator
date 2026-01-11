@@ -5,8 +5,9 @@ import { FormInput, FormTextarea, FormImageSelect, FormSelect } from '../../../c
 import FeatureToggle from '../../../components/common/FeatureToggle';
 import apiClient from '../../../components/utils/apiClient';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
+import { useGeneratorSetup, type FeatureState } from '../../../hooks/useGeneratorSetup';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import CampaignSharepicEditor from './components/CampaignSharepicEditor';
 import useCampaignSharepicEdit from './hooks/useCampaignSharepicEdit';
 import PlatformSelector from '../../../components/common/PlatformSelector';
@@ -103,20 +104,12 @@ interface CampaignGeneratedContent {
   social?: { content: string };
 }
 
-interface FormData {
+interface CampaignFormData {
   variant: string;
   location: string;
   details: string;
 }
 
-interface FeatureState {
-  useWebSearchTool: boolean;
-  usePrivacyMode: boolean;
-  useProMode: boolean;
-  useUltraMode: boolean;
-  useAutomaticSearch: boolean;
-  useBedrock: boolean;
-}
 
 interface UseCampaignSharepicEditReturn {
   regenerateSharepic: (params: {
@@ -230,10 +223,27 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     errors
   } = form as { control: any; handleSubmit: any; getValues: any; errors: { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } } };
 
+  // Consolidated setup using new hook
+  const setup = useGeneratorSetup({
+    instructionType: 'social',
+    componentName: componentName
+  });
+
+  // Memoized attachments array (campaigns don't typically have crawled URLs, but keep pattern consistent)
+  const allAttachments = useMemo(() => [
+    ...(form.generator?.attachedFiles || [])
+  ], [form.generator?.attachedFiles]);
+
+  // Form data builder with campaign-specific fields
+  const builder = useFormDataBuilder({
+    ...setup,
+    attachments: allAttachments,
+    searchQueryFields: ['location', 'details'] as const
+  });
+
   // Store integration
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName)) as unknown as CampaignGeneratedContent | null;
-  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
 
   // Loading state for generation
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -253,7 +263,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
   // Handler for regenerating a single sharepic with edited text
   const handleRegenerateSharepic = useCallback(async (index: number, editedLinesParam: EditedLines) => {
     try {
-      const formValues = getValues() as FormData;
+      const formValues = getValues() as CampaignFormData;
       const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
 
       const updatedSharepic = await regenerateSharepic({
@@ -262,7 +272,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         location: formValues.location,
         details: formValues.details,
         editedLines: editedLinesParam,
-        features: getFeatureState()
+        features: setup.getFeatureState()
       });
 
       const currentSharepics = storeGeneratedText?.sharepic || [];
@@ -280,9 +290,9 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
       console.error('[KampagnenGenerator] Failed to regenerate sharepic:', error);
       throw error;
     }
-  }, [regenerateSharepic, storeGeneratedText, setGeneratedText, getFeatureState, getValues, selectedCampaignData, selectedCampaign, componentName]);
+  }, [regenerateSharepic, storeGeneratedText, setGeneratedText, setup, getValues, selectedCampaignData, selectedCampaign, componentName]);
 
-  const onSubmitRHF = useCallback(async (rhfData: FormData) => {
+  const onSubmitRHF = useCallback(async (rhfData: CampaignFormData) => {
     if (isImageEditMode && editedLines) {
       await handleRegenerateSharepic(activeSharepicIndex, editedLines);
       return;
@@ -292,19 +302,20 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     setIsGenerating(true);
 
     try {
-      const features = getFeatureState();
+      // Build submission data using builder (includes features, attachments, selections)
+      const submissionData = builder.buildSubmissionData(rhfData as unknown as Record<string, unknown>);
 
       // Get backend campaign ID from selected campaign data
       const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
 
+      // Merge with campaign-specific fields
       const response = await apiClient.post('campaign_generate', {
+        ...submissionData,
         campaignId: campaignId,
         campaignTypeId: rhfData.variant,
         thema: rhfData.location,
-        details: rhfData.details || '',
         count: 4,
-        generateCampaignText: generateCampaignText,
-        ...features
+        generateCampaignText: generateCampaignText
       });
 
       const result = response.data;
@@ -352,7 +363,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
       setStoreIsLoading(false);
       setIsGenerating(false);
     }
-  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, getFeatureState, selectedCampaign, selectedCampaignData, componentName, generateCampaignText]);
+  }, [isImageEditMode, editedLines, activeSharepicIndex, handleRegenerateSharepic, setGeneratedText, setStoreIsLoading, builder, selectedCampaign, selectedCampaignData, componentName, generateCampaignText]);
 
   const handleGeneratedContentChange = useCallback((content: string) => {
     setGeneratedText(componentName, content);

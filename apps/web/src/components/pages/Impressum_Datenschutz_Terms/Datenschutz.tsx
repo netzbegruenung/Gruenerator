@@ -196,9 +196,9 @@ const Datenschutz = () => {
         <li>Besonderheit: Keine Weitergabe an externe Suchanbieter, vollständige Datenkontrolle</li>
       </ul>
 
-      <h3 id="webanalyse">Webanalyse mit Matomo</h3>
+      <h3 id="webanalyse">Webanalyse mit Umami</h3>
       <p>
-        Diese Website nutzt den Open-Source-Webanalysedienst Matomo zur statistischen Auswertung der Besucherzugriffe. Matomo wird von <strong>Grünes CMS</strong> (piwik.gruenes-cms.de) in Deutschland gehostet und betrieben.
+        Diese Website nutzt den Open-Source-Webanalysedienst Umami zur statistischen Auswertung der Besucherzugriffe. Umami wird von <strong>Grünes CMS</strong> (analytics.gruenes-cms.de) in Deutschland gehostet und betrieben.
       </p>
       <p>
         <strong>Einwilligung:</strong> Die Webanalyse wird erst aktiviert, nachdem Du bei Deinem ersten Besuch zugestimmt hast. Ohne Deine Einwilligung findet keine Analyse statt.
@@ -208,7 +208,7 @@ const Datenschutz = () => {
         <li>Besuchte Seiten und Verweildauer</li>
         <li>Referrer (von welcher Seite Du kamst)</li>
         <li>Browsertyp und Betriebssystem</li>
-        <li>Anonymisierte IP-Adresse (die letzten zwei Bytes werden entfernt)</li>
+        <li>Anonymisierte IP-Adresse (keine vollständige IP-Speicherung)</li>
         <li>Ungefährer Standort (Land/Region)</li>
       </ul>
       <p><strong>Datenschutz-Eigenschaften:</strong></p>
@@ -216,21 +216,21 @@ const Datenschutz = () => {
         <li>Server ausschließlich in Deutschland</li>
         <li>Keine Weitergabe an Dritte</li>
         <li>Keine Verknüpfung mit anderen Datenquellen</li>
-        <li>Cookies zur Wiedererkennung (können deaktiviert werden)</li>
+        <li>Keine personenbezogenen Daten oder eindeutige Identifikatoren</li>
         <li>Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)</li>
       </ul>
       <p>
-        <strong>Widerruf:</strong> Du kannst Deine Einwilligung jederzeit widerrufen. Lösche dazu den Eintrag „analyticsConsent" in Deinen Browser-Einstellungen (Websitedaten/Cookies) oder besuche die <a href="https://piwik.gruenes-cms.de/index.php?module=CoreAdminHome&action=optOut&language=de" target="_blank" rel="noopener noreferrer">Matomo Opt-out Seite</a>.
+        <strong>Widerruf:</strong> Du kannst Deine Einwilligung jederzeit widerrufen. Lösche dazu den Eintrag „analyticsConsent" in Deinen Browser-Einstellungen (Websitedaten/Cookies) oder lade die Seite nach dem Widerruf neu.
       </p>
 
       <h3>Cookies und Einwilligung</h3>
       <p>
-        Diese Website verwendet Cookies. Technisch notwendige Cookies werden ohne Einwilligung gesetzt. Analyse-Cookies (Matomo) werden erst nach Deiner ausdrücklichen Einwilligung aktiviert.
+        Diese Website verwendet Cookies. Technisch notwendige Cookies werden ohne Einwilligung gesetzt. Analyse-Cookies (Umami) werden erst nach Deiner ausdrücklichen Einwilligung aktiviert.
       </p>
       <p><strong>Verwendete Cookies:</strong></p>
       <ul>
         <li><strong>Session-Cookie:</strong> Zur Authentifizierung und Aufrechterhaltung Deiner Sitzung (technisch notwendig, Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO)</li>
-        <li><strong>Matomo-Cookies:</strong> Zur anonymisierten Webanalyse (nur nach Einwilligung, Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO)</li>
+        <li><strong>Umami-Tracking:</strong> Zur anonymisierten Webanalyse (nur nach Einwilligung, Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO)</li>
       </ul>
 
       <h3>Lokale Speicherung im Browser</h3>
@@ -304,7 +304,7 @@ const Datenschutz = () => {
             <td>Zero Retention – sofortige Löschung</td>
           </tr>
           <tr>
-            <td>Matomo-Analysen</td>
+            <td>Umami-Analysen</td>
             <td>13 Monate</td>
           </tr>
           <tr>

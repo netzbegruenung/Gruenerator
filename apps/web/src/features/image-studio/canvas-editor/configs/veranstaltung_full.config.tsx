@@ -13,7 +13,7 @@ import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
 import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
-import type { StockImageAttribution } from '../../../services/imageSourceService';
+import type { StockImageAttribution } from '../../services/imageSourceService';
 
 // ============================================================================
 // STATE TYPE
@@ -304,15 +304,15 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
 
     calculateLayout,
 
-    createInitialState: (props) => ({
-        eventTitle: props.eventTitle ?? '',
-        beschreibung: props.beschreibung ?? '',
-        weekday: props.weekday ?? '',
-        date: props.date ?? '',
-        time: props.time ?? '',
-        locationName: props.locationName ?? '',
-        address: props.address ?? '',
-        currentImageSrc: props.imageSrc ?? '',
+    createInitialState: (props: Record<string, unknown>) => ({
+        eventTitle: (props.eventTitle as string | undefined) ?? '',
+        beschreibung: (props.beschreibung as string | undefined) ?? '',
+        weekday: (props.weekday as string | undefined) ?? '',
+        date: (props.date as string | undefined) ?? '',
+        time: (props.time as string | undefined) ?? '',
+        locationName: (props.locationName as string | undefined) ?? '',
+        address: (props.address as string | undefined) ?? '',
+        currentImageSrc: (props.imageSrc as string | undefined) ?? '',
         imageOffset: { x: 0, y: 0 },
         imageScale: 1,
         isBackgroundLocked: true,
@@ -322,7 +322,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         beschreibungOpacity: 1,
         assetVisibility: {},
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        alternatives: props.alternatives?.map((a: any) => a.eventTitle || '') ?? [],
+        alternatives: (props.alternatives as any[] | undefined)?.map((a: any) => a.eventTitle || '') ?? [],
         selectedIcons: [],
         iconStates: {},
         shapeInstances: [],
@@ -447,10 +447,10 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
             saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
         },
         updateIllustration: (id, partial) => {
-            setState((prev) => ({
+            setState((prev): VeranstaltungFullState => ({
                 ...prev,
-                illustrationInstances: prev.illustrationInstances.map(i =>
-                    i.id === id ? { ...i, ...partial } : i
+                illustrationInstances: prev.illustrationInstances.map((i): IllustrationInstance =>
+                    i.id === id ? { ...i, ...partial } as IllustrationInstance : i
                 ),
             }));
             debouncedSaveToHistory({ ...getState() });

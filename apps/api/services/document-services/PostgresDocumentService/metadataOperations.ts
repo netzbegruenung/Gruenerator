@@ -4,7 +4,7 @@
  */
 
 import type { DocumentMetadata, DocumentRecord, DocumentUpdateData, DeleteResult, BulkDeleteResult } from './types.js';
-import { parseMetadata } from '../../routes/documents/helpers.js';
+import { parseMetadata } from '../../../routes/documents/helpers.js';
 
 /**
  * Save document metadata (no file content)

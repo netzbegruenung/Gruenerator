@@ -14,38 +14,27 @@ import '../../../assets/styles/components/ui/spinner.css';
 import '../../../assets/styles/components/actions/action-buttons.css';
 import '../styles/SubtitleEditor.css';
 
-// Type definitions
-interface SubtitleSegment {
-  id: number;
-  startTime: number;
-  endTime: number;
-  text: string;
-}
+// Import centralized types and utilities
+import type {
+  SubtitleSegment,
+  VideoMetadata,
+  LoadedProject,
+  CorrectionResponse,
+  CorrectionItem,
+  StylePreference,
+  HeightPreference,
+  SubtitlePreference
+} from '../types';
+import {
+  parseSubtitleBlocks,
+  formatSubtitleBlocks
+} from '../utils/subtitleSegmentUtils';
+import { assertCorrectionResponse } from '../utils/validators';
 
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-}
-
-interface LoadedProject {
-  id: string;
-  [key: string]: unknown;
-}
-
+// Local interface for fallback button
 interface FallbackButtonData {
   url?: string;
   filename?: string;
-}
-
-interface CorrectionItem {
-  id: number;
-  corrected: string;
-}
-
-interface CorrectionResponse {
-  hasCorrections: boolean;
-  corrections: CorrectionItem[];
 }
 
 interface StyleOptionPreview extends React.CSSProperties {
@@ -87,9 +76,9 @@ interface SubtitleEditorProps {
   videoUrl?: string | null;
   subtitles: string;
   uploadId: string;
-  subtitlePreference: string;
-  stylePreference?: string;
-  heightPreference?: string;
+  subtitlePreference: SubtitlePreference;
+  stylePreference?: StylePreference;
+  heightPreference?: HeightPreference;
   onStyleChange?: (styleId: string) => void;
   onHeightChange?: (heightId: string) => void;
   onExportSuccess?: (token: string) => void;
@@ -107,8 +96,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   subtitles,
   uploadId,
   subtitlePreference,
-  stylePreference = 'shadow',
-  heightPreference = 'tief',
+  stylePreference = 'shadow' as StylePreference,
+  heightPreference = 'tief' as HeightPreference,
   onStyleChange,
   onHeightChange,
   onExportSuccess,
@@ -193,12 +182,12 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   }, [heightPreference]);
 
   const handleLocalStyleChange = (styleId: string): void => {
-    setLocalStyle(styleId);
+    setLocalStyle(styleId as StylePreference);
     onStyleChange?.(styleId);
   };
 
   const handleLocalHeightChange = (heightId: string): void => {
-    setLocalHeight(heightId);
+    setLocalHeight(heightId as HeightPreference);
     onHeightChange?.(heightId);
   };
 
@@ -339,33 +328,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     try {
       console.log('[SubtitleEditor] Processing subtitles:', subtitles);
 
-      const segments = subtitles.split('\n\n')
-        .map((block, index) => {
-          const [timeLine, ...textLines] = block.split('\n');
-          const timeMatch = timeLine.match(/(\d+):(\d{2})\.(\d) - (\d+):(\d{2})\.(\d)/);
-          if (!timeMatch) {
-            console.warn('[SubtitleEditor] Invalid time range in block:', block);
-            return null;
-          }
-
-          const startMin = parseInt(timeMatch[1], 10);
-          const startSec = parseInt(timeMatch[2], 10);
-          const startFrac = parseInt(timeMatch[3], 10);
-          const endMin = parseInt(timeMatch[4], 10);
-          const endSec = parseInt(timeMatch[5], 10);
-          const endFrac = parseInt(timeMatch[6], 10);
-
-          const startTime = startMin * 60 + startSec + (startFrac / 10);
-          const endTime = endMin * 60 + endSec + (endFrac / 10);
-
-          return {
-            id: index,
-            startTime,
-            endTime,
-            text: textLines.join('\n').trim()
-          };
-        })
-        .filter(Boolean);
+      // Use centralized parsing utility (eliminates ~27 lines of duplicate code)
+      const segments = parseSubtitleBlocks(subtitles);
 
       console.log('[SubtitleEditor] Processed segments:', segments.length);
       setEditableSubtitles(segments);
@@ -541,20 +505,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     try {
       setError(null);
 
-      // Format subtitles text
-      const subtitlesText = editableSubtitles
-        .map(segment => {
-          const startMin = Math.floor(segment.startTime / 60);
-          const startWholeSeconds = Math.floor(segment.startTime % 60);
-          const startFractional = Math.floor((segment.startTime % 1) * 10);
-          const endMin = Math.floor(segment.endTime / 60);
-          const endWholeSeconds = Math.floor(segment.endTime % 60);
-          const endFractional = Math.floor((segment.endTime % 1) * 10);
-          return `${startMin.toString().padStart(2, '0')}:${startWholeSeconds.toString().padStart(2, '0')}.${startFractional}` +
-                 ` - ${endMin.toString().padStart(2, '0')}:${endWholeSeconds.toString().padStart(2, '0')}.${endFractional}` +
-                 `\n${segment.text}`;
-        })
-        .join('\n\n');
+      // Format subtitles text using centralized utility (eliminates 13 lines of duplicate code)
+      const subtitlesText = formatSubtitleBlocks(editableSubtitles);
 
       console.log('[SubtitleEditor] Starting export via store:', {
         uploadId,
@@ -602,20 +554,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     try {
       setError(null);
 
-      // Format subtitles text for storage
-      const subtitlesText = editableSubtitles
-        .map(segment => {
-          const startMin = Math.floor(segment.startTime / 60);
-          const startWholeSeconds = Math.floor(segment.startTime % 60);
-          const startFractional = Math.floor((segment.startTime % 1) * 10);
-          const endMin = Math.floor(segment.endTime / 60);
-          const endWholeSeconds = Math.floor(segment.endTime % 60);
-          const endFractional = Math.floor((segment.endTime % 1) * 10);
-          return `${startMin.toString().padStart(2, '0')}:${startWholeSeconds.toString().padStart(2, '0')}.${startFractional}` +
-                 ` - ${endMin.toString().padStart(2, '0')}:${endWholeSeconds.toString().padStart(2, '0')}.${endFractional}` +
-                 `\n${segment.text}`;
-        })
-        .join('\n\n');
+      // Format subtitles text for storage using centralized utility (eliminates 13 more lines of IDENTICAL code)
+      const subtitlesText = formatSubtitleBlocks(editableSubtitles);
 
       if (loadedProject) {
         await updateProject(loadedProject.id, {
@@ -660,7 +600,9 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       setError(null);
       setCorrectionMessage(null);
 
-      const response = await correctSubtitles(editableSubtitles) as CorrectionResponse;
+      // Use type-safe validation instead of unsafe type assertion
+      const response = await correctSubtitles(editableSubtitles);
+      assertCorrectionResponse(response, 'subtitle correction');
 
       if (!response.hasCorrections) {
         setCorrectionMessage('Keine Korrekturen notwendig');

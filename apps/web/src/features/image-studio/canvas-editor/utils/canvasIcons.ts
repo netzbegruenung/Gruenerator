@@ -1,6 +1,7 @@
 /**
  * Utility to convert React Icons to image data URLs for use in Konva canvas
  */
+import type { IconType } from 'react-icons';
 import * as PI from 'react-icons/pi'; // Phosphor
 import * as HI from 'react-icons/hi2'; // HeroIcons 2
 import * as BI from 'react-icons/bi'; // Bootstrap Icons
@@ -11,7 +12,7 @@ import * as FI from 'react-icons/fi'; // Feather
 
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement } from 'react';
-export type { IconType } from 'react-icons';
+export type { IconType };
 
 export interface CanvasIcon {
     id: string;

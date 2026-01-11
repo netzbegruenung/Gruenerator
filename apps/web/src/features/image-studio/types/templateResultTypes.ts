@@ -2,6 +2,7 @@ import type { RefObject, ChangeEvent } from 'react';
 import type { VeranstaltungFieldFontSizes, SloganAlternative } from '../../../stores/imageStudioStore';
 
 import type { InputField } from '../utils/typeConfig';
+import type { ColorScheme, ColorSchemeItem } from './shared';
 
 export interface FieldConfig {
   showImageUpload?: boolean;
@@ -35,19 +36,6 @@ export interface PreviewValues {
   time?: string;
   locationName?: string;
   address?: string;
-  [key: string]: string | undefined;
-}
-
-export interface ColorSchemeItem {
-  background: string;
-  text?: string;
-}
-
-export interface ColorScheme {
-  primary?: string;
-  secondary?: string;
-  background?: string;
-  text?: string;
   [key: string]: string | undefined;
 }
 
@@ -109,13 +97,20 @@ export interface TemplateResultActionButtonsProps {
   isAltTextLoading: boolean;
   canNativeShare: boolean;
   isUpdating: boolean;
+  isAiType?: boolean;
+  isAiEditor?: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
   onDownload: () => void;
   onShare: () => void;
   onGalleryUpdate: () => void;
   onNavigateToGallery: () => void;
   onOpenEditPanel: () => void;
+  onRecreate: () => void;
   onTextButtonClick: () => void;
   onShareToInstagram: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export interface ShareMetadata {
@@ -142,3 +137,4 @@ export interface ShareMetadata {
 }
 
 export { SloganAlternative, VeranstaltungFieldFontSizes };
+export type { ColorScheme, ColorSchemeItem } from './shared';

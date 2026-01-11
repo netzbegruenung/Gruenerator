@@ -13,14 +13,17 @@ interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-// Matomo analytics tracking array
-type MatomoCommand = ['setCustomUrl' | 'setDocumentTitle' | 'trackPageView', ...unknown[]]
+// Umami analytics
+interface UmamiTracker {
+  track: (callback?: (props: Record<string, unknown>) => Record<string, unknown>) => void
+}
 
 declare global {
   interface Window {
     queryClient?: QueryClient
-    _paq?: MatomoCommand[]
-    grantMatomoConsent?: () => void
+    umami?: UmamiTracker
+    grantAnalyticsConsent?: () => void
+    revokeAnalyticsConsent?: () => void
   }
 
   // Extend CSSProperties to allow CSS custom properties

@@ -34,6 +34,7 @@ import { setupRoutes } from './routes.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
 import redisClient from './utils/redis/client.js';
 import { tusServer } from './services/subtitler/tusService.js';
+import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,9 +53,46 @@ if (cluster.isPrimary) {
     cluster.fork();
   }
 
+  // Start Hocuspocus WebSocket server if enabled
+  let hocuspocusProcess: any = null;
+  if (process.env.HOCUSPOCUS_ENABLED === 'true') {
+    log.info('Starting Hocuspocus WebSocket server...');
+    hocuspocusProcess = spawn('npx', ['tsx', 'services/hocuspocus/hocuspocusServer.ts'], {
+      cwd: __dirname,
+      stdio: 'inherit',
+      env: process.env
+    });
+
+    hocuspocusProcess.on('error', (error: Error) => {
+      log.error(`Hocuspocus server error: ${error.message}`);
+    });
+
+    hocuspocusProcess.on('exit', (code: number, signal: string) => {
+      log.warn(`Hocuspocus server exited (code: ${code}, signal: ${signal})`);
+      if (code !== 0 && code !== null) {
+        log.error('Hocuspocus server crashed, restarting...');
+        setTimeout(() => {
+          if (process.env.HOCUSPOCUS_ENABLED === 'true') {
+            hocuspocusProcess = spawn('npx', ['tsx', 'services/hocuspocus/hocuspocusServer.ts'], {
+              cwd: __dirname,
+              stdio: 'inherit',
+              env: process.env
+            });
+          }
+        }, 2000);
+      }
+    });
+  }
+
   const { shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,
-    logger: log
+    logger: log,
+    onComplete: () => {
+      if (hocuspocusProcess) {
+        log.info('Shutting down Hocuspocus server...');
+        hocuspocusProcess.kill('SIGTERM');
+      }
+    }
   });
 
   cluster.on('exit', (worker, code, signal) => {
@@ -120,6 +158,18 @@ async function startWorker(): Promise<void> {
     log.warn(`AI Search Agent init failed: ${err.message}`);
   }
 
+  // Initialize Plan Mode Worker Pool
+  try {
+    const planModeModule = await import('./routes/plan-mode/index.js') as any;
+    if (typeof planModeModule.setPlanModeWorkerPool === 'function') {
+      planModeModule.setPlanModeWorkerPool(aiWorkerPool);
+      log.debug('Plan Mode Worker Pool initialized');
+    }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    log.warn(`Plan Mode Worker Pool init failed: ${err.message}`);
+  }
+
   // Initialize Temporary Image Storage
   try {
     const { default: TemporaryImageStorage } = await import('./services/image/TemporaryImageStorage.js');
@@ -136,10 +186,10 @@ async function startWorker(): Promise<void> {
     const { getPostgresInstance } = await import('./database/services/PostgresService.js');
     const postgresService = getPostgresInstance();
     await postgresService.init();
-    log.info('PostgreSQL connected');
+    log.info('PostgreSQL connected and schema synchronized');
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    log.error(`PostgreSQL connection failed: ${err.message}`);
+    log.error(`PostgreSQL initialization failed: ${err.message}`);
   }
 
   // Initialize Profile Service
@@ -169,15 +219,15 @@ async function startWorker(): Promise<void> {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "https://piwik.gruenes-cms.de"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "data:", "https://analytics.gruenes-cms.de"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com", "https://*.canva.com", "https://static.canva.com", "https://piwik.gruenes-cms.de"],
+        imgSrc: ["'self'", "data:", "blob:", "https://*.unsplash.com", "https://*.canva.com", "https://static.canva.com", "https://analytics.gruenes-cms.de"],
         connectSrc: [
           "'self'",
           "data:",
           "blob:",
           "https://*.supabase.co",
-          "https://piwik.gruenes-cms.de",
+          "https://analytics.gruenes-cms.de",
           `http://*.${PRIMARY_DOMAIN}`,
           `https://*.${PRIMARY_DOMAIN}`,
           "http://*.gruenerator.de",
@@ -260,6 +310,9 @@ async function startWorker(): Promise<void> {
 
   // TUS Upload Handler (must be before setupRoutes)
   const tusUploadPath = '/api/subtitler/upload';
+  app.all(tusUploadPath, (req: Request, res: Response) => {
+    tusServer.handle(req, res);
+  });
   app.all(tusUploadPath + '/*splat', (req: Request, res: Response) => {
     tusServer.handle(req, res);
   });

@@ -12,7 +12,7 @@ import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
 import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
-import type { StockImageAttribution } from '../../../services/imageSourceService';
+import type { StockImageAttribution } from '../../services/imageSourceService';
 
 // ============================================================================
 // STATE TYPE
@@ -304,10 +304,10 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
 
     calculateLayout,
 
-    createInitialState: (props) => ({
-        headline: props.headline ?? '',
-        subtext: props.subtext ?? '',
-        currentImageSrc: props.imageSrc ?? '',
+    createInitialState: (props: Record<string, unknown>) => ({
+        headline: (props.headline as string | undefined) ?? '',
+        subtext: (props.subtext as string | undefined) ?? '',
+        currentImageSrc: (props.imageSrc as string | undefined) ?? '',
         imageOffset: { x: 0, y: 0 },
         imageScale: 1,
         gradientOpacity: 0.3,
@@ -317,7 +317,7 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         subtextOpacity: 1,
         assetVisibility: {},
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        alternatives: props.alternatives ?? [],
+        alternatives: (props.alternatives as string[] | undefined) ?? [],
         // Balken initial state
         balkenInstances: [],
         selectedIcons: [],
@@ -497,10 +497,10 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             saveToHistory({ ...getState(), illustrationInstances: [...getState().illustrationInstances, newIllustration] });
         },
         updateIllustration: (id, partial) => {
-            setState((prev) => ({
+            setState((prev): SimpleFullState => ({
                 ...prev,
-                illustrationInstances: prev.illustrationInstances.map(i =>
-                    i.id === id ? { ...i, ...partial } : i
+                illustrationInstances: prev.illustrationInstances.map((i): IllustrationInstance =>
+                    i.id === id ? { ...i, ...partial } as IllustrationInstance : i
                 ),
             }));
             debouncedSaveToHistory({ ...getState() });

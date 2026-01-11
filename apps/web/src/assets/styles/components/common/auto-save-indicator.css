@@ -1,0 +1,113 @@
+/**
+ * Auto-Save Indicator Styles
+ * Small, subtle visual feedback for auto-save status
+ */
+
+.auto-save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--grey-600);
+  background: transparent;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.auto-save-indicator__text {
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+/* Spinner animation */
+.auto-save-indicator__spinner {
+  width: 16px;
+  height: 16px;
+  color: var(--primary-600);
+  animation: auto-save-spin 1s linear infinite;
+}
+
+@keyframes auto-save-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Icons */
+.auto-save-indicator__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.auto-save-indicator__icon--success {
+  color: var(--primary-600);
+}
+
+.auto-save-indicator__icon--error {
+  color: var(--error-red);
+}
+
+/* State-specific styles */
+.auto-save-indicator--saving {
+  color: var(--grey-700);
+}
+
+.auto-save-indicator--saved {
+  color: var(--grey-600);
+}
+
+.auto-save-indicator--error {
+  color: var(--error-red);
+  background: var(--background-red-light);
+  border: 1px solid rgba(211, 47, 47, 0.2);
+}
+
+/* Retry button */
+.auto-save-indicator__retry {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--error-red);
+  background: transparent;
+  border: 1px solid var(--error-red);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auto-save-indicator__retry:hover {
+  background: var(--error-red);
+  color: var(--white);
+}
+
+.auto-save-indicator__retry:focus {
+  outline: 2px solid var(--error-red);
+  outline-offset: 2px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .auto-save-indicator {
+    font-size: 0.8125rem;
+    padding: 0.4rem 0.625rem;
+  }
+
+  .auto-save-indicator__text {
+    font-size: 0.8125rem;
+  }
+
+  .auto-save-indicator__icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .auto-save-indicator__spinner {
+    width: 14px;
+    height: 14px;
+  }
+}

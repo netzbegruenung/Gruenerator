@@ -14,9 +14,9 @@ import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasStageRef } from '../primitives/CanvasStage';
 import { useCanvasInteractions, useCanvasStoreSetup, useCanvasHistorySetup, useFontLoader } from '../hooks';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
-import type { StockImageAttribution } from '../../../services/imageSourceService';
+import type { StockImageAttribution } from '../../services/imageSourceService';
 import { useCanvasEditorStore, useSnapGuides, useSnapLines } from '../../../../stores/canvasEditorStore';
-import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
+import { useCanvasElementHandlers, type OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
 import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -33,7 +33,7 @@ import { downloadCanvasImage } from '../utils/downloadCanvas';
 import { useNavigate } from 'react-router-dom';
 import './GenericCanvas.css';
 
-export interface GenericCanvasProps<TState, TActions> {
+export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
     config: FullCanvasConfig<TState, TActions>;
     initialProps: Record<string, any>;
     onExport: (base64: string) => void;
@@ -46,7 +46,7 @@ export interface GenericCanvasProps<TState, TActions> {
     onDelete?: () => void;
 }
 
-function GenericCanvasInner<TState extends Record<string, any>, TActions>({
+function GenericCanvasInner<TState extends Record<string, any>, TActions extends OptionalCanvasActions>({
     config,
     initialProps,
     onExport,

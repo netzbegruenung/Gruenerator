@@ -44,21 +44,13 @@ const HelpDisplay = ({ content,
     }
   }, [isNewFeature, featureId, hasSeenFeature]);
 
+  // All hooks must be called before any conditional returns
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
   const displayContent = (hasSeenFeature && fallbackContent) ? fallbackContent : content;
   const displayTips = (hasSeenFeature && fallbackTips) ? fallbackTips : tips;
   const showNewFeatureStyle = isNewFeature && !hasSeenFeature;
-
-  const isHidden = forceHidden ||
-    hasGeneratedContent ||
-    hasAnyGeneratedText;
-
-  if (!displayContent || isHidden) {
-    return null;
-  }
-
-  // Cards layout for start mode - one tip visible at a time with dots and auto-scroll
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
 
   const featureItems = layout === 'cards'
     ? (features || displayTips?.map((tip, idx) => ({
@@ -67,6 +59,7 @@ const HelpDisplay = ({ content,
     })) || [])
     : [];
 
+  // Auto-scroll effect for cards layout
   useEffect(() => {
     if (layout !== 'cards' || featureItems.length <= 1 || isPaused) return;
 
@@ -76,6 +69,14 @@ const HelpDisplay = ({ content,
 
     return () => clearInterval(interval);
   }, [layout, featureItems.length, isPaused]);
+
+  const isHidden = forceHidden ||
+    hasGeneratedContent ||
+    hasAnyGeneratedText;
+
+  if (!displayContent || isHidden) {
+    return null;
+  }
 
   if (layout === 'cards') {
     if (featureItems.length === 0) return null;

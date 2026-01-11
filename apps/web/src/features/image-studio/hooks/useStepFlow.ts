@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import type { SloganAlternative } from '../types/storeTypes';
 import { usePreloadStore } from './usePreloadStore';
 import { useImageGeneration } from './useImageGeneration';
-import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS, TypeConfig } from '../utils/typeConfig';
+import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS, TypeConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 import apiClient from '../../../components/utils/apiClient';
 import { removeBackground } from '../../../services/backgroundRemoval';
 
@@ -10,7 +11,7 @@ import { removeBackground } from '../../../services/backgroundRemoval';
 
 interface FlowStep {
   id: string;
-  type: 'input' | 'image_upload' | 'canvas_edit';
+  type: 'input' | 'image_upload' | 'canvas_edit' | 'image_size_select';
   field?: {
     name: string;
     label: string;
@@ -175,6 +176,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           afterComplete: null
         });
       }
+
     }
 
     if (!inputBeforeImage && fieldConfig.inputFields?.length > 0) {
@@ -186,7 +188,11 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           if (typeConfig?.hasTextCanvasEdit) {
             afterComplete = 'generateText';
           } else {
-            afterComplete = fieldConfig.afterLastInputTrigger || 'generateImage';
+            // Use afterLastInputTrigger if defined, otherwise default to 'generateImage'
+            // Explicitly check for undefined to allow null values through
+            afterComplete = fieldConfig.afterLastInputTrigger !== undefined
+              ? fieldConfig.afterLastInputTrigger
+              : 'generateImage';
           }
         }
 
@@ -201,6 +207,31 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       });
     }
 
+    // Add image size selection step for ALL FLUX types
+    // For requiresImage types: comes after image upload
+    // For pure creation types: comes after prompt input
+    console.log('[useStepFlow] Checking IMAGE_SIZE_SELECT condition:', {
+      typeId: typeConfig?.id,
+      usesFluxApi: typeConfig?.usesFluxApi,
+      hasBackgroundRemoval: typeConfig?.hasBackgroundRemoval,
+      requiresImage: typeConfig?.requiresImage,
+      shouldAdd: typeConfig?.usesFluxApi && !typeConfig?.hasBackgroundRemoval
+    });
+
+    if (typeConfig?.usesFluxApi && !typeConfig?.hasBackgroundRemoval) {
+      const afterComplete = typeConfig?.requiresImage ? null : 'generateImage';
+
+      console.log('[useStepFlow] Adding IMAGE_SIZE_SELECT step with afterComplete:', afterComplete);
+
+      steps.push({
+        id: 'image_size_select',
+        type: 'image_size_select',
+        stepTitle: 'Bildgröße auswählen',
+        stepSubtitle: 'Wähle das passende Format für deine Social-Media-Plattform',
+        afterComplete
+      });
+    }
+
     if (typeConfig?.hasTextGeneration && !typeConfig?.usesFluxApi) {
       steps.push({
         id: 'text_canvas_edit',
@@ -211,10 +242,17 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       });
     }
 
+    console.log('[useStepFlow] Final steps array:', steps.map(s => ({ id: s.id, type: s.type, afterComplete: s.afterComplete })));
+
     return steps;
   }, [fieldConfig, typeConfig]);
 
-  const currentStep = useMemo(() => flowSteps[stepIndex] || null, [flowSteps, stepIndex]);
+  const currentStep = useMemo(() => {
+    const step = flowSteps[stepIndex] || null;
+    console.log('[useStepFlow] Current step:', { stepIndex, totalSteps: flowSteps.length, step: step ? { id: step.id, type: step.type } : null });
+    return step;
+  }, [flowSteps, stepIndex]);
+
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === flowSteps.length - 1;
   const totalSteps = flowSteps.length;
@@ -249,9 +287,9 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         updateFormData(mappedData as any);
 
         // Store original as first alternative
-        const originalAlternative = fieldConfig.alternativesMapping
+        const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
           ? fieldConfig.alternativesMapping(mappedData as any)
-          : mappedData;
+          : (mappedData as SloganAlternative);
         setSloganAlternatives([originalAlternative]);
 
         setTimeout(() => {
@@ -356,6 +394,13 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
 
       const image = await generateImage(type!, formData);
       setGeneratedImage(image);
+
+      // Commit to AI Editor history if applicable
+      if (type === IMAGE_STUDIO_TYPES.AI_EDITOR) {
+        const { commitAiGeneration } = useImageStudioStore.getState();
+        commitAiGeneration(image, purePrompt);
+      }
+
       return true;
     } catch (err) {
       console.error('[useStepFlow] KI image generation error:', err);
@@ -455,9 +500,9 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
             updateFormData(mappedData as any);
 
             // Store original as first alternative
-            const originalAlternative = fieldConfig.alternativesMapping
+            const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
               ? fieldConfig.alternativesMapping(mappedData as any)
-              : mappedData;
+              : (mappedData as SloganAlternative);
             setSloganAlternatives([originalAlternative]);
 
             setTimeout(() => {
@@ -510,27 +555,41 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
   ]);
 
   const goNext = useCallback(async (): Promise<boolean> => {
-    if (isProcessing) return false;
+    console.log('[goNext] Called with:', { stepIndex, currentStep: currentStep ? { id: currentStep.id, type: currentStep.type, afterComplete: currentStep.afterComplete } : null });
+
+    if (isProcessing) {
+      console.log('[goNext] Blocked: isProcessing =', isProcessing);
+      return false;
+    }
 
     const step = currentStep;
-    if (!step) return false;
+    if (!step) {
+      console.log('[goNext] Blocked: no current step');
+      return false;
+    }
+
+    console.log('[goNext] Processing step:', { id: step.id, type: step.type, afterComplete: step.afterComplete });
 
     if (step.afterComplete === 'parallelPreload') {
+      console.log('[goNext] Executing parallelPreload');
       const success = await executeParallelPreload();
       if (!success) return false;
     }
 
     if (step.afterComplete === 'generateText') {
+      console.log('[goNext] Executing generateText');
       const success = await executeTextGeneration();
       if (!success) return false;
     }
 
     if (step.afterComplete === 'backgroundRemoval') {
+      console.log('[goNext] Executing backgroundRemoval');
       const success = await executeBackgroundRemoval();
       if (!success) return false;
     }
 
     if (step.afterComplete === 'generateImage') {
+      console.log('[goNext] Executing generateImage, jumping to RESULT');
       const success = typeConfig?.usesFluxApi
         ? await executeKiImageGeneration()
         : await executeTemplateImageGeneration();
@@ -540,11 +599,13 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     }
 
     if (stepIndex < flowSteps.length - 1) {
+      console.log('[goNext] Moving to next step:', stepIndex, '->', stepIndex + 1);
       setDirection(1);
       setStepIndex(prev => prev + 1);
       return true;
     }
 
+    console.log('[goNext] At last step, cannot proceed');
     return false;
   }, [
     currentStep, stepIndex, flowSteps.length, isProcessing, typeConfig,

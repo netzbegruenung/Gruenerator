@@ -8,44 +8,24 @@ import FieldEditorAssistant from './components/FieldEditorAssistant';
 import { getCustomGeneratorHelpContent } from './constants/customGeneratorHelpContent';
 import { STEPS } from './constants/steps';
 import useApiSubmit from '../../components/hooks/useApiSubmit';
-import useDebounce from '../../components/hooks/useDebounce';
-import apiClient from '../../components/utils/apiClient';
 import { profileApiService } from '../auth/services/profileApiService';
 import GeneratorStartScreen from './components/GeneratorStartScreen';
 import GeneratorCreationSuccessScreen from './components/GeneratorCreationSuccessScreen';
 
-// Custom Generators Feature CSS - Loaded only when this feature is accessed
 import '../../assets/styles/components/custom-generator/create-custom-generator.css';
 import '../../assets/styles/components/custom-generator/field-editor-assistant.css';
 import '../../assets/styles/components/custom-generator/document-selector.css';
 import './styles/custom-generators-tab.css';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { ProfileIconButton } from '../../components/profile/actions/ProfileActionButton';
-// Page-level CSS removed (embedded-only)
+import { GeneratorFormField, GeneratorFormData } from './types/generatorTypes';
+import { MODE_SELECTION, INITIAL_GENERATOR_FORM_DATA } from './constants/generatorConstants';
+import { sanitizeSlug } from './utils/sanitization';
+import { useSlugAvailability } from './hooks/useSlugAvailability';
 
 interface CreateCustomGeneratorPageProps {
   onCompleted?: (data?: { name: string; slug: string }) => void;
   onCancel?: () => void;
-}
-
-interface FormField {
-  name: string;
-  label: string;
-  type: string;
-  placeholder?: string;
-  required?: boolean;
-  defaultValue?: string;
-  options?: Array<{ value: string; label: string }>;
-}
-
-interface FormData {
-  name: string;
-  slug: string;
-  fields: FormField[];
-  prompt: string;
-  title: string;
-  description: string;
-  contact_email: string;
 }
 
 interface CompletionData {
@@ -53,20 +33,6 @@ interface CompletionData {
   name: string;
   [key: string]: unknown;
 }
-
-// Define steps
-const MODE_SELECTION = -1;
-const SLUG_CHECK_DELAY = 750; // Delay for slug check in ms
-
-const INITIAL_FORM_DATA: FormData = {
-  name: '',
-  slug: '',
-  fields: [],
-  prompt: '',
-  title: '',
-  description: '',
-  contact_email: ''
-};
 
 // Embedded-only component; use in profile tab
 const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ onCompleted, onCancel }) => {
@@ -86,8 +52,8 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     getValues,
     formState: { errors },
     reset
-  } = useForm<FormData>({
-    defaultValues: INITIAL_FORM_DATA,
+  } = useForm<GeneratorFormData>({
+    defaultValues: INITIAL_GENERATOR_FORM_DATA,
     mode: 'onChange'
   });
 
@@ -97,14 +63,9 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   // Effect to process slug input
   useEffect(() => {
     if (watchedSlug) {
-      const processedSlug = watchedSlug
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
-
+      const processedSlug = sanitizeSlug(watchedSlug);
       if (processedSlug !== watchedSlug) {
         setValue('slug', processedSlug);
-        setSlugAvailabilityError(null);
         setError(null);
       }
     }
@@ -117,9 +78,8 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     resetSuccess: resetAISuccess
   } = useApiSubmit('/generate_generator_config');
 
-  const debouncedSlug = useDebounce(watchedSlug, SLUG_CHECK_DELAY);
-  const [isCheckingSlug, setIsCheckingSlug] = useState<boolean>(false);
-  const [slugAvailabilityError, setSlugAvailabilityError] = useState<string | null>(null);
+  // Use custom hook for slug availability checking
+  const { isChecking: isCheckingSlug, error: slugAvailabilityError } = useSlugAvailability({ slug: watchedSlug });
 
   // State for managing the field editor assistant
   const [isEditingField, setIsEditingField] = useState<boolean>(false);
@@ -131,40 +91,6 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       setValue('contact_email', user.email);
     }
   }, [user, setValue]);
-
-  // Effect for checking slug availability
-  useEffect(() => {
-    const checkSlug = async () => {
-      if (!debouncedSlug || debouncedSlug.length < 3) {
-        setSlugAvailabilityError(null); // Clear error if slug is too short or empty
-        setIsCheckingSlug(false);
-        return;
-      }
-
-      setIsCheckingSlug(true);
-      setSlugAvailabilityError(null);
-      setError(null); // Clear general form error
-
-      try {
-        const response = await apiClient.get(`/custom_generator/check-slug/${debouncedSlug}`);
-        const data = response.data;
-
-        if (data.exists) {
-          setSlugAvailabilityError('Diese URL ist bereits vergeben. Bitte wähle eine andere.');
-        } else {
-          setSlugAvailabilityError(null);
-        }
-      } catch (err) {
-        console.error('[CreateCustomGeneratorPage] Slug check error:', err);
-        // Don't set a blocking error for network issues, allow user to proceed with caution
-        // Or, set a non-blocking warning: setSlugAvailabilityError('Slug-Prüfung fehlgeschlagen. Bitte versuchen Sie es später erneut.');
-      } finally {
-        setIsCheckingSlug(false);
-      }
-    };
-
-    checkSlug();
-  }, [debouncedSlug]);
 
   // Handler for clearing errors when inputs change
   const handleInputChange = () => {
@@ -230,7 +156,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     setIsEditingField(true);
   };
 
-  const handleSaveField = (fieldData: FormField) => {
+  const handleSaveField = (fieldData: GeneratorFormField) => {
     const currentFields = getValues('fields');
     const newFields = [...currentFields];
     if (editingFieldIndex === null) {
@@ -292,7 +218,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   };
 
   // Navigation with React Hook Form
-  const onSubmit = async (_data: FormData) => {
+  const onSubmit = async (_data: GeneratorFormData) => {
     const isValid = await validateStep();
     if (!isValid) {
       return;
@@ -361,7 +287,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   // Restart the creation process
   const handleRestart = () => {
     setCurrentStep(MODE_SELECTION);
-    reset(INITIAL_FORM_DATA);
+    reset(INITIAL_GENERATOR_FORM_DATA);
     setAiDescription('');
     setError(null);
     setCompletionData(null);
@@ -596,7 +522,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     <FormStateProvider
       initialState={{
         loading: isGeneratingWithAI,
-        formErrors: { general: error },
+        formErrors: { general: error || '' },
         isFormVisible: true
       }}
       formId="create-custom-generator"
@@ -611,7 +537,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
         nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
         useModernForm={true}
         formControl={control}
-        defaultValues={INITIAL_FORM_DATA as unknown as Record<string, unknown>}
+        defaultValues={INITIAL_GENERATOR_FORM_DATA as unknown as Record<string, unknown>}
         hideExtrasSection={true}
         showSubmitButtonInInputSection={true}
       >

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaDownload, FaEdit, FaShareAlt, FaSave, FaImages, FaInstagram } from 'react-icons/fa';
+import { FaDownload, FaEdit, FaShareAlt, FaSave, FaImages, FaInstagram, FaRedo, FaUndo } from 'react-icons/fa';
 import { IoCopyOutline, IoCheckmarkOutline } from 'react-icons/io5';
 import { HiSparkles } from 'react-icons/hi';
 import Spinner from '../../../components/common/Spinner';
@@ -19,13 +19,20 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
   isAltTextLoading,
   canNativeShare,
   isUpdating,
+  isAiType = false,
+  isAiEditor = false,
+  canUndo = false,
+  canRedo = false,
   onDownload,
   onShare,
   onGalleryUpdate,
   onNavigateToGallery,
   onOpenEditPanel,
+  onRecreate,
   onTextButtonClick,
-  onShareToInstagram
+  onShareToInstagram,
+  onUndo,
+  onRedo
 }) => {
   if (!generatedImageSrc) return null;
 
@@ -70,14 +77,46 @@ export const TemplateResultActionButtons: React.FC<TemplateResultActionButtonsPr
         </button>
       )}
 
-      <button
-        className="btn-icon btn-primary"
-        onClick={onOpenEditPanel}
-        disabled={loading}
-        title="Bearbeiten"
-      >
-        <FaEdit />
-      </button>
+      {isAiType ? (
+        <button
+          className="btn-icon btn-primary"
+          onClick={onRecreate}
+          disabled={loading}
+          title="Neu erstellen"
+        >
+          <FaRedo />
+        </button>
+      ) : (
+        <button
+          className="btn-icon btn-primary"
+          onClick={onOpenEditPanel}
+          disabled={loading}
+          title="Bearbeiten"
+        >
+          <FaEdit />
+        </button>
+      )}
+
+      {isAiEditor && onUndo && onRedo && (
+        <>
+          <button
+            className="btn-icon btn-primary"
+            onClick={onUndo}
+            disabled={!canUndo || loading}
+            title="Rückgängig (Strg+Z)"
+          >
+            <FaUndo />
+          </button>
+          <button
+            className="btn-icon btn-primary"
+            onClick={onRedo}
+            disabled={!canRedo || loading}
+            title="Wiederherstellen (Strg+Shift+Z)"
+          >
+            <FaRedo />
+          </button>
+        </>
+      )}
 
       <button
         className={`btn-icon btn-primary ${copied ? 'btn-success' : ''}`}

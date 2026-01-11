@@ -1,9 +1,24 @@
 import React, { useMemo } from 'react';
 import { MdSubtitles, MdVideoSettings, MdAutoAwesome } from 'react-icons/md';
+import type { IconType } from 'react-icons';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import '../styles/ModeSelector.css';
 
-const allModes = [
+interface Mode {
+  id: 'auto' | 'subtitle' | 'full-edit';
+  title: string;
+  description: string;
+  Icon: IconType;
+  enabled: boolean;
+  badge?: string;
+}
+
+interface ModeSelectorProps {
+  onSelect: (modeId: Mode['id']) => void;
+  videoFile: File;
+}
+
+const allModes: Mode[] = [
   {
     id: 'auto',
     title: 'Automatisch',
@@ -28,7 +43,7 @@ const allModes = [
   }
 ];
 
-const ModeSelector = ({ onSelect, videoFile }) => {
+const ModeSelector: React.FC<ModeSelectorProps> = ({ onSelect, videoFile }) => {
   const { canAccessBetaFeature } = useBetaFeatures();
 
   const modes = useMemo(() => {
@@ -38,7 +53,7 @@ const ModeSelector = ({ onSelect, videoFile }) => {
     return allModes.filter(mode => mode.id !== 'full-edit');
   }, [canAccessBetaFeature]);
 
-  const handleCardClick = (mode) => {
+  const handleCardClick = (mode: Mode) => {
     if (mode.enabled) {
       onSelect(mode.id);
     }

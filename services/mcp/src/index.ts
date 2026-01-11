@@ -542,7 +542,7 @@ app.delete('/mcp', async (req, res) => {
 });
 
 // Server starten
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3003;
 console.log(`[Boot] Starting server on port ${PORT}...`);
 
 app.listen(PORT, () => {

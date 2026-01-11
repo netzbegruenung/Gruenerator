@@ -1,10 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MdSearch, MdContentCut, MdSubtitles, MdCheck, MdError } from 'react-icons/md';
+import type { IconType } from 'react-icons';
 import apiClient from '../../../components/utils/apiClient';
 import '../styles/AutoProcessingScreen.css';
 
-const STAGES = [
+interface Stage {
+  id: number;
+  name: string;
+  Icon: IconType;
+}
+
+const STAGES: Stage[] = [
   { id: 1, name: 'Video wird analysiert...', Icon: MdSearch },
   { id: 2, name: 'Stille Teile werden entfernt...', Icon: MdContentCut },
   { id: 3, name: 'Untertitel werden generiert...', Icon: MdSubtitles },
@@ -15,16 +22,30 @@ const POLL_INTERVAL = 2000;
 const POLL_INTERVAL_EXTENDED = 5000;
 const EXTENDED_POLL_THRESHOLD = 30000;
 
-const AutoProcessingScreen = ({ uploadId, onComplete, onError }) => {
-  const [status, setStatus] = useState('processing');
-  const [currentStage, setCurrentStage] = useState(1);
-  const [stageProgress, setStageProgress] = useState(0);
-  const [overallProgress, setOverallProgress] = useState(0);
-  const [error, setError] = useState(null);
-  const [outputPath, setOutputPath] = useState(null);
+export interface AutoProcessingResult {
+  outputPath: string;
+  duration: number;
+  uploadId: string;
+  projectId: string | null;
+  subtitles: string | null;
+}
 
-  const pollingRef = useRef(null);
-  const startTimeRef = useRef(Date.now());
+interface AutoProcessingScreenProps {
+  uploadId: string;
+  onComplete: (result: AutoProcessingResult) => void;
+  onError?: (error: string) => void;
+}
+
+const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({ uploadId, onComplete, onError }) => {
+  const [status, setStatus] = useState<'processing' | 'complete' | 'error'>('processing');
+  const [currentStage, setCurrentStage] = useState<number>(1);
+  const [stageProgress, setStageProgress] = useState<number>(0);
+  const [overallProgress, setOverallProgress] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+  const [outputPath, setOutputPath] = useState<string | null>(null);
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
 
   const pollProgress = useCallback(async () => {
     if (!uploadId) return;
@@ -107,7 +128,7 @@ const AutoProcessingScreen = ({ uploadId, onComplete, onError }) => {
     };
   }, [uploadId, pollProgress]);
 
-  const renderStageIcon = (stage, isActive, isCompleted) => {
+  const renderStageIcon = (stage: Stage, isActive: boolean, isCompleted: boolean) => {
     const Icon = stage.Icon;
 
     if (isCompleted) {

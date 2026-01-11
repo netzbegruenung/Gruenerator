@@ -7,9 +7,7 @@ import {
     ImageBackgroundSection,
     GenericShareSection
 } from '../sidebar';
-import type {
-    DreizeilenAlternative,
-} from '../sidebar/sections/AlternativesSection';
+import type { DreizeilenAlternative } from './dreizeilen.types';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import type { CanvasConfig, AdditionalText } from './types';
 import type { DreizeilenState } from '../composed/DreizeilenCanvas';
@@ -46,7 +44,7 @@ interface DreizeilenActions {
     removeAdditionalText: (id: string) => void;
 }
 
-export const dreizeilenConfig: CanvasConfig<DreizeilenState> = {
+export const dreizeilenConfig: CanvasConfig<DreizeilenState, DreizeilenActions> = {
     tabs: [
         { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
         { id: 'image-background', icon: HiPhotograph, label: 'Hintergrund', ariaLabel: 'Hintergrundbild ändern' },

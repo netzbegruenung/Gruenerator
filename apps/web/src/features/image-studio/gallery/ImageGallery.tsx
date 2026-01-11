@@ -459,7 +459,7 @@ const ImageGallery = () => {
         }}
         mediaType="image"
         imageData={selectedImage ? {
-          image: null,
+          image: selectedImage.thumbnailUrl,
           type: selectedImage.imageType,
           metadata: selectedImage.imageMetadata || {}
         } : undefined}

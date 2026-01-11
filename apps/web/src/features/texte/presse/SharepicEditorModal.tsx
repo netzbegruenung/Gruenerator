@@ -3,16 +3,11 @@ import type { SharepicDataItem } from '../../../components/common/ImageDisplay';
 import Spinner from '../../../components/common/Spinner';
 import { useCanvasEditorStore } from '../../../stores/canvasEditorStore';
 import { ControllableCanvasWrapper } from '../../image-studio/canvas-editor/ControllableCanvasWrapper';
+import type { DreizeilenAlternative } from '../../image-studio/canvas-editor/configs/dreizeilen.types';
 import './SharepicEditorModal.css';
 
 // Lazy load DreizeilenCanvas (kept as special case)
 const DreizeilenCanvas = lazy(() => import('../../image-studio/canvas-editor/composed/DreizeilenCanvas').then(m => ({ default: m.DreizeilenCanvas })));
-
-interface DreizeilenAlternative {
-  line1?: string;
-  line2?: string;
-  line3?: string;
-}
 
 type SharepicType = 'dreizeilen' | 'headline' | 'zitat' | 'zitat_pure' | 'info' | 'veranstaltung';
 
@@ -118,7 +113,14 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
       case 'dreizeilen':
       case 'headline': {
         const lines = parseLines(sharepic.text);
-        const alternatives = (sharepic.alternatives as DreizeilenAlternative[]) || [];
+        const rawAlternatives = sharepic.alternatives || [];
+        // Map alternatives to add required id field
+        const alternatives: DreizeilenAlternative[] = rawAlternatives.map((alt, index) => ({
+          id: `alt-${index}`,
+          line1: (alt as any).line1 || '',
+          line2: (alt as any).line2 || '',
+          line3: (alt as any).line3 || ''
+        }));
         return (
           <DreizeilenCanvas
             line1={sharepic.line1 as string || lines[0] || ''}

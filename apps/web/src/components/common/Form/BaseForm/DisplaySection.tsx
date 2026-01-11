@@ -14,6 +14,7 @@ import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import { useFormStateSelector } from '../FormStateProvider';
+import AutoSaveIndicator from '../../AutoSaveIndicator';
 
 // Extended content type for internal use that includes all possible properties
 interface ExtendedContent {
@@ -215,6 +216,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
       : (
         <div className={`display-header ${isEditModeActive ? 'display-header--edit-mode' : ''}`}>
           {actionButtons}
+          <AutoSaveIndicator componentName={componentName} />
         </div>
       ))
     : null;

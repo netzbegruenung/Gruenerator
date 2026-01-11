@@ -331,9 +331,9 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
 
     calculateLayout,
 
-    createInitialState: (props) => ({
-        quote: props.quote ?? '',
-        name: props.name ?? '',
+    createInitialState: (props: Record<string, unknown>) => ({
+        quote: (props.quote as string | undefined) ?? '',
+        name: (props.name as string | undefined) ?? '',
         backgroundColor: ZITAT_PURE_CONFIG.background.color,
         customQuoteFontSize: null,
         customNameFontSize: null,
@@ -345,7 +345,7 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         sunflowerColor: '#FFFFFF',
         quoteOpacity: 1,
         nameOpacity: 1,
-        alternatives: props.alternatives ?? [],
+        alternatives: (props.alternatives as string[] | undefined) ?? [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         selectedIcons: [],
         iconStates: {},

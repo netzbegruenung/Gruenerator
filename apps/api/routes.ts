@@ -57,6 +57,7 @@ import voiceRouter from './routes/voice/voiceController.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
+import planModeRouter from './routes/plan-mode/index.js';
 
 const log = createLogger('Routes');
 
@@ -125,6 +126,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { sitesController: sitesRouter, publicController: publicSiteRouter } = await import('./routes/sites/index.js');
   const { default: fluxImageEditingRoute } = await import('./routes/flux/imageEditing.js');
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
+  const { default: docsRouter } = await import('./routes/docs/index.js');
+  const { default: usersRouter } = await import('./routes/users/userController.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -135,6 +138,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
   app.use('/api/antraege', antraegeRouter);
+  app.use('/api/plan-mode', planModeRouter);
 
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_alttext', claudeAlttextRoute);
@@ -217,6 +221,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler/share', subtitlerShareRouter);
   app.use('/api/share', shareRouter);
   app.use('/api/media', requireAuth, mediaRouter);
+  app.use('/api/docs', requireAuth, docsRouter);
+  app.use('/api/users', requireAuth, usersRouter);
   app.use('/api/voice', voiceRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/analyze', searchRouter);

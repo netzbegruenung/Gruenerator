@@ -12,6 +12,8 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import useBaseForm from '../../../components/common/Form/hooks/useBaseForm';
 import type { HelpContent } from '../../../types/baseform';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 
 // Import components
 import AltTextForm from './components/AltTextForm';
@@ -63,17 +65,33 @@ const API_ENDPOINTS = {
 };
 
 const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({ showHeaderFooter = true }) => {
-  const [selectedType, setSelectedType] = useState(ACCESSIBILITY_TYPES.ALT_TEXT);
+  const [searchParams] = useSearchParams();
+
+  // Determine initial type from query params or default to alt-text
+  const initialType = useMemo(() => {
+    const typeParam = searchParams.get('type');
+    if (typeParam === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE) {
+      return ACCESSIBILITY_TYPES.LEICHTE_SPRACHE;
+    }
+    return ACCESSIBILITY_TYPES.ALT_TEXT;
+  }, [searchParams]);
+
+  const [selectedType, setSelectedType] = useState(initialType);
   const [generatedContent, setGeneratedContent] = useState('');
   const formRef = useRef<FormRef>(null);
-  const [searchParams] = useSearchParams();
 
   const { setGeneratedText } = useGeneratedTextStore();
 
   useOptimizedAuth();
 
-  // Get feature state from store
-  const { getFeatureState, usePrivacyMode } = useGeneratorSelectionStore();
+  // Consolidated setup using new hook (only for Leichte Sprache)
+  const setup = useGeneratorSetup({
+    instructionType: 'leichte_sprache',
+    componentName: 'accessibility-leichte-sprache'
+  });
+
+  // Keep usePrivacyMode for backwards compatibility with existing code
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
 
   // Dynamic component name based on selected type
   const componentName = `accessibility-${selectedType}`;
@@ -138,6 +156,19 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
     detectAndCrawlUrls,
     retryUrl
   } = useUrlCrawler();
+
+  // Combine file attachments with crawled URLs for Leichte Sprache
+  const allAttachments = useMemo(() => [
+    ...(form.generator?.attachedFiles || []),
+    ...crawledUrls
+  ], [form.generator?.attachedFiles, crawledUrls]);
+
+  // Form data builder for Leichte Sprache submission
+  const builder = useFormDataBuilder({
+    ...setup,
+    attachments: allAttachments,
+    searchQueryFields: ['originalText'] as const
+  });
 
   // Handle URL detection and crawling for Leichte Sprache
   const handleUrlsDetected = useCallback(async (urls: string[]) => {
@@ -250,21 +281,11 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
         console.log('[AccessibilityTextGenerator] Alt text generated successfully');
 
       } else if (selectedType === ACCESSIBILITY_TYPES.LEICHTE_SPRACHE) {
-        // Leichte Sprache generation logic
-        const allAttachments = [
-          ...(form.generator?.attachedFiles || []),
-          ...crawledUrls
-        ];
-
-        // Get feature state from store
-        const features = getFeatureState();
-
-        const formDataToSubmit = {
+        // Leichte Sprache generation logic using new hook
+        const formDataToSubmit = builder.buildSubmissionData({
           originalText: formData.originalText,
-          targetLanguage: formData.targetLanguage,
-          ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
-          attachments: allAttachments
-        };
+          targetLanguage: formData.targetLanguage
+        });
 
         const response = await submitLeichteSprache(formDataToSubmit);
         if (response) {
@@ -287,8 +308,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
     submitLeichteSprache,
     componentName,
     form,
-    crawledUrls,
-    getFeatureState
+    builder
   ]);
 
   const handleGeneratedContentChange = useCallback((content: string) => {

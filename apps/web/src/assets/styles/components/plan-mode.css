@@ -1,0 +1,127 @@
+/* Plan Mode Styles
+ * Extends interactive-antrag.css quiz-style design
+ * Minimal new styles - reuses existing patterns
+ * NOTE: interactive-antrag.css is imported by PlanQuestions component
+ */
+
+/* Plan Mode Workflow Container */
+.plan-mode-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+  padding: var(--spacing-medium);
+}
+
+/* Plan Display Container - inherits quiz layout */
+.plan-display-container,
+.plan-questions-container,
+.plan-approval-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+}
+
+/* Plan Metadata Badges */
+.plan-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-small);
+  margin-top: var(--spacing-medium);
+}
+
+.metadata-badge {
+  display: inline-block;
+  background: var(--hover-color-alt);
+  color: var(--font-color);
+  padding: var(--spacing-xxsmall) var(--spacing-small);
+  border-radius: var(--card-border-radius-small);
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Platform Selection - uses quiz-style grid buttons */
+.platform-selection-section {
+  margin-top: var(--spacing-large);
+  padding-top: var(--spacing-large);
+  border-top: var(--border-subtle);
+}
+
+/* Loading and Error States */
+.plan-mode-loading,
+.plan-mode-error,
+.plan-mode-generating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-medium);
+  padding: var(--spacing-xxlarge);
+  text-align: center;
+}
+
+.plan-mode-error {
+  background: var(--hover-color-alt);
+  border-radius: var(--card-border-radius);
+  border: 2px solid #dc3545;
+}
+
+.plan-mode-error h3 {
+  color: #dc3545;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.plan-mode-error p {
+  margin: 0;
+  color: var(--font-color);
+}
+
+.plan-mode-generating h3 {
+  font-size: 1.2rem;
+  color: var(--button-color);
+  margin: 0;
+}
+
+.plan-mode-generating p {
+  margin: 0;
+  color: var(--font-color);
+  opacity: 0.8;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--input-background);
+  border-top: 4px solid var(--button-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Plan Progress Container */
+.plan-progress-container {
+  /* Inherits from .quiz-progress-header */
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .plan-mode-workflow {
+    padding: var(--spacing-small);
+  }
+
+  .metadata-badge {
+    font-size: 0.8rem;
+  }
+
+  .plan-mode-loading,
+  .plan-mode-error,
+  .plan-mode-generating {
+    padding: var(--spacing-large);
+  }
+}

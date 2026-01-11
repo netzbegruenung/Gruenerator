@@ -50,32 +50,31 @@
     <!-- Konfigurationsdatei -->
     <script src="/config.js"></script>
 
-    <!-- Matomo (GDPR-compliant with consent) -->
+    <!-- Umami Analytics (GDPR-compliant with consent) -->
     <script>
-      var _paq = window._paq = window._paq || [];
-      _paq.push(['requireConsent']);
-      if (localStorage.getItem('analyticsConsent') === 'true') {
-        _paq.push(['setConsentGiven']);
-      }
-      _paq.push(['trackPageView']);
-      _paq.push(['enableLinkTracking']);
       (function() {
-        var u="https://piwik.gruenes-cms.de/";
-        _paq.push(['setTrackerUrl', u+'matomo.php']);
-        _paq.push(['setSiteId', '244690']);
-        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+        // Only load Umami if consent is given
+        if (localStorage.getItem('analyticsConsent') === 'true') {
+          var script = document.createElement('script');
+          script.defer = true;
+          script.src = 'https://analytics.gruenes-cms.de/script.js';
+          script.setAttribute('data-website-id', 'e2b8f0c7-4a5d-4b8e-9c1a-2d3e4f5a6b7c');
+          document.head.appendChild(script);
+        }
       })();
-      window.grantMatomoConsent = function() {
-        _paq.push(['setConsentGiven']);
+
+      // Consent management functions
+      window.grantAnalyticsConsent = function() {
         localStorage.setItem('analyticsConsent', 'true');
+        window.location.reload(); // Reload to load Umami script
       };
-      window.revokeMatomoConsent = function() {
-        _paq.push(['forgetConsentGiven']);
+
+      window.revokeAnalyticsConsent = function() {
         localStorage.removeItem('analyticsConsent');
+        window.location.reload(); // Reload to remove Umami script
       };
     </script>
-    <!-- End Matomo Code -->
+    <!-- End Umami Code -->
     
     <!-- Font preloading removed to prevent preload warnings -->
     <!-- Fonts are loaded via CSS with font-display: swap for optimal performance -->

@@ -125,7 +125,7 @@ export const FloatingToolbar = memo(({
                                 <>
                                     <div className="floating-separator" />
                                     <FloatingFontSizeControl
-                                        fontSize={activeFloatingModule.data.fontSize}
+                                        fontSize={activeFloatingModule.data.fontSize ?? 16}
                                         onFontSizeChange={(size) =>
                                             handlers.handleFontSizeChange(activeFloatingModule.data.id, size)
                                         }
@@ -181,8 +181,8 @@ export const FloatingToolbar = memo(({
                             <FloatingColorPicker
                                 currentColor={
                                     activeFloatingModule.type === 'shape'
-                                        ? activeFloatingModule.data.fill
-                                        : activeFloatingModule.data.color || '#000000'
+                                        ? activeFloatingModule.data.fill ?? '#000000'
+                                        : activeFloatingModule.data.color ?? '#000000'
                                 }
                                 onColorSelect={handlers.handleColorSelect}
                                 isExpanded={isColorPickerExpanded}

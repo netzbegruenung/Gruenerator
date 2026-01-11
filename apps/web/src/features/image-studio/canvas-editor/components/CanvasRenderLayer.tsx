@@ -19,10 +19,24 @@ import type { CanvasItem } from '../utils/canvasLayerManager';
  * for each item type (element, balken, icon, shape, illustration, text).
  */
 
-interface CanvasRenderLayerProps {
+/**
+ * Optional properties that may exist on canvas state for different element types
+ */
+interface OptionalCanvasStateProperties {
+    iconStates?: Record<string, {
+        x?: number;
+        y?: number;
+        scale?: number;
+        rotation?: number;
+        color?: string;
+        opacity?: number;
+    }>;
+}
+
+interface CanvasRenderLayerProps<TState = Record<string, unknown>, TActions = Record<string, unknown>> {
     sortedRenderList: CanvasItem[];
-    config: FullCanvasConfig;
-    state: any;
+    config: FullCanvasConfig<TState, TActions>;
+    state: TState;
     layout: LayoutResult;
     selectedElement: string | null;
     handlers: {
@@ -47,7 +61,7 @@ interface CanvasRenderLayerProps {
     stageHeight: number;
 }
 
-export const CanvasRenderLayer = memo(({
+function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Record<string, unknown>>({
     sortedRenderList,
     config,
     state,
@@ -59,7 +73,7 @@ export const CanvasRenderLayer = memo(({
     setSnapLines,
     stageWidth,
     stageHeight,
-}: CanvasRenderLayerProps) => {
+}: CanvasRenderLayerProps<TState, TActions>) {
     return (
         <>
             {sortedRenderList.map((item) => {
@@ -127,7 +141,10 @@ export const CanvasRenderLayer = memo(({
                 if (item.type === 'icon') {
                     const iconId = item.id;
                     const iconDef = ALL_ICONS.find((i) => i.id === iconId);
-                    const iconState = state.iconStates?.[iconId];
+
+                    // Type-safe access to optional iconStates property
+                    const stateWithOptional = state as TState & Partial<OptionalCanvasStateProperties>;
+                    const iconState = stateWithOptional.iconStates?.[iconId];
 
                     const x = iconState?.x ?? stageWidth / 2;
                     const y = iconState?.y ?? stageHeight / 2;
@@ -255,6 +272,7 @@ export const CanvasRenderLayer = memo(({
             })}
         </>
     );
-});
+}
 
+export const CanvasRenderLayer = memo(CanvasRenderLayerInner) as typeof CanvasRenderLayerInner;
 CanvasRenderLayer.displayName = 'CanvasRenderLayer';

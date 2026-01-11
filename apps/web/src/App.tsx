@@ -42,14 +42,16 @@ if (typeof window !== 'undefined') {
   window.queryClient = queryClient;
 }
 
-// Matomo SPA Page View Tracking
+// Umami SPA Page View Tracking
 const RouteLogger = () => {
   const location = useLocation();
   useEffect(() => {
-    if (window._paq) {
-      window._paq.push(['setCustomUrl', window.location.href]);
-      window._paq.push(['setDocumentTitle', document.title]);
-      window._paq.push(['trackPageView']);
+    if (window.umami) {
+      window.umami.track(props => ({
+        ...props,
+        url: window.location.href,
+        title: document.title
+      }));
     }
   }, [location]);
   return null;

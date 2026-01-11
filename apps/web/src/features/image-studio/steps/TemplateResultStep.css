@@ -474,6 +474,62 @@
   pointer-events: none;
 }
 
+.template-result-step--loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: var(--spacing-large);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-medium);
+  max-width: 400px;
+}
+
+.loading-state__spinner {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.spinner-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 4px solid var(--border-subtle);
+  border-top-color: var(--interactive-accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-state__title {
+  margin: 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: 600;
+  color: var(--font-color-h);
+}
+
+.loading-state__subtitle {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--font-color);
+  opacity: 0.8;
+  line-height: 1.5;
+}
+
 /* ========================================
    Dark Theme Support
    ======================================== */

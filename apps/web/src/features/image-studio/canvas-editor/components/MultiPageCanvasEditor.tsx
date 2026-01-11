@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { v4 as uuid } from 'uuid';
 import { GenericCanvas } from './GenericCanvas';
 import type { FullCanvasConfig } from '../configs/types';
+import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import './MultiPageCanvasEditor.css';
 
 interface PageState<TState> {
@@ -10,7 +11,7 @@ interface PageState<TState> {
     order: number;
 }
 
-interface MultiPageCanvasEditorProps<TState extends Record<string, any>, TActions> {
+interface MultiPageCanvasEditorProps<TState extends Record<string, any>, TActions extends OptionalCanvasActions> {
     config: FullCanvasConfig<TState, TActions>;
     /** Initial props for the first page (quote, name, imageSrc, etc.) */
     initialProps?: Record<string, any>;
@@ -21,7 +22,7 @@ interface MultiPageCanvasEditorProps<TState extends Record<string, any>, TAction
     callbacks?: Record<string, ((val: any) => void) | undefined>;
 }
 
-export function MultiPageCanvasEditor<TState extends Record<string, any>, TActions>({
+export function MultiPageCanvasEditor<TState extends Record<string, any>, TActions extends OptionalCanvasActions>({
     config,
     initialProps = {},
     initialPages,

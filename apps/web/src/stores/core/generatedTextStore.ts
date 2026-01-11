@@ -31,8 +31,12 @@ interface GeneratedTextStoreState {
   historyIndex: Record<string, number>;
   maxHistorySize: number;
 
+  // Auto-save status tracking
+  autoSaveStatus: Record<string, 'idle' | 'saving' | 'saved' | 'error'>;
+  lastAutoSaveTime: Record<string, number | null>;
+
   // Getters
-  getGeneratedText: (componentName: string) => string;
+  getGeneratedText: (componentName: string) => StoredContent;
   getGeneratedTextMetadata: (componentName: string) => unknown | null;
   getLinkConfig: (componentName: string) => LinkConfig;
   getQuillInstance: (componentName: string) => unknown | null;
@@ -48,6 +52,12 @@ interface GeneratedTextStoreState {
   setIsStreaming: (streaming: boolean) => void;
   setQuillInstance: (componentName: string, instance: unknown) => void;
   setEditChat: (componentName: string, messages: EditChatMessage[]) => void;
+
+  // Auto-save status setters
+  setAutoSaveStatus: (componentName: string, status: 'idle' | 'saving' | 'saved' | 'error') => void;
+  setLastAutoSaveTime: (componentName: string, time: number) => void;
+  getAutoSaveStatus: (componentName: string) => 'idle' | 'saving' | 'saved' | 'error';
+  getLastAutoSaveTime: (componentName: string) => number | null;
 
   // Actions
   clearGeneratedText: (componentName: string) => void;
@@ -73,23 +83,37 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
   isLoading: false,
   // Streaming state for real-time updates
   isStreaming: false,
-  
+
   // History management for undo/redo functionality - unified stack approach
   history: {}, // { componentName: [state0, state1, ...currentState] } - all states including current
   historyIndex: {}, // { componentName: currentIndex } - 0-based index pointing to current position
   maxHistorySize: 50, // Configurable history limit
+
+  // Auto-save status tracking
+  autoSaveStatus: {},
+  lastAutoSaveTime: {},
   
   // Get generated text for a specific component
-  // Extracts string from stored content (handles both string and structured content)
+  // Returns content as-is (string or object) to preserve structure
+  // For mixed content (sharepic), returns the full object
+  // For simple text content, extracts the string (backward compatibility)
   getGeneratedText: (componentName) => {
     const state = get();
     const content = state.generatedTexts[componentName];
     if (!content) return '';
     if (typeof content === 'string') return content;
-    // Extract text from structured content
-    return (content as Record<string, unknown>).text as string
-      || (content as Record<string, unknown>).content as string
-      || '';
+
+    // Preserve objects with sharepic/social (mixed content)
+    if (typeof content === 'object') {
+      const obj = content as Record<string, unknown>;
+      if ('sharepic' in obj || 'social' in obj) {
+        return content; // Return object as-is for mixed content
+      }
+      // Legacy behavior: extract string for simple content
+      return obj.text as string || obj.content as string || '';
+    }
+
+    return '';
   },
   
   // Get metadata for a specific component
@@ -384,6 +408,31 @@ const useGeneratedTextStore = create<GeneratedTextStoreState>((set, get) => ({
       [componentName]: 0
     }
   })),
+
+  // Auto-save status management
+  setAutoSaveStatus: (componentName, status) => set((state) => ({
+    autoSaveStatus: {
+      ...state.autoSaveStatus,
+      [componentName]: status
+    }
+  })),
+
+  setLastAutoSaveTime: (componentName, time) => set((state) => ({
+    lastAutoSaveTime: {
+      ...state.lastAutoSaveTime,
+      [componentName]: time
+    }
+  })),
+
+  getAutoSaveStatus: (componentName) => {
+    const state = get();
+    return state.autoSaveStatus[componentName] || 'idle';
+  },
+
+  getLastAutoSaveTime: (componentName) => {
+    const state = get();
+    return state.lastAutoSaveTime[componentName] || null;
+  },
 
 }));
 

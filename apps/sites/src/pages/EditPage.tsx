@@ -4,12 +4,20 @@ import { useAuth } from '../hooks/useAuth';
 import { useSite, type GeneratedSiteData } from '../hooks/useSite';
 import { EditorLayout, EditorSidebar, InteractivePreview, SectionNavigation } from '../components/editor';
 import { CandidatePage } from '../CandidatePage';
+import { useToast } from '../hooks/useToast';
+import { useLoadingProgress } from '../hooks/useLoadingProgress';
+import { LoadingOverlay } from '../components/common/LoadingOverlay';
+import { handleApiError } from '../utils/errorHandler';
+import { validators } from '../utils/validation';
+import { sanitizeSubdomain } from '../utils/sanitization';
 import type { CandidateData } from '../types/candidate';
 import '../styles/preview.css';
 
 export function EditPage() {
   const { user, logout } = useAuth();
   const { site, isLoading, createSite, updateSite, togglePublish, generateSite, isCreating, isUpdating, isPublishing, isGenerating } = useSite();
+  const toast = useToast();
+  const generationProgress = useLoadingProgress(isGenerating, 30000);
 
   const previewScrollRef = useRef<HTMLDivElement>(null);
 
@@ -78,12 +86,21 @@ export function EditPage() {
   }, [site]);
 
   const handleGenerate = async () => {
-    if (!subdomain.trim()) {
-      alert('Bitte gib eine Subdomain ein.');
+    const subdomainError = validators.subdomain(subdomain);
+    if (subdomainError) {
+      toast.error('Subdomain ungültig', subdomainError);
       return;
     }
-    if (!description.trim()) {
-      alert('Bitte beschreibe dich kurz, damit die KI Inhalte generieren kann.');
+
+    const descriptionError = validators.description(description);
+    if (descriptionError) {
+      toast.error('Beschreibung ungültig', descriptionError);
+      return;
+    }
+
+    const emailError = validators.email(contactEmail);
+    if (emailError) {
+      toast.error('E-Mail ungültig', emailError);
       return;
     }
 
@@ -93,9 +110,10 @@ export function EditPage() {
         email: contactEmail || undefined
       });
       setPreviewData(generated);
+      toast.success('Seite generiert', 'Deine Seite wurde erfolgreich generiert');
     } catch (err) {
       console.error('Generate failed:', err);
-      alert('Fehler bei der KI-Generierung. Bitte versuche es erneut.');
+      handleApiError(err, toast);
     }
   };
 
@@ -113,9 +131,10 @@ export function EditPage() {
       } as Parameters<typeof createSite>[0]);
 
       setPreviewData(null);
+      toast.success('Seite erstellt', 'Deine Seite wurde erfolgreich erstellt');
     } catch (err) {
       console.error('Create failed:', err);
-      alert('Fehler beim Erstellen der Seite.');
+      handleApiError(err, toast);
     }
   };
 
@@ -131,6 +150,12 @@ export function EditPage() {
     if (!site || !candidateData) return;
 
     try {
+      const socialLinks = Object.fromEntries(
+        Object.entries(candidateData.hero.socialLinks).filter(
+          ([_, value]) => value !== undefined
+        )
+      ) as Record<string, string>;
+
       await updateSite({
         id: site.id,
         data: {
@@ -138,7 +163,7 @@ export function EditPage() {
           tagline: candidateData.hero.tagline,
           bio: candidateData.about.content,
           contact_email: candidateData.contact.email,
-          social_links: candidateData.hero.socialLinks,
+          social_links: socialLinks,
           sections: {
             heroImage: candidateData.heroImage,
             themes: candidateData.themes.themes,
@@ -151,9 +176,10 @@ export function EditPage() {
           },
         },
       });
+      toast.success('Gespeichert', 'Deine Änderungen wurden gespeichert');
     } catch (err) {
       console.error('Update failed:', err);
-      alert('Fehler beim Speichern');
+      handleApiError(err, toast);
     }
   };
 
@@ -161,16 +187,21 @@ export function EditPage() {
     if (!site) return;
     try {
       await togglePublish(site.id);
+      const action = site.is_published ? 'depubliziert' : 'veröffentlicht';
+      toast.success(
+        site.is_published ? 'Depubliziert' : 'Veröffentlicht',
+        `Deine Seite wurde ${action}`
+      );
     } catch (err) {
       console.error('Publish failed:', err);
-      alert('Fehler beim Veröffentlichen');
+      handleApiError(err, toast);
     }
   };
 
   const handleRegenerate = async () => {
     if (!site) return;
     if (!regenerateDescription.trim()) {
-      alert('Bitte gib eine Beschreibung ein.');
+      toast.error('Beschreibung fehlt', 'Bitte gib eine Beschreibung ein.');
       return;
     }
 
@@ -199,9 +230,10 @@ export function EditPage() {
 
       setShowRegenerateForm(false);
       setRegenerateDescription('');
+      toast.success('Seite neu generiert', 'Deine Seite wurde erfolgreich neu generiert');
     } catch (err) {
       console.error('Regenerate failed:', err);
-      alert('Fehler bei der KI-Regenerierung. Bitte versuche es erneut.');
+      handleApiError(err, toast);
     }
   };
 
@@ -462,12 +494,15 @@ export function EditPage() {
                     id="subdomain"
                     type="text"
                     value={subdomain}
-                    onChange={(e) => setSubdomain(e.target.value)}
+                    onChange={(e) => setSubdomain(sanitizeSubdomain(e.target.value))}
                     placeholder="dein-name"
                     disabled={isProcessing}
                   />
                   <span>.grsites.de</span>
                 </div>
+                <p className="form-hint">
+                  Nur Kleinbuchstaben, Zahlen und Bindestriche (3-50 Zeichen)
+                </p>
               </div>
 
               <div className="form-group">
@@ -526,6 +561,19 @@ export function EditPage() {
           </div>
         </main>
       </div>
+
+      <LoadingOverlay
+        isLoading={isGenerating}
+        message="KI generiert deine Seite..."
+        progress={generationProgress}
+        submessage={
+          generationProgress < 30
+            ? 'Analysiere deine Beschreibung...'
+            : generationProgress < 60
+            ? 'Erstelle Inhalte...'
+            : 'Fast fertig...'
+        }
+      />
     </div>
   );
 }

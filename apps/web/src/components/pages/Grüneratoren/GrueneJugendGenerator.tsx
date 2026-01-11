@@ -8,11 +8,12 @@ import ErrorBoundary from '../../ErrorBoundary';
 import { FormInput, FormTextarea } from '../../common/Form/Input';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { useGeneratorSelectionStore } from '../../../stores/core/generatorSelectionStore';
-import { useUserInstructions } from '../../../hooks/useUserInstructions';
 import PlatformSelector from '../../common/PlatformSelector';
 import { useUrlCrawler } from '../../../hooks/useUrlCrawler';
 import useBaseForm from '../../common/Form/hooks/useBaseForm';
 import type { HelpContent } from '../../../types/baseform';
+import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
+import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 
 interface GrueneJugendGeneratorProps {
   showHeaderFooter?: boolean;
@@ -23,17 +24,14 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
   const { initialContent } = useSharedContent();
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  // Get feature state and selection from store
-  // Use proper selectors for reactive subscriptions
-  const getFeatureState = useGeneratorSelectionStore(state => state.getFeatureState);
-  const selectedDocumentIds = useGeneratorSelectionStore(state => state.selectedDocumentIds);
-  const selectedTextIds = useGeneratorSelectionStore(state => state.selectedTextIds);
-  const isInstructionsActive = useGeneratorSelectionStore(state => state.isInstructionsActive);
-  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
+  // Consolidated setup using new hook
+  const setup = useGeneratorSetup({
+    instructionType: 'gruenejugend',
+    componentName: 'gruene-jugend'
+  });
 
-  // Fetch user's custom instructions
-  const instructionType = 'gruenejugend';
-  const customPrompt = useUserInstructions(instructionType, isInstructionsActive);
+  // Keep usePrivacyMode for backwards compatibility with existing code
+  const usePrivacyMode = useGeneratorSelectionStore(state => state.usePrivacyMode);
 
   const platformOptions = useMemo(() => [
     { id: 'instagram', label: 'Instagram' },
@@ -114,7 +112,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
   const socialMediaContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
   const { submitForm, loading, success, resetSuccess, error } = useApiSubmit('/claude_gruene_jugend');
 
-  // URL crawler hook for automatic link processing
+  // Combine file attachments with crawled URLs
   const {
     crawledUrls,
     crawlingUrls,
@@ -125,43 +123,30 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
     isCrawling
   } = useUrlCrawler();
 
+  // Form data builder with all attachments
+  const allAttachments = useMemo(() => [
+    ...(form.generator?.attachedFiles || []),
+    ...crawledUrls
+  ], [form.generator?.attachedFiles, crawledUrls]);
+
+  const builder = useFormDataBuilder({
+    ...setup,
+    attachments: allAttachments,
+    searchQueryFields: ['thema', 'details'] as const
+  });
+
   const onSubmitRHF = useCallback(async (rhfData: FieldValues) => {
     setStoreIsLoading(true);
     try {
-      // Get current feature toggle state from store
-      const features = getFeatureState();
-
       // Use platforms array directly from multi-select
       const selectedPlatforms = (rhfData.platforms as string[]) || [];
 
-      // Combine file attachments with crawled URLs
-      const allAttachments = [
-        ...(form.generator?.attachedFiles || []),
-        ...crawledUrls
-      ];
-
-      // Extract search query from form data
-      const extractQueryFromFormData = (data: Record<string, unknown>) => {
-        const queryParts: string[] = [];
-        if (data.thema) queryParts.push(String(data.thema));
-        if (data.details) queryParts.push(String(data.details));
-        return queryParts.filter(part => part && part.trim()).join(' ');
-      };
-
-      const searchQuery = extractQueryFromFormData(rhfData);
-
-      const formDataToSubmit = {
+      // Build submission data using new hook
+      const formDataToSubmit = builder.buildSubmissionData({
         thema: String(rhfData.thema || ''),
         details: String(rhfData.details || ''),
-        platforms: selectedPlatforms,
-        ...features, // Add feature toggles from store: useWebSearchTool, usePrivacyMode, useBedrock
-        attachments: allAttachments,
-        // Add custom prompt from user instructions (simplified)
-        customPrompt,
-        selectedDocumentIds: selectedDocumentIds || [],
-        selectedTextIds: selectedTextIds || [],
-        searchQuery: searchQuery || ''
-      };
+        platforms: selectedPlatforms
+      });
 
       console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
       const content = await submitForm(formDataToSubmit);
@@ -177,7 +162,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
     } finally {
       setStoreIsLoading(false);
     }
-  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, form.generator?.attachedFiles, crawledUrls, selectedDocumentIds, selectedTextIds, getFeatureState]);
+  }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, componentName, builder]);
 
   const handleGeneratedContentChange = useCallback((content: string) => {
     setGeneratedText(componentName, content);

@@ -8,6 +8,8 @@ import VideoSuccessScreen from './VideoSuccessScreen';
 import ProjectSelector from './ProjectSelector';
 import ModeSelector from './ModeSelector';
 import AutoProcessingScreen from './AutoProcessingScreen';
+import type { AutoProcessingResult } from './AutoProcessingScreen';
+import type { SubtitlePreference, StylePreference, HeightPreference } from '../types';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
 import { useSubtitlerProjects } from '../hooks/useSubtitlerProjects';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
@@ -66,11 +68,6 @@ interface SubtitleSegment {
   text: string;
 }
 
-interface AutoProcessingResult {
-  projectId?: string;
-  subtitles?: string;
-}
-
 // LoadedProject type from the shared useProjectsStore
 interface LoadedProject {
   id: string;
@@ -103,10 +100,10 @@ const SubtitlerPage = (): React.ReactElement => {
   const [error, setError] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState<boolean>(false);
   const { socialText, isGenerating, error: socialError, generateSocialText, reset: resetSocialText } = useSocialTextGenerator();
-  const [subtitlePreference, setSubtitlePreference] = useState<string>('manual');
-  const [stylePreference, setStylePreference] = useState<string>('shadow');
+  const [subtitlePreference, setSubtitlePreference] = useState<SubtitlePreference>('manual');
+  const [stylePreference, setStylePreference] = useState<StylePreference>('shadow');
   const [modePreference, setModePreference] = useState<string>('manual');
-  const [heightPreference, setHeightPreference] = useState<string>('tief');
+  const [heightPreference, setHeightPreference] = useState<HeightPreference>('tief');
   const [isProModeActive, setIsProModeActive] = useState<boolean>(false);
   const [loadedProject, setLoadedProject] = useState<LoadedProject | null>(null);
   const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
@@ -446,7 +443,7 @@ const SubtitlerPage = (): React.ReactElement => {
 
   // New handlers for styling step
   const handleStyleSelect = useCallback((style: string) => {
-    setStylePreference(style);
+    setStylePreference(style as StylePreference);
   }, []);
 
   const handleModeSelect = useCallback((mode: string) => {
@@ -454,7 +451,7 @@ const SubtitlerPage = (): React.ReactElement => {
   }, []);
 
   const handleHeightSelect = useCallback((height: string) => {
-    setHeightPreference(height);
+    setHeightPreference(height as HeightPreference);
   }, []);
 
   const handleStyleConfirm = useCallback(() => {
@@ -538,8 +535,8 @@ const SubtitlerPage = (): React.ReactElement => {
       if (project) {
         setLoadedProject(project as LoadedProject);
         setSubtitles(project.subtitles ?? '');
-        setStylePreference(project.style_preference || 'standard');
-        setHeightPreference(project.height_preference || 'standard');
+        setStylePreference((project.style_preference || 'standard') as StylePreference);
+        setHeightPreference((project.height_preference || 'standard') as HeightPreference);
         setModePreference(project.mode_preference ?? 'manual');
 
         // Set upload info from project data with streaming video URL
@@ -606,16 +603,16 @@ const SubtitlerPage = (): React.ReactElement => {
                 />
               )}
 
-              {step === 'mode-select' && (
+              {step === 'mode-select' && originalVideoFile && (
                 <ModeSelector
                   onSelect={handleEditModeSelect}
                   videoFile={originalVideoFile}
                 />
               )}
 
-              {step === 'auto-processing' && (
+              {step === 'auto-processing' && uploadInfo?.uploadId && (
                 <AutoProcessingScreen
-                  uploadId={uploadInfo?.uploadId}
+                  uploadId={uploadInfo.uploadId}
                   onComplete={handleAutoProcessingComplete}
                   onError={handleAutoProcessingError}
                 />

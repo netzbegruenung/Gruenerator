@@ -5,7 +5,7 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
-import type { FullCanvasConfig, LayoutResult as GenericLayoutResult } from './types';
+import type { FullCanvasConfig, LayoutResult as GenericLayoutResult, AdditionalText } from './types';
 import type { DreizeilenFullState, DreizeilenFullActions, DreizeilenAlternative } from './dreizeilen.types';
 import {
     DreizeilenTextAndFontSection,
@@ -23,7 +23,7 @@ import { calculateDreizeilenLayout, COLOR_SCHEMES, getColorScheme, DREIZEILEN_CO
 import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import { createShape } from '../utils/shapes';
-import type { ShapeType } from '../utils/shapes';
+import type { ShapeType, ShapeInstance } from '../utils/shapes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import {
     ICON_DEFAULTS,
@@ -79,8 +79,8 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
     const layoutResult = calculateDreizeilenLayout(
         [state.line1, state.line2, state.line3],
         state.fontSize,
-        state.balkenOffset,
         state.barOffsets,
+        [state.balkenOffset.x, state.balkenOffset.y],
         CANVAS_WIDTH,
         CANVAS_HEIGHT,
         state.balkenWidthScale
@@ -259,8 +259,16 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             propsFactory: (state, actions, context) => {
                 const canvasText = `${state.line1}\n${state.line2}\n${state.line3}`.trim();
 
-                // Extract shareProps from context (3rd parameter)
-                const { selectedElement, ...shareProps } = context || {};
+                // Extract shareProps from context (3rd parameter) with default values
+                const shareProps = context || {
+                    exportedImage: null,
+                    autoSaveStatus: 'idle' as const,
+                    shareToken: null,
+                    onCaptureCanvas: undefined,
+                    onDownload: undefined,
+                    onNavigateToGallery: undefined,
+                    selectedElement: null,
+                };
 
                 return {
                     exportedImage: shareProps.exportedImage || null,
@@ -329,64 +337,64 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
     calculateLayout,
 
-    createInitialState: (props) => ({
+    createInitialState: (props: Record<string, unknown>) => ({
         // Text Content
-        line1: props.line1 ?? '',
-        line2: props.line2 ?? '',
-        line3: props.line3 ?? '',
+        line1: (props.line1 as string | undefined) ?? '',
+        line2: (props.line2 as string | undefined) ?? '',
+        line3: (props.line3 as string | undefined) ?? '',
 
         // Text Formatting
-        colorSchemeId: props.colorSchemeId ?? 'tanne-sand',
-        fontSize: props.fontSize ?? 60,
-        balkenWidthScale: props.balkenWidthScale ?? 1,
-        barOffsets: props.barOffsets ?? DREIZEILEN_CONFIG.defaults.balkenOffset,
+        colorSchemeId: (props.colorSchemeId as string | undefined) ?? 'tanne-sand',
+        fontSize: (props.fontSize as number | undefined) ?? 60,
+        balkenWidthScale: (props.balkenWidthScale as number | undefined) ?? 1,
+        barOffsets: (props.barOffsets as [number, number, number] | undefined) ?? DREIZEILEN_CONFIG.defaults.balkenOffset,
 
         // Balken Position
-        balkenOffset: props.balkenOffset ?? { x: 0, y: 0 },
-        balkenOpacity: props.balkenOpacity ?? 1,
+        balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+        balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
 
         // Sunflower
-        sunflowerPos: props.sunflowerPos ?? null,
-        sunflowerSize: props.sunflowerSize ?? null,
-        sunflowerVisible: props.sunflowerVisible ?? true,
-        sunflowerOpacity: props.sunflowerOpacity ?? SUNFLOWER_CONFIG.defaultOpacity,
+        sunflowerPos: (props.sunflowerPos as { x: number; y: number } | null | undefined) ?? null,
+        sunflowerSize: (props.sunflowerSize as { w: number; h: number } | null | undefined) ?? null,
+        sunflowerVisible: (props.sunflowerVisible as boolean | undefined) ?? true,
+        sunflowerOpacity: (props.sunflowerOpacity as number | undefined) ?? SUNFLOWER_CONFIG.defaultOpacity,
 
         // Background Image
-        currentImageSrc: props.currentImageSrc,
-        imageOffset: props.imageOffset ?? { x: 0, y: 0 },
-        imageScale: props.imageScale ?? 1,
-        imageAttribution: props.imageAttribution ?? null,
+        currentImageSrc: props.currentImageSrc as string | undefined,
+        imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+        imageScale: (props.imageScale as number | undefined) ?? 1,
+        imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
         hasBackgroundImage: !!props.currentImageSrc,
-        bgImageDimensions: props.bgImageDimensions ?? null,
+        bgImageDimensions: (props.bgImageDimensions as { width: number; height: number } | null | undefined) ?? null,
 
         // Icons & Shapes
-        selectedIcons: props.selectedIcons ?? [],
-        iconStates: props.iconStates ?? {},
-        shapeInstances: props.shapeInstances ?? [],
+        selectedIcons: (props.selectedIcons as string[] | undefined) ?? [],
+        iconStates: (props.iconStates as Record<string, { x: number; y: number; scale: number; rotation: number; color?: string; opacity?: number }> | undefined) ?? {},
+        shapeInstances: (props.shapeInstances as ShapeInstance[] | undefined) ?? [],
         selectedShapeId: null,
 
         // Additional Texts
-        additionalTexts: props.additionalTexts ?? [],
+        additionalTexts: (props.additionalTexts as AdditionalText[] | undefined) ?? [],
 
         // Balken Instances (computed from state)
-        balkenInstances: props.balkenInstances ?? [
+        balkenInstances: (props.balkenInstances as BalkenInstance[] | undefined) ?? [
             createBalkenInstance({
-                line1: props.line1 ?? '',
-                line2: props.line2 ?? '',
-                line3: props.line3 ?? '',
-                colorSchemeId: props.colorSchemeId ?? 'tanne-sand',
-                balkenWidthScale: props.balkenWidthScale ?? 1,
-                balkenOffset: props.balkenOffset ?? { x: 0, y: 0 },
-                balkenOpacity: props.balkenOpacity ?? 1,
+                line1: (props.line1 as string | undefined) ?? '',
+                line2: (props.line2 as string | undefined) ?? '',
+                line3: (props.line3 as string | undefined) ?? '',
+                colorSchemeId: (props.colorSchemeId as string | undefined) ?? 'tanne-sand',
+                balkenWidthScale: (props.balkenWidthScale as number | undefined) ?? 1,
+                balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+                balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
             })
         ],
 
         // Layer Ordering
-        layerOrder: props.layerOrder ?? [],
+        layerOrder: (props.layerOrder as string[] | undefined) ?? [],
 
         // UI State
-        isDesktop: props.isDesktop ?? (typeof window !== 'undefined' && window.innerWidth >= 900),
-        alternatives: props.alternatives ?? [],
+        isDesktop: (props.isDesktop as boolean | undefined) ?? (typeof window !== 'undefined' && window.innerWidth >= 900),
+        alternatives: (props.alternatives as { id: string; line1: string; line2: string; line3: string }[] | undefined) ?? [],
     }),
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
@@ -517,7 +525,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
                 imageAttribution: attribution ?? null,
                 hasBackgroundImage: !!src,
             }));
-            callbacks.onImageChange?.(file, objectUrl, attribution);
+            callbacks.onImageChange?.(file);
             saveToHistory({
                 ...getState(),
                 currentImageSrc: src,
@@ -760,7 +768,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         handleReset: () => {
             const initialState = dreizeilenFullConfig.createInitialState({});
             setState(initialState);
-            callbacks.onReset?.();
+            callbacks.onReset?.(undefined);
             saveToHistory(initialState);
         },
     };

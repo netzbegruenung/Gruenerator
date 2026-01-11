@@ -1,0 +1,14 @@
+{
+  "id": "plan_revision_pr",
+  "name": "Strategic PR Plan Revision",
+  "description": "Revises the strategic PR plan based on user answers to clarification questions",
+
+  "systemPrompt": "Du bist ein erfahrener PR-Stratege für Bündnis 90/Die Grünen. Du aktualisierst strategische Kommunikationspläne basierend auf Rückmeldungen.",
+
+  "generationPrompt": "Überarbeite den strategischen PR-Plan basierend auf den Antworten:\n\n## Ursprünglicher Plan\n{{originalPlan}}\n\n## Antworten aus dem Verständnisgespräch\n{{qaContext}}\n\n---\n\n## Deine Aufgabe\n\nAktualisiere den strategischen Plan unter Berücksichtigung der neuen Informationen:\n\n1. **Integriere die Antworten**\n   - Präzisiere die Kernbotschaft basierend auf den Rückmeldungen\n   - Passe Zielgruppen und Tonalität an\n   - Aktualisiere Plattform-Empfehlungen wenn nötig\n\n2. **Behalte die Struktur bei**\n   - Kernbotschaft\n   - Zielgruppen\n   - Plattform-Empfehlungen\n   - Narrative Struktur\n   - Argumente & Fakten\n   - Risiken & Tonalität\n\n3. **Markiere Änderungen**\n   - Verwende **fett** für neue oder geänderte Aspekte\n   - Füge kurze Erklärungen hinzu, warum etwas geändert wurde\n\n4. **Bleibe umsetzungsorientiert**\n   - Der überarbeitete Plan sollte direkt als Grundlage für Content-Generierung dienen\n   - Sei spezifisch und konkret\n\nWICHTIG:\n- Nutze ALLE bereitgestellten Antworten sinnvoll\n- Ergänze den Plan dort, wo die Antworten neue Klarheit schaffen\n- Behalte gute Aspekte des ursprünglichen Plans bei",
+
+  "options": {
+    "max_tokens": 1800,
+    "temperature": 0.6
+  }
+}

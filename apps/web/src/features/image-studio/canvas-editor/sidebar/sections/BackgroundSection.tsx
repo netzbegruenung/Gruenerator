@@ -338,8 +338,10 @@ function ImageSubsection({
                       padding: 'var(--spacing-xxsmall)',
                     }}>
                       <UnsplashAttribution
-                        attribution={image.attribution}
-                        format="compact"
+                        photographer={image.attribution.photographer}
+                        profileUrl={image.attribution.profileUrl}
+                        photoUrl={image.attribution.photoUrl}
+                        compact={true}
                       />
                     </div>
                   )}

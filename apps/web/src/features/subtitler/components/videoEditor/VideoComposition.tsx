@@ -80,7 +80,7 @@ const parseSubtitles = (subtitleString: string): ParsedSubtitle[] => {
         text
       };
     })
-    .filter(Boolean);
+    .filter((item): item is ParsedSubtitle => item !== null);
 };
 
 const TEXT_OVERLAY_STYLES = {

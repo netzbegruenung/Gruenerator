@@ -93,6 +93,7 @@ const initialState: ImageStudioState = {
   purePrompt: '',
   sharepicPrompt: '',
   allyPlacement: null,
+  selectedImageSize: null,
 
   // Cross-component editing state
   editingSource: null,
@@ -145,7 +146,13 @@ const initialState: ImageStudioState = {
   flowSubtitle: null,
 
   // AI generation state
-  aiGeneratedContent: false
+  aiGeneratedContent: false,
+
+  // AI Editor history (undo/redo)
+  aiEditorHistory: [],
+  aiEditorHistoryIndex: -1,
+  aiEditorSessionId: null,
+  aiEditorMode: 'create'
 };
 
 const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
@@ -502,6 +509,110 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     const { type } = get();
     const config = getTypeConfig(type || '');
     return config?.hasRateLimit || false;
+  },
+
+  // AI Editor undo/redo actions
+  commitAiGeneration: (image, prompt) => {
+    const {
+      aiEditorHistory,
+      aiEditorHistoryIndex,
+      aiEditorSessionId,
+      selectedImageSize,
+      variant,
+      purePrompt
+    } = get();
+
+    // Generate session ID if not exists
+    const sessionId = aiEditorSessionId || `ai-editor-${Date.now()}`;
+
+    // Linear history: truncate future entries when committing new generation
+    const historyBeforeCurrent = aiEditorHistory.slice(0, aiEditorHistoryIndex + 1);
+
+    // Create new history entry
+    const newEntry = {
+      id: `gen-${Date.now()}`,
+      prompt: prompt || purePrompt,
+      generatedImage: image,
+      imageSize: selectedImageSize,
+      variant,
+      timestamp: Date.now(),
+      shareToken: undefined
+    };
+
+    // Max 10 entries to conserve memory
+    const newHistory = [...historyBeforeCurrent, newEntry].slice(-10);
+    const newIndex = newHistory.length - 1;
+
+    set({
+      aiEditorHistory: newHistory,
+      aiEditorHistoryIndex: newIndex,
+      aiEditorSessionId: sessionId,
+      generatedImageSrc: image
+    });
+  },
+
+  undoAiGeneration: () => {
+    const { aiEditorHistory, aiEditorHistoryIndex } = get();
+
+    if (aiEditorHistoryIndex > 0) {
+      const newIndex = aiEditorHistoryIndex - 1;
+      const entry = aiEditorHistory[newIndex];
+
+      set({
+        aiEditorHistoryIndex: newIndex,
+        generatedImageSrc: entry.generatedImage,
+        purePrompt: entry.prompt,
+        selectedImageSize: entry.imageSize,
+        variant: entry.variant
+      });
+    }
+  },
+
+  redoAiGeneration: () => {
+    const { aiEditorHistory, aiEditorHistoryIndex } = get();
+
+    if (aiEditorHistoryIndex < aiEditorHistory.length - 1) {
+      const newIndex = aiEditorHistoryIndex + 1;
+      const entry = aiEditorHistory[newIndex];
+
+      set({
+        aiEditorHistoryIndex: newIndex,
+        generatedImageSrc: entry.generatedImage,
+        purePrompt: entry.prompt,
+        selectedImageSize: entry.imageSize,
+        variant: entry.variant
+      });
+    }
+  },
+
+  canUndoAi: () => {
+    const { aiEditorHistoryIndex } = get();
+    return aiEditorHistoryIndex > 0;
+  },
+
+  canRedoAi: () => {
+    const { aiEditorHistory, aiEditorHistoryIndex } = get();
+    return aiEditorHistoryIndex < aiEditorHistory.length - 1;
+  },
+
+  setAiEditorMode: (mode) => {
+    set({ aiEditorMode: mode });
+  },
+
+  loadHistoryEntry: (index) => {
+    const { aiEditorHistory } = get();
+
+    if (index >= 0 && index < aiEditorHistory.length) {
+      const entry = aiEditorHistory[index];
+
+      set({
+        aiEditorHistoryIndex: index,
+        generatedImageSrc: entry.generatedImage,
+        purePrompt: entry.prompt,
+        selectedImageSize: entry.imageSize,
+        variant: entry.variant
+      });
+    }
   },
 
   // Constants access

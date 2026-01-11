@@ -921,3 +921,47 @@ CREATE TABLE IF NOT EXISTS shared_media_downloads (
 );
 
 CREATE INDEX IF NOT EXISTS idx_shared_media_downloads_media ON shared_media_downloads(shared_media_id);
+
+-- ============================================
+-- GOOGLE DOCS ALTERNATIVE - COLLABORATIVE DOCUMENTS EXTENSION
+-- Extends existing collaborative_documents table for Google Docs-like functionality
+-- ============================================
+
+-- Extend existing collaborative_documents table with minimal additions
+ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS folder_id UUID;
+ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;
+ALTER TABLE collaborative_documents ADD COLUMN IF NOT EXISTS document_subtype TEXT DEFAULT 'docs';
+
+-- Create folders table for document organization
+CREATE TABLE IF NOT EXISTS collaborative_document_folders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    parent_id UUID REFERENCES collaborative_document_folders(id) ON DELETE CASCADE,
+    created_by UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+
+-- Extend yjs_document_snapshots for named versions and version history
+ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS label TEXT;
+ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS is_auto_save BOOLEAN DEFAULT TRUE;
+ALTER TABLE yjs_document_snapshots ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES profiles(id);
+
+-- Add folder foreign key constraint
+ALTER TABLE collaborative_documents
+    ADD CONSTRAINT fk_folder
+    FOREIGN KEY (folder_id) REFERENCES collaborative_document_folders(id)
+    ON DELETE SET NULL;
+
+-- Indexes for collaborative documents extension
+CREATE INDEX IF NOT EXISTS idx_collaborative_documents_folder ON collaborative_documents(folder_id);
+CREATE INDEX IF NOT EXISTS idx_collaborative_documents_deleted ON collaborative_documents(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_collaborative_documents_subtype ON collaborative_documents(document_subtype);
+CREATE INDEX IF NOT EXISTS idx_collaborative_document_folders_parent ON collaborative_document_folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_collaborative_document_folders_created_by ON collaborative_document_folders(created_by);
+
+-- Add trigger for collaborative_document_folders updated_at
+CREATE TRIGGER update_collaborative_document_folders_updated_at
+    BEFORE UPDATE ON collaborative_document_folders
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

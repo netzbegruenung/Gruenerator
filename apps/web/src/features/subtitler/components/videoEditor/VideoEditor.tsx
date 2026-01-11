@@ -63,6 +63,10 @@ const generateThumbnail = (videoUrl: string, time: number = 1): Promise<string |
         canvas.width = maxWidth;
         canvas.height = Math.round(video.videoHeight * scale);
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', 0.7));
       } catch {
@@ -119,8 +123,8 @@ const VideoEditor = ({
   const [localStyle, setLocalStyle] = useState(stylePreference || 'shadow');
   const [localHeight, setLocalHeight] = useState(heightPreference || 'tief');
   const [localQuality, setLocalQuality] = useState('normal');
-  const [editingOverlayId, setEditingOverlayId] = useState(null);
-  const clipFileInputRef = useRef(null);
+  const [editingOverlayId, setEditingOverlayId] = useState<number | null>(null);
+  const clipFileInputRef = useRef<HTMLInputElement>(null);
 
   const styleOptions = [
     {
@@ -396,7 +400,7 @@ const VideoEditor = ({
   }
 
   const clipCount = getClipCount();
-  const isVertical = videoMetadata && videoMetadata.width < videoMetadata.height;
+  const isVertical = videoMetadata && videoMetadata.width !== undefined && videoMetadata.height !== undefined && videoMetadata.width < videoMetadata.height;
 
   const showClipPanelEffective = showClipPanel && clipCount > 1;
 
@@ -611,7 +615,7 @@ const VideoEditor = ({
             )}
 
             <Timeline
-              subtitles={subtitles}
+              subtitles={subtitles || ''}
               onSubtitleClick={onSubtitleClick}
               onSubtitleUpdate={onSubtitleUpdate}
               onOverlayDoubleClick={(overlay) => setEditingOverlayId(overlay.id)}
@@ -632,7 +636,7 @@ const VideoEditor = ({
         </div>
       </div>
 
-      {editingOverlayId && (
+      {editingOverlayId !== null && (
         <TextOverlayPanel
           overlayId={editingOverlayId}
           onClose={() => setEditingOverlayId(null)}
@@ -671,7 +675,7 @@ const VideoEditor = ({
                 className="btn-primary"
                 onClick={() => {
                   setShowRegenerateConfirm(false);
-                  onGenerateSubtitles();
+                  onGenerateSubtitles?.();
                 }}
               >
                 <FiRefreshCw />

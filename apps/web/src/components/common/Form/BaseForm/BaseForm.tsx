@@ -95,6 +95,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   // New consolidated prop (optional, backward compatible)
   submitConfig = null,
   headerContent,
+  // NEW: Consolidated features configuration
+  features = undefined,
   // Feature toggle props - now with defaults that can be overridden
   webSearchFeatureToggle = null,
   useWebSearchFeatureToggle = false,
@@ -305,7 +307,11 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   } = configs;
 
   // Feature configuration hooks
-  const features = useFeatureConfigs({
+  const featureConfigs = useFeatureConfigs({
+    // NEW: Consolidated features prop (preferred)
+    features,
+
+    // DEPRECATED: Individual props (backward compatibility)
     webSearchFeatureToggle,
     useWebSearchFeatureToggle,
     webSearchConfig,
@@ -328,7 +334,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
     resolvedPrivacyModeConfig,
     resolvedProModeConfig,
     resolvedInteractiveModeConfig
-  } = features;
+  } = featureConfigs;
 
   // Content management hook
   const content = useContentManagement({
@@ -511,7 +517,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   }), [title, generatedContent, isFormVisible, isEditModeActive, isStartMode]);
 
   return (
-    <>
+    <div className="base-form-wrapper">
       {headerContent}
       <motion.div
         /* layout */
@@ -649,17 +655,17 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
         {!isMobileView && (
           <Tooltip id="action-tooltip" place="bottom" />
         )}
-
-        {/* Recent texts section - below DisplaySection and FormSection */}
-        {!isStartMode && (
-          <RecentTextsSection
-            generatorType={getDocumentType(componentName)}
-            componentName={componentName}
-            onTextLoad={handleLoadRecentText}
-          />
-        )}
       </motion.div>
-    </>
+
+      {/* Recent texts section - below entire BaseForm container */}
+      {!isStartMode && (
+        <RecentTextsSection
+          generatorType={getDocumentType(componentName)}
+          componentName={componentName}
+          onTextLoad={handleLoadRecentText}
+        />
+      )}
+    </div>
   );
 };
 

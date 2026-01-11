@@ -2,7 +2,12 @@ import React from 'react';
 import { FaTimes } from 'react-icons/fa';
 import '../styles/ProcessingIndicator.css';
 
-const ProcessingIndicator = ({ onCancel, error }) => {
+interface ProcessingIndicatorProps {
+  onCancel?: () => void;
+  error?: string | null;
+}
+
+const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ onCancel, error }) => {
     return (
         <div className="processing-indicator">
             <div className="processing-container">

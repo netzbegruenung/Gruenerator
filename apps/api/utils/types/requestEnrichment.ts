@@ -74,6 +74,21 @@ export interface AutoSelectedDocument {
   matched_query: string;
 }
 
+export interface DocumentReference {
+  title: string;
+  filename: string;
+  pageCount?: number;
+  retrievalMethod: 'full_text' | 'vector_search';
+  relevance?: number;
+}
+
+export interface TextReference {
+  title: string;
+  type: string;
+  wordCount: number;
+  createdAt: string;
+}
+
 export interface EnrichmentMetadata {
   totalDocuments: number;
   enableDocQnA: boolean;
@@ -83,6 +98,8 @@ export interface EnrichmentMetadata {
   autoSelectedDocuments: AutoSelectedDocument[];
   urlsProcessed?: string[];
   documentsPreProcessed?: boolean;
+  documentsReferences?: DocumentReference[];
+  textsReferences?: TextReference[];
   [key: string]: unknown;
 }
 

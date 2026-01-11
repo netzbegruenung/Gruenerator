@@ -1,8 +1,24 @@
 import React, { useMemo } from 'react';
 import SubtitleStylingService from '../utils/subtitleStylingService';
 import { useAuthStore } from '../../../stores/authStore';
+import type {
+  SubtitleSegment,
+  VideoMetadata,
+  StylePreference,
+  HeightPreference,
+  SubtitlePreference
+} from '../types';
 
-const LiveSubtitlePreview = ({
+interface LiveSubtitlePreviewProps {
+  editableSubtitles: SubtitleSegment[];
+  currentTimeInSeconds: number;
+  videoMetadata: VideoMetadata | null;
+  stylePreference?: StylePreference;
+  heightPreference?: HeightPreference;
+  subtitlePreference?: SubtitlePreference;
+}
+
+const LiveSubtitlePreview: React.FC<LiveSubtitlePreviewProps> = ({
   editableSubtitles,
   currentTimeInSeconds,
   videoMetadata,
