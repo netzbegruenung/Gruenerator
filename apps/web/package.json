@@ -13,6 +13,7 @@
     "@remotion/media-utils": "^4.0.390",
     "@remotion/player": "^4.0.390",
     "@remotion/preload": "^4.0.390",
+    "@sentry/browser": "^10.33.0",
     "@tanstack/react-query": "^5.84.0",
     "@tauri-apps/api": "^2.9.1",
     "@tauri-apps/plugin-fs": "^2",
@@ -88,6 +89,7 @@
     }
   },
   "scripts": {
+    "dev": "vite",
     "start": "vite",
     "start:debug": "cross-env NODE_OPTIONS=\"--inspect --max-old-space-size=4096\" vite",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=2048 vite build",
