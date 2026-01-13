@@ -140,7 +140,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     tabIndexKey: 'PRESS_SOCIAL' as never,
     defaultMode: 'balanced' as never,
     disableKnowledgeSystem: false
-  }) as {
+  }) as unknown as {
     control: import('react-hook-form').Control<Record<string, unknown>>;
     handleSubmit: (cb: (data: Record<string, unknown>) => Promise<void>) => () => Promise<void>;
     reset: () => void;
@@ -485,8 +485,8 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
   }, [approvalContent, selectedPlatforms, handlePlatformToggle, handlePRApproval, handlePRReject, submitHandler.loading, AVAILABLE_PLATFORMS]);
 
   // Memoize generated content with handler
-  const generatedContentWithHandler = useMemo(() => {
-    let content = storeGeneratedText || socialMediaContent;
+  const generatedContentWithHandler = useMemo((): GeneratedContentResult | string | null => {
+    let content: unknown = storeGeneratedText || socialMediaContent;
 
     if (typeof content === 'string' && content.trim().startsWith('{')) {
       try {
@@ -500,9 +500,9 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
     }
 
     if (content && typeof content === 'object') {
-      return { ...content, onEditSharepic: handleEditSharepic };
+      return { ...(content as GeneratedContentResult), onEditSharepic: async (data: unknown) => { handleEditSharepic(data); } };
     }
-    return content;
+    return content as string | null;
   }, [storeGeneratedText, socialMediaContent, handleEditSharepic]);
 
   // Contextual tips
@@ -565,7 +565,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
           success={false}
           error={submitHandler.error}
           showNextButton={!approvalContent}
-          generatedContent={approvalContent || generatedContentWithHandler}
+          generatedContent={approvalContent || generatedContentWithHandler as import('../../../types/baseform').GeneratedContent}
           useMarkdown={!!approvalContent}
           enableEditMode={!approvalContent}
           enableKnowledgeSelector={true}

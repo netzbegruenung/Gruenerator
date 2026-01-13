@@ -13,7 +13,12 @@ import type { FeatureState } from '../../../../hooks/useGeneratorSetup';
 export interface PresseSocialFormData
   extends SocialMediaFormData,
     Partial<PressemitteilungFormData>,
-    Partial<SharepicFormData> {}
+    Partial<SharepicFormData> {
+  /**
+   * Selected platforms for generation
+   */
+  platforms: string[];
+}
 
 /**
  * Configuration for submission hook
@@ -71,7 +76,7 @@ interface SubmitReturn {
    */
   submitPRWorkflow: (
     formData: PresseSocialFormData
-  ) => Promise<{ strategy: unknown } | null>;
+  ) => Promise<{ success: boolean; workflow_id: string; content: string; error?: string } | null>;
 
   /**
    * Submit handler for standard social media generation
@@ -153,7 +158,7 @@ export function usePresseSocialSubmit(
    * Phase 1: Generate strategy for approval
    */
   const submitPRWorkflow = useCallback(
-    async (formData: PresseSocialFormData) => {
+    async (formData: PresseSocialFormData): Promise<{ success: boolean; workflow_id: string; content: string; error?: string } | null> => {
       try {
         const result = await prWorkflow.generateStrategy({
           inhalt: formData.inhalt,
@@ -162,7 +167,7 @@ export function usePresseSocialSubmit(
           selectedTextIds: Array.from(config.selectedTextIds)
         });
 
-        return result;
+        return result as { success: boolean; workflow_id: string; content: string; error?: string };
       } catch (error) {
         console.error('[usePresseSocialSubmit] PR workflow failed:', error);
         return null;

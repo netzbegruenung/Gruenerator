@@ -273,7 +273,8 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
           (fullDescription ? fullDescription : null) as null | undefined
         );
 
-        const altText = response?.altText || response || '';
+        const altTextResult = response?.altText || response || '';
+        const altText = typeof altTextResult === 'string' ? altTextResult : '';
 
         setGeneratedContent(altText);
         form.generator?.handleGeneratedContentChange(altText);
@@ -287,20 +288,23 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
           targetLanguage: formData.targetLanguage
         });
 
-        const response = await submitLeichteSprache(formDataToSubmit);
+        const response = await submitLeichteSprache(formDataToSubmit as unknown as Record<string, unknown>);
         if (response) {
-          const content = typeof response === 'string' ? response : response.content;
-          const metadata = typeof response === 'object' ? response.metadata : {};
+          const responseContent = typeof response === 'string' ? response : (response as { content?: string }).content;
 
-          if (content) {
-            setGeneratedContent(content);
-            form.generator?.handleGeneratedContentChange(content);
+          if (responseContent) {
+            setGeneratedContent(responseContent);
+            form.generator?.handleGeneratedContentChange(responseContent);
           }
         }
       }
     } catch (error) {
       console.error('[AccessibilityTextGenerator] Error submitting form:', error);
-      form.handleSubmitError?.(error);
+      if (error instanceof Error) {
+        form.handleSubmitError?.(error);
+      } else {
+        form.handleSubmitError?.(new Error(String(error)));
+      }
     }
   }, [
     selectedType,
@@ -319,11 +323,11 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
   const renderForm = () => {
     switch (selectedType) {
       case ACCESSIBILITY_TYPES.ALT_TEXT:
-        return <AltTextForm ref={formRef} tabIndex={form.generator?.tabIndex} />;
+        return <AltTextForm ref={formRef as React.RefObject<FormRef & { getFormData: () => Record<string, unknown>; isValid: () => boolean }>} tabIndex={form.generator?.tabIndex} />;
       case ACCESSIBILITY_TYPES.LEICHTE_SPRACHE:
         return (
           <LeichteSpracheForm
-            ref={formRef}
+            ref={formRef as React.RefObject<FormRef & { getFormData: () => Record<string, unknown>; isValid: () => boolean }>}
             tabIndex={form.generator?.tabIndex}
             onUrlsDetected={handleUrlsDetected}
           />
@@ -344,7 +348,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
       name="accessibilityType"
       options={accessibilityTypeOptions}
       value={selectedType}
-      onChange={setSelectedType}
+      onChange={(value) => setSelectedType(value as string)}
       label="Art der Barrierefreiheit"
       placeholder="Barrierefreiheit-Typ auswählen..."
       isMulti={false}
@@ -365,7 +369,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
         <BaseForm
           {...form.generator?.baseFormProps}
           title={<span className="gradient-title">{ACCESSIBILITY_TYPE_TITLES[selectedType]}</span>}
-          generatedContent={storeGeneratedText || generatedContent}
+          generatedContent={(storeGeneratedText || generatedContent) as import('../../../types/baseform').GeneratedContent}
           onSubmit={handleSubmit}
           firstExtrasChildren={renderTypeSelector()}
           useFeatureIcons={false}

@@ -172,6 +172,14 @@ export interface BackgroundElementConfig<TState = Record<string, unknown>> exten
     colorKey?: string;
     /** Static color */
     color?: string;
+    /** Static or state-derived fill color */
+    fill?: FillValue<TState>;
+    /** State key for custom fill color override */
+    fillStateKey?: string;
+    /** Opacity (0-1) */
+    opacity?: PositionValue<TState>;
+    /** State key for custom opacity override */
+    opacityStateKey?: string;
 }
 
 /** Union of all element config types */

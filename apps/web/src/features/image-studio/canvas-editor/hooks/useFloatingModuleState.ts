@@ -25,7 +25,7 @@ export interface FloatingModuleState {
     };
 }
 
-export interface UseFloatingModuleStateOptions<TState, TActions = Record<string, unknown>> {
+export interface UseFloatingModuleStateOptions<TState extends Record<string, unknown>, TActions = Record<string, unknown>> {
     selectedElement: string | null;
     config: FullCanvasConfig<TState, TActions>;
     state: TState;
@@ -54,7 +54,7 @@ function getStateArray<T>(state: unknown, key: string | undefined): T[] {
 /**
  * Hook to compute active floating module based on selected element
  */
-export function useFloatingModuleState<TState, TActions = Record<string, unknown>>(
+export function useFloatingModuleState<TState extends Record<string, unknown>, TActions = Record<string, unknown>>(
     options: UseFloatingModuleStateOptions<TState, TActions>
 ): FloatingModuleState | null {
     const { selectedElement, config, state, layout } = options;
@@ -71,17 +71,21 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
 
             const currentFontSize =
                 getStateProperty<number>(state, fontSizeStateKey) ||
-                resolveValue(textElement.fontSize, state, layout) ||
+                resolveValue<number, TState>(textElement.fontSize as number | ((state: TState, layout: LayoutResult) => number), state, layout) ||
                 24;
             const currentOpacity = opacityStateKey
                 ? getStateProperty<number>(state, opacityStateKey)
-                : resolveValue(textElement.opacity, state, layout);
+                : (textElement.opacity !== undefined
+                    ? resolveValue<number | undefined, TState>(textElement.opacity as number | ((state: TState, layout: LayoutResult) => number | undefined), state, layout)
+                    : undefined);
             const currentFill = fillStateKey
                 ? getStateProperty<string>(state, fillStateKey)
-                : resolveValue(textElement.fill, state, layout);
+                : (textElement.fill !== undefined
+                    ? resolveValue<string | undefined, TState>(textElement.fill as string | ((state: TState, layout: LayoutResult) => string | undefined), state, layout)
+                    : undefined);
 
             return {
-                type: 'text',
+                type: 'text' as const,
                 data: {
                     id: selectedElement,
                     fontSize: currentFontSize,
@@ -99,18 +103,20 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
 
             const currentOpacity = opacityStateKey
                 ? getStateProperty<number>(state, opacityStateKey)
-                : resolveValue(imageElement.opacity, state, layout);
+                : (imageElement.opacity !== undefined
+                    ? resolveValue<number | undefined, TState>(imageElement.opacity as number | ((state: TState, layout: LayoutResult) => number | undefined), state, layout)
+                    : undefined);
 
             // Get fill from state or resolve from config
             let currentFill: string | undefined = undefined;
             if (fillStateKey) {
                 currentFill = getStateProperty<string>(state, fillStateKey);
             } else if (imageElement.fill) {
-                currentFill = resolveValue(imageElement.fill, state, layout);
+                currentFill = resolveValue<string, TState>(imageElement.fill as string | ((state: TState, layout: LayoutResult) => string), state, layout);
             }
 
             return {
-                type: 'image',
+                type: 'image' as const,
                 data: {
                     id: selectedElement,
                     opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
@@ -127,17 +133,19 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
 
             const currentOpacity = opacityStateKey
                 ? getStateProperty<number>(state, opacityStateKey)
-                : resolveValue(backgroundElement.opacity, state, layout);
+                : (backgroundElement.opacity !== undefined
+                    ? resolveValue<number | undefined, TState>(backgroundElement.opacity as number | ((state: TState, layout: LayoutResult) => number | undefined), state, layout)
+                    : undefined);
 
             let currentFill: string | undefined = undefined;
             if (fillStateKey) {
                 currentFill = getStateProperty<string>(state, fillStateKey);
             } else if (backgroundElement.fill) {
-                currentFill = resolveValue(backgroundElement.fill, state, layout);
+                currentFill = resolveValue<string, TState>(backgroundElement.fill as string | ((state: TState, layout: LayoutResult) => string), state, layout);
             }
 
             return {
-                type: 'background',
+                type: 'background' as const,
                 data: {
                     id: selectedElement,
                     opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
@@ -151,8 +159,8 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
         const shape = shapeInstances.find((s) => s.id === selectedElement);
         if (shape) {
             return {
-                type: 'shape',
-                data: shape,
+                type: 'shape' as const,
+                data: { ...shape, id: selectedElement },
             };
         }
 
@@ -163,7 +171,7 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
             const iconStatesObj = getStateProperty<Record<string, unknown>>(state, 'iconStates');
             const iconState = iconStatesObj?.[selectedElement] ?? {};
             return {
-                type: 'icon',
+                type: 'icon' as const,
                 data: { id: selectedElement, ...iconState },
             };
         }
@@ -173,7 +181,7 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
         const additionalText = additionalTexts.find((t) => t.id === selectedElement);
         if (additionalText) {
             return {
-                type: 'text',
+                type: 'text' as const,
                 data: {
                     id: selectedElement,
                     fontSize: additionalText.fontSize,
@@ -188,7 +196,7 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
         const balken = balkenInstances.find((b) => b.id === selectedElement);
         if (balken) {
             return {
-                type: 'text',
+                type: 'text' as const,
                 data: {
                     id: selectedElement,
                     opacity: balken.opacity ?? 1,
@@ -201,8 +209,8 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
         const illustration = illustrationInstances.find((i) => i.id === selectedElement);
         if (illustration) {
             return {
-                type: 'illustration',
-                data: illustration,
+                type: 'illustration' as const,
+                data: { ...illustration, id: selectedElement },
             };
         }
 
@@ -211,8 +219,8 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
         const asset = assetInstances.find((a) => a.id === selectedElement);
         if (asset) {
             return {
-                type: 'asset',
-                data: asset,
+                type: 'asset' as const,
+                data: { ...asset, id: selectedElement },
             };
         }
 

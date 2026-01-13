@@ -236,7 +236,7 @@ function TemplateSubsection({
         'public'
       );
       if (result.success) {
-        setTemplateUrl(result.templateUrl);
+        setTemplateUrl(`${window.location.origin}${result.templateUrl}`);
       }
     } catch (error) {
       console.error('Failed to save template:', error);

@@ -86,6 +86,14 @@ interface SharepicData {
   lines?: Record<string, string>;
   canvaTemplateUrl?: string | null;
   canvaPreviewImage?: string | null;
+  // Fields expected by CampaignSharepicEditor
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  line4?: string;
+  line5?: string;
+  customCredit?: string;
+  creditText?: string;
 }
 
 interface EditedLines {
@@ -145,7 +153,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         // Cast campaigns with required id to CampaignData type (cast through unknown for type compatibility)
         setCampaigns(activeCampaigns.filter(c => c.id) as unknown as CampaignData[]);
 
-        if (activeCampaigns.length > 0 && !selectedCampaign) {
+        if (activeCampaigns.length > 0 && !selectedCampaign && activeCampaigns[0].id) {
           setSelectedCampaign(activeCampaigns[0].id);
         }
       } catch (error) {
@@ -192,7 +200,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
   const campaignOptions = useMemo((): CampaignOption[] => {
     return campaigns.map((campaign: CampaignData): CampaignOption => ({
       value: campaign.id,
-      label: campaign.displayName,
+      label: campaign.displayName || campaign.id,
       icon: campaign.icon ? <Icon category="campaigns" name={campaign.icon} size={16} /> : null
     }));
   }, [campaigns]);
@@ -221,7 +229,12 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     handleSubmit,
     getValues,
     errors
-  } = form as { control: Record<string, unknown>; handleSubmit: (onSubmit: (data: CampaignFormData) => Promise<void>) => () => Promise<void>; getValues: () => CampaignFormData; errors: { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } } };
+  } = form;
+
+  // Type assertion for control to work with form components
+  const typedControl = control as unknown as import('react-hook-form').Control<Record<string, unknown>>;
+  const typedGetValues = getValues as () => CampaignFormData;
+  const typedErrors = errors as { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } };
 
   // Consolidated setup using new hook
   const setup = useGeneratorSetup({
@@ -263,7 +276,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
   // Handler for regenerating a single sharepic with edited text
   const handleRegenerateSharepic = useCallback(async (index: number, editedLinesParam: EditedLines) => {
     try {
-      const formValues = getValues() as CampaignFormData;
+      const formValues = typedGetValues();
       const campaignId = selectedCampaignData?.backendConfigId || selectedCampaign;
 
       const updatedSharepic = await regenerateSharepic({
@@ -387,11 +400,11 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
       name="campaignType"
       options={campaignOptions}
       value={selectedCampaign}
-      onChange={setSelectedCampaign}
+      onChange={(value) => setSelectedCampaign(value as string)}
       label="Kampagne"
       placeholder="Kampagne auswählen..."
       isMulti={false}
-      control={null}
+      control={undefined}
       enableIcons={true}
       enableSubtitles={false}
       isSearchable={false}
@@ -404,7 +417,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     <>
       <FormImageSelect
         name="variant"
-        control={control}
+        control={typedControl}
         label="Hintergrund-Design"
         options={campaignVariantOptions}
         rules={{ required: 'Bitte wähle ein Design aus' }}
@@ -416,24 +429,24 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
 
       <FormInput
         name="location"
-        control={control}
+        control={typedControl}
         label="Ort / Region"
         placeholder="z.B. Hamburg, Berlin, Köln, München..."
         rules={{
           required: 'Bitte gib einen Ort oder eine Region ein',
           minLength: { value: 2, message: 'Der Ort muss mindestens 2 Zeichen lang sein' }
         }}
-        error={errors.location?.message}
+        error={typedErrors.location?.message}
         tabIndex={form.generator?.tabIndex?.location}
       />
 
       <FormTextarea
         name="details"
-        control={control}
+        control={typedControl}
         label="Zusätzliche Details (optional)"
         placeholder="z.B. lokale Besonderheiten, aktuelle Themen, besondere Schwerpunkte..."
         rows={4}
-        error={errors.details?.message}
+        error={typedErrors.details?.message}
         tabIndex={form.generator?.tabIndex?.details}
       />
     </>

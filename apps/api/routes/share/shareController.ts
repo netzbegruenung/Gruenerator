@@ -1017,7 +1017,7 @@ router.post('/:shareToken/save-as-template', requireAuth, async (req: Request<Sh
       userName
     );
 
-    const templateUrl = `${process.env.BASE_URL || 'http://localhost:5173'}/sharepic?template=${shareToken}`;
+    const templateUrl = `/sharepic?template=${shareToken}`;
 
     log.info(`Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`);
 

@@ -16,7 +16,7 @@ import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 
 // Form ref interface for child forms
 interface FormRef {
-  getFormData: () => Record<string, unknown> | null;
+  getFormData: () => Record<string, unknown>;
   resetForm: (data?: Record<string, unknown>) => void;
 }
 
@@ -282,7 +282,7 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
       name="textType"
       options={textTypeOptions}
       value={selectedType}
-      onChange={setSelectedType}
+      onChange={(value) => setSelectedType(value as string)}
       label="Art des Textes"
       placeholder="Textart auswählen..."
       isMulti={false}
