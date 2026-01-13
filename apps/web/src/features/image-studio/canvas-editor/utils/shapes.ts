@@ -39,7 +39,7 @@ export const BRAND_COLORS = [
     { id: 'dark-green', name: 'Dunkelgrün', value: '#1F3F33' }, // --primary-800
 ];
 
-export const DEFAULT_SHAPE_SIZE = 150;
+export const DEFAULT_SHAPE_SIZE = 300;
 
 export const createShape = (type: ShapeType, x: number, y: number, color: string): ShapeInstance => {
     return {

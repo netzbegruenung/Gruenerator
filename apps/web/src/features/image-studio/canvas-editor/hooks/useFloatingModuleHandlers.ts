@@ -57,6 +57,10 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                 if (actions.updateIllustration) {
                     actions.updateIllustration(activeFloatingModule.data.id, { color });
                 }
+            } else if (activeFloatingModule.type === 'asset') {
+                if (actions.updateAsset) {
+                    actions.updateAsset(activeFloatingModule.data.id, { color });
+                }
             } else if (activeFloatingModule.type === 'text') {
                 const id = activeFloatingModule.data.id;
 
@@ -106,6 +110,10 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
             } else if (type === 'icon') {
                 if (actions.updateIcon) {
                     actions.updateIcon(id, { opacity });
+                }
+            } else if (type === 'asset') {
+                if (actions.updateAsset) {
+                    actions.updateAsset(id, { opacity });
                 }
             } else if (type === 'text') {
                 const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');

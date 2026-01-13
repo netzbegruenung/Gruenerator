@@ -4,17 +4,19 @@
  */
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import { TextSection, BackgroundSection, AssetsSection, AlternativesSection } from '../sidebar/sections';
+import { TextSection, BackgroundSection, AssetsSection } from '../sidebar/sections';
 import type { BalkenMode, BalkenInstance } from '../primitives';
-import { PiTextT, PiTextAa, PiSquaresFourFill } from 'react-icons/pi';
-import { HiSparkles, HiPhotograph } from 'react-icons/hi';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
+import { HiPhotograph } from 'react-icons/hi';
+import { CANVAS_RECOMMENDED_ASSETS, AssetInstance, createAssetInstance } from '../utils/canvasAssets';
 import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
 import type { BackgroundColorOption } from '../sidebar/types';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import { createIllustration } from '../utils/illustrations/registry';
 import { injectFeatureProps } from './featureInjector';
+import { shareTab, createShareSection } from './shareSection';
+import { alternativesTab, createAlternativesSection, isAlternativesEmpty } from './alternativesSection';
 
 // ============================================================================
 // CONSTANTS
@@ -53,7 +55,7 @@ export interface InfoFullState {
     bodyOpacity?: number;
     headerColor?: string;
     bodyColor?: string;
-    assetVisibility: Record<string, boolean>;
+    assetInstances: AssetInstance[];
     isDesktop: boolean;
     alternatives: string[];
     // Balken state
@@ -79,7 +81,9 @@ export interface InfoFullActions {
     handleHeaderFontSizeChange: (size: number) => void;
     handleBodyFontSizeChange: (size: number) => void;
     setBackgroundColor: (color: string) => void;
-    handleAssetToggle: (id: string, visible: boolean) => void;
+    addAsset: (assetId: string) => void;
+    updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
+    removeAsset: (id: string) => void;
     handleSelectAlternative: (alt: string) => void;
     // Balken actions
     addBalken: (mode: BalkenMode) => void;
@@ -163,22 +167,16 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
 
     tabs: [
         { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
-
         { id: 'background', icon: HiPhotograph, label: 'Farben', ariaLabel: 'Farben ändern' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Grafiken verwalten' },
-        { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
+        alternativesTab,
+        shareTab,
     ],
 
-    getVisibleTabs: (state) => {
-        if (state.isDesktop) {
-            return ['text', 'background', 'assets', 'alternatives'];
-        }
-        return ['text', 'background', 'assets', 'alternatives'];
-    },
+    getVisibleTabs: () => ['text', 'background', 'assets', 'alternatives', 'share'],
 
-    getDisabledTabs: (state) => {
-        return state.alternatives.length === 0 ? ['alternatives'] : [];
-    },
+    getDisabledTabs: (state) =>
+        isAlternativesEmpty(state, s => s.alternatives) ? ['alternatives'] : [],
 
     sections: {
         text: {
@@ -212,25 +210,23 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
         assets: {
             component: AssetsSection,
             propsFactory: (state, actions, context) => ({
-                assets: ALL_ASSETS.map(asset => ({
-                    ...asset,
-                    visible: state.assetVisibility[asset.id] ?? false,
-                })),
-                onAssetToggle: actions.handleAssetToggle,
+                // Asset instance props
+                onAddAsset: actions.addAsset,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['info'],
 
                 // Auto-inject all feature props (icons, shapes, illustrations, balken)
                 ...injectFeatureProps(state, actions, context),
             }),
         },
-        alternatives: {
-            component: AlternativesSection,
-            propsFactory: (state, actions) => ({
-                alternatives: state.alternatives,
-                currentQuote: state.header,
-                onAlternativeSelect: actions.handleSelectAlternative,
-            }),
-        },
+        alternatives: createAlternativesSection<InfoFullState, InfoFullActions>({
+            type: 'string',
+            getAlternatives: (s) => s.alternatives,
+            getCurrentValue: (s) => s.header,
+            getSelectAction: (a) => a.handleSelectAlternative,
+        }),
+        share: createShareSection<InfoFullState>('info', (state) =>
+            `${state.header}\n${state.body}`.trim()
+        ),
     },
 
     elements: [
@@ -327,7 +323,7 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
         arrowColor: '#FFFFFF',
         headerOpacity: 1,
         bodyOpacity: 1,
-        assetVisibility: {},
+        assetInstances: [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         alternatives: (props.alternatives as Array<Record<string, unknown>> | undefined)?.map((a: Record<string, unknown>) => String(a.header) || '') ?? [],
         // Balken initial state
@@ -360,11 +356,29 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
             setState((prev) => ({ ...prev, backgroundColor: color }));
             saveToHistory({ ...getState(), backgroundColor: color });
         },
-        handleAssetToggle: (id: string, visible: boolean) => {
+        addAsset: (assetId: string) => {
+            const newAsset = createAssetInstance(assetId, INFO_CONFIG.canvas.width, INFO_CONFIG.canvas.height);
             setState((prev) => ({
                 ...prev,
-                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+                assetInstances: [...prev.assetInstances, newAsset],
             }));
+            saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
+        },
+        updateAsset: (id: string, partial: Partial<AssetInstance>) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.map(a =>
+                    a.id === id ? { ...a, ...partial } : a
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeAsset: (id: string) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.filter(a => a.id !== id),
+            }));
+            saveToHistory({ ...getState() });
         },
         handleSelectAlternative: (alt: string) => {
             setState((prev) => ({ ...prev, header: alt }));

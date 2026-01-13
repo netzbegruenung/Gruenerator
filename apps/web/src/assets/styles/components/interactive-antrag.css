@@ -603,3 +603,99 @@
     font-size: 1rem;
   }
 }
+
+/* ============================================
+   Correction Section Styles
+   ============================================ */
+
+.correction-section {
+  padding: var(--spacing-large);
+}
+
+.correction-header h3 {
+  font-weight: 600;
+  margin-bottom: var(--spacing-small);
+  color: var(--font-color);
+}
+
+.correction-hint {
+  font-size: 0.9rem;
+  color: var(--font-color-secondary);
+  margin-bottom: var(--spacing-medium);
+  line-height: 1.5;
+}
+
+.correction-textarea {
+  width: 100%;
+  padding: var(--spacing-medium);
+  background: var(--hover-color-alt);
+  border: 2px solid transparent;
+  border-radius: var(--card-border-radius-small);
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--font-color);
+  line-height: 1.5;
+  min-height: 150px;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.correction-textarea:focus {
+  outline: none;
+  border-color: var(--button-color);
+}
+
+.correction-textarea::placeholder {
+  color: var(--font-color-disabled);
+  opacity: 0.7;
+}
+
+.correction-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.correction-shortcut {
+  font-size: 0.8rem;
+  color: var(--font-color-secondary);
+  margin-top: var(--spacing-small);
+  opacity: 0.75;
+}
+
+.correction-shortcut kbd {
+  background: var(--hover-color-alt);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.75rem;
+}
+
+.correction-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-medium);
+  margin-top: var(--spacing-medium);
+}
+
+@media (max-width: 768px) {
+  .correction-section {
+    padding: var(--spacing-medium);
+  }
+
+  .correction-textarea {
+    min-height: 120px;
+    font-size: 16px;
+  }
+
+  .correction-actions {
+    flex-direction: column;
+  }
+
+  .correction-actions button {
+    width: 100%;
+  }
+
+  .correction-shortcut {
+    display: none;
+  }
+}

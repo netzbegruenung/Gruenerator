@@ -176,7 +176,8 @@ export const FloatingToolbar = memo(({
 
                     {(activeFloatingModule.type === 'shape' ||
                         activeFloatingModule.type === 'icon' ||
-                        activeFloatingModule.type === 'illustration') && (
+                        activeFloatingModule.type === 'illustration' ||
+                        activeFloatingModule.type === 'asset') && (
                         <>
                             <FloatingColorPicker
                                 currentColor={
@@ -197,7 +198,7 @@ export const FloatingToolbar = memo(({
                                             handlers.handleOpacityChange(
                                                 activeFloatingModule.data.id,
                                                 val,
-                                                activeFloatingModule.type as 'shape' | 'icon' | 'illustration'
+                                                activeFloatingModule.type as 'shape' | 'icon' | 'illustration' | 'asset'
                                             )
                                         }
                                     />

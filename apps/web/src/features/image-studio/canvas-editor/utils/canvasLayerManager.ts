@@ -9,7 +9,7 @@ import type { FullCanvasConfig } from '../configs/types';
 
 export interface CanvasItem {
     id: string;
-    type: 'element' | 'balken' | 'icon' | 'shape' | 'additional-text' | 'illustration';
+    type: 'element' | 'balken' | 'icon' | 'shape' | 'additional-text' | 'illustration' | 'asset';
     data?: Record<string, unknown>;
 }
 
@@ -19,6 +19,7 @@ interface StateWithFeatures {
     shapeInstances?: Array<Record<string, unknown>>;
     additionalTexts?: Array<Record<string, unknown>>;
     illustrationInstances?: Array<Record<string, unknown>>;
+    assetInstances?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -31,6 +32,7 @@ interface StateWithFeatures {
  * 4. Shapes
  * 5. Additional texts
  * 6. Illustrations
+ * 7. Assets (decorative elements like sunflowers, arrows)
  */
 export function buildCanvasItems<TState extends StateWithFeatures = StateWithFeatures, TActions = Record<string, unknown>>(
     config: FullCanvasConfig<TState, TActions>,
@@ -65,6 +67,11 @@ export function buildCanvasItems<TState extends StateWithFeatures = StateWithFea
     // 6. Illustrations
     if (state.illustrationInstances) {
         state.illustrationInstances.forEach((i) => items.push({ id: String(i.id), type: 'illustration', data: i }));
+    }
+
+    // 7. Assets (decorative elements)
+    if (state.assetInstances) {
+        state.assetInstances.forEach((a) => items.push({ id: String(a.id), type: 'asset', data: a }));
     }
 
     return items;

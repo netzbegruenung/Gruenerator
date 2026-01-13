@@ -10,6 +10,7 @@ import type { ShapeInstance } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { AdditionalText } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { AssetInstance } from '../utils/canvasAssets';
 
 /**
  * DreizeilenFullState
@@ -34,7 +35,7 @@ export interface DreizeilenFullState {
   balkenOpacity: number;
 
   // === Assets ===
-  assetVisibility: Record<string, boolean>;
+  assetInstances: AssetInstance[];
 
   // === Sunflower (legacy - kept for backward compatibility) ===
   sunflowerPos: { x: number; y: number } | null;
@@ -109,7 +110,9 @@ export interface DreizeilenFullActions {
   handleSunflowerTransformEnd: (width: number, height: number) => void;
 
   // === Asset Actions ===
-  handleAssetToggle: (id: string, visible: boolean) => void;
+  addAsset: (assetId: string) => void;
+  updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
+  removeAsset: (id: string) => void;
 
   // === Background Image Actions ===
   setCurrentImageSrc: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => void;

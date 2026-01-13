@@ -9,17 +9,17 @@ import {
     AssetsSection,
     BackgroundSection
 } from '../sidebar/sections';
-import { PiTextT, PiTextAa, PiSquaresFourFill } from 'react-icons/pi';
-import { HiColorSwatch, HiSparkles, HiPhotograph } from 'react-icons/hi';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
+import { HiPhotograph } from 'react-icons/hi';
+import { CANVAS_RECOMMENDED_ASSETS, AssetInstance, createAssetInstance } from '../utils/canvasAssets';
 import type { BackgroundColorOption } from '../sidebar/types';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
-import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import { createIllustration } from '../utils/illustrations/registry';
 import { injectFeatureProps } from './featureInjector';
+import { shareTab, createShareSection } from './shareSection';
 
 // ============================================================================
 // CONSTANTS
@@ -45,7 +45,10 @@ export interface ZitatPureFullState {
     backgroundColor: string;
     customQuoteFontSize: number | null;
     customNameFontSize: number | null;
-    assetVisibility: Record<string, boolean>;
+    assetInstances: AssetInstance[];
+    // Fixed element visibility
+    sunflowerVisible: boolean;
+    quoteMarkVisible: boolean;
     sunflowerOpacity?: number;
     sunflowerColor?: string;
     quoteOpacity?: number;
@@ -75,7 +78,9 @@ export interface ZitatPureFullActions {
     handleQuoteFontSizeChange: (size: number) => void;
     handleNameFontSizeChange: (size: number) => void;
     setBackgroundColor: (color: string) => void;
-    handleAssetToggle: (id: string, visible: boolean) => void;
+    addAsset: (assetId: string) => void;
+    updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
+    removeAsset: (id: string) => void;
     setSunflowerOpacity: (val: number) => void;
     handleSelectAlternative: (alt: string) => void;
     // Icons & Shapes
@@ -159,21 +164,14 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
 
     tabs: [
         { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
-
         { id: 'background', icon: HiPhotograph, label: 'Hintergrund', ariaLabel: 'Hintergrundfarbe wählen' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
+        shareTab,
     ],
 
-    getVisibleTabs: (state) => {
-        if (state.isDesktop) {
-            return ['text', 'background', 'assets'];
-        }
-        return ['text', 'background', 'assets'];
-    },
+    getVisibleTabs: () => ['text', 'background', 'assets', 'share'],
 
-    getDisabledTabs: (state) => {
-        return [];
-    },
+    getDisabledTabs: () => [],
 
     sections: {
         text: {
@@ -212,18 +210,17 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         assets: {
             component: AssetsSection,
             propsFactory: (state, actions, context) => ({
-                assets: ALL_ASSETS.map(asset => ({
-                    ...asset,
-                    visible: state.assetVisibility[asset.id] ?? false,
-                })),
-                onAssetToggle: actions.handleAssetToggle,
+                // Asset instance props
+                onAddAsset: actions.addAsset,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['zitat-pure'],
 
                 // Auto-inject all feature props (icons, shapes, illustrations, balken)
                 ...injectFeatureProps(state, actions, context),
             }),
         },
-
+        share: createShareSection<ZitatPureFullState>('zitat-pure', (state) =>
+            `„${state.quote}"\n— ${state.name}`.trim()
+        ),
     },
 
     elements: [
@@ -249,7 +246,7 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             height: ZITAT_PURE_CONFIG.sunflower.size,
             src: ZITAT_PURE_CONFIG.sunflower.src,
             listening: true,
-            visible: (state) => state.assetVisibility['sunflower'] ?? true,
+            visible: (state) => state.sunflowerVisible,
             draggable: true,
             opacity: (state) => state.sunflowerOpacity ?? 0.06,
             opacityStateKey: 'sunflowerOpacity',
@@ -267,7 +264,7 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             height: ZITAT_PURE_CONFIG.quotationMark.size,
             src: ZITAT_PURE_CONFIG.quotationMark.src,
             listening: true,
-            visible: (state) => state.assetVisibility['quote-mark'] ?? true,
+            visible: (state) => state.quoteMarkVisible,
             draggable: true,
             offsetKey: 'quoteMarkOffset',
         },
@@ -327,10 +324,9 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         backgroundColor: ZITAT_PURE_CONFIG.background.color,
         customQuoteFontSize: null,
         customNameFontSize: null,
-        assetVisibility: {
-            sunflower: true,
-            'quote-mark': true,
-        },
+        assetInstances: [],
+        sunflowerVisible: true,
+        quoteMarkVisible: true,
         sunflowerOpacity: 0.06,
         sunflowerColor: '#FFFFFF',
         quoteOpacity: 1,
@@ -368,11 +364,29 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             setState((prev) => ({ ...prev, backgroundColor: color }));
             saveToHistory({ ...getState(), backgroundColor: color });
         },
-        handleAssetToggle: (id: string, visible: boolean) => {
+        addAsset: (assetId: string) => {
+            const newAsset = createAssetInstance(assetId, ZITAT_PURE_CONFIG.canvas.width, ZITAT_PURE_CONFIG.canvas.height);
             setState((prev) => ({
                 ...prev,
-                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+                assetInstances: [...prev.assetInstances, newAsset],
             }));
+            saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
+        },
+        updateAsset: (id: string, partial: Partial<AssetInstance>) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.map(a =>
+                    a.id === id ? { ...a, ...partial } : a
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeAsset: (id: string) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.filter(a => a.id !== id),
+            }));
+            saveToHistory({ ...getState() });
         },
         setSunflowerOpacity: (val: number) => {
             setState((prev) => ({ ...prev, sunflowerOpacity: val }));

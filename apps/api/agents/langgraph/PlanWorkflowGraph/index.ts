@@ -7,6 +7,7 @@ export {
   createPlanWorkflowGraph,
   initializePlanWorkflow,
   resumeWithAnswers,
+  resumeWithCorrections,
   executePlanWorkflow,
   resumePlanWorkflowWithAnswers
 } from './PlanWorkflowGraph.js';
@@ -27,5 +28,6 @@ export {
   planGenerationNode,
   questionsNode,
   revisionNode,
+  correctionNode,
   productionNode
 } from './nodes/index.js';

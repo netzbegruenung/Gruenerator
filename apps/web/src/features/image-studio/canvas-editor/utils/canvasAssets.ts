@@ -12,6 +12,37 @@ export interface UniversalAsset {
 }
 
 /**
+ * Runtime instance of an asset placed on the canvas
+ * Follows the same pattern as ShapeInstance and IllustrationInstance
+ */
+export interface AssetInstance {
+    id: string;
+    assetId: string;  // Reference to UniversalAsset.id
+    x: number;
+    y: number;
+    scale: number;
+    rotation: number;
+    opacity: number;
+}
+
+/**
+ * Factory function to create a new asset instance centered on the canvas
+ */
+export const createAssetInstance = (
+    assetId: string,
+    canvasWidth: number,
+    canvasHeight: number
+): AssetInstance => ({
+    id: `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    assetId,
+    x: canvasWidth / 2,
+    y: canvasHeight / 2,
+    scale: 1,
+    rotation: 0,
+    opacity: 1,
+});
+
+/**
  * System Assets Configuration
  * DRY: Single source of truth for all hardcoded asset paths used in layouts
  */

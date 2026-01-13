@@ -4,18 +4,19 @@
  */
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import { TextSection, ImageBackgroundSection, AssetsSection, AlternativesSection } from '../sidebar/sections';
-import { PiTextT, PiTextAa, PiSquaresFourFill } from 'react-icons/pi';
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { TextSection, ImageBackgroundSection, AssetsSection } from '../sidebar/sections';
+import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
+import { HiPhotograph } from 'react-icons/hi';
+import { CANVAS_RECOMMENDED_ASSETS, AssetInstance, createAssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
-import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import { createIllustration } from '../utils/illustrations/registry';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import { injectFeatureProps } from './featureInjector';
+import { shareTab, createShareSection } from './shareSection';
+import { alternativesTab, createAlternativesSection, isAlternativesEmpty } from './alternativesSection';
 
 // ============================================================================
 // STATE TYPE
@@ -39,7 +40,7 @@ export interface VeranstaltungFullState {
     beschreibungOpacity?: number;
     titleColor?: string;
     beschreibungColor?: string;
-    assetVisibility: Record<string, boolean>;
+    assetInstances: AssetInstance[];
     isDesktop: boolean;
     alternatives: string[];
     // Icons & Shapes
@@ -64,7 +65,9 @@ export interface VeranstaltungFullActions {
     handleBeschreibungFontSizeChange: (size: number) => void;
     setImageScale: (scale: number) => void;
     toggleBackgroundLock: () => void;
-    handleAssetToggle: (id: string, visible: boolean) => void;
+    addAsset: (assetId: string) => void;
+    updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
+    removeAsset: (id: string) => void;
     handleSelectAlternative: (alt: string) => void;
     // Icons & Shapes
     toggleIcon: (id: string, selected: boolean) => void;
@@ -143,22 +146,16 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
 
     tabs: [
         { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
-
         { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
-        { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
+        alternativesTab,
+        shareTab,
     ],
 
-    getVisibleTabs: (state) => {
-        if (state.isDesktop) {
-            return ['text', 'image', 'assets', 'alternatives'];
-        }
-        return ['text', 'image', 'assets', 'alternatives'];
-    },
+    getVisibleTabs: () => ['text', 'image', 'assets', 'alternatives', 'share'],
 
-    getDisabledTabs: (state) => {
-        return state.alternatives.length === 0 ? ['alternatives'] : [];
-    },
+    getDisabledTabs: (state) =>
+        isAlternativesEmpty(state, s => s.alternatives) ? ['alternatives'] : [],
 
     sections: {
         text: {
@@ -199,25 +196,23 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         assets: {
             component: AssetsSection,
             propsFactory: (state, actions, context) => ({
-                assets: ALL_ASSETS.map(asset => ({
-                    ...asset,
-                    visible: state.assetVisibility[asset.id] ?? false,
-                })),
-                onAssetToggle: actions.handleAssetToggle,
+                // Asset instance props
+                onAddAsset: actions.addAsset,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['veranstaltung'],
 
                 // Auto-inject all feature props (icons, shapes, illustrations, balken)
                 ...injectFeatureProps(state, actions, context),
             }),
         },
-        alternatives: {
-            component: AlternativesSection,
-            propsFactory: (state, actions) => ({
-                alternatives: state.alternatives,
-                currentQuote: state.eventTitle,
-                onAlternativeSelect: actions.handleSelectAlternative,
-            }),
-        },
+        alternatives: createAlternativesSection<VeranstaltungFullState, VeranstaltungFullActions>({
+            type: 'string',
+            getAlternatives: (s) => s.alternatives,
+            getCurrentValue: (s) => s.eventTitle,
+            getSelectAction: (a) => a.handleSelectAlternative,
+        }),
+        share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
+            `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
+        ),
     },
 
     // Veranstaltung has complex elements (circle with rotated text, clipped photo)
@@ -312,7 +307,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         customBeschreibungFontSize: null,
         eventTitleOpacity: 1,
         beschreibungOpacity: 1,
-        assetVisibility: {},
+        assetInstances: [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         alternatives: (props.alternatives as Array<Record<string, unknown>> | undefined)?.map((a: Record<string, unknown>) => String(a.eventTitle) || '') ?? [],
         selectedIcons: [],
@@ -348,11 +343,29 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         toggleBackgroundLock: () => {
             setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
         },
-        handleAssetToggle: (id: string, visible: boolean) => {
+        addAsset: (assetId: string) => {
+            const newAsset = createAssetInstance(assetId, VERANSTALTUNG_CONFIG.canvas.width, VERANSTALTUNG_CONFIG.canvas.height);
             setState((prev) => ({
                 ...prev,
-                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+                assetInstances: [...prev.assetInstances, newAsset],
             }));
+            saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
+        },
+        updateAsset: (id: string, partial: Partial<AssetInstance>) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.map(a =>
+                    a.id === id ? { ...a, ...partial } : a
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeAsset: (id: string) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.filter(a => a.id !== id),
+            }));
+            saveToHistory({ ...getState() });
         },
         handleSelectAlternative: (alt: string) => {
             setState((prev) => ({ ...prev, eventTitle: alt }));

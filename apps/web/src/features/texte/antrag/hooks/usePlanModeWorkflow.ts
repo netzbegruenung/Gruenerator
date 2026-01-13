@@ -16,7 +16,9 @@ type PlanModeStatus =
     | 'generating_plan'
     | 'plan_generated'
     | 'answering_questions'
+    | 'providing_corrections'
     | 'revising_plan'
+    | 'applying_corrections'
     | 'generating_production'
     | 'completed'
     | 'error';
@@ -28,6 +30,8 @@ interface PlanModeState {
     planSummary: string | null;
     questions: Question[] | null;
     revisedPlan: string | null;
+    correctedPlan: string | null;
+    correctionSummary: string | null;
     production: string | null;
     error: string | null;
 }
@@ -61,6 +65,8 @@ export const usePlanModeWorkflow = () => {
         planSummary: null,
         questions: null,
         revisedPlan: null,
+        correctedPlan: null,
+        correctionSummary: null,
         production: null,
         error: null
     });
@@ -173,6 +179,54 @@ export const usePlanModeWorkflow = () => {
         }
     }, []);
 
+    const startCorrections = useCallback(() => {
+        setState(prev => ({
+            ...prev,
+            status: 'providing_corrections'
+        }));
+    }, []);
+
+    const submitCorrections = useCallback(async (
+        workflowId: string,
+        corrections: string
+    ) => {
+        setState(prev => ({ ...prev, status: 'applying_corrections', error: null }));
+
+        try {
+            const response = await apiClient.post('/plan-mode/correct', {
+                workflow_id: workflowId,
+                corrections
+            });
+
+            if (response.data.success) {
+                setState(prev => ({
+                    ...prev,
+                    status: 'plan_generated',
+                    correctedPlan: response.data.corrected_plan,
+                    correctionSummary: response.data.correction_summary
+                }));
+                return response.data;
+            } else {
+                throw new Error(response.data.error || 'Korrektur fehlgeschlagen');
+            }
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Fehler beim Anwenden der Korrekturen';
+            setState(prev => ({
+                ...prev,
+                status: 'error',
+                error: errorMessage
+            }));
+            throw error;
+        }
+    }, []);
+
+    const cancelCorrections = useCallback(() => {
+        setState(prev => ({
+            ...prev,
+            status: 'plan_generated'
+        }));
+    }, []);
+
     const reset = useCallback(() => {
         setState({
             workflowId: null,
@@ -181,12 +235,14 @@ export const usePlanModeWorkflow = () => {
             planSummary: null,
             questions: null,
             revisedPlan: null,
+            correctedPlan: null,
+            correctionSummary: null,
             production: null,
             error: null
         });
     }, []);
 
-    const isLoading = ['generating_plan', 'revising_plan', 'generating_production'].includes(state.status);
+    const isLoading = ['generating_plan', 'revising_plan', 'applying_corrections', 'generating_production'].includes(state.status);
 
     return {
         state,
@@ -195,6 +251,9 @@ export const usePlanModeWorkflow = () => {
         startAnswering,
         submitAnswers,
         generateProduction,
+        startCorrections,
+        submitCorrections,
+        cancelCorrections,
         reset
     };
 };

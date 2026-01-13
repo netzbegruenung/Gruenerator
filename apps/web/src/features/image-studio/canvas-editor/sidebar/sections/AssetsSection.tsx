@@ -1,8 +1,7 @@
-import { useState, useMemo, useDeferredValue, useCallback, useEffect } from 'react';
+import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
 import { PiMagnifyingGlass, PiSmileyWink } from 'react-icons/pi';
-import type { AssetsSectionProps, AssetItem } from '../types';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { IconsSection } from './IconsSection';
 import { BalkenSection } from './BalkenSection';
@@ -10,7 +9,7 @@ import { FormenSection } from './FormenSection';
 import { IllustrationenSection } from './IllustrationenSection';
 import type { BalkenInstance, BalkenMode } from '../../primitives';
 import { ShapeInstance, ShapeType, ALL_SHAPES, ShapeDef } from '../../utils/shapes';
-import { ALL_ASSETS, UniversalAsset } from '../../utils/canvasAssets';
+import { ALL_ASSETS, UniversalAsset, AssetInstance } from '../../utils/canvasAssets';
 import { ALL_ICONS, IconDef } from '../../utils/canvasIcons';
 import type { IllustrationInstance, IllustrationDef, KawaiiIllustrationType, KawaiiDef, SvgDef } from '../../utils/illustrations/types';
 import { searchIllustrations, getIllustrationPath, getAllIllustrations } from '../../utils/illustrations/registry';
@@ -41,7 +40,6 @@ interface SearchResult {
   name: string;
   // For elements
   asset?: UniversalAsset;
-  assetItem?: AssetItem;
   // For shapes
   shapeDef?: ShapeDef;
   // For icons
@@ -80,16 +78,16 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-function AssetGrid({ assets, onAssetToggle }: { assets: AssetItem[]; onAssetToggle: (id: string, visible: boolean) => void }) {
+function AssetGrid({ assets, onAddAsset }: { assets: UniversalAsset[]; onAddAsset: (assetId: string) => void }) {
   return (
     <div className="sidebar-card-grid">
       {assets.map((asset) => (
         <button
           key={asset.id}
           className="sidebar-selectable-card"
-          onClick={() => onAssetToggle(asset.id, !asset.visible)}
+          onClick={() => onAddAsset(asset.id)}
           type="button"
-          title={asset.visible ? `${asset.label} ausblenden` : `${asset.label} einblenden`}
+          title={`${asset.label} hinzufügen`}
         >
           <div className="sidebar-selectable-card__preview">
             <img
@@ -97,11 +95,6 @@ function AssetGrid({ assets, onAssetToggle }: { assets: AssetItem[]; onAssetTogg
               alt={asset.label}
               className="asset-image"
             />
-            {asset.visible && (
-              <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
-                <FaCheck size={8} />
-              </span>
-            )}
           </div>
         </button>
       ))}
@@ -111,8 +104,7 @@ function AssetGrid({ assets, onAssetToggle }: { assets: AssetItem[]; onAssetTogg
 
 interface SearchResultsGridProps {
   results: SearchResult[];
-  assets: AssetItem[];
-  onAssetToggle: (id: string, visible: boolean) => void;
+  onAddAsset?: (assetId: string) => void;
   onAddShape?: (type: ShapeType) => void;
   onAddIllustration?: (id: string) => void;
   selectedIcons?: string[];
@@ -122,8 +114,7 @@ interface SearchResultsGridProps {
 
 function SearchResultsGrid({
   results,
-  assets,
-  onAssetToggle,
+  onAddAsset,
   onAddShape,
   onAddIllustration,
   selectedIcons = [],
@@ -133,23 +124,18 @@ function SearchResultsGrid({
   return (
     <div className="sidebar-card-grid">
       {results.map((result) => {
-        if (result.type === 'element' && result.assetItem) {
-          const asset = result.assetItem;
+        if (result.type === 'element' && result.asset && onAddAsset) {
+          const asset = result.asset;
           return (
             <button
               key={`element-${result.id}`}
               className="sidebar-selectable-card"
-              onClick={() => onAssetToggle(asset.id, !asset.visible)}
+              onClick={() => onAddAsset(asset.id)}
               type="button"
-              title={asset.label}
+              title={`${asset.label} hinzufügen`}
             >
               <div className="sidebar-selectable-card__preview">
                 <img src={asset.src} alt={asset.label} className="asset-image" />
-                {asset.visible && (
-                  <span className="sidebar-selectable-card__check sidebar-selectable-card__check--small">
-                    <FaCheck size={8} />
-                  </span>
-                )}
               </div>
             </button>
           );
@@ -255,18 +241,16 @@ function SearchResultsGrid({
 }
 
 interface GrafiksSectionContentProps {
-  assets: AssetItem[];
-  onAssetToggle: (assetId: string, visible: boolean) => void;
+  onAddAsset: (assetId: string) => void;
   recommendedAssetIds?: string[];
 }
 
 function GrafiksSectionContent({
-  assets,
-  onAssetToggle,
+  onAddAsset,
   recommendedAssetIds = [],
 }: GrafiksSectionContentProps) {
-  const recommendedAssets = assets.filter(a => recommendedAssetIds.includes(a.id));
-  const otherAssets = assets.filter(a => !recommendedAssetIds.includes(a.id));
+  const recommendedAssets = ALL_ASSETS.filter(a => recommendedAssetIds.includes(a.id));
+  const otherAssets = ALL_ASSETS.filter(a => !recommendedAssetIds.includes(a.id));
 
   const hasRecommended = recommendedAssets.length > 0;
   const hasOthers = otherAssets.length > 0;
@@ -279,7 +263,7 @@ function GrafiksSectionContent({
             <HiSparkles size={14} />
             <span>Empfohlen</span>
           </h4>
-          <AssetGrid assets={recommendedAssets} onAssetToggle={onAssetToggle} />
+          <AssetGrid assets={recommendedAssets} onAddAsset={onAddAsset} />
         </div>
       )}
 
@@ -289,18 +273,29 @@ function GrafiksSectionContent({
             <FaPuzzlePiece size={12} />
             <span>Elemente</span>
           </h4>
-          <AssetGrid assets={otherAssets} onAssetToggle={onAssetToggle} />
+          <AssetGrid assets={otherAssets} onAddAsset={onAddAsset} />
         </div>
       )}
     </div>
   );
 }
 
-export interface ExtendedAssetsSectionProps extends AssetsSectionProps {
+export interface ExtendedAssetsSectionProps {
+  // Asset props (instance-based, replacing old toggle-based)
+  recommendedAssetIds?: string[];
+  assetInstances?: AssetInstance[];
+  selectedAssetId?: string | null;
+  onAddAsset?: (assetId: string) => void;
+  onUpdateAsset?: (id: string, partial: Partial<AssetInstance>) => void;
+  onRemoveAsset?: (id: string) => void;
+  onDuplicateAsset?: (id: string) => void;
+
+  // Icon props
   selectedIcons?: string[];
   onIconToggle?: (iconId: string, selected: boolean) => void;
   maxIconSelections?: number;
 
+  // Balken props
   balkenInstances?: BalkenInstance[];
   selectedBalkenId?: string | null;
   onAddBalken?: (mode: BalkenMode) => void;
@@ -308,6 +303,7 @@ export interface ExtendedAssetsSectionProps extends AssetsSectionProps {
   onRemoveBalken?: (id: string) => void;
   onDuplicateBalken?: (id: string) => void;
 
+  // Shape props
   shapeInstances?: ShapeInstance[];
   selectedShapeId?: string | null;
   onAddShape?: (type: ShapeType) => void;
@@ -315,6 +311,7 @@ export interface ExtendedAssetsSectionProps extends AssetsSectionProps {
   onRemoveShape?: (id: string) => void;
   onDuplicateShape?: (id: string) => void;
 
+  // Illustration props
   illustrationInstances?: IllustrationInstance[];
   selectedIllustrationId?: string | null;
   onAddIllustration?: (id: string) => void;
@@ -324,9 +321,13 @@ export interface ExtendedAssetsSectionProps extends AssetsSectionProps {
 }
 
 export function AssetsSection({
-  assets,
-  onAssetToggle,
   recommendedAssetIds = [],
+  assetInstances,
+  selectedAssetId,
+  onAddAsset,
+  onUpdateAsset,
+  onRemoveAsset,
+  onDuplicateAsset,
   selectedIcons,
   onIconToggle,
   maxIconSelections = 3,
@@ -357,6 +358,7 @@ export function AssetsSection({
   const [illustrations, setIllustrations] = useState<IllustrationDef[]>([]);
   const [illustrationsLoading, setIllustrationsLoading] = useState(false);
 
+  const hasAssetsFeature = onAddAsset !== undefined;
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   const hasBalkenFeature = onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
@@ -404,22 +406,22 @@ export function AssetsSection({
     const query = deferredQuery.toLowerCase();
     const results: SearchResult[] = [];
 
-    // Search elements
-    assets.forEach((assetItem) => {
-      const universalAsset = ALL_ASSETS.find(a => a.id === assetItem.id);
-      const matchesLabel = assetItem.label.toLowerCase().includes(query);
-      const matchesTags = universalAsset?.tags.some(tag => tag.toLowerCase().includes(query));
+    // Search elements (assets)
+    if (hasAssetsFeature) {
+      ALL_ASSETS.forEach((asset) => {
+        const matchesLabel = asset.label.toLowerCase().includes(query);
+        const matchesTags = asset.tags.some(tag => tag.toLowerCase().includes(query));
 
-      if (matchesLabel || matchesTags) {
-        results.push({
-          type: 'element',
-          id: assetItem.id,
-          name: assetItem.label,
-          asset: universalAsset,
-          assetItem,
-        });
-      }
-    });
+        if (matchesLabel || matchesTags) {
+          results.push({
+            type: 'element',
+            id: asset.id,
+            name: asset.label,
+            asset,
+          });
+        }
+      });
+    }
 
     // Search shapes
     if (hasShapesFeature) {
@@ -482,7 +484,7 @@ export function AssetsSection({
     }
 
     return results;
-  }, [deferredQuery, assets, hasShapesFeature, hasIconsFeature, hasIllustrationsFeature, illustrations]);
+  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasIllustrationsFeature, illustrations]);
 
   // Build subsections
   const subsections: Subsection[] = [
@@ -499,8 +501,7 @@ export function AssetsSection({
             searchResults.length > 0 ? (
               <SearchResultsGrid
                 results={searchResults}
-                assets={assets}
-                onAssetToggle={onAssetToggle}
+                onAddAsset={onAddAsset}
                 onAddShape={onAddShape}
                 onAddIllustration={onAddIllustration}
                 selectedIcons={selectedIcons}
@@ -514,20 +515,22 @@ export function AssetsSection({
         </div>
       ),
     },
-    // Grafiken subsection
-    {
+  ];
+
+  // Add Grafiken subsection only if assets feature is available
+  if (hasAssetsFeature) {
+    subsections.push({
       id: 'grafiken',
       icon: FaPuzzlePiece,
       label: 'Grafiken',
       content: (
         <GrafiksSectionContent
-          assets={assets}
-          onAssetToggle={onAssetToggle}
+          onAddAsset={onAddAsset!}
           recommendedAssetIds={recommendedAssetIds}
         />
       ),
-    },
-  ];
+    });
+  }
 
   if (hasBalkenFeature) {
     const selectedBalken = balkenInstances?.find(b => b.id === selectedBalkenId) || null;
@@ -554,7 +557,6 @@ export function AssetsSection({
   }
 
   if (hasShapesFeature) {
-    const selectedShape = shapeInstances?.find(s => s.id === selectedShapeId) || null;
     const hasMoreShapes = ALL_SHAPES.length > 4;
     subsections.push({
       id: 'formen',
@@ -576,10 +578,6 @@ export function AssetsSection({
           </h4>
           <FormenSection
             onAddShape={onAddShape!}
-            selectedShape={selectedShape}
-            onUpdateShape={onUpdateShape ?? (() => { })}
-            onRemoveShape={onRemoveShape ?? (() => { })}
-            onDuplicateShape={onDuplicateShape}
             isExpanded={formenExpanded}
           />
         </>
@@ -654,9 +652,12 @@ export function AssetsSection({
     });
   }
 
+  // Default to grafiken if available, otherwise first subsection
+  const defaultSubsection = hasAssetsFeature ? 'grafiken' : subsections[0]?.id || 'suche';
+
   return (
     <div className="sidebar-section sidebar-section--assets-wrapper">
-      <SubsectionTabBar subsections={subsections} defaultSubsection="grafiken" />
+      <SubsectionTabBar subsections={subsections} defaultSubsection={defaultSubsection} />
     </div>
   );
 }

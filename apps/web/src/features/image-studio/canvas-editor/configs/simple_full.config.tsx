@@ -4,17 +4,19 @@
  */
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
-import { TextSection, ImageBackgroundSection, AssetsSection, AlternativesSection } from '../sidebar/sections';
+import { TextSection, ImageBackgroundSection, AssetsSection } from '../sidebar/sections';
 import type { BalkenMode, BalkenInstance } from '../primitives';
-import { PiTextT, PiTextAa, PiSquaresFourFill } from 'react-icons/pi';
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
+import { HiPhotograph } from 'react-icons/hi';
+import { CANVAS_RECOMMENDED_ASSETS, AssetInstance, createAssetInstance } from '../utils/canvasAssets';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import { createIllustration } from '../utils/illustrations/registry';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import { injectFeatureProps } from './featureInjector';
+import { shareTab, createShareSection } from './shareSection';
+import { alternativesTab, createAlternativesSection, isAlternativesEmpty } from './alternativesSection';
 
 // ============================================================================
 // STATE TYPE
@@ -33,7 +35,7 @@ export interface SimpleFullState {
     subtextOpacity?: number;
     headlineColor?: string;
     subtextColor?: string;
-    assetVisibility: Record<string, boolean>;
+    assetInstances: AssetInstance[];
     isDesktop: boolean;
     alternatives: string[];
     // Balken state
@@ -61,7 +63,9 @@ export interface SimpleFullActions {
     handleHeadlineFontSizeChange: (size: number) => void;
     handleSubtextFontSizeChange: (size: number) => void;
     setImageScale: (scale: number) => void;
-    handleAssetToggle: (id: string, visible: boolean) => void;
+    addAsset: (assetId: string) => void;
+    updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
+    removeAsset: (id: string) => void;
     handleSelectAlternative: (alt: string) => void;
     // Balken actions
     addBalken: (mode: BalkenMode) => void;
@@ -131,22 +135,16 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
 
     tabs: [
         { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
-
         { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
-        { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
+        alternativesTab,
+        shareTab,
     ],
 
-    getVisibleTabs: (state) => {
-        if (state.isDesktop) {
-            return ['text', 'image', 'assets', 'alternatives'];
-        }
-        return ['text', 'image', 'assets', 'alternatives'];
-    },
+    getVisibleTabs: () => ['text', 'image', 'assets', 'alternatives', 'share'],
 
-    getDisabledTabs: (state) => {
-        return state.alternatives.length === 0 ? ['alternatives'] : [];
-    },
+    getDisabledTabs: (state) =>
+        isAlternativesEmpty(state, s => s.alternatives) ? ['alternatives'] : [],
 
     sections: {
         text: {
@@ -185,25 +183,23 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         assets: {
             component: AssetsSection,
             propsFactory: (state, actions, context) => ({
-                assets: ALL_ASSETS.map(asset => ({
-                    ...asset,
-                    visible: state.assetVisibility[asset.id] ?? false,
-                })),
-                onAssetToggle: actions.handleAssetToggle,
+                // Asset instance props
+                onAddAsset: actions.addAsset,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['simple'],
 
                 // Auto-inject all feature props (icons, shapes, illustrations, balken)
                 ...injectFeatureProps(state, actions, context),
             }),
         },
-        alternatives: {
-            component: AlternativesSection,
-            propsFactory: (state, actions) => ({
-                alternatives: state.alternatives,
-                currentQuote: state.headline,
-                onAlternativeSelect: actions.handleSelectAlternative,
-            }),
-        },
+        alternatives: createAlternativesSection<SimpleFullState, SimpleFullActions>({
+            type: 'string',
+            getAlternatives: (s) => s.alternatives,
+            getCurrentValue: (s) => s.headline,
+            getSelectAction: (a) => a.handleSelectAlternative,
+        }),
+        share: createShareSection<SimpleFullState>('simple', (state) =>
+            `${state.headline}\n${state.subtext}`.trim()
+        ),
     },
 
     assets: {
@@ -299,7 +295,7 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         customSubtextFontSize: null,
         headlineOpacity: 1,
         subtextOpacity: 1,
-        assetVisibility: {},
+        assetInstances: [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
         alternatives: (props.alternatives as string[] | undefined) ?? [],
         // Balken initial state
@@ -335,11 +331,29 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             setState((prev) => ({ ...prev, imageScale: scale }));
             debouncedSaveToHistory({ ...getState(), imageScale: scale });
         },
-        handleAssetToggle: (id: string, visible: boolean) => {
+        addAsset: (assetId: string) => {
+            const newAsset = createAssetInstance(assetId, SIMPLE_CONFIG.canvas.width, SIMPLE_CONFIG.canvas.height);
             setState((prev) => ({
                 ...prev,
-                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+                assetInstances: [...prev.assetInstances, newAsset],
             }));
+            saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
+        },
+        updateAsset: (id: string, partial: Partial<AssetInstance>) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.map(a =>
+                    a.id === id ? { ...a, ...partial } : a
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeAsset: (id: string) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.filter(a => a.id !== id),
+            }));
+            saveToHistory({ ...getState() });
         },
         handleSelectAlternative: (alt: string) => {
             setState((prev) => ({ ...prev, headline: alt }));

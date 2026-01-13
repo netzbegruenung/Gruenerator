@@ -78,7 +78,7 @@ export interface PlanWorkflowState {
   promptConfig: PromptConfiguration;
 
   // Current workflow phase
-  currentPhase: 'enrich' | 'plan' | 'questions' | 'revision' | 'production' | 'completed' | 'error';
+  currentPhase: 'enrich' | 'plan' | 'questions' | 'revision' | 'correction' | 'production' | 'completed' | 'error';
 
   // Phase 0: Enrichment (shared across phases)
   enrichedState?: EnrichedState;
@@ -99,6 +99,14 @@ export interface PlanWorkflowState {
     revisedPlan: string;
     changes: string;
     revisionTimeMs: number;
+  };
+
+  // Phase 3b: User Corrections (free-form plan modifications)
+  userCorrections?: string;
+  correctedPlanData?: {
+    correctedPlan: string;
+    correctionSummary: string;
+    correctionTimeMs: number;
   };
 
   // Phase 4: Production
@@ -143,6 +151,7 @@ export interface PromptConfiguration {
   planPrompt: string; // e.g., 'plan_generation_antrag'
   questionsPrompt: string; // e.g., 'interactive_questions_antrag'
   revisionPrompt: string; // e.g., 'plan_revision_antrag'
+  correctionPrompt: string; // e.g., 'plan_correction_antrag'
   productionPrompt: string; // e.g., 'antrag_experimental'
 
   // Feature flags
@@ -193,6 +202,7 @@ export type EnrichmentNodeOutput = Partial<PlanWorkflowState>;
 export type PlanGenerationNodeOutput = Partial<PlanWorkflowState>;
 export type QuestionsNodeOutput = Partial<PlanWorkflowState>;
 export type RevisionNodeOutput = Partial<PlanWorkflowState>;
+export type CorrectionNodeOutput = Partial<PlanWorkflowState>;
 export type ProductionNodeOutput = Partial<PlanWorkflowState>;
 
 // ============================================================================

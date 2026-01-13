@@ -14,6 +14,7 @@ import { useGeneratorSetup } from '../../../hooks/useGeneratorSetup';
 import { useFormDataBuilder } from '../../../hooks/useFormDataBuilder';
 import FeatureToggle from '../../../components/common/FeatureToggle';
 import QuestionAnswerSection from '../../../components/common/Form/BaseForm/QuestionAnswerSection';
+import CorrectionSection from '../../../components/common/Form/BaseForm/CorrectionSection';
 import { usePlanModeWorkflow } from './hooks/usePlanModeWorkflow';
 
 interface AntragGeneratorProps {
@@ -191,9 +192,9 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
 
   // Compute what content to show in DisplaySection
   const displayContent = useMemo(() => {
-    // Plan Mode: Show plan in display section during plan_generated or answering_questions
+    // Plan Mode: Show plan in display section during various states
     if (usePlanMode) {
-      const { status, plan, revisedPlan, production } = planMode.state;
+      const { status, plan, revisedPlan, correctedPlan, production } = planMode.state;
 
       // Completed - show production content
       if (status === 'completed' && production) {
@@ -205,10 +206,17 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
         };
       }
 
-      // Plan generated or answering questions - show the plan
-      if ((status === 'plan_generated' || status === 'answering_questions') && (plan || revisedPlan)) {
-        const displayPlan = revisedPlan || plan;
-        const planTitle = revisedPlan ? '📝 Verfeinerter Plan' : '📋 Strategischer Plan';
+      // Show plan during plan_generated, answering_questions, or providing_corrections
+      const showPlanStates = ['plan_generated', 'answering_questions', 'providing_corrections'];
+      if (showPlanStates.includes(status) && (plan || revisedPlan || correctedPlan)) {
+        // Priority: correctedPlan > revisedPlan > plan
+        const displayPlan = correctedPlan || revisedPlan || plan;
+        let planTitle = '📋 Strategischer Plan';
+        if (correctedPlan) {
+          planTitle = '✏️ Korrigierter Plan';
+        } else if (revisedPlan) {
+          planTitle = '📝 Verfeinerter Plan';
+        }
         return {
           content: `## ${planTitle}\n\n${displayPlan}`,
           title: null,
@@ -269,6 +277,20 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
   const handlePlanModeReset = useCallback(() => {
     planMode.reset();
     setQuestionAnswers({});
+  }, [planMode]);
+
+  const handleStartCorrections = useCallback(() => {
+    planMode.startCorrections();
+  }, [planMode]);
+
+  const handleSubmitCorrections = useCallback(async (corrections: string) => {
+    if (planMode.state.workflowId) {
+      await planMode.submitCorrections(planMode.state.workflowId, corrections);
+    }
+  }, [planMode]);
+
+  const handleCancelCorrections = useCallback(() => {
+    planMode.cancelCorrections();
   }, [planMode]);
 
   // Determine if we're in a Plan Mode phase that should hide the form
@@ -332,18 +354,25 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
   };
 
   const renderPlanModeContent = () => {
-    const { status, plan, revisedPlan, questions } = planMode.state;
+    const { status, plan, revisedPlan, correctedPlan, questions, correctionSummary } = planMode.state;
 
     // Plan Generated - Show action buttons only (plan is shown in display section)
-    if (status === 'plan_generated' && (plan || revisedPlan)) {
+    if (status === 'plan_generated' && (plan || revisedPlan || correctedPlan)) {
       const hasQuestions = questions && questions.length > 0;
+
+      let statusMessage = 'Dein strategischer Plan wurde erstellt. Wie möchtest du fortfahren?';
+      if (correctedPlan) {
+        statusMessage = correctionSummary
+          ? `Der Plan wurde korrigiert (${correctionSummary}). Wie möchtest du fortfahren?`
+          : 'Der Plan wurde korrigiert. Wie möchtest du fortfahren?';
+      } else if (revisedPlan) {
+        statusMessage = 'Der Plan wurde verfeinert. Wie möchtest du fortfahren?';
+      }
+
       return (
         <div className="plan-mode-actions">
           <p style={{ marginBottom: '1rem', color: 'var(--font-color-secondary)' }}>
-            {revisedPlan
-              ? 'Der Plan wurde verfeinert. Wie möchtest du fortfahren?'
-              : 'Dein strategischer Plan wurde erstellt. Wie möchtest du fortfahren?'
-            }
+            {statusMessage}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button
@@ -353,6 +382,14 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
               disabled={planMode.isLoading}
             >
               Jetzt generieren
+            </button>
+            <button
+              type="button"
+              className="btn-secondary size-m"
+              onClick={handleStartCorrections}
+              disabled={planMode.isLoading}
+            >
+              Plan korrigieren
             </button>
             {hasQuestions && (
               <button
@@ -377,6 +414,17 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
       );
     }
 
+    // Providing Corrections - Show CorrectionSection
+    if (status === 'providing_corrections') {
+      return (
+        <CorrectionSection
+          onSubmit={handleSubmitCorrections}
+          onCancel={handleCancelCorrections}
+          loading={false}
+        />
+      );
+    }
+
     // Answering Questions - Use existing QuestionAnswerSection (plan visible in display section)
     if (status === 'answering_questions' && questions && questions.length > 0) {
       return (
@@ -392,12 +440,16 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
     }
 
     // Loading states
-    if (['generating_plan', 'revising_plan', 'generating_production'].includes(status)) {
+    if (['generating_plan', 'revising_plan', 'applying_corrections', 'generating_production'].includes(status)) {
+      let loadingText = getSubmitButtonText();
+      if (status === 'applying_corrections') {
+        loadingText = 'Korrekturen werden angewendet...';
+      }
       return (
         <div className="plan-mode-loading" style={{ textAlign: 'center', padding: '2rem' }}>
           <div className="loading-spinner" />
           <p style={{ marginTop: '1rem', color: 'var(--font-color-secondary)' }}>
-            {getSubmitButtonText()}
+            {loadingText}
           </p>
         </div>
       );

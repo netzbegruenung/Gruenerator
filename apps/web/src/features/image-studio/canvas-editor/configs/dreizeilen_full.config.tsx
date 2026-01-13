@@ -10,17 +10,16 @@ import type { DreizeilenFullState, DreizeilenFullActions, DreizeilenAlternative 
 import {
     DreizeilenTextAndFontSection,
     DreizeilenPositionSection,
-    AlternativesSection,
     AssetsSection,
     ImageBackgroundSection,
-    GenericShareSection
 } from '../sidebar';
 import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
-import { HiSparkles, HiPhotograph } from 'react-icons/hi';
-import { FaShare } from 'react-icons/fa';
+import { HiPhotograph } from 'react-icons/hi';
+import { shareTab, createShareSection } from './shareSection';
+import { alternativesTab, createAlternativesSection, isAlternativesEmpty } from './alternativesSection';
 import { BalkenIcon } from '../icons';
 import { calculateDreizeilenLayout, COLOR_SCHEMES, getColorScheme, DREIZEILEN_CONFIG } from '../utils/dreizeilenLayout';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
+import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS, AssetInstance, createAssetInstance } from '../utils/canvasAssets';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import { createShape } from '../utils/shapes';
 import type { ShapeType, ShapeInstance } from '../utils/shapes';
@@ -155,21 +154,16 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         { id: 'image-background', icon: HiPhotograph, label: 'Hintergrund', ariaLabel: 'Hintergrundbild ändern' },
         { id: 'position', icon: BalkenIcon, label: 'Balken', ariaLabel: 'Balken-Einstellungen' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
-        { id: 'alternatives', icon: HiSparkles, label: 'Alternativen', ariaLabel: 'Alternative Texte' },
-        { id: 'share', icon: FaShare, label: 'Teilen', ariaLabel: 'Bild teilen' },
+        alternativesTab,
+        shareTab,
     ],
 
     getVisibleTabs: (state) => {
         return ['text', 'image-background', 'position', 'assets', 'alternatives', 'share'];
     },
 
-    getDisabledTabs: (state) => {
-        const disabled: string[] = [];
-        if (!state.alternatives || state.alternatives.length === 0) {
-            disabled.push('alternatives');
-        }
-        return disabled;
-    },
+    getDisabledTabs: (state) =>
+        isAlternativesEmpty(state, s => s.alternatives) ? ['alternatives'] : [],
 
     sections: {
         text: {
@@ -227,11 +221,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         assets: {
             component: AssetsSection,
             propsFactory: (state, actions, context) => ({
-                assets: ALL_ASSETS.map(asset => ({
-                    ...asset,
-                    visible: state.assetVisibility[asset.id] ?? false,
-                })),
-                onAssetToggle: actions.handleAssetToggle,
+                // Asset instance props
+                onAddAsset: actions.addAsset,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
 
                 // Auto-inject all feature props (icons, shapes, illustrations, balken)
@@ -239,47 +230,18 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             }),
         },
 
-        alternatives: {
-            component: AlternativesSection,
-            propsFactory: (state, actions) => ({
-                alternatives: state.alternatives || [],
-                currentLine1: state.line1,
-                currentLine2: state.line2,
-                currentLine3: state.line3,
-                onSelectAlternative: actions.handleSelectAlternative,
-            }),
-        },
+        alternatives: createAlternativesSection<DreizeilenFullState, DreizeilenFullActions>({
+            type: 'structured',
+            getAlternatives: (s) => s.alternatives || [],
+            getCurrentLine1: (s) => s.line1,
+            getCurrentLine2: (s) => s.line2,
+            getCurrentLine3: (s) => s.line3,
+            getSelectAction: (a) => a.handleSelectAlternative,
+        }),
 
-        share: {
-            component: GenericShareSection,
-            propsFactory: (state, actions, context) => {
-                const canvasText = `${state.line1}\n${state.line2}\n${state.line3}`.trim();
-
-                // Extract shareProps from context (3rd parameter) with default values
-                const shareProps = context || {
-                    exportedImage: null,
-                    autoSaveStatus: 'idle' as const,
-                    shareToken: null,
-                    onCaptureCanvas: undefined,
-                    onDownload: undefined,
-                    onNavigateToGallery: undefined,
-                    selectedElement: null,
-                };
-
-                return {
-                    exportedImage: shareProps.exportedImage || null,
-                    autoSaveStatus: shareProps.autoSaveStatus || 'idle',
-                    shareToken: shareProps.shareToken || null,
-                    onCaptureCanvas: shareProps.onCaptureCanvas || (() => {
-                        console.error('[dreizeilen_full] onCaptureCanvas missing from shareProps!');
-                    }),
-                    onDownload: shareProps.onDownload || (() => {}),
-                    onNavigateToGallery: shareProps.onNavigateToGallery || (() => {}),
-                    canvasText,
-                    canvasType: 'dreizeilen',
-                };
-            },
-        },
+        share: createShareSection<DreizeilenFullState>('dreizeilen', (state) =>
+            `${state.line1}\n${state.line2}\n${state.line3}`.trim()
+        ),
     },
 
     elements: [
@@ -349,10 +311,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
 
-        // Asset Visibility
-        assetVisibility: (props.assetVisibility as Record<string, boolean> | undefined) ?? {
-            'sunflower': true,
-        },
+        // Asset Instances
+        assetInstances: (props.assetInstances as import('../utils/canvasAssets').AssetInstance[] | undefined) ?? [],
 
         // Sunflower (legacy state maintained for backward compatibility)
         sunflowerPos: (props.sunflowerPos as { x: number; y: number } | null | undefined) ?? null,
@@ -522,15 +482,29 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         },
 
         // === Asset Actions ===
-        handleAssetToggle: (id: string, visible: boolean) => {
-            setState(prev => ({
+        addAsset: (assetId: string) => {
+            const newAsset = createAssetInstance(assetId, DREIZEILEN_CONFIG.canvas.width, DREIZEILEN_CONFIG.canvas.height);
+            setState((prev) => ({
                 ...prev,
-                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+                assetInstances: [...prev.assetInstances, newAsset],
             }));
-            saveToHistory({
-                ...getState(),
-                assetVisibility: { ...getState().assetVisibility, [id]: visible },
-            });
+            saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
+        },
+        updateAsset: (id: string, partial: Partial<import('../utils/canvasAssets').AssetInstance>) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.map(a =>
+                    a.id === id ? { ...a, ...partial } : a
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeAsset: (id: string) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.filter(a => a.id !== id),
+            }));
+            saveToHistory({ ...getState() });
         },
 
         // === Background Image Actions ===

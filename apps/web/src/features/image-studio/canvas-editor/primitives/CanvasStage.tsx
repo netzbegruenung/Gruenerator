@@ -1,11 +1,8 @@
 /**
- * CanvasStage - Dual-Scale Konva Stage wrapper
+ * CanvasStage - Responsive Konva Stage wrapper
  *
- * Renders two Konva stages:
- * 1. Display Stage: Visible, interactive, responsively scaled for editing
- * 2. Export Stage: Hidden, 1:1 scale for pixel-perfect exports
- *
- * This architecture ensures exports are identical across all devices,
+ * Renders a single responsive Konva stage for editing.
+ * Uses pixelRatio compensation during export to achieve pixel-perfect exports
  * regardless of display scaling.
  */
 
@@ -20,7 +17,7 @@ import {
 } from 'react';
 import { Stage, Layer } from 'react-konva';
 import type Konva from 'konva';
-import type { ExportOptions, ExportFormat } from '@gruenerator/shared/canvas-editor';
+import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import './CanvasStage.css';
 
 export interface CanvasStageProps {
@@ -58,7 +55,6 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     ref
   ) => {
     const displayStageRef = useRef<Konva.Stage>(null);
-    const exportStageRef = useRef<Konva.Stage>(null);
     const containerDivRef = useRef<HTMLDivElement>(null);
     const [containerSize, setContainerSize] = useState({ width: 400, height: 400 });
 
@@ -112,19 +108,23 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
 
     const toDataURL = useCallback(
       (options: Partial<ExportOptions> = {}): string | undefined => {
-        const stage = exportStageRef.current;
+        const stage = displayStageRef.current;
         if (!stage) return undefined;
 
         const format = options.format || 'png';
         const mimeType: string = `image/${format}`;
 
+        // Compensate for display scaling: if stage is rendered at 0.5x scale,
+        // we need 2x pixelRatio to get 1:1 output resolution
+        const effectivePixelRatio = (options.pixelRatio ?? 1) / displayScale;
+
         return stage.toDataURL({
-          pixelRatio: options.pixelRatio ?? 1,
+          pixelRatio: effectivePixelRatio,
           mimeType: mimeType as 'image/png' | 'image/jpeg',
           quality: options.quality,
         });
       },
-      []
+      [displayScale]
     );
 
     useImperativeHandle(
@@ -157,19 +157,6 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
             scale={{ x: displayScale, y: displayScale }}
             onMouseDown={onStageClick}
             onTouchStart={onStageClick}
-          >
-            <Layer>{children}</Layer>
-          </Stage>
-        </div>
-
-        {/* Export Stage - Hidden, 1:1 rendering for pixel-perfect exports */}
-        <div className="canvas-stage-export-container">
-          <Stage
-            ref={exportStageRef}
-            width={width}
-            height={height}
-            scale={{ x: 1, y: 1 }}
-            listening={false}
           >
             <Layer>{children}</Layer>
           </Stage>
