@@ -63,6 +63,7 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
 
     // Share feature state
     const [exportedImage, setExportedImage] = useState<string | null>(null);
+    const exportedImageRef = useRef<string | null>(null);
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
@@ -176,12 +177,13 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
         error: backendExportError,
     } = useBackendCanvasExport(config, state);
 
-    // Share handlers
+    // Share handlers - use ref to always get latest image (fixes stale closure)
     const handleDownload = useCallback(() => {
-        if (exportedImage) {
-            downloadCanvasImage(exportedImage, config.id);
+        const image = exportedImageRef.current;
+        if (image) {
+            downloadCanvasImage(image, config.id);
         }
-    }, [exportedImage, config.id]);
+    }, [config.id]);
 
     const handleShareClick = useCallback(() => {
         setShareModalOpen(true);
@@ -203,6 +205,7 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
                 setIsExporting(false);
                 if (dataUrl) {
                     setExportedImage(dataUrl);
+                    exportedImageRef.current = dataUrl;
                     // Auto-save will trigger automatically via useCanvasAutoSave hook
                     resolve();
                 } else {
@@ -224,6 +227,7 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
 
         if (result) {
             setExportedImage(result);
+            exportedImageRef.current = result;
             // Auto-save will trigger automatically via useCanvasAutoSave hook
         } else if (backendExportError) {
             setExportError(backendExportError);

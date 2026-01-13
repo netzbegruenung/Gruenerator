@@ -31,47 +31,6 @@
     border-bottom: 24px solid var(--font-color);
 }
 
-.formen-settings {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-small);
-    padding: var(--spacing-small);
-    background: var(--background-color-alt);
-    border-radius: var(--border-radius-md);
-}
-
-.formen-color-grid {
-    display: flex;
-    gap: var(--spacing-small);
-    flex-wrap: wrap;
-}
-
-.formen-color-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    transition: transform 0.15s;
-    position: relative;
-    padding: 0;
-}
-
-.formen-color-btn:hover {
-    border-color: var(--border-default, rgba(0, 0, 0, 0.2));
-}
-
-.formen-color-btn--active::after {
-    content: '';
-    position: absolute;
-    top: -4px;
-    left: -4px;
-    right: -4px;
-    bottom: -4px;
-    border: 2px solid var(--primary-600);
-    border-radius: 50%;
-}
-
 @media (max-width: 899px) {
     .sidebar-section--formen {
         padding: 0 !important;

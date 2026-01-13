@@ -1,6 +1,1 @@
-.canvas-stage-export-container {
-  position: absolute;
-  left: -99999px;
-  top: 0;
-  pointer-events: none;
-}
+/* CanvasStage styles - intentionally minimal */

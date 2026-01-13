@@ -5,9 +5,11 @@ import type { BalkenInstance } from '../primitives';
 import { IconPrimitive } from '../primitives/IconPrimitive';
 import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
+import { AssetPrimitive } from '../primitives/AssetPrimitive';
 import { ALL_ICONS } from '../utils/canvasIcons';
 import type { ShapeInstance } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { AssetInstance } from '../utils/canvasAssets';
 import { GenericCanvasElement } from './GenericCanvasElement';
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';
@@ -45,6 +47,22 @@ interface AdditionalTextAttrs {
     x?: number;
     y?: number;
     width?: number;
+    scale?: number;
+}
+
+/** Additional text item from canvas items */
+interface AdditionalTextItem {
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+    width?: number;
+    fontSize?: number;
+    fontFamily?: string;
+    fontStyle?: string;
+    fill?: string;
+    opacity?: number;
+    rotation?: number;
     scale?: number;
 }
 
@@ -94,7 +112,7 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
             {sortedRenderList.map((item) => {
                 // Render Config Element
                 if (item.type === 'element') {
-                    const elementConfig = item.data as CanvasElementConfig;
+                    const elementConfig = item.data as unknown as CanvasElementConfig;
                     return (
                         <GenericCanvasElement
                             key={elementConfig.id}
@@ -119,7 +137,7 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
 
                 // Render Balken
                 if (item.type === 'balken') {
-                    const balken = item.data as BalkenInstance;
+                    const balken = item.data as unknown as BalkenInstance;
                     return (
                         <BalkenGroup
                             key={balken.id}
@@ -193,7 +211,7 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
 
                 // Render Shape
                 if (item.type === 'shape') {
-                    const shape = item.data as ShapeInstance;
+                    const shape = item.data as unknown as ShapeInstance;
                     return (
                         <ShapePrimitive
                             key={shape.id}
@@ -208,7 +226,7 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
 
                 // Render Illustration
                 if (item.type === 'illustration') {
-                    const ill = item.data as IllustrationInstance;
+                    const ill = item.data as unknown as IllustrationInstance;
                     return (
                         <IllustrationPrimitive
                             key={ill.id}
@@ -241,9 +259,40 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
                     );
                 }
 
+                // Render Asset (decorative elements like sunflowers, arrows)
+                if (item.type === 'asset') {
+                    const asset = item.data as unknown as AssetInstance;
+                    return (
+                        <AssetPrimitive
+                            key={asset.id}
+                            asset={asset}
+                            isSelected={selectedElement === asset.id}
+                            onSelect={() => handlers.handleElementSelect(asset.id)}
+                            onDragEnd={(x: number, y: number) => {
+                                const stateWithActions = state as unknown as Record<string, unknown>;
+                                if ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>)?.updateAsset) {
+                                    ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>).updateAsset)(asset.id, { x, y });
+                                }
+                            }}
+                            onTransformEnd={(x: number, y: number, scale: number, rotation: number) => {
+                                const stateWithActions = state as unknown as Record<string, unknown>;
+                                if ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>)?.updateAsset) {
+                                    ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>).updateAsset)(asset.id, {
+                                        x,
+                                        y,
+                                        scale,
+                                        rotation,
+                                    });
+                                }
+                            }}
+                        />
+                    );
+                }
+
                 // Render Additional Text
                 if (item.type === 'additional-text') {
-                    const textItem = item.data;
+                    const textItem = item.data as unknown as AdditionalTextItem;
+                    if (!textItem) return null;
                     return (
                         <CanvasText
                             key={textItem.id}

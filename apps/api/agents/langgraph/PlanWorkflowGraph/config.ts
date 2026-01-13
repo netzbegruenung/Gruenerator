@@ -14,6 +14,7 @@ export const GENERATOR_CONFIGS: Record<string, PromptConfiguration> = {
     planPrompt: 'plan_generation_antrag',
     questionsPrompt: 'interactive_questions_antrag',
     revisionPrompt: 'plan_revision_antrag',
+    correctionPrompt: 'plan_correction_antrag',
     productionPrompt: 'antrag_experimental',
 
     enableQuestions: true,
@@ -28,6 +29,7 @@ export const GENERATOR_CONFIGS: Record<string, PromptConfiguration> = {
     planPrompt: 'plan_generation_pr',
     questionsPrompt: 'interactive_questions_pr',
     revisionPrompt: 'plan_revision_pr',
+    correctionPrompt: 'plan_correction_pr',
     productionPrompt: 'pr_experimental',
 
     enableQuestions: true,

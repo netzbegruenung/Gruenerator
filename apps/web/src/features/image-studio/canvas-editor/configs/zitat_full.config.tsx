@@ -5,16 +5,16 @@
 
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import { TextSection, ImageBackgroundSection, AssetsSection } from '../sidebar/sections';
-import { PiTextT, PiTextAa, PiSquaresFourFill } from 'react-icons/pi';
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { PiTextT, PiSquaresFourFill } from 'react-icons/pi';
+import { HiPhotograph } from 'react-icons/hi';
+import { CANVAS_RECOMMENDED_ASSETS, AssetInstance, createAssetInstance } from '../utils/canvasAssets';
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
-import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import { createIllustration } from '../utils/illustrations/registry';
 import { injectFeatureProps } from './featureInjector';
+import { shareTab, createShareSection } from './shareSection';
 
 // ============================================================================
 // STATE TYPE
@@ -30,7 +30,7 @@ export interface ZitatFullState {
     isBackgroundLocked: boolean;
     customQuoteFontSize: number | null;
     customNameFontSize: number | null;
-    assetVisibility: Record<string, boolean>;
+    assetInstances: AssetInstance[];
     quoteOpacity?: number;
     nameOpacity?: number;
     quoteColor?: string;
@@ -59,7 +59,9 @@ export interface ZitatFullActions {
     setImageScale: (scale: number) => void;
     setGradientOpacity: (opacity: number) => void;
     toggleBackgroundLock: () => void;
-    handleAssetToggle: (id: string, visible: boolean) => void;
+    addAsset: (assetId: string) => void;
+    updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
+    removeAsset: (id: string) => void;
     handleSelectAlternative: (alt: string) => void;
     // Icons & Shapes
     toggleIcon: (id: string, selected: boolean) => void;
@@ -128,21 +130,14 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
 
     tabs: [
         { id: 'text', icon: PiTextT, label: 'Text', ariaLabel: 'Text bearbeiten' },
-
         { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
         { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
+        shareTab,
     ],
 
-    getVisibleTabs: (state) => {
-        if (state.isDesktop) {
-            return ['text', 'image', 'assets'];
-        }
-        return ['text', 'image', 'assets'];
-    },
+    getVisibleTabs: () => ['text', 'image', 'assets', 'share'],
 
-    getDisabledTabs: (state) => {
-        return [];
-    },
+    getDisabledTabs: () => [],
 
     sections: {
         text: {
@@ -186,18 +181,17 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         assets: {
             component: AssetsSection,
             propsFactory: (state, actions, context) => ({
-                assets: ALL_ASSETS.map(asset => ({
-                    ...asset,
-                    visible: state.assetVisibility[asset.id] ?? false,
-                })),
-                onAssetToggle: actions.handleAssetToggle,
+                // Asset instance props
+                onAddAsset: actions.addAsset,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['zitat'],
 
                 // Auto-inject all feature props (icons, shapes, illustrations, balken)
                 ...injectFeatureProps(state, actions, context),
             }),
         },
-
+        share: createShareSection<ZitatFullState>('zitat', (state) =>
+            `„${state.quote}"\n— ${state.name}`.trim()
+        ),
     },
 
     elements: [
@@ -304,7 +298,7 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? true,
         customQuoteFontSize: (props.customQuoteFontSize as number | null | undefined) ?? null,
         customNameFontSize: (props.customNameFontSize as number | null | undefined) ?? null,
-        assetVisibility: (props.assetVisibility as Record<string, boolean> | undefined) ?? {},
+        assetInstances: (props.assetInstances as AssetInstance[] | undefined) ?? [],
         quoteOpacity: (props.quoteOpacity as number | undefined) ?? 1,
         nameOpacity: (props.nameOpacity as number | undefined) ?? 1,
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
@@ -345,11 +339,29 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         toggleBackgroundLock: () => {
             setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
         },
-        handleAssetToggle: (id: string, visible: boolean) => {
+        addAsset: (assetId: string) => {
+            const newAsset = createAssetInstance(assetId, ZITAT_CONFIG.canvas.width, ZITAT_CONFIG.canvas.height);
             setState((prev) => ({
                 ...prev,
-                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+                assetInstances: [...prev.assetInstances, newAsset],
             }));
+            saveToHistory({ ...getState(), assetInstances: [...getState().assetInstances, newAsset] });
+        },
+        updateAsset: (id: string, partial: Partial<AssetInstance>) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.map(a =>
+                    a.id === id ? { ...a, ...partial } : a
+                ),
+            }));
+            debouncedSaveToHistory({ ...getState() });
+        },
+        removeAsset: (id: string) => {
+            setState((prev) => ({
+                ...prev,
+                assetInstances: prev.assetInstances.filter(a => a.id !== id),
+            }));
+            saveToHistory({ ...getState() });
         },
         handleSelectAlternative: (alt: string) => {
             setState((prev) => ({ ...prev, quote: alt }));

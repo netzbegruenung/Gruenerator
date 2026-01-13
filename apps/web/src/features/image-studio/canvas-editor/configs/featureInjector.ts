@@ -53,8 +53,8 @@ interface FeatureActionsBase {
  * assets: {
  *     component: AssetsSection,
  *     propsFactory: (state, actions, context) => ({
- *         assets: ALL_ASSETS.map(...),
- *         onAssetToggle: actions.handleAssetToggle,
+ *         // Asset instance props
+ *         onAddAsset: actions.addAsset,
  *
  *         // Auto-inject all feature props (one line!)
  *         ...injectFeatureProps(state, actions, context),

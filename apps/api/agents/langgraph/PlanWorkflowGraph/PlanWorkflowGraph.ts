@@ -16,6 +16,7 @@ import {
   planGenerationNode,
   questionsNode,
   revisionNode,
+  correctionNode,
   productionNode
 } from './nodes/index.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -45,6 +46,8 @@ const PlanWorkflowStateAnnotation = Annotation.Root({
   userAnswers: Annotation<PlanWorkflowState['userAnswers']>,
   skipQuestions: Annotation<boolean | undefined>,
   revisedPlanData: Annotation<PlanWorkflowState['revisedPlanData']>,
+  userCorrections: Annotation<string | undefined>,
+  correctedPlanData: Annotation<PlanWorkflowState['correctedPlanData']>,
   productionData: Annotation<PlanWorkflowState['productionData']>,
   productionTimeMs: Annotation<number | undefined>,
 
@@ -60,9 +63,15 @@ const PlanWorkflowStateAnnotation = Annotation.Root({
 
 /**
  * Conditional edge: After questions node
- * Routes to production (skip), revision (with answers), or waits for user input
+ * Routes to correction, revision, production, or waits for user input
  */
 function routeAfterQuestions(state: typeof PlanWorkflowStateAnnotation.State) {
+  // If user corrections provided, go to correction node
+  if (state.userCorrections && state.userCorrections.trim().length > 0) {
+    console.log('[PlanWorkflow] Routing: questions → correction (corrections provided)');
+    return 'correction';
+  }
+
   // If user answers provided, go to revision
   if (state.userAnswers && Object.keys(state.userAnswers).length > 0) {
     console.log('[PlanWorkflow] Routing: questions → revision (answers provided)');
@@ -75,18 +84,27 @@ function routeAfterQuestions(state: typeof PlanWorkflowStateAnnotation.State) {
     return 'production';
   }
 
-  // Wait for user to provide answers via resume
+  // Wait for user to provide answers or corrections via resume
   console.log('[PlanWorkflow] Routing: questions → WAIT (user input needed)');
   return END;
 }
 
 /**
- * Conditional edge: After revision or skip questions
+ * Conditional edge: After revision
  * Always routes to production
  */
 function routeToProduction(state: typeof PlanWorkflowStateAnnotation.State) {
   console.log('[PlanWorkflow] Routing: revision → production');
   return 'production';
+}
+
+/**
+ * Conditional edge: After correction node
+ * Returns to END (waits for user to decide next action)
+ */
+function routeAfterCorrection(state: typeof PlanWorkflowStateAnnotation.State) {
+  console.log('[PlanWorkflow] Routing: correction → WAIT (returning to user for next action)');
+  return END;
 }
 
 /**
@@ -99,6 +117,7 @@ export function createPlanWorkflowGraph() {
     .addNode('plan', planGenerationNode)
     .addNode('questions', questionsNode)
     .addNode('revision', revisionNode, { ends: ['production'] })
+    .addNode('correction', correctionNode, { ends: [END] })
     .addNode('production', productionNode)
 
     // Sequential edges
@@ -110,9 +129,11 @@ export function createPlanWorkflowGraph() {
     .addConditionalEdges('questions', routeAfterQuestions, {
       production: 'production',
       revision: 'revision',
+      correction: 'correction',
       [END]: END
     })
     .addEdge('revision', 'production')
+    .addEdge('correction', END)
     .addEdge('production', END);
 
   return graph.compile();
@@ -142,6 +163,8 @@ export function initializePlanWorkflow(
     userAnswers: undefined,
     skipQuestions: undefined,
     revisedPlanData: undefined,
+    userCorrections: undefined,
+    correctedPlanData: undefined,
     productionData: undefined,
     productionTimeMs: undefined,
     startTime: Date.now(),
@@ -164,6 +187,21 @@ export function resumeWithAnswers(
     userAnswers,
     currentPhase: 'revision',
     phasesExecuted: [...previousState.phasesExecuted, 'answers-provided']
+  };
+}
+
+/**
+ * Resume workflow with user corrections
+ */
+export function resumeWithCorrections(
+  previousState: typeof PlanWorkflowStateAnnotation.State,
+  userCorrections: string
+): typeof PlanWorkflowStateAnnotation.State {
+  return {
+    ...previousState,
+    userCorrections,
+    currentPhase: 'correction',
+    phasesExecuted: [...previousState.phasesExecuted, 'corrections-provided']
   };
 }
 

@@ -73,6 +73,13 @@
     padding: 0 4px;
 }
 
+@media (max-width: 900px) {
+    .floating-color-picker {
+        gap: 4px;
+        padding: 0 2px;
+    }
+}
+
 /* Collapsible state styles */
 .floating-color-picker--collapsed {
     width: auto;
@@ -165,6 +172,12 @@
     display: flex;
     align-items: center;
     gap: 4px;
+}
+
+@media (max-width: 900px) {
+    .floating-history-controls {
+        gap: 0px;
+    }
 }
 
 .floating-icon-btn {

@@ -20,7 +20,7 @@ export interface CanvasActions {
     removeShape?: (id: string) => void;
     removeAdditionalText?: (id: string) => void;
     removeIllustration?: (id: string) => void;
-    handleAssetToggle?: (id: string, enabled: boolean) => void;
+    removeAsset?: (id: string) => void;
 }
 
 export interface UseCanvasKeyboardHandlersOptions<TState> {
@@ -89,6 +89,11 @@ export function useCanvasKeyboardHandlers<TState>(
                         const newText = { ...textData, id: newId, x: textData.x + offset, y: textData.y + offset };
                         const existing = getStateArray<unknown>(prevState, 'additionalTexts');
                         (newState as Record<string, unknown>).additionalTexts = [...existing, newText];
+                    } else if (type === 'asset' && typeof data === 'object' && data !== null) {
+                        const assetData = data as { x: number; y: number };
+                        const newAsset = { ...assetData, id: newId, x: assetData.x + offset, y: assetData.y + offset };
+                        const existing = getStateArray<unknown>(prevState, 'assetInstances');
+                        (newState as Record<string, unknown>).assetInstances = [...existing, newAsset];
                     }
 
                     return newState as TState;
@@ -130,6 +135,16 @@ export function useCanvasKeyboardHandlers<TState>(
                 const text = texts.find((t) => t.id === selectedElement);
                 if (text) {
                     CanvasClipboard.copy('additional-text', text);
+                    return;
+                }
+
+                const assets = getStateArray<unknown>(state, 'assetInstances');
+                const asset = assets.find((a: unknown) => {
+                    const assetObj = a as { id?: string };
+                    return assetObj.id === selectedElement;
+                });
+                if (asset) {
+                    CanvasClipboard.copy('asset', asset);
                     return;
                 }
 
@@ -194,9 +209,17 @@ export function useCanvasKeyboardHandlers<TState>(
                     }
                 }
 
-                // Toggle Asset off
-                if (actions.handleAssetToggle) {
-                    actions.handleAssetToggle(selectedElement, false);
+                // Remove Asset
+                const assets = getStateArray<unknown>(state, 'assetInstances');
+                if (assets.find((a: unknown) => {
+                    const assetObj = a as { id?: string };
+                    return assetObj.id === selectedElement;
+                })) {
+                    if (actions.removeAsset) {
+                        actions.removeAsset(selectedElement);
+                        setSelectedElement(null);
+                        return;
+                    }
                 }
             }
         };

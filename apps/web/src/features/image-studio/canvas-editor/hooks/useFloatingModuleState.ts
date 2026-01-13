@@ -3,17 +3,18 @@ import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { BalkenInstance } from '../primitives';
 import type { ShapeInstance } from '../utils/shapes';
 import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { AssetInstance } from '../utils/canvasAssets';
 import { resolveValue } from '../utils/canvasValueResolver';
 
 /**
  * Floating Module State - Determines active floating toolbar module
  *
  * Based on the selected element, computes which floating toolbar controls
- * should be shown (text, image, shape, icon, illustration) and their current values.
+ * should be shown (text, image, shape, icon, illustration, asset) and their current values.
  */
 
 export interface FloatingModuleState {
-    type: 'text' | 'image' | 'shape' | 'icon' | 'illustration';
+    type: 'text' | 'image' | 'shape' | 'icon' | 'illustration' | 'asset';
     data: {
         id: string;
         fontSize?: number;
@@ -175,6 +176,16 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
             return {
                 type: 'illustration',
                 data: illustration,
+            };
+        }
+
+        // Check if Asset
+        const assetInstances = getStateArray<AssetInstance>(state, 'assetInstances');
+        const asset = assetInstances.find((a) => a.id === selectedElement);
+        if (asset) {
+            return {
+                type: 'asset',
+                data: asset,
             };
         }
 

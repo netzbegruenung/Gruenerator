@@ -18,6 +18,7 @@ export interface OptionalCanvasActions {
     updateIcon?: (id: string, attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; color?: string; opacity?: number }>) => void;
     updateShape?: (id: string, attrs: Partial<ShapeInstance>) => void;
     updateIllustration?: (id: string, attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; color?: string; opacity?: number }>) => void;
+    updateAsset?: (id: string, attrs: Partial<{ x: number; y: number; scale?: number; rotation?: number; opacity?: number }>) => void;
     updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
 }
 

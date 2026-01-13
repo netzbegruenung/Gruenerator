@@ -79,13 +79,11 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState, DreizeilenActions> 
                 onWidthScaleChange: actions.setBalkenWidthScale,
                 barOffsets: state.barOffsets,
                 onBarOffsetChange: (_index: number, offset: number) => {
-                    // Wrapper to match signature if needed, or update store to support index
                     const newOffsets = [...state.barOffsets];
                     newOffsets[_index] = offset;
                     actions.setBarOffsets(newOffsets as [number, number, number]);
                 },
                 colorScheme: getColorScheme(state.colorSchemeId),
-                // For now, let's assume the component helps or we pass activeSchemeId
                 colorSchemes: COLOR_SCHEMES,
                 activeSchemeId: state.colorSchemeId,
                 onSchemeChange: actions.setColorSchemeId,
@@ -109,10 +107,7 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState, DreizeilenActions> 
         alternatives: {
             component: AlternativesSection,
             propsFactory: (state, actions: DreizeilenActions) => ({
-                alternatives: [], // The alternatives are passed as props to the canvas, not stored in state usually? 
-                // Wait, they were props in DreizeilenCanvas. We need access to them.
-                // We might need to extend the "State" idea to include "Context" or "Props".
-                // For now, let's assume we can pass them via a closure or enriched state.
+                alternatives: [],
                 currentLine1: state.line1,
                 currentLine2: state.line2,
                 currentLine3: state.line3,
@@ -137,11 +132,6 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState, DreizeilenActions> 
                 // Extract text from Dreizeilen canvas state
                 const canvasText = `${state.line1}\n${state.line2}\n${state.line3}`.trim();
 
-                console.log('[dreizeilen.config] share propsFactory called with:', {
-                    shareProps: shareProps ? 'exists' : 'null',
-                    onCaptureCanvas: shareProps?.onCaptureCanvas ? typeof shareProps.onCaptureCanvas : 'missing',
-                });
-
                 const props = {
                     exportedImage: shareProps?.exportedImage || null,
                     autoSaveStatus: shareProps?.autoSaveStatus || 'idle',
@@ -155,18 +145,9 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState, DreizeilenActions> 
                     canvasType: 'dreizeilen',
                 };
 
-                console.log('[dreizeilen.config] returning props:', {
-                    ...props,
-                    onCaptureCanvas: typeof props.onCaptureCanvas,
-                });
-
                 return props;
             },
         }
     },
-    getDisabledTabs: (state) => {
-        // We need to know if alternatives are empty. 
-        // Since that comes from props, we might need to inject it.
-        return [];
-    }
+    getDisabledTabs: () => []
 };

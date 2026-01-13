@@ -9,6 +9,7 @@ import {
   createPlanWorkflowGraph,
   initializePlanWorkflow,
   resumeWithAnswers,
+  resumeWithCorrections,
   type PlanWorkflowInput,
   type PlanWorkflowOutput
 } from '../../agents/langgraph/PlanWorkflowGraph/index.js';
@@ -82,10 +83,8 @@ router.post('/initiate', async (req: AuthenticatedRequest, res: Response) => {
 
     const finalState = await graph.invoke(initialState);
 
-    // Only save to Redis if questions are needed (for resume later)
-    if (finalState.questionsData?.needsClarification) {
-      await saveWorkflowState(finalState.workflowId, finalState);
-    }
+    // Always save to Redis for correction and resume support
+    await saveWorkflowState(finalState.workflowId, finalState);
 
     const executionTimeMs = Date.now() - finalState.startTime;
 
@@ -175,6 +174,71 @@ router.post('/resume', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/plan-mode/correct
+ * Apply free-form corrections to the plan
+ */
+router.post('/correct', async (req: Request, res: Response) => {
+  try {
+    const { workflow_id, corrections } = req.body;
+
+    if (!workflow_id || !corrections || typeof corrections !== 'string') {
+      return res.status(400).json({
+        error: 'Missing required fields: workflow_id, corrections (string)'
+      });
+    }
+
+    if (corrections.trim().length === 0) {
+      return res.status(400).json({
+        error: 'Corrections cannot be empty'
+      });
+    }
+
+    const savedState = await getWorkflowState(workflow_id);
+    if (!savedState) {
+      return res.status(404).json({
+        error: `Workflow ${workflow_id} not found or expired`
+      });
+    }
+
+    const graph = createPlanWorkflowGraph();
+    const stateWithRuntime = injectRuntime(savedState, req);
+    const correctionState = resumeWithCorrections(stateWithRuntime, corrections);
+    const finalState = await graph.invoke(correctionState, { recursionLimit: 10 });
+
+    // Save updated state for further corrections or production
+    await saveWorkflowState(finalState.workflowId, finalState);
+
+    const executionTimeMs = Date.now() - finalState.startTime;
+
+    if (!finalState.success && finalState.error) {
+      return res.status(500).json({
+        error: finalState.error,
+        code: 'AI_ERROR'
+      } as PlanModeError);
+    }
+
+    res.json({
+      success: true,
+      workflow_id: finalState.workflowId,
+      corrected_plan: finalState.correctedPlanData?.correctedPlan,
+      correction_summary: finalState.correctedPlanData?.correctionSummary,
+      metadata: {
+        executionTimeMs,
+        correctionTimeMs: finalState.correctedPlanData?.correctionTimeMs,
+        phasesExecuted: finalState.phasesExecuted,
+        totalAICalls: finalState.totalAICalls
+      }
+    });
+  } catch (error: any) {
+    console.error('[PlanMode] Correct error:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to apply corrections',
+      code: 'AI_ERROR'
+    } as PlanModeError);
+  }
+});
+
+/**
  * POST /api/plan-mode/generate-production
  */
 router.post('/generate-production', async (req: Request, res: Response) => {
@@ -254,6 +318,8 @@ router.get('/workflow/:workflowId', async (req: AuthenticatedRequest, res: Respo
       plan: state.planData?.originalPlan,
       questions: state.questionsData?.questions,
       revised_plan: state.revisedPlanData?.revisedPlan,
+      corrected_plan: state.correctedPlanData?.correctedPlan,
+      correction_summary: state.correctedPlanData?.correctionSummary,
       production_data: state.productionData,
       success: state.success,
       error: state.error
