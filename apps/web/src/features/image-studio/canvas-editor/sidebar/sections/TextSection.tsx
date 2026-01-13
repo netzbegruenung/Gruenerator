@@ -102,7 +102,21 @@ export function TextSection({
             </div>
           )}
 
-
+          {/* Inline add buttons - desktop only */}
+          {(onAddHeader || onAddText) && (
+            <div className="text-add-inline">
+              {onAddHeader && (
+                <button className="btn btn-secondary btn-sm" onClick={onAddHeader}>
+                  + Überschrift
+                </button>
+              )}
+              {onAddText && (
+                <button className="btn btn-secondary btn-sm" onClick={onAddText}>
+                  + Text
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )
     },

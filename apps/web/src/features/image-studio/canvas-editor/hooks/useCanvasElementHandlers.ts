@@ -158,12 +158,19 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
             if (elementConfig && elementConfig.type === 'image') {
                 const updates = {} as Record<string, unknown>;
 
+                // Handle offset-based position (relative to base)
                 if (elementConfig.offsetKey) {
                     const baseX = typeof elementConfig.x === 'number' ? elementConfig.x : 0;
                     const baseY = typeof elementConfig.y === 'number' ? elementConfig.y : 0;
                     updates[elementConfig.offsetKey] = { x: x - baseX, y: y - baseY };
                 }
 
+                // Handle absolute position
+                if (elementConfig.positionStateKey) {
+                    updates[elementConfig.positionStateKey] = { x, y };
+                }
+
+                // Handle scale-based sizing
                 if (elementConfig.scaleKey) {
                     const baseWidth = typeof elementConfig.width === 'number' ? elementConfig.width : 100;
                     const currentScale = (state[elementConfig.scaleKey as keyof TState] as number) || 1;
@@ -171,9 +178,16 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
                     updates[elementConfig.scaleKey] = newScale;
                 }
 
-                const nextState = { ...state, ...updates } as TState;
-                setState((prev) => ({ ...prev, ...updates }));
-                saveToHistory(nextState);
+                // Handle absolute size
+                if (elementConfig.sizeStateKey) {
+                    updates[elementConfig.sizeStateKey] = { w, h };
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    const nextState = { ...state, ...updates } as TState;
+                    setState((prev) => ({ ...prev, ...updates }));
+                    saveToHistory(nextState);
+                }
             }
         },
         [config.elements, setState, saveToHistory, state]

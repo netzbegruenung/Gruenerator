@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { IconType } from 'react-icons';
@@ -19,7 +19,7 @@ export interface IconPrimitiveProps {
     opacity?: number;
 }
 
-export function IconPrimitive({
+function IconPrimitiveInner({
     id,
     icon: Icon,
     x,
@@ -137,3 +137,24 @@ export function IconPrimitive({
         </>
     );
 }
+
+/**
+ * Memoized IconPrimitive - Prevents unnecessary re-renders during drag
+ */
+export const IconPrimitive = memo(IconPrimitiveInner, (prevProps, nextProps) => {
+    // Compare data props
+    if (prevProps.id !== nextProps.id) return false;
+    if (prevProps.icon !== nextProps.icon) return false;
+    if (prevProps.x !== nextProps.x) return false;
+    if (prevProps.y !== nextProps.y) return false;
+    if (prevProps.scale !== nextProps.scale) return false;
+    if (prevProps.rotation !== nextProps.rotation) return false;
+    if (prevProps.selected !== nextProps.selected) return false;
+    if (prevProps.color !== nextProps.color) return false;
+    if (prevProps.opacity !== nextProps.opacity) return false;
+
+    // Callbacks are considered stable
+    return true;
+});
+
+IconPrimitive.displayName = 'IconPrimitive';

@@ -31,7 +31,6 @@ export async function initializeI18n(): Promise<void> {
       // Dynamic import defers loading until this function is called
       await import('../i18n');
       i18nInitialized = true;
-      console.log('[i18n] Internationalization initialized');
     } catch (error) {
       console.error('[i18n] Failed to initialize i18n:', error);
       // Reset so it can be retried

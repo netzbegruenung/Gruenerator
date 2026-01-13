@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 import Konva from 'konva';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -13,7 +13,7 @@ export interface AssetPrimitiveProps {
     draggable?: boolean;
 }
 
-export function AssetPrimitive({
+function AssetPrimitiveInner({
     asset,
     isSelected,
     onSelect,
@@ -138,3 +138,29 @@ export function AssetPrimitive({
         </>
     );
 }
+
+/**
+ * Memoized AssetPrimitive - Prevents unnecessary re-renders during drag
+ */
+export const AssetPrimitive = memo(AssetPrimitiveInner, (prevProps, nextProps) => {
+    // Compare asset object properties
+    const prev = prevProps.asset;
+    const next = nextProps.asset;
+
+    if (prev.id !== next.id) return false;
+    if (prev.assetId !== next.assetId) return false;
+    if (prev.x !== next.x) return false;
+    if (prev.y !== next.y) return false;
+    if (prev.scale !== next.scale) return false;
+    if (prev.rotation !== next.rotation) return false;
+    if (prev.opacity !== next.opacity) return false;
+
+    // Compare other props
+    if (prevProps.isSelected !== nextProps.isSelected) return false;
+    if (prevProps.draggable !== nextProps.draggable) return false;
+
+    // Callbacks are considered stable
+    return true;
+});
+
+AssetPrimitive.displayName = 'AssetPrimitive';

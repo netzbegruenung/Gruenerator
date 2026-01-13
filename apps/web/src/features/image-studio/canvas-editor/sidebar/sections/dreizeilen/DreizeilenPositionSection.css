@@ -174,3 +174,10 @@
   background: var(--grey-200);
   border-color: var(--grey-400);
 }
+
+/* Mobile: Hide redundant subheaders (already shown in tab bar) */
+@media (max-width: 768px) {
+  .position-subheader {
+    display: none;
+  }
+}

@@ -1,13 +1,61 @@
 import { Server } from '@hocuspocus/server';
 import { Logger } from '@hocuspocus/extension-logger';
+import { createServer } from 'net';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { createLogger } from '../../utils/logger.js';
 import { PostgresPersistence } from './persistence.js';
 import { authenticateConnection } from './auth.js';
 
+const execAsync = promisify(exec);
 const log = createLogger('HocuspocusServer');
 
 const PORT = parseInt(process.env.HOCUSPOCUS_PORT || '1240', 10);
 const HOST = process.env.HOCUSPOCUS_HOST || '0.0.0.0';
+
+/**
+ * Check if a port is available
+ */
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port);
+  });
+}
+
+/**
+ * Kill process using the specified port (Linux/Mac only)
+ */
+async function killProcessOnPort(port: number): Promise<boolean> {
+  try {
+    const { stdout } = await execAsync(`lsof -ti :${port}`);
+    const pids = stdout.trim().split('\n').filter(Boolean);
+
+    if (pids.length > 0) {
+      log.warn(`Found ${pids.length} process(es) on port ${port}, killing...`);
+      for (const pid of pids) {
+        try {
+          await execAsync(`kill -9 ${pid}`);
+          log.info(`Killed process ${pid} on port ${port}`);
+        } catch {
+          // Process may have already exited
+        }
+      }
+      // Wait a moment for the port to be released
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return true;
+    }
+    return false;
+  } catch {
+    // No process found on port (lsof returns error)
+    return false;
+  }
+}
 
 /**
  * Hocuspocus WebSocket Server for Real-Time Collaborative Editing
@@ -22,6 +70,23 @@ const HOST = process.env.HOCUSPOCUS_HOST || '0.0.0.0';
 export async function startHocuspocusServer(): Promise<void> {
   try {
     log.info('Initializing Hocuspocus server...');
+
+    // Check if port is available, kill existing process if needed
+    const portAvailable = await isPortAvailable(PORT);
+    if (!portAvailable) {
+      log.warn(`Port ${PORT} is already in use, attempting to free it...`);
+      const killed = await killProcessOnPort(PORT);
+      if (killed) {
+        // Verify port is now available
+        const nowAvailable = await isPortAvailable(PORT);
+        if (!nowAvailable) {
+          throw new Error(`Port ${PORT} is still in use after kill attempt`);
+        }
+        log.info(`Port ${PORT} is now available`);
+      } else {
+        throw new Error(`Port ${PORT} is in use and could not be freed`);
+      }
+    }
 
     // Initialize PostgreSQL persistence
     const persistence = new PostgresPersistence();

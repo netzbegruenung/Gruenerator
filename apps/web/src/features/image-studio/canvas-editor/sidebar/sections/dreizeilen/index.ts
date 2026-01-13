@@ -1,6 +1,3 @@
-export { DreizeilenTextSection } from './DreizeilenTextSection';
-export type { DreizeilenTextSectionProps } from './DreizeilenTextSection';
-
 export { DreizeilenTextAndFontSection } from './DreizeilenTextAndFontSection';
 export type { DreizeilenTextAndFontSectionProps } from './DreizeilenTextAndFontSection';
 

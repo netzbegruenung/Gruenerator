@@ -32,7 +32,6 @@ export async function initializeApiClient(): Promise<void> {
       // Dynamic import defers loading until this function is called
       await import('../components/utils/apiClient');
       apiClientInitialized = true;
-      console.log('[API] API client initialized');
     } catch (error) {
       console.error('[API] Failed to initialize API client:', error);
       // Reset so it can be retried

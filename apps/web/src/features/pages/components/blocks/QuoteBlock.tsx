@@ -1,5 +1,11 @@
+interface QuoteBlockProps {
+    text: string;
+    author?: string;
+    title?: string;
+    className?: string;
+}
 
-const QuoteBlock = ({ text, author, title, className = '' }) => {
+const QuoteBlock = ({ text, author, title, className = '' }: QuoteBlockProps) => {
     return (
         <blockquote className={`quote-block ${className}`}>
             <p className="quote-block__text">

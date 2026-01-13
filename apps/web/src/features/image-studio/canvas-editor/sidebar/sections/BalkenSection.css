@@ -179,3 +179,11 @@
     min-width: 36px;
     text-align: right;
 }
+
+/* Mobile: Hide redundant headers and labels in edit mode */
+@media (max-width: 768px) {
+    .balken-settings .sidebar-section-header,
+    .balken-settings .balken-width-label {
+        display: none;
+    }
+}

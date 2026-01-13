@@ -75,7 +75,6 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
   // Auto-route Austrian users to KI category
   useEffect(() => {
     if (isAustrianUser && !category) {
-      console.log('[ImageStudioPage] Austrian user detected, auto-routing to KI category');
       setCategory('ki', null);
     }
   }, [isAustrianUser, category, setCategory]);

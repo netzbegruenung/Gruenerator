@@ -209,8 +209,6 @@ export async function handleUnifiedRequest(
       if (type === 'zitat' || type === 'zitat_pure') {
         response.quote = mainData;
         response.name = name || '';
-        delete response.alternatives;
-        delete response.searchTerms;
       }
 
       log.info(`[${type}] Success on attempt ${attempts}`);

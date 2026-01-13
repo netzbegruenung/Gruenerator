@@ -17,7 +17,13 @@ interface ShareLink {
   share_link?: string;
   label?: string;
   folder_name?: string;
+  base_url?: string;
+  share_token?: string;
+  is_active?: boolean;
   created_at?: string;
+  updated_at?: string;
+  display_name?: string;
+  user_id?: string;
 }
 
 interface SyncStatus {

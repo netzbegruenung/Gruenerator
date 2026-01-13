@@ -1,3 +1,17 @@
 .sidebar-section--dreizeilen-text .form-field-wrapper {
   margin-bottom: 0;
 }
+
+/* Mobile: Compact dreizeilen inputs */
+@media (max-width: 899px) {
+  .sidebar-section--dreizeilen-text .form-input {
+    min-height: 36px;
+    padding: var(--spacing-xsmall) var(--spacing-small);
+    font-size: 14px;
+  }
+
+  .sidebar-section--dreizeilen-text .form-field-label {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+}

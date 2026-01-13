@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-const QuoteConfirmation = ({ onConfirmationChange }) => {
+interface QuoteConfirmationProps {
+    onConfirmationChange: (confirmed: boolean) => void;
+}
+
+const QuoteConfirmation = ({ onConfirmationChange }: QuoteConfirmationProps) => {
   const [isConfirmed, setIsConfirmed] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsConfirmed(e.target.checked);
     onConfirmationChange(e.target.checked);
   };

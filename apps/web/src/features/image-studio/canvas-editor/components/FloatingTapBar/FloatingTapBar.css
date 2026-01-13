@@ -22,12 +22,11 @@
 /* Ensure the bar content itself captures events */
 .floating-tap-bar {
     pointer-events: auto;
-    background: #ffffff;
+    background: var(--background-color);
+    color: var(--font-color);
     border: 1px solid var(--border-default);
     border-radius: 999px;
-    /* Fully rounded capsule for better "toolbar" feel */
     padding: 6px;
-    /* Tighter padding */
     box-shadow:
         0 4px 6px -1px rgba(0, 0, 0, 0.1),
         0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -36,7 +35,6 @@
     gap: var(--spacing-2);
     animation: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    /* Smooth resize on expand */
 }
 
 /* Mobile-specific compact styles */
@@ -45,12 +43,6 @@
         padding: 4px;
         gap: 0px;
     }
-}
-
-[data-theme="dark"] .floating-tap-bar {
-    background: var(--surface-card);
-    border-color: var(--border-subtle);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes slideDownFade {

@@ -5,7 +5,7 @@
  * Uses the same layout calculations as calculateDreizeilenLayout.
  */
 
-import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
+import { useRef, useCallback, useMemo, useEffect, useState, memo } from 'react';
 import { Group, Line, Text, Rect, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import {
@@ -171,7 +171,11 @@ function calculateBalkenLayouts(
     };
 }
 
-export function BalkenGroup({
+/**
+ * BalkenGroupInner - Internal component implementation
+ * Wrapped with memo() below for performance optimization
+ */
+function BalkenGroupInner({
     mode,
     colorSchemeId,
     texts,
@@ -288,17 +292,18 @@ export function BalkenGroup({
 
     }, [balkens, editingIndex, stageWidth, stageHeight, fontSize]); // Added fontSize dep
 
+    // Track last snap state to avoid redundant updates
+    const lastSnapRef = useRef({ h: false, v: false, linesCount: 0 });
+
     const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
         const node = e.target as Konva.Group;
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
 
-        const contentLeft = bounds.left * scaleX;
-        const contentTop = bounds.top * scaleY;
         const contentWidth = bounds.width * scaleX;
         const contentHeight = bounds.height * scaleY;
-        const currentAbsX = node.x() + contentLeft;
-        const currentAbsY = node.y() + contentTop;
+        const currentAbsX = node.x() - contentWidth / 2;
+        const currentAbsY = node.y() - contentHeight / 2;
 
         const result = calculateElementSnapPosition(
             currentAbsX,
@@ -310,16 +315,26 @@ export function BalkenGroup({
             stageHeight
         );
 
-        node.position({ x: result.x - contentLeft, y: result.y - contentTop });
-        onSnapChange(result.snapH, result.snapV);
-        onSnapLinesChange(result.snapLines);
+        node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });
+
+        // Only update snap state if it actually changed
+        const snapChanged = lastSnapRef.current.h !== result.snapH || lastSnapRef.current.v !== result.snapV;
+        const linesChanged = lastSnapRef.current.linesCount !== result.snapLines.length;
+
+        if (snapChanged || linesChanged) {
+            lastSnapRef.current = { h: result.snapH, v: result.snapV, linesCount: result.snapLines.length };
+            onSnapChange(result.snapH, result.snapV);
+            onSnapLinesChange(result.snapLines);
+        }
     }, [bounds, getSnapTargets, stageWidth, stageHeight, onSnapChange, onSnapLinesChange]);
 
     const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
         onSnapChange(false, false);
         onSnapLinesChange([]);
-        onDragEnd(e.target.x(), e.target.y());
-    }, [onDragEnd, onSnapChange, onSnapLinesChange]);
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        onDragEnd(e.target.x() - centerX, e.target.y() - centerY);
+    }, [onDragEnd, onSnapChange, onSnapLinesChange, bounds]);
 
     const handleTransformEnd = useCallback(() => {
         const node = groupRef.current;
@@ -328,14 +343,18 @@ export function BalkenGroup({
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
         const newScale = Math.max(scaleX, scaleY);
-        const rotation = node.rotation();
+        const newRotation = node.rotation();
 
-        node.scaleX(1);
-        node.scaleY(1);
-        node.rotation(0);
+        node.scaleX(scale);
+        node.scaleY(scale);
+        node.rotation(rotation);
 
-        onTransformEnd(node.x(), node.y(), newScale, rotation);
-    }, [onTransformEnd]);
+        const centerX = bounds.left + bounds.width / 2;
+        const centerY = bounds.top + bounds.height / 2;
+        const newOffset = { x: node.x() - centerX, y: node.y() - centerY };
+
+        onTransformEnd(newOffset.x, newOffset.y, newScale, newRotation);
+    }, [onTransformEnd, scale, rotation, bounds]);
 
     const handleDblClick = useCallback((index: number, e: Konva.KonvaEventObject<Event>) => {
         const textNode = e.target as Konva.Text;
@@ -439,12 +458,19 @@ export function BalkenGroup({
 
     const skewAngle = config.balken.skewAngle;
 
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+    const groupX = offset.x + centerX;
+    const groupY = offset.y + centerY;
+
     return (
         <>
             <Group
                 ref={groupRef}
-                x={offset.x}
-                y={offset.y}
+                x={groupX}
+                y={groupY}
+                offsetX={centerX}
+                offsetY={centerY}
                 scaleX={scale}
                 scaleY={scale}
                 rotation={rotation}
@@ -530,5 +556,46 @@ export function BalkenGroup({
         </>
     );
 }
+
+/**
+ * Memoized BalkenGroup - Prevents re-renders when only callbacks change
+ *
+ * Uses shallow comparison for data props. Callbacks are considered stable
+ * since they're created with useCallback in parent hooks.
+ */
+export const BalkenGroup = memo(BalkenGroupInner, (prevProps, nextProps) => {
+    // Compare data props - if any change, re-render
+    if (prevProps.mode !== nextProps.mode) return false;
+    if (prevProps.colorSchemeId !== nextProps.colorSchemeId) return false;
+    if (prevProps.widthScale !== nextProps.widthScale) return false;
+    if (prevProps.rotation !== nextProps.rotation) return false;
+    if (prevProps.scale !== nextProps.scale) return false;
+    if (prevProps.selected !== nextProps.selected) return false;
+    if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+    if (prevProps.stageHeight !== nextProps.stageHeight) return false;
+    if (prevProps.opacity !== nextProps.opacity) return false;
+
+    // Compare offset object
+    if (prevProps.offset.x !== nextProps.offset.x || prevProps.offset.y !== nextProps.offset.y) return false;
+
+    // Compare texts array (shallow)
+    if (prevProps.texts.length !== nextProps.texts.length) return false;
+    for (let i = 0; i < prevProps.texts.length; i++) {
+        if (prevProps.texts[i] !== nextProps.texts[i]) return false;
+    }
+
+    // Compare barOffsets array if present
+    if (prevProps.barOffsets !== nextProps.barOffsets) {
+        if (!prevProps.barOffsets || !nextProps.barOffsets) return false;
+        for (let i = 0; i < 3; i++) {
+            if (prevProps.barOffsets[i] !== nextProps.barOffsets[i]) return false;
+        }
+    }
+
+    // Callbacks are considered stable - don't trigger re-render for callback changes
+    return true;
+});
+
+BalkenGroup.displayName = 'BalkenGroup';
 
 export default BalkenGroup;

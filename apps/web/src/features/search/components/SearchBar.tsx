@@ -44,11 +44,11 @@ const SearchBar = ({ onSearch,
   hideDisclaimer = false,
   settingsContent = null }: SearchBarProps): JSX.Element => {
   const [showSettings, setShowSettings] = useState(false);
-  const settingsRef = useRef(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
         setShowSettings(false);
       }
     };
@@ -61,14 +61,14 @@ const SearchBar = ({ onSearch,
     };
   }, [showSettings]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (value.trim() && !loading) {
+    if (value?.trim() && !loading) {
       onSearch(value.trim());
     }
   };
 
-  const handleDeepResearchToggle = (e) => {
+  const handleDeepResearchToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (onDeepResearchToggle) {
       onDeepResearchToggle();

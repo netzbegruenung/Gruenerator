@@ -37,10 +37,53 @@
     justify-content: center;
 }
 
+.image-background-preview {
+    position: relative;
+}
+
 .image-background-preview img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.image-background-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.image-background-preview:hover .image-background-remove {
+    opacity: 1;
+}
+
+.image-background-placeholder {
+    flex-direction: column;
+    gap: 8px;
+    color: var(--font-color-muted);
+}
+
+.image-background-placeholder span {
+    font-size: 12px;
+}
+
+/* Upload button with icon */
+.image-background-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
 }
 
 
@@ -310,4 +353,50 @@
 
 .expandable-content .stock-images-grid__card {
     aspect-ratio: 4/3;
+}
+
+/* Unsplash Subsection */
+.sidebar-section--unsplash {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 12px;
+}
+
+/* Mobile: Compact image background section */
+@media (max-width: 899px) {
+    .sidebar-section--image-background {
+        padding: 12px 8px;
+        gap: 12px;
+    }
+
+    .image-background-row {
+        gap: 8px;
+    }
+
+    .image-background-placeholder,
+    .image-background-preview {
+        max-width: 100px;
+        max-height: 100px;
+    }
+
+    .image-background-remove {
+        opacity: 1;
+    }
+
+    .sidebar-section--unsplash {
+        padding: 12px 8px;
+    }
+
+    .unsplash-search-bar {
+        padding: 6px 10px;
+    }
+
+    .unsplash-search-bar input {
+        font-size: 14px;
+    }
+
+    .unsplash-image-card {
+        aspect-ratio: 3/2;
+    }
 }

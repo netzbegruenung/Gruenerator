@@ -295,7 +295,7 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
         gradientOpacity: (props.gradientOpacity as number | undefined) ?? ZITAT_CONFIG.gradient.bottomOpacity,
-        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? true,
+        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         customQuoteFontSize: (props.customQuoteFontSize as number | null | undefined) ?? null,
         customNameFontSize: (props.customNameFontSize as number | null | undefined) ?? null,
         assetInstances: (props.assetInstances as AssetInstance[] | undefined) ?? [],

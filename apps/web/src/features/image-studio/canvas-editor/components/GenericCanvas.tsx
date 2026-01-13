@@ -79,10 +79,18 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Track config ID to detect actual config changes (not just reference changes)
+    const configIdRef = useRef(config.id);
+
     const [state, setStateRaw] = useState<TState>(() => config.createInitialState(initialProps));
 
+    // Only reset state when the config ID actually changes (different canvas type)
+    // This prevents state reset when parent re-renders with same config but new object references
     useEffect(() => {
-        setStateRaw(config.createInitialState(initialProps));
+        if (configIdRef.current !== config.id) {
+            configIdRef.current = config.id;
+            setStateRaw(config.createInitialState(initialProps));
+        }
     }, [config, initialProps]);
 
     // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready

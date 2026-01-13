@@ -5,13 +5,18 @@
  * - Visual scaling during transform (no React state)
  * - Commit dimensions on transformEnd
  * - Snapping to other elements and stage center
+ *
+ * Performance optimizations:
+ * - Uses refs for snap state during drag to avoid React re-renders
+ * - Throttled snap line updates via requestAnimationFrame
+ * - Single bounds calculation (removed from dragBoundFunc, only in handleDragMove)
  */
 
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 import Konva from 'konva';
 import type { TransformConfig, TransformAnchor } from '@gruenerator/shared/canvas-editor';
-import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
+import { calculateElementSnapPosition } from '../utils/snapping';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 
 export interface CanvasImageProps {
@@ -38,6 +43,7 @@ export interface CanvasImageProps {
   onSnapLinesChange?: (lines: SnapLine[]) => void;
   listening?: boolean;
   color?: string;
+  constrainToBounds?: boolean;
 }
 
 const DEFAULT_IMAGE_ANCHORS: TransformAnchor[] = [
@@ -71,9 +77,16 @@ function CanvasImageInner({
   onSnapLinesChange,
   listening,
   color,
+  constrainToBounds = true,
 }: CanvasImageProps) {
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
+
+  // Performance: Track snap state in refs during drag to avoid React re-renders
+  const isDraggingRef = useRef(false);
+  const lastSnapStateRef = useRef({ snapH: false, snapV: false });
+  const lastSnapLinesRef = useRef<SnapLine[]>([]);
+  const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (selected && trRef.current && imageRef.current) {
@@ -91,14 +104,31 @@ function CanvasImageInner({
     }
   }, [image, width, height, color]);
 
+  // Handler for drag start - set dragging flag
+  const handleDragStart = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       const node = e.target as Konva.Image;
       const nodeWidth = node.width() * node.scaleX();
       const nodeHeight = node.height() * node.scaleY();
 
+      // Cancel any pending RAF
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+
+      isDraggingRef.current = false;
+
+      // Clear snap state at end of drag
       onSnapChange?.(false, false);
       onSnapLinesChange?.([]);
+      lastSnapStateRef.current = { snapH: false, snapV: false };
+      lastSnapLinesRef.current = [];
+
       onDragEnd?.(node.x(), node.y());
 
       if (id && onPositionChange) {
@@ -106,6 +136,73 @@ function CanvasImageInner({
       }
     },
     [id, onDragEnd, onSnapChange, onSnapLinesChange, onPositionChange]
+  );
+
+  const clampToBounds = useCallback(
+    (posX: number, posY: number, nodeWidth: number, nodeHeight: number) => {
+      if (!constrainToBounds || !stageWidth || !stageHeight) {
+        return { x: posX, y: posY };
+      }
+
+      let minX: number, maxX: number, minY: number, maxY: number;
+
+      if (nodeWidth >= stageWidth) {
+        // Image is wider or equal: must cover canvas horizontally
+        // Can pan within overflow, right edge must always reach canvas right edge
+        minX = stageWidth - nodeWidth; // Negative or zero
+        maxX = 0;
+      } else {
+        // Image is narrower: keep within canvas bounds
+        minX = 0;
+        maxX = stageWidth - nodeWidth;
+      }
+
+      if (nodeHeight >= stageHeight) {
+        // Image is taller or equal: must cover canvas vertically
+        minY = stageHeight - nodeHeight; // Negative or zero
+        maxY = 0;
+      } else {
+        // Image is shorter: keep within canvas bounds
+        minY = 0;
+        maxY = stageHeight - nodeHeight;
+      }
+
+      return {
+        x: Math.max(minX, Math.min(posX, maxX)),
+        y: Math.max(minY, Math.min(posY, maxY)),
+      };
+    },
+    [constrainToBounds, stageWidth, stageHeight]
+  );
+
+  // Performance: Schedule React state updates via RAF to batch them
+  const scheduleSnapUpdate = useCallback(
+    (snapH: boolean, snapV: boolean, snapLines: SnapLine[]) => {
+      // Only update if snap state actually changed
+      const lastSnap = lastSnapStateRef.current;
+      const snapChanged = lastSnap.snapH !== snapH || lastSnap.snapV !== snapV;
+      const linesChanged = snapLines.length !== lastSnapLinesRef.current.length;
+
+      if (!snapChanged && !linesChanged) return;
+
+      lastSnapStateRef.current = { snapH, snapV };
+      lastSnapLinesRef.current = snapLines;
+
+      // Cancel previous RAF if pending
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+
+      // Schedule update for next frame
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        if (isDraggingRef.current) {
+          onSnapChange?.(snapH, snapV);
+          onSnapLinesChange?.(snapLines);
+        }
+      });
+    },
+    [onSnapChange, onSnapLinesChange]
   );
 
   const handleDragMove = useCallback(
@@ -116,24 +213,40 @@ function CanvasImageInner({
 
       if (!stageWidth || !stageHeight) return;
 
-      // Always use the more powerful element snap calculator if any snapping is enabled
+      let finalX = node.x();
+      let finalY = node.y();
+      let snapH = false;
+      let snapV = false;
+      let snapLines: SnapLine[] = [];
+
+      // Apply snapping if enabled
       if ((snapTargets && snapTargets.length > 0) || snapToCenter) {
         const result = calculateElementSnapPosition(
           node.x(),
           node.y(),
           nodeWidth,
           nodeHeight,
-          snapTargets || [], // Pass empty array if undefined
+          snapTargets || [],
           stageWidth,
           stageHeight
         );
-
-        node.position({ x: result.x, y: result.y });
-        onSnapChange?.(result.snapH, result.snapV);
-        onSnapLinesChange?.(result.snapLines);
+        finalX = result.x;
+        finalY = result.y;
+        snapH = result.snapH;
+        snapV = result.snapV;
+        snapLines = result.snapLines;
       }
+
+      // Apply bounds constraint AFTER snapping
+      const bounded = clampToBounds(finalX, finalY, nodeWidth, nodeHeight);
+
+      // Update Konva node position directly (no React state)
+      node.position({ x: bounded.x, y: bounded.y });
+
+      // Schedule snap state updates via RAF (throttled, batched)
+      scheduleSnapUpdate(snapH, snapV, snapLines);
     },
-    [snapToCenter, stageWidth, stageHeight, onSnapChange, snapTargets, onSnapLinesChange]
+    [snapToCenter, stageWidth, stageHeight, snapTargets, clampToBounds, scheduleSnapUpdate]
   );
 
   const handleTransform = useCallback(() => {
@@ -168,6 +281,17 @@ function CanvasImageInner({
     }
   }, [onTransformEnd]);
 
+  // Performance: dragBoundFunc now just returns position - actual clamping happens in handleDragMove
+  // This avoids double calculation of bounds on every mouse move
+  const dragBoundFunc = useCallback(
+    (pos: { x: number; y: number }) => {
+      // Return position as-is; handleDragMove will apply bounds + snapping
+      // This removes the duplicate clampToBounds call that was causing performance issues
+      return pos;
+    },
+    []
+  );
+
   if (!image) return null;
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_IMAGE_ANCHORS;
@@ -184,8 +308,10 @@ function CanvasImageInner({
         height={height}
         opacity={opacity}
         draggable={draggable}
+        dragBoundFunc={dragBoundFunc}
         onClick={onSelect}
         onTap={onSelect}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragMove={handleDragMove}
         onTransform={handleTransform}
@@ -217,6 +343,7 @@ function CanvasImageInner({
 }
 
 export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
+  // Compare primitive props that affect rendering
   const keysToCompare: (keyof CanvasImageProps)[] = [
     'id',
     'x',
@@ -230,6 +357,8 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'stageHeight',
     'snapToCenter',
     'listening',
+    'constrainToBounds',
+    'color', // Include color for RGB filter changes
   ];
 
   for (const key of keysToCompare) {
@@ -242,6 +371,14 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
   if (prevProps.image !== nextProps.image) {
     return false;
   }
+
+  // Note: We intentionally DO NOT compare callback functions (onSnapChange, onSnapLinesChange, etc.)
+  // These are expected to be stable references from useCallback in parent components.
+  // Comparing them would cause unnecessary re-renders since callback identity can change
+  // even when the actual function behavior is the same.
+
+  // We also don't compare snapTargets array - it changes during drag but doesn't affect
+  // the visual rendering of this component (only used in event handlers)
 
   return true;
 });

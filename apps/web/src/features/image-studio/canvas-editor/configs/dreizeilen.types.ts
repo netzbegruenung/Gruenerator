@@ -33,6 +33,8 @@ export interface DreizeilenFullState {
   // === Balken Position ===
   balkenOffset: { x: number; y: number };  // Group offset
   balkenOpacity: number;
+  balkenScale: number;      // Transform scale (from resize)
+  balkenRotation: number;   // Transform rotation (from rotate)
 
   // === Assets ===
   assetInstances: AssetInstance[];
@@ -102,6 +104,7 @@ export interface DreizeilenFullActions {
   setBarOffsets: (offsets: [number, number, number]) => void;
   setBalkenOffset: (offset: { x: number; y: number }) => void;
   setBalkenOpacity: (opacity: number) => void;
+  updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
 
   // === Sunflower Actions ===
   setSunflowerVisible: (visible: boolean) => void;

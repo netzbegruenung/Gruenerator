@@ -62,17 +62,6 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
   const [isWideStep, setIsWideStep] = useState(false);
 
-  // Debug: Log currentStep changes
-  useEffect(() => {
-    console.log('[TemplateStudioFlow] currentStep changed:', currentStep, 'FORM_STEPS:', {
-      IMAGE_UPLOAD: FORM_STEPS.IMAGE_UPLOAD,
-      INPUT: FORM_STEPS.INPUT,
-      IMAGE_SIZE_SELECT: FORM_STEPS.IMAGE_SIZE_SELECT,
-      CANVAS_EDIT: FORM_STEPS.CANVAS_EDIT,
-      RESULT: FORM_STEPS.RESULT
-    });
-  }, [currentStep]);
-
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
   }, []);
@@ -215,14 +204,6 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                                                   currentStep === FORM_STEPS.INPUT ||
                                                   currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
                                                   currentStep === FORM_STEPS.CANVAS_EDIT;
-                    console.log('[TemplateStudioFlow] Checking StepFlow render condition:', {
-                      currentStep,
-                      shouldRenderStepFlow,
-                      isImageUpload: currentStep === FORM_STEPS.IMAGE_UPLOAD,
-                      isInput: currentStep === FORM_STEPS.INPUT,
-                      isImageSizeSelect: currentStep === FORM_STEPS.IMAGE_SIZE_SELECT,
-                      isCanvasEdit: currentStep === FORM_STEPS.CANVAS_EDIT
-                    });
                     return shouldRenderStepFlow ? (
                       <StepFlow
                         onBack={onBack}

@@ -26,6 +26,7 @@
   border-bottom: 1px solid var(--border-color);
   border-radius: 0;
   font-size: var(--font-size-sm, 13px);
+  color: var(--font-color);
   background: transparent;
   transition: border-color 0.2s;
 }

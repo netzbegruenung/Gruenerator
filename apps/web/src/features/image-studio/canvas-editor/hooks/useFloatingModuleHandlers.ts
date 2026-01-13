@@ -92,6 +92,17 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                         debouncedSaveToHistory(next);
                     }
                 }
+            } else if (activeFloatingModule.type === 'background') {
+                const id = activeFloatingModule.data.id;
+                const elementConfig = config.elements.find((e) => e.id === id);
+                if (elementConfig && elementConfig.type === 'background') {
+                    const fillStateKey = elementConfig.fillStateKey as string | undefined;
+                    if (fillStateKey) {
+                        const next = { ...state, [fillStateKey]: color };
+                        setState(() => next);
+                        debouncedSaveToHistory(next);
+                    }
+                }
             }
         },
         [activeFloatingModule, actions, config.elements, state, setState, debouncedSaveToHistory]
@@ -136,6 +147,16 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
             } else if (type === 'image') {
                 const elementConfig = config.elements.find((e) => e.id === id);
                 if (elementConfig && elementConfig.type === 'image') {
+                    const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
+                    if (opacityStateKey) {
+                        const next = { ...state, [opacityStateKey]: opacity };
+                        setState(() => next);
+                        debouncedSaveToHistory(next);
+                    }
+                }
+            } else if (type === 'background') {
+                const elementConfig = config.elements.find((e) => e.id === id);
+                if (elementConfig && elementConfig.type === 'background') {
                     const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
                     if (opacityStateKey) {
                         const next = { ...state, [opacityStateKey]: opacity };

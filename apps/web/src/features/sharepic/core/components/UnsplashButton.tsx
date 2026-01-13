@@ -1,6 +1,10 @@
-import React from 'react';
 import { FaUnsplash } from 'react-icons/fa';
-const UnsplashButton = ({ searchTerms }) => {
+
+interface UnsplashButtonProps {
+    searchTerms?: string[];
+}
+
+const UnsplashButton = ({ searchTerms }: UnsplashButtonProps) => {
   const handleUnsplashClick = () => {
     if (!searchTerms || searchTerms.length === 0) return;
 

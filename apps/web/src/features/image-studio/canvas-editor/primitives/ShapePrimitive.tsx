@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, memo } from 'react';
 import { Rect, Circle, RegularPolygon, Star, Path, Transformer, Group } from 'react-konva';
 import Konva from 'konva';
 import { ShapeInstance } from '../utils/shapes';
@@ -11,7 +11,7 @@ interface ShapePrimitiveProps {
     draggable?: boolean;
 }
 
-export const ShapePrimitive: React.FC<ShapePrimitiveProps> = ({
+const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     shape,
     isSelected,
     onSelect,
@@ -187,3 +187,33 @@ export const ShapePrimitive: React.FC<ShapePrimitiveProps> = ({
         </>
     );
 };
+
+/**
+ * Memoized ShapePrimitive - Prevents unnecessary re-renders during drag
+ */
+export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) => {
+    // Compare shape object properties
+    const prevShape = prevProps.shape;
+    const nextShape = nextProps.shape;
+
+    if (prevShape.id !== nextShape.id) return false;
+    if (prevShape.type !== nextShape.type) return false;
+    if (prevShape.x !== nextShape.x) return false;
+    if (prevShape.y !== nextShape.y) return false;
+    if (prevShape.width !== nextShape.width) return false;
+    if (prevShape.height !== nextShape.height) return false;
+    if (prevShape.fill !== nextShape.fill) return false;
+    if (prevShape.rotation !== nextShape.rotation) return false;
+    if (prevShape.scaleX !== nextShape.scaleX) return false;
+    if (prevShape.scaleY !== nextShape.scaleY) return false;
+    if (prevShape.opacity !== nextShape.opacity) return false;
+
+    // Compare other props
+    if (prevProps.isSelected !== nextProps.isSelected) return false;
+    if (prevProps.draggable !== nextProps.draggable) return false;
+
+    // Callbacks are considered stable
+    return true;
+});
+
+ShapePrimitive.displayName = 'ShapePrimitive';

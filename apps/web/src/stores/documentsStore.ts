@@ -17,6 +17,8 @@ interface Document {
   description?: string;
   file_size?: number;
   processed_chunks?: number;
+  page_count?: number;
+  ocr_text?: string;
 }
 
 interface Text {
@@ -26,6 +28,8 @@ interface Text {
   user_id?: string;
   created_at?: string;
   updated_at?: string;
+  document_type?: string;
+  word_count?: number;
 }
 
 interface SearchResult {

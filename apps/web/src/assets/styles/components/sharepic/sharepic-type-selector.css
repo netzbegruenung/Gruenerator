@@ -769,3 +769,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Canvas edit mode - eliminate outer padding for maximum canvas space */
+.type-selector-screen:has(.typeform-field--canvas-edit) {
+  padding: 0;
+}
+
+.type-selector-content:has(.typeform-field--canvas-edit) {
+  padding: 0;
+  max-width: none;
+}

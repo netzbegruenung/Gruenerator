@@ -1,9 +1,17 @@
 /**
  * Snapping utilities for canvas elements
  * Enables snap-to-center and snap-to-element functionality during drag operations
+ *
+ * Performance optimizations:
+ * - Early exit when both horizontal and vertical snaps are found
+ * - Precomputed edge arrays to reduce allocations
+ * - Bounding box overlap check to skip distant elements
  */
 
 export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
+
+// Extended threshold for bounding box pre-check (skip elements that are far away)
+const SNAP_PROXIMITY_THRESHOLD = 200;
 
 export interface SnapResult {
   x: number;
@@ -70,8 +78,39 @@ export function calculateSnapPosition(
 }
 
 /**
+ * Check if two bounding boxes are within proximity for snapping consideration
+ * This is a fast pre-check to skip distant elements
+ */
+function isWithinSnapProximity(
+  nodeX: number,
+  nodeY: number,
+  nodeWidth: number,
+  nodeHeight: number,
+  target: SnapTarget
+): boolean {
+  // Check if bounding boxes (expanded by proximity threshold) overlap
+  const nodeRight = nodeX + nodeWidth;
+  const nodeBottom = nodeY + nodeHeight;
+  const targetRight = target.x + target.width;
+  const targetBottom = target.y + target.height;
+
+  // Expand both boxes by proximity threshold and check overlap
+  return !(
+    nodeX - SNAP_PROXIMITY_THRESHOLD > targetRight ||
+    nodeRight + SNAP_PROXIMITY_THRESHOLD < target.x ||
+    nodeY - SNAP_PROXIMITY_THRESHOLD > targetBottom ||
+    nodeBottom + SNAP_PROXIMITY_THRESHOLD < target.y
+  );
+}
+
+/**
  * Calculate snapped position with element-to-element snapping
  * Checks both stage center and other elements for alignment
+ *
+ * Performance optimizations:
+ * - Early exit when both H and V snaps are found
+ * - Proximity pre-check to skip distant elements
+ * - Reuses edge value calculations
  */
 export function calculateElementSnapPosition(
   nodeX: number,
@@ -106,83 +145,78 @@ export function calculateElementSnapPosition(
     });
   }
 
-  // Check element-to-element snapping
+  // Early exit if already snapped to center in both directions
+  if (result.snapH && result.snapV) {
+    return result;
+  }
+
+  // Skip element snapping if no targets
+  if (!targets || targets.length === 0) {
+    return result;
+  }
+
+  // Precompute node edge values once (avoid repeated calculations in loops)
+  const nodeEdgeValsH = [nodeX, nodeX + nodeWidth / 2, nodeX + nodeWidth];
+  const nodeEdgeOffsetsH = [0, nodeWidth / 2, nodeWidth];
+  const nodeEdgeValsV = [nodeY, nodeY + nodeHeight / 2, nodeY + nodeHeight];
+  const nodeEdgeOffsetsV = [0, nodeHeight / 2, nodeHeight];
+
   // Track if we found element snaps (separate from center snaps)
   let elementSnapH = false;
   let elementSnapV = false;
 
   for (const target of targets) {
-    // Horizontal alignment (left, center, right edges)
-    if (!elementSnapH) {
-      const nodeEdges = [
-        { name: 'left', val: nodeX, offset: 0 },
-        { name: 'center', val: nodeX + nodeWidth / 2, offset: nodeWidth / 2 },
-        { name: 'right', val: nodeX + nodeWidth, offset: nodeWidth },
-      ];
-      const targetEdges = [
-        { name: 'left', val: target.x },
-        { name: 'center', val: target.x + target.width / 2 },
-        { name: 'right', val: target.x + target.width },
-      ];
+    // Early exit if we found both snaps
+    if (elementSnapH && elementSnapV) break;
 
-      for (const nodeEdge of nodeEdges) {
-        for (const targetEdge of targetEdges) {
-          if (Math.abs(nodeEdge.val - targetEdge.val) < SNAP_THRESHOLD) {
-            // Only snap position if not already snapped to center
-            if (!result.snapH) {
-              result.x = targetEdge.val - nodeEdge.offset;
-              result.snapH = true;
-              result.snapToElementId = target.id;
-            }
-            // Always add element snap line for visual feedback
+    // Proximity pre-check: skip targets that are too far away
+    if (!isWithinSnapProximity(nodeX, nodeY, nodeWidth, nodeHeight, target)) {
+      continue;
+    }
+
+    // Precompute target edge values
+    const targetEdgeValsH = [target.x, target.x + target.width / 2, target.x + target.width];
+    const targetEdgeValsV = [target.y, target.y + target.height / 2, target.y + target.height];
+
+    // Horizontal alignment (left, center, right edges)
+    if (!elementSnapH && !result.snapH) {
+      outerH: for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          if (Math.abs(nodeEdgeValsH[i] - targetEdgeValsH[j]) < SNAP_THRESHOLD) {
+            result.x = targetEdgeValsH[j] - nodeEdgeOffsetsH[i];
+            result.snapH = true;
+            result.snapToElementId = target.id;
             elementSnapH = true;
             result.snapLines.push({
               orientation: 'vertical',
-              position: targetEdge.val,
+              position: targetEdgeValsH[j],
               start: Math.min(nodeY, target.y),
               end: Math.max(nodeY + nodeHeight, target.y + target.height),
             });
-            break;
+            break outerH;
           }
         }
-        if (elementSnapH) break;
       }
     }
 
     // Vertical alignment (top, center, bottom edges)
-    if (!elementSnapV) {
-      const nodeVEdges = [
-        { name: 'top', val: nodeY, offset: 0 },
-        { name: 'center', val: nodeY + nodeHeight / 2, offset: nodeHeight / 2 },
-        { name: 'bottom', val: nodeY + nodeHeight, offset: nodeHeight },
-      ];
-      const targetVEdges = [
-        { name: 'top', val: target.y },
-        { name: 'center', val: target.y + target.height / 2 },
-        { name: 'bottom', val: target.y + target.height },
-      ];
-
-      for (const nodeEdge of nodeVEdges) {
-        for (const targetEdge of targetVEdges) {
-          if (Math.abs(nodeEdge.val - targetEdge.val) < SNAP_THRESHOLD) {
-            // Only snap position if not already snapped to center
-            if (!result.snapV) {
-              result.y = targetEdge.val - nodeEdge.offset;
-              result.snapV = true;
-              result.snapToElementId = target.id;
-            }
-            // Always add element snap line for visual feedback
+    if (!elementSnapV && !result.snapV) {
+      outerV: for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          if (Math.abs(nodeEdgeValsV[i] - targetEdgeValsV[j]) < SNAP_THRESHOLD) {
+            result.y = targetEdgeValsV[j] - nodeEdgeOffsetsV[i];
+            result.snapV = true;
+            result.snapToElementId = target.id;
             elementSnapV = true;
             result.snapLines.push({
               orientation: 'horizontal',
-              position: targetEdge.val,
+              position: targetEdgeValsV[j],
               start: Math.min(nodeX, target.x),
               end: Math.max(nodeX + nodeWidth, target.x + target.width),
             });
-            break;
+            break outerV;
           }
         }
-        if (elementSnapV) break;
       }
     }
   }

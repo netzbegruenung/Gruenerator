@@ -206,6 +206,34 @@ export const FloatingToolbar = memo(({
                             )}
                         </>
                     )}
+
+                    {activeFloatingModule.type === 'background' && (
+                        <>
+                            {activeFloatingModule.data.fill !== undefined && (
+                                <>
+                                    <FloatingColorPicker
+                                        currentColor={activeFloatingModule.data.fill || '#FFFFFF'}
+                                        onColorSelect={handlers.handleColorSelect}
+                                        isExpanded={isColorPickerExpanded}
+                                        onExpandChange={setIsColorPickerExpanded}
+                                    />
+                                    {!shouldHideOtherControls && <div className="floating-separator" />}
+                                </>
+                            )}
+                            {!shouldHideOtherControls && (
+                                <FloatingOpacityControl
+                                    opacity={activeFloatingModule.data.opacity ?? 1}
+                                    onOpacityChange={(val) =>
+                                        handlers.handleOpacityChange(
+                                            activeFloatingModule.data.id,
+                                            val,
+                                            'background'
+                                        )
+                                    }
+                                />
+                            )}
+                        </>
+                    )}
                 </>
             )}
         </FloatingTapBar>

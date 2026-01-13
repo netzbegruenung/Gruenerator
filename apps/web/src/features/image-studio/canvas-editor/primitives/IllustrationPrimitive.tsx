@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { Image, Group, Rect, Transformer } from 'react-konva';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Konva from 'konva';
@@ -53,7 +53,7 @@ export interface IllustrationPrimitiveProps {
     draggable?: boolean;
 }
 
-export function IllustrationPrimitive({
+function IllustrationPrimitiveInner({
     illustration,
     isSelected,
     onSelect,
@@ -227,3 +227,33 @@ export function IllustrationPrimitive({
         </>
     );
 }
+
+/**
+ * Memoized IllustrationPrimitive - Prevents unnecessary re-renders during drag
+ */
+export const IllustrationPrimitive = memo(IllustrationPrimitiveInner, (prevProps, nextProps) => {
+    // Compare illustration object properties
+    const prev = prevProps.illustration;
+    const next = nextProps.illustration;
+
+    if (prev.id !== next.id) return false;
+    if (prev.source !== next.source) return false;
+    if (prev.illustrationId !== next.illustrationId) return false;
+    if (prev.x !== next.x) return false;
+    if (prev.y !== next.y) return false;
+    if (prev.scale !== next.scale) return false;
+    if (prev.rotation !== next.rotation) return false;
+    if (prev.opacity !== next.opacity) return false;
+    if (prev.color !== next.color) return false;
+
+    // Compare other props
+    if (prevProps.isSelected !== nextProps.isSelected) return false;
+    if (prevProps.draggable !== nextProps.draggable) return false;
+    if (prevProps.stageWidth !== nextProps.stageWidth) return false;
+    if (prevProps.stageHeight !== nextProps.stageHeight) return false;
+
+    // Callbacks are considered stable
+    return true;
+});
+
+IllustrationPrimitive.displayName = 'IllustrationPrimitive';

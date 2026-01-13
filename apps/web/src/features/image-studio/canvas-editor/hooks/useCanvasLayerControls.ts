@@ -36,8 +36,10 @@ export function useCanvasLayerControls<TState>(
             if (!selectedElement) return;
 
             setState((prev: TState) => {
-                const currentOrder = (prev as Record<string, unknown>).layerOrder
-                    ? [...(prev as Record<string, unknown>).layerOrder as string[]]
+                const existingOrder = (prev as Record<string, unknown>).layerOrder as string[] | undefined;
+                // Use existing layerOrder only if it has items, otherwise initialize from render list
+                const currentOrder = existingOrder && existingOrder.length > 0
+                    ? [...existingOrder]
                     : sortedRenderList.map((i) => i.id);
                 const newOrder = moveLayer(currentOrder, selectedElement, direction);
 

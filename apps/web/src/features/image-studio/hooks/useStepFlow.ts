@@ -210,18 +210,8 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     // Add image size selection step for ALL FLUX types
     // For requiresImage types: comes after image upload
     // For pure creation types: comes after prompt input
-    console.log('[useStepFlow] Checking IMAGE_SIZE_SELECT condition:', {
-      typeId: typeConfig?.id,
-      usesFluxApi: typeConfig?.usesFluxApi,
-      hasBackgroundRemoval: typeConfig?.hasBackgroundRemoval,
-      requiresImage: typeConfig?.requiresImage,
-      shouldAdd: typeConfig?.usesFluxApi && !typeConfig?.hasBackgroundRemoval
-    });
-
     if (typeConfig?.usesFluxApi && !typeConfig?.hasBackgroundRemoval) {
       const afterComplete = typeConfig?.requiresImage ? null : 'generateImage';
-
-      console.log('[useStepFlow] Adding IMAGE_SIZE_SELECT step with afterComplete:', afterComplete);
 
       steps.push({
         id: 'image_size_select',
@@ -242,15 +232,11 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       });
     }
 
-    console.log('[useStepFlow] Final steps array:', steps.map(s => ({ id: s.id, type: s.type, afterComplete: s.afterComplete })));
-
     return steps;
   }, [fieldConfig, typeConfig]);
 
   const currentStep = useMemo(() => {
-    const step = flowSteps[stepIndex] || null;
-    console.log('[useStepFlow] Current step:', { stepIndex, totalSteps: flowSteps.length, step: step ? { id: step.id, type: step.type } : null });
-    return step;
+    return flowSteps[stepIndex] || null;
   }, [flowSteps, stepIndex]);
 
   const isFirstStep = stepIndex === 0;
@@ -555,41 +541,31 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
   ]);
 
   const goNext = useCallback(async (): Promise<boolean> => {
-    console.log('[goNext] Called with:', { stepIndex, currentStep: currentStep ? { id: currentStep.id, type: currentStep.type, afterComplete: currentStep.afterComplete } : null });
-
     if (isProcessing) {
-      console.log('[goNext] Blocked: isProcessing =', isProcessing);
       return false;
     }
 
     const step = currentStep;
     if (!step) {
-      console.log('[goNext] Blocked: no current step');
       return false;
     }
 
-    console.log('[goNext] Processing step:', { id: step.id, type: step.type, afterComplete: step.afterComplete });
-
     if (step.afterComplete === 'parallelPreload') {
-      console.log('[goNext] Executing parallelPreload');
       const success = await executeParallelPreload();
       if (!success) return false;
     }
 
     if (step.afterComplete === 'generateText') {
-      console.log('[goNext] Executing generateText');
       const success = await executeTextGeneration();
       if (!success) return false;
     }
 
     if (step.afterComplete === 'backgroundRemoval') {
-      console.log('[goNext] Executing backgroundRemoval');
       const success = await executeBackgroundRemoval();
       if (!success) return false;
     }
 
     if (step.afterComplete === 'generateImage') {
-      console.log('[goNext] Executing generateImage, jumping to RESULT');
       const success = typeConfig?.usesFluxApi
         ? await executeKiImageGeneration()
         : await executeTemplateImageGeneration();
@@ -599,13 +575,11 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     }
 
     if (stepIndex < flowSteps.length - 1) {
-      console.log('[goNext] Moving to next step:', stepIndex, '->', stepIndex + 1);
       setDirection(1);
       setStepIndex(prev => prev + 1);
       return true;
     }
 
-    console.log('[goNext] At last step, cannot proceed');
     return false;
   }, [
     currentStep, stepIndex, flowSteps.length, isProcessing, typeConfig,

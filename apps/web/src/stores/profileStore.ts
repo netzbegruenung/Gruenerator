@@ -14,6 +14,11 @@ interface Profile {
   avatar_robot_id?: string;
   email?: string;
   locale?: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  auto_save_on_export?: boolean;
+  [key: string]: unknown;
 }
 
 interface KnowledgeEntry {
@@ -36,7 +41,12 @@ interface QACollection {
 interface CustomGenerator {
   id: string;
   name?: string;
+  title?: string;
   prompt?: string;
+  slug?: string;
+  owner_first_name?: string;
+  owner_last_name?: string;
+  owner_email?: string;
 }
 
 interface UserText {

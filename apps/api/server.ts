@@ -54,29 +54,51 @@ if (cluster.isPrimary) {
   }
 
   // Start Hocuspocus WebSocket server if enabled
-  let hocuspocusProcess: any = null;
+  let hocuspocusProcess: ReturnType<typeof spawn> | null = null;
+  let isShuttingDown = false;
+
+  const killHocuspocus = () => {
+    if (hocuspocusProcess && !hocuspocusProcess.killed) {
+      log.info('Killing Hocuspocus process...');
+      hocuspocusProcess.kill('SIGTERM');
+      // Force kill after 3 seconds if still alive
+      setTimeout(() => {
+        if (hocuspocusProcess && !hocuspocusProcess.killed) {
+          log.warn('Force killing Hocuspocus process...');
+          hocuspocusProcess.kill('SIGKILL');
+        }
+      }, 3000);
+    }
+  };
+
+  // Ensure Hocuspocus is killed when master process exits
+  process.on('exit', killHocuspocus);
+  process.on('beforeExit', killHocuspocus);
+
   if (process.env.HOCUSPOCUS_ENABLED === 'true') {
     log.info('Starting Hocuspocus WebSocket server...');
     hocuspocusProcess = spawn('npx', ['tsx', 'services/hocuspocus/hocuspocusServer.ts'], {
       cwd: __dirname,
       stdio: 'inherit',
-      env: process.env
+      env: process.env,
+      detached: false // Ensure child process is attached to parent
     });
 
     hocuspocusProcess.on('error', (error: Error) => {
       log.error(`Hocuspocus server error: ${error.message}`);
     });
 
-    hocuspocusProcess.on('exit', (code: number, signal: string) => {
+    hocuspocusProcess.on('exit', (code: number | null, signal: string | null) => {
       log.warn(`Hocuspocus server exited (code: ${code}, signal: ${signal})`);
-      if (code !== 0 && code !== null) {
-        log.error('Hocuspocus server crashed, restarting...');
+      if (!isShuttingDown && code !== 0 && code !== null) {
+        log.error('Hocuspocus server crashed, restarting in 2s...');
         setTimeout(() => {
-          if (process.env.HOCUSPOCUS_ENABLED === 'true') {
+          if (!isShuttingDown && process.env.HOCUSPOCUS_ENABLED === 'true') {
             hocuspocusProcess = spawn('npx', ['tsx', 'services/hocuspocus/hocuspocusServer.ts'], {
               cwd: __dirname,
               stdio: 'inherit',
-              env: process.env
+              env: process.env,
+              detached: false
             });
           }
         }, 2000);
@@ -88,10 +110,8 @@ if (cluster.isPrimary) {
     workerTimeout: 10000,
     logger: log,
     onComplete: () => {
-      if (hocuspocusProcess) {
-        log.info('Shutting down Hocuspocus server...');
-        hocuspocusProcess.kill('SIGTERM');
-      }
+      isShuttingDown = true;
+      killHocuspocus();
     }
   });
 

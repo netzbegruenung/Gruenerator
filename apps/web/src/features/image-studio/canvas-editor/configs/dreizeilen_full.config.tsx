@@ -57,17 +57,17 @@ const SUNFLOWER_CONFIG = {
 function createBalkenInstance(state: Partial<DreizeilenFullState>): BalkenInstance {
     return {
         id: 'dreizeilen-balken',
-        mode: 'triple',
+        mode: 'triple' as const,
         colorSchemeId: state.colorSchemeId ?? 'tanne-sand',
         widthScale: state.balkenWidthScale ?? 1,
         offset: state.balkenOffset ?? { x: 0, y: 0 },
-        scale: 1,
+        scale: state.balkenScale ?? 1,
         texts: [
             state.line1 ?? '',
             state.line2 ?? '',
             state.line3 ?? '',
         ],
-        rotation: 0,
+        rotation: state.balkenRotation ?? 0,
         opacity: state.balkenOpacity ?? 1,
         barOffsets: state.barOffsets,
     };
@@ -282,6 +282,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             visible: (state: DreizeilenFullState) => state.sunflowerVisible,
             opacity: (state: DreizeilenFullState) => state.sunflowerOpacity,
             opacityStateKey: 'sunflowerOpacity',
+            positionStateKey: 'sunflowerPos',
+            sizeStateKey: 'sunflowerSize',
         },
 
         // Note: Balken (parallelogram bars with text) are NOT included in elements
@@ -310,6 +312,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         // Balken Position
         balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
+        balkenScale: (props.balkenScale as number | undefined) ?? 1,
+        balkenRotation: (props.balkenRotation as number | undefined) ?? 0,
 
         // Asset Instances
         assetInstances: (props.assetInstances as import('../utils/canvasAssets').AssetInstance[] | undefined) ?? [],
@@ -456,6 +460,27 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         setBalkenOpacity: (opacity: number) => {
             setState(prev => {
                 const newState = { ...prev, balkenOpacity: opacity };
+                return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+            });
+            debouncedSaveToHistory(getState());
+        },
+
+        updateBalken: (_id: string, partial: Partial<BalkenInstance>) => {
+            setState(prev => {
+                const updates: Partial<DreizeilenFullState> = {};
+                if (partial.offset !== undefined) {
+                    updates.balkenOffset = partial.offset;
+                }
+                if (partial.scale !== undefined) {
+                    updates.balkenScale = partial.scale;
+                }
+                if (partial.rotation !== undefined) {
+                    updates.balkenRotation = partial.rotation;
+                }
+                if (partial.opacity !== undefined) {
+                    updates.balkenOpacity = partial.opacity;
+                }
+                const newState = { ...prev, ...updates };
                 return { ...newState, balkenInstances: updateBalkenInstances(newState) };
             });
             debouncedSaveToHistory(getState());

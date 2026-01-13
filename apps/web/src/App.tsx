@@ -83,7 +83,6 @@ function App() {
     ])
       .then(() => {
         setAppReady(true);
-        console.log('[App] Application initialized');
       })
       .catch((error) => {
         console.error('[App] Initialization failed:', error);

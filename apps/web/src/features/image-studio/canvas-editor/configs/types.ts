@@ -109,6 +109,10 @@ export interface ImageElementConfig<TState = Record<string, unknown>> extends Ba
     offsetKey?: string;
     /** State key for image scale */
     scaleKey?: string;
+    /** State key for absolute position {x, y} */
+    positionStateKey?: string;
+    /** State key for absolute size {w, h} */
+    sizeStateKey?: string;
     /** Enable dragging */
     draggable?: boolean;
     /** Lock state key */

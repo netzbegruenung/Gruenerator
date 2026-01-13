@@ -73,7 +73,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         const maxW = actualContainerWidth
           ? Math.min(actualContainerWidth, maxContainerWidth)
           : Math.min(window.innerWidth - 48, maxContainerWidth);
-        const maxH = maxContainerHeight ?? window.innerHeight - 200;
+        const maxH = maxContainerHeight ?? window.innerHeight - 120;
 
         let containerW = maxW;
         let containerH = containerW / aspectRatio;
@@ -143,7 +143,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
         {/* Display Stage - Visible, interactive, responsively scaled */}
         <div
           ref={containerDivRef}
-          className={className}
+          className={`canvas-stage-container ${className || ''}`}
           style={{
             width: containerSize.width,
             height: containerSize.height,

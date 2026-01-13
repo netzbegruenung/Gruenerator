@@ -97,6 +97,24 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+/* Inline add buttons - desktop only */
+.text-add-inline {
+  display: flex;
+  gap: var(--spacing-small);
+  margin-top: var(--spacing-small);
+  padding-top: var(--spacing-small);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.text-add-inline .btn {
+  flex: 1;
+}
+
+/* Hide preview button section on desktop - inline buttons are shown instead */
+.subsection-stacked .text-section-actions {
+  display: none;
+}
+
 /* Thin scrollbar for panel content */
 .sidebar-panel__content {
   scrollbar-width: thin;
@@ -118,4 +136,39 @@
 
 .sidebar-panel__content::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover-color);
+}
+
+/* Mobile: Compact text inputs */
+@media (max-width: 899px) {
+  .sidebar-section--text {
+    gap: var(--spacing-xxsmall);
+    padding-top: var(--spacing-small);
+  }
+
+  .text-control-input .form-textarea,
+  .text-control-input .form-input {
+    min-height: 36px;
+    font-size: 14px;
+  }
+
+  .text-preview-btn {
+    height: 56px;
+    padding: var(--spacing-small);
+    font-size: 13px;
+  }
+
+  .text-section-actions {
+    gap: var(--spacing-xsmall);
+  }
+
+  .additional-texts-list {
+    gap: var(--spacing-xsmall);
+    margin-top: var(--spacing-xsmall);
+    padding-top: var(--spacing-xsmall);
+  }
+
+  /* Hide inline add buttons on mobile - use subsection tab instead */
+  .text-add-inline {
+    display: none;
+  }
 }

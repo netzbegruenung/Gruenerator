@@ -14,7 +14,7 @@ import { resolveValue } from '../utils/canvasValueResolver';
  */
 
 export interface FloatingModuleState {
-    type: 'text' | 'image' | 'shape' | 'icon' | 'illustration' | 'asset';
+    type: 'text' | 'image' | 'shape' | 'icon' | 'illustration' | 'asset' | 'background';
     data: {
         id: string;
         fontSize?: number;
@@ -111,6 +111,33 @@ export function useFloatingModuleState<TState, TActions = Record<string, unknown
 
             return {
                 type: 'image',
+                data: {
+                    id: selectedElement,
+                    opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,
+                    fill: typeof currentFill === 'string' && currentFill ? currentFill : undefined,
+                },
+            };
+        }
+
+        // Check if Background element (from config)
+        const backgroundElement = config.elements.find((e) => e.id === selectedElement && e.type === 'background');
+        if (backgroundElement && backgroundElement.type === 'background') {
+            const opacityStateKey = backgroundElement.opacityStateKey as string | undefined;
+            const fillStateKey = backgroundElement.fillStateKey as string | undefined;
+
+            const currentOpacity = opacityStateKey
+                ? getStateProperty<number>(state, opacityStateKey)
+                : resolveValue(backgroundElement.opacity, state, layout);
+
+            let currentFill: string | undefined = undefined;
+            if (fillStateKey) {
+                currentFill = getStateProperty<string>(state, fillStateKey);
+            } else if (backgroundElement.fill) {
+                currentFill = resolveValue(backgroundElement.fill, state, layout);
+            }
+
+            return {
+                type: 'background',
                 data: {
                     id: selectedElement,
                     opacity: typeof currentOpacity === 'number' ? currentOpacity : 1,

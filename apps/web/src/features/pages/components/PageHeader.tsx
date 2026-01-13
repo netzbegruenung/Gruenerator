@@ -1,3 +1,11 @@
+interface PageHeaderProps {
+    title?: string;
+    subtitle?: string;
+    author?: string;
+    readTime?: string;
+    alignment?: 'center' | 'left';
+    showDivider?: boolean;
+}
 
 const PageHeader = ({
     title,
@@ -6,7 +14,7 @@ const PageHeader = ({
     readTime,
     alignment = 'center',
     showDivider = true
-}) => {
+}: PageHeaderProps) => {
     const headerClass = `page-header ${alignment === 'left' ? 'page-header--left-aligned' : ''}`;
 
     return (

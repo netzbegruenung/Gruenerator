@@ -302,7 +302,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         currentImageSrc: (props.imageSrc as string | undefined) ?? '',
         imageOffset: { x: 0, y: 0 },
         imageScale: 1,
-        isBackgroundLocked: true,
+        isBackgroundLocked: false,
         customEventTitleFontSize: null,
         customBeschreibungFontSize: null,
         eventTitleOpacity: 1,

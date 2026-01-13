@@ -9,6 +9,8 @@ export interface Document {
   group_id?: string | null;
   content?: string;
   metadata?: Record<string, unknown>;
+  page_count?: number;
+  ocr_text?: string;
   [key: string]: unknown;
 }
 
@@ -19,6 +21,8 @@ export interface SavedText {
   created_at?: string;
   updated_at?: string;
   user_id?: string;
+  document_type?: string;
+  word_count?: number;
   [key: string]: unknown;
 }
 
