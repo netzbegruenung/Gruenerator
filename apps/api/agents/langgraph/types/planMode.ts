@@ -11,13 +11,16 @@ export interface PlanModeRequest {
     generatorType: 'pr' | 'antrag';
     inhalt: string;
     requestType?: string;  // For Antrag: 'antrag' | 'kleine_anfrage' | 'grosse_anfrage'
+    subType?: string;      // Alias for requestType (used by LangGraph)
     locale?: 'de-DE' | 'de-AT';
 
     // Enrichment options
     useWebSearch?: boolean;
     usePrivacyMode?: boolean;
+    useProMode?: boolean;
     selectedDocumentIds?: string[];
     selectedTextIds?: string[];
+    customPrompt?: string;
 
     // Generator-specific
     platforms?: string[];    // For PR mode (optional during initiation)
@@ -66,11 +69,12 @@ export interface QuestionsData {
 export interface GeneratedQuestion {
     id: string;
     questionText: string;
-    questionType: 'multiple_choice' | 'yes_no' | 'free_form';
-    options?: Array<{
+    questionType: 'verstaendnis' | 'rueckfrage' | 'multiple_choice' | 'yes_no' | 'free_form'; // Support both old and new types
+    why?: string; // Justification for this question (new format)
+    options?: string[] | Array<{
         text: string;
         emoji?: string;
-    }>;
+    }>; // Support both formats
     clarificationPurpose?: string; // What this question clarifies
 }
 
@@ -209,4 +213,118 @@ export interface PlanModeError {
     error: string;
     code: 'WORKFLOW_NOT_FOUND' | 'INVALID_STATE' | 'AI_ERROR' | 'VALIDATION_ERROR' | 'INTERNAL_ERROR';
     details?: any;
+}
+
+// ============================================================================
+// FORMATTED PLAN TYPES (McKinsey-Style)
+// ============================================================================
+
+/**
+ * Structured representation of a McKinsey-style strategic plan
+ * Extracted from raw markdown for enhanced frontend rendering
+ */
+export interface FormattedPlan {
+    executiveSummary: SCQAStructure;
+    mainDocument: MainDocumentStructure;
+    appendices: AppendixReferences;
+    metadata: PlanMetadata;
+}
+
+/**
+ * SCQA Framework (Situation-Complication-Question-Answer)
+ * Core consulting communication structure
+ */
+export interface SCQAStructure {
+    situation: string;        // Current state with key metrics
+    complication: string;     // Problem/urgency
+    question: string;         // Strategic question
+    answer: ThreePillarSummary;
+}
+
+export interface ThreePillarSummary {
+    pillar1: string;  // Quick Wins summary (1 sentence)
+    pillar2: string;  // Structural Change summary (1 sentence)
+    pillar3: string;  // Cultural Change summary (1 sentence)
+}
+
+/**
+ * Main document sections following McKinsey structure
+ */
+export interface MainDocumentStructure {
+    context: StrategicContext;
+    solution: ThreePillarModel;
+    implementation: ImplementationArchitecture;
+    impact: ExpectedImpact;
+}
+
+export interface StrategicContext {
+    dataSnapshot: KeyMetric[];
+    urgencyReasons: string[];  // 3 reasons for urgency
+}
+
+export interface KeyMetric {
+    label: string;
+    currentValue: string | number;
+    targetValue?: string | number;
+    source?: string;
+}
+
+export interface ThreePillarModel {
+    pillar1: PillarDetails;  // Quick Wins (2026-2027)
+    pillar2: PillarDetails;  // Structural Change (2028-2030)
+    pillar3: PillarDetails;  // Cultural Change (ongoing)
+}
+
+export interface PillarDetails {
+    title: string;
+    goal: string;
+    measures: string[];  // 3-4 concrete measures
+    resources: ResourceAllocation;
+    impact: string;      // Measurable impact
+}
+
+export interface ResourceAllocation {
+    budget?: string;
+    personnel?: string;
+    funding?: string[];
+}
+
+export interface ImplementationArchitecture {
+    governance: string;
+    resourceDistribution: {
+        year: string;
+        amount: string;
+        purpose: string;
+    }[];
+    topRisks: RiskWithMitigation[];
+}
+
+export interface RiskWithMitigation {
+    risk: string;
+    mitigation: string;
+}
+
+export interface ExpectedImpact {
+    quantifiedOutcomes: string[];
+    successMetrics: {
+        shortTerm: string[];   // 6 months
+        mediumTerm: string[];  // 2 years
+        longTerm: string[];    // 5 years
+    };
+    quickWins: string[];  // Visible in 6 months
+}
+
+export interface AppendixReferences {
+    detailedProjectList?: string;
+    financingModel?: string;
+    internationalCases?: string;
+    draftMotionText?: string;
+}
+
+export interface PlanMetadata {
+    wordCount: number;
+    readingTimeMinutes: number;
+    keyMetrics: KeyMetric[];  // Extracted for dashboard
+    structureValid: boolean;  // Does it follow McKinsey format?
+    validationErrors?: string[];
 }

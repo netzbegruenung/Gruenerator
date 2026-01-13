@@ -37,7 +37,13 @@ class AIWorkerPool {
   }
 
   private createWorker(index: number): void {
-    const worker = new Worker(path.join(__dirname, '..', 'dist', 'workers', 'aiWorker.js'));
+    // Determine correct path based on whether running from source or dist
+    const isDist = __dirname.includes('/dist/');
+    const workerPath = isDist
+      ? path.join(__dirname, 'aiWorker.js')  // Already in dist/workers/
+      : path.join(__dirname, '..', 'dist', 'workers', 'aiWorker.js');  // From workers/ to dist/workers/
+
+    const worker = new Worker(workerPath);
 
     worker.on('message', (message: WorkerMessage) => {
       this.handleWorkerMessage(index, message);

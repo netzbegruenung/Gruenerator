@@ -1,14 +1,14 @@
 {
   "id": "plan_generation_antrag",
-  "name": "Strategic Antrag Plan Generation",
-  "description": "Creates a strategic plan for Antrag/petition content generation",
+  "name": "Municipal Council Motion Content Plan",
+  "description": "Creates content plans for municipal motions focusing on the resolution proposal",
 
-  "systemPrompt": "Du bist ein erfahrener Kommunalpolitiker bei Bündnis 90/Die Grünen. Deine Aufgabe ist es, strategische Pläne für Anträge zu erstellen, die als Grundlage für die finale Formulierung dienen.",
+  "systemPrompt": "Du bist Kommunalpolitik-Berater:in bei Bündnis 90/Die Grünen und erstellst strukturierte Inhaltspläne für kommunale Anträge.",
 
-  "generationPrompt": "Erstelle einen strategischen Plan für folgenden Antrag:\n\n## Inhalt\n{{inhalt}}\n\n## Antragsart\n{{requestType}}\n\n## Verfügbare Recherche-Quellen\n{{documents}}\n\n{{webSearchResults}}\n\n{{knowledgeBase}}\n\n---\n\n## Deine Aufgabe\n\nErstelle einen STRATEGISCHEN PLAN in Markdown-Format mit folgenden Elementen:\n\n### 1. Ziel & Kernforderung\n- Was soll mit diesem Antrag erreicht werden? (1-2 Sätze)\n- Was ist die konkrete Forderung an das Gremium?\n\n### 2. Kontext & Begründung\n- Warum ist dieser Antrag wichtig und dringlich?\n- Welcher gesellschaftliche/politische Kontext ist relevant?\n- Gibt es aktuelle Anlässe oder Entwicklungen?\n\n### 3. Argumentation\n- Welche Hauptargumente stützen den Antrag?\n- Welche recherchierten Fakten und Quellen können genutzt werden?\n- Gibt es lokale/regionale Bezüge?\n\n### 4. Erwartete Wirkung\n- Was würde die Umsetzung konkret bewirken?\n- Wer profitiert davon?\n- Gibt es messbare Erfolgskriterien?\n\n### 5. Gliederungsvorschlag\n- Wie sollte der Antrag strukturiert werden?\n- Welche Abschnitte sind sinnvoll? (z.B. Sachstand, Begründung, Beschlussvorschlag)\n\n### 6. Ton & Stil\n- Welche Tonalität ist angemessen? (sachlich-fordernd, konstruktiv, dringlich, etc.)\n- Gibt es sensible Aspekte zu beachten?\n\nWICHTIG:\n- Sei spezifisch und umsetzungsorientiert\n- Nutze die bereitgestellten Recherche-Ergebnisse\n- Der Plan sollte als Grundlage für die Antrags-Formulierung dienen\n- Wenn Informationen fehlen, markiere das klar im Plan",
+  "generationPrompt": "## QUELLEN\n\n{{#if greenFraming}}\n### Grünes Programm\n{{#each greenFraming}}\n{{this}}\n{{/each}}\n{{/if}}\n\n{{#if documents}}\n### Dokumente\n{{documents}}\n{{/if}}\n\n{{#if webSearchResults}}\n### Web-Recherche\n{{webSearchResults}}\n{{/if}}\n\n---\n\n## ANFRAGE\n**Thema:** {{inhalt}}\n**Typ:** {{requestType}}\n\n---\n\n## ERSTELLE INHALTSPLAN\n\nStrukturiere deinen Plan wie folgt:\n\n### 1. Zielsetzung\nErkläre in 1-2 Sätzen, was erreicht werden soll. Basiere dies auf der Anfrage des Users.\n\n### 2. Ist-Stand (Recherche)\nFasse zusammen, was die Web-Recherche ergeben hat:\n- **Was wissen wir?** (Fakten, Daten, bestehende Regelungen)\n- **Was wissen wir nicht?** (Lücken, offene Punkte)\n- **Offene Fragen?** (falls sich aus der Recherche Klärungsbedarf ergibt)\n\n### 3. Grüne Position & Argumentationslinie\nLeite aus dem Grünen Programm ab:\n- Welche grünen Werte/Positionen sind relevant?\n- Wie lässt sich das Vorhaben grün argumentieren?\n- Welche Beschlüsse oder Programmpunkte unterstützen das Ziel?\n\n### 4. Projekt-Beschreibung\nBeschreibe das konkrete Vorhaben:\n- Was genau soll umgesetzt werden?\n- Wer ist betroffen/beteiligt?\n- Was ist der erwartete Nutzen?\n\n### 5. Konkrete Schritte\nListe die Umsetzungsschritte:\n- Beschlussvorschlag (konkret und exekutierbar)\n- Zeitlicher Rahmen (falls relevant)\n- **Finanzierung** (Kostenschätzung oder \"Verwaltung soll Kosten ermitteln\")\n\n---\n\nWICHTIG:\n- PLAN schreiben, keinen Antragstext\n- Bei Unsicherheit: OPTIONEN anbieten\n- Keine erfundenen Zahlen oder Fakten",
 
   "options": {
     "max_tokens": 1500,
-    "temperature": 0.6
+    "temperature": 0.3
   }
 }
