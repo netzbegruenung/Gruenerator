@@ -137,8 +137,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/oparl', oparlRouter);
   app.use('/api/crawl-url', crawlUrlRouter);
   app.use('/api/recent-values', recentValuesRouter);
-  app.use('/api/antraege', antraegeRouter);
-  app.use('/api/plan-mode', planModeRouter);
+  app.use('/api/antraege', requireAuth, antraegeRouter);
+  app.use('/api/plan-mode', requireAuth, planModeRouter);
 
   app.use('/api/claude_social', claudeSocialRoute);
   app.use('/api/claude_alttext', claudeAlttextRoute);
