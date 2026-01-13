@@ -95,6 +95,7 @@ export async function clearIllustrationCache(): Promise<boolean> {
             return false;
         }
 
+        const activeWorker = registration.active;
         return new Promise<boolean>((resolve) => {
             const messageChannel = new MessageChannel();
 
@@ -102,7 +103,7 @@ export async function clearIllustrationCache(): Promise<boolean> {
                 resolve(event.data.success === true);
             };
 
-            registration.active.postMessage(
+            activeWorker.postMessage(
                 { type: 'CLEAR_CACHE' },
                 [messageChannel.port2]
             );
@@ -130,6 +131,7 @@ export async function getCacheSize(): Promise<ServiceWorkerStatus> {
             return { registered: false };
         }
 
+        const activeWorker = registration.active;
         return new Promise<ServiceWorkerStatus>((resolve) => {
             const messageChannel = new MessageChannel();
 
@@ -141,7 +143,7 @@ export async function getCacheSize(): Promise<ServiceWorkerStatus> {
                 });
             };
 
-            registration.active.postMessage(
+            activeWorker.postMessage(
                 { type: 'GET_CACHE_SIZE' },
                 [messageChannel.port2]
             );

@@ -33,7 +33,7 @@ const useInteractiveGenerator = ({
    * @param {string} params.locale - Locale (default: 'de-DE')
    * @returns {Promise<Object>} { sessionId, conversationState, questions, questionRound, metadata }
    */
-  const initiateSession = async ({ inhalt, requestType, locale = 'de-DE' }) => {
+  const initiateSession = async ({ inhalt, requestType, locale = 'de-DE' }: { inhalt: string; requestType: string; locale?: string }) => {
     setLoading(true);
     setError(null);
 
@@ -71,7 +71,7 @@ const useInteractiveGenerator = ({
    * @param {Object} answers - User answers keyed by question ID
    * @returns {Promise<Object>} { status: 'follow_up' | 'completed', questions?, finalResult?, metadata? }
    */
-  const continueSession = async (sessionId, answers) => {
+  const continueSession = async (sessionId: string, answers: Record<string, unknown>) => {
     setLoading(true);
     setError(null);
 
@@ -109,7 +109,7 @@ const useInteractiveGenerator = ({
    * @param {string} sessionId - Session ID
    * @returns {Promise<Object>} Session data
    */
-  const getSessionStatus = async (sessionId) => {
+  const getSessionStatus = async (sessionId: string) => {
     try {
       console.log(`[useInteractiveGenerator:${generatorType}] Getting session status:`, sessionId);
 

@@ -3,16 +3,32 @@ import PageHeader from './PageHeader';
 import PageContent from './PageContent';
 import { getReadingTime } from '../../../utils/readingTimeUtils';
 
+interface ContentBlock {
+    type: 'paragraph' | 'heading2' | 'heading3' | 'heading4' | 'quote' | 'infoBox' | 'factBox' | 'callout' | 'timeline' | 'html';
+    text?: string;
+    author?: string;
+    title?: string;
+    items?: string[];
+    variant?: string;
+    content?: string;
+    facts?: Array<{ number: string; label: string }>;
+    buttonText?: string;
+    buttonHref?: string;
+    onClick?: () => void;
+}
+
+interface PageData {
+    title?: string;
+    subtitle?: string;
+    author?: string;
+    readTime?: string;
+    content?: ContentBlock[];
+    headerAlignment?: 'center' | 'left';
+}
+
 interface PageViewProps {
     pageId?: string;
-    pageData?: {
-        title?: string;
-        subtitle?: string;
-        author?: string;
-        readTime?: string;
-        content?: unknown[];
-        headerAlignment?: string;
-    };
+    pageData?: PageData;
     children?: React.ReactNode;
     loading?: boolean;
     error?: string | null;
@@ -25,7 +41,7 @@ const PageView = ({
     loading = false,
     error = null
 }: PageViewProps) => {
-    const [currentPage, setCurrentPage] = useState(null);
+    const [currentPage, setCurrentPage] = useState<PageData | null>(null);
     const [isLoading, setIsLoading] = useState(loading);
 
     // Calculate reading time automatically if not provided

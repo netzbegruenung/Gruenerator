@@ -108,6 +108,7 @@ export interface ShareStoreActions {
   fetchImageShares: () => Promise<Share[]>;
   fetchVideoShares: () => Promise<Share[]>;
   deleteShare: (shareToken: string) => Promise<boolean>;
+  saveAsTemplate: (shareToken: string, title: string, visibility: 'private' | 'unlisted' | 'public') => Promise<SaveAsTemplateResponse>;
   clearCurrentShare: () => void;
   clearError: () => void;
   reset: () => void;
@@ -133,6 +134,14 @@ export interface ShareListResponse {
 
 export interface DeleteShareResponse {
   success: boolean;
+  error?: string;
+}
+
+export interface SaveAsTemplateResponse {
+  success: boolean;
+  templateUrl: string;
+  shareToken: string;
+  visibility: string;
   error?: string;
 }
 

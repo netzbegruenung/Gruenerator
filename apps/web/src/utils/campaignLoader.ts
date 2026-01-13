@@ -99,7 +99,7 @@ export async function getActiveCampaigns(): Promise<Campaign[]> {
   const campaigns = await Promise.all(campaignPromises);
 
   return campaigns
-    .filter(campaign => campaign && campaign.active)
+    .filter((campaign): campaign is Campaign => campaign !== null && campaign.active === true)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 

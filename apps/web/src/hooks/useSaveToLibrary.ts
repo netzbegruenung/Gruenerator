@@ -7,7 +7,7 @@ import apiClient from '../components/utils/apiClient';
  */
 export const useSaveToLibrary = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   /**
@@ -17,7 +17,7 @@ export const useSaveToLibrary = () => {
    * @param {string} type - Content type (defaults to 'universal')
    * @returns {Promise<Object>} Response data from API
    */
-  const saveToLibrary = useCallback(async (content, title, type = 'universal') => {
+  const saveToLibrary = useCallback(async (content: string, title: string, type = 'universal') => {
     if (!content || !content.trim()) {
       console.warn("[useSaveToLibrary] No content provided for saving");
       setError('Kein Inhalt zum Speichern vorhanden.');
@@ -46,18 +46,19 @@ export const useSaveToLibrary = () => {
       }, 3000);
 
       return response.data;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("[useSaveToLibrary] Error saving to library:", error);
-      
+
       // Extract user-friendly error message
       let errorMessage = 'Fehler beim Speichern in der Bibliothek.';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
+
+      const axiosError = error as { response?: { data?: { message?: string } }; message?: string };
+      if (axiosError.response?.data?.message) {
+        errorMessage = axiosError.response.data.message;
+      } else if (axiosError.message) {
+        errorMessage = axiosError.message;
       }
-      
+
       setError(errorMessage);
       throw error;
     } finally {

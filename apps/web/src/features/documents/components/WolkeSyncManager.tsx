@@ -275,7 +275,7 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
         }
     }, [shareLinks, syncStatuses]);
 
-    const getSimpleStatus = (status) => {
+    const getSimpleStatus = (status: string | undefined) => {
         switch (status) {
             case 'syncing': return 'Synchronisiert...';
             case 'completed': return 'Bereit';

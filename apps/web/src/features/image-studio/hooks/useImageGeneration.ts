@@ -86,6 +86,58 @@ interface TextGenerationResult {
   subtext?: string;
 }
 
+// API response types for type-safe access
+interface ApiResponseBase {
+  alternatives?: Array<Record<string, string>>;
+  searchTerms?: string[];
+}
+
+interface QuoteApiResponse extends ApiResponseBase {
+  quote?: string;
+}
+
+interface InfoApiResponse extends ApiResponseBase {
+  header?: string;
+  subheader?: string;
+  body?: string;
+}
+
+interface SimpleApiResponse extends ApiResponseBase {
+  mainSimple?: {
+    headline?: string;
+    subtext?: string;
+  };
+  headline?: string;
+  subtext?: string;
+}
+
+interface VeranstaltungApiResponse extends ApiResponseBase {
+  mainEvent?: {
+    eventTitle?: string;
+    beschreibung?: string;
+    weekday?: string;
+    date?: string;
+    time?: string;
+    locationName?: string;
+    address?: string;
+  };
+  eventTitle?: string;
+  beschreibung?: string;
+  weekday?: string;
+  date?: string;
+  time?: string;
+  locationName?: string;
+  address?: string;
+}
+
+interface DreizeilenApiResponse extends ApiResponseBase {
+  mainSlogan?: {
+    line1: string;
+    line2: string;
+    line3: string;
+  };
+}
+
 interface UseImageGenerationReturn {
   generateText: (type: string, formData: TextFormData) => Promise<TextGenerationResult | null>;
   generateAlternatives: (type: string, formData: TextFormData) => Promise<TextGenerationResult | null>;
@@ -165,20 +217,22 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         count: formData.count || 1
       };
 
-      const response = await submitFn(dataToSend);
+      const rawResponse = await submitFn(dataToSend);
 
       if (isSimpleType) {
-        const mainSimple = response.mainSimple || response;
+        const response = rawResponse as SimpleApiResponse;
+        const mainSimple = response.mainSimple ?? response;
         if (!mainSimple || !mainSimple.headline) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
-        const result = {
+        const result: TextGenerationResult = {
           headline: mainSimple.headline,
           subtext: mainSimple.subtext || '',
           alternatives: response.alternatives || []
         };
         return result;
       } else if (isQuoteType) {
+        const response = rawResponse as QuoteApiResponse;
         if (!response || !response.quote) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -188,6 +242,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           alternatives: response.alternatives || []
         };
       } else if (isInfoType) {
+        const response = rawResponse as InfoApiResponse;
         if (!response || !response.header || !response.body) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -199,7 +254,8 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           searchTerms: response.searchTerms || []
         };
       } else if (isVeranstaltungType) {
-        const mainEvent = response.mainEvent || response;
+        const response = rawResponse as VeranstaltungApiResponse;
+        const mainEvent = response.mainEvent ?? response;
         if (!mainEvent || !mainEvent.eventTitle) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -215,6 +271,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           searchTerms: response.searchTerms || []
         };
       } else {
+        const response = rawResponse as DreizeilenApiResponse;
         if (!response || !response.mainSlogan || !response.alternatives) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -285,9 +342,10 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         count: 5
       };
 
-      const response = await submitFn(dataToSend);
+      const rawResponse = await submitFn(dataToSend);
 
       if (isQuoteType) {
+        const response = rawResponse as QuoteApiResponse;
         if (!response || !response.quote) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -297,6 +355,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           alternatives: response.alternatives || []
         };
       } else if (isInfoType) {
+        const response = rawResponse as InfoApiResponse;
         if (!response || !response.header || !response.body) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -308,7 +367,8 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           searchTerms: response.searchTerms || []
         };
       } else if (isVeranstaltungType) {
-        const mainEvent = response.mainEvent || response;
+        const response = rawResponse as VeranstaltungApiResponse;
+        const mainEvent = response.mainEvent ?? response;
         if (!mainEvent || !mainEvent.eventTitle) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -324,6 +384,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           searchTerms: response.searchTerms || []
         };
       } else {
+        const response = rawResponse as DreizeilenApiResponse;
         if (!response || !response.mainSlogan || !response.alternatives) {
           throw new Error('Unerwartete Antwortstruktur von der API');
         }
@@ -387,11 +448,12 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           break;
       }
 
-      const response = await submitFn(dataToSend);
+      const rawResponse = await submitFn(dataToSend);
+      const response = rawResponse as ApiResponseBase;
       const alternatives = response.alternatives || [];
 
       if (alternatives.length > 0) {
-        onComplete(alternatives);
+        onComplete(alternatives as SloganAlternative[]);
       } else {
         onComplete([]);
       }

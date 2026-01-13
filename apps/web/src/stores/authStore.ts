@@ -481,7 +481,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         console.log('[AuthStore] Backend logout response:', backendResponse);
 
         // Check if backend logout actually succeeded
-        if (!backendResponse.success) {
+        if (backendResponse && !backendResponse.success) {
           console.error('[AuthStore] Backend logout failed:', backendResponse);
 
           // If backend reports specific session destruction failure, handle it

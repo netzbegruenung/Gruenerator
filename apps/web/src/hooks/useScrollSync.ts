@@ -24,10 +24,10 @@ const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, op
     announceChanges = true
   } = options;
 
-  const highlightTimeoutRef = useRef(null);
-  const lastHighlightedRef = useRef(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHighlightedRef = useRef<Element | null>(null);
 
-  const detectLocationFromText = useCallback((instruction) => {
+  const detectLocationFromText = useCallback((instruction: string | null | undefined) => {
     if (!instruction) return null;
 
     const lowerInstruction = instruction.toLowerCase();
@@ -48,13 +48,13 @@ const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, op
     return null;
   }, []);
 
-  const findTargetElement = useCallback((location) => {
+  const findTargetElement = useCallback((location: string | { type: string; index: number } | null) => {
     const container = textContainerRef?.current;
     if (!container) return null;
 
     const paragraphs = container.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, blockquote');
 
-    if (typeof location === 'object' && location.type === 'paragraph') {
+    if (typeof location === 'object' && location !== null && location.type === 'paragraph') {
       return paragraphs[location.index] || null;
     }
 
@@ -72,10 +72,10 @@ const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, op
     }
   }, [textContainerRef]);
 
-  const scrollToElement = useCallback((element, highlight = true) => {
+  const scrollToElement = useCallback((element: Element | null, highlight = true) => {
     if (!element) return false;
 
-    const elementHeight = element.offsetHeight;
+    const elementHeight = (element as HTMLElement).offsetHeight;
     const viewportHeight = window.innerHeight;
 
     if (elementHeight < viewportHeight * 0.8) {
@@ -100,7 +100,7 @@ const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, op
     return true;
   }, [scrollBehavior, topOffset]);
 
-  const highlightElement = useCallback((element) => {
+  const highlightElement = useCallback((element: Element | null) => {
     if (!element) return;
 
     if (highlightTimeoutRef.current) {
@@ -119,7 +119,7 @@ const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, op
     }, highlightDuration);
   }, [highlightDuration]);
 
-  const syncToInstruction = useCallback((instruction) => {
+  const syncToInstruction = useCallback((instruction: string | null | undefined) => {
     const location = detectLocationFromText(instruction);
     if (!location) return false;
 
@@ -138,7 +138,7 @@ const useScrollSync = (textContainerRef: React.RefObject<HTMLElement | null>, op
     return success;
   }, [detectLocationFromText, findTargetElement, scrollToElement, announceChanges]);
 
-  const highlightChangedArea = useCallback((beforeText, afterText) => {
+  const highlightChangedArea = useCallback((beforeText: string | null | undefined, afterText: string | null | undefined) => {
     const container = textContainerRef?.current;
     if (!container || !beforeText || !afterText) return;
 

@@ -392,6 +392,9 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       console.log('[SubtitlerExportStore] Processing streaming download');
       
       const contentLength = response.headers.get('Content-Length');
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
       const reader = response.body.getReader();
       
       let receivedLength = 0;
@@ -427,11 +430,11 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       
       console.log('[SubtitlerExportStore] Streaming download completed successfully');
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('[SubtitlerExportStore] Streaming download failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
-        error: error.message || 'Download failed',
+        error: error instanceof Error ? error.message : 'Download failed',
       });
     }
   },

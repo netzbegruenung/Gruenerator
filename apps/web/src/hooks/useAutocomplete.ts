@@ -49,7 +49,7 @@ export const useAutocomplete = ({
     setDebouncedValue('');
   }, []);
 
-  const handleInputChange = useCallback((value) => {
+  const handleInputChange = useCallback((value: string) => {
     setInputValue(value || '');
   }, []);
 

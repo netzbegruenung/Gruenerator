@@ -179,7 +179,7 @@ export function usePresseSocialSubmit(
     async (formData: PresseSocialFormData): Promise<GenerationResult | null> => {
       try {
         const hasSharepic = config.canUseSharepic && formData.platforms.includes('sharepic');
-        const otherPlatforms = formData.platforms.filter(p => p !== 'sharepic');
+        const otherPlatforms = formData.platforms.filter((p: string) => p !== 'sharepic');
 
         // Build submission data
         const submissionData = {

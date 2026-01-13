@@ -1,14 +1,21 @@
 import { useState, useCallback, useRef } from 'react';
 
+interface SwipeNavigationOptions {
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+  threshold?: number;
+  enabled?: boolean;
+}
+
 const SWIPE_THRESHOLD = 50;
 
-const useSwipeNavigation = ({ onSwipeLeft, onSwipeRight, threshold = SWIPE_THRESHOLD, enabled = true }) => {
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const touchStartY = useRef(null);
+const useSwipeNavigation = ({ onSwipeLeft, onSwipeRight, threshold = SWIPE_THRESHOLD, enabled = true }: SwipeNavigationOptions) => {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const isHorizontalSwipe = useRef(false);
 
-  const onTouchStart = useCallback((e) => {
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
     if (!enabled) return;
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
@@ -16,7 +23,7 @@ const useSwipeNavigation = ({ onSwipeLeft, onSwipeRight, threshold = SWIPE_THRES
     isHorizontalSwipe.current = false;
   }, [enabled]);
 
-  const onTouchMove = useCallback((e) => {
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
     if (!enabled || touchStart === null) return;
 
     const currentX = e.targetTouches[0].clientX;
@@ -24,7 +31,7 @@ const useSwipeNavigation = ({ onSwipeLeft, onSwipeRight, threshold = SWIPE_THRES
 
     if (!isHorizontalSwipe.current) {
       const deltaX = Math.abs(currentX - touchStart);
-      const deltaY = Math.abs(currentY - touchStartY.current);
+      const deltaY = Math.abs(currentY - (touchStartY.current ?? 0));
 
       if (deltaX > 10 || deltaY > 10) {
         isHorizontalSwipe.current = deltaX > deltaY;

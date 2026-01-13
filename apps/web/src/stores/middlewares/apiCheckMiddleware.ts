@@ -22,13 +22,15 @@ export const apiCheckMiddleware = (config: (set: unknown, get: unknown, api: unk
   };
 
   const validateAndUpdateFeatures = async () => {
-    const state = get();
+    const getState = get as () => Record<string, unknown>;
+    const state = getState();
     const updates: Record<string, boolean> = {};
     let hasUpdates = false;
 
     // Check each feature that has API validation configured
-    if (config.apiValidation) {
-      for (const [featureKey, featureName] of Object.entries(config.apiValidation)) {
+    const configWithValidation = config as unknown as { apiValidation?: Record<string, string> };
+    if (configWithValidation.apiValidation) {
+      for (const [featureKey, featureName] of Object.entries(configWithValidation.apiValidation)) {
         const isCurrentlyEnabled = state[featureKey];
 
         if (isCurrentlyEnabled) {
@@ -45,7 +47,7 @@ export const apiCheckMiddleware = (config: (set: unknown, get: unknown, api: unk
 
     // Apply updates if any
     if (hasUpdates) {
-      set(updates);
+      (set as (updates: Record<string, boolean>) => void)(updates);
     }
   };
 

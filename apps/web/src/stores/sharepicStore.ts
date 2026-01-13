@@ -378,14 +378,14 @@ const useSharepicStore = create<SharepicStore>((set, get) => ({
     };
 
     // Map sharepic data to store fields based on type
-    if (sharepicData.type === 'info') {
+    if (sharepicData.type === 'info' && sharepicData.text) {
       // Parse the text back into Info fields
       const lines = sharepicData.text.split('\n').filter((line: string) => line.trim());
       newState.type = 'Info';
       newState.header = lines[0] || '';
       newState.subheader = lines[1] || '';
       newState.body = lines.slice(2).join('\n') || '';
-    } else if (sharepicData.type === 'quote' || sharepicData.type === 'quote_pure') {
+    } else if ((sharepicData.type === 'quote' || sharepicData.type === 'quote_pure') && sharepicData.text) {
       // Parse quote data - handle both quoted and unquoted formats
       let quoteMatch: (string | null)[] | null = sharepicData.text.match(/^"(.*)" - (.*)$/);
 
@@ -404,7 +404,7 @@ const useSharepicStore = create<SharepicStore>((set, get) => ({
         newState.quote = quoteMatch[1] || '';
         newState.name = quoteMatch[2] || '';
       }
-    } else if (sharepicData.type === 'dreizeilen') {
+    } else if (sharepicData.type === 'dreizeilen' && sharepicData.text) {
       // Parse three-line data
       const lines = sharepicData.text.split('\n').filter((line: string) => line.trim());
       newState.type = 'Dreizeilen';

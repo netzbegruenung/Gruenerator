@@ -3,6 +3,7 @@ import { SubsectionTabBar } from '../SubsectionTabBar';
 import { FaDownload, FaShareAlt, FaImages, FaSave, FaCheck } from 'react-icons/fa';
 import { IoCheckmarkOutline } from 'react-icons/io5';
 import Spinner from '../../../../../components/common/Spinner';
+import { useShareStore } from '@gruenerator/shared/share';
 import '../../../../../assets/styles/features/templates.css';
 
 interface GenericShareSectionProps {
@@ -219,6 +220,7 @@ function TemplateSubsection({
 }: GenericShareSectionProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
+  const { saveAsTemplate } = useShareStore();
 
   const handleSaveAsTemplate = async () => {
     if (!shareToken) {
@@ -228,21 +230,13 @@ function TemplateSubsection({
 
     setIsSaving(true);
     try {
-      const response = await fetch(
-        `/api/share/${shareToken}/save-as-template`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            visibility: 'public',
-            title: `${canvasType} Vorlage`
-          })
-        }
+      const result = await saveAsTemplate(
+        shareToken,
+        `${canvasType} Vorlage`,
+        'public'
       );
-
-      const data = await response.json();
-      if (data.success) {
-        setTemplateUrl(data.templateUrl);
+      if (result.success) {
+        setTemplateUrl(result.templateUrl);
       }
     } catch (error) {
       console.error('Failed to save template:', error);

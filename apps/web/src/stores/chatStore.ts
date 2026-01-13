@@ -19,6 +19,7 @@ interface SharepicContent {
   showEditButton?: boolean;
   sharepicMeta?: SharepicMetadata;
   metadata?: Record<string, unknown>;
+  text?: string;
 }
 
 interface TextContent {
@@ -26,18 +27,41 @@ interface TextContent {
   text?: string;
   content?: string;
   metadata?: Record<string, unknown>;
+  // Optional sharepic properties for union compatibility
+  sharepic?: SharepicObject;
+  sharepicTitle?: string;
+  sharepicDownloadText?: string;
+  sharepicDownloadFilename?: string;
+  showEditButton?: boolean;
+  sharepicMeta?: SharepicMetadata;
 }
 
 interface SocialContent {
   type: 'social';
   social?: { content?: string };
   metadata?: Record<string, unknown>;
+  // Optional sharepic properties for union compatibility
+  sharepic?: SharepicObject;
+  sharepicTitle?: string;
+  sharepicDownloadText?: string;
+  sharepicDownloadFilename?: string;
+  showEditButton?: boolean;
+  sharepicMeta?: SharepicMetadata;
+  text?: string;
 }
 
 interface LinesContent {
   type: 'lines';
   lines?: string[];
   metadata?: Record<string, unknown>;
+  // Optional sharepic properties for union compatibility
+  sharepic?: SharepicObject;
+  sharepicTitle?: string;
+  sharepicDownloadText?: string;
+  sharepicDownloadFilename?: string;
+  showEditButton?: boolean;
+  sharepicMeta?: SharepicMetadata;
+  text?: string;
 }
 
 type ChatContent = SharepicContent | TextContent | SocialContent | LinesContent;

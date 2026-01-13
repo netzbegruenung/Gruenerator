@@ -34,7 +34,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
     }
   });
 
-  const onSubmitRHF = useCallback(async (formData) => {
+  const onSubmitRHF = useCallback(async (formData: { description: string; email?: string }) => {
     if (!formData.description) {
       return;
     }
@@ -136,7 +136,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
     </>
   );
 
-  const customRenderer = useCallback(({ content }) => {
+  const customRenderer = useCallback(({ content }: { content: string }) => {
     let jsonData = null;
     try {
       jsonData = typeof content === 'string' ? JSON.parse(content) : content;
@@ -189,7 +189,11 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
   );
 };
 
-const WebsiteGenerator = (props) => {
+interface WebsiteGeneratorProps {
+  showHeaderFooter?: boolean;
+}
+
+const WebsiteGenerator = (props: WebsiteGeneratorProps) => {
   return (
     <ErrorBoundary>
       <BetaFeatureWrapper featureKey="website" fallbackPath="/profile?tab=labor">

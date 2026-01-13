@@ -29,6 +29,15 @@ import useDebounce from '../components/hooks/useDebounce';
  *   onPlatformsDetected: (newPlatforms) => setValue('platforms', newPlatforms)
  * });
  */
+interface PlatformAutoDetectOptions {
+  content: string;
+  currentPlatforms?: string[];
+  validPlatformIds?: string[];
+  onPlatformsDetected: (platforms: string[]) => void;
+  debounceMs?: number;
+  enabled?: boolean;
+}
+
 const usePlatformAutoDetect = ({
   content,
   currentPlatforms = [],
@@ -36,7 +45,7 @@ const usePlatformAutoDetect = ({
   onPlatformsDetected,
   debounceMs = 500,
   enabled = true
-}) => {
+}: PlatformAutoDetectOptions) => {
   const rejectedPlatformsRef = useRef(new Set());
   const previousPlatformsRef = useRef(currentPlatforms);
 
@@ -77,11 +86,11 @@ const usePlatformAutoDetect = ({
     rejectedPlatformsRef.current.clear();
   }, []);
 
-  const rejectPlatform = useCallback((platformId) => {
+  const rejectPlatform = useCallback((platformId: string) => {
     rejectedPlatformsRef.current.add(platformId);
   }, []);
 
-  const isRejected = useCallback((platformId) => {
+  const isRejected = useCallback((platformId: string) => {
     return rejectedPlatformsRef.current.has(platformId);
   }, []);
 

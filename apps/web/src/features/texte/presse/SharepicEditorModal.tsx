@@ -115,7 +115,7 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
         const lines = parseLines(sharepic.text);
         const rawAlternatives = sharepic.alternatives || [];
         // Map alternatives to add required id field
-        const alternatives: DreizeilenAlternative[] = rawAlternatives.map((alt, index) => ({
+        const alternatives: DreizeilenAlternative[] = rawAlternatives.map((alt: unknown, index: number) => ({
           id: `alt-${index}`,
           line1: (alt as Record<string, unknown>).line1 as string || '',
           line2: (alt as Record<string, unknown>).line2 as string || '',

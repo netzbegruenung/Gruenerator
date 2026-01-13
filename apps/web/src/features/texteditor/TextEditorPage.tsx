@@ -65,13 +65,13 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
     isCrawling
   } = useUrlCrawler();
 
-  const handleUrlsDetected = useCallback(async (urls) => {
+  const handleUrlsDetected = useCallback(async (urls: string[]) => {
     if (!isCrawling && urls.length > 0) {
       await detectAndCrawlUrls(urls.join(' '), usePrivacyMode);
     }
   }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
 
-  const onSubmitRHF = useCallback(async (rhfData) => {
+  const onSubmitRHF = useCallback(async (rhfData: { originalText: string; action: string | string[] }) => {
     setStoreIsLoading(true);
 
     try {
@@ -113,7 +113,7 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
     }
   }, [submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, customPrompt, form.generator, crawledUrls, selectedDocumentIds, selectedTextIds, getFeatureState]);
 
-  const handleGeneratedContentChange = useCallback((content) => {
+  const handleGeneratedContentChange = useCallback((content: string) => {
     setImprovedContent(content);
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);

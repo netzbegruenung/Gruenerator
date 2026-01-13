@@ -8,12 +8,15 @@
 import { useMemo } from 'react';
 import { TAB_INDEX_CONFIG, TabIndexHelpers, DEFAULT_TAB_INDEX } from '../utils/tabIndexConfig';
 
+type PageType = keyof typeof TAB_INDEX_CONFIG;
+type TabIndexConfig = Record<string, number>;
+
 /**
  * Custom hook for managing tabIndex values
  * @param {string} pageType - The page type key from TAB_INDEX_CONFIG
  * @returns {object} Object with tabIndex values and helper functions
  */
-export const useTabIndex = (pageType) => {
+export const useTabIndex = (pageType: PageType | string | undefined) => {
   const config = useMemo(() => {
     if (!pageType) {
       // Silently use default config when no pageType is provided (expected behavior)
@@ -39,7 +42,7 @@ export const useTabIndex = (pageType) => {
      * @param {boolean} isVisible - Whether element is visible
      * @returns {number|undefined}
      */
-    getConditional: (elementKey, isVisible) => {
+    getConditional: (elementKey: string, isVisible: boolean) => {
       const baseIndex = config[elementKey];
       return TabIndexHelpers.getConditional(baseIndex, isVisible);
     },
@@ -50,7 +53,7 @@ export const useTabIndex = (pageType) => {
      * @param {number} offset - Offset to add
      * @returns {number}
      */
-    getWithOffset: (elementKey, offset = 0) => {
+    getWithOffset: (elementKey: string, offset = 0) => {
       return TabIndexHelpers.getWithOffset(pageType, elementKey, offset);
     },
 
@@ -59,7 +62,7 @@ export const useTabIndex = (pageType) => {
      * @param {string} elementKey - Key from the page config
      * @returns {number}
      */
-    get: (elementKey) => {
+    get: (elementKey: string) => {
       const value = config[elementKey];
       if (value === undefined) {
         if (process.env.NODE_ENV === 'development') {
@@ -99,12 +102,12 @@ export const useTabIndex = (pageType) => {
  * @param {string[]} elementKeys - Array of element keys in order
  * @returns {object} Object with tabIndex values for each element
  */
-export const useFormTabIndex = (pageType, elementKeys) => {
+export const useFormTabIndex = (pageType: PageType | string | undefined, elementKeys: string[]) => {
   const tabIndex = useTabIndex(pageType);
 
   const formConfig = useMemo(() => {
-    const result = {};
-    elementKeys.forEach(key => {
+    const result: TabIndexConfig = {};
+    elementKeys.forEach((key: string) => {
       result[key] = tabIndex.get(key);
     });
     return result;
@@ -124,7 +127,7 @@ export const useFormTabIndex = (pageType, elementKeys) => {
  * @param {string} pageType - The page type key
  * @returns {object} Standard form element tabIndex values
  */
-export const useBaseFormTabIndex = (pageType) => {
+export const useBaseFormTabIndex = (pageType: PageType | string | undefined) => {
   const tabIndex = useTabIndex(pageType);
 
   return useMemo(() => ({

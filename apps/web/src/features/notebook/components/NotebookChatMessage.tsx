@@ -32,20 +32,20 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
   const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
 
   const hasSources = hasResultData && (
-    (msg.resultData.sources?.length > 0) ||
-    (msg.resultData.additionalSources?.length > 0)
+    ((msg.resultData?.sources?.length ?? 0) > 0) ||
+    ((msg.resultData?.additionalSources?.length ?? 0) > 0)
   );
 
-  const hasCitations = hasResultData && msg.resultData.citations?.length > 0;
+  const hasCitations = hasResultData && (msg.resultData?.citations?.length ?? 0) > 0;
 
   const handleNotebookDOCXExport = useCallback(async () => {
-    if (!hasResultData || !hasCitations) return;
+    if (!hasResultData || !hasCitations || !msg.resultData) return;
 
     await generateNotebookDOCX(
       msg.content,
-      msg.resultData.question || 'Notebook-Antwort',
-      msg.resultData.citations || [],
-      msg.resultData.sources || []
+      msg.resultData?.question || 'Notebook-Antwort',
+      msg.resultData?.citations || [],
+      msg.resultData?.sources || []
     );
   }, [msg, hasResultData, hasCitations, generateNotebookDOCX]);
 
@@ -72,26 +72,26 @@ const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: numb
       )}
       {msg.type === 'assistant' && <HiChip className="assistant-icon" />}
 
-      {hasResultData ? (
+      {hasResultData && msg.resultData ? (
         <div className="qa-mobile-result-content">
           <CitationTextRenderer
             text={msg.content}
-            citations={msg.resultData.citations}
+            citations={msg.resultData?.citations}
             className="qa-mobile-message-text"
           />
           {hasSources && (
             <CitationSourcesDisplay
-              sources={msg.resultData.sources}
-              citations={msg.resultData.citations}
-              additionalSources={msg.resultData.additionalSources}
-              linkConfig={msg.resultData.linkConfig}
+              sources={msg.resultData?.sources}
+              citations={msg.resultData?.citations}
+              additionalSources={msg.resultData?.additionalSources}
+              linkConfig={msg.resultData?.linkConfig}
               title="Quellen"
               className="qa-mobile-citation-sources"
             />
           )}
           <ActionButtons
             generatedContent={msg.content}
-            title={msg.resultData.question}
+            title={msg.resultData?.question}
             showExportDropdown={true}
             showUndo={false}
             showRedo={false}

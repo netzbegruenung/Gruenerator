@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 
+type SearchMode = 'local' | 'remote' | 'hybrid';
+
+interface SearchStateConfig {
+    mode?: SearchMode;
+    onRemoteSearch?: (query: string, searchMode: string) => void;
+    onClearRemoteSearch?: () => void;
+    debounceMs?: { remote: number; local: number };
+    searchMode?: string;
+    initialQuery?: string;
+}
+
 /**
  * Custom hook for managing search state with debouncing
  * Supports both local and remote search patterns with proper state management
- * 
+ *
  * @param {Object} config - Configuration options
  * @param {string} config.mode - 'local', 'remote', or 'hybrid' search mode
  * @param {Function} config.onRemoteSearch - Callback for remote search (query, searchMode) => void
@@ -11,7 +22,7 @@ import { useState, useEffect, useCallback } from 'react';
  * @param {Object} config.debounceMs - Debounce delays { remote: 400, local: 300 }
  * @param {string} config.searchMode - Search mode for remote searches ('intelligent', 'fulltext')
  * @param {string} config.initialQuery - Initial search query value
- * 
+ *
  * @returns {Object} Search state and control functions
  */
 export const useSearchState = ({
@@ -21,7 +32,7 @@ export const useSearchState = ({
     debounceMs = { remote: 400, local: 300 },
     searchMode = 'intelligent',
     initialQuery = ''
-}) => {
+}: SearchStateConfig) => {
     // Core search state
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [currentSearchMode, setCurrentSearchMode] = useState(searchMode);
