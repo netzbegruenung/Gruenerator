@@ -216,6 +216,10 @@ export interface SectionContext {
     onCaptureCanvas?: () => void;
     onDownload?: () => void;
     onNavigateToGallery?: () => void;
+    /** Font color from layout meta (for text elements) */
+    fontColor?: string;
+    /** Additional metadata from layout calculations */
+    [key: string]: unknown;
 }
 
 export interface SectionConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>, TSectionProps extends Record<string, unknown> = Record<string, unknown>> {

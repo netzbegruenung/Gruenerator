@@ -256,8 +256,8 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
         }
     };
 
-    const getSyncStatus = (shareLinkId) => {
-        const syncStatus = syncStatuses.find(status => status.share_link_id === shareLinkId);
+    const getSyncStatus = (shareLinkId: string): SyncStatus | null => {
+        const syncStatus = syncStatuses.find((status: SyncStatus) => status.share_link_id === shareLinkId);
         return syncStatus ? syncStatus : null;
     };
 

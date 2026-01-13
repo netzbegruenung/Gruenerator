@@ -17,10 +17,38 @@ const formatDate = (value: string | number | Date | null | undefined) => {
   }
 };
 
+interface TemplateContentData {
+  originalUrl?: string;
+  dimensions?: { width: number; height: number };
+  [key: string]: unknown;
+}
+
+interface TemplateMetadata {
+  dimensions?: { width: number; height: number };
+  author_name?: string;
+  contact_email?: string;
+  [key: string]: unknown;
+}
+
+interface Template {
+  content_data?: TemplateContentData;
+  metadata?: TemplateMetadata;
+  external_url?: string;
+  template_type?: string;
+  tags?: string[];
+  images?: Array<{ url: string; title?: string; display_order?: number }>;
+  thumbnail_url?: string;
+  title?: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
 interface TemplatePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  template: Record<string, unknown>;
+  template: Template;
   onTagClick?: (tag: string) => void;
 }
 

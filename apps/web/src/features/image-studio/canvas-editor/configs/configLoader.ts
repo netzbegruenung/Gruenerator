@@ -11,7 +11,7 @@
  * Now, configs are loaded dynamically based on the canvas type being used.
  */
 
-import type { CanvasConfig } from './types';
+import type { FullCanvasConfig } from './types';
 
 type CanvasConfigType =
   | 'zitat-pure'
@@ -21,12 +21,16 @@ type CanvasConfigType =
   | 'dreizeilen'
   | 'zitat';
 
+// Use a flexible type that accepts any state/action types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyCanvasConfig = FullCanvasConfig<any, any>;
+
 /**
  * Load a canvas configuration dynamically based on type
  * @param type - The canvas type to load
  * @returns Promise resolving to the canvas configuration
  */
-export async function loadCanvasConfig(type: CanvasConfigType): Promise<CanvasConfig> {
+export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanvasConfig> {
   switch (type) {
     case 'zitat-pure':
       return (await import('./zitat_pure_full.config')).zitatPureFullConfig;

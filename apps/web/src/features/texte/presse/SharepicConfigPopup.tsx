@@ -7,7 +7,34 @@ import { HiX } from 'react-icons/hi';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
 import SmartInput from '../../../components/common/Form/SmartInput';
 import FileUpload from '../../../components/common/FileUpload';
+import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import './SharepicConfigPopup.css';
+
+interface SharepicTypeOption {
+  value: string;
+  label: string;
+}
+
+interface SharepicFormValues {
+  sharepicType?: string;
+  zitatAuthor?: string;
+  uploadedImage?: string | null;
+  [key: string]: unknown;
+}
+
+interface SharepicConfigPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  control: Control<SharepicFormValues>;
+  setValue: UseFormSetValue<SharepicFormValues>;
+  getValues: UseFormGetValues<SharepicFormValues>;
+  sharepicTypeOptions: SharepicTypeOption[];
+  watchSharepicType?: string;
+  uploadedImage?: string | null;
+  handleImageChange: (image: string | null) => void;
+  loading?: boolean;
+  success?: boolean;
+}
 
 const SharepicConfigPopup = ({
   isOpen,
@@ -21,7 +48,7 @@ const SharepicConfigPopup = ({
   handleImageChange,
   loading,
   success
-}) => {
+}: SharepicConfigPopupProps) => {
   if (!isOpen) return null;
 
   const showAuthorField = watchSharepicType === 'quote' || watchSharepicType === 'quote_pure';

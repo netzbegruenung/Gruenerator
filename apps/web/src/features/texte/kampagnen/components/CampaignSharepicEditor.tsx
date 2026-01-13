@@ -2,6 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { FormInput } from '../../../../components/common/Form/Input';
 import './campaign-sharepic-editor.css';
 
+interface SharepicData {
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  line4?: string;
+  line5?: string;
+  customCredit?: string;
+  creditText?: string;
+}
+
+interface EditedLines {
+  line1: string;
+  line2: string;
+  line3: string;
+  line4: string;
+  line5: string;
+  customCredit: string;
+}
+
+interface CampaignSharepicEditorProps {
+  sharepics: SharepicData[];
+  activeIndex: number;
+  onEditedLinesChange?: (lines: EditedLines) => void;
+  regenerationError?: string | null;
+  onClearError?: () => void;
+}
+
 /**
  * Editor component for campaign sharepic text
  * Allows editing line1-5 and regenerating the sharepic with new text
@@ -12,7 +39,7 @@ const CampaignSharepicEditor = ({
   onEditedLinesChange,
   regenerationError,
   onClearError
-}) => {
+}: CampaignSharepicEditorProps) => {
   // Extract text from active sharepic
   const activeSharepic = sharepics[activeIndex];
 
@@ -51,7 +78,7 @@ const CampaignSharepicEditor = ({
     }
   }, [activeIndex, activeSharepic, onClearError]);
 
-  const handleLineChange = (lineNumber, value) => {
+  const handleLineChange = (lineNumber: number, value: string) => {
     const newLines = {
       ...editedLines,
       [`line${lineNumber}`]: value
@@ -64,7 +91,7 @@ const CampaignSharepicEditor = ({
     }
   };
 
-  const handleCustomCreditChange = (value) => {
+  const handleCustomCreditChange = (value: string) => {
     const newLines = {
       ...editedLines,
       customCredit: value

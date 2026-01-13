@@ -313,12 +313,12 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
       const result = await submitHandler.submitStandard(combinedFormData);
 
       if (result && (result.sharepic || result.social)) {
-        const hasTextContent = combinedFormData.platforms.some(p => p !== 'sharepic') && result.social?.content;
+        const hasTextContent = combinedFormData.platforms.some((p: string) => p !== 'sharepic') && result.social?.content;
         const finalContent: GeneratedContentResult = {
           ...result,
           content: hasTextContent ? result.social!.content : '',
           metadata: result.social?.metadata || {},
-          selectedPlatforms: combinedFormData.platforms.filter(p => p !== 'sharepic'),
+          selectedPlatforms: combinedFormData.platforms.filter((p: string) => p !== 'sharepic'),
           onEditSharepic: async () => {}
         };
 
