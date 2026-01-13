@@ -149,3 +149,47 @@
   font-size: 0.9em;
   color: var(--font-color-secondary);
 }
+
+/* Tables - Essential for structured data in markdown */
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-medium);
+  font-size: 0.95em;
+}
+
+.markdown-content thead {
+  background-color: var(--tanne);
+  color: white;
+}
+
+.markdown-content th {
+  padding: var(--spacing-small) var(--spacing-medium);
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+}
+
+.markdown-content td {
+  padding: var(--spacing-small) var(--spacing-medium);
+  border: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+.markdown-content tbody tr:nth-child(even) {
+  background-color: var(--background-color-alt);
+}
+
+.markdown-content tbody tr:hover {
+  background-color: var(--background-color-hover, rgba(0, 0, 0, 0.05));
+}
+
+/* Responsive table wrapper for overflow */
+.markdown-content .table-wrapper {
+  overflow-x: auto;
+  margin-bottom: var(--spacing-medium);
+}
+
+.markdown-content .table-wrapper table {
+  margin-bottom: 0;
+}
