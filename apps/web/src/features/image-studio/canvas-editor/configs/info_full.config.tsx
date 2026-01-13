@@ -12,7 +12,9 @@ import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
 import type { BackgroundColorOption } from '../sidebar/types';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
-import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import { createIllustration } from '../utils/illustrations/registry';
+import { injectFeatureProps } from './featureInjector';
 
 // ============================================================================
 // CONSTANTS
@@ -143,7 +145,7 @@ const calculateLayout = (state: InfoFullState): LayoutResult => {
         _meta: {
             fontColor,
             bgImage,
-        } as any,
+        } as Record<string, unknown>,
     };
 };
 
@@ -216,26 +218,9 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
                 })),
                 onAssetToggle: actions.handleAssetToggle,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['info'],
-                balkenInstances: state.balkenInstances,
-                selectedBalkenId: context?.selectedElement,
-                onAddBalken: actions.addBalken,
-                onUpdateBalken: actions.updateBalken,
-                onRemoveBalken: actions.removeBalken,
-                // Icons
-                selectedIcons: state.selectedIcons,
-                onIconToggle: actions.toggleIcon,
-                // Shapes
-                shapeInstances: state.shapeInstances,
-                selectedShapeId: context?.selectedElement,
-                onAddShape: actions.addShape,
-                onUpdateShape: actions.updateShape,
-                onRemoveShape: actions.removeShape,
-                // Illustrations
-                illustrationInstances: state.illustrationInstances,
-                selectedIllustrationId: context?.selectedElement,
-                onAddIllustration: actions.addIllustration,
-                onUpdateIllustration: actions.updateIllustration,
-                onRemoveIllustration: actions.removeIllustration,
+
+                // Auto-inject all feature props (icons, shapes, illustrations, balken)
+                ...injectFeatureProps(state, actions, context),
             }),
         },
         alternatives: {
@@ -260,24 +245,24 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
             height: INFO_CONFIG.sunflower.size,
             src: INFO_CONFIG.sunflower.src,
             draggable: true,
-            opacity: (state: any) => state.sunflowerOpacity ?? 0.04,
+            opacity: (state: InfoFullState) => state.sunflowerOpacity ?? 0.04,
             opacityStateKey: 'sunflowerOpacity',
-            fill: (state: any) => state.sunflowerColor ?? '#FFFFFF',
+            fill: (state: InfoFullState) => state.sunflowerColor ?? '#FFFFFF',
             fillStateKey: 'sunflowerColor',
         },
         // Header text
         {
             id: 'header-text',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['header-text']?.x ?? INFO_CONFIG.header.x,
-            y: (s: any, l: LayoutResult) => l['header-text']?.y ?? INFO_CONFIG.margin.headerStartY,
+            x: (s: InfoFullState, l: LayoutResult) => l['header-text']?.x ?? INFO_CONFIG.header.x,
+            y: (s: InfoFullState, l: LayoutResult) => l['header-text']?.y ?? INFO_CONFIG.margin.headerStartY,
             order: 2,
             textKey: 'header',
             width: INFO_CONFIG.header.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['header-text']?.fontSize ?? INFO_CONFIG.header.fontSize,
+            fontSize: (s: InfoFullState, l: LayoutResult) => l['header-text']?.fontSize ?? INFO_CONFIG.header.fontSize,
             fontFamily: `${INFO_CONFIG.header.fontFamily}, Arial, sans-serif`,
             fontStyle: INFO_CONFIG.header.fontStyle,
-            fill: (state: any, layout: any) => state.headerColor ?? layout._meta.fontColor,
+            fill: (state: InfoFullState, layout: LayoutResult) => state.headerColor ?? (layout._meta as Record<string, unknown>)?.fontColor,
             fillStateKey: 'headerColor',
             align: 'left',
             lineHeight: INFO_CONFIG.header.lineHeightRatio,
@@ -285,37 +270,37 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customHeaderFontSize',
-            opacity: (state: any) => state.headerOpacity ?? 1,
+            opacity: (state: InfoFullState) => state.headerOpacity ?? 1,
             opacityStateKey: 'headerOpacity',
         },
         // Arrow
         {
             id: 'arrow',
             type: 'image',
-            x: (s: any, l: LayoutResult) => l['arrow']?.x ?? INFO_CONFIG.arrow.x,
-            y: (s: any, l: LayoutResult) => l['arrow']?.y ?? 400,
+            x: (s: InfoFullState, l: LayoutResult) => l['arrow']?.x ?? INFO_CONFIG.arrow.x,
+            y: (s: InfoFullState, l: LayoutResult) => l['arrow']?.y ?? 400,
             order: 3,
             width: INFO_CONFIG.arrow.size,
             height: INFO_CONFIG.arrow.size,
             src: INFO_CONFIG.arrow.src,
             draggable: true,
-            opacity: (state: any) => state.arrowOpacity ?? 1,
+            opacity: (state: InfoFullState) => state.arrowOpacity ?? 1,
             opacityStateKey: 'arrowOpacity',
-            fill: (state: any) => state.arrowColor ?? '#FFFFFF',
+            fill: (state: InfoFullState) => state.arrowColor ?? '#FFFFFF',
             fillStateKey: 'arrowColor',
         },
         // Body text
         {
             id: 'body-text',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['body-text']?.x ?? INFO_CONFIG.body.leftMargin,
-            y: (s: any, l: LayoutResult) => l['body-text']?.y ?? 400,
+            x: (s: InfoFullState, l: LayoutResult) => l['body-text']?.x ?? INFO_CONFIG.body.leftMargin,
+            y: (s: InfoFullState, l: LayoutResult) => l['body-text']?.y ?? 400,
             order: 4,
             textKey: 'body',
             width: INFO_CONFIG.body.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['body-text']?.fontSize ?? INFO_CONFIG.body.fontSize,
+            fontSize: (s: InfoFullState, l: LayoutResult) => l['body-text']?.fontSize ?? INFO_CONFIG.body.fontSize,
             fontFamily: `${INFO_CONFIG.body.remainingFont}, Arial, sans-serif`,
-            fill: (state: any, layout: any) => state.bodyColor ?? layout._meta.fontColor,
+            fill: (state: InfoFullState, layout: LayoutResult) => state.bodyColor ?? (layout._meta as Record<string, unknown>)?.fontColor,
             fillStateKey: 'bodyColor',
             align: 'left',
             lineHeight: INFO_CONFIG.body.lineHeightRatio,
@@ -323,7 +308,7 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customBodyFontSize',
-            opacity: (state: any) => state.bodyOpacity ?? 1,
+            opacity: (state: InfoFullState) => state.bodyOpacity ?? 1,
             opacityStateKey: 'bodyOpacity',
         },
     ],
@@ -344,7 +329,7 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
         bodyOpacity: 1,
         assetVisibility: {},
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        alternatives: (props.alternatives as any[] | undefined)?.map((a: any) => a.header || '') ?? [],
+        alternatives: (props.alternatives as Array<Record<string, unknown>> | undefined)?.map((a: Record<string, unknown>) => String(a.header) || '') ?? [],
         // Balken initial state
         balkenInstances: [],
         selectedIcons: [],
@@ -504,8 +489,8 @@ export const infoFullConfig: FullCanvasConfig<InfoFullState, InfoFullActions> = 
         },
 
         // Illustration actions
-        addIllustration: (id: string) => {
-            const newIllustration = createIllustration(
+        addIllustration: async (id: string) => {
+            const newIllustration = await createIllustration(
                 id,
                 INFO_CONFIG.canvas.width,
                 INFO_CONFIG.canvas.height

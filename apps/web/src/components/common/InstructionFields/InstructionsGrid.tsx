@@ -15,8 +15,8 @@ interface InstructionField {
 }
 
 interface InstructionsGridProps {
-  control: Control<any>;
-  data?: Record<string, any>;
+  control: Control<Record<string, unknown>>;
+  data?: Record<string, unknown>;
   isReadOnly?: boolean;
   labelPrefix?: string;
   maxLength?: number;
@@ -86,7 +86,7 @@ const InstructionsGrid = ({
   onAddField,
   onRemoveField
 }: InstructionsGridProps) => {
-  const { Textarea } = useFormFields() as { Textarea: React.FC<any> };
+  const { Textarea } = useFormFields() as { Textarea: React.FC<Record<string, unknown>> };
   const [showDropdown, setShowDropdown] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);

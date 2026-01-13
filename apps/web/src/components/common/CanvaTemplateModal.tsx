@@ -31,12 +31,12 @@ const CanvaTemplateModal = ({ url,
   const formatLinesForCopy = (lines: CanvaTemplateModalProps['sharepicLines']) => {
     if (!lines) return '';
     return [1, 2, 3, 4, 5]
-      .map(n => (lines as any)[`line${n}`])
+      .map(n => (lines as Record<string, string | undefined>)[`line${n}`])
       .filter(Boolean)
       .join('\n');
   };
 
-  const hasLines = sharepicLines && [1, 2, 3, 4, 5].some(n => (sharepicLines as any)[`line${n}`]);
+  const hasLines = sharepicLines && [1, 2, 3, 4, 5].some(n => (sharepicLines as Record<string, string | undefined>)[`line${n}`]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

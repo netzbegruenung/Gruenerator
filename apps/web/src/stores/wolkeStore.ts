@@ -3,13 +3,21 @@ import { immer } from 'zustand/middleware/immer';
 import apiClient from '../components/utils/apiClient';
 import { NextcloudShareManager } from '../utils/nextcloudShareManager';
 
+interface WolkeFileItem {
+  path: string;
+  name: string;
+  size?: number;
+  mimeType?: string;
+  lastModified?: string;
+  isDirectory?: boolean;
+}
+
 interface ShareLink {
   id: string;
   share_link?: string;
   label?: string;
   folder_name?: string;
   created_at?: string;
-  [key: string]: any;
 }
 
 interface SyncStatus {
@@ -22,11 +30,10 @@ interface SyncStatus {
   files_failed: number;
   created_at?: string;
   updated_at?: string;
-  [key: string]: any;
 }
 
 interface FileCache {
-  files: any[];
+  files: WolkeFileItem[];
   timestamp: number;
   loading: boolean;
 }
@@ -49,10 +56,20 @@ interface SyncStats {
 }
 
 interface CachedFilesResult {
-  files: any[];
+  files: WolkeFileItem[];
   loading: boolean;
   isCached: boolean;
   timestamp: number;
+}
+
+interface WolkeTestResult {
+  success: boolean;
+  message?: string;
+}
+
+interface WolkeSyncResult {
+  success: boolean;
+  message?: string;
 }
 
 interface WolkeStore {
@@ -65,7 +82,7 @@ interface WolkeStore {
   error: string | null;
   successMessage: string;
   filesCache: Map<string, FileCache>;
-  preloadPromises: Map<string, Promise<any[]>>;
+  preloadPromises: Map<string, Promise<WolkeFileItem[]>>;
   permissions: WolkePermissions;
   initialized: boolean;
   lastFetchTimestamp: number;
@@ -83,17 +100,17 @@ interface WolkeStore {
   fetchShareLinks: () => Promise<void>;
   addShareLink: (shareLink: string, label?: string) => Promise<ShareLink>;
   deleteShareLink: (shareLinkId: string) => Promise<void>;
-  testConnection: (shareLink: string) => Promise<any>;
-  uploadTest: (shareLinkId: string, content: string, filename: string) => Promise<any>;
+  testConnection: (shareLink: string) => Promise<WolkeTestResult>;
+  uploadTest: (shareLinkId: string, content: string, filename: string) => Promise<WolkeTestResult>;
   fetchSyncStatuses: (forceRefresh?: boolean) => Promise<SyncStatus[]>;
   ensureSyncStatuses: () => Promise<SyncStatus[]>;
-  syncFolder: (shareLinkId: string, folderPath?: string) => Promise<any>;
-  setAutoSync: (shareLinkId: string, folderPath: string | undefined, enabled: boolean) => Promise<any>;
+  syncFolder: (shareLinkId: string, folderPath?: string) => Promise<WolkeSyncResult>;
+  setAutoSync: (shareLinkId: string, folderPath: string | undefined, enabled: boolean) => Promise<WolkeSyncResult>;
   isSyncingFolder: (shareLinkId: string) => boolean;
   getSyncStatus: (shareLinkId: string, folderPath?: string) => SyncStatus | undefined;
   getSyncStats: () => SyncStats;
   preloadShareLinks: () => Promise<ShareLink[]>;
-  preloadFiles: (shareLinkId: string) => Promise<any[]>;
+  preloadFiles: (shareLinkId: string) => Promise<WolkeFileItem[]>;
   progressivePreload: () => Promise<void>;
   getCachedFiles: (shareLinkId: string) => CachedFilesResult;
   areFilesCached: (shareLinkId: string, maxAge?: number) => boolean;
@@ -112,7 +129,7 @@ export const useWolkeStore = create<WolkeStore>()(
     error: null,
     successMessage: '',
     filesCache: new Map<string, FileCache>(),
-    preloadPromises: new Map<string, Promise<any[]>>(),
+    preloadPromises: new Map<string, Promise<WolkeFileItem[]>>(),
     permissions: {
       canAddLinks: true,
       canDeleteLinks: true,
@@ -236,9 +253,10 @@ export const useWolkeStore = create<WolkeStore>()(
           });
         }
 
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         set(state => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isLoading = false;
           state.shareLinks = [];
           state.initialized = true;
@@ -408,9 +426,10 @@ export const useWolkeStore = create<WolkeStore>()(
 
           return syncStatuses;
 
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           set(state => {
-            state.error = error.message;
+            state.error = errorMessage;
             state.isLoading = false;
             state.fetchPromise = null;
             if (!state.initialized) {
@@ -599,8 +618,8 @@ export const useWolkeStore = create<WolkeStore>()(
           }
         };
 
-        if (typeof window !== 'undefined' && (window as any).requestIdleCallback) {
-          (window as any).requestIdleCallback(doPreload, { timeout: 2000 });
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          window.requestIdleCallback(doPreload, { timeout: 2000 });
         } else {
           setTimeout(doPreload, 100);
         }
@@ -680,8 +699,8 @@ export const useWolkeStore = create<WolkeStore>()(
         if (shareLinks.length > 0) {
           const primaryShareLink = shareLinks[0];
 
-          if (typeof window !== 'undefined' && (window as any).requestIdleCallback) {
-            (window as any).requestIdleCallback(() => {
+          if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+            window.requestIdleCallback(() => {
               get().preloadFiles(primaryShareLink.id);
             }, { timeout: 5000 });
           } else {
@@ -735,4 +754,4 @@ export const useWolkeStore = create<WolkeStore>()(
 );
 
 export default useWolkeStore;
-export type { ShareLink, SyncStatus, FileCache, WolkePermissions, SyncStats, CachedFilesResult, WolkeStore };
+export type { ShareLink, SyncStatus, FileCache, WolkePermissions, SyncStats, CachedFilesResult, WolkeStore, WolkeFileItem, WolkeTestResult, WolkeSyncResult };

@@ -171,15 +171,15 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
   // Create baseForm with knowledge system enabled for document/text fetching
   const form = useBaseForm({
     defaultValues: {} as Record<string, unknown>,
-    generatorType: 'universal-text' as string,
-    componentName: componentName as string,
-    endpoint: '/placeholder' as string,
+    generatorType: 'universal-text',
+    componentName: componentName,
+    endpoint: '/placeholder',
     disableKnowledgeSystem: false,
-    features: ['webSearch', 'privacyMode', 'proMode'] as string[],
-    tabIndexKey: 'UNIVERSAL' as string,
-    defaultMode: 'privacy' as string,
+    features: ['webSearch', 'privacyMode', 'proMode'] as const,
+    tabIndexKey: 'UNIVERSAL',
+    defaultMode: 'privacy',
     helpContent: helpContent
-  } as any);
+  });
 
   // Memoize attachments array
   const allAttachments = useMemo(() =>
@@ -191,7 +191,7 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
   const builder = useFormDataBuilder({
     ...setup,
     attachments: allAttachments,
-    searchQueryFields: [] as const // Universal form has dynamic fields per type
+    searchQueryFields: [] as const
   });
 
   // Custom submission handler for dynamic form types
@@ -259,13 +259,13 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
     const tabIndexValue = form.generator?.tabIndex;
     switch (selectedType) {
       case TEXT_TYPES.REDE:
-        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
+        return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.WAHLPROGRAMM:
-        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
+        return <WahlprogrammForm key={`wahlprogramm-${selectedType}`} ref={wahlprogrammFormRef} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.BUERGERANFRAGEN:
-        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
+        return <BuergeranfragenForm key={`buergeranfragen-${selectedType}`} ref={buergeranfragenFormRef} tabIndex={tabIndexValue} />;
       case TEXT_TYPES.UNIVERSAL:
-        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef as React.Ref<any>} tabIndex={tabIndexValue} />;
+        return <UniversalForm key={`universal-${selectedType}`} ref={universalFormRef} tabIndex={tabIndexValue} />;
       default:
         return null;
     }
@@ -299,7 +299,7 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
         {form.generator && (
           <BaseForm
             key={selectedType}
-            {...(form.generator.baseFormProps as unknown as BaseFormProps)}
+            {...form.generator.baseFormProps}
             enableEditMode={true}
             title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType as keyof typeof TEXT_TYPE_TITLES]}</span>}
             onSubmit={handleSubmit}

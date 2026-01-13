@@ -31,6 +31,12 @@ export interface StepFlowProps {
 // So I MUST export it here.
 export type AnimationDirection = number;
 
+interface InputStep {
+  id: string;
+  type: 'input';
+  field?: { name: string };
+}
+
 export const slideVariants = {
   enter: (direction: AnimationDirection) => ({
     y: direction > 0 ? 40 : -40,
@@ -154,8 +160,8 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
           {currentStep.type === 'input' && (
             <InputStep
               key={currentStep.id}
-              field={(currentStep as any).field}
-              value={getFieldValue((currentStep as any).field?.name)}
+              field={(currentStep as InputStep).field}
+              value={getFieldValue((currentStep as InputStep).field?.name)}
               onChange={handleChange}
               onNext={handleNext}
               onBack={handleBack}

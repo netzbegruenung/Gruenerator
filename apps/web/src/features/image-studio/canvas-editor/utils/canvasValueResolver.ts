@@ -7,13 +7,13 @@ import type { LayoutResult } from '../configs/types';
  * (e.g., x: (state, layout) => layout.centerX).
  * This utility resolves both cases uniformly.
  */
-export function resolveValue<T>(
-    value: T | ((state: any, layout: LayoutResult) => T),
-    state: any,
+export function resolveValue<T, TState extends Record<string, unknown>>(
+    value: T | ((state: TState, layout: LayoutResult) => T),
+    state: TState,
     layout: LayoutResult
 ): T {
     if (typeof value === 'function') {
-        return (value as (state: any, layout: LayoutResult) => T)(state, layout);
+        return (value as (state: TState, layout: LayoutResult) => T)(state, layout);
     }
     return value;
 }

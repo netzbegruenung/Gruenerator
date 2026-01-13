@@ -9,7 +9,7 @@ import '../../assets/styles/common/markdown-styles.css';
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
 interface DocumentPreviewModalProps {
-  item: any;
+  item: Record<string, unknown> | null;
   itemType?: 'document' | 'notebook';
   documentTypes?: Record<string, string>;
   onClose: () => void;

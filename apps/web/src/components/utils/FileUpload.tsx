@@ -37,7 +37,7 @@ const FileUpload = ({ loading, file, handleChange, error, allowedTypes, selected
       const selectedFile = event?.target?.files?.[0];
       if (selectedFile) {
         console.log('FileUpload - Selected file:', selectedFile);
-        handleChange(selectedFile);
+        handleChange?.(selectedFile);
       } else {
         console.log('FileUpload - Keine Datei ausgewählt');
       }

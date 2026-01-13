@@ -190,7 +190,7 @@ export function useFormDataBuilder(
 
       // Build submission data with all required fields
       // Type intersection preserves original formData type T
-      return {
+      const result = {
         ...formData,
         ...config.features,
         customPrompt: config.customPrompt,
@@ -205,6 +205,17 @@ export function useFormDataBuilder(
         attachments: unknown[];
         searchQuery: string;
       } & FeatureState;
+
+      // Debug: Log submission data to verify features are included
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[useFormDataBuilder] Building submission data:', {
+          useProMode: result.useProMode,
+          usePrivacyMode: result.usePrivacyMode,
+          configFeatures: config.features,
+        });
+      }
+
+      return result;
     },
     [
       config.features,

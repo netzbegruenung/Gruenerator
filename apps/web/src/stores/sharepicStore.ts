@@ -14,7 +14,6 @@ type ColorScheme = { background: string }[] | {
   secondary?: string;
   background?: string;
   text?: string;
-  [key: string]: string | undefined;
 };
 
 // Slogan structure
@@ -27,12 +26,31 @@ interface Slogan {
   quote?: string;
 }
 
+// Unsplash image interface
+interface UnsplashImage {
+  id: string;
+  urls?: {
+    thumb?: string;
+    small?: string;
+    regular?: string;
+    full?: string;
+  };
+  alt_description?: string;
+}
+
 // Sharepic data for editing
 interface SharepicData {
   type?: string;
   text?: string;
   image?: string | null;
-  [key: string]: any;
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  quote?: string;
+  name?: string;
+  header?: string;
+  subheader?: string;
+  body?: string;
 }
 
 // State interface
@@ -79,7 +97,7 @@ interface SharepicState {
   file: File | null;
   selectedImage: string | null;
   generatedImageSrc: string | null;
-  unsplashImages: any[];
+  unsplashImages: UnsplashImage[];
   altText: string;
   isAltTextLoading: boolean;
   altTextError: string | null;
@@ -99,7 +117,7 @@ interface SharepicActions {
   setUploadedImage: (image: string | null) => void;
   setSelectedImage: (image: string | null) => void;
   setGeneratedImage: (src: string | null) => void;
-  setUnsplashImages: (images: any[]) => void;
+  setUnsplashImages: (images: UnsplashImage[]) => void;
   setSearchBarActive: (isActive: boolean) => void;
   setAdvancedEditing: (isOpen: boolean) => void;
   toggleAdvancedEditing: () => void;
@@ -414,5 +432,5 @@ const useSharepicStore = create<SharepicStore>((set, get) => ({
   ERROR_MESSAGES,
 }));
 
-
 export default useSharepicStore;
+export type { Slogan, SharepicData, UnsplashImage };

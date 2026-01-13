@@ -34,13 +34,13 @@ const useResponsive = (mobileBreakpoint = 768) => {
      * Berechnet den Anzeigetitel basierend auf dem Gerätezustand
      * @param {string} title - Standardtitel
      * @param {boolean} isEditing - Bearbeitungsmodus aktiv
-     * @param {any} generatedContent - Generierter Inhalt
+     * @param {unknown} generatedContent - Generierter Inhalt
      * @returns {string} Anzeigetitel
      */
-    const getDisplayTitle = useCallback((title: string, isEditing: boolean, generatedContent: any) => {
+    const getDisplayTitle = useCallback((title: string, isEditing: boolean, generatedContent: unknown) => {
         if (isMobileView && isEditing) return "Grünerator Editor";
         if (!generatedContent) return title;
-        const helpDisplay = generatedContent?.props?.['data-display-title'];
+        const helpDisplay = (generatedContent as { props?: Record<string, unknown> })?.props?.['data-display-title'];
         return helpDisplay || title;
     }, [isMobileView]);
 

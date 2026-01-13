@@ -1,4 +1,4 @@
-import { useState, useMemo, useDeferredValue, useCallback } from 'react';
+import { useState, useMemo, useDeferredValue, useCallback, useEffect } from 'react';
 import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
 import { PiMagnifyingGlass, PiSmileyWink } from 'react-icons/pi';
@@ -12,7 +12,9 @@ import type { BalkenInstance, BalkenMode } from '../../primitives';
 import { ShapeInstance, ShapeType, ALL_SHAPES, ShapeDef } from '../../utils/shapes';
 import { ALL_ASSETS, UniversalAsset } from '../../utils/canvasAssets';
 import { ALL_ICONS, IconDef } from '../../utils/canvasIcons';
-import { IllustrationInstance, ALL_ILLUSTRATIONS, searchIllustrations, getIllustrationPath, IllustrationDef, KawaiiIllustrationType, KawaiiDef } from '../../utils/canvasIllustrations';
+import type { IllustrationInstance, IllustrationDef, KawaiiIllustrationType, KawaiiDef, SvgDef } from '../../utils/illustrations/types';
+import { searchIllustrations, getIllustrationPath, getAllIllustrations } from '../../utils/illustrations/registry';
+import { prefetchBackground } from '../../utils/illustrations/svgCache';
 import {
   Planet,
   Cat,
@@ -49,7 +51,7 @@ interface SearchResult {
 }
 
 // Map for preview components
-const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<any>> = {
+const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<{ size: number; mood: string; color: string }>> = {
   planet: Planet,
   cat: Cat,
   ghost: Ghost,
@@ -236,7 +238,7 @@ function SearchResultsGrid({
               >
                 <div className="sidebar-selectable-card__preview illustration-preview illustration-preview--svg">
                   <img
-                    src={getIllustrationPath(ill as any)}
+                    src={getIllustrationPath(ill as SvgDef)}
                     alt={ill.name}
                     loading="lazy"
                   />
@@ -352,11 +354,48 @@ export function AssetsSection({
   const [formenExpanded, setFormenExpanded] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
   const [illustrationenExpanded, setIllustrationenExpanded] = useState(false);
+  const [illustrations, setIllustrations] = useState<IllustrationDef[]>([]);
+  const [illustrationsLoading, setIllustrationsLoading] = useState(false);
 
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   const hasBalkenFeature = onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
   const hasIllustrationsFeature = onAddIllustration !== undefined;
+
+  useEffect(() => {
+    if (hasIllustrationsFeature && illustrations.length === 0 && !illustrationsLoading) {
+      setIllustrationsLoading(true);
+      getAllIllustrations()
+        .then(setIllustrations)
+        .catch((error) => {
+          console.error('[AssetsSection] Failed to load illustrations:', error);
+        })
+        .finally(() => setIllustrationsLoading(false));
+    }
+  }, [hasIllustrationsFeature, illustrations.length, illustrationsLoading]);
+
+  // Background prefetch all SVG illustrations during idle time
+  useEffect(() => {
+    if (illustrations.length > 0 && hasIllustrationsFeature) {
+      // Filter to SVG illustrations only (Kawaii are rendered dynamically)
+      const svgIllustrations = illustrations
+        .filter(ill => ill.source !== 'kawaii')
+        .map(ill => ({
+          id: ill.id,
+          def: ill as SvgDef
+        }));
+
+      if (svgIllustrations.length === 0) return;
+
+      // Use requestIdleCallback for non-blocking background prefetch
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => prefetchBackground(svgIllustrations), { timeout: 5000 });
+      } else {
+        // Fallback for Safari
+        setTimeout(() => prefetchBackground(svgIllustrations), 1000);
+      }
+    }
+  }, [illustrations, hasIllustrationsFeature]);
 
   // Build search results
   const searchResults = useMemo(() => {
@@ -426,8 +465,12 @@ export function AssetsSection({
     }
 
     // Search illustrations
-    if (hasIllustrationsFeature) {
-      const matchingIllustrations = searchIllustrations(query);
+    if (hasIllustrationsFeature && illustrations.length > 0) {
+      const matchingIllustrations = illustrations.filter(ill =>
+        ill.name.toLowerCase().includes(query) ||
+        ill.tags.some(tag => tag.toLowerCase().includes(query)) ||
+        (ill.source !== 'kawaii' && (ill as unknown as { category?: string }).category?.toLowerCase().includes(query))
+      );
       matchingIllustrations.forEach(ill => {
         results.push({
           type: 'illustration',
@@ -439,7 +482,7 @@ export function AssetsSection({
     }
 
     return results;
-  }, [deferredQuery, assets, hasShapesFeature, hasIconsFeature, hasIllustrationsFeature]);
+  }, [deferredQuery, assets, hasShapesFeature, hasIconsFeature, hasIllustrationsFeature, illustrations]);
 
   // Build subsections
   const subsections: Subsection[] = [
@@ -546,7 +589,7 @@ export function AssetsSection({
 
   if (hasIllustrationsFeature) {
     const selectedIllustration = illustrationInstances?.find(i => i.id === selectedIllustrationId) || null;
-    const hasMoreIllustrations = ALL_ILLUSTRATIONS.length > 4;
+    const hasMoreIllustrations = illustrations.length > 4;
     subsections.push({
       id: 'illustrationen',
       icon: PiSmileyWink,
@@ -572,6 +615,7 @@ export function AssetsSection({
             onRemoveIllustration={onRemoveIllustration ?? (() => { })}
             onDuplicateIllustration={onDuplicateIllustration}
             isExpanded={illustrationenExpanded}
+            illustrations={illustrations}
           />
         </>
       ),

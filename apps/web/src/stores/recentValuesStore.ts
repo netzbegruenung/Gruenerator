@@ -41,7 +41,7 @@ interface RecentValuesActions {
   getFieldState: (fieldType: string) => FieldState;
   setFieldState: (fieldType: string, updates: Partial<FieldState>) => void;
   fetchRecentValues: (fieldType: string, limit?: number | null) => Promise<string[]>;
-  saveRecentValue: (fieldType: string, value: string, formName?: string | null) => Promise<any>;
+  saveRecentValue: (fieldType: string, value: string, formName?: string | null) => Promise<unknown>;
   clearRecentValues: (fieldType: string) => Promise<number | undefined>;
   isCacheValid: (fieldType: string) => boolean;
   getRecentValuesWithFetch: (fieldType: string, limit?: number | null) => Promise<string[]>;
@@ -124,7 +124,7 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
         const response = await apiClient.get(`/recent-values/${fieldType}?limit=${actualLimit}`);
 
         if (response.data?.success && response.data?.data) {
-          const values = response.data.data.map((item: any) => item.field_value);
+          const values = response.data.data.map((item: { field_value: string }) => item.field_value);
 
           set(state => {
             state.recentValuesByField[fieldType].values = values;
@@ -141,11 +141,16 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
           });
           return [];
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error
+          ? (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
+            ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
+            : error.message
+          : 'Failed to fetch recent values';
         console.error(`[RecentValuesStore] Error fetching recent values for ${fieldType}:`, error);
 
         set(state => {
-          state.recentValuesByField[fieldType].error = error.response?.data?.error || 'Failed to fetch recent values';
+          state.recentValuesByField[fieldType].error = errorMessage;
           state.recentValuesByField[fieldType].isLoading = false;
         });
 

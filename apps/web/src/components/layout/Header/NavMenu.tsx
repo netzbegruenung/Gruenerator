@@ -12,7 +12,7 @@ import Icon from '../../common/Icon';
 import type { IconType } from 'react-icons';
 
 interface NavMenuItemProps {
-  icon?: IconType | ComponentType;
+  icon?: IconType | ComponentType | null;
   title: string;
   description?: string;
   path: string;

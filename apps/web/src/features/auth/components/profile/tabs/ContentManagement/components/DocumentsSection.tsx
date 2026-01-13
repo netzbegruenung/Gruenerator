@@ -41,6 +41,11 @@ interface DocumentsSectionProps {
     onShareToGroup?: (contentType: string, contentId: string, contentTitle: string) => void;
 }
 
+interface BulkDeleteResult {
+    message?: string;
+    hasErrors?: boolean;
+}
+
 interface CombinedItem {
     id: string;
     title?: string;
@@ -269,9 +274,9 @@ const DocumentsSection = ({
         }
     };
 
-    const handleBulkDeleteDocuments = async (documentIds: string[]) => {
+    const handleBulkDeleteDocuments = async (documentIds: string[]): Promise<BulkDeleteResult> => {
         try {
-            const result = await documentAndTextUtils.bulkDeleteDocuments(documentIds);
+            const result = await documentAndTextUtils.bulkDeleteDocuments(documentIds) as BulkDeleteResult;
             fetchDocuments();
             if (result.message) {
                 if (result.hasErrors) {

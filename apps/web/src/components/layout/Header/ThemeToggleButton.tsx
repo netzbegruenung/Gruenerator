@@ -1,6 +1,11 @@
 import { PiSun, PiMoon } from 'react-icons/pi';
 
-const ThemeToggleButton = ({ darkMode, toggleDarkMode }) => {
+interface ThemeToggleButtonProps {
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+const ThemeToggleButton = ({ darkMode, toggleDarkMode }: ThemeToggleButtonProps) => {
   return (
     <button
       className={`theme-toggle-button ${darkMode ? 'dark' : 'light'}`}

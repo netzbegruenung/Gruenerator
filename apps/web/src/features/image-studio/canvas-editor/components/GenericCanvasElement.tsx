@@ -28,25 +28,25 @@ import type {
 // ============================================================================
 
 /** Resolve a position value (static or derived) */
-function resolveValue<T>(
-    value: T | ((state: any, layout: LayoutResult) => T),
-    state: any,
+function resolveValue<T, TState extends Record<string, unknown> = Record<string, unknown>>(
+    value: T | ((state: TState, layout: LayoutResult) => T),
+    state: TState,
     layout: LayoutResult
 ): T {
     if (typeof value === 'function') {
-        return (value as (state: any, layout: LayoutResult) => T)(state, layout);
+        return (value as (state: TState, layout: LayoutResult) => T)(state, layout);
     }
     return value;
 }
 
 /** Resolve a color value (static or derived) */
-function resolveColor(
-    value: string | ((state: any, layout: LayoutResult) => string) | undefined,
-    state: any,
+function resolveColor<TState extends Record<string, unknown> = Record<string, unknown>>(
+    value: string | ((state: TState, layout: LayoutResult) => string) | undefined,
+    state: TState,
     layout: LayoutResult
 ): string | undefined {
     if (typeof value === 'function') {
-        return (value as (state: any, layout: LayoutResult) => string)(state, layout);
+        return (value as (state: TState, layout: LayoutResult) => string)(state, layout);
     }
     return value;
 }
@@ -55,9 +55,9 @@ function resolveColor(
 // MEMOIZED TEXT ELEMENT
 // ============================================================================
 
-interface MemoizedTextProps {
-    config: TextElementConfig;
-    state: any;
+interface MemoizedTextProps<TState extends Record<string, unknown> = Record<string, unknown>> {
+    config: TextElementConfig<TState>;
+    state: TState;
     layout: LayoutResult;
     selected: boolean;
     onSelect: (id: string) => void;
@@ -65,13 +65,19 @@ interface MemoizedTextProps {
     onFontSizeChange: (id: string, size: number) => void;
     onPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
-    onSnapLinesChange: (lines: any[]) => void;
+    onSnapLinesChange: (lines: SnapLineConfig[]) => void;
     stageWidth: number;
     stageHeight: number;
-    snapTargets: any[];
+    snapTargets: string[];
 }
 
-const MemoizedTextElement = memo(function MemoizedTextElement({
+/** Snap line configuration for visual guides */
+interface SnapLineConfig {
+    type: 'vertical' | 'horizontal';
+    position: number;
+}
+
+const MemoizedTextElement = memo(function MemoizedTextElement<TState extends Record<string, unknown> = Record<string, unknown>>({
     config,
     state,
     layout,
@@ -85,7 +91,7 @@ const MemoizedTextElement = memo(function MemoizedTextElement({
     stageWidth,
     stageHeight,
     snapTargets,
-}: MemoizedTextProps) {
+}: MemoizedTextProps<TState>) {
     const text = state[config.textKey] ?? '';
     const customFontSize = config.fontSizeStateKey ? state[config.fontSizeStateKey] : null;
     const customWidth = config.widthStateKey ? state[config.widthStateKey] : null;
@@ -97,7 +103,8 @@ const MemoizedTextElement = memo(function MemoizedTextElement({
     const width = customWidth ?? resolveValue(config.width, state, layout);
     const fontSize = customFontSize ?? resolveValue(config.fontSize, state, layout);
     const customOpacity = config.opacityStateKey ? state[config.opacityStateKey] : null;
-    const opacity = customOpacity ?? resolveValue(config.opacity as any, state, layout) ?? 1;
+    // opacity is optional, default to 1 if not specified
+    const opacity = customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1) ?? 1;
     const fill = resolveColor(config.fill, state, layout);
 
     // Extract padding from config (support both absolute pixels and fontSize factor)
@@ -189,9 +196,9 @@ const MemoizedTextElement = memo(function MemoizedTextElement({
 // MEMOIZED IMAGE ELEMENT
 // ============================================================================
 
-interface MemoizedImageProps {
-    config: ImageElementConfig;
-    state: any;
+interface MemoizedImageProps<TState extends Record<string, unknown> = Record<string, unknown>> {
+    config: ImageElementConfig<TState>;
+    state: TState;
     layout: LayoutResult;
     selected: boolean;
     onSelect: (id: string) => void;
@@ -200,11 +207,11 @@ interface MemoizedImageProps {
     stageWidth: number;
     stageHeight: number;
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
-    onSnapLinesChange: (lines: any[]) => void;
-    snapTargets: any[];
+    onSnapLinesChange: (lines: SnapLineConfig[]) => void;
+    snapTargets: string[];
 }
 
-const MemoizedImageElement = memo(function MemoizedImageElement({
+const MemoizedImageElement = memo(function MemoizedImageElement<TState extends Record<string, unknown> = Record<string, unknown>>({
     config,
     state,
     layout,
@@ -217,7 +224,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement({
     onSnapChange,
     onSnapLinesChange,
     snapTargets,
-}: MemoizedImageProps) {
+}: MemoizedImageProps<TState>) {
     // Resolve image source
     let imageSrc: string | undefined;
     if (config.srcKey) {
@@ -229,10 +236,11 @@ const MemoizedImageElement = memo(function MemoizedImageElement({
     const [image] = useImage(imageSrc || '', 'anonymous');
 
     const offset = config.offsetKey ? state[config.offsetKey] : { x: 0, y: 0 };
-    const scale = config.scaleKey ? state[config.scaleKey] : 1;
-    const isLocked = config.lockedKey ? state[config.lockedKey] : false;
+    const scale = config.scaleKey ? (state[config.scaleKey] as number | undefined) ?? 1 : 1;
+    const isLocked = config.lockedKey ? (state[config.lockedKey] as boolean | undefined) ?? false : false;
     const customOpacity = config.opacityStateKey ? state[config.opacityStateKey] : null;
-    const opacity = customOpacity ?? resolveValue(config.opacity as any, state, layout) ?? 1;
+    // opacity is optional, default to 1 if not specified
+    const opacity = customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1) ?? 1;
     const customFill = config.fillStateKey ? state[config.fillStateKey] : null;
     const fill = customFill ?? resolveColor(config.fill, state, layout);
 
@@ -308,17 +316,17 @@ const MemoizedImageElement = memo(function MemoizedImageElement({
 // MEMOIZED RECT ELEMENT
 // ============================================================================
 
-interface MemoizedRectProps {
-    config: RectElementConfig;
-    state: any;
+interface MemoizedRectProps<TState extends Record<string, unknown> = Record<string, unknown>> {
+    config: RectElementConfig<TState>;
+    state: TState;
     layout: LayoutResult;
 }
 
-const MemoizedRectElement = memo(function MemoizedRectElement({
+const MemoizedRectElement = memo(function MemoizedRectElement<TState extends Record<string, unknown> = Record<string, unknown>>({
     config,
     state,
     layout,
-}: MemoizedRectProps) {
+}: MemoizedRectProps<TState>) {
     const x = resolveValue(config.x, state, layout);
     const y = resolveValue(config.y, state, layout);
     const width = resolveValue(config.width, state, layout);
@@ -341,17 +349,17 @@ const MemoizedRectElement = memo(function MemoizedRectElement({
 // MEMOIZED CIRCLE ELEMENT
 // ============================================================================
 
-interface MemoizedCircleProps {
-    config: CircleElementConfig;
-    state: any;
+interface MemoizedCircleProps<TState extends Record<string, unknown> = Record<string, unknown>> {
+    config: CircleElementConfig<TState>;
+    state: TState;
     layout: LayoutResult;
 }
 
-const MemoizedCircleElement = memo(function MemoizedCircleElement({
+const MemoizedCircleElement = memo(function MemoizedCircleElement<TState extends Record<string, unknown> = Record<string, unknown>>({
     config,
     state,
     layout,
-}: MemoizedCircleProps) {
+}: MemoizedCircleProps<TState>) {
     const x = resolveValue(config.x, state, layout);
     const y = resolveValue(config.y, state, layout);
     const radius = resolveValue(config.radius, state, layout);
@@ -372,16 +380,16 @@ const MemoizedCircleElement = memo(function MemoizedCircleElement({
 // MEMOIZED BACKGROUND ELEMENT
 // ============================================================================
 
-interface MemoizedBackgroundProps {
-    config: BackgroundElementConfig;
-    state: any;
+interface MemoizedBackgroundProps<TState extends Record<string, unknown> = Record<string, unknown>> {
+    config: BackgroundElementConfig<TState>;
+    state: TState;
 }
 
-const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement({
+const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<TState extends Record<string, unknown> = Record<string, unknown>>({
     config,
     state,
-}: MemoizedBackgroundProps) {
-    const color = config.colorKey ? state[config.colorKey] : config.color ?? '#ffffff';
+}: MemoizedBackgroundProps<TState>) {
+    const color = config.colorKey ? (state[config.colorKey] as string | undefined) ?? config.color ?? '#ffffff' : config.color ?? '#ffffff';
 
     return (
         <CanvasBackground
@@ -396,9 +404,9 @@ const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement({
 // MAIN ELEMENT RENDERER
 // ============================================================================
 
-export interface GenericCanvasElementProps {
-    config: CanvasElementConfig;
-    state: any;
+export interface GenericCanvasElementProps<TState extends Record<string, unknown> = Record<string, unknown>> {
+    config: CanvasElementConfig<TState>;
+    state: TState;
     layout: LayoutResult;
     selectedElement: string | null;
     onSelect: (id: string) => void;
@@ -408,13 +416,13 @@ export interface GenericCanvasElementProps {
     onImageDragEnd: (id: string, x: number, y: number) => void;
     onImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
-    onSnapLinesChange: (lines: any[]) => void;
+    onSnapLinesChange: (lines: SnapLineConfig[]) => void;
     stageWidth: number;
     stageHeight: number;
-    snapTargets: any[];
+    snapTargets: string[];
 }
 
-export const GenericCanvasElement = memo(function GenericCanvasElement({
+export const GenericCanvasElement = memo(function GenericCanvasElement<TState extends Record<string, unknown> = Record<string, unknown>>({
     config,
     state,
     layout,
@@ -430,7 +438,7 @@ export const GenericCanvasElement = memo(function GenericCanvasElement({
     stageWidth,
     stageHeight,
     snapTargets,
-}: GenericCanvasElementProps) {
+}: GenericCanvasElementProps<TState>) {
     // Check visibility
     if (config.visible && !config.visible(state)) {
         return null;
@@ -537,7 +545,9 @@ export const GenericCanvasElement = memo(function GenericCanvasElement({
             );
 
         default:
-            console.warn(`Unknown element type: ${(config as any).type}`);
+            // Exhaustive check - this should never happen with proper typing
+            const exhaustiveCheck: never = config;
+            console.warn(`Unknown element type: ${(exhaustiveCheck as unknown as CanvasElementConfig).type}`);
             return null;
     }
 });

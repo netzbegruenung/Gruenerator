@@ -18,7 +18,7 @@ export interface MenuItemType {
   path: string;
   title: string;
   description: string;
-  icon?: IconType | ComponentType;
+  icon?: IconType | ComponentType | null;
   hasSubmenu?: boolean;
   items?: MenuItemType[];
 }
@@ -91,14 +91,6 @@ export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult =
     title: 'Text Editor',
     description: 'Texte bearbeiten und verbessern',
     icon: getIcon('actions', 'edit')
-  });
-
-  toolsItems.push({
-    id: 'apps',
-    path: '/apps',
-    title: 'Apps',
-    description: 'Desktop-App herunterladen',
-    icon: getIcon('actions', 'download')
   });
 
   // Add website generator if beta feature is enabled
@@ -227,7 +219,7 @@ export interface MenuItemProps {
     path: string;
     title: string;
     description: string;
-    icon?: ComponentType
+    icon?: IconType | ComponentType | null;
   };
 }
 

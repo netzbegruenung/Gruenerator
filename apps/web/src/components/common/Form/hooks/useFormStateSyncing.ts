@@ -12,7 +12,7 @@ interface UseFormStateSyncingParams {
   // Props to sync
   propLoading?: boolean;
   propSuccess?: boolean;
-  propError?: any;
+  propError?: string | Error | { message?: string } | null;
   propFormErrors?: Record<string, string>;
   useWebSearchFeatureToggle?: boolean;
   usePrivacyModeToggle?: boolean;

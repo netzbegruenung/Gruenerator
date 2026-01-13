@@ -4,6 +4,7 @@
  * to ensure 1:1 visual match between frontend and backend rendering
  */
 import { wrapText } from './textUtils';
+import { SYSTEM_ASSETS } from './canvasAssets';
 
 export const ZITAT_PURE_CONFIG = {
   canvas: {
@@ -14,7 +15,7 @@ export const ZITAT_PURE_CONFIG = {
     color: '#6CCD87',
   },
   quotationMark: {
-    src: '/quote.svg',
+    src: SYSTEM_ASSETS.quote.default.src,
     size: 100,
     x: 75,
     gapToText: 20,
@@ -43,7 +44,7 @@ export const ZITAT_PURE_CONFIG = {
     textAlign: 'left' as const,
   },
   sunflower: {
-    src: '/sonnenblume_dunkelgruen.svg',
+    src: SYSTEM_ASSETS.sunflower.green.src,
     size: 800,
     x: 480,
     y: -200,

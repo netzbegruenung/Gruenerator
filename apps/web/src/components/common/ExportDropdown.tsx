@@ -56,6 +56,7 @@ const ExportDropdown = ({ content,
   const [saveIcon, setSaveIcon] = useState<string>('save');
   const [showWolkeSubDropdown, setShowWolkeSubDropdown] = useState<boolean>(false);
   const [exportIcon, setExportIcon] = useState<string>('share');
+  const [textCopyIcon, setTextCopyIcon] = useState<ReactNode>(<IoCopyOutline size={20} />);
   const [showWolkeSetupModal, setShowWolkeSetupModal] = useState<boolean>(false);
   const [canNativeShare, setCanNativeShare] = useState<boolean>(false);
 
@@ -282,9 +283,10 @@ const ExportDropdown = ({ content,
       const errorMessage = err instanceof Error ? err.message : String(err);
 
       let userMessage = 'Fehler beim Erstellen des Dokuments: ';
-      if (err.response?.status === 401) {
+      const axiosError = err as { response?: { status?: number } };
+      if (axiosError.response?.status === 401) {
         userMessage = 'Bitte melde dich an, um Dokumente zu erstellen.';
-      } else if (err.response?.status === 413) {
+      } else if (axiosError.response?.status === 413) {
         userMessage = 'Der Inhalt ist zu groß (max. 1MB).';
       } else {
         userMessage += errorMessage;

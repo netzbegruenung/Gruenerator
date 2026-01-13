@@ -12,7 +12,9 @@ import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
-import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import { createIllustration } from '../utils/illustrations/registry';
+import { injectFeatureProps } from './featureInjector';
 
 // ============================================================================
 // STATE TYPE
@@ -190,19 +192,9 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
                 })),
                 onAssetToggle: actions.handleAssetToggle,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['zitat'],
-                selectedIcons: state.selectedIcons,
-                onIconToggle: actions.toggleIcon,
-                onAddShape: actions.addShape,
-                shapeInstances: state.shapeInstances,
-                selectedShapeId: context?.selectedElement,
-                onUpdateShape: actions.updateShape,
-                onRemoveShape: actions.removeShape,
-                // Illustrations
-                illustrationInstances: state.illustrationInstances,
-                selectedIllustrationId: context?.selectedElement,
-                onAddIllustration: actions.addIllustration,
-                onUpdateIllustration: actions.updateIllustration,
-                onRemoveIllustration: actions.removeIllustration,
+
+                // Auto-inject all feature props (icons, shapes, illustrations, balken)
+                ...injectFeatureProps(state, actions, context),
             }),
         },
 
@@ -241,11 +233,11 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         {
             id: 'quote-mark',
             type: 'image',
-            x: (s: any, l: LayoutResult) => l['quote-mark']?.x ?? ZITAT_CONFIG.quotationMark.x,
-            y: (s: any, l: LayoutResult) => l['quote-mark']?.y ?? ZITAT_CONFIG.quotationMark.y,
+            x: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.x ?? ZITAT_CONFIG.quotationMark.x,
+            y: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.y ?? ZITAT_CONFIG.quotationMark.y,
             order: 2,
-            width: (s: any, l: LayoutResult) => l['quote-mark']?.width ?? 100,
-            height: (s: any, l: LayoutResult) => l['quote-mark']?.height ?? 100,
+            width: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.width ?? 100,
+            height: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.height ?? 100,
             src: ZITAT_CONFIG.quotationMark.src,
             listening: true,
             draggable: true,
@@ -255,12 +247,12 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         {
             id: 'quote-text',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['quote-text']?.x ?? ZITAT_CONFIG.quote.x,
-            y: (s: any, l: LayoutResult) => l['quote-text']?.y ?? 800,
+            x: (s: ZitatFullState, l: LayoutResult) => l['quote-text']?.x ?? ZITAT_CONFIG.quote.x,
+            y: (s: ZitatFullState, l: LayoutResult) => l['quote-text']?.y ?? 800,
             order: 3,
             textKey: 'quote',
             width: ZITAT_CONFIG.quote.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['quote-text']?.fontSize ?? ZITAT_CONFIG.quote.fontSize,
+            fontSize: (s: ZitatFullState, l: LayoutResult) => l['quote-text']?.fontSize ?? ZITAT_CONFIG.quote.fontSize,
             fontFamily: `${ZITAT_CONFIG.quote.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_CONFIG.quote.fontStyle,
             align: 'left',
@@ -270,21 +262,21 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customQuoteFontSize',
-            opacity: (state: any) => state.quoteOpacity ?? 1,
+            opacity: (state: ZitatFullState) => state.quoteOpacity ?? 1,
             opacityStateKey: 'quoteOpacity',
-            fill: (state: any, _layout: any) => state.quoteColor ?? ZITAT_CONFIG.quote.color,
+            fill: (state: ZitatFullState, _layout: LayoutResult) => state.quoteColor ?? ZITAT_CONFIG.quote.color,
             fillStateKey: 'quoteColor',
         },
         // Author name
         {
             id: 'name-text',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['name-text']?.x ?? ZITAT_CONFIG.author.x,
-            y: (s: any, l: LayoutResult) => l['name-text']?.y ?? 1000,
+            x: (s: ZitatFullState, l: LayoutResult) => l['name-text']?.x ?? ZITAT_CONFIG.author.x,
+            y: (s: ZitatFullState, l: LayoutResult) => l['name-text']?.y ?? 1000,
             order: 4,
             textKey: 'name',
             width: ZITAT_CONFIG.quote.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['name-text']?.fontSize ?? 40,
+            fontSize: (s: ZitatFullState, l: LayoutResult) => l['name-text']?.fontSize ?? 40,
             fontFamily: `${ZITAT_CONFIG.author.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_CONFIG.author.fontStyle,
             align: 'left',
@@ -292,9 +284,9 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customNameFontSize',
-            opacity: (state: any) => state.nameOpacity ?? 1,
+            opacity: (state: ZitatFullState) => state.nameOpacity ?? 1,
             opacityStateKey: 'nameOpacity',
-            fill: (state: any, _layout: any) => state.nameColor ?? ZITAT_CONFIG.author.color,
+            fill: (state: ZitatFullState, _layout: LayoutResult) => state.nameColor ?? ZITAT_CONFIG.author.color,
             fillStateKey: 'nameColor',
         },
     ],
@@ -430,8 +422,8 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             saveToHistory({ ...getState() });
         },
         // Illustration actions
-        addIllustration: (id: string) => {
-            const newIllustration = createIllustration(
+        addIllustration: async (id: string) => {
+            const newIllustration = await createIllustration(
                 id,
                 ZITAT_CONFIG.canvas.width,
                 ZITAT_CONFIG.canvas.height

@@ -14,8 +14,7 @@ export interface ShareLink {
     is_active?: boolean;
     created_at?: string;
     updated_at?: string;
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 /**

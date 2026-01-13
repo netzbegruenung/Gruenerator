@@ -19,7 +19,7 @@ export interface FilterFieldConfig {
 }
 
 export type FilterValuesCache = Record<string, Record<string, FilterFieldConfig>>;
-export type ActiveFilters = Record<string, Record<string, any>>;
+export type ActiveFilters = Record<string, Record<string, string[] | { date_from: string | null; date_to: string | null }>>;
 
 interface NotebookState {
     qaCollections: NotebookCollection[];
@@ -36,8 +36,8 @@ interface NotebookState {
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
     fetchQACollections: () => Promise<void>;
-    createQACollection: (collectionData: any) => Promise<NotebookCollection>;
-    updateQACollection: (collectionId: string, collectionData: any) => Promise<void>;
+    createQACollection: (collectionData: { name: string; description?: string; custom_prompt?: string; selectionMode?: 'documents' | 'wolke'; documents?: string[]; wolkeShareLinks?: string[] }) => Promise<NotebookCollection>;
+    updateQACollection: (collectionId: string, collectionData: { name: string; description?: string; custom_prompt?: string; selectionMode?: 'documents' | 'wolke'; documents?: string[]; wolkeShareLinks?: string[] }) => Promise<void>;
     deleteQACollection: (collectionId: string) => Promise<void>;
     getQACollection: (collectionId: string) => NotebookCollection | undefined;
     setSelectedCollection: (collection: NotebookCollection | null) => void;
@@ -46,10 +46,10 @@ interface NotebookState {
     getCollectionsBySourceType: (sourceType: 'documents' | 'wolke' | 'mixed') => NotebookCollection[];
     getCollectionStats: () => { total: number; documentsOnly: number; wolkeOnly: number; mixed: number; empty: number };
     fetchFilterValues: (collectionId: string) => Promise<Record<string, FilterFieldConfig> | null>;
-    setActiveFilter: (collectionId: string | undefined, field: string, value: any) => void;
-    removeActiveFilter: (collectionId: string | undefined, field: string, value?: any) => void;
+    setActiveFilter: (collectionId: string | undefined, field: string, value: string | { date_from?: string; date_to?: string } | null) => void;
+    removeActiveFilter: (collectionId: string | undefined, field: string, value?: string) => void;
     clearAllFilters: (collectionId: string | undefined) => void;
-    getFiltersForCollection: (collectionId: string | undefined) => Record<string, any>;
+    getFiltersForCollection: (collectionId: string | undefined) => Record<string, string[] | { date_from: string | null; date_to: string | null }>;
     getFilterValuesForCollection: (collectionId: string | undefined) => Record<string, FilterFieldConfig> | null;
     hasFiltersAvailable: (collectionId: string | undefined) => boolean;
     isLoadingFilters: (collectionId: string | undefined) => boolean;
@@ -90,9 +90,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
             }
 
             set({ qaCollections: data.collections || [], loading: false });
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error fetching Notebook collections:', error);
-            set({ error: error.message, loading: false });
+            set({ error: errorMessage, loading: false });
         }
     },
 
@@ -100,7 +101,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     createQACollection: async (collectionData) => {
         set({ loading: true, error: null });
         try {
-            const requestData: any = {
+            const requestData: { name: string; description?: string; custom_prompt?: string; selection_mode: string; document_ids?: string[]; wolke_share_link_ids?: string[] } = {
                 name: collectionData.name,
                 description: collectionData.description,
                 custom_prompt: collectionData.custom_prompt,
@@ -127,9 +128,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
             set({ loading: false });
 
             return data.collection;
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error creating Notebook collection:', error);
-            set({ error: error.message, loading: false });
+            set({ error: errorMessage, loading: false });
             throw error;
         }
     },
@@ -138,7 +140,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     updateQACollection: async (collectionId, collectionData) => {
         set({ loading: true, error: null });
         try {
-            const requestData: any = {
+            const requestData: { name: string; description?: string; custom_prompt?: string; selection_mode: string; document_ids?: string[]; wolke_share_link_ids?: string[] } = {
                 name: collectionData.name,
                 description: collectionData.description,
                 custom_prompt: collectionData.custom_prompt,
@@ -163,9 +165,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
             // Refresh collections
             await get().fetchQACollections();
             set({ loading: false });
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error updating Notebook collection:', error);
-            set({ error: error.message, loading: false });
+            set({ error: errorMessage, loading: false });
             throw error;
         }
     },
@@ -187,9 +190,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
                 qaCollections: state.qaCollections.filter(c => c.id !== collectionId),
                 loading: false
             }));
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error deleting Notebook collection:', error);
-            set({ error: error.message, loading: false });
+            set({ error: errorMessage, loading: false });
             throw error;
         }
     },
@@ -353,9 +357,9 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
             }
 
             // Handle regular multi-select values (strings)
-            const existing = state.activeFilters[collectionId]?.[field] || [];
+            const existing = (state.activeFilters[collectionId]?.[field] as string[]) || [];
             const newValues = existing.includes(value)
-                ? existing.filter((v: any) => v !== value)
+                ? existing.filter((v: string) => v !== value)
                 : [...existing, value];
 
             if (newValues.length === 0) {
@@ -384,9 +388,9 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         if (!collectionId) return;
 
         set(state => {
-            const existing = state.activeFilters[collectionId]?.[field] || [];
+            const existing = (state.activeFilters[collectionId]?.[field] as string[]) || [];
             if (value !== undefined) {
-                const newValues = existing.filter((v: any) => v !== value);
+                const newValues = existing.filter((v: string) => v !== value);
                 if (newValues.length === 0) {
                     const { [field]: _unused, ...rest } = state.activeFilters[collectionId] || {};
                     return {

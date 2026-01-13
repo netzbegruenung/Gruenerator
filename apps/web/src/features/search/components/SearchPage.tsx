@@ -264,8 +264,8 @@ const SearchPage = () => {
                 {searchMode === 'web' && citations.length > 0 && (
                   <div className="citation-sources-section">
                     <CitationSourcesDisplay
-                      sources={citationSources as any[]}
-                      citations={citations as any[]}
+                      sources={citationSources}
+                      citations={citations}
                       linkConfig={{ type: 'none' }}
                       title="🔗 Quellen der Zusammenfassung"
                       className="search-citation-sources"
@@ -336,8 +336,8 @@ const SearchPage = () => {
               {searchMode === 'deep' && citations.length > 0 && (
                 <div className="citation-sources-section">
                   <CitationSourcesDisplay
-                    sources={citationSources as any[]}
-                    citations={citations as any[]}
+                    sources={citationSources}
+                    citations={citations}
                     linkConfig={{ type: 'none' }}
                     title="🔗 Quellen des Dossiers"
                     className="search-citation-sources"
@@ -352,9 +352,9 @@ const SearchPage = () => {
                 {Object.entries(categorizedSources).map(([category, sources]) => (
                   <SourceList
                     key={category}
-                    sources={sources as Source[]}
+                    sources={sources}
                     title={category}
-                    recommendations={sourceRecommendations as SourceRecommendation[]}
+                    recommendations={sourceRecommendations}
                   />
                 ))}
               </div>
@@ -382,17 +382,17 @@ const SearchPage = () => {
             <div className="sources-section">
               {usedSources.length > 0 && (
                 <SourceList
-                  sources={usedSources as Source[]}
+                  sources={usedSources}
                   title="Verwendete Quellen"
-                  recommendations={sourceRecommendations as SourceRecommendation[]}
+                  recommendations={sourceRecommendations}
                 />
               )}
 
               {unusedSources.length > 0 && (
                 <SourceList
-                  sources={unusedSources as Source[]}
+                  sources={unusedSources}
                   title="Ergänzende Informationen"
-                  recommendations={sourceRecommendations as SourceRecommendation[]}
+                  recommendations={sourceRecommendations}
                 />
               )}
             </div>

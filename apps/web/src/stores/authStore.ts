@@ -390,7 +390,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       return result.messageColor as string;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revert optimistic update on failure
       const state = get();
       const previousColor = state.user?.user_metadata?.chat_color || '#008939';
@@ -413,7 +413,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       return result.igelModus as boolean;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revert optimistic update on failure
       set({ igelModus: !enabled });
       throw error;
@@ -473,7 +473,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
       
       // Step 3: Call backend logout API FIRST (before clearing local state)
-      let backendResponse: any = null;
+      let backendResponse: Record<string, unknown> | null = null;
       try {
         const response = await apiClient.post('/auth/logout');
 
@@ -493,14 +493,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           }
         }
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[AuthStore] Backend logout API error:', error);
 
         // For network errors, still try to clean up locally but log the issue
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         backendResponse = {
           success: false,
           error: 'network_error',
-          message: error.message,
+          message: errorMessage,
           sessionCleared: false
         };
       }
@@ -558,7 +559,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         } else {
           console.log('[AuthStore] Logout verification successful - user is no longer authenticated');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.warn('[AuthStore] Logout verification failed (non-critical):', error);
       }
       
@@ -613,7 +614,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         message: (data && data.message) || 'Konto erfolgreich gelöscht',
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Try fallback with query param if the first attempt failed
       if (confirmationData && (confirmationData.confirm || confirmationData.password || confirmationData.confirmation)) {
         try {
@@ -633,17 +634,27 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             success: true,
             message: (fallbackData && fallbackData.message) || 'Konto erfolgreich gelöscht',
           };
-        } catch (fallbackError: any) {
+        } catch (fallbackError: unknown) {
+          const errorMessage = fallbackError instanceof Error
+            ? fallbackError.message
+            : (fallbackError && typeof fallbackError === 'object' && 'response' in fallbackError
+              ? (fallbackError.response as { data?: { message?: string } })?.data?.message
+              : 'Kontolöschung fehlgeschlagen');
           throw {
             success: false,
-            message: fallbackError.response?.data?.message || fallbackError.message || 'Kontolöschung fehlgeschlagen',
+            message: errorMessage || 'Kontolöschung fehlgeschlagen',
           };
         }
       }
 
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (error && typeof error === 'object' && 'response' in error
+          ? (error.response as { data?: { message?: string } })?.data?.message
+          : 'Kontolöschung fehlgeschlagen');
       throw {
         success: false,
-        message: error.response?.data?.message || error.message || 'Kontolöschung fehlgeschlagen',
+        message: errorMessage || 'Kontolöschung fehlgeschlagen',
       };
     }
   },
@@ -659,10 +670,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         message: data.message || 'Passwort-Reset erfolgreich'
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (error && typeof error === 'object' && 'response' in error
+          ? (error.response as { data?: { message?: string } })?.data?.message
+          : 'Passwort-Reset fehlgeschlagen');
       throw {
         success: false,
-        message: error.response?.data?.message || error.message || 'Passwort-Reset fehlgeschlagen'
+        message: errorMessage || 'Passwort-Reset fehlgeschlagen'
       };
     }
   },
@@ -714,8 +730,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ locale: newLocale });
 
       return true;
-    } catch (error: any) {
-      console.error('[AuthStore] Error updating locale:', error.response?.data?.error || error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (error && typeof error === 'object' && 'response' in error
+          ? (error.response as { data?: { error?: string } })?.data?.error
+          : 'Unknown error');
+      console.error('[AuthStore] Error updating locale:', errorMessage);
       return false;
     }
   },

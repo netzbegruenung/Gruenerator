@@ -6,8 +6,8 @@ const MockGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const containerRef = useRef(null);
-  const timeoutRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAutoTriggeredRef = useRef(false);
 
   const handleGenerate = useCallback(() => {

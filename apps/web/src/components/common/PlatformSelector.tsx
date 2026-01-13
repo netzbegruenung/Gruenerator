@@ -31,7 +31,7 @@ type PlatformAliasMap = typeof PLATFORM_ALIASES;
 
 interface PlatformSelectorProps {
   name?: string;
-  control?: Control<any>;
+  control?: Control<Record<string, unknown>>;
   platformOptions?: PlatformOption[];
   options?: PlatformOption[];
   label?: string;
@@ -40,12 +40,12 @@ interface PlatformSelectorProps {
   disabled?: boolean;
   helpText?: string;
   className?: string;
-  rules?: Record<string, any>;
+  rules?: Record<string, unknown>;
   tabIndex?: number;
   isMulti?: boolean;
-  value?: any;
-  defaultValue?: any;
-  onChange?: (value: any) => void;
+  value?: string | number | (string | number)[] | null;
+  defaultValue?: string | number | (string | number)[] | null;
+  onChange?: (value: string | number | (string | number)[] | null) => void;
   enableIcons?: boolean;
   enableSubtitles?: boolean;
   iconType?: 'component' | 'react-icon' | 'function';
@@ -54,7 +54,7 @@ interface PlatformSelectorProps {
   aliasMap?: PlatformAliasMap | Record<string, string[]>;
   autoSelectDelay?: number;
   onAutoSelect?: (match: MatchResult) => void;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -127,7 +127,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const [pendingAutoSelect, setPendingAutoSelect] = useState<string | null>(null);
   const autoSelectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const selectRefInternal = useRef<any>(null);
+  const selectRefInternal = useRef<unknown>(null);
 
   const filterOption = useMemo(() =>
     enableAutoSelect ? createFilterOption(aliasMap as typeof PLATFORM_ALIASES) : undefined,
@@ -142,7 +142,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     };
   }, []);
 
-  const handleAutoSelectInputChange = useCallback((newValue: string, actionMeta: any, currentValues: any, onChangeCallback: any) => {
+  const handleAutoSelectInputChange = useCallback((newValue: string, actionMeta: { action: string }, currentValues: unknown, onChangeCallback: (value: unknown) => void) => {
     if (!enableAutoSelect || actionMeta.action !== 'input-change') return;
 
     if (autoSelectTimeoutRef.current) {
@@ -188,11 +188,16 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     }
   }, [enableAutoSelect, selectOptions, aliasMap, autoSelectDelay, isMulti, onAutoSelect]);
 
+  interface AutoSelectStylesOption {
+    data: { value: string | number };
+    [key: string]: unknown;
+  }
+
   const autoSelectStyles = useMemo(() => {
     if (!enableAutoSelect || !pendingAutoSelect) return {};
 
     return {
-      option: (provided: any, state: any) => ({
+      option: (provided: Record<string, unknown>, state: AutoSelectStylesOption) => ({
         ...provided,
         ...(state.data.value === pendingAutoSelect ? {
           backgroundColor: 'var(--klee-light, rgba(0, 128, 0, 0.15))',
@@ -214,9 +219,9 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   };
 
   if (isUncontrolled) {
-    const selectRef = useRef<any>(null);
+    const selectRef = useRef<unknown>(null);
     const selectedValue = isMulti
-      ? (value ? value.map((val: any) =>
+      ? (value ? (value as (string | number)[]).map((val) =>
         selectOptions.find(option => option.value === val)
       ).filter(Boolean) : [])
       : (value ? selectOptions.find(option => option.value === value) : null);
@@ -224,7 +229,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     return (
       <div className={`platform-selector ${className}`.trim()}>
         <EnhancedSelect
-          ref={(ref: any) => {
+          ref={(ref: unknown) => {
             selectRef.current = ref;
             selectRefInternal.current = ref;
           }}
@@ -242,19 +247,19 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
           isDisabled={disabled}
           value={selectedValue}
           defaultValue={defaultValue}
-          onChange={(selectedOptions: any) => {
+          onChange={(selectedOptions: TransformedOption | TransformedOption[] | null) => {
             if (onChange) {
               if (isMulti) {
-                const values = selectedOptions ? selectedOptions.map((option: any) => option.value) : [];
+                const values = selectedOptions ? (Array.isArray(selectedOptions) ? selectedOptions.map((option) => option.value) : []) : [];
                 onChange(values);
               } else {
-                const changedValue = selectedOptions ? selectedOptions.value : null;
+                const changedValue = selectedOptions && !Array.isArray(selectedOptions) ? selectedOptions.value : null;
                 onChange(changedValue);
               }
             }
           }}
-          onInputChange={(newValue: string, actionMeta: any) => {
-            handleAutoSelectInputChange(newValue, actionMeta, value, onChange);
+          onInputChange={(newValue: string, actionMeta: { action: string }) => {
+            handleAutoSelectInputChange(newValue, actionMeta, value, onChange || (() => {}));
           }}
           onMenuOpen={() => setMenuIsOpen(true)}
           onMenuClose={() => setMenuIsOpen(false)}
@@ -290,13 +295,13 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
       control={control}
       rules={{
         required: required ? (isMulti ? 'Format wählen' : 'Bitte wählen') : false,
-        validate: required ? (value: any) => {
+        validate: required ? (val: unknown) => {
           if (isMulti) {
-            if (!value || (Array.isArray(value) && value.length === 0)) {
+            if (!val || (Array.isArray(val) && val.length === 0)) {
               return 'Format wählen';
             }
           } else {
-            if (!value) {
+            if (!val) {
               return 'Bitte wählen';
             }
           }
@@ -309,7 +314,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
         <div className={`platform-selector ${className}`.trim()}>
           <EnhancedSelect
             {...field}
-            ref={(ref: any) => {
+            ref={(ref: unknown) => {
               selectRefInternal.current = ref;
             }}
             inputId={`${name}-select`}
@@ -326,21 +331,21 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
             placeholder={placeholder}
             isDisabled={disabled}
             value={isMulti
-              ? (field.value ? field.value.map((val: any) =>
+              ? (field.value ? (field.value as (string | number)[]).map((val) =>
                 selectOptions.find(option => option.value === val)
               ).filter(Boolean) : [])
               : (field.value ? selectOptions.find(option => option.value === field.value) : null)
             }
-            onChange={(selectedOptions: any) => {
+            onChange={(selectedOptions: TransformedOption | TransformedOption[] | null) => {
               if (isMulti) {
-                const values = selectedOptions ? selectedOptions.map((option: any) => option.value) : [];
+                const values = selectedOptions ? (Array.isArray(selectedOptions) ? selectedOptions.map((option) => option.value) : []) : [];
                 field.onChange(values);
               } else {
-                const changedValue = selectedOptions ? selectedOptions.value : null;
+                const changedValue = selectedOptions && !Array.isArray(selectedOptions) ? selectedOptions.value : null;
                 field.onChange(changedValue);
               }
             }}
-            onInputChange={(newValue: string, actionMeta: any) => {
+            onInputChange={(newValue: string, actionMeta: { action: string }) => {
               handleAutoSelectInputChange(newValue, actionMeta, field.value, field.onChange);
             }}
             onBlur={field.onBlur}

@@ -1,6 +1,6 @@
 import { JSX, lazy, Suspense, useState, useCallback, useEffect, useMemo, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
-const Select = lazy(() => import('react-select')) as any;
+const Select = lazy(() => import('react-select')) as unknown as React.ComponentType<Record<string, unknown>>;
 import { HiRefresh, HiExclamationCircle, HiCheck, HiTemplate } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import * as canvaUtils from '../../../components/utils/canvaUtils';
@@ -46,6 +46,7 @@ interface CanvaConnectionStatus {
   connected: boolean;
   user: unknown;
   loading: boolean;
+  canva_user?: unknown;
 }
 
 const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoading, variant = 'dropdown' }: CanvaSelectorProps): JSX.Element => {
@@ -152,12 +153,12 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
     }));
   }, [designs, currentSearchTerm, calculateRelevanceScore]);
 
-  const handleDesignSelect = useCallback(async (designOrOption: DesignOption | CanvaDesign | null) => {
+  const handleDesignSelect = useCallback(async (designOrOption: DesignOption | CanvaDesign | null): Promise<void> => {
     if (externalLoading || !designOrOption) return;
 
     const design: CanvaDesign = 'design' in designOrOption
       ? (designOrOption as DesignOption).design
-      : designOrOption as CanvaDesign;
+      : (designOrOption as CanvaDesign);
     if (!design.thumbnail_url) return;
 
     setSelectedDesign(design);
@@ -206,9 +207,9 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
     refetchDesigns();
   }, [refetchDesigns]);
 
-  const handleCanvaLogin = useCallback(async () => {
+  const handleCanvaLogin = useCallback(async (): Promise<void> => {
     try {
-      await canvaUtils.initiateCanvaLogin((error: any) => {
+      await canvaUtils.initiateCanvaLogin((error: Error | unknown) => {
         console.error('[CanvaSelector] Canva login error:', error);
       });
     } catch (error) {
@@ -259,7 +260,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designsError) {
-    const errorContent: any = (
+    const errorContent: JSX.Element = (
       <div className="canva-selector-message error">
         <HiExclamationCircle className="icon" />
         <h4>Fehler beim Laden</h4>
@@ -290,7 +291,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designsLoading) {
-    const loadingContent: any = (
+    const loadingContent: JSX.Element = (
       <div className="canva-selector-loading">
         <div className="loading-spinner"></div>
         <p>Lade deine Canva-Designs...</p>
@@ -313,7 +314,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
   }
 
   if (designs.length === 0) {
-    const emptyContent: any = (
+    const emptyContent: JSX.Element = (
       <div className="canva-selector-message">
         <HiTemplate className="icon" />
         <h4>Keine Designs gefunden</h4>
@@ -445,7 +446,7 @@ const CanvaSelector = ({ onImageSelect, selectedImageId, loading: externalLoadin
                 className="canva-select"
                 options={designOptions}
                 value={selectedOption}
-                onChange={(newValue: any) => handleDesignSelect(newValue)}
+                onChange={(newValue: DesignOption | null) => handleDesignSelect(newValue)}
                 formatOptionLabel={formatOptionLabel}
                 placeholder="Canva-Design suchen und auswählen..."
                 isDisabled={externalLoading}

@@ -37,7 +37,7 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
     const isMulti = normalizedCollections.length > 1;
 
     const activeFiltersList = useMemo(() => {
-        const allFilters: any[] = [];
+        const allFilters: Array<{ collectionId: string | undefined; collectionName: string | null; field: string; value: unknown; label: string }> = [];
 
         normalizedCollections.forEach(collection => {
             const activeFilters = getFiltersForCollection(collection.id);
@@ -61,7 +61,7 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
         return allFilters;
     }, [normalizedCollections, getFiltersForCollection, getFilterValuesForCollection]);
 
-    const handleRemove = (cId: string | undefined, field: string, value: any) => {
+    const handleRemove = (cId: string | undefined, field: string, value: unknown) => {
         removeActiveFilter(cId, field, value);
     };
 

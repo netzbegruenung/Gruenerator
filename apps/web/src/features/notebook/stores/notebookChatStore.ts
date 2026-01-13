@@ -13,11 +13,11 @@ export interface NotebookChatMessage {
     userName?: string;
     resultData?: {
         question?: string;
-        citations?: any[];
-        sources?: any[];
-        additionalSources?: any[];
-        linkConfig?: any;
-        [key: string]: any;
+        citations?: Array<{ text?: string; source?: string }>;
+        sources?: Array<{ title?: string; url?: string }>;
+        additionalSources?: Array<{ title?: string; url?: string }>;
+        linkConfig?: Record<string, unknown>;
+        [key: string]: unknown;
     };
 }
 
@@ -77,9 +77,9 @@ const persistNotebookChatState = (chats: Record<string, NotebookChat>) => {
 
         localStorage.setItem(QA_CHAT_STORAGE_KEY, JSON.stringify(dataToStore));
         localStorage.setItem(QA_CHAT_VERSION_KEY, QA_CHAT_CACHE_VERSION);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.warn('[NotebookChatStore] Error persisting state:', error);
-        if (error.name === 'QuotaExceededError') {
+        if (error instanceof Error && error.name === 'QuotaExceededError') {
             localStorage.removeItem(QA_CHAT_STORAGE_KEY);
             localStorage.removeItem(QA_CHAT_VERSION_KEY);
         }

@@ -20,26 +20,29 @@ import { HiSparkles, HiPhotograph } from 'react-icons/hi';
 import { FaShare } from 'react-icons/fa';
 import { BalkenIcon } from '../icons';
 import { calculateDreizeilenLayout, COLOR_SCHEMES, getColorScheme, DREIZEILEN_CONFIG } from '../utils/dreizeilenLayout';
-import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
+import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 import { createShape } from '../utils/shapes';
 import type { ShapeType, ShapeInstance } from '../utils/shapes';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import { createIllustration } from '../utils/illustrations/registry';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import {
     ICON_DEFAULTS,
     SHAPE_DEFAULTS,
     ADDITIONAL_TEXT_DEFAULTS,
 } from './dreizeilen.constants';
+import { injectFeatureProps } from './featureInjector';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const CANVAS_WIDTH = 1080;
-const CANVAS_HEIGHT = 1080;
+const CANVAS_HEIGHT = 1350;
 
 const SUNFLOWER_CONFIG = {
-    src: '/sunflower.svg',
+    src: SYSTEM_ASSETS.sunflower.yellow.src,
     defaultOpacity: 1,
     defaultSize: 200,
 };
@@ -119,7 +122,7 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
             colorScheme,
             textBlockBounds: layoutResult.textBlockBounds,
             balkenLayouts: layoutResult.balkenLayouts,
-        } as any,
+        } as Record<string, unknown>,
     };
 };
 
@@ -138,6 +141,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     features: {
         icons: true,
         shapes: true,
+        illustrations: true,
     },
 
     fonts: {
@@ -164,7 +168,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         if (!state.alternatives || state.alternatives.length === 0) {
             disabled.push('alternatives');
         }
-        return disabled as any;
+        return disabled;
     },
 
     sections: {
@@ -225,21 +229,13 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             propsFactory: (state, actions, context) => ({
                 assets: ALL_ASSETS.map(asset => ({
                     ...asset,
-                    visible: asset.id === 'sunflower' ? state.sunflowerVisible : false,
+                    visible: state.assetVisibility[asset.id] ?? false,
                 })),
-                onAssetToggle: (id: string, visible: boolean) => {
-                    if (id === 'sunflower') {
-                        actions.setSunflowerVisible(visible);
-                    }
-                },
+                onAssetToggle: actions.handleAssetToggle,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
-                selectedIcons: state.selectedIcons,
-                onIconToggle: actions.toggleIcon,
-                onAddShape: actions.addShape,
-                shapeInstances: state.shapeInstances,
-                selectedShapeId: context?.selectedElement,
-                onUpdateShape: actions.updateShape,
-                onRemoveShape: actions.removeShape,
+
+                // Auto-inject all feature props (icons, shapes, illustrations, balken)
+                ...injectFeatureProps(state, actions, context),
             }),
         },
 
@@ -353,7 +349,12 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
 
-        // Sunflower
+        // Asset Visibility
+        assetVisibility: (props.assetVisibility as Record<string, boolean> | undefined) ?? {
+            'sunflower': true,
+        },
+
+        // Sunflower (legacy state maintained for backward compatibility)
         sunflowerPos: (props.sunflowerPos as { x: number; y: number } | null | undefined) ?? null,
         sunflowerSize: (props.sunflowerSize as { w: number; h: number } | null | undefined) ?? null,
         sunflowerVisible: (props.sunflowerVisible as boolean | undefined) ?? true,
@@ -372,6 +373,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         iconStates: (props.iconStates as Record<string, { x: number; y: number; scale: number; rotation: number; color?: string; opacity?: number }> | undefined) ?? {},
         shapeInstances: (props.shapeInstances as ShapeInstance[] | undefined) ?? [],
         selectedShapeId: null,
+
+        // Illustrations
+        illustrationInstances: (props.illustrationInstances as IllustrationInstance[] | undefined) ?? [],
+        selectedIllustrationId: null,
 
         // Additional Texts
         additionalTexts: (props.additionalTexts as AdditionalText[] | undefined) ?? [],
@@ -516,6 +521,18 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             saveToHistory({ ...getState(), sunflowerSize: { w: width, h: height } });
         },
 
+        // === Asset Actions ===
+        handleAssetToggle: (id: string, visible: boolean) => {
+            setState(prev => ({
+                ...prev,
+                assetVisibility: { ...prev.assetVisibility, [id]: visible },
+            }));
+            saveToHistory({
+                ...getState(),
+                assetVisibility: { ...getState().assetVisibility, [id]: visible },
+            });
+        },
+
         // === Background Image Actions ===
         setCurrentImageSrc: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => {
             const src = file ? objectUrl : undefined;
@@ -640,11 +657,89 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             saveToHistory(getState());
         },
 
+        // === Illustration Actions ===
+        addIllustration: async (id: string) => {
+            const newIllustration = await createIllustration(id, CANVAS_WIDTH, CANVAS_HEIGHT);
+            setState(prev => ({
+                ...prev,
+                illustrationInstances: [...prev.illustrationInstances, newIllustration],
+                selectedIllustrationId: newIllustration.id,
+            }));
+            saveToHistory({
+                ...getState(),
+                illustrationInstances: [...getState().illustrationInstances, newIllustration],
+                selectedIllustrationId: newIllustration.id,
+            });
+        },
+
+        updateIllustration: (illustrationId: string, partial: Partial<IllustrationInstance>) => {
+            setState(prev => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map((i): IllustrationInstance =>
+                    i.id === illustrationId ? { ...i, ...partial } as IllustrationInstance : i
+                ),
+            }));
+            debouncedSaveToHistory(getState());
+        },
+
+        removeIllustration: (illustrationId: string) => {
+            setState(prev => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.filter(i => i.id !== illustrationId),
+                selectedIllustrationId: prev.selectedIllustrationId === illustrationId ? null : prev.selectedIllustrationId,
+            }));
+            saveToHistory(getState());
+        },
+
+        duplicateIllustration: (illustrationId: string) => {
+            const original = getState().illustrationInstances.find(i => i.id === illustrationId);
+            if (!original) return;
+
+            const duplicate: IllustrationInstance = {
+                ...original,
+                id: `illustration-${Date.now()}`,
+                x: original.x + 20,
+                y: original.y + 20,
+            };
+
+            setState(prev => ({
+                ...prev,
+                illustrationInstances: [...prev.illustrationInstances, duplicate],
+                selectedIllustrationId: duplicate.id,
+            }));
+            saveToHistory({
+                ...getState(),
+                illustrationInstances: [...getState().illustrationInstances, duplicate],
+            });
+        },
+
+        handleIllustrationDragEnd: (illustrationId: string, x: number, y: number) => {
+            setState(prev => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map(i =>
+                    i.id === illustrationId ? { ...i, x, y } : i
+                ),
+            }));
+            saveToHistory(getState());
+        },
+
+        handleIllustrationTransformEnd: (illustrationId: string, width: number, height: number, rotation?: number) => {
+            setState(prev => ({
+                ...prev,
+                illustrationInstances: prev.illustrationInstances.map(i =>
+                    i.id === illustrationId
+                        ? { ...i, width, height, ...(rotation !== undefined ? { rotation } : {}) }
+                        : i
+                ),
+            }));
+            saveToHistory(getState());
+        },
+
         // === Additional Text Actions ===
         addHeader: () => {
             const id = `text-${Date.now()}`;
             const layout = calculateLayout(getState());
-            const colorScheme = (layout._meta as any)?.colorScheme;
+            const colorScheme = (layout._meta as Record<string, unknown>)?.colorScheme;
 
             const newText = {
                 id,
@@ -674,7 +769,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         addText: () => {
             const id = `text-${Date.now()}`;
             const layout = calculateLayout(getState());
-            const colorScheme = (layout._meta as any)?.colorScheme;
+            const colorScheme = (layout._meta as Record<string, unknown>)?.colorScheme;
 
             const newText = {
                 id,

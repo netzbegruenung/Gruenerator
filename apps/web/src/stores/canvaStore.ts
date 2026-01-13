@@ -6,7 +6,7 @@ import * as canvaUtils from '../components/utils/canvaUtils';
 
 interface CanvaUser {
   display_name?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface CanvaDesign {
@@ -17,7 +17,7 @@ interface CanvaDesign {
   updated_at?: string;
   created_at?: string;
   owner?: { display_name?: string };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface CanvaStore {
@@ -40,12 +40,12 @@ interface CanvaStore {
   error: string | null;
   successMessage: string;
   initialized: boolean;
-  checkConnectionStatus: (force?: boolean) => Promise<any>;
+  checkConnectionStatus: (force?: boolean) => Promise<{ connected: boolean; canva_user: CanvaUser | null }>;
   initiateLogin: () => Promise<void>;
   disconnect: () => Promise<void>;
   fetchDesigns: (force?: boolean) => Promise<CanvaDesign[]>;
   refreshDesigns: () => Promise<CanvaDesign[]>;
-  saveTemplate: (canvaDesign: CanvaDesign) => Promise<any>;
+  saveTemplate: (canvaDesign: CanvaDesign) => Promise<unknown>;
   isSavingDesign: (designId: string) => boolean;
   isDesignSaved: (canvaId: string) => boolean;
   setActiveSubsection: (subsection: string) => void;
@@ -57,15 +57,15 @@ interface CanvaStore {
   setSuccess: (message: string) => void;
   clearMessages: () => void;
   getFilteredDesigns: () => CanvaDesign[];
-  getConnectionStatus: () => any;
-  getDesignsStatus: () => any;
+  getConnectionStatus: () => { connected: boolean; user: CanvaUser | null; loading: boolean; checked: boolean };
+  getDesignsStatus: () => { designs: CanvaDesign[]; loading: boolean; error: string | null; lastFetched: number | null; count: number };
   isDesignsCacheStale: () => boolean;
   reset: () => void;
   initialize: () => Promise<void>;
-  getDebugInfo: () => any;
+  getDebugInfo: () => { connection: Record<string, unknown>; designs: Record<string, unknown>; ui: Record<string, unknown>; messages: Record<string, unknown> };
 }
 
-const debounce = <T extends (...args: any[]) => any>(func: T, wait: number) => {
+const debounce = <T extends (...args: unknown[]) => void>(func: T, wait: number) => {
   let timeout: ReturnType<typeof setTimeout>;
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {
@@ -126,12 +126,13 @@ export const useCanvaStore = create<CanvaStore>()(
             }
           });
           return result;
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           set(state => {
             state.connected = false;
             state.user = null;
             state.loading = false;
-            state.error = error.message;
+            state.error = errorMessage;
             state.connectionChecked = true;
             state.initialized = true;
           });
@@ -207,11 +208,12 @@ export const useCanvaStore = create<CanvaStore>()(
           });
           filterCache = { cacheKey: null, result: [] };
           return designs;
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           set(state => {
             state.designsLoading = false;
             state.designs = [];
-            state.designsError = error.message;
+            state.designsError = errorMessage;
           });
           throw error;
         }

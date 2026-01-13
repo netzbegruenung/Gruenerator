@@ -1,20 +1,46 @@
 import { create } from 'zustand';
 import useGeneratedTextStore from './core/generatedTextStore';
 
-interface ChatContent {
-  text?: string;
-  content?: string;
-  social?: { content?: string };
-  lines?: string[];
-  sharepic?: any;
+interface SharepicMetadata {
+  sharepicType?: string;
+  [key: string]: unknown;
+}
+
+interface SharepicObject {
+  [key: string]: unknown;
+}
+
+interface SharepicContent {
+  type: 'sharepic';
+  sharepic: SharepicObject;
   sharepicTitle?: string;
   sharepicDownloadText?: string;
   sharepicDownloadFilename?: string;
   showEditButton?: boolean;
-  sharepicMeta?: any;
-  metadata?: Record<string, any>;
-  [key: string]: any;
+  sharepicMeta?: SharepicMetadata;
+  metadata?: Record<string, unknown>;
 }
+
+interface TextContent {
+  type: 'text';
+  text?: string;
+  content?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface SocialContent {
+  type: 'social';
+  social?: { content?: string };
+  metadata?: Record<string, unknown>;
+}
+
+interface LinesContent {
+  type: 'lines';
+  lines?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+type ChatContent = SharepicContent | TextContent | SocialContent | LinesContent;
 
 interface ChatMessage {
   id: string;
@@ -22,7 +48,7 @@ interface ChatMessage {
   content: string;
   timestamp: number;
   agent?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   suggestions?: string[];
 }
 
@@ -31,7 +57,7 @@ interface MultiResult {
   componentId: string;
   agent?: string;
   confidence?: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   suggestions: string[];
   error?: string;
   title?: string;
@@ -45,16 +71,16 @@ interface AgentResponse {
   id?: string;
   componentId?: string;
   confidence?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   title?: string;
   error?: string;
 }
 
 interface ChatState {
   messages: ChatMessage[];
-  context: Record<string, any>;
+  context: Record<string, unknown>;
   currentAgent: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   multiResults: MultiResult[];
   lastMultiRunId: string | null;
   activeResultId: string | null;
@@ -69,9 +95,9 @@ interface PersistedChatData {
 
 interface ChatStore {
   messages: ChatMessage[];
-  context: Record<string, any>;
+  context: Record<string, unknown>;
   currentAgent: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   multiResults: MultiResult[];
   lastMultiRunId: string | null;
   activeResultId: string | null;
@@ -79,19 +105,19 @@ interface ChatStore {
   error: string | null;
 
   addMessage: (message: Partial<ChatMessage>) => void;
-  updateContext: (newContext: Record<string, any>) => void;
+  updateContext: (newContext: Record<string, unknown>) => void;
   setCurrentAgent: (agent: string | null) => void;
-  updateMetadata: (newMetadata: Record<string, any>) => void;
+  updateMetadata: (newMetadata: Record<string, unknown>) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   setActiveResultId: (componentId: string | null) => void;
   getResultById: (componentId: string) => MultiResult | undefined;
   setMultiResults: (results: AgentResponse[], options?: { runId?: string }) => void;
   clearMultiResults: () => void;
-  updateMultiResultContent: (componentId: string, updater: ((content: any) => any) | any) => void;
+  updateMultiResultContent: (componentId: string, updater: ((content: unknown) => unknown) | unknown) => void;
   clearMessages: () => void;
   getLastGeneratedText: () => string | null;
-  getApiContext: () => Record<string, any>;
+  getApiContext: () => Record<string, unknown>;
   handleAgentResponse: (response: AgentResponse) => void;
   handleMultiAgentResponses: (responses: AgentResponse[]) => void;
   initializeChat: () => void;
@@ -100,14 +126,23 @@ interface ChatStore {
 const resolveContentText = (content: ChatContent | string | undefined | null): string => {
   if (!content) return '';
   if (typeof content === 'string') return content;
-  if (typeof content.text === 'string') return content.text;
-  if (typeof content.content === 'string') return content.content;
-  if (content.social?.content && typeof content.social.content === 'string') {
-    return content.social.content;
+
+  if (content.type === 'text') {
+    if (typeof content.text === 'string') return content.text;
+    if (typeof content.content === 'string') return content.content;
+  } else if (content.type === 'social') {
+    if (content.social?.content && typeof content.social.content === 'string') {
+      return content.social.content;
+    }
+  } else if (content.type === 'lines') {
+    if (Array.isArray(content.lines)) {
+      return content.lines.filter(Boolean).join('\n');
+    }
+  } else if (content.type === 'sharepic') {
+    // Sharepic content doesn't have direct text representation
+    return '';
   }
-  if (Array.isArray(content.lines)) {
-    return content.lines.filter(Boolean).join('\n');
-  }
+
   return '';
 };
 
@@ -173,8 +208,8 @@ const persistChatState = (chatState: ChatStore) => {
 
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(dataToStore));
     localStorage.setItem(CHAT_VERSION_KEY, CHAT_CACHE_VERSION);
-  } catch (error: any) {
-    if (error.name === 'QuotaExceededError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'QuotaExceededError') {
       localStorage.removeItem(CHAT_STORAGE_KEY);
       localStorage.removeItem(CHAT_VERSION_KEY);
     }
@@ -543,7 +578,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
 let lastPersistedRefs: {
   messages: ChatMessage[] | null;
-  context: Record<string, any> | null;
+  context: Record<string, unknown> | null;
   currentAgent: string | null;
   multiResults: MultiResult[] | null;
 } = {

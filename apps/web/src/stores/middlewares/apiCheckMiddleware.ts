@@ -5,17 +5,18 @@
 
 import apiClient from '../../components/utils/apiClient';
 
-export const apiCheckMiddleware = (config: any) => (set: any, get: any, api: any) => {
+export const apiCheckMiddleware = (config: (set: unknown, get: unknown, api: unknown) => Record<string, unknown>) => (set: unknown, get: unknown, api: unknown) => {
   const storeApi = config(set, get, api);
 
   // Add API check functionality to the store
   const checkFeatureAccess = async (featureName: string) => {
     try {
       const response = await apiClient.post('/api/beta-features/access', { feature_name: featureName });
-      const result = response.data;
+      const result = response.data as Record<string, unknown>;
       return result.canAccess || result.data;
-    } catch (error: any) {
-      console.warn(`API check failed for ${featureName}:`, error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`API check failed for ${featureName}:`, errorMessage);
       return null;
     }
   };

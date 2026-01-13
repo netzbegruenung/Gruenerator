@@ -107,11 +107,16 @@ const FeatureIcons = ({
   // Use instruction type from prop or store
   const finalInstructionType = instructionType || storeInstructionType;
 
+  interface InstructionsStatus {
+    hasAnyInstructions?: boolean;
+    [key: string]: unknown;
+  }
+
   // Check if instructions exist for this type (smart contextual)
   const { data: instructionsStatus, isLoading: isLoadingInstructions } = useInstructionsStatusForType(
     finalInstructionType || undefined,
     { enabled: !!(finalInstructionType && user?.id) }
-  ) as any;
+  ) as { data?: InstructionsStatus; isLoading: boolean };
 
   // Determine if Anweisungen button should be shown (smart contextual)
   const shouldShowAnweisungen = useMemo(() => {
@@ -135,7 +140,7 @@ const FeatureIcons = ({
     });
   }, []);
 
-  const handleIconClick = (event: React.MouseEvent, type: string, callback?: () => void) => {
+  const handleIconClick = (event: React.MouseEvent<HTMLButtonElement>, type: string, callback?: () => void): void => {
     event.preventDefault();
     event.stopPropagation();
     setClickedIcon(type);
@@ -151,7 +156,7 @@ const FeatureIcons = ({
   };
 
   // File processing logic
-  const processFiles = useCallback(async (files: File[]) => {
+  const processFiles = useCallback(async (files: File[]): Promise<void> => {
     if (files.length === 0) {
       return;
     }
@@ -401,11 +406,11 @@ const FeatureIcons = ({
 
       {/* Inline Balanced Mode Dropdown */}
       <DropdownPortal
-        triggerRef={balancedContainerRef as any}
+        triggerRef={balancedContainerRef as React.RefObject<HTMLDivElement>}
         isOpen={activeDropdown === 'balanced'}
         onClose={() => setActiveDropdown(null)}
         className="balanced-dropdown-inline open"
-        widthRef={featureIconsRef as any}
+        widthRef={featureIconsRef as React.RefObject<HTMLDivElement>}
         gap={8}
       >
         <button
@@ -467,11 +472,11 @@ const FeatureIcons = ({
 
       {/* Content Dropdown */}
       <DropdownPortal
-        triggerRef={contentContainerRef as any}
+        triggerRef={contentContainerRef as React.RefObject<HTMLDivElement>}
         isOpen={activeDropdown === 'content'}
         onClose={() => setActiveDropdown(null)}
         className="content-dropdown-inline open"
-        widthRef={featureIconsRef as any}
+        widthRef={featureIconsRef as React.RefObject<HTMLDivElement>}
         gap={8}
       >
         <ContentSelector

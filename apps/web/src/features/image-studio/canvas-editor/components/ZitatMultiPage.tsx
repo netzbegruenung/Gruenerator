@@ -4,10 +4,11 @@
  * Renders all pages stacked vertically (scrollable), no pagination.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { GenericCanvas } from './GenericCanvas';
 import { useMultiPageCanvas } from '../hooks';
-import { zitatFullConfig } from '../configs/zitat_full.config';
+import { loadCanvasConfig } from '../configs/configLoader';
+import type { CanvasConfig } from '../configs/types';
 import './ZitatMultiPage.css';
 
 interface ZitatMultiPageProps {
@@ -19,15 +20,22 @@ interface ZitatMultiPageProps {
     };
     onExport: (base64: string) => void;
     onCancel: () => void;
-    callbacks?: Record<string, (val: any) => void>;
+    callbacks?: Record<string, (val: unknown) => void>;
 }
 
-export function ZitatMultiPage({
+function ZitatMultiPageContent({
+    config,
     initialProps,
     onExport,
     onCancel,
     callbacks = {},
-}: ZitatMultiPageProps) {
+}: {
+    config: CanvasConfig;
+    initialProps: ZitatMultiPageProps['initialProps'];
+    onExport: (base64: string) => void;
+    onCancel: () => void;
+    callbacks?: Record<string, (val: unknown) => void>;
+}) {
     const {
         pages,
         addPage,
@@ -35,7 +43,7 @@ export function ZitatMultiPage({
         canAddMore,
         pageCount,
     } = useMultiPageCanvas({
-        config: zitatFullConfig,
+        config,
         initialProps,
         maxPages: 10,
     });
@@ -53,7 +61,7 @@ export function ZitatMultiPage({
                     {/* Canvas - all pages render bare for consistent styling */}
                     <GenericCanvas
                         key={page.id}
-                        config={zitatFullConfig}
+                        config={config}
                         initialProps={page.state}
                         onExport={(base64) => handleExport(base64, index)}
                         onCancel={onCancel}
@@ -66,6 +74,26 @@ export function ZitatMultiPage({
             ))}
         </div>
     );
+}
+
+export function ZitatMultiPage(props: ZitatMultiPageProps) {
+    const [config, setConfig] = useState<CanvasConfig | null>(null);
+
+    // Load config dynamically
+    useEffect(() => {
+        loadCanvasConfig('zitat')
+            .then(setConfig)
+            .catch((error) => {
+                console.error('Failed to load zitat config:', error);
+            });
+    }, []);
+
+    // Show loading state while config loads
+    if (!config) {
+        return <div>Lädt Editor...</div>;
+    }
+
+    return <ZitatMultiPageContent {...props} config={config} />;
 }
 
 export default ZitatMultiPage;

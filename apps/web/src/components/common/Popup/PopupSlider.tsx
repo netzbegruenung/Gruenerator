@@ -3,11 +3,33 @@ import { motion, AnimatePresence } from 'motion/react';
 import Icon from '../Icon';
 import './base-popup.css';
 
-interface PopupSliderProps {
-  slides: any[];
+interface Slide {
+  [key: string]: unknown;
+}
+
+interface RenderSlideProps {
+  slide: Slide;
+  index: number;
+  isMobile: boolean;
+  onNext: () => void;
+  onPrev: () => void;
+  [key: string]: unknown;
+}
+
+interface RenderFooterProps {
+  currentSlide: number;
+  totalSlides: number;
+  isLastSlide: boolean;
   onClose: () => void;
-  renderSlide: (props: any) => React.ReactNode;
-  renderFooter?: (props: any) => React.ReactNode;
+  onNext: () => void;
+  [key: string]: unknown;
+}
+
+interface PopupSliderProps {
+  slides: Slide[];
+  onClose: () => void;
+  renderSlide: (props: RenderSlideProps) => React.ReactNode;
+  renderFooter?: (props: RenderFooterProps) => React.ReactNode;
   autoPlay?: boolean;
   autoPlayInterval?: number;
 }
@@ -25,7 +47,7 @@ const PopupSlider = ({
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const intervalRef = useRef<any>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const totalSlides = slides.length;
 

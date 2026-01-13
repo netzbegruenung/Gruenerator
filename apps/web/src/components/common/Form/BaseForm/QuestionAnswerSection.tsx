@@ -21,7 +21,8 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
   onSubmit,
   loading = false,
   success = false,
-  submitButtonProps = {}
+  submitButtonProps = {},
+  hideSubmitButton = false
 }) => {
   const [customSelections, setCustomSelections] = useState<CustomSelectionsState>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -279,16 +280,18 @@ const QuestionAnswerSection: React.FC<QuestionAnswerSectionProps> = ({
             Weiter →
           </button>
         ) : (
-          <SubmitButton
-            onClick={onSubmit}
-            loading={loading}
-            success={success}
-            text={(submitButtonProps as Record<string, string>)?.defaultText || "Fragen beantworten"}
-            className="quiz-submit-button button-primary"
-            ariaLabel="Fragen beantworten"
-            type="submit"
-            {...submitButtonProps}
-          />
+          !hideSubmitButton && (
+            <SubmitButton
+              onClick={onSubmit}
+              loading={loading}
+              success={success}
+              text={(submitButtonProps as Record<string, string>)?.defaultText || "Fragen beantworten"}
+              className="quiz-submit-button button-primary"
+              ariaLabel="Fragen beantworten"
+              type="submit"
+              {...submitButtonProps}
+            />
+          )
         )}
       </div>
     </div>

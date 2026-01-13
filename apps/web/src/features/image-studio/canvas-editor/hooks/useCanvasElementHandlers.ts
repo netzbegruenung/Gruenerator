@@ -27,7 +27,7 @@ export interface UseCanvasElementHandlersOptions<TState, TActions extends Option
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
     actions: TActions;
     layout: LayoutResult;
-    callbacks: Record<string, ((val: any) => void) | undefined>;
+    callbacks: Record<string, ((val: unknown) => void) | undefined>;
     setSelectedElement: (id: string | null) => void;
     updateElementPosition: (id: string, x: number, y: number, w: number, h: number) => void;
     saveToHistory: (state: TState) => void;
@@ -47,7 +47,16 @@ export interface UseCanvasElementHandlersResult {
     handleIconDragEnd: (id: string, x: number, y: number) => void;
     handleIconTransformEnd: (id: string, x: number, y: number, scale: number, rotation: number) => void;
     handleShapeChange: (id: string, newAttrs: Partial<ShapeInstance>) => void;
-    handleAdditionalTextChange: (id: string, newAttrs: any) => void;
+    handleAdditionalTextChange: (id: string, newAttrs: Partial<AdditionalText>) => void;
+}
+
+/**
+ * Helper to safely access state array property
+ */
+function getStateArray<T>(state: unknown, key: string): T[] {
+    const stateObj = state as Record<string, unknown>;
+    const value = stateObj[key];
+    return Array.isArray(value) ? (value as T[]) : [];
 }
 
 /**
@@ -102,9 +111,10 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
                 return;
             }
 
-            if ((state as any).additionalTexts?.find((t: any) => t.id === id)) {
-                if ((actions as any).updateAdditionalText) {
-                    (actions as any).updateAdditionalText(id, { fontSize: size });
+            const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
+            if (additionalTexts.find((t) => t.id === id)) {
+                if (actions.updateAdditionalText) {
+                    actions.updateAdditionalText(id, { fontSize: size });
                     debouncedSaveToHistory(state);
                 }
             }
@@ -117,8 +127,11 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
             updateElementPosition(id, x, y, w, h);
 
             const elementConfig = config.elements.find((e) => e.id === id);
-            if (elementConfig && elementConfig.type === 'text' && (elementConfig as any).positionStateKey) {
-                setState((prev) => ({ ...prev, [(elementConfig as any).positionStateKey]: { x, y } }));
+            if (elementConfig && elementConfig.type === 'text') {
+                const positionStateKey = elementConfig.positionStateKey as string | undefined;
+                if (positionStateKey) {
+                    setState((prev) => ({ ...prev, [positionStateKey]: { x, y } }));
+                }
             }
         },
         [config.elements, updateElementPosition, setState]
@@ -142,23 +155,24 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
         (id: string, x: number, y: number, w: number, h: number) => {
             const elementConfig = config.elements.find((e) => e.id === id);
             if (elementConfig && elementConfig.type === 'image') {
-                const updates: Partial<TState> = {};
+                const updates = {} as Record<string, unknown>;
 
                 if (elementConfig.offsetKey) {
                     const baseX = typeof elementConfig.x === 'number' ? elementConfig.x : 0;
                     const baseY = typeof elementConfig.y === 'number' ? elementConfig.y : 0;
-                    (updates as any)[elementConfig.offsetKey] = { x: x - baseX, y: y - baseY };
+                    updates[elementConfig.offsetKey] = { x: x - baseX, y: y - baseY };
                 }
 
                 if (elementConfig.scaleKey) {
                     const baseWidth = typeof elementConfig.width === 'number' ? elementConfig.width : 100;
                     const currentScale = (state[elementConfig.scaleKey as keyof TState] as number) || 1;
                     const newScale = currentScale * (w / (baseWidth * currentScale));
-                    (updates as any)[elementConfig.scaleKey] = newScale;
+                    updates[elementConfig.scaleKey] = newScale;
                 }
 
+                const nextState = { ...state, ...updates } as TState;
                 setState((prev) => ({ ...prev, ...updates }));
-                saveToHistory({ ...state, ...updates });
+                saveToHistory(nextState);
             }
         },
         [config.elements, setState, saveToHistory, state]
@@ -217,7 +231,7 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
     );
 
     const handleAdditionalTextChange = useCallback(
-        (id: string, newAttrs: any) => {
+        (id: string, newAttrs: Partial<AdditionalText>) => {
             if (actions.updateAdditionalText) {
                 actions.updateAdditionalText(id, newAttrs);
             }

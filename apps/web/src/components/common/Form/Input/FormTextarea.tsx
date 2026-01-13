@@ -18,15 +18,15 @@ interface FormTextareaProps {
   disabled?: boolean;
   helpText?: string;
   className?: string;
-  control?: Control<any>;
-  rules?: Record<string, any>;
+  control?: Control<Record<string, unknown>>;
+  rules?: Record<string, unknown>;
   defaultValue?: string;
   minRows?: number;
   maxRows?: number;
   showCharacterCount?: boolean;
   maxLength?: number;
-  textareaProps?: Record<string, any>;
-  labelProps?: Record<string, any>;
+  textareaProps?: Record<string, unknown>;
+  labelProps?: Record<string, unknown>;
   tabIndex?: number;
   enableUrlDetection?: boolean;
   onUrlsDetected?: (urls: string[]) => void;
@@ -35,7 +35,7 @@ interface FormTextareaProps {
   autocompleteMinChars?: number;
   autocompleteAddHashtag?: boolean;
   onChange?: (value: string) => void;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface CharacterCountProps {

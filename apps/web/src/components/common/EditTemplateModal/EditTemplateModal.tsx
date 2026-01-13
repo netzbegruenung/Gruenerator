@@ -4,12 +4,32 @@ import { HiX } from 'react-icons/hi';
 import { useTagAutocomplete } from '../TemplateModal';
 import '../TemplateModal/template-modal.css';
 
+interface TemplateData {
+    id?: string;
+    title?: string;
+    description?: string;
+    external_url?: string;
+    canva_url?: string;
+    thumbnail_url?: string;
+    preview_image_url?: string;
+    is_private?: boolean;
+    [key: string]: unknown;
+}
+
+interface SaveData {
+    title: string;
+    description: string;
+    canva_url: string;
+    is_private: boolean;
+    [key: string]: unknown;
+}
+
 interface EditTemplateModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-    onSave: (id: string, data: any) => Promise<void>;
-    template: any;
+    onSave: (id: string, data: SaveData) => Promise<void>;
+    template: TemplateData;
 }
 
 const EditTemplateModal = ({
@@ -49,7 +69,7 @@ const EditTemplateModal = ({
         }
     }, [isOpen]);
 
-    const handleSubmit = useCallback(async () => {
+    const handleSubmit = useCallback(async (): Promise<void> => {
         if (!title.trim()) {
             setSubmitError('Titel ist erforderlich.');
             return;
@@ -59,17 +79,19 @@ const EditTemplateModal = ({
         setIsSubmitting(true);
 
         try {
-            await onSave(template.id, {
+            const saveData: SaveData = {
                 title: title.trim(),
                 description: description.trim(),
                 canva_url: externalUrl.trim(),
                 is_private: isPrivate
-            });
+            };
+            await onSave(template.id || '', saveData);
 
             onSuccess?.();
             onClose();
-        } catch (error: any) {
-            setSubmitError(error.message || 'Fehler beim Speichern der Vorlage');
+        } catch (error: unknown) {
+            const err = error as { message?: string };
+            setSubmitError(err.message || 'Fehler beim Speichern der Vorlage');
         } finally {
             setIsSubmitting(false);
         }
@@ -81,7 +103,7 @@ const EditTemplateModal = ({
         }
     }, [onClose]);
 
-    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const handleKeyDown = useCallback((e: KeyboardEvent): void => {
         if (e.key === 'Escape') {
             onClose();
         }

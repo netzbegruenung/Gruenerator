@@ -101,7 +101,7 @@ interface BaseFormProps {
   fontSize?: number;
   balkenOffset?: number[];
   colorScheme?: ColorScheme[];
-  onControlChange?: (name: string, value: any) => void;
+  onControlChange?: (name: string, value: unknown) => void;
   isSubmitting?: boolean;
   currentSubmittingStep?: string;
   balkenGruppenOffset?: [number, number];

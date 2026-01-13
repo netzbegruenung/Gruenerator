@@ -35,18 +35,18 @@ import './GenericCanvas.css';
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
     config: FullCanvasConfig<TState, TActions>;
-    initialProps: Record<string, any>;
+    initialProps: Record<string, unknown>;
     onExport: (base64: string) => void;
     onSave?: (base64: string) => void;
     onCancel: () => void;
-    callbacks?: Record<string, ((val: any) => void) | undefined>;
+    callbacks?: Record<string, ((val: unknown) => void) | undefined>;
     className?: string;
     onAddPage?: () => void;
     bare?: boolean;
     onDelete?: () => void;
 }
 
-function GenericCanvasInner<TState extends Record<string, any>, TActions extends OptionalCanvasActions>({
+function GenericCanvasInner<TState extends Record<string, unknown>, TActions extends OptionalCanvasActions>({
     config,
     initialProps,
     onExport,
@@ -84,8 +84,8 @@ function GenericCanvasInner<TState extends Record<string, any>, TActions extends
         setStateRaw(config.createInitialState(initialProps));
     }, [config, initialProps]);
 
-    // Font loading - only if config specifies fonts
-    const fontLoaded = useFontLoader(
+    // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready
+    const { fontLoaded, isFontAvailable } = useFontLoader(
         config.fonts?.requireFontLoad !== false && config.fonts
             ? {
                 fontFamily: config.fonts.primary,
@@ -96,7 +96,8 @@ function GenericCanvasInner<TState extends Record<string, any>, TActions extends
             : null
     );
 
-    const shouldWaitForFont = config.fonts?.requireFontLoad !== false && !fontLoaded;
+    // Never block rendering for fonts - progressive enhancement
+    const shouldWaitForFont = false;
 
     const setStateWrapper = useCallback(
         (partial: Partial<TState> | ((prev: TState) => TState)) => {
@@ -256,8 +257,8 @@ function GenericCanvasInner<TState extends Record<string, any>, TActions extends
     const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
 
     const sortedRenderList = useMemo(
-        () => buildSortedRenderList(canvasItems, (state as any).layerOrder || []),
-        [canvasItems, (state as any).layerOrder]
+        () => buildSortedRenderList(canvasItems, ((state as unknown as Record<string, unknown>).layerOrder as string[]) || []),
+        [canvasItems, ((state as unknown as Record<string, unknown>).layerOrder)]
     );
 
     const layerControls = useCanvasLayerControls({
@@ -294,7 +295,7 @@ function GenericCanvasInner<TState extends Record<string, any>, TActions extends
 
     // Extract text content for sharing from canvas state
     const canvasTextContent = useMemo(() => {
-        const s = state as any;
+        const s = state as unknown as Partial<Record<'quote' | 'headline' | 'header' | 'body' | 'subtext' | 'eventTitle' | 'beschreibung', string>>;
         const textParts: string[] = [];
 
         // Common text fields across different canvas types
@@ -314,7 +315,7 @@ function GenericCanvasInner<TState extends Record<string, any>, TActions extends
         if (!isExporting) return null;
 
         // Check if state has imageAttribution field
-        const imageAttribution = (state as any).imageAttribution as StockImageAttribution | null | undefined;
+        const imageAttribution = (state as unknown as Record<string, unknown>).imageAttribution as StockImageAttribution | null | undefined;
         if (!imageAttribution) return null;
 
         return calculateAttributionOverlay(

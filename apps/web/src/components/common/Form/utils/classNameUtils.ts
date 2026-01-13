@@ -20,7 +20,7 @@ export function getBaseContainerClasses({
     generatedContent && (
       typeof generatedContent === 'string'
         ? generatedContent.length > 0
-        : (generatedContent as any).content?.length > 0 || (generatedContent as any).sharepic
+        : (generatedContent as { content?: string; sharepic?: unknown }).content?.length > 0 || (generatedContent as { sharepic?: unknown }).sharepic
     ) ? 'has-generated-content' : '',
     isEditModeActive ? 'edit-mode-active' : '',
     isStartMode ? 'base-container--start-mode' : ''

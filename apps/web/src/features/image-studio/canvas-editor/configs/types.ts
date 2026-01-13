@@ -214,11 +214,11 @@ export interface SectionContext {
     onNavigateToGallery?: () => void;
 }
 
-export interface SectionConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>, TProps = Record<string, unknown>> {
+export interface SectionConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>, TSectionProps extends Record<string, unknown> = Record<string, unknown>> {
     /** Component to render for this section */
-    component: React.ComponentType<TProps>;
+    component: React.ComponentType<TSectionProps>;
     /** Function to map canvas state and handlers to section props */
-    propsFactory: (state: TState, actions: TActions, context?: SectionContext) => TProps;
+    propsFactory: (state: TState, actions: TActions, context?: SectionContext) => TSectionProps;
 }
 
 // ============================================================================
@@ -250,7 +250,7 @@ export interface FullCanvasConfig<TState = Record<string, unknown>, TActions = R
     /** Sidebar tabs */
     tabs: SidebarTab[];
     /** Sidebar sections */
-    sections: Record<string, SectionConfig<TState, TActions, any>>;
+    sections: Record<string, SectionConfig<TState, TActions, Record<string, unknown>>>;
     /** Canvas elements to render */
     elements: CanvasElementConfig<TState>[];
     /** Layout calculator */
@@ -277,6 +277,7 @@ export interface FullCanvasConfig<TState = Record<string, unknown>, TActions = R
     features?: {
         icons?: boolean;
         shapes?: boolean;
+        illustrations?: boolean;
     };
     /** Multi-page canvas support */
     multiPage?: MultiPageConfig<TState>;
@@ -299,7 +300,7 @@ export interface CanvasConfig<TState = Record<string, unknown>, TActions = Recor
     /** List of tabs to display in the sidebar */
     tabs: SidebarTab[];
     /** Mapping of tab IDs to section configurations */
-    sections: Record<string, SectionConfig<TState, TActions, any>>;
+    sections: Record<string, SectionConfig<TState, TActions, Record<string, unknown>>>;
     /** Optional function to determine disabled tabs based on state */
     getDisabledTabs?: (state: TState) => SidebarTabId[];
     /** Optional function to determine visible tabs based on state/context */

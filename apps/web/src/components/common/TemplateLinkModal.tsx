@@ -7,7 +7,7 @@ import * as canvaUtils from '../utils/canvaUtils';
  * Allows users to link their own Canva URLs to server templates
  */
 interface TemplateLinkModalProps {
-    template: any;
+    template: Record<string, unknown>;
     onClose: () => void;
     onSubmit: (url: string) => Promise<void> | void;
 }

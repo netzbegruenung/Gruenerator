@@ -11,18 +11,18 @@ interface PageState<TState> {
     order: number;
 }
 
-interface MultiPageCanvasEditorProps<TState extends Record<string, any>, TActions extends OptionalCanvasActions> {
+interface MultiPageCanvasEditorProps<TState extends Record<string, unknown>, TActions extends OptionalCanvasActions> {
     config: FullCanvasConfig<TState, TActions>;
     /** Initial props for the first page (quote, name, imageSrc, etc.) */
-    initialProps?: Record<string, any>;
+    initialProps?: Record<string, unknown>;
     initialPages?: PageState<TState>[];
     onExport: (base64: string, pageIndex: number) => void;
     onExportAll?: (pages: { base64: string; index: number }[]) => void;
     onCancel: () => void;
-    callbacks?: Record<string, ((val: any) => void) | undefined>;
+    callbacks?: Record<string, ((val: unknown) => void) | undefined>;
 }
 
-export function MultiPageCanvasEditor<TState extends Record<string, any>, TActions extends OptionalCanvasActions>({
+export function MultiPageCanvasEditor<TState extends Record<string, unknown>, TActions extends OptionalCanvasActions>({
     config,
     initialProps = {},
     initialPages,
@@ -86,14 +86,14 @@ export function MultiPageCanvasEditor<TState extends Record<string, any>, TActio
 
     // Create callbacks for a specific page
     const createPageCallbacks = useCallback((pageId: string) => {
-        return Object.keys(callbacks).reduce((acc, key) => {
+        return Object.keys(callbacks).reduce((acc: Record<string, (val: unknown) => void>, key) => {
             const match = key.match(/^on(.+)Change$/);
             if (match) {
                 const propName = match[1].charAt(0).toLowerCase() + match[1].slice(1);
-                acc[key] = (val: any) => handlePageStateChange(pageId, { [propName]: val } as Partial<TState>);
+                acc[key] = (val: unknown) => handlePageStateChange(pageId, { [propName]: val } as Partial<TState>);
             }
             return acc;
-        }, {} as Record<string, (val: any) => void>);
+        }, {});
     }, [callbacks, handlePageStateChange]);
 
     const sortedPages = pages.sort((a, b) => a.order - b.order);

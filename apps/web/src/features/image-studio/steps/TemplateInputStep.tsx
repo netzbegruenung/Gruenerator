@@ -45,7 +45,7 @@ const TemplateInputStep: React.FC<TemplateInputStepProps> = ({
   // Prefill name with user's full name for ZITAT types
   useEffect(() => {
     if (!name && user && (type === IMAGE_STUDIO_TYPES.ZITAT || type === IMAGE_STUDIO_TYPES.ZITAT_PURE)) {
-      const fullName = (user as any).display_name || (user as any).name || '';
+      const fullName = (user as unknown as { display_name?: string; name?: string }).display_name || (user as unknown as { display_name?: string; name?: string }).name || '';
       if (fullName) {
         handleChange({ target: { name: 'name', value: fullName } } as React.ChangeEvent<HTMLInputElement>);
       }

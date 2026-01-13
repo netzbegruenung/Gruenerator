@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import Icon from '../common/Icon';
 import { BasePopup, PopupSlider } from '../common/Popup';
+import type { IconCategory } from '../../config/icons';
 
 interface Slide {
   id: number;
@@ -9,7 +10,7 @@ interface Slide {
   subtitle: string;
   content: string;
   icon: string;
-  iconCategory?: string;
+  iconCategory?: IconCategory;
   gradient: string;
   isStartScreen?: boolean;
 }
@@ -280,7 +281,7 @@ const ImagineUpdatePopup = () => {
     onNext: () => void;
   }
 
-  const renderSlide = ({ slide, isMobile: isMobileView, onNext }: RenderSlideProps) => (
+  const renderSlide: (props: RenderSlideProps) => React.ReactNode = ({ slide, isMobile: isMobileView, onNext }) => (
     <div className={`popup-slide ${slide.gradient} ${slide.isStartScreen ? 'start-screen' : ''}`}>
       {slide.isStartScreen ? (
         <StartScreenSlide slide={slide} isMobile={isMobileView} onNext={onNext} />
@@ -338,7 +339,7 @@ const ImagineUpdatePopup = () => {
         <PopupSlider
           slides={IMAGINE_UPDATE_CONFIG.slides}
           onClose={onClose}
-          renderSlide={(props: any) => renderSlide({ ...props, isMobile })}
+          renderSlide={(props: Record<string, unknown>) => renderSlide({ ...props, isMobile })}
           renderFooter={renderFooter}
         />
       )}

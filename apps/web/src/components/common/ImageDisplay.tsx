@@ -81,7 +81,7 @@ const ImageDisplay = ({ sharepicData,
   // Lightbox state
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isKiLabelLoading, setIsKiLabelLoading] = useState(false);
-  const [kiLabelError, setKiLabelError] = useState(null);
+  const [kiLabelError, setKiLabelError] = useState<string | null>(null);
   const [isCanvaModalOpen, setIsCanvaModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -158,9 +158,10 @@ const ImageDisplay = ({ sharepicData,
       } else {
         throw new Error('Keine Alt-Text-Antwort erhalten');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ImageDisplay] Alt text generation failed:', error);
-      setAltTextError(error?.message || 'Fehler bei der Alt-Text-Generierung');
+      const errorMessage = error instanceof Error ? error.message : 'Fehler bei der Alt-Text-Generierung';
+      setAltTextError(errorMessage);
     } finally {
       setAltTextLoading(false);
     }
@@ -290,9 +291,10 @@ const ImageDisplay = ({ sharepicData,
       }
 
       resetAltTextState();
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ImageDisplay] KI label generation failed:', error);
-      setKiLabelError(error?.message || 'Fehler beim Hinzufügen des KI-Labels');
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Hinzufügen des KI-Labels';
+      setKiLabelError(errorMessage);
     } finally {
       setIsKiLabelLoading(false);
     }

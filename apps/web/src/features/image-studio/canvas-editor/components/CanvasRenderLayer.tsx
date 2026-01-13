@@ -7,7 +7,7 @@ import { ShapePrimitive } from '../primitives/ShapePrimitive';
 import { IllustrationPrimitive } from '../primitives/IllustrationPrimitive';
 import { ALL_ICONS } from '../utils/canvasIcons';
 import type { ShapeInstance } from '../utils/shapes';
-import type { IllustrationInstance } from '../utils/canvasIllustrations';
+import type { IllustrationInstance } from '../utils/illustrations/types';
 import { GenericCanvasElement } from './GenericCanvasElement';
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';
@@ -33,6 +33,21 @@ interface OptionalCanvasStateProperties {
     }>;
 }
 
+/** Configuration for snap lines */
+interface SnapLineConfig {
+    type: 'vertical' | 'horizontal';
+    position: number;
+}
+
+/** Additional text element attributes */
+interface AdditionalTextAttrs {
+    text?: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    scale?: number;
+}
+
 interface CanvasRenderLayerProps<TState = Record<string, unknown>, TActions = Record<string, unknown>> {
     sortedRenderList: CanvasItem[];
     config: FullCanvasConfig<TState, TActions>;
@@ -52,11 +67,11 @@ interface CanvasRenderLayerProps<TState = Record<string, unknown>, TActions = Re
         handleIconDragEnd: (id: string, x: number, y: number) => void;
         handleIconTransformEnd: (id: string, x: number, y: number, scale: number, rotation: number) => void;
         handleShapeChange: (id: string, newAttrs: Partial<ShapeInstance>) => void;
-        handleAdditionalTextChange: (id: string, newAttrs: any) => void;
+        handleAdditionalTextChange: (id: string, newAttrs: AdditionalTextAttrs) => void;
     };
-    getSnapTargets: (id: string) => any[];
+    getSnapTargets: (id: string) => string[];
     handleSnapChange: (h: boolean, v: boolean) => void;
-    setSnapLines: (lines: any[]) => void;
+    setSnapLines: (lines: SnapLineConfig[]) => void;
     stageWidth: number;
     stageHeight: number;
 }
@@ -119,8 +134,9 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
                             selected={selectedElement === balken.id}
                             onSelect={() => handlers.handleBalkenSelect(balken.id)}
                             onTextChange={(idx, txt) => {
-                                if ((state as any).actions?.setBalkenText) {
-                                    (state as any).actions.setBalkenText(balken.id, idx, txt);
+                                const stateWithActions = state as unknown as Record<string, unknown>;
+                                if ((stateWithActions.actions as unknown as Record<string, ((id: string, idx: number, txt: string) => void)>)?.setBalkenText) {
+                                    ((stateWithActions.actions as unknown as Record<string, ((id: string, idx: number, txt: string) => void)>).setBalkenText)(balken.id, idx, txt);
                                 }
                             }}
                             onDragEnd={(x, y) => handlers.handleBalkenDragEnd(balken.id, x, y)}
@@ -200,13 +216,15 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
                             isSelected={selectedElement === ill.id}
                             onSelect={() => handlers.handleElementSelect(ill.id)}
                             onDragEnd={(x: number, y: number) => {
-                                if ((state as any).actions?.updateIllustration) {
-                                    (state as any).actions.updateIllustration(ill.id, { x, y });
+                                const stateWithActions = state as unknown as Record<string, unknown>;
+                                if ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>)?.updateIllustration) {
+                                    ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>).updateIllustration)(ill.id, { x, y });
                                 }
                             }}
                             onTransformEnd={(x: number, y: number, scale: number, rotation: number) => {
-                                if ((state as any).actions?.updateIllustration) {
-                                    (state as any).actions.updateIllustration(ill.id, {
+                                const stateWithActions = state as unknown as Record<string, unknown>;
+                                if ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>)?.updateIllustration) {
+                                    ((stateWithActions.actions as unknown as Record<string, ((id: string, attrs: Record<string, unknown>) => void)>).updateIllustration)(ill.id, {
                                         x,
                                         y,
                                         scale,

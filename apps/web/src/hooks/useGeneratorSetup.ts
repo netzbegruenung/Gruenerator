@@ -119,17 +119,25 @@ export interface GeneratorSetupReturn {
 export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupReturn {
   // Batched store subscriptions using useShallow for optimal re-renders
   // This reduces 5 separate subscriptions to 1, improving performance
+  // NOTE: Feature values must be selected directly (not via getFeatureState)
+  // to ensure reactivity when they change after initial render
   const {
     selectedDocumentIds,
     selectedTextIds,
     isInstructionsActive,
-    getFeatureState,
+    useWebSearch,
+    usePrivacyMode,
+    useProMode,
+    useUltraMode,
   } = useGeneratorSelectionStore(
     useShallow((state) => ({
       selectedDocumentIds: state.selectedDocumentIds,
       selectedTextIds: state.selectedTextIds,
       isInstructionsActive: state.isInstructionsActive,
-      getFeatureState: state.getFeatureState,
+      useWebSearch: state.useWebSearch,
+      usePrivacyMode: state.usePrivacyMode,
+      useProMode: state.useProMode,
+      useUltraMode: state.useUltraMode,
     }))
   );
 
@@ -140,23 +148,23 @@ export function useGeneratorSetup(config: GeneratorSetupConfig): GeneratorSetupR
     isInstructionsActive
   );
 
-  // Get current feature state
-  const features: FeatureState = getFeatureState();
+  // Build feature state from reactive store values
+  const features: FeatureState = {
+    useWebSearchTool: useWebSearch,
+    usePrivacyMode,
+    useProMode,
+    useUltraMode,
+    useBedrock: useUltraMode,
+  };
 
   // Return all setup data with readonly types for safety
   return {
     selectedDocumentIds: selectedDocumentIds as readonly string[],
     selectedTextIds: selectedTextIds as readonly string[],
     isInstructionsActive,
-    features: {
-      useWebSearchTool: features.useWebSearchTool,
-      usePrivacyMode: features.usePrivacyMode,
-      useProMode: features.useProMode,
-      useUltraMode: features.useUltraMode,
-      useBedrock: features.useBedrock,
-    },
+    features,
     customPrompt,
-    getFeatureState,
+    getFeatureState: () => features,
   };
 }
 

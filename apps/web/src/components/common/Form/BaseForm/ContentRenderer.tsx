@@ -91,9 +91,9 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
 
           // Restore function handlers from metadata (functions can't be JSON.stringified)
           // BaseForm stores the original object with handlers as metadata
-          const storedMetadata = getGeneratedTextMetadata(componentName) as MixedContent | null;
+          const storedMetadata = getGeneratedTextMetadata(componentName) as Record<string, unknown> | null;
           if (storedMetadata && typeof storedMetadata.onEditSharepic === 'function') {
-            (processedGeneratedContent as MixedContent).onEditSharepic = storedMetadata.onEditSharepic;
+            ((processedGeneratedContent as unknown) as Record<string, unknown>).onEditSharepic = storedMetadata.onEditSharepic;
           }
         }
       } catch {
@@ -321,7 +321,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
         <div className="generated-content-wrapper">
           <div className="content-display markdown-content">
             <Suspense fallback={<div>Loading...</div>}>
-              <ReactMarkdown components={customComponents as any}>
+              <ReactMarkdown components={customComponents as Record<string, unknown>}>
                 {contentToRender as string}
               </ReactMarkdown>
             </Suspense>

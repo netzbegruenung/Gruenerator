@@ -129,7 +129,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
         refetchImageLimit();
       } else {
         // Template regeneration
-        const formData: any = {
+        const formData: Record<string, unknown> = {
           type: typeConfig?.legacyType || type,
           line1, line2, line3,
           quote,

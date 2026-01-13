@@ -56,7 +56,7 @@ export const ShapePrimitive: React.FC<ShapePrimitiveProps> = ({
     };
 
     const commonProps = {
-        ref: shapeRef as any,
+        ref: shapeRef as unknown as React.Ref<Konva.Shape>,
         x: shape.x,
         y: shape.y,
         fill: shape.fill,

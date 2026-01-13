@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, memo, forwardRef, ComponentType, ReactNode } from 'react';
 import type { Props as ReactSelectProps, GroupBase, StylesConfig, MultiValueProps, PlaceholderProps } from 'react-select';
-const Select = lazy(() => import('react-select')) as any;
-const CreatableSelect = lazy(() => import('react-select/creatable')) as any;
+const Select = lazy(() => import('react-select')) as unknown as typeof import('react-select').default;
+const CreatableSelect = lazy(() => import('react-select/creatable')) as unknown as typeof import('react-select/creatable').default;
 import FormFieldWrapper from '../Form/Input/FormFieldWrapper';
 import OptionIcon from './OptionIcon';
 import '../../../assets/styles/components/ui/react-select.css';
@@ -84,8 +84,7 @@ interface EnhancedSelectProps extends Omit<ReactSelectProps<EnhancedSelectOption
   components?: Record<string, ComponentType<unknown>>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const EnhancedSelect = forwardRef<any, EnhancedSelectProps>(({
+const EnhancedSelect = forwardRef<HTMLDivElement, EnhancedSelectProps>(({
   // Enhanced functionality props
   enableTags = false,
   enableIcons = false,

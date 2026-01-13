@@ -3,10 +3,10 @@ import type { PlatformOption } from '@/types/baseform';
 
 interface UseFormConfigurationParams {
   // Store configs
-  storeTabIndexConfig: Record<string, any>;
-  storePlatformConfig: Record<string, any>;
-  storeSubmitConfig: Record<string, any>;
-  storeUIConfig: Record<string, any>;
+  storeTabIndexConfig: Record<string, unknown>;
+  storePlatformConfig: Record<string, unknown>;
+  storeSubmitConfig: Record<string, unknown>;
+  storeUIConfig: Record<string, unknown>;
 
   // Prop overrides
   featureIconsTabIndex?: { webSearch?: number; privacyMode?: number; attachment?: number };
@@ -25,7 +25,7 @@ interface UseFormConfigurationParams {
   showImageUpload?: boolean;
   enableEditMode?: boolean;
   useMarkdown?: boolean | null;
-  submitConfig?: any;
+  submitConfig?: Record<string, unknown>;
   showNextButton?: boolean;
   nextButtonText?: string;
   submitButtonProps?: Record<string, unknown>;

@@ -74,10 +74,10 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
     try {
       const response = await apiClient.get(`/recent-values/${fieldType}?limit=${limit}`, {
         skipAuthRedirect: true
-      } as any);
+      } as Record<string, unknown>);
 
       if (response.data?.success && response.data?.data) {
-        const values = response.data.data.map(item => item.field_value);
+        const values = response.data.data.map((item: { field_value: string }) => item.field_value);
         setRecentValues(values);
 
         // Cache the results
@@ -89,9 +89,12 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
       } else {
         setRecentValues([]);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[useRecentValues] Error fetching recent values:', err);
-      setError(err.response?.data?.error || 'Failed to fetch recent values');
+      const errorMessage = err instanceof Error && 'response' in err
+        ? (err as Record<string, unknown>).response
+        : null;
+      setError((errorMessage as Record<string, unknown> | null)?.data?.error || 'Failed to fetch recent values');
       // Don't clear existing values on error
     } finally {
       setIsLoading(false);
@@ -101,7 +104,7 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
   /**
    * Save a new recent value
    */
-  const saveRecentValue = useCallback(async (value, formName = null) => {
+  const saveRecentValue = useCallback(async (value: string, formName: string | null = null) => {
     if (!fieldType || !value || typeof value !== 'string' || value.trim() === '') {
       return;
     }
@@ -120,7 +123,7 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
         formName
       }, {
         skipAuthRedirect: true
-      } as any);
+      } as Record<string, unknown>);
 
       if (response.data?.success) {
         // Update local state optimistically
@@ -153,16 +156,19 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
     try {
       const response = await apiClient.delete(`/recent-values/${fieldType}`, {
         skipAuthRedirect: true
-      } as any);
+      } as Record<string, unknown>);
 
       if (response.data?.success) {
         setRecentValues([]);
         localStorage.removeItem(cacheKey);
         console.log(`[useRecentValues] Cleared recent values for ${fieldType}`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[useRecentValues] Error clearing recent values:', err);
-      setError(err.response?.data?.error || 'Failed to clear recent values');
+      const errorMessage = err instanceof Error && 'response' in err
+        ? (err as Record<string, unknown>).response
+        : null;
+      setError((errorMessage as Record<string, unknown> | null)?.data?.error || 'Failed to clear recent values');
     }
   }, [fieldType, cacheKey]);
 
@@ -177,7 +183,7 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
   /**
    * Check if a value exists in recent values
    */
-  const hasRecentValue = useCallback((value) => {
+  const hasRecentValue = useCallback((value: string) => {
     if (!value || typeof value !== 'string') return false;
     return recentValues.includes(value.trim());
   }, [recentValues]);

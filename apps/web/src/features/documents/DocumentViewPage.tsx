@@ -7,12 +7,21 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 // Document Feature CSS - Loaded only when this feature is accessed
 import '../../assets/styles/features/documents/document-view.css';
 
+interface DocumentData {
+  title: string;
+  filename: string;
+  page_count?: number;
+  status: string;
+  created_at: string;
+  ocr_text?: string;
+}
+
 const DocumentViewPage = () => {
   const { documentId } = useParams();
   const navigate = useNavigate();
-  const [document, setDocument] = useState(null);
+  const [document, setDocument] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDocument = async () => {
@@ -36,7 +45,7 @@ const DocumentViewPage = () => {
         }
       } catch (err) {
         console.error('[DocumentViewPage] Error fetching document:', err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
       } finally {
         setLoading(false);
       }

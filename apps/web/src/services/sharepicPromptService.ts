@@ -88,14 +88,21 @@ export async function generateSharepicFromPrompt(prompt: string): Promise<Sharep
       isKiType: false
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[SharepicPromptService] Error generating sharepic from prompt:', error);
+
+    let errorMessage = 'Ein Fehler ist aufgetreten';
+    if (error instanceof Error) {
+      errorMessage = (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
+        ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
+        : error.message;
+    }
 
     return {
       success: false,
       type: 'dreizeilen',
       data: {},
-      error: error.response?.data?.error || error.message || 'Ein Fehler ist aufgetreten'
+      error: errorMessage
     };
   }
 }

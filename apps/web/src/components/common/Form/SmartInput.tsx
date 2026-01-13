@@ -9,20 +9,20 @@ interface SmartInputProps {
   fieldType: string;
   formName?: string | null;
   name: string;
-  control: Control<any>;
+  control: Control<Record<string, unknown>>;
   label?: string;
   placeholder?: string;
-  rules?: Record<string, any>;
+  rules?: Record<string, unknown>;
   tabIndex?: number;
-  setValue?: (name: string, value: any, options?: Record<string, any>) => void;
-  getValues?: (name?: string) => any;
+  setValue?: (name: string, value: unknown, options?: Record<string, unknown>) => void;
+  getValues?: (name?: string) => unknown;
   onSubmitSuccess?: string | null;
   shouldSave?: boolean;
   maxRecentValues?: number;
   className?: string;
   disabled?: boolean;
   subtext?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface RecentOption {
@@ -154,11 +154,11 @@ const SmartInput: React.FC<SmartInputProps> = ({
           enableTags={true}
           options={recentOptions}
           isLoading={isLoading}
-          onChange={(selectedOption: any) => {
+          onChange={(selectedOption: RecentOption | null) => {
             field.onChange(selectedOption ? selectedOption.value : '');
           }}
           isSearchable={true}
-          onInputChange={(inputValue: string, actionMeta: any) => {
+          onInputChange={(inputValue: string, actionMeta: { action: string }) => {
             if (actionMeta.action === 'input-change') {
               field.onChange(inputValue);
             }

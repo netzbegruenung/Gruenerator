@@ -7,6 +7,7 @@
 
 import type { StockImageAttribution } from '../sidebar/types';
 import type { ShapeInstance } from '../utils/shapes';
+import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { AdditionalText } from './types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 
@@ -32,7 +33,10 @@ export interface DreizeilenFullState {
   balkenOffset: { x: number; y: number };  // Group offset
   balkenOpacity: number;
 
-  // === Sunflower ===
+  // === Assets ===
+  assetVisibility: Record<string, boolean>;
+
+  // === Sunflower (legacy - kept for backward compatibility) ===
   sunflowerPos: { x: number; y: number } | null;
   sunflowerSize: { w: number; h: number } | null;
   sunflowerVisible: boolean;
@@ -58,6 +62,10 @@ export interface DreizeilenFullState {
   }>;
   shapeInstances: ShapeInstance[];
   selectedShapeId: string | null;
+
+  // === Illustrations ===
+  illustrationInstances: IllustrationInstance[];
+  selectedIllustrationId: string | null;
 
   // === Additional Texts ===
   additionalTexts: AdditionalText[];
@@ -100,6 +108,9 @@ export interface DreizeilenFullActions {
   handleSunflowerDragEnd: (x: number, y: number) => void;
   handleSunflowerTransformEnd: (width: number, height: number) => void;
 
+  // === Asset Actions ===
+  handleAssetToggle: (id: string, visible: boolean) => void;
+
   // === Background Image Actions ===
   setCurrentImageSrc: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => void;
   setImageScale: (scale: number) => void;
@@ -115,6 +126,14 @@ export interface DreizeilenFullActions {
   addShape: (type: 'rect' | 'circle' | 'triangle' | 'star' | 'arrow' | 'heart' | 'cloud') => void;
   updateShape: (shapeId: string, partial: Partial<ShapeInstance>) => void;
   removeShape: (shapeId: string) => void;
+
+  // === Illustration Actions ===
+  addIllustration: (id: string) => Promise<void>;
+  updateIllustration: (illustrationId: string, partial: Partial<IllustrationInstance>) => void;
+  removeIllustration: (illustrationId: string) => void;
+  duplicateIllustration?: (illustrationId: string) => void;
+  handleIllustrationDragEnd?: (illustrationId: string, x: number, y: number) => void;
+  handleIllustrationTransformEnd?: (illustrationId: string, width: number, height: number, rotation?: number) => void;
 
   // === Additional Text Actions ===
   addHeader: () => void;

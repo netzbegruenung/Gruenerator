@@ -5,11 +5,20 @@ import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWr
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 import { slideVariants } from '../components/StepFlow';
 
+interface CanvasEditTypeConfig {
+    id?: string;
+    hasTextCanvasEdit?: boolean;
+}
+
+interface SloganAlternative {
+    quote?: string;
+}
+
 export interface CanvasEditStepProps {
-    typeConfig: any;
+    typeConfig: CanvasEditTypeConfig | undefined;
     uploadedImageUrl: string | null;
-    sloganAlternatives: any[];
-    getFieldValue: (name: string) => any;
+    sloganAlternatives: SloganAlternative[];
+    getFieldValue: (name: string) => unknown;
     handleCanvasExport: (base64: string) => void;
     handleCanvasSave: (base64: string) => void;
     handleBack: () => void;

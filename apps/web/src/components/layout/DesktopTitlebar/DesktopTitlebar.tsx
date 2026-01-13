@@ -70,8 +70,9 @@ const DesktopTitlebar = () => {
     getCurrentWindow().close();
   };
 
-  const handleDoubleClick = (e) => {
-    if (e.target.closest('.tab-bar-container') || e.target.closest('.titlebar-controls')) {
+  const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.tab-bar-container') || target.closest('.titlebar-controls')) {
       return;
     }
     handleMaximize();

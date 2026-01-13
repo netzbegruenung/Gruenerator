@@ -1,10 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../stores/authStore';
-import { getIcon } from '../../../config/icons';
+import { getIcon, IconCategory } from '../../../config/icons';
 import { HiChat } from 'react-icons/hi';
 import './desktop-home.css';
 
-const featureCategories = [
+interface FeatureItem {
+  title: string;
+  route: string;
+  icon: string;
+  iconCategory: IconCategory | 'custom';
+}
+
+interface FeatureCategory {
+  title: string;
+  items: FeatureItem[];
+}
+
+const featureCategories: FeatureCategory[] = [
   {
     title: 'Texte',
     items: [
@@ -31,7 +43,11 @@ const featureCategories = [
   }
 ];
 
-const FeatureCard = ({ title, route, icon, iconCategory, onClick }) => {
+interface FeatureCardProps extends FeatureItem {
+  onClick: () => void;
+}
+
+const FeatureCard = ({ title, route, icon, iconCategory, onClick }: FeatureCardProps) => {
   const IconComponent = iconCategory === 'custom'
     ? HiChat
     : getIcon(iconCategory, icon);

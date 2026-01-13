@@ -14,7 +14,7 @@ import '../../assets/styles/features/notebook/notebook-page.css';
 const NotebookSearchPage = () => {
   const componentName = 'ask';
   const navigate = useNavigate();
-  const { Textarea }: any = useFormFields();
+  const { Textarea } = useFormFields() as { Textarea: React.ComponentType<Record<string, unknown>> };
   const { submitForm, loading, success, error } = useApiSubmit('/claude_gruenerator_ask');
   const { setGeneratedText, setGeneratedTextMetadata, setIsLoading: setStoreIsLoading, getGeneratedTextMetadata, getLinkConfig } = useGeneratedTextStore();
 
@@ -30,7 +30,7 @@ const NotebookSearchPage = () => {
 
   const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
 
-  const onSubmitRHF = useCallback(async (rhfData: any) => {
+  const onSubmitRHF = useCallback(async (rhfData: { question: string }) => {
     setStoreIsLoading(true);
 
     try {

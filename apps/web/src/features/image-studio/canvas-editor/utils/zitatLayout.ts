@@ -10,6 +10,8 @@
  * - Quote mark is white
  */
 
+import { SYSTEM_ASSETS } from './canvasAssets';
+
 import { wrapText } from './textUtils';
 
 export const ZITAT_CONFIG = {
@@ -23,7 +25,7 @@ export const ZITAT_CONFIG = {
     bottomOpacity: 0.5,
   },
   quotationMark: {
-    src: '/quote-white.svg',
+    src: SYSTEM_ASSETS.quote.white.src,
     x: 50,
     y: 750, // Fixed Y position from backend
     sizeRatio: 1.67, // quoteMarkSize = fontSize * 1.67

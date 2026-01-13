@@ -6,7 +6,7 @@ import { extractFormattedText } from '../utils/contentExtractor';
 
 // === MAIN COMPONENT ===
 interface DownloadExportProps {
-  content: any;
+  content: unknown;
   title?: string;
   className?: string;
 }
