@@ -4,6 +4,7 @@ import { HiPhoto, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
 import { HiColorSwatch } from 'react-icons/hi';
 import type { BackgroundSectionProps, StockImageAttribution } from '../types';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { SidebarHint } from '../components/SidebarHint';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUnsplashSearch } from '../../../hooks/useUnsplashSearch';
 import { fetchUnsplashImageAsFile, trackUnsplashDownloadLive, type StockImage } from '../../../services/imageSourceService';
@@ -74,9 +75,9 @@ function ColorSubsection({
         </div>
       )}
 
-      <p className="sidebar-hint">
+      <SidebarHint>
         Wähle eine passende Hintergrundfarbe für dein Design. Die Farbe sollte gut mit dem Text harmonieren und für ausreichend Kontrast sorgen. Sand (hell) eignet sich für dunkle Texte, grüne Töne für helle Texte.
-      </p>
+      </SidebarHint>
     </div>
   );
 }
@@ -408,9 +409,9 @@ function ImageSubsection({
           }}>
             Suche nach Bildern auf Unsplash
           </p>
-          <p className="sidebar-hint">
+          <SidebarHint>
             Tipp: Verwende Begriffe wie "Natur", "Umwelt", "Politik", "Menschen"
-          </p>
+          </SidebarHint>
         </div>
       )}
 
@@ -426,9 +427,9 @@ function ImageSubsection({
         </div>
       )}
 
-      <p className="sidebar-hint" style={{ marginTop: 'var(--spacing-medium)' }}>
+      <SidebarHint style={{ marginTop: 'var(--spacing-medium)' }}>
         Bilder von Unsplash. Wird automatisch mit Fotografennennung versehen.
-      </p>
+      </SidebarHint>
     </div>
   );
 }
@@ -480,9 +481,9 @@ export function BackgroundSection({
       ),
     },
     {
-      id: 'image',
-      icon: HiPhoto,
-      label: 'Bild',
+      id: 'unsplash',
+      icon: HiMagnifyingGlass,
+      label: 'Unsplash',
       content: (
         <ImageSubsection
           currentImageSrc={currentImageSrc}

@@ -8,6 +8,7 @@ import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUnsplashSearch } from '../../../hooks/useUnsplashSearch';
 import UnsplashAttribution from '../../../../../components/common/UnsplashAttribution';
 import { SidebarSlider } from '../components/SidebarSlider';
+import { SidebarHint } from '../components/SidebarHint';
 import './ImageBackgroundSection.css';
 
 export interface ImageBackgroundSectionProps {
@@ -28,14 +29,12 @@ export interface ImageBackgroundSectionProps {
 }
 
 /**
- * Image Source Content - upload, unsplash, and mediathek controls
+ * Image Preview Content - current image and upload button only
  */
-function ImageSourceContent({
+function ImagePreviewContent({
     currentImageSrc,
     onImageChange,
-    isLocked,
-    onToggleLock,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange' | 'isLocked' | 'onToggleLock'>) {
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,17 +52,8 @@ function ImageSourceContent({
         fileInputRef.current?.click();
     }, []);
 
-    const handleUnsplashSelect = useCallback(async (image: StockImage) => {
-        try {
-            const file = await fetchUnsplashImageAsFile(image);
-            const objectUrl = URL.createObjectURL(file);
-            if (image.attribution?.downloadLocation) {
-                await trackUnsplashDownloadLive(image.attribution.downloadLocation);
-            }
-            onImageChange(file, objectUrl, image.attribution ?? null);
-        } catch (error) {
-            console.error('[ImageSourceContent] Failed to select Unsplash image:', error);
-        }
+    const handleRemoveImage = useCallback(() => {
+        onImageChange(null);
     }, [onImageChange]);
 
     return (
@@ -74,15 +64,24 @@ function ImageSourceContent({
                     {currentImageSrc ? (
                         <div className="image-background-preview">
                             <img src={currentImageSrc} alt="Aktueller Hintergrund" />
+                            <button
+                                type="button"
+                                className="image-background-remove"
+                                onClick={handleRemoveImage}
+                                aria-label="Bild entfernen"
+                            >
+                                <HiXMark size={14} />
+                            </button>
                         </div>
                     ) : (
                         <div className="image-background-placeholder">
+                            <HiPhoto size={24} />
                             <span>Kein Bild</span>
                         </div>
                     )}
                 </div>
 
-                {/* Quick Actions */}
+                {/* Upload Button */}
                 <div className="image-background-actions">
                     <input
                         ref={fileInputRef}
@@ -94,21 +93,19 @@ function ImageSourceContent({
 
                     <button
                         type="button"
-                        className="btn-icon btn-secondary"
+                        className="btn btn-secondary"
                         onClick={handleUploadClick}
                         title="Bild hochladen"
-                        aria-label="Bild hochladen"
                     >
-                        <HiUpload />
+                        <HiUpload size={16} />
+                        <span>Hochladen</span>
                     </button>
                 </div>
             </div>
 
-            {/* Unsplash Search */}
-            <UnsplashSearchSection
-                currentImageSrc={currentImageSrc}
-                onImageSelect={handleUnsplashSelect}
-            />
+            <SidebarHint>
+                Lade ein eigenes Bild hoch oder suche in der Unsplash-Bibliothek.
+            </SidebarHint>
         </div>
     );
 }
@@ -287,9 +284,42 @@ function AdjustmentsContent({
             )}
 
 
-            <p className="sidebar-hint" style={{ marginTop: 'var(--spacing-medium)' }}>
+            <SidebarHint style={{ marginTop: 'var(--spacing-medium)' }}>
                 Passe den Bildausschnitt und die Helligkeit an, um die Lesbarkeit des Textes zu optimieren.
-            </p>
+            </SidebarHint>
+        </div>
+    );
+}
+
+/**
+ * Unsplash Content wrapper - wraps search section with proper container
+ */
+function UnsplashContent({
+    currentImageSrc,
+    onImageChange,
+}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
+    const handleUnsplashSelect = useCallback(async (image: StockImage) => {
+        try {
+            const file = await fetchUnsplashImageAsFile(image);
+            const objectUrl = URL.createObjectURL(file);
+            if (image.attribution?.downloadLocation) {
+                await trackUnsplashDownloadLive(image.attribution.downloadLocation);
+            }
+            onImageChange(file, objectUrl, image.attribution ?? null);
+        } catch (error) {
+            console.error('[UnsplashContent] Failed to select Unsplash image:', error);
+        }
+    }, [onImageChange]);
+
+    return (
+        <div className="sidebar-section sidebar-section--unsplash">
+            <UnsplashSearchSection
+                currentImageSrc={currentImageSrc}
+                onImageSelect={handleUnsplashSelect}
+            />
+            <SidebarHint style={{ marginTop: 'var(--spacing-medium)' }}>
+                Bilder von Unsplash. Wird automatisch mit Fotografennennung versehen.
+            </SidebarHint>
         </div>
     );
 }
@@ -304,36 +334,36 @@ export function ImageBackgroundSection({
     isLocked,
     onToggleLock,
 }: ImageBackgroundSectionProps) {
-    // If zoom/gradient controls are provided, use subsection navigation
     const hasAdjustments = (scale !== undefined && onScaleChange !== undefined) ||
         (gradientOpacity !== undefined && onGradientOpacityChange !== undefined);
-
-    if (!hasAdjustments) {
-        return (
-            <ImageSourceContent
-                currentImageSrc={currentImageSrc}
-                onImageChange={onImageChange}
-                isLocked={isLocked}
-                onToggleLock={onToggleLock}
-            />
-        );
-    }
 
     const subsections: Subsection[] = [
         {
             id: 'image-source',
-            icon: HiPhoto,
+            icon: HiUpload,
             label: 'Bild',
             content: (
-                <ImageSourceContent
+                <ImagePreviewContent
                     currentImageSrc={currentImageSrc}
                     onImageChange={onImageChange}
-                    isLocked={isLocked}
-                    onToggleLock={onToggleLock}
                 />
             ),
         },
         {
+            id: 'unsplash-search',
+            icon: HiMagnifyingGlass,
+            label: 'Suche',
+            content: (
+                <UnsplashContent
+                    currentImageSrc={currentImageSrc}
+                    onImageChange={onImageChange}
+                />
+            ),
+        },
+    ];
+
+    if (hasAdjustments) {
+        subsections.push({
             id: 'image-adjustments',
             icon: HiAdjustments,
             label: 'Anpassung',
@@ -345,8 +375,8 @@ export function ImageBackgroundSection({
                     onGradientOpacityChange={onGradientOpacityChange}
                 />
             ),
-        },
-    ];
+        });
+    }
 
     return <SubsectionTabBar subsections={subsections} defaultSubsection="image-source" />;
 }

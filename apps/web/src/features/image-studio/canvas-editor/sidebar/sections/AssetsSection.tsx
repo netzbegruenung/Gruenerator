@@ -1,4 +1,5 @@
 import { useState, useMemo, useDeferredValue, useEffect } from 'react';
+import useDebounce from '../../../../../components/hooks/useDebounce';
 import { FaCheck, FaPuzzlePiece, FaShapes, FaSearch } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
 import { PiMagnifyingGlass, PiSmileyWink } from 'react-icons/pi';
@@ -351,7 +352,8 @@ export function AssetsSection({
   onDuplicateIllustration,
 }: ExtendedAssetsSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const deferredQuery = useDeferredValue(searchQuery);
+  const debouncedQuery = useDebounce(searchQuery, 300);
+  const deferredQuery = useDeferredValue(debouncedQuery);
   const [formenExpanded, setFormenExpanded] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
   const [illustrationenExpanded, setIllustrationenExpanded] = useState(false);
@@ -365,7 +367,8 @@ export function AssetsSection({
   const hasIllustrationsFeature = onAddIllustration !== undefined;
 
   useEffect(() => {
-    if (hasIllustrationsFeature && illustrations.length === 0 && !illustrationsLoading) {
+    // Always load illustrations for search functionality (search tab is always available)
+    if (illustrations.length === 0 && !illustrationsLoading) {
       setIllustrationsLoading(true);
       getAllIllustrations()
         .then(setIllustrations)
@@ -374,7 +377,7 @@ export function AssetsSection({
         })
         .finally(() => setIllustrationsLoading(false));
     }
-  }, [hasIllustrationsFeature, illustrations.length, illustrationsLoading]);
+  }, [illustrations.length, illustrationsLoading]);
 
   // Background prefetch all SVG illustrations during idle time
   useEffect(() => {
@@ -466,13 +469,22 @@ export function AssetsSection({
       }
     }
 
-    // Search illustrations
-    if (hasIllustrationsFeature && illustrations.length > 0) {
-      const matchingIllustrations = illustrations.filter(ill =>
-        ill.name.toLowerCase().includes(query) ||
-        ill.tags.some(tag => tag.toLowerCase().includes(query)) ||
-        (ill.source !== 'kawaii' && (ill as unknown as { category?: string }).category?.toLowerCase().includes(query))
-      );
+    // Search illustrations (always search if illustrations are loaded, regardless of add feature)
+    if (illustrations.length > 0) {
+      const englishTermsForIllustrations = getEnglishSearchTerms(query);
+      const matchingIllustrations = illustrations.filter(ill => {
+        const nameLower = ill.name.toLowerCase();
+        const matchesName = nameLower.includes(query);
+        const matchesTags = ill.tags.some(tag => tag.toLowerCase().includes(query));
+        const matchesCategory = ill.source !== 'kawaii' &&
+          (ill as unknown as { category?: string }).category?.toLowerCase().includes(query);
+        // Also match English translation terms against illustration names/tags
+        const matchesTranslation = englishTermsForIllustrations.some(term =>
+          nameLower.includes(term) ||
+          ill.tags.some(tag => tag.toLowerCase().includes(term))
+        );
+        return matchesName || matchesTags || matchesCategory || matchesTranslation;
+      });
       matchingIllustrations.forEach(ill => {
         results.push({
           type: 'illustration',
@@ -484,7 +496,16 @@ export function AssetsSection({
     }
 
     return results;
-  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, hasIllustrationsFeature, illustrations]);
+  }, [deferredQuery, hasAssetsFeature, hasShapesFeature, hasIconsFeature, illustrations]);
+
+  // Determine search state for stable rendering
+  const hasQuery = searchQuery.trim().length > 0;
+  const hasDeferredQuery = deferredQuery.trim().length > 0;
+  // User is typing if immediate query differs from debounced query
+  const isTyping = searchQuery !== debouncedQuery;
+  const isSearching = hasQuery && (isTyping || !hasDeferredQuery);
+  const showResults = hasDeferredQuery && searchResults.length > 0 && !isTyping;
+  const showNoResults = hasDeferredQuery && searchResults.length === 0 && !isTyping;
 
   // Build subsections
   const subsections: Subsection[] = [
@@ -494,11 +515,12 @@ export function AssetsSection({
       icon: FaSearch,
       label: 'Suche',
       content: (
-        <div className="sidebar-section sidebar-section--assets">
+        <div className="sidebar-section sidebar-section--assets sidebar-section--search">
           <SearchInput value={searchQuery} onChange={setSearchQuery} />
 
-          {searchQuery.trim().length > 0 && (
-            searchResults.length > 0 ? (
+          {/* Always render container for stable layout */}
+          <div className={`assets-search-results ${hasQuery ? 'assets-search-results--active' : ''}`}>
+            {showResults && (
               <SearchResultsGrid
                 results={searchResults}
                 onAddAsset={onAddAsset}
@@ -508,10 +530,17 @@ export function AssetsSection({
                 onIconToggle={onIconToggle}
                 maxIconSelections={maxIconSelections}
               />
-            ) : (
+            )}
+            {showNoResults && (
               <p className="assets-no-results">Keine Ergebnisse für "{deferredQuery}"</p>
-            )
-          )}
+            )}
+            {isSearching && (
+              <p className="assets-search-hint">Suche...</p>
+            )}
+            {!hasQuery && (
+              <p className="assets-search-hint">Tippe um zu suchen</p>
+            )}
+          </div>
         </div>
       ),
     },

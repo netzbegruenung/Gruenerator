@@ -317,3 +317,21 @@
   border-color: var(--primary-600);
   color: var(--primary-600);
 }
+
+/* Mobile: reduce font sizes for alternatives/cards */
+@media (max-width: 899px) {
+  .sidebar-selectable-card__text {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .sidebar-selectable-card__badge {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .sidebar-selectable-card__check {
+    width: 14px;
+    height: 14px;
+  }
+}

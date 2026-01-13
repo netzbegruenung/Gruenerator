@@ -251,6 +251,18 @@
   color: var(--interactive-accent-color);
 }
 
+/* Mobile: reduce font size for alternatives pills */
+@media (max-width: 899px) {
+  .alternative-item {
+    font-size: 12px;
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
+  }
+
+  .alternatives-list {
+    gap: var(--spacing-xxsmall);
+  }
+}
+
 /* Font Size Control Row */
 .sidebar-font-size-row {
   display: flex;
@@ -399,20 +411,13 @@
     transform: translateY(0);
   }
 
-  /* Backdrop for mobile bottom sheet */
+  /* Backdrop for mobile bottom sheet - hidden, shadow provides depth */
   .sidebar-panel-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-    z-index: 98;
+    display: none;
   }
 
   .sidebar-panel-backdrop--visible {
-    opacity: 1;
-    pointer-events: auto;
+    display: none;
   }
 
   /* Drag Handle for bottom sheet */

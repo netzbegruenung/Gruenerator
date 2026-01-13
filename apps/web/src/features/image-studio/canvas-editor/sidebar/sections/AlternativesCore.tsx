@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FaChevronDown } from 'react-icons/fa';
+import { SidebarHint } from '../components/SidebarHint';
 
 interface AlternativesRendererProps<T> {
   alternatives: T[];
@@ -115,7 +116,7 @@ export function AlternativesRenderer<T>({
             </motion.div>
           )}
         </AnimatePresence>
-        {hintText && <p className="sidebar-hint">{hintText}</p>}
+        {hintText && <SidebarHint>{hintText}</SidebarHint>}
       </div>
     );
   }
@@ -123,7 +124,7 @@ export function AlternativesRenderer<T>({
   return (
     <div className="sidebar-section sidebar-section--dreizeilen-alternatives">
       {content}
-      {hintText && <p className="sidebar-hint">{hintText}</p>}
+      {hintText && <SidebarHint>{hintText}</SidebarHint>}
     </div>
   );
 }

@@ -1,0 +1,99 @@
+/* Desktop: show inline hint, hide mobile trigger */
+.sidebar-hint--desktop {
+  display: block;
+}
+
+.sidebar-hint-mobile {
+  display: none;
+}
+
+/* Mobile: hide inline hint, show trigger */
+@media (max-width: 899px) {
+  .sidebar-hint--desktop {
+    display: none;
+  }
+
+  .sidebar-hint-mobile {
+    display: inline-flex;
+    position: relative;
+  }
+
+  .sidebar-hint-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--card-background);
+    border: var(--border-subtle);
+    border-radius: 50%;
+    color: var(--font-color-muted);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .sidebar-hint-trigger:hover,
+  .sidebar-hint-trigger:focus {
+    color: var(--interactive-accent-color);
+    border-color: var(--interactive-accent-color);
+    outline: none;
+  }
+
+  .sidebar-hint-popup {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 2rem);
+    max-width: 320px;
+    background: var(--background-color);
+    border: var(--card-border);
+    border-radius: var(--card-border-radius);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    animation: sidebar-hint-popup-in 0.2s ease-out;
+  }
+
+  @keyframes sidebar-hint-popup-in {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .sidebar-hint-popup__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--font-color-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .sidebar-hint-popup__close:hover {
+    background: var(--hover-color-alt);
+    color: var(--font-color);
+  }
+
+  .sidebar-hint-popup__content {
+    padding: var(--spacing-medium);
+    padding-right: calc(var(--spacing-medium) + 24px);
+    font-size: 13px;
+    color: var(--font-color-muted);
+    line-height: 1.5;
+  }
+}
