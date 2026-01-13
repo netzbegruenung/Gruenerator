@@ -117,7 +117,7 @@ const JoinGroupPage = () => {
         <div className="join-group-card">
           <h1>Fehler</h1>
           <p>
-            {isJoinGroupError
+            {isJoinGroupError && joinGroupError
               ? `Fehler beim Beitreten der Gruppe: ${joinGroupError.message}`
               : 'Ungültiger oder abgelaufener Einladungslink.'}
           </p>

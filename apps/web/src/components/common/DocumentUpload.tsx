@@ -964,7 +964,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
                       </div>
                       <div className="document-meta">
                         <span className="document-status">{getStatusText(document.status)}</span>
-                        {document.page_count > 0 && (
+                        {(document.page_count ?? 0) > 0 && (
                           <span className="document-pages">{document.page_count} Seiten</span>
                         )}
                         <span className="document-date">

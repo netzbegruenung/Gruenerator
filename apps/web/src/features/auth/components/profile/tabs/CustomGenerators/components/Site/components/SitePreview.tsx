@@ -76,7 +76,7 @@ const SitePreview = ({ site, onEdit, onPublish }: SitePreviewProps): React.React
                     </ProfileCard>
                 )}
 
-                {site.social_links && Object.keys(site.social_links).filter(k => site.social_links[k]).length > 0 && (
+                {site.social_links && Object.keys(site.social_links).filter(k => site.social_links?.[k]).length > 0 && (
                     <ProfileCard title="Social Media">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small)' }}>
                             {Object.entries(site.social_links).map(([platform, url]) => (

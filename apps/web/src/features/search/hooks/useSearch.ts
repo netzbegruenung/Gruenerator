@@ -21,13 +21,14 @@ const findUsedSources = (sources: Source[], analysisText: string, claudeSourceTi
     );
     
     // Titel-Match (berücksichtigt auch Teilübereinstimmungen)
-    const titleMatch = source.title && (
+    const title = source.title;
+    const titleMatch = title && (
       analysisText.toLowerCase().includes(
-        source.title.toLowerCase().substring(0, Math.min(source.title.length, 40))
+        title.toLowerCase().substring(0, Math.min(title.length, 40))
       ) ||
-      claudeSourceTitles.some(claudeTitle => 
-        claudeTitle.toLowerCase().includes(source.title.toLowerCase()) ||
-        source.title.toLowerCase().includes(claudeTitle.toLowerCase())
+      claudeSourceTitles.some(claudeTitle =>
+        claudeTitle.toLowerCase().includes(title.toLowerCase()) ||
+        title.toLowerCase().includes(claudeTitle.toLowerCase())
       )
     );
     

@@ -266,6 +266,12 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
       const presseData = pressemitteilungFormRef.current?.getFormData();
       const sharepicData = sharepicFormRef.current?.getFormData();
 
+      if (!socialData) {
+        console.error('[PresseSocialGenerator] No social media form data');
+        setStoreIsLoading(false);
+        return;
+      }
+
       // Get platforms from react-hook-form data (managed by parent)
       const platforms = Array.isArray(rhfData.platforms) ? rhfData.platforms as string[] : [];
 

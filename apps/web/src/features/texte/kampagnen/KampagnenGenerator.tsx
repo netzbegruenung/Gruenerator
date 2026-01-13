@@ -439,7 +439,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     </>
   );
 
-  const customEditContent = storeGeneratedText?.sharepic?.length > 0 ? (
+  const customEditContent = storeGeneratedText?.sharepic && storeGeneratedText.sharepic.length > 0 ? (
     <CampaignSharepicEditor
       sharepics={storeGeneratedText.sharepic}
       activeIndex={activeSharepicIndex}

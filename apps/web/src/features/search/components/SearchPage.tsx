@@ -99,7 +99,7 @@ const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) =
                 <p className="source-summary">{recommendation.summary}</p>
               </div>
             )}
-            {hasSnippets && (
+            {hasSnippets && source.content_snippets && (
               <div className="source-content-snippets">
                 <p className="content-preview">
                   {source.content_snippets.length > 200

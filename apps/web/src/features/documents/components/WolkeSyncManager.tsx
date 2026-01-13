@@ -351,7 +351,7 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                 <h3>{shareLink.label || `Link ${shareLink.id.slice(-6)}`}</h3>
                             </div>
                             <p>{new URL(shareLink.share_link).hostname}</p>
-                            {isSyncEnabled && syncStatus.sync_status !== 'completed' && syncStatus.sync_status !== 'idle' && (
+                            {isSyncEnabled && syncStatus && syncStatus.sync_status !== 'completed' && syncStatus.sync_status !== 'idle' && (
                                 <span className="sync-status">{getSimpleStatus(syncStatus.sync_status)}</span>
                             )}
                         </div>

@@ -55,8 +55,9 @@ const useInteractiveGenerator = ({
 
       setLoading(false);
       return response.data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message;
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
       console.error(`[useInteractiveGenerator:${generatorType}] Initiate error:`, errorMessage);
       setLoading(false);
       setError(errorMessage);
@@ -93,8 +94,9 @@ const useInteractiveGenerator = ({
 
       setLoading(false);
       return response.data;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message;
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
       console.error(`[useInteractiveGenerator:${generatorType}] Continue error:`, errorMessage);
       setLoading(false);
       setError(errorMessage);
@@ -118,8 +120,9 @@ const useInteractiveGenerator = ({
       });
 
       return response.data.session;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message;
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      const errorMessage = axiosError.response?.data?.message || axiosError.message || 'Unknown error';
       console.error(`[useInteractiveGenerator:${generatorType}] Status error:`, errorMessage);
       setError(errorMessage);
       throw err;

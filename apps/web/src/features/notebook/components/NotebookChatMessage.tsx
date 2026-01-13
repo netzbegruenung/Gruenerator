@@ -11,7 +11,23 @@ import '../../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
-const NotebookChatMessage = ({ msg, index }: { msg: Record<string, unknown>; index: number }) => {
+interface NotebookResultData {
+  sources?: Array<{ url?: string; title?: string }>;
+  additionalSources?: Array<{ url?: string; title?: string }>;
+  citations?: Array<{ id: string; text: string }>;
+  question?: string;
+  linkConfig?: Record<string, unknown>;
+}
+
+interface NotebookMessage {
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp?: number;
+  userName?: string;
+  resultData?: NotebookResultData;
+}
+
+const NotebookChatMessage = ({ msg, index }: { msg: NotebookMessage; index: number }) => {
   const hasResultData = msg.type === 'assistant' && msg.resultData;
   const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
 

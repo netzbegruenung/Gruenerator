@@ -122,7 +122,7 @@ const SearchBar = ({ onSearch,
             <button
               type="submit"
               className="search-icon-button"
-              disabled={loading || !value.trim()}
+              disabled={loading || !value?.trim()}
               aria-label="Suchen"
             >
               {loading ? (

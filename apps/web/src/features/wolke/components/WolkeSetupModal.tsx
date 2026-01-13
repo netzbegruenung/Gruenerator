@@ -10,13 +10,18 @@ import '../../../assets/styles/features/wolke/wolke.css';
  * Modal component for setting up Wolke (Nextcloud) share links
  * Shows when user tries to export to Wolke but has no connections configured
  */
-const WolkeSetupModal = ({ onClose, onSubmit }) => {
+interface WolkeSetupModalProps {
+    onClose: () => void;
+    onSubmit: (shareLink: string, label: string) => Promise<void>;
+}
+
+const WolkeSetupModal = ({ onClose, onSubmit }: WolkeSetupModalProps) => {
     const [shareLink, setShareLink] = useState('');
     const [label, setLabel] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [validationError, setValidationError] = useState('');
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         const validation = NextcloudShareManager.validateShareLink(shareLink);
@@ -31,19 +36,20 @@ const WolkeSetupModal = ({ onClose, onSubmit }) => {
         try {
             await onSubmit(shareLink.trim(), label.trim());
             onClose();
-        } catch (error) {
-            setValidationError('Fehler beim Einrichten der Wolke-Verbindung: ' + error.message);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler';
+            setValidationError('Fehler beim Einrichten der Wolke-Verbindung: ' + errorMessage);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleShareLinkChange = (e) => {
+    const handleShareLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setShareLink(e.target.value);
         setValidationError('');
     };
 
-    const handleLabelChange = (e) => {
+    const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLabel(e.target.value);
     };
 
