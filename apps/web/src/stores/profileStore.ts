@@ -14,44 +14,45 @@ interface Profile {
   avatar_robot_id?: string;
   email?: string;
   locale?: string;
-  [key: string]: any;
+}
+
+interface KnowledgeEntry {
+  id: string;
+  content?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AnweisungenWissen {
   instructions?: string;
-  knowledge?: any[];
-  [key: string]: any;
+  knowledge?: KnowledgeEntry[];
 }
 
 interface QACollection {
   id: string;
   name?: string;
-  [key: string]: any;
 }
 
 interface CustomGenerator {
   id: string;
   name?: string;
-  [key: string]: any;
+  prompt?: string;
 }
 
 interface UserText {
   id: string;
   title?: string;
   content?: string;
-  [key: string]: any;
 }
 
 interface Memory {
   id: string;
   content?: string;
-  [key: string]: any;
 }
 
 interface AvailableDocument {
   id: string;
   name?: string;
-  [key: string]: any;
 }
 
 interface EditModes {
@@ -62,12 +63,27 @@ interface EditModes {
   customGenerators: Map<string, boolean>;
 }
 
+interface KnowledgeChanges {
+  content?: string;
+  updated_at?: string;
+}
+
+interface QAChanges {
+  name?: string;
+  questions?: unknown[];
+}
+
+interface GeneratorChanges {
+  name?: string;
+  prompt?: string;
+}
+
 interface UnsavedChanges {
-  profile: Record<string, any>;
-  anweisungen: Record<string, any>;
-  knowledge: Map<string, any>;
-  qaCollections: Map<string, any>;
-  customGenerators: Map<string, any>;
+  profile: Record<string, unknown>;
+  anweisungen: Record<string, unknown>;
+  knowledge: Map<string, KnowledgeChanges>;
+  qaCollections: Map<string, QAChanges>;
+  customGenerators: Map<string, GeneratorChanges>;
 }
 
 interface ValidationErrors {
@@ -133,7 +149,7 @@ interface ProfileStore {
   customGenerators: CustomGenerator[];
   savedGenerators: CustomGenerator[];
   userTexts: UserText[];
-  userTemplates: any[];
+  userTemplates: unknown[];
   memories: Memory[];
   availableDocuments: AvailableDocument[];
   editModes: EditModes;
@@ -150,11 +166,11 @@ interface ProfileStore {
   syncCustomGenerators: (generators: CustomGenerator[] | null) => void;
   syncSavedGenerators: (generators: CustomGenerator[] | null) => void;
   syncUserTexts: (texts: UserText[] | null) => void;
-  syncUserTemplates: (templates: any[] | null) => void;
+  syncUserTemplates: (templates: unknown[] | null) => void;
   syncMemories: (memories: Memory[] | null) => void;
   syncAvailableDocuments: (documents: AvailableDocument[] | null) => void;
   setEditMode: (section: keyof Omit<EditModes, 'customGenerators'>, enabled: boolean) => void;
-  setUnsavedChanges: (section: keyof Omit<UnsavedChanges, 'knowledge' | 'qaCollections' | 'customGenerators'>, changes: Record<string, any>) => void;
+  setUnsavedChanges: (section: keyof Omit<UnsavedChanges, 'knowledge' | 'qaCollections' | 'customGenerators'>, changes: Record<string, unknown>) => void;
   clearUnsavedChanges: (section: keyof UnsavedChanges) => void;
   hasUnsavedChanges: (section: keyof UnsavedChanges) => boolean;
   setValidationErrors: (section: keyof Omit<ValidationErrors, 'knowledge' | 'qaCollections' | 'customGenerators'>, errors: Record<string, string>) => void;
@@ -164,13 +180,13 @@ interface ProfileStore {
   syncWithAuthStore: (profileUpdates: Partial<Profile>) => void;
   rollbackOptimisticUpdate: (originalData: Partial<Profile>, loadingKey?: keyof OptimisticLoading | null) => void;
   updateAvatarOptimistic: (avatarRobotId: string) => Promise<{ avatar_robot_id: string }>;
-  updateDisplayNameOptimistic: (displayName: string) => Promise<any>;
-  setKnowledgeEntryChanges: (entryId: string, changes: any) => void;
+  updateDisplayNameOptimistic: (displayName: string) => Promise<Partial<Profile>>;
+  setKnowledgeEntryChanges: (entryId: string, changes: KnowledgeChanges) => void;
   clearKnowledgeEntryChanges: (entryId: string) => void;
   setKnowledgeEntryLoading: (entryId: string, loading: boolean) => void;
   hasKnowledgeEntryChanges: (entryId: string) => boolean;
   setGeneratorEditMode: (generatorId: string, enabled: boolean) => void;
-  setGeneratorChanges: (generatorId: string, changes: any) => void;
+  setGeneratorChanges: (generatorId: string, changes: GeneratorChanges) => void;
   clearGeneratorChanges: (generatorId: string) => void;
   hasGeneratorChanges: (generatorId: string) => boolean;
   setGeneratorLoading: (generatorId: string, loading: boolean) => void;
@@ -213,9 +229,9 @@ export const useProfileStore = create<ProfileStore>()(
       unsavedChanges: {
         profile: {},
         anweisungen: {},
-        knowledge: new Map<string, any>(),
-        qaCollections: new Map<string, any>(),
-        customGenerators: new Map<string, any>()
+        knowledge: new Map<string, KnowledgeChanges>(),
+        qaCollections: new Map<string, QAChanges>(),
+        customGenerators: new Map<string, GeneratorChanges>()
       },
       validationErrors: {
         profile: {},
@@ -298,56 +314,78 @@ export const useProfileStore = create<ProfileStore>()(
       }),
 
       setEditMode: (section, enabled) => set(state => {
-        (state.editModes as any)[section] = enabled;
-        if (!enabled && (state.unsavedChanges as any)[section]) {
-          (state.unsavedChanges as any)[section] = {};
+        if (section === 'profile') {
+          state.editModes.profile = enabled;
+          if (!enabled) {
+            state.unsavedChanges.profile = {};
+          }
+        } else if (section === 'avatar') {
+          state.editModes.avatar = enabled;
+        } else if (section === 'anweisungen') {
+          state.editModes.anweisungen = enabled;
+          if (!enabled) {
+            state.unsavedChanges.anweisungen = {};
+          }
+        } else if (section === 'qaCollections') {
+          state.editModes.qaCollections = enabled;
+          if (!enabled) {
+            state.unsavedChanges.qaCollections.clear();
+          }
         }
       }),
 
       setUnsavedChanges: (section, changes) => set(state => {
-        (state.unsavedChanges as any)[section] = { ...(state.unsavedChanges as any)[section], ...changes };
+        if (section === 'profile') {
+          state.unsavedChanges.profile = { ...state.unsavedChanges.profile, ...changes };
+        } else if (section === 'anweisungen') {
+          state.unsavedChanges.anweisungen = { ...state.unsavedChanges.anweisungen, ...changes };
+        }
       }),
 
       clearUnsavedChanges: (section) => set(state => {
-        const value = (state.unsavedChanges as any)[section];
-        if (value instanceof Map) {
-          value.clear();
-        } else {
-          (state.unsavedChanges as any)[section] = {};
+        if (section === 'profile' || section === 'anweisungen') {
+          state.unsavedChanges[section] = {};
+        } else if (section === 'knowledge' || section === 'qaCollections' || section === 'customGenerators') {
+          state.unsavedChanges[section].clear();
         }
       }),
 
       hasUnsavedChanges: (section) => {
-        const changes = (get().unsavedChanges as any)[section];
-        if (changes instanceof Map) {
-          return changes.size > 0;
+        const unsavedChanges = get().unsavedChanges;
+        if (section === 'profile' || section === 'anweisungen') {
+          return Object.keys(unsavedChanges[section] || {}).length > 0;
+        } else if (section === 'knowledge' || section === 'qaCollections' || section === 'customGenerators') {
+          return unsavedChanges[section].size > 0;
         }
-        return Object.keys(changes || {}).length > 0;
+        return false;
       },
 
       setValidationErrors: (section, errors) => set(state => {
-        (state.validationErrors as any)[section] = errors;
+        if (section === 'profile') {
+          state.validationErrors.profile = errors;
+        } else if (section === 'anweisungen') {
+          state.validationErrors.anweisungen = errors;
+        }
       }),
 
       clearValidationErrors: (section) => set(state => {
-        const value = (state.validationErrors as any)[section];
-        if (value instanceof Map) {
-          value.clear();
-        } else {
-          (state.validationErrors as any)[section] = {};
+        if (section === 'profile' || section === 'anweisungen') {
+          state.validationErrors[section] = {};
+        } else if (section === 'knowledge' || section === 'qaCollections' || section === 'customGenerators') {
+          state.validationErrors[section].clear();
         }
       }),
 
       updateProfileOptimistic: (updates, loadingKey = null) => set(state => {
         state.profile = { ...state.profile, ...updates } as Profile;
         if (loadingKey) {
-          (state.optimisticLoading as any)[loadingKey] = true;
+          state.optimisticLoading[loadingKey] = true;
         }
       }),
 
       completeOptimisticUpdate: (loadingKey, finalData = null) => set(state => {
         if (loadingKey) {
-          (state.optimisticLoading as any)[loadingKey] = false;
+          state.optimisticLoading[loadingKey] = false;
         }
         if (finalData) {
           state.profile = { ...state.profile, ...finalData } as Profile;
@@ -358,7 +396,6 @@ export const useProfileStore = create<ProfileStore>()(
         try {
           const authState = useAuthStore.getState();
           if (authState.user && profileUpdates) {
-            // Ensure locale is a valid SupportedLocale type
             const sanitizedUpdates = {
               ...profileUpdates,
               locale: profileUpdates.locale as 'de-DE' | 'de-AT' | undefined
@@ -370,14 +407,18 @@ export const useProfileStore = create<ProfileStore>()(
             });
           }
         } catch (error) {
-          console.warn('[ProfileStore] Could not sync with authStore:', error);
+          if (error instanceof Error) {
+            console.warn('[ProfileStore] Could not sync with authStore:', error.message);
+          } else {
+            console.warn('[ProfileStore] Could not sync with authStore:', String(error));
+          }
         }
       },
 
       rollbackOptimisticUpdate: (originalData, loadingKey = null) => set(state => {
         state.profile = { ...state.profile, ...originalData } as Profile;
         if (loadingKey) {
-          (state.optimisticLoading as any)[loadingKey] = false;
+          state.optimisticLoading[loadingKey] = false;
         }
       }),
 
@@ -405,10 +446,11 @@ export const useProfileStore = create<ProfileStore>()(
           get().syncWithAuthStore(result);
           get().setMessage('Name erfolgreich aktualisiert!', 'success');
           return result;
-        } catch (error: any) {
+        } catch (error) {
           get().rollbackOptimisticUpdate({ display_name: currentName }, 'displayName');
           get().syncWithAuthStore({ display_name: currentName });
-          get().setMessage(`Name-Update fehlgeschlagen: ${error.message}`, 'error');
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          get().setMessage(`Name-Update fehlgeschlagen: ${errorMessage}`, 'error');
           throw error;
         }
       },
@@ -585,9 +627,9 @@ export const useProfileStore = create<ProfileStore>()(
         unsavedChanges: {
           profile: {},
           anweisungen: {},
-          knowledge: new Map<string, any>(),
-          qaCollections: new Map<string, any>(),
-          customGenerators: new Map<string, any>()
+          knowledge: new Map<string, KnowledgeChanges>(),
+          qaCollections: new Map<string, QAChanges>(),
+          customGenerators: new Map<string, GeneratorChanges>()
         },
         validationErrors: {
           profile: {},
@@ -641,8 +683,24 @@ export const useProfileStore = create<ProfileStore>()(
 );
 
 export const useProfileData = () => useProfileStore(state => state.profile);
-export const useProfileEditMode = (section: keyof Omit<EditModes, 'customGenerators'>) => useProfileStore(state => (state.editModes as any)[section]);
-export const useProfileUnsavedChanges = (section: keyof UnsavedChanges) => useProfileStore(state => (state.unsavedChanges as any)[section]);
+
+export const useProfileEditMode = (section: keyof Omit<EditModes, 'customGenerators'>) =>
+  useProfileStore(state => {
+    if (section === 'profile') return state.editModes.profile;
+    if (section === 'avatar') return state.editModes.avatar;
+    if (section === 'anweisungen') return state.editModes.anweisungen;
+    if (section === 'qaCollections') return state.editModes.qaCollections;
+    return false;
+  });
+
+export const useProfileUnsavedChanges = (section: keyof UnsavedChanges) =>
+  useProfileStore(state => {
+    if (section === 'profile' || section === 'anweisungen') {
+      return state.unsavedChanges[section];
+    }
+    return state.unsavedChanges[section];
+  });
+
 export const useProfileMessages = () => useProfileStore(state => state.messages);
 export const useProfileOptimisticLoading = () => useProfileStore(state => state.optimisticLoading);
 

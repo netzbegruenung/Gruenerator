@@ -10,7 +10,15 @@ import type { FullCanvasConfig } from '../configs/types';
 export interface CanvasItem {
     id: string;
     type: 'element' | 'balken' | 'icon' | 'shape' | 'additional-text' | 'illustration';
-    data?: any;
+    data?: Record<string, unknown>;
+}
+
+interface StateWithFeatures {
+    balkenInstances?: Array<Record<string, unknown>>;
+    selectedIcons?: string[];
+    shapeInstances?: Array<Record<string, unknown>>;
+    additionalTexts?: Array<Record<string, unknown>>;
+    illustrationInstances?: Array<Record<string, unknown>>;
 }
 
 /**
@@ -24,40 +32,39 @@ export interface CanvasItem {
  * 5. Additional texts
  * 6. Illustrations
  */
-export function buildCanvasItems<TState = Record<string, unknown>, TActions = Record<string, unknown>>(
+export function buildCanvasItems<TState extends StateWithFeatures = StateWithFeatures, TActions = Record<string, unknown>>(
     config: FullCanvasConfig<TState, TActions>,
     state: TState
 ): CanvasItem[] {
     const items: CanvasItem[] = [];
-    const stateAny = state as any;
 
     // 1. Config Elements (sorted by order property)
     const sortedConfigElements = [...config.elements].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    sortedConfigElements.forEach((el) => items.push({ id: el.id, type: 'element', data: el }));
+    sortedConfigElements.forEach((el) => items.push({ id: el.id, type: 'element', data: el as Record<string, unknown> }));
 
     // 2. Balkens
-    if (stateAny.balkenInstances) {
-        stateAny.balkenInstances.forEach((b: any) => items.push({ id: b.id, type: 'balken', data: b }));
+    if (state.balkenInstances) {
+        state.balkenInstances.forEach((b) => items.push({ id: String(b.id), type: 'balken', data: b }));
     }
 
     // 3. Icons
-    if (stateAny.selectedIcons) {
-        stateAny.selectedIcons.forEach((id: string) => items.push({ id, type: 'icon' }));
+    if (state.selectedIcons) {
+        state.selectedIcons.forEach((id: string) => items.push({ id, type: 'icon' }));
     }
 
     // 4. Shapes
-    if (stateAny.shapeInstances) {
-        stateAny.shapeInstances.forEach((s: any) => items.push({ id: s.id, type: 'shape', data: s }));
+    if (state.shapeInstances) {
+        state.shapeInstances.forEach((s) => items.push({ id: String(s.id), type: 'shape', data: s }));
     }
 
     // 5. Additional Texts
-    if (stateAny.additionalTexts) {
-        stateAny.additionalTexts.forEach((t: any) => items.push({ id: t.id, type: 'additional-text', data: t }));
+    if (state.additionalTexts) {
+        state.additionalTexts.forEach((t) => items.push({ id: String(t.id), type: 'additional-text', data: t }));
     }
 
     // 6. Illustrations
-    if (stateAny.illustrationInstances) {
-        stateAny.illustrationInstances.forEach((i: any) => items.push({ id: i.id, type: 'illustration', data: i }));
+    if (state.illustrationInstances) {
+        state.illustrationInstances.forEach((i) => items.push({ id: String(i.id), type: 'illustration', data: i }));
     }
 
     return items;

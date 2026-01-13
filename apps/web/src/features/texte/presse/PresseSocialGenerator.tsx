@@ -558,6 +558,7 @@ const PresseSocialGenerator: React.FC<PresseSocialGeneratorProps> = ({ showHeade
           loading={submitHandler.loading}
           success={false}
           error={submitHandler.error}
+          showNextButton={!approvalContent}
           generatedContent={approvalContent || generatedContentWithHandler}
           useMarkdown={!!approvalContent}
           enableEditMode={!approvalContent}

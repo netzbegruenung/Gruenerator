@@ -176,7 +176,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
 
   // Wolke import state
-  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState<any[]>([]);
+  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState<DocumentUploadWolkeFile[]>([]);
   const [wolkeImportProgress, setWolkeImportProgress] = useState(0);
 
   // Use controlled state when forceShowUploadForm is true
@@ -309,7 +309,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   }, [handleFileSelect]);
 
   // Handle Wolke file selection
-  const handleWolkeFilesSelected = (files: any[]) => {
+  const handleWolkeFilesSelected = (files: DocumentUploadWolkeFile[]) => {
     setSelectedWolkeFiles(files);
     // Always auto-generate title based on selection
     if (files.length === 1) {

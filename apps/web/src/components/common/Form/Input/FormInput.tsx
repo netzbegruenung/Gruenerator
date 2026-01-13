@@ -12,15 +12,15 @@ interface FormInputProps {
   disabled?: boolean;
   helpText?: string;
   className?: string;
-  control?: Control<any>;
-  rules?: Record<string, any>;
+  control?: Control<Record<string, unknown>>;
+  rules?: Record<string, unknown>;
   defaultValue?: string | number;
-  inputProps?: Record<string, any>;
-  labelProps?: Record<string, any>;
+  inputProps?: Record<string, unknown>;
+  labelProps?: Record<string, unknown>;
   tabIndex?: number;
   subtext?: string;
   onChange?: (value: string) => void;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

@@ -18,7 +18,7 @@ import { GeneratorFormField } from '../types/generatorTypes';
 
 interface DynamicFormFieldRendererProps {
   fields: GeneratorFormField[];
-  control: Control<any>;
+  control: Control<Record<string, unknown>>;
   onUrlsDetected?: (urls: string[]) => void;
   enableUrlDetection?: boolean;
 }

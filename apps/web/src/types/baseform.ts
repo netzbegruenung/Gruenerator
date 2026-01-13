@@ -91,7 +91,7 @@ export interface SubmitConfig {
 }
 
 /** NEW: Consolidated UI configuration (replaces 7+ individual props) */
-export interface UIConfig {
+export interface FormUIConfig {
   /** Enable knowledge base selector */
   enableKnowledgeSelector?: boolean;
   /** Show profile selector for user profiles */
@@ -266,6 +266,7 @@ export interface QuestionAnswerSectionProps {
   loading?: boolean;
   success?: boolean;
   submitButtonProps?: Record<string, unknown>;
+  hideSubmitButton?: boolean;
 }
 
 // =============================================================================
@@ -498,7 +499,7 @@ export interface BaseFormProps {
   /** Consolidated submit button configuration */
   submitConfig?: SubmitConfig | null;
   /** Consolidated UI-related configuration */
-  uiConfig?: UIConfig;
+  uiConfig?: FormUIConfig;
 
   // DEPRECATED: Legacy feature props (use features prop instead)
   /** @deprecated Use `features.webSearch` instead */
@@ -604,6 +605,8 @@ export interface BaseFormProps {
   firstExtrasChildren?: ReactNode;
   bottomSectionChildren?: ReactNode;
   hideFormExtras?: boolean;
+  /** Hide the input section entirely (used in approval mode workflows) */
+  hideInputSection?: boolean;
 
   // File attachments
   attachedFiles?: unknown[];

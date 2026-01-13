@@ -41,8 +41,8 @@ export const shareContent = async ({ title, text, url }: ShareContentOptions): P
       url,
     });
     return true;
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       return false;
     }
     throw error;
@@ -126,8 +126,8 @@ export const shareImageFile = async (
       title: title,
     });
     return true;
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       return false;
     }
     throw error;
@@ -154,8 +154,9 @@ export const copyImageToClipboard = async (base64Image: string): Promise<boolean
       new ClipboardItem({ 'image/png': pngBlob })
     ]);
     return true;
-  } catch (error: any) {
-    throw new Error('Failed to copy image to clipboard: ' + error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error('Failed to copy image to clipboard: ' + errorMessage);
   }
 };
 

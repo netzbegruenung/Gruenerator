@@ -1,0 +1,107 @@
+/**
+ * Undraw Illustration Definitions
+ * 62 curated Undraw SVG illustrations organized by category
+ * with German names and tags
+ */
+
+import type { SvgDef } from './types';
+
+export const UNDRAW_FEATURED: SvgDef[] = [
+    // Politik & Gemeinschaft
+    { id: 'ud-voting', name: 'Abstimmung', filename: 'voting_3ygx.svg', source: 'undraw', tags: ['wahl', 'abstimmung', 'demokratie', 'politik'], category: 'Politik' },
+    { id: 'ud-election-day', name: 'Wahltag', filename: 'election-day_puwv.svg', source: 'undraw', tags: ['wahl', 'politik', 'demokratie'], category: 'Politik' },
+    { id: 'ud-public-discussion', name: 'Öffentliche Diskussion', filename: 'public-discussion_693m.svg', source: 'undraw', tags: ['diskussion', 'debatte', 'dialog', 'politik'], category: 'Politik' },
+    { id: 'ud-team-spirit', name: 'Teamgeist', filename: 'team-spirit_18vw.svg', source: 'undraw', tags: ['team', 'zusammenarbeit', 'gemeinschaft', 'gruppe'], category: 'Gemeinschaft' },
+    { id: 'ud-community', name: 'Gemeinschaft', filename: 'online-community_3o0l.svg', source: 'undraw', tags: ['gemeinschaft', 'zusammen', 'netzwerk', 'gruppe'], category: 'Gemeinschaft' },
+    { id: 'ud-neighbors', name: 'Nachbarn', filename: 'neighbors_z879.svg', source: 'undraw', tags: ['nachbarn', 'gemeinschaft', 'quartier', 'zusammenleben'], category: 'Gemeinschaft' },
+
+    // Umwelt & Nachhaltigkeit
+    { id: 'ud-eco-conscious', name: 'Umweltbewusst', filename: 'eco-conscious_oqny.svg', source: 'undraw', tags: ['umwelt', 'nachhaltigkeit', 'grün', 'ökologie'], category: 'Umwelt' },
+    { id: 'ud-environment', name: 'Umwelt', filename: 'environment_9luj.svg', source: 'undraw', tags: ['umwelt', 'natur', 'klima', 'schutz'], category: 'Umwelt' },
+    { id: 'ud-wind-turbine', name: 'Windkraft', filename: 'wind-turbine_4z2a.svg', source: 'undraw', tags: ['wind', 'energie', 'erneuerbar', 'nachhaltigkeit'], category: 'Umwelt' },
+    { id: 'ud-electric-car', name: 'Elektroauto', filename: 'electric-car_vlgq.svg', source: 'undraw', tags: ['elektro', 'auto', 'mobilität', 'umwelt'], category: 'Umwelt' },
+    { id: 'ud-nature', name: 'Natur', filename: 'nature_yf30.svg', source: 'undraw', tags: ['natur', 'grün', 'pflanzen', 'umwelt'], category: 'Umwelt' },
+    { id: 'ud-gardening', name: 'Gärtnern', filename: 'gardening_3tyw.svg', source: 'undraw', tags: ['garten', 'pflanzen', 'natur', 'hobby'], category: 'Umwelt' },
+    { id: 'ud-watering-plants', name: 'Pflanzen gießen', filename: 'watering-plants_64af.svg', source: 'undraw', tags: ['pflanzen', 'gießen', 'natur', 'garten'], category: 'Umwelt' },
+
+    // Bildung & Wissen
+    { id: 'ud-education', name: 'Bildung', filename: 'education_3vwh.svg', source: 'undraw', tags: ['bildung', 'schule', 'lernen', 'wissen'], category: 'Bildung' },
+    { id: 'ud-teacher', name: 'Lehrer', filename: 'teacher_s628.svg', source: 'undraw', tags: ['lehrer', 'unterricht', 'schule', 'bildung'], category: 'Bildung' },
+    { id: 'ud-graduation', name: 'Abschluss', filename: 'graduation_u7uc.svg', source: 'undraw', tags: ['abschluss', 'studium', 'erfolg', 'uni'], category: 'Bildung' },
+    { id: 'ud-book-lover', name: 'Buchliebhaber', filename: 'book-lover_m9n3.svg', source: 'undraw', tags: ['buch', 'lesen', 'wissen', 'bibliothek'], category: 'Bildung' },
+    { id: 'ud-learning', name: 'Lernen', filename: 'learning_qt7d.svg', source: 'undraw', tags: ['lernen', 'bildung', 'wissen', 'entwicklung'], category: 'Bildung' },
+
+    // Gesundheit & Wohlbefinden
+    { id: 'ud-healthy-lifestyle', name: 'Gesunder Lebensstil', filename: 'healthy-lifestyle_8zpg.svg', source: 'undraw', tags: ['gesundheit', 'lifestyle', 'wohlbefinden', 'fitness'], category: 'Gesundheit' },
+    { id: 'ud-medical-care', name: 'Medizinische Versorgung', filename: 'medical-care_7m9g.svg', source: 'undraw', tags: ['medizin', 'gesundheit', 'pflege', 'arzt'], category: 'Gesundheit' },
+    { id: 'ud-doctors', name: 'Ärzte', filename: 'doctors_djoj.svg', source: 'undraw', tags: ['arzt', 'ärztin', 'medizin', 'gesundheit'], category: 'Gesundheit' },
+    { id: 'ud-yoga', name: 'Yoga', filename: 'yoga_i399.svg', source: 'undraw', tags: ['yoga', 'entspannung', 'gesundheit', 'fitness'], category: 'Gesundheit' },
+    { id: 'ud-fitness-tracker', name: 'Fitness Tracker', filename: 'fitness-tracker_y5q5.svg', source: 'undraw', tags: ['fitness', 'sport', 'gesundheit', 'tracking'], category: 'Gesundheit' },
+
+    // Familie & Soziales
+    { id: 'ud-family', name: 'Familie', filename: 'family_6gj8.svg', source: 'undraw', tags: ['familie', 'kinder', 'eltern', 'zusammen'], category: 'Familie' },
+    { id: 'ud-children', name: 'Kinder', filename: 'children_e6ln.svg', source: 'undraw', tags: ['kinder', 'spielen', 'jugend', 'zukunft'], category: 'Familie' },
+    { id: 'ud-fatherhood', name: 'Vaterschaft', filename: 'fatherhood_eldm.svg', source: 'undraw', tags: ['vater', 'kind', 'familie', 'eltern'], category: 'Familie' },
+    { id: 'ud-motherhood', name: 'Mutterschaft', filename: 'motherhood_9s9r.svg', source: 'undraw', tags: ['mutter', 'kind', 'familie', 'eltern'], category: 'Familie' },
+    { id: 'ud-grandma', name: 'Großmutter', filename: 'grandma_9rwj.svg', source: 'undraw', tags: ['oma', 'großmutter', 'familie', 'generation'], category: 'Familie' },
+
+    // Arbeit & Wirtschaft
+    { id: 'ud-working-together', name: 'Zusammenarbeiten', filename: 'working-together_r43a.svg', source: 'undraw', tags: ['arbeit', 'team', 'zusammenarbeit', 'büro'], category: 'Arbeit' },
+    { id: 'ud-remote-work', name: 'Homeoffice', filename: 'working-remotely_ivtz.svg', source: 'undraw', tags: ['homeoffice', 'remote', 'arbeit', 'digital'], category: 'Arbeit' },
+    { id: 'ud-job-hunt', name: 'Jobsuche', filename: 'job-hunt_5umi.svg', source: 'undraw', tags: ['job', 'arbeit', 'suche', 'karriere'], category: 'Arbeit' },
+    { id: 'ud-interview', name: 'Vorstellungsgespräch', filename: 'interview_yz52.svg', source: 'undraw', tags: ['interview', 'job', 'bewerbung', 'karriere'], category: 'Arbeit' },
+    { id: 'ud-meeting', name: 'Besprechung', filename: 'meeting_dunc.svg', source: 'undraw', tags: ['meeting', 'besprechung', 'team', 'arbeit'], category: 'Arbeit' },
+
+    // Verkehr & Mobilität
+    { id: 'ud-biking', name: 'Radfahren', filename: 'biking_m4mb.svg', source: 'undraw', tags: ['fahrrad', 'radfahren', 'mobilität', 'umwelt'], category: 'Mobilität' },
+    { id: 'ud-bike-ride', name: 'Fahrradtour', filename: 'bike-ride_ba0o.svg', source: 'undraw', tags: ['fahrrad', 'tour', 'freizeit', 'sport'], category: 'Mobilität' },
+    { id: 'ud-bus-stop', name: 'Bushaltestelle', filename: 'bus-stop_m7q9.svg', source: 'undraw', tags: ['bus', 'öpnv', 'haltestelle', 'verkehr'], category: 'Mobilität' },
+    { id: 'ud-subway', name: 'U-Bahn', filename: 'subway_66jh.svg', source: 'undraw', tags: ['ubahn', 'metro', 'öpnv', 'verkehr'], category: 'Mobilität' },
+    { id: 'ud-scooter', name: 'Roller', filename: 'scooter_izdb.svg', source: 'undraw', tags: ['roller', 'scooter', 'mobilität', 'stadt'], category: 'Mobilität' },
+
+    // Wohnen & Stadt
+    { id: 'ud-city-life', name: 'Stadtleben', filename: 'city-life_l74x.svg', source: 'undraw', tags: ['stadt', 'leben', 'urban', 'gemeinschaft'], category: 'Wohnen' },
+    { id: 'ud-town', name: 'Kleinstadt', filename: 'town_oesm.svg', source: 'undraw', tags: ['stadt', 'dorf', 'gemeinde', 'ort'], category: 'Wohnen' },
+    { id: 'ud-suburbs', name: 'Vorort', filename: 'suburbs_zzmj.svg', source: 'undraw', tags: ['vorort', 'wohnen', 'familie', 'grün'], category: 'Wohnen' },
+    { id: 'ud-house', name: 'Haus', filename: 'houses_owky.svg', source: 'undraw', tags: ['haus', 'wohnen', 'zuhause', 'immobilie'], category: 'Wohnen' },
+    { id: 'ud-apartment', name: 'Wohnung', filename: 'apartment-rent_oodr.svg', source: 'undraw', tags: ['wohnung', 'miete', 'wohnen', 'stadt'], category: 'Wohnen' },
+
+    // Kommunikation & Dialog
+    { id: 'ud-conversation', name: 'Gespräch', filename: 'conversation_15p8.svg', source: 'undraw', tags: ['gespräch', 'dialog', 'kommunikation', 'austausch'], category: 'Kommunikation' },
+    { id: 'ud-group-chat', name: 'Gruppenchat', filename: 'group-chat_4xw0.svg', source: 'undraw', tags: ['chat', 'gruppe', 'kommunikation', 'digital'], category: 'Kommunikation' },
+    { id: 'ud-podcast', name: 'Podcast', filename: 'podcast_0ioh.svg', source: 'undraw', tags: ['podcast', 'audio', 'medien', 'kommunikation'], category: 'Kommunikation' },
+    { id: 'ud-conference', name: 'Konferenz', filename: 'conference-call_ccsp.svg', source: 'undraw', tags: ['konferenz', 'video', 'meeting', 'digital'], category: 'Kommunikation' },
+    { id: 'ud-presentation', name: 'Präsentation', filename: 'presentation_4ik4.svg', source: 'undraw', tags: ['präsentation', 'vortrag', 'rede', 'event'], category: 'Kommunikation' },
+
+    // Veranstaltungen
+    { id: 'ud-outdoor-party', name: 'Outdoor Party', filename: 'outdoor-party_ixnf.svg', source: 'undraw', tags: ['party', 'fest', 'outdoor', 'feier'], category: 'Events' },
+    { id: 'ud-celebration', name: 'Feier', filename: 'celebration_wtm8.svg', source: 'undraw', tags: ['feier', 'fest', 'party', 'freude'], category: 'Events' },
+    { id: 'ud-party', name: 'Party', filename: 'party_27wv.svg', source: 'undraw', tags: ['party', 'feier', 'spaß', 'musik'], category: 'Events' },
+    { id: 'ud-special-event', name: 'Besonderes Event', filename: 'special-event_hv54.svg', source: 'undraw', tags: ['event', 'veranstaltung', 'besonders', 'feier'], category: 'Events' },
+
+    // Erfolg & Motivation
+    { id: 'ud-success', name: 'Erfolg', filename: 'success_288d.svg', source: 'undraw', tags: ['erfolg', 'ziel', 'gewinnen', 'erreichen'], category: 'Motivation' },
+    { id: 'ud-goals', name: 'Ziele', filename: 'goals_0pov.svg', source: 'undraw', tags: ['ziele', 'motivation', 'planen', 'zukunft'], category: 'Motivation' },
+    { id: 'ud-winners', name: 'Gewinner', filename: 'winners_fre4.svg', source: 'undraw', tags: ['gewinnen', 'erfolg', 'sieger', 'feier'], category: 'Motivation' },
+    { id: 'ud-high-five', name: 'Abklatschen', filename: 'high-five_w86k.svg', source: 'undraw', tags: ['high five', 'team', 'erfolg', 'freude'], category: 'Motivation' },
+
+    // Technologie & Innovation
+    { id: 'ud-innovative', name: 'Innovation', filename: 'innovative_9l1b.svg', source: 'undraw', tags: ['innovation', 'technologie', 'fortschritt', 'zukunft'], category: 'Technologie' },
+    { id: 'ud-artificial-intelligence', name: 'Künstliche Intelligenz', filename: 'artificial-intelligence_43qa.svg', source: 'undraw', tags: ['ki', 'ai', 'technologie', 'zukunft'], category: 'Technologie' },
+    { id: 'ud-smart-home', name: 'Smart Home', filename: 'smart-home_9s59.svg', source: 'undraw', tags: ['smart home', 'technologie', 'wohnen', 'digital'], category: 'Technologie' },
+
+    // Freizeit & Sport
+    { id: 'ud-hiking', name: 'Wandern', filename: 'hiking_9zta.svg', source: 'undraw', tags: ['wandern', 'natur', 'sport', 'freizeit'], category: 'Freizeit' },
+    { id: 'ud-camping', name: 'Camping', filename: 'camping_q4ji.svg', source: 'undraw', tags: ['camping', 'natur', 'zelt', 'abenteuer'], category: 'Freizeit' },
+    { id: 'ud-park', name: 'Park', filename: 'at-the-park_2y19.svg', source: 'undraw', tags: ['park', 'grün', 'freizeit', 'natur'], category: 'Freizeit' },
+    { id: 'ud-basketball', name: 'Basketball', filename: 'basketball_40ga.svg', source: 'undraw', tags: ['basketball', 'sport', 'team', 'spielen'], category: 'Sport' },
+    { id: 'ud-jogging', name: 'Joggen', filename: 'jogging_tf9a.svg', source: 'undraw', tags: ['joggen', 'laufen', 'sport', 'fitness'], category: 'Sport' },
+
+    // Sonstige nützliche
+    { id: 'ud-agreement', name: 'Einigung', filename: 'agreement_ftet.svg', source: 'undraw', tags: ['einigung', 'vertrag', 'handschlag', 'zusammenarbeit'], category: 'Geschäft' },
+    { id: 'ud-ideas', name: 'Ideen', filename: 'ideas_vn7a.svg', source: 'undraw', tags: ['idee', 'kreativ', 'denken', 'innovation'], category: 'Kreativität' },
+    { id: 'ud-brainstorming', name: 'Brainstorming', filename: 'brainstorming_gny9.svg', source: 'undraw', tags: ['brainstorming', 'ideen', 'team', 'kreativ'], category: 'Kreativität' },
+    { id: 'ud-welcome', name: 'Willkommen', filename: 'welcome_nk8k.svg', source: 'undraw', tags: ['willkommen', 'begrüßung', 'offen', 'freundlich'], category: 'Allgemein' },
+    { id: 'ud-pride', name: 'Pride', filename: 'pride_u77s.svg', source: 'undraw', tags: ['pride', 'vielfalt', 'lgbtq', 'regenbogen'], category: 'Vielfalt' },
+    { id: 'ud-happy-women-day', name: 'Frauentag', filename: 'happy-women-day_8whn.svg', source: 'undraw', tags: ['frauen', 'gleichstellung', 'feminismus', 'tag'], category: 'Vielfalt' },
+];

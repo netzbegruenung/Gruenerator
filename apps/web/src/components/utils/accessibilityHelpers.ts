@@ -91,10 +91,11 @@ export const updateAriaLiveRegion = (message: string, id = 'aria-live-region'): 
 export const addAriaLabelsToElements = (labelledElements: LabelledElement[]): void => {
   labelledElements.forEach(({ element, label }) => {
     if (element) {
+      const inputElement = element as HTMLInputElement;
       const hasAccessibleName =
         element.getAttribute('aria-label') ||
         element.getAttribute('aria-labelledby') ||
-        (element as HTMLInputElement).labels?.length > 0;
+        (inputElement.labels && inputElement.labels.length > 0);
 
       if (!hasAccessibleName) {
         element.setAttribute('aria-label', label);

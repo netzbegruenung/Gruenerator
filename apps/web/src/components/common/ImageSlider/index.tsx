@@ -34,9 +34,9 @@ const ImageSlider = ({ images,
   className = '',
   showControls = true }: ImageSliderProps): JSX.Element => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [ImageGallery, setImageGallery] = useState<any>(null);
+  const [ImageGallery, setImageGallery] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState<any>(null);
+  const [loadError, setLoadError] = useState<Error | unknown | null>(null);
 
   // Load image gallery component when needed
   const handleLoadGallery = useCallback(async () => {
@@ -66,13 +66,13 @@ const ImageSlider = ({ images,
     originalAlt: img.alt
   }));
 
-  const handleClick = (event: any) => {
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>): void => {
     // Nur wenn direkt auf das Bild geklickt wurde (nicht auf die Navigationspfeile)
-    if (event.target.classList.contains('image-gallery-image')) {
+    if ((event.target as HTMLElement).classList.contains('image-gallery-image')) {
       setIsFullscreen(true);
     }
     if (onImageClick) {
-      onImageClick(event);
+      onImageClick(event as React.MouseEvent<HTMLImageElement>);
     }
   };
 

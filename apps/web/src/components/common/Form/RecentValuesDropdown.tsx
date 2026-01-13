@@ -7,12 +7,18 @@ import { useRecentValues } from '../../../hooks/useRecentValues';
  * RecentValuesDropdown - A dropdown that shows recent values and allows free typing
  * Uses CreatableSelect to combine autocomplete suggestions with free text input
  */
+interface SelectOption {
+  value: string;
+  label: string;
+  [key: string]: unknown;
+}
+
 interface RecentValuesDropdownProps {
   // Field configuration
   fieldType: string;
   value?: string | number;
-  onChange?: (event: React.ChangeEvent) => void;
-  onBlur?: (event: React.FocusEvent) => void;
+  onChange?: (value: string | string[]) => void;
+  onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
   // Form props
   name?: string;
   label?: string;
@@ -33,6 +39,7 @@ interface RecentValuesDropdownProps {
   className?: string;
   classNamePrefix?: string;
   tabIndex?: number;
+  [key: string]: unknown;
 }
 
 const RecentValuesDropdown = ({ // Field configuration
@@ -116,9 +123,9 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Handle selection change
    */
-  const handleChange = useCallback((selectedOption: any) => {
+  const handleChange = useCallback((selectedOption: SelectOption | SelectOption[] | null) => {
     // Extract the value(s) from the option(s)
-    let newValue;
+    let newValue: string | string[];
 
     if (!selectedOption) {
       newValue = isMulti ? [] : '';
@@ -127,7 +134,7 @@ const RecentValuesDropdown = ({ // Field configuration
         ? selectedOption.map(opt => opt.value)
         : [];
     } else {
-      newValue = selectedOption.value || '';
+      newValue = !Array.isArray(selectedOption) ? (selectedOption.value || '') : '';
     }
 
     // Call the parent onChange with the extracted value
@@ -185,15 +192,22 @@ const RecentValuesDropdown = ({ // Field configuration
     }
   }, [handleChange, isMulti, currentOption, autoSave, saveRecentValue, formName]);
 
+  interface SelectState {
+    isFocused?: boolean;
+    isSelected?: boolean;
+    data?: { __isRecentValue?: boolean };
+    [key: string]: unknown;
+  }
+
   /**
    * Custom styles for the select component
    */
   const customStyles = useMemo(() => ({
-    container: (provided: any) => ({
+    container: (provided: Record<string, unknown>) => ({
       ...provided,
       fontSize: 'var(--form-element-font-size)'
     }),
-    control: (provided: any, state: any) => ({
+    control: (provided: Record<string, unknown>, state: SelectState) => ({
       ...provided,
       borderColor: error
         ? 'var(--error-color, #e74c3c)'
@@ -209,11 +223,11 @@ const RecentValuesDropdown = ({ // Field configuration
           : 'var(--interactive-accent-color)'
       }
     }),
-    menu: (provided: any) => ({
+    menu: (provided: Record<string, unknown>) => ({
       ...provided,
       zIndex: 9999
     }),
-    option: (provided: any, state: any) => ({
+    option: (provided: Record<string, unknown>, state: SelectState) => ({
       ...provided,
       backgroundColor: state.isSelected
         ? 'var(--button-color)'
@@ -224,14 +238,14 @@ const RecentValuesDropdown = ({ // Field configuration
         ? 'white'
         : 'var(--font-color)',
       fontSize: 'var(--form-element-font-size)',
-      fontStyle: (state.data as any)?.__isRecentValue ? 'normal' : 'normal',
-      '&:before': (state.data as any)?.__isRecentValue ? {
+      fontStyle: state.data?.__isRecentValue ? 'normal' : 'normal',
+      '&:before': state.data?.__isRecentValue ? {
         content: '"✓ "',
         color: 'var(--success-color, #27ae60)',
         marginRight: '4px'
       } : {}
     }),
-    placeholder: (provided: any) => ({
+    placeholder: (provided: Record<string, unknown>) => ({
       ...provided,
       color: 'var(--input-placeholder-color, #999)'
     })
@@ -247,7 +261,11 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Custom components
    */
-  const selectPropsTyped = selectProps as { components?: Record<string, unknown> };
+  interface SelectPropsWithComponents {
+    components?: Record<string, unknown>;
+    [key: string]: unknown;
+  }
+  const selectPropsTyped = selectProps as SelectPropsWithComponents;
   const components = useMemo(() => ({
     ...(selectPropsTyped?.components || {}),
     // Could add custom components here if needed

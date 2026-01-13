@@ -125,13 +125,13 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
   // Create baseForm based on selected type
   const form = useBaseForm({
     defaultValues: {},
-    generatorType: `accessibility-${selectedType}` as unknown as null,
-    componentName: componentName as unknown as null,
-    endpoint: API_ENDPOINTS[selectedType] as unknown as null,
+    generatorType: `accessibility-${selectedType}`,
+    componentName: componentName,
+    endpoint: API_ENDPOINTS[selectedType],
     disableKnowledgeSystem: true,
     features: [],
-    tabIndexKey: (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? 'ALT_TEXT' : 'LEICHTE_SPRACHE') as unknown as null,
-    helpContent: helpContent as unknown as null
+    tabIndexKey: (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? 'ALT_TEXT' : 'LEICHTE_SPRACHE'),
+    helpContent: helpContent
   });
 
   // Hooks for different functionality
@@ -319,11 +319,11 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
   const renderForm = () => {
     switch (selectedType) {
       case ACCESSIBILITY_TYPES.ALT_TEXT:
-        return <AltTextForm ref={formRef as any} tabIndex={form.generator?.tabIndex} />;
+        return <AltTextForm ref={formRef} tabIndex={form.generator?.tabIndex} />;
       case ACCESSIBILITY_TYPES.LEICHTE_SPRACHE:
         return (
           <LeichteSpracheForm
-            ref={formRef as any}
+            ref={formRef}
             tabIndex={form.generator?.tabIndex}
             onUrlsDetected={handleUrlsDetected}
           />
@@ -363,7 +363,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          {...(form.generator?.baseFormProps as any)}
+          {...form.generator?.baseFormProps}
           title={<span className="gradient-title">{ACCESSIBILITY_TYPE_TITLES[selectedType]}</span>}
           generatedContent={storeGeneratedText || generatedContent}
           onSubmit={handleSubmit}

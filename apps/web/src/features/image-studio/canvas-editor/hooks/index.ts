@@ -33,7 +33,7 @@ export { useCanvasLayerControls } from './useCanvasLayerControls';
 export type { UseCanvasLayerControlsOptions, UseCanvasLayerControlsResult } from './useCanvasLayerControls';
 
 export { useFontLoader } from './useFontLoader';
-export type { UseFontLoaderOptions } from './useFontLoader';
+export type { UseFontLoaderOptions, UseFontLoaderResult } from './useFontLoader';
 
 export { useLayerOrdering } from './useLayerOrdering';
 // CanvasItem is already exported from utils/canvasLayerManager

@@ -1,5 +1,8 @@
 /**
- * useFontLoader - Ensure font is loaded before rendering
+ * useFontLoader - Non-blocking font loader with progressive enhancement
+ *
+ * NEW: Always renders immediately with fallback font, swaps to custom font when ready.
+ * This eliminates the 1.5s blocking delay while maintaining proper font rendering.
  *
  * Extracted from DreizeilenCanvas refactoring (Phase 4)
  * Handles font loading with polling fallback for browsers that don't support document.fonts
@@ -18,46 +21,62 @@ export interface UseFontLoaderOptions {
   pollInterval?: number;
 }
 
+export interface UseFontLoaderResult {
+  /** Always true - rendering is never blocked */
+  fontLoaded: boolean;
+  /** True when custom font is available, false when using fallback */
+  isFontAvailable: boolean;
+}
+
 /**
- * Loads a font and returns loading state
+ * Loads a font asynchronously without blocking render
  *
  * @param options Font loading configuration (null to skip font loading)
- * @returns true when font is ready to use (or immediately if options is null)
+ * @returns {fontLoaded: true, isFontAvailable: boolean}
  *
  * @example
- * const fontLoaded = useFontLoader({ fontFamily: 'ArvoGruen', fontSize: 60 });
- * if (!fontLoaded) return <LoadingSpinner />;
+ * const { fontLoaded, isFontAvailable } = useFontLoader({ fontFamily: 'ArvoGruen', fontSize: 60 });
+ * // Component renders immediately with fallback font
+ * // Re-renders with custom font when isFontAvailable becomes true
  *
  * @example
  * // Skip font loading
- * const fontLoaded = useFontLoader(null); // Returns true immediately
+ * const { fontLoaded } = useFontLoader(null); // Both true immediately
  */
 export function useFontLoader(
   options: UseFontLoaderOptions | null
-): boolean {
-  const [fontLoaded, setFontLoaded] = useState(!options);
+): UseFontLoaderResult {
+  // Always true - never block rendering!
+  const [fontLoaded] = useState(true);
+  const [isFontAvailable, setIsFontAvailable] = useState(false);
 
   useEffect(() => {
     if (!options) {
-      setFontLoaded(true);
+      setIsFontAvailable(true);
       return;
     }
 
     let cancelled = false;
+    const fontSpec = `${options.fontSize}px ${options.fontFamily}`;
 
+    // Check if font is already loaded (synchronous check)
+    if (document.fonts.check(fontSpec)) {
+      setIsFontAvailable(true);
+      return;
+    }
+
+    // Start non-blocking font load in background
     const loadFont = async () => {
       try {
         // Modern approach: Use Font Loading API
-        const fontSpec = `${options.fontSize}px ${options.fontFamily}`;
         await document.fonts.load(fontSpec, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz');
         await document.fonts.ready;
 
         if (!cancelled) {
-          setFontLoaded(true);
+          setIsFontAvailable(true);
         }
       } catch (error) {
         // Fallback: Poll for font availability
-        const fontSpec = `${options.fontSize}px ${options.fontFamily}`;
         const maxAttempts = options.maxAttempts ?? 30;
         const pollInterval = options.pollInterval ?? 50;
         let attempts = 0;
@@ -67,10 +86,13 @@ export function useFontLoader(
 
           attempts++;
 
-          if (document.fonts.check(fontSpec) || attempts >= maxAttempts) {
-            setFontLoaded(true);
-          } else {
+          if (document.fonts.check(fontSpec)) {
+            setIsFontAvailable(true);
+          } else if (attempts < maxAttempts) {
             setTimeout(poll, pollInterval);
+          } else {
+            // Timeout - use fallback font
+            setIsFontAvailable(false);
           }
         };
 
@@ -85,5 +107,5 @@ export function useFontLoader(
     };
   }, [options?.fontFamily, options?.fontSize, options?.maxAttempts, options?.pollInterval]);
 
-  return fontLoaded;
+  return { fontLoaded, isFontAvailable };
 }

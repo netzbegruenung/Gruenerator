@@ -4,6 +4,8 @@
  * and apps/api/services/sharepic/canvas/config.ts to ensure 1:1 visual match
  */
 
+import { SYSTEM_ASSETS } from './canvasAssets';
+
 export interface ColorPair {
   background: string;
   text: string;
@@ -73,7 +75,7 @@ export const DREIZEILEN_CONFIG = {
     maxFontSize: 110, // params.MAX_FONT_SIZE
   },
   sunflower: {
-    src: '/Sonnenblume.png',
+    src: SYSTEM_ASSETS.sunflower.yellow.src,
     sizeFactor: 0.8, // params.SUNFLOWER_SIZE_FACTOR
   },
   credit: {

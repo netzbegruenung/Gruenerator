@@ -58,9 +58,9 @@ export interface BalkenGroupProps {
     /** Called during drag for snapping feedback */
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
     /** Called with snap lines */
-    onSnapLinesChange: (lines: any[]) => void;
+    onSnapLinesChange: (lines: unknown[]) => void;
     /** Get snap targets excluding this element */
-    getSnapTargets: (excludeId: string) => any[];
+    getSnapTargets: (excludeId: string) => unknown[];
     /** Called when text is edited inline */
     onTextChange?: (index: number, text: string) => void;
     /** Canvas dimensions */

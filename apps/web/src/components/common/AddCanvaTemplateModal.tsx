@@ -16,7 +16,7 @@ import Spinner from './Spinner';
 interface AddCanvaTemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (data: any, message: string) => void;
+  onSuccess?: (data: Record<string, unknown>, message: string) => void;
   onError?: (message: string) => void;
 }
 
@@ -119,9 +119,9 @@ const AddCanvaTemplateModal = ({
       } else {
         setValidationError(result.message || 'Fehler beim Hinzufügen der Canva Vorlage.');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('[AddCanvaTemplateModal] Error creating template:', error);
-      const errorMessage = error.message || 'Fehler beim Hinzufügen der Canva Vorlage.';
+      const errorMessage = error instanceof Error ? error.message : 'Fehler beim Hinzufügen der Canva Vorlage.';
       setValidationError(errorMessage);
       onError?.(errorMessage);
     } finally {

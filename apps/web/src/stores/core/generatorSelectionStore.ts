@@ -24,13 +24,13 @@ interface Instructions {
 // Document type
 interface Document {
   id: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Text type
 interface Text {
   id: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // UI Configuration
@@ -46,7 +46,7 @@ interface DocumentExtractionInfo {
   documentId?: string;
   progress?: number;
   message?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Default modes type
@@ -102,13 +102,13 @@ interface GeneratorSelectionActions {
   getSelectedIds: () => SelectedIds;
   setAvailableDocuments: (documents: Document[]) => void;
   setLoadingDocuments: (isLoading: boolean) => void;
-  handleDocumentLoadError: (error: any) => void;
+  handleDocumentLoadError: (error: unknown) => void;
   setExtractingDocumentContent: (isExtracting: boolean, info?: DocumentExtractionInfo | null) => void;
   toggleDocumentSelection: (documentId: string) => void;
   getSelectedDocuments: () => Document[];
   setAvailableTexts: (texts: Text[]) => void;
   setLoadingTexts: (isLoading: boolean) => void;
-  handleTextLoadError: (error: any) => void;
+  handleTextLoadError: (error: unknown) => void;
   toggleTextSelection: (textId: string) => void;
   fetchTexts: () => Promise<void>;
   getSelectedTexts: () => Text[];
@@ -311,7 +311,7 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
         } else {
           throw new Error(result.message || 'Failed to fetch texts');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[SelectionStore] Error fetching texts:', error);
         handleTextLoadError(error);
         setAvailableTexts([]);
@@ -327,8 +327,10 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
 
     setUIConfig: (config) => set((state) => {
       for (const key in config) {
-        if ((state.uiConfig as any)[key] !== (config as any)[key]) {
-          (state.uiConfig as any)[key] = (config as any)[key];
+        const configValue = config as Record<string, unknown>;
+        const stateValue = state.uiConfig as Record<string, unknown>;
+        if (stateValue[key] !== configValue[key]) {
+          stateValue[key] = configValue[key];
         }
       }
     }),

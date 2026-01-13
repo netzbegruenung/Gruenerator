@@ -27,18 +27,21 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
         }
     }, [collectionId, fetchFilterValues]);
 
-    const handleChipClick = (field: string, value: any) => {
+    const handleChipClick = (field: string, value: unknown) => {
         setActiveFilter(collectionId, field, value);
     };
 
     const filterGroups = useMemo(() => {
         if (!filterValues) return [];
 
-        return Object.entries(filterValues).map(([field, config]) => ({
-            field,
-            label: (config as any).label || field,
-            values: (config as any).values || []
-        })).filter(group => group.values.length > 0);
+        return Object.entries(filterValues).map(([field, config]) => {
+            const configObj = config as Record<string, unknown>;
+            return {
+                field,
+                label: (configObj.label as string) || field,
+                values: (configObj.values as unknown[]) || []
+            };
+        }).filter(group => group.values.length > 0);
     }, [filterValues]);
 
     if (loading) {
@@ -68,10 +71,11 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
                 <div key={`${collectionId} -${field} `} className="notebook-filter-group">
                     <span className="notebook-filter-group-label">{label}</span>
                     <div className="notebook-filter-chips">
-                        {values.map((item: string | { value: string; count?: number }) => {
+                        {values.map((item: unknown) => {
                             const isObject = typeof item === 'object' && item !== null;
-                            const displayValue = isObject ? item.value : item;
-                            const count = isObject ? item.count : null;
+                            const obj = item as Record<string, unknown>;
+                            const displayValue = isObject ? (obj.value as string) : (item as string);
+                            const count = isObject ? (obj.count as number | undefined) : null;
                             return (
                                 <button
                                     key={displayValue}

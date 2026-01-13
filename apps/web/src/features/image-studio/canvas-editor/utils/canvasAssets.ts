@@ -12,13 +12,55 @@ export interface UniversalAsset {
 }
 
 /**
+ * System Assets Configuration
+ * DRY: Single source of truth for all hardcoded asset paths used in layouts
+ */
+export const SYSTEM_ASSETS = {
+    sunflower: {
+        yellow: {
+            src: '/Sonnenblume.png',
+            label: 'Sonnenblume (Gelb)',
+        },
+        green: {
+            src: '/sonnenblume_dunkelgruen.svg',
+            label: 'Sonnenblume (Grün)',
+        },
+    },
+    quote: {
+        white: {
+            src: '/quote-white.svg',
+            label: 'Anführungszeichen (Weiß)',
+        },
+        default: {
+            src: '/quote.svg',
+            label: 'Anführungszeichen',
+        },
+    },
+    arrow: {
+        src: '/arrow_right.svg',
+        label: 'Pfeil rechts',
+    },
+    backgrounds: {
+        info: {
+            tanne: '/Info_bg_tanne.png',
+            sand: '/Info_bg_sand.png',
+        },
+    },
+} as const;
+
+/**
+ * @deprecated Use SYSTEM_ASSETS.sunflower instead
+ */
+export const SYSTEM_SUNFLOWER = SYSTEM_ASSETS.sunflower;
+
+/**
  * All available decorative assets that can be used across canvas types
  */
 export const ALL_ASSETS: UniversalAsset[] = [
-    { id: 'sunflower', src: '/Sonnenblume.png', label: 'Sonnenblume', category: 'decoration', tags: ['blume', 'flower', 'gelb', 'yellow', 'natur', 'pflanze', 'sommer'] },
-    { id: 'sunflower-green', src: '/sonnenblume_dunkelgruen.svg', label: 'Sonnenblume (Grün)', category: 'decoration', tags: ['blume', 'flower', 'grün', 'green', 'natur', 'pflanze'] },
-    { id: 'quote-mark', src: '/quote.svg', label: 'Anführungszeichen', category: 'mark', tags: ['zitat', 'quote', 'text', 'spruch', 'rede'] },
-    { id: 'arrow', src: '/arrow_right.svg', label: 'Pfeil', category: 'mark', tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'] },
+    { id: 'sunflower', src: SYSTEM_ASSETS.sunflower.yellow.src, label: SYSTEM_ASSETS.sunflower.yellow.label, category: 'decoration', tags: ['blume', 'flower', 'gelb', 'yellow', 'natur', 'pflanze', 'sommer'] },
+    { id: 'sunflower-green', src: SYSTEM_ASSETS.sunflower.green.src, label: SYSTEM_ASSETS.sunflower.green.label, category: 'decoration', tags: ['blume', 'flower', 'grün', 'green', 'natur', 'pflanze'] },
+    { id: 'quote-mark', src: SYSTEM_ASSETS.quote.default.src, label: SYSTEM_ASSETS.quote.default.label, category: 'mark', tags: ['zitat', 'quote', 'text', 'spruch', 'rede'] },
+    { id: 'arrow', src: SYSTEM_ASSETS.arrow.src, label: SYSTEM_ASSETS.arrow.label, category: 'mark', tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'] },
 ];
 
 /**

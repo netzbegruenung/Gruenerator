@@ -90,7 +90,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
   },
 
   // Notebook DOCX Generation with citations and sources
-  generateNotebookDOCX: async (content: string, title: string, citations: any[], sources?: any[]) => {
+  generateNotebookDOCX: async (content: string, title: string, citations: unknown[], sources?: unknown[]) => {
     set({ isGenerating: true });
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');

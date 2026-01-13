@@ -79,6 +79,7 @@ interface FormSectionProps {
   contextualTip?: ContextualTip | null;
   selectedPlatforms?: string[];
   inputHeaderContent?: ReactNode;
+  hideInputSection?: boolean;
 }
 
 const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({

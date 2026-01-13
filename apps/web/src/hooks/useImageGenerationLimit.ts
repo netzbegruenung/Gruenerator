@@ -24,9 +24,9 @@ export const useImageGenerationLimit = () => {
     enabled: !!user && isAuthenticated,
     refetchOnWindowFocus: true,
     staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: unknown) => {
       // Don't retry on auth errors
-      if (error.message?.includes('401')) return false;
+      if (error instanceof Error && error.message?.includes('401')) return false;
       return failureCount < 3;
     }
   });

@@ -1,10 +1,17 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, Suspense } from 'react';
 import { FaFont, FaTextHeight, FaImage, FaQuoteLeft } from 'react-icons/fa';
 import { SidebarTabBar } from './SidebarTabBar';
 import { SidebarPanel } from './SidebarPanel';
 import { TextSection, FontSizeSection, BackgroundSection, AssetsSection, AlternativesSection } from './sections';
 import type { CanvasSidebarProps, SidebarTab, SidebarTabId } from './types';
+import Spinner from '../../../../components/common/Spinner';
 import './CanvasSidebar.css';
+
+const SidebarSectionLoader = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-large)', minHeight: '200px' }}>
+    <Spinner size="medium" />
+  </div>
+);
 
 const SunflowerIcon = () => (
   <img src="/sonnenblume_dunkelgruen.svg" alt="" style={{ width: 24, height: 24 }} />
@@ -111,19 +118,23 @@ export function useCanvasSidebar({
         );
       case 'background':
         return (
-          <BackgroundSection
-            colors={backgroundColors}
-            currentColor={backgroundColor}
-            onColorChange={onBackgroundChange}
-          />
+          <Suspense fallback={<SidebarSectionLoader />}>
+            <BackgroundSection
+              colors={backgroundColors}
+              currentColor={backgroundColor}
+              onColorChange={onBackgroundChange}
+            />
+          </Suspense>
         );
       case 'assets':
         return (
-          <AssetsSection
-            assets={assets}
-            onAssetToggle={onAssetToggle}
-            recommendedAssetIds={recommendedAssetIds}
-          />
+          <Suspense fallback={<SidebarSectionLoader />}>
+            <AssetsSection
+              assets={assets}
+              onAssetToggle={onAssetToggle}
+              recommendedAssetIds={recommendedAssetIds}
+            />
+          </Suspense>
         );
       case 'alternatives':
         return (

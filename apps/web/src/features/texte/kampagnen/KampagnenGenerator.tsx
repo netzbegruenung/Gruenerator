@@ -221,7 +221,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     handleSubmit,
     getValues,
     errors
-  } = form as { control: any; handleSubmit: any; getValues: any; errors: { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } } };
+  } = form as { control: Record<string, unknown>; handleSubmit: (onSubmit: (data: CampaignFormData) => Promise<void>) => () => Promise<void>; getValues: () => CampaignFormData; errors: { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } } };
 
   // Consolidated setup using new hook
   const setup = useGeneratorSetup({

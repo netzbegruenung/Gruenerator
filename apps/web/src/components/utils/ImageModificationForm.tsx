@@ -81,7 +81,7 @@ interface ImageModificationFormProps {
   onControlChange: (name: string, value: unknown) => void;
 }
 
-export const FontSizeControl = ({ fontSize, onControlChange, isQuoteType = false }: FontSizeControlProps): JSX.Element => {
+export const FontSizeControl = ({ fontSize = 90, onControlChange, isQuoteType = false }: FontSizeControlProps): JSX.Element => {
   const [showSlider, setShowSlider] = useState(false);
 
   const options = isQuoteType
@@ -127,7 +127,7 @@ export const FontSizeControl = ({ fontSize, onControlChange, isQuoteType = false
   );
 };
 
-export const FreeFontSizeControl = ({ fontSize, onControlChange, min = 75, max = 110, isQuoteType = false }: FreeFontSizeControlProps): JSX.Element => {
+export const FreeFontSizeControl = ({ fontSize = 90, onControlChange, min = 75, max = 110, isQuoteType = false }: FreeFontSizeControlProps): JSX.Element => {
   const effectiveMin = isQuoteType ? 45 : min;
   const effectiveMax = isQuoteType ? 80 : max;
 

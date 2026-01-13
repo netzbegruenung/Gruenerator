@@ -198,7 +198,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
   }, [stableIsMobileView, isSharepicOnly, displayName, storeContent]);
 
   // Custom message renderer for mobile - shows full text for edit results
-  const renderMobileEditMessage = useCallback((msg: any, index: number): ReactNode => {
+  const renderMobileEditMessage = useCallback((msg: EditMessage, index: number): ReactNode => {
     if (msg.type === 'assistant' && msg.isEditResult) {
       return (
         <motion.div
@@ -247,7 +247,7 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
     );
   }, []);
 
-  const handleSubmit = useCallback(async (instruction: any) => {
+  const handleSubmit = useCallback(async (instruction: string) => {
     if (isSharepicOnly || !hasEditableText) {
       return;
     }
@@ -279,22 +279,28 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
       return;
     }
 
-    const attemptFrontendParsing = (rawData: any) => {
+    interface ParsedResponse {
+      changes?: Array<Record<string, unknown>>;
+      [key: string]: unknown;
+    }
+
+    const attemptFrontendParsing = (rawData: { raw?: string; [key: string]: unknown }): ParsedResponse | null => {
       if (!rawData?.raw) return null;
 
       try {
-        let cleaned = rawData.raw
+        let cleaned = (rawData.raw as string)
           .replace(/```json\s*|\s*```/g, '')
           .replace(/(\*\*|__|~~)\s*"/g, '"')
           .replace(/"\s*(\*\*|__|~~)/g, '"')
           .trim();
 
-        const parsed = JSON.parse(cleaned);
+        const parsed: ParsedResponse = JSON.parse(cleaned);
         if (parsed.changes && Array.isArray(parsed.changes)) {
           return parsed;
         }
-      } catch (e: any) {
-        console.warn('[UniversalEditForm] Frontend parsing failed:', e?.message);
+      } catch (e: unknown) {
+        const error = e as { message?: string };
+        console.warn('[UniversalEditForm] Frontend parsing failed:', error?.message);
       }
       return null;
     };
@@ -367,23 +373,26 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
             if (isFullReplace) {
               summary = '✅ Text komplett umgeschrieben!';
             } else {
-              const describeChange = (change: any) => {
-                if (!change.replacement_text || change.replacement_text.trim() === '') {
-                  return `🗑️ Entfernt: „${change.text_to_find.substring(0, 60)}${change.text_to_find.length > 60 ? '...' : ''}"`;
+              const describeChange = (change: Record<string, unknown>) => {
+                const replacementText = change.replacement_text as string | undefined;
+                const textToFind = change.text_to_find as string | undefined;
+
+                if (!replacementText || replacementText.trim() === '') {
+                  return `🗑️ Entfernt: „${textToFind?.substring(0, 60)}${textToFind && textToFind.length > 60 ? '...' : ''}"`;
                 }
 
-                if (change.replacement_text.includes(change.text_to_find)) {
-                  const addedPart = change.replacement_text.replace(change.text_to_find, '').trim();
+                if (textToFind && replacementText.includes(textToFind)) {
+                  const addedPart = replacementText.replace(textToFind, '').trim();
                   if (addedPart) {
                     return `➕ Hinzugefügt: „${addedPart.substring(0, 60)}${addedPart.length > 60 ? '...' : ''}"`;
                   }
                 }
 
-                if (change.text_to_find.includes(change.replacement_text) && change.replacement_text) {
-                  return `✂️ Gekürzt: „${change.text_to_find.substring(0, 30)}..." → „${change.replacement_text.substring(0, 30)}..."`;
+                if (textToFind && textToFind.includes(replacementText) && replacementText) {
+                  return `✂️ Gekürzt: „${textToFind.substring(0, 30)}..." → „${replacementText.substring(0, 30)}..."`;
                 }
 
-                return `✏️ Geändert: „${change.text_to_find.substring(0, 30)}${change.text_to_find.length > 30 ? '...' : ''}" → „${change.replacement_text.substring(0, 30)}${change.replacement_text.length > 30 ? '...' : ''}"`;
+                return `✏️ Geändert: „${textToFind?.substring(0, 30)}${textToFind && textToFind.length > 30 ? '...' : ''}" → „${replacementText.substring(0, 30)}${replacementText.length > 30 ? '...' : ''}"`;
               };
 
               summary = [

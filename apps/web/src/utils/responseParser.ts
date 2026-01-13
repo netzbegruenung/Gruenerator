@@ -551,10 +551,40 @@ export function parseEndpointResponse(
     }
   }
 
-  // Validation failed
+  // Validation failed - provide more detailed error for debugging
+  const responseObj = response as Record<string, unknown>;
+  const details: string[] = [];
+
+  if (typeof response !== 'object') {
+    details.push(`expected object, got ${typeof response}`);
+  } else if (category === 'claude-text') {
+    // Specific diagnostics for claude-text category
+    if (!('content' in responseObj)) {
+      details.push('missing "content" field');
+    } else if (typeof responseObj.content !== 'string') {
+      details.push(`"content" is ${typeof responseObj.content}, expected string`);
+    } else if (responseObj.content === '') {
+      details.push('"content" is empty string');
+    }
+  }
+
+  const detailStr = details.length > 0 ? ` (${details.join(', ')})` : '';
+
+  // Log for debugging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`[responseParser] Validation failed for ${endpoint}:`, {
+      category,
+      responseKeys: typeof response === 'object' ? Object.keys(response as object) : 'not-object',
+      contentType: typeof responseObj?.content,
+      contentValue: typeof responseObj?.content === 'string'
+        ? responseObj.content.substring(0, 100) + '...'
+        : responseObj?.content,
+    });
+  }
+
   return {
     success: false,
-    error: `Invalid response format for category '${category}'`,
+    error: `Invalid response format for category '${category}'${detailStr}`,
   };
 }
 

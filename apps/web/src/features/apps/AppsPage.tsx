@@ -155,6 +155,13 @@ const categorizeAssets = (assets: ReleaseAsset[] | undefined): CategorizedAssets
   };
 };
 
+interface GitHubRelease {
+  tag_name: string;
+  published_at: string;
+  assets: ReleaseAsset[];
+  body?: string;
+}
+
 interface PlatformSectionProps {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -210,9 +217,9 @@ const PlatformSection = ({ title, icon: Icon, assets, isCurrentPlatform, userArc
 };
 
 const AppsPage = () => {
-  const [release, setRelease] = useState(null);
+  const [release, setRelease] = useState<GitHubRelease | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchRelease = useCallback(async () => {
     setLoading(true);
@@ -228,7 +235,7 @@ const AppsPage = () => {
       const data = await response.json();
       setRelease(data);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Ein unbekannter Fehler ist aufgetreten');
     } finally {
       setLoading(false);
     }

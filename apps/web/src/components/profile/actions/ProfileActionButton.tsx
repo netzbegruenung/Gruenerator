@@ -1,8 +1,14 @@
-import type { JSX, MouseEvent } from 'react';
+import type { JSX, ComponentType } from 'react';
+import type { IconType, IconBaseProps } from 'react-icons';
 import { ICONS } from '../../../config/icons';
 import { SiCanva } from 'react-icons/si';
 
-const DEFAULTS = {
+export type ActionIconName = 'edit' | 'delete' | 'back' | 'refresh' | 'open' | 'add' | 'info' | 'altText' | 'kiLabel' | 'download' | 'canva' | 'link' | 'share' | 'check';
+export type ButtonVariant = 'ghost' | 'secondary' | 'primary' | 'danger' | 'delete';
+export type ButtonSize = 's' | 'm';
+type IconComponent = ComponentType<IconBaseProps> | null;
+
+const DEFAULTS: Record<ActionIconName, { label: string; variant: ButtonVariant }> = {
   edit: { label: 'Bearbeiten', variant: 'secondary' },
   delete: { label: 'Löschen', variant: 'danger' },
   back: { label: 'Zurück', variant: 'ghost' },
@@ -15,10 +21,11 @@ const DEFAULTS = {
   download: { label: 'Herunterladen', variant: 'primary' },
   canva: { label: 'In Canva bearbeiten', variant: 'secondary' },
   link: { label: 'Link kopieren', variant: 'ghost' },
-  share: { label: 'Teilen', variant: 'primary' }
+  share: { label: 'Teilen', variant: 'primary' },
+  check: { label: 'Bestätigen', variant: 'primary' }
 };
 
-const variantToClass = (variant) => {
+const variantToClass = (variant: ButtonVariant): string => {
   switch (variant) {
     case 'primary': return 'pabtn pabtn--primary';
     case 'secondary': return 'pabtn pabtn--secondary';
@@ -28,21 +35,22 @@ const variantToClass = (variant) => {
   }
 };
 
-const sizeToClass = (size) => (size === 'm' ? 'pabtn--m' : 'pabtn--s');
+const sizeToClass = (size: ButtonSize): string => (size === 'm' ? 'pabtn--m' : 'pabtn--s');
 
-const getIconForAction = (action) => {
-  if (action === 'open') return ICONS.actions.arrowRight;
-  if (action === 'canva') return SiCanva;
-  return ICONS.actions[action] || null;
+const getIconForAction = (action: ActionIconName): IconComponent => {
+  if (action === 'open') return ICONS.actions.arrowRight as IconComponent;
+  if (action === 'canva') return SiCanva as IconComponent;
+  const actionIcons = ICONS.actions as Record<string, IconComponent>;
+  return actionIcons[action] || null;
 };
 
 export interface ProfileActionButtonProps {
-  action: 'edit' | 'delete' | 'back' | 'refresh' | 'open' | 'add' | 'info' | 'altText' | 'kiLabel' | 'download' | 'canva' | 'link' | 'share';
+  action: ActionIconName;
   label?: string;
   ariaLabel?: string;
   title?: string;
-  variant?: 'ghost' | 'secondary' | 'primary' | 'danger' | 'delete';
-  size?: 's' | 'm';
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   loading?: boolean;
   spinOnLoading?: boolean;
   disabled?: boolean;
@@ -99,7 +107,7 @@ export const ProfileActionButton = ({ action,
   );
 };
 
-export const ProfileIconButton = (props) => (
+export const ProfileIconButton = (props: Omit<ProfileActionButtonProps, 'showLabel'>) => (
   <ProfileActionButton {...props} label={undefined} showLabel={false} />
 );
 

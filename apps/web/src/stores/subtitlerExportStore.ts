@@ -173,11 +173,16 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       // Start polling for progress
       get().startPolling();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
+          ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
+          : error.message
+        : 'Failed to start export';
       console.error('[SubtitlerExportStore] Export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
-        error: error.response?.data?.error || error.message || 'Failed to start export',
+        error: errorMessage,
       });
     }
   },
@@ -225,11 +230,16 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
       get().startPolling();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
+          ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
+          : error.message
+        : 'Failed to start Remotion export';
       console.error('[SubtitlerExportStore] Remotion export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
-        error: error.response?.data?.error || error.message || 'Failed to start Remotion export',
+        error: errorMessage,
       });
     }
   },
@@ -291,7 +301,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           get().stopPolling();
         }
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[SubtitlerExportStore] Polling error:', error);
 
         const currentState = get();
@@ -490,7 +500,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
       console.log(`[SubtitlerExportStore] Download triggered for completed export: ${exportToken}`);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[SubtitlerExportStore] Failed to download completed export:', error);
       throw error;
     }

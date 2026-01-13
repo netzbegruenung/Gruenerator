@@ -23,7 +23,7 @@ interface ResultData {
   imageUrl?: string;
   type?: string;
   images?: string[];
-  sharepic?: any;
+  sharepic?: unknown;
 }
 
 interface ChatMessage {
@@ -92,10 +92,10 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
 
       {hasResultData ? (
         <div className="gruenerator-result-content">
-          {msg.resultData.sharepic && (
+          {msg.resultData?.sharepic && (
             <div className="gruenerator-result-sharepic">
               <ImageDisplay
-                sharepicData={msg.resultData.sharepic}
+                sharepicData={msg.resultData?.sharepic}
                 minimal={true}
               />
             </div>
@@ -108,7 +108,7 @@ const GrueneratorChatMessage = ({ msg, index, onEditRequest, isEditModeActive, a
           <ActionButtons
             generatedContent={displayText}
             showEditMode={true}
-            onRequestEdit={() => onEditRequest?.(msg.resultData.componentId)}
+            onRequestEdit={() => onEditRequest?.(msg.resultData?.componentId || '')}
             isEditModeActive={isActive && isEditModeActive}
             showExportDropdown={true}
             showUndo={false}

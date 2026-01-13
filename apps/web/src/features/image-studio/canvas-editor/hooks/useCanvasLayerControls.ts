@@ -13,7 +13,7 @@ export interface UseCanvasLayerControlsOptions<TState> {
     selectedElement: string | null;
     sortedRenderList: CanvasItem[];
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
-    saveToHistory: (state: any) => void;
+    saveToHistory: (state: TState) => void;
     state: TState;
 }
 
@@ -35,14 +35,16 @@ export function useCanvasLayerControls<TState>(
         (direction: 'up' | 'down') => {
             if (!selectedElement) return;
 
-            setState((prev: any) => {
-                const currentOrder = prev.layerOrder ? [...prev.layerOrder] : sortedRenderList.map((i) => i.id);
+            setState((prev: TState) => {
+                const currentOrder = (prev as Record<string, unknown>).layerOrder
+                    ? [...(prev as Record<string, unknown>).layerOrder as string[]]
+                    : sortedRenderList.map((i) => i.id);
                 const newOrder = moveLayer(currentOrder, selectedElement, direction);
 
                 return { ...prev, layerOrder: newOrder };
             });
 
-            saveToHistory({ ...state, layerOrder: sortedRenderList.map((i) => i.id) } as any);
+            saveToHistory({ ...state, layerOrder: sortedRenderList.map((i) => i.id) });
         },
         [selectedElement, setState, sortedRenderList, saveToHistory, state]
     );

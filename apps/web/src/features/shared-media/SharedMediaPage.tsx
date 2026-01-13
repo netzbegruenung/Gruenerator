@@ -58,7 +58,7 @@ const SharedMediaPage = () => {
       try {
         const response = await apiClient.get(`/share/${shareToken}`, {
           skipAuthRedirect: true
-        } as any);
+        });
         if (response.data.success) {
           setShareData(response.data.share);
           if (response.data.share.status === 'processing') {
@@ -68,10 +68,10 @@ const SharedMediaPage = () => {
           }
         }
       } catch (err) {
-        const error = err as any;
-        if (error?.response?.status === 410) {
+        const error = err as unknown;
+        if ((error as { response?: { status?: number } })?.response?.status === 410) {
           setError('Dieser Link ist nicht mehr gültig.');
-        } else if (error?.response?.status === 404) {
+        } else if ((error as { response?: { status?: number } })?.response?.status === 404) {
           setError('Dieses Medium existiert nicht oder wurde gelöscht.');
         } else {
           setError('Fehler beim Laden des Mediums.');
@@ -91,7 +91,7 @@ const SharedMediaPage = () => {
       try {
         const response = await apiClient.get(`/share/${shareToken}`, {
           skipAuthRedirect: true
-        } as any);
+        });
         if (response.data.success) {
           const newStatus = response.data.share.status;
           if (newStatus === 'ready') {
@@ -142,8 +142,8 @@ const SharedMediaPage = () => {
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (err) {
-      const error = err as any;
-      if (error?.response?.status === 410) {
+      const error = err as unknown;
+      if ((error as { response?: { status?: number } })?.response?.status === 410) {
         setError('Dieser Link ist nicht mehr gültig.');
       } else {
         setDownloadError('Download fehlgeschlagen. Bitte versuche es erneut.');
@@ -193,8 +193,8 @@ const SharedMediaPage = () => {
         text: '',
       });
     } catch (err) {
-      const error = err as any;
-      if (error?.name !== 'AbortError') {
+      const error = err as unknown;
+      if ((error as { name?: string })?.name !== 'AbortError') {
         console.error('Share failed:', error);
       }
     } finally {

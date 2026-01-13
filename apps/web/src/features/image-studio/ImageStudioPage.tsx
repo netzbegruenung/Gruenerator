@@ -91,7 +91,7 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
     }
 
     // Check if urlType is actually a subcategory (create/edit)
-    const isSubcategory = urlType && Object.values(KI_SUBCATEGORIES).includes(urlType as any);
+    const isSubcategory = urlType && Object.values(KI_SUBCATEGORIES).includes(urlType as unknown as string);
 
     if (isSubcategory) {
       // URL: /image-studio/ki/create or /image-studio/ki/edit

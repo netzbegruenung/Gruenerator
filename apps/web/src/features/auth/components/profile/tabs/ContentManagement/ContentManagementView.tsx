@@ -228,13 +228,13 @@ const ContentManagementView = ({
             </div>
 
             {/* Share modal */}
-            {showShareModal && (
+            {showShareModal && shareContent && (
                 <ShareToGroupModal
                     isOpen={showShareModal}
                     onClose={handleCloseShareModal}
-                    contentType={shareContent?.type}
-                    contentId={shareContent?.id}
-                    contentTitle={shareContent?.title}
+                    contentType={shareContent.type}
+                    contentId={shareContent.id}
+                    contentTitle={shareContent.title}
                     onSuccess={handleShareSuccess}
                     onError={handleShareError}
                 />

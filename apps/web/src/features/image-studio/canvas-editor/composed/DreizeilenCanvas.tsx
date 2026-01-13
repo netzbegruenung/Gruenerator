@@ -13,9 +13,10 @@
  * - Phase 6: Balken rendering integrated via BalkenInstance
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { GenericCanvas } from '../components/GenericCanvas';
-import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
+import { loadCanvasConfig } from '../configs/configLoader';
+import type { CanvasConfig } from '../configs/types';
 import type { DreizeilenFullState, DreizeilenFullActions, DreizeilenAlternative } from '../configs/dreizeilen.types';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 
@@ -102,6 +103,22 @@ export function DreizeilenCanvas({
     onDelete,
     bare,
 }: DreizeilenCanvasProps) {
+    const [config, setConfig] = useState<CanvasConfig | null>(null);
+
+    // Load config dynamically
+    useEffect(() => {
+        loadCanvasConfig('dreizeilen')
+            .then(setConfig)
+            .catch((error) => {
+                console.error('Failed to load dreizeilen config:', error);
+            });
+    }, []);
+
+    // Show loading state while config loads
+    if (!config) {
+        return <div>Lädt Editor...</div>;
+    }
+
     // Map component props to config's initialProps format
     const initialProps = {
         line1,
@@ -128,7 +145,7 @@ export function DreizeilenCanvas({
 
     return (
         <GenericCanvas<DreizeilenFullState, DreizeilenFullActions>
-            config={dreizeilenFullConfig}
+            config={config}
             initialProps={initialProps}
             onExport={onExport}
             onSave={onSave}

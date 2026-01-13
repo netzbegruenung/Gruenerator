@@ -17,8 +17,8 @@ interface AuthOptions {
 
 interface AuthData {
   isAuthenticated: boolean;
-  user?: any;
-  supabaseSession?: any;
+  user?: Record<string, unknown>;
+  supabaseSession?: Record<string, unknown>;
 }
 
 interface PartialLogoutState {
@@ -146,7 +146,7 @@ const detectPartialLogoutState = async () => {
         skipAuthRedirect: true
       } as ExtendedAxiosRequestConfig);
 
-      const statusData = response.data;
+      const statusData = response.data as Record<string, unknown>;
       const backendAuthenticated = statusData.isAuthenticated;
 
       if (backendAuthenticated) {
@@ -161,7 +161,7 @@ const detectPartialLogoutState = async () => {
     }
 
     return { isPartialLogout: false };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.warn('[useAuth] Could not check for partial logout state:', error);
     return { isPartialLogout: false };
   }
@@ -173,7 +173,7 @@ const detectPartialLogoutState = async () => {
 const checkServerHealth = async () => {
   try {
     // Health endpoint is at /health (relative to base URL without /api)
-    const baseURL = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+    const baseURL = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || '/api';
     const healthUrl = baseURL.replace('/api', '') + '/health';
     const response = await fetch(healthUrl, {
       method: 'GET',
@@ -393,7 +393,7 @@ export const useAuth = (options: AuthOptions = {}) => {
           skipAuthRedirect: true,
         } as ExtendedAxiosRequestConfig);
         return response.data as AuthData;
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw error;
       }
     },
@@ -461,7 +461,7 @@ export const useAuth = (options: AuthOptions = {}) => {
                     skipAuthRedirect: true
                   } as ExtendedAxiosRequestConfig);
                   return response.data.groups || [];
-                } catch (error: any) {
+                } catch (error: unknown) {
                   console.warn('[useAuth] Groups prefetch failed:', error);
                   return [];
                 }

@@ -299,7 +299,7 @@ export function parseAIGeneratedData(
   // Add selected image if provided
   if (selectedImage?.path) {
     // Use same baseURL pattern as apiClient for consistent URL resolution
-    const apiBaseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+    const apiBaseUrl = (import.meta as unknown as { env?: { VITE_API_BASE_URL?: string } }).env?.VITE_API_BASE_URL || '/api';
     const fullImagePath = `${apiBaseUrl}${selectedImage.path}`;
     formData.uploadedImage = fullImagePath;
     formData.credit = selectedImage.alt_text || '';

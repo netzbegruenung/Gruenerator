@@ -5,10 +5,10 @@
 
 // Logger interface for type safety
 interface IDebugLogger {
-  logOnce: (key: string, message: string, data?: any) => void;
-  logRender: (componentName: string, throttle?: number, data?: any) => void;
-  logRefChange: (componentName: string, refName: string, newRef: any) => void;
-  logLifecycle: (componentName: string, event: string, data?: any) => void;
+  logOnce: (key: string, message: string, data?: unknown) => void;
+  logRender: (componentName: string, throttle?: number, data?: unknown) => void;
+  logRefChange: (componentName: string, refName: string, newRef: unknown) => void;
+  logLifecycle: (componentName: string, event: string, data?: unknown) => void;
   startGroup: (label: string) => void;
   endGroup: () => void;
   logFocus: (componentName: string, event: string, fieldName: string) => void;
@@ -18,7 +18,7 @@ interface IDebugLogger {
 class DebugLogger implements IDebugLogger {
   private renderCounts: Map<string, number>;
   private lastLogs: Map<string, string>;
-  private componentRefs: Map<string, any>;
+  private componentRefs: Map<string, unknown>;
 
   constructor() {
     this.renderCounts = new Map();
@@ -29,7 +29,7 @@ class DebugLogger implements IDebugLogger {
   /**
    * Log with deduplication - only logs if message changed
    */
-  logOnce(key: string, message: string, data: any = null): void {
+  logOnce(key: string, message: string, data: unknown = null): void {
     const fullMessage = data ? `${message} ${JSON.stringify(data)}` : message;
     const lastMessage = this.lastLogs.get(key);
 
@@ -42,7 +42,7 @@ class DebugLogger implements IDebugLogger {
   /**
    * Log render with throttling - only logs every Nth render
    */
-  logRender(componentName: string, throttle: number = 5, data: any = null): void {
+  logRender(componentName: string, throttle: number = 5, data: unknown = null): void {
     const count = (this.renderCounts.get(componentName) || 0) + 1;
     this.renderCounts.set(componentName, count);
 
@@ -54,7 +54,7 @@ class DebugLogger implements IDebugLogger {
   /**
    * Track component reference changes
    */
-  logRefChange(componentName: string, refName: string, newRef: any): void {
+  logRefChange(componentName: string, refName: string, newRef: unknown): void {
     const key = `${componentName}:${refName}`;
     const oldRef = this.componentRefs.get(key);
 
@@ -70,7 +70,7 @@ class DebugLogger implements IDebugLogger {
   /**
    * Log lifecycle events
    */
-  logLifecycle(componentName: string, event: string, data: any = null): void {
+  logLifecycle(componentName: string, event: string, data: unknown = null): void {
     console.log(`[LIFECYCLE:${componentName}]`, event, data || '');
   }
 
@@ -125,6 +125,6 @@ const noopLogger: IDebugLogger = {
 const debugLogger = new DebugLogger();
 
 // Only enable in development
-export const logger: IDebugLogger = (import.meta as any).env?.DEV ? debugLogger : noopLogger;
+export const logger: IDebugLogger = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV ? debugLogger : noopLogger;
 
 export default logger;

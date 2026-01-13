@@ -153,6 +153,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   onImageChange = null,
   enableKnowledgeSelector = false,
   hideFormExtras = false,
+  hideInputSection = false,
   onImageEditModeChange = null, // Callback when image edit mode changes (true = active, false = inactive)
   customExportOptions = [],
   hideDefaultExportOptions = false,
@@ -429,9 +430,12 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
   });
 
   // Function to get exportable content
-  const getExportableContentCallback = useCallback((content: any) => {
-    return getExportableContent(content, value);
-  }, [value]);
+  // Convert StoredContent to string for type safety
+  const valueAsString = typeof value === 'string' ? value : (value ? JSON.stringify(value) : '');
+  const getExportableContentCallback = useCallback((content: unknown) => {
+    const safeContent = typeof content === 'string' ? content : (content ? JSON.stringify(content) : '');
+    return getExportableContent(safeContent, valueAsString);
+  }, [valueAsString]);
 
   // Accessibility hook - provides error/success handlers
   const {
@@ -629,7 +633,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
               ref={displaySectionRef}
               title={typeof displayTitle === 'string' ? displayTitle : ''}
               error={error || propError}
-              value={value}
+              value={valueAsString}
               generatedContent={generatedContent}
               useMarkdown={resolvedUIConfig.useMarkdown}
               helpContent={inlineHelpContentOverride || helpContent}

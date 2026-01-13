@@ -2,6 +2,20 @@
  * Notebook/Q&A Collection Types
  */
 
+import type { Document } from './documents';
+
+/**
+ * Wolke share link representation in notebook context
+ */
+export interface WolkeShareLink {
+  id: string;
+  name?: string;
+  url?: string;
+  display_name?: string;
+  base_url?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Base notebook collection type representing a Q&A collection
  */
@@ -20,10 +34,9 @@ export interface NotebookCollection {
   created_at: string;
   updated_at: string;
   document_count?: number;
-  documents?: any[];
-  wolke_share_links?: any[];
+  documents?: Document[];
+  wolke_share_links?: WolkeShareLink[];
   selection_mode?: 'documents' | 'wolke' | 'mixed';
-  [key: string]: any;
 }
 
 /**

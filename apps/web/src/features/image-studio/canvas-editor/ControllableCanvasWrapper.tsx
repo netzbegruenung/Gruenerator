@@ -8,16 +8,14 @@ import { ProfilbildCanvas } from './ProfilbildCanvas';
 import { GenericCanvas } from './components/GenericCanvas';
 import { ZitatMultiPage } from './components/ZitatMultiPage';
 
-// Import full configs
-import { zitatPureFullConfig } from './configs/zitat_pure_full.config';
-import { simpleFullConfig } from './configs/simple_full.config';
-import { infoFullConfig } from './configs/info_full.config';
-import { veranstaltungFullConfig } from './configs/veranstaltung_full.config';
+// Dynamic config loading
+import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
+import type { CanvasConfig } from './configs/types';
 
 import type { DreizeilenCanvasProps } from './composed/DreizeilenCanvas';
 import type { ProfilbildCanvasProps } from '@gruenerator/shared/canvas-editor';
 
-type CanvasState = Record<string, any>;
+type CanvasState = Record<string, unknown>;
 
 export interface ControllableCanvasWrapperProps {
   type: string;
@@ -38,6 +36,27 @@ export function ControllableCanvasWrapper({
 }: ControllableCanvasWrapperProps) {
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
+  const [config, setConfig] = useState<CanvasConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+
+  // Load config dynamically when type changes (for config-driven canvases)
+  useEffect(() => {
+    const needsConfig = ['zitat-pure', 'info', 'veranstaltung', 'simple'].includes(type);
+
+    if (needsConfig && isValidCanvasType(type)) {
+      setConfigLoading(true);
+      loadCanvasConfig(type)
+        .then(setConfig)
+        .catch((error) => {
+          console.error(`Failed to load canvas config for type "${type}":`, error);
+          setConfig(null);
+        })
+        .finally(() => setConfigLoading(false));
+    } else {
+      setConfig(null);
+      setConfigLoading(false);
+    }
+  }, [type]);
 
   useEffect(() => {
     setInternalState(initialState);
@@ -58,16 +77,21 @@ export function ControllableCanvasWrapper({
 
   // Create callbacks object for GenericCanvas
   const createCallbacks = useCallback((keys: string[]) => {
-    const callbacks: Record<string, (val: any) => void> = {};
+    const callbacks: Record<string, (val: unknown) => void> = {};
     keys.forEach(key => {
-      callbacks[`on${key.charAt(0).toUpperCase() + key.slice(1)}Change`] = (val: any) => handlePartChange({ [key]: val });
+      callbacks[`on${key.charAt(0).toUpperCase() + key.slice(1)}Change`] = (val: unknown) => handlePartChange({ [key]: val });
     });
     return callbacks;
   }, [handlePartChange]);
 
   const renderCanvas = () => {
+    // Show loading state while config loads
+    if (configLoading) {
+      return <div>Lädt Editor...</div>;
+    }
+
     switch (type) {
-      // Dreizeilen stays as special case
+      // Dreizeilen stays as special case (has its own config loading)
       case 'dreizeilen':
         return (
           <DreizeilenCanvas
@@ -82,7 +106,7 @@ export function ControllableCanvasWrapper({
           />
         );
 
-      // Config-driven canvases using GenericCanvas
+      // Zitat uses multi-page component (has its own config loading)
       case 'zitat':
         return (
           <ZitatMultiPage
@@ -99,11 +123,13 @@ export function ControllableCanvasWrapper({
           />
         );
 
+      // Config-driven canvases using dynamically loaded config
       case 'zitat-pure':
+        if (!config) return <div>Lädt Konfiguration...</div>;
         return (
           <GenericCanvas
             key={componentKey}
-            config={zitatPureFullConfig}
+            config={config}
             initialProps={{
               quote: internalState.quote || '',
               name: internalState.name || '',
@@ -116,10 +142,11 @@ export function ControllableCanvasWrapper({
         );
 
       case 'info':
+        if (!config) return <div>Lädt Konfiguration...</div>;
         return (
           <GenericCanvas
             key={componentKey}
-            config={infoFullConfig}
+            config={config}
             initialProps={{
               header: internalState.header || '',
               body: internalState.body || '',
@@ -132,10 +159,11 @@ export function ControllableCanvasWrapper({
         );
 
       case 'veranstaltung':
+        if (!config) return <div>Lädt Konfiguration...</div>;
         return (
           <GenericCanvas
             key={componentKey}
-            config={veranstaltungFullConfig}
+            config={config}
             initialProps={{
               eventTitle: internalState.eventTitle || '',
               beschreibung: internalState.beschreibung || '',
@@ -154,10 +182,11 @@ export function ControllableCanvasWrapper({
         );
 
       case 'simple':
+        if (!config) return <div>Lädt Konfiguration...</div>;
         return (
           <GenericCanvas
             key={componentKey}
-            config={simpleFullConfig}
+            config={config}
             initialProps={{
               headline: internalState.headline || '',
               subtext: internalState.subtext || '',

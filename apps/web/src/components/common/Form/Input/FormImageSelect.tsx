@@ -13,7 +13,7 @@ interface FormImageSelectProps {
   name: string;
   label?: string;
   options?: ImageOption[];
-  control?: Control<any>;
+  control?: Control<Record<string, unknown>>;
   value?: string | number;
   onChange?: (value: string | number) => void;
   required?: boolean;

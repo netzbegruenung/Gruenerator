@@ -117,9 +117,9 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
         // Map alternatives to add required id field
         const alternatives: DreizeilenAlternative[] = rawAlternatives.map((alt, index) => ({
           id: `alt-${index}`,
-          line1: (alt as any).line1 || '',
-          line2: (alt as any).line2 || '',
-          line3: (alt as any).line3 || ''
+          line1: (alt as Record<string, unknown>).line1 as string || '',
+          line2: (alt as Record<string, unknown>).line2 as string || '',
+          line3: (alt as Record<string, unknown>).line3 as string || ''
         }));
         return (
           <DreizeilenCanvas

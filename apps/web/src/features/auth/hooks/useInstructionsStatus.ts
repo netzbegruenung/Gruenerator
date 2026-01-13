@@ -8,7 +8,7 @@ import { useAuth } from '../../../hooks/useAuth';
  * @param {object} options - Query options
  * @returns {object} Query result with instruction status data
  */
-export const useInstructionsStatusForType = (instructionType: string | undefined, options: any = {}) => {
+export const useInstructionsStatusForType = (instructionType: string | undefined, options: Record<string, unknown> = {}) => {
   const { user, isAuthenticated } = useAuth();
 
   return useQuery({

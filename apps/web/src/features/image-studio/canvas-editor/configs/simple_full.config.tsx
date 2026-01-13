@@ -11,8 +11,10 @@ import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { ALL_ASSETS, CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 import { ShapeInstance, ShapeType, createShape } from '../utils/shapes';
-import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import { createIllustration } from '../utils/illustrations/registry';
 import type { StockImageAttribution } from '../../services/imageSourceService';
+import { injectFeatureProps } from './featureInjector';
 
 // ============================================================================
 // STATE TYPE
@@ -189,27 +191,9 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
                 })),
                 onAssetToggle: actions.handleAssetToggle,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['simple'],
-                balkenInstances: state.balkenInstances,
-                selectedBalkenId: context?.selectedElement,
-                onAddBalken: actions.addBalken,
-                onUpdateBalken: actions.updateBalken,
-                onRemoveBalken: actions.removeBalken,
-                // Icons
-                selectedIcons: state.selectedIcons,
-                onIconToggle: actions.toggleIcon,
 
-                // Shapes
-                shapeInstances: state.shapeInstances,
-                selectedShapeId: context?.selectedElement,
-                onAddShape: actions.addShape,
-                onUpdateShape: actions.updateShape,
-                onRemoveShape: actions.removeShape,
-                // Illustrations
-                illustrationInstances: state.illustrationInstances,
-                selectedIllustrationId: context?.selectedElement,
-                onAddIllustration: actions.addIllustration,
-                onUpdateIllustration: actions.updateIllustration,
-                onRemoveIllustration: actions.removeIllustration,
+                // Auto-inject all feature props (icons, shapes, illustrations, balken)
+                ...injectFeatureProps(state, actions, context),
             }),
         },
         alternatives: {
@@ -258,12 +242,12 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         {
             id: 'headline-text',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['headline-text']?.x ?? SIMPLE_CONFIG.headline.x,
-            y: (s: any, l: LayoutResult) => l['headline-text']?.y ?? SIMPLE_CONFIG.headline.y,
+            x: (s: SimpleFullState, l: LayoutResult) => l['headline-text']?.x ?? SIMPLE_CONFIG.headline.x,
+            y: (s: SimpleFullState, l: LayoutResult) => l['headline-text']?.y ?? SIMPLE_CONFIG.headline.y,
             order: 2,
             textKey: 'headline',
             width: SIMPLE_CONFIG.headline.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['headline-text']?.fontSize ?? SIMPLE_CONFIG.headline.fontSize,
+            fontSize: (s: SimpleFullState, l: LayoutResult) => l['headline-text']?.fontSize ?? SIMPLE_CONFIG.headline.fontSize,
             fontFamily: `${SIMPLE_CONFIG.headline.fontFamily}, Arial, sans-serif`,
             fontStyle: SIMPLE_CONFIG.headline.fontStyle,
             align: 'left',
@@ -272,21 +256,21 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customHeadlineFontSize',
-            opacity: (state: any) => state.headlineOpacity ?? 1,
+            opacity: (state: SimpleFullState) => state.headlineOpacity ?? 1,
             opacityStateKey: 'headlineOpacity',
-            fill: (state: any, _layout: any) => state.headlineColor ?? SIMPLE_CONFIG.headline.color,
+            fill: (state: SimpleFullState, _layout: LayoutResult) => state.headlineColor ?? SIMPLE_CONFIG.headline.color,
             fillStateKey: 'headlineColor',
         },
         // Subtext
         {
             id: 'subtext-text',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['subtext-text']?.x ?? SIMPLE_CONFIG.subtext.x,
-            y: (s: any, l: LayoutResult) => l['subtext-text']?.y ?? 200,
+            x: (s: SimpleFullState, l: LayoutResult) => l['subtext-text']?.x ?? SIMPLE_CONFIG.subtext.x,
+            y: (s: SimpleFullState, l: LayoutResult) => l['subtext-text']?.y ?? 200,
             order: 3,
             textKey: 'subtext',
             width: SIMPLE_CONFIG.subtext.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['subtext-text']?.fontSize ?? SIMPLE_CONFIG.subtext.fontSize,
+            fontSize: (s: SimpleFullState, l: LayoutResult) => l['subtext-text']?.fontSize ?? SIMPLE_CONFIG.subtext.fontSize,
             fontFamily: `${SIMPLE_CONFIG.subtext.fontFamily}, Arial, sans-serif`,
             fontStyle: SIMPLE_CONFIG.subtext.fontStyle,
             align: 'left',
@@ -295,9 +279,9 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customSubtextFontSize',
-            opacity: (state: any) => state.subtextOpacity ?? 1,
+            opacity: (state: SimpleFullState) => state.subtextOpacity ?? 1,
             opacityStateKey: 'subtextOpacity',
-            fill: (state: any, _layout: any) => state.subtextColor ?? SIMPLE_CONFIG.subtext.color,
+            fill: (state: SimpleFullState, _layout: LayoutResult) => state.subtextColor ?? SIMPLE_CONFIG.subtext.color,
             fillStateKey: 'subtextColor',
         },
     ],
@@ -484,8 +468,8 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         },
 
         // Illustration actions
-        addIllustration: (id: string) => {
-            const newIllustration = createIllustration(
+        addIllustration: async (id: string) => {
+            const newIllustration = await createIllustration(
                 id,
                 SIMPLE_CONFIG.canvas.width,
                 SIMPLE_CONFIG.canvas.height

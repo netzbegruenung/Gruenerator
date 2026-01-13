@@ -15,7 +15,7 @@ import { sanitizeFieldName } from '../utils/sanitization';
 
 interface UseFieldAutoSuggestOptions {
   label: string;
-  setValue: UseFormSetValue<any>;
+  setValue: UseFormSetValue<Record<string, unknown>>;
   currentType?: string;
 }
 

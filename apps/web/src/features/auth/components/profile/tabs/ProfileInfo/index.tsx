@@ -267,11 +267,11 @@ const ProfileInfoTabContainer = ({
     }
   };
 
-  const avatarProps: any = getAvatarDisplayProps({
+  const avatarProps = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
     email: email || user?.email || user?.username,
-  });
+  }) as Record<string, unknown>;
 
   const isLoading = isLoadingProfile;
 

@@ -165,7 +165,9 @@ export const copyFormattedContent = async (
     const store = useGeneratedTextStore.getState();
     // Get the first available generated text for backward compatibility
     const textKeys = Object.keys(store.generatedTexts);
-    content = textKeys.length > 0 ? store.getGeneratedText(textKeys[0]) : '';
+    const storedContent = textKeys.length > 0 ? store.getGeneratedText(textKeys[0]) : '';
+    // StoredContent can be string or object, convert to string if needed
+    content = typeof storedContent === 'string' ? storedContent : JSON.stringify(storedContent);
   } else {
     // New signature: copyFormattedContent(content, onSuccess, onError)
     content = contentOrOnSuccess ?? '';

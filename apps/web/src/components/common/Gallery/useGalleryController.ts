@@ -26,7 +26,7 @@ interface FetchOptions {
 }
 
 const fetchAntraege = async ({ searchTerm, searchMode, selectedCategory, signal }: FetchOptions) => {
-  const params: Record<string, any> = {};
+  const params: Record<string, unknown> = {};
   if (searchTerm) {
     params.searchTerm = searchTerm;
     if (searchMode) params.searchMode = searchMode;
@@ -41,7 +41,7 @@ const fetchAntraege = async ({ searchTerm, searchMode, selectedCategory, signal 
 };
 
 const fetchGenerators = async ({ searchTerm, selectedCategory, signal }: FetchOptions) => {
-  const params: Record<string, any> = {};
+  const params: Record<string, unknown> = {};
   if (searchTerm) params.searchTerm = searchTerm;
   if (selectedCategory && selectedCategory !== 'all') params.category = selectedCategory;
 
@@ -55,7 +55,7 @@ const fetchGenerators = async ({ searchTerm, selectedCategory, signal }: FetchOp
 const fetchSemanticResults = async ({ searchTerm, contentType, selectedCategory, signal }: FetchOptions) => {
   if (!searchTerm) return [];
 
-  let typeParam;
+  let typeParam: string | undefined;
   if (contentType === 'pr') {
     const allowed = new Set(PR_TYPES);
     if (selectedCategory && selectedCategory !== 'all' && allowed.has(selectedCategory)) {
@@ -65,7 +65,7 @@ const fetchSemanticResults = async ({ searchTerm, contentType, selectedCategory,
     typeParam = 'template';
   }
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     query: String(searchTerm).trim(),
     limit: 200,
     ...(typeParam ? { type: typeParam } : {})
@@ -86,7 +86,7 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
     };
   }
 
-  const params: Record<string, any> = {
+  const params: Record<string, unknown> = {
     onlyExamples: 'true',
     status: 'published',
     limit: '200'
@@ -109,14 +109,14 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
   if (!Array.isArray(sectionOrder) || !sectionTypeMap) {
     if (Array.isArray(filterTypes) && filterTypes.length > 0) {
       const allowed = new Set(filterTypes);
-      return { items: list.filter((item: any) => allowed.has(item.type)) };
+      return { items: list.filter((item: Record<string, unknown>) => allowed.has(item.type as string)) };
     }
     return { items: list };
   }
 
-  const sections = sectionOrder.reduce((acc: Record<string, any>, key: string) => {
+  const sections = sectionOrder.reduce((acc: Record<string, unknown>, key: string) => {
     const allowed = new Set(sectionTypeMap[key] || []);
-    acc[key] = list.filter((item: any) => allowed.has(item.type));
+    acc[key] = list.filter((item: Record<string, unknown>) => allowed.has(item.type as string));
     return acc;
   }, {});
 
@@ -124,7 +124,7 @@ const fetchUnified = async ({ searchTerm, searchMode, selectedCategory, contentT
 };
 
 const fetchVorlagen = async ({ searchTerm, searchMode, selectedCategory, tags, signal }: FetchOptions) => {
-  const params: Record<string, any> = {};
+  const params: Record<string, unknown> = {};
   if (searchTerm) {
     params.searchTerm = searchTerm;
     if (searchMode) params.searchMode = searchMode;
@@ -218,7 +218,7 @@ export const useGalleryController = ({
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
-    queryFn: async ({ signal }): Promise<any> => {
+    queryFn: async ({ signal }): Promise<Record<string, unknown>> => {
       const fetcherName = config.fetcher;
       const fetcher = fetcherMap[fetcherName as keyof typeof fetcherMap];
       if (!fetcher) return { items: [] };
@@ -269,12 +269,13 @@ export const useGalleryController = ({
     }
 
     if (config.allowCategoryFilter === false) return [];
-    const sourceItems = (dataQuery.data as any)?.items || [];
+    const sourceItems = (dataQuery.data as Record<string, unknown>)?.items as unknown[] || [];
     const categorySet = new Set<string>();
-    sourceItems.forEach((item: any) => {
-      const categories = Array.isArray(item.categories) ? item.categories : [];
-      categories.forEach((category: any) => {
-        if (category) categorySet.add(category);
+    sourceItems.forEach((item: unknown) => {
+      const itemObj = item as Record<string, unknown>;
+      const categories = Array.isArray(itemObj.categories) ? itemObj.categories : [];
+      categories.forEach((category: unknown) => {
+        if (category) categorySet.add(String(category));
       });
     });
 
@@ -305,8 +306,8 @@ export const useGalleryController = ({
 
   return {
     config,
-    items: (dataQuery.data as any)?.items || [],
-    sections: (dataQuery.data as any)?.sections,
+    items: ((dataQuery.data as Record<string, unknown>)?.items as unknown[]) || [],
+    sections: (dataQuery.data as Record<string, unknown>)?.sections,
     loading: dataQuery.isLoading,
     error: dataQuery.error,
     searchTerm,

@@ -125,7 +125,7 @@ const CitationSourcesDisplay = ({
     });
 
     // Sort documents by lowest citation index (so documents appear in order of first citation)
-    return Array.from(groupMap.values()).sort((a: any, b: any) => {
+    return Array.from(groupMap.values()).sort((a: { citations: Citation[] }, b: { citations: Citation[] }) => {
       const aMinIndex = a.citations.length > 0 ? Math.min(...a.citations.map((c: Citation) => c.index || 0)) : Infinity;
       const bMinIndex = b.citations.length > 0 ? Math.min(...b.citations.map((c: Citation) => c.index || 0)) : Infinity;
       return aMinIndex - bMinIndex;

@@ -225,6 +225,7 @@ const Header = () => {
 
     const renderDropdownContent = (menuType: keyof typeof menuItems) => {
         const menu = menuItems[menuType];
+        if (!menu?.items) return null;
         return menu.items.map((item: MenuItemType) => {
             // Handle items with sub-menus
             if (item.hasSubmenu && item.items) {

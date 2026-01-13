@@ -15,17 +15,17 @@ import {
     File,
     Folder,
 } from 'react-kawaii';
-import {
+import type {
     IllustrationInstance,
     KawaiiIllustrationType,
-    getIllustrationPath,
-    findIllustrationById,
     SvgDef,
     KawaiiInstance
-} from '../utils/canvasIllustrations';
+} from '../utils/illustrations/types';
+import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
+import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 
 // Map illustration type to component
-const ILLUSTRATION_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<any>> = {
+const ILLUSTRATION_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<{ size: number; mood: string; color: string }>> = {
     planet: Planet,
     cat: Cat,
     ghost: Ghost,
@@ -46,8 +46,8 @@ export interface IllustrationPrimitiveProps {
     onDragEnd: (x: number, y: number) => void;
     onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
     onSnapChange?: (h: boolean, v: boolean) => void;
-    onSnapLinesChange?: (lines: any[]) => void;
-    getSnapTargets?: (id: string) => any[];
+    onSnapLinesChange?: (lines: unknown[]) => void;
+    getSnapTargets?: (id: string) => unknown[];
     stageWidth?: number;
     stageHeight?: number;
     draggable?: boolean;
@@ -88,46 +88,39 @@ export function IllustrationPrimitive({
             img.src = dataUrl;
             img.onload = () => setImage(img);
         } else {
-            // Load SVG from file path
-            const def = findIllustrationById(illustration.illustrationId);
-            if (!def || def.source === 'kawaii') return;
+            // Load SVG from cache or fetch if not cached
+            const loadSvg = async () => {
+                const def = await findIllustrationById(illustration.illustrationId);
+                if (!def || def.source === 'kawaii') return;
 
-            const path = getIllustrationPath(def as SvgDef);
+                const svgDef = def as SvgDef;
 
-            // Fetch SVG text to manipulate colors
-            // Add timestamp to prevent caching of the raw SVG file
-            fetch(`${path}?t=${Date.now()}`)
-                .then(res => res.text())
-                .then(svgText => {
-                    let finalSvg = svgText;
+                // Try cache first (synchronous, instant)
+                const cached = getCachedSVG(svgDef.id, illustration.color);
+                if (cached) {
+                    const img = new window.Image();
+                    img.src = cached;
+                    img.onload = () => setImage(img);
+                    return;
+                }
 
-                    // Ensure xmlns is present (required for data URI)
-                    if (!finalSvg.includes('xmlns="http://www.w3.org/2000/svg"')) {
-                        finalSvg = finalSvg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
-                    }
-
-                    // If color is set, replace typical fill colors
-                    if (illustration.color) {
-                        // Replace unDraw primary color (case insensitive)
-                        finalSvg = finalSvg.replace(/#6c63ff/gi, illustration.color);
-                        // Replace Open Doodles primary color
-                        finalSvg = finalSvg.replace(/#ff5678/gi, illustration.color);
-                    }
-
-                    // Use Base64 encoding for better compatibility
-                    const base64 = window.btoa(unescape(encodeURIComponent(finalSvg)));
-                    const dataUrl = `data:image/svg+xml;base64,${base64}`;
-
+                // Fallback: fetch and cache (async)
+                try {
+                    const dataUrl = await getSVG(svgDef.id, svgDef, illustration.color);
                     const img = new window.Image();
                     img.src = dataUrl;
                     img.onload = () => setImage(img);
-                })
-                .catch(err => {
-                    // Fallback to direct load
+                } catch (err) {
+                    console.error('Failed to load SVG:', err);
+                    // Final fallback: direct load without color manipulation
+                    const path = getIllustrationPath(svgDef);
                     const img = new window.Image();
                     img.src = path;
                     img.onload = () => setImage(img);
-                });
+                }
+            };
+
+            loadSvg();
         }
     }, [
         illustration.source,

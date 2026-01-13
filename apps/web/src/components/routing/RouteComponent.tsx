@@ -13,24 +13,31 @@ interface RouteComponentProps {
   showHeaderFooter?: boolean;
 }
 
+interface RouteConfig {
+  path: string;
+  component: React.LazyExoticComponent<React.ComponentType<unknown>>;
+  withSharepic?: boolean;
+  withForm?: boolean;
+}
+
 const RouteComponent = ({ path,
   darkMode,
   toggleDarkMode,
   isSpecial = false,
-  showHeaderFooter = true }: RouteComponentProps): JSX.Element => {
+  showHeaderFooter = true }: RouteComponentProps): JSX.Element | null => {
   const location = useLocation();
 
   // Route debugging effect removed to reduce console noise
 
   // Finde die passende Route
-  let route;
+  let route: RouteConfig | undefined;
   if (!showHeaderFooter) {
-    route = routes.noHeaderFooter.find(r => r.path === path);
+    route = (routes.noHeaderFooter as RouteConfig[]).find(r => r.path === path);
     // No-Header-Footer Route found
   } else {
     route = isSpecial
-      ? routes.special.find(r => r.path === path)
-      : routes.standard.find(r => r.path === path);
+      ? (routes.special as RouteConfig[]).find(r => r.path === path)
+      : (routes.standard as RouteConfig[]).find(r => r.path === path);
   }
 
   if (!route) {

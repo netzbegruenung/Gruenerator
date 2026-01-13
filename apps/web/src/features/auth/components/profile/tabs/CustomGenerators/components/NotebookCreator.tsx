@@ -131,7 +131,7 @@ const NotebookCreator = ({
     const [currentStep, setCurrentStep] = useState<number>(STEPS.DOCUMENTS);
     const [selectedDocuments, setSelectedDocuments] = useState<AvailableDocument[]>([]);
 
-    const { Input, Textarea }: any = useFormFields();
+    const { Input, Textarea } = useFormFields();
 
     const {
         control,
@@ -244,7 +244,7 @@ const NotebookCreator = ({
                             isMulti
                             isSearchable
                             placeholder="Dokumente suchen und auswählen..."
-                            options={documentOptions as any}
+                            options={documentOptions}
                             value={selectedDocuments.map(doc => {
                                 const option = documentOptions.find(opt => opt.value === doc.id);
                                 return (option || {
@@ -255,7 +255,7 @@ const NotebookCreator = ({
                                     tag: null,
                                     searchableContent: doc.title || '',
                                     document: doc
-                                }) as any;
+                                }) as DocumentOption;
                             })}
                             onChange={(newValue) => handleDocumentSelectChange(newValue as readonly DocumentOption[] | null)}
                             filterOption={() => true}

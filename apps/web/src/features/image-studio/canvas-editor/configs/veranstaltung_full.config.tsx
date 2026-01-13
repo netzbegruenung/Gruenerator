@@ -12,8 +12,10 @@ import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/ver
 import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
-import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import { createIllustration } from '../utils/illustrations/registry';
 import type { StockImageAttribution } from '../../services/imageSourceService';
+import { injectFeatureProps } from './featureInjector';
 
 // ============================================================================
 // STATE TYPE
@@ -203,19 +205,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
                 })),
                 onAssetToggle: actions.handleAssetToggle,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['veranstaltung'],
-                selectedIcons: state.selectedIcons,
-                onIconToggle: actions.toggleIcon,
-                onAddShape: actions.addShape,
-                shapeInstances: state.shapeInstances,
-                selectedShapeId: context?.selectedElement,
-                onUpdateShape: actions.updateShape,
-                onRemoveShape: actions.removeShape,
-                // Illustrations
-                illustrationInstances: state.illustrationInstances,
-                selectedIllustrationId: context?.selectedElement,
-                onAddIllustration: actions.addIllustration,
-                onUpdateIllustration: actions.updateIllustration,
-                onRemoveIllustration: actions.removeIllustration,
+
+                // Auto-inject all feature props (icons, shapes, illustrations, balken)
+                ...injectFeatureProps(state, actions, context),
             }),
         },
         alternatives: {
@@ -247,12 +239,12 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         {
             id: 'event-title',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['event-title']?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin,
-            y: (s: any, l: LayoutResult) => l['event-title']?.y ?? VERANSTALTUNG_CONFIG.eventTitle.startY,
+            x: (s: VeranstaltungFullState, l: LayoutResult) => l['event-title']?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin,
+            y: (s: VeranstaltungFullState, l: LayoutResult) => l['event-title']?.y ?? VERANSTALTUNG_CONFIG.eventTitle.startY,
             order: 3,
             textKey: 'eventTitle',
             width: VERANSTALTUNG_CONFIG.text.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['event-title']?.fontSize ?? VERANSTALTUNG_CONFIG.eventTitle.fontSize,
+            fontSize: (s: VeranstaltungFullState, l: LayoutResult) => l['event-title']?.fontSize ?? VERANSTALTUNG_CONFIG.eventTitle.fontSize,
             fontFamily: `${VERANSTALTUNG_CONFIG.eventTitle.fontFamily}, Arial, sans-serif`,
             fontStyle: 'bold italic',
             align: 'left',
@@ -261,21 +253,21 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customEventTitleFontSize',
-            opacity: (state: any) => state.eventTitleOpacity ?? 1,
+            opacity: (state: VeranstaltungFullState) => state.eventTitleOpacity ?? 1,
             opacityStateKey: 'eventTitleOpacity',
-            fill: (state: any, _layout: any) => state.titleColor ?? '#FFFFFF',
+            fill: (state: VeranstaltungFullState, _layout: LayoutResult) => state.titleColor ?? '#FFFFFF',
             fillStateKey: 'titleColor',
         },
         // Description
         {
             id: 'beschreibung',
             type: 'text',
-            x: (s: any, l: LayoutResult) => l['beschreibung']?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin,
-            y: (s: any, l: LayoutResult) => l['beschreibung']?.y ?? 750,
+            x: (s: VeranstaltungFullState, l: LayoutResult) => l['beschreibung']?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin,
+            y: (s: VeranstaltungFullState, l: LayoutResult) => l['beschreibung']?.y ?? 750,
             order: 4,
             textKey: 'beschreibung',
             width: VERANSTALTUNG_CONFIG.text.maxWidth,
-            fontSize: (s: any, l: LayoutResult) => l['beschreibung']?.fontSize ?? VERANSTALTUNG_CONFIG.description.fontSize,
+            fontSize: (s: VeranstaltungFullState, l: LayoutResult) => l['beschreibung']?.fontSize ?? VERANSTALTUNG_CONFIG.description.fontSize,
             fontFamily: `${VERANSTALTUNG_CONFIG.description.fontFamily}, Arial, sans-serif`,
             fontStyle: 'italic',
             align: 'left',
@@ -284,9 +276,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customBeschreibungFontSize',
-            opacity: (state: any) => state.beschreibungOpacity ?? 1,
+            opacity: (state: VeranstaltungFullState) => state.beschreibungOpacity ?? 1,
             opacityStateKey: 'beschreibungOpacity',
-            fill: (state: any, _layout: any) => state.beschreibungColor ?? '#FFFFFF',
+            fill: (state: VeranstaltungFullState, _layout: LayoutResult) => state.beschreibungColor ?? '#FFFFFF',
             fillStateKey: 'beschreibungColor',
         },
         // Date circle (simplified as a circle, text would need custom rendering)
@@ -322,7 +314,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         beschreibungOpacity: 1,
         assetVisibility: {},
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        alternatives: (props.alternatives as any[] | undefined)?.map((a: any) => a.eventTitle || '') ?? [],
+        alternatives: (props.alternatives as Array<Record<string, unknown>> | undefined)?.map((a: Record<string, unknown>) => String(a.eventTitle) || '') ?? [],
         selectedIcons: [],
         iconStates: {},
         shapeInstances: [],
@@ -434,8 +426,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
             saveToHistory({ ...getState() });
         },
         // Illustration actions
-        addIllustration: (id: string) => {
-            const newIllustration = createIllustration(
+        addIllustration: async (id: string) => {
+            const newIllustration = await createIllustration(
                 id,
                 VERANSTALTUNG_CONFIG.canvas.width,
                 VERANSTALTUNG_CONFIG.canvas.height

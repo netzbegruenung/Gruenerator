@@ -83,19 +83,37 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
         initializeStore();
     }, [scope, scopeId, initialized, fetchShareLinks, fetchSyncStatuses, setScope]);
 
+    interface WolkeOption {
+        value?: string;
+        label: string;
+        iconType?: string;
+        icon?: React.ComponentType<{ className?: string; size?: number }>;
+        subtitle?: string;
+        tag?: {
+            label: string;
+            variant: string;
+            icon?: React.ComponentType<{ className?: string; size?: number }>;
+        };
+        searchableContent?: string;
+        shareLink?: WolkeShareLink;
+        documentCount?: number;
+        syncStatus?: Record<string, unknown>;
+        [key: string]: unknown;
+    }
+
     // Transform share links to EnhancedSelect options
-    const wolkeOptions = useMemo(() => {
+    const wolkeOptions = useMemo((): WolkeOption[] => {
         return shareLinks.map(shareLink => {
             // Find sync status for this share link
             const syncStatus = syncStatuses.find(status =>
                 status.share_link_id === shareLink.id
             );
 
-            const documentCount = syncStatus?.files_processed || 0;
-            const lastSync = syncStatus?.last_sync_at;
-            const isAutoSync = syncStatus?.auto_sync_enabled || false;
+            const documentCount = (syncStatus?.files_processed as number | undefined) || 0;
+            const lastSync = syncStatus?.last_sync_at as string | undefined;
+            const isAutoSync = (syncStatus?.auto_sync_enabled as boolean | undefined) || false;
 
-            const subtitleParts = [];
+            const subtitleParts: string[] = [];
             if (documentCount > 0) {
                 subtitleParts.push(`${documentCount} Dokument(e)`);
             }
@@ -106,7 +124,7 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
                 subtitleParts.push('Auto-Sync aktiv');
             }
 
-            return {
+            const option: WolkeOption = {
                 value: shareLink.id,
                 label: shareLink.label || shareLink.display_name || 'Unbenannter Ordner',
                 iconType: 'folder',
@@ -122,17 +140,18 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
                 documentCount,
                 syncStatus
             };
+            return option;
         });
     }, [shareLinks, syncStatuses, scope]);
 
     // Handle selection changes
-    const handleChange = (selectedOptions: any) => {
-        const shareLinks = selectedOptions
-            ? (Array.isArray(selectedOptions) ? selectedOptions : [selectedOptions]).map((option: any) => option.shareLink)
+    const handleChange = (selectedOptions: WolkeOption | WolkeOption[] | null): void => {
+        const wolkeShareLinks: WolkeShareLink[] = selectedOptions
+            ? (Array.isArray(selectedOptions) ? selectedOptions : [selectedOptions]).map((option) => option.shareLink).filter((link): link is WolkeShareLink => link !== undefined)
             : [];
 
         if (onChange) {
-            onChange(shareLinks);
+            onChange(wolkeShareLinks);
         }
     };
 
@@ -211,7 +230,7 @@ const WolkeSelector = ({ label = "Wolke-Ordner auswählen",
                 isSearchable={true}
                 placeholder={placeholder}
                 options={wolkeOptions}
-                value={isMulti ? (selectValue as any) : (selectValue ? (selectValue as any)[0] || null : null)}
+                value={isMulti ? (selectValue as WolkeOption[]) : (selectValue && Array.isArray(selectValue) ? (selectValue as WolkeOption[])[0] || null : null)}
                 onChange={handleChange}
                 isLoading={isLoadingData}
                 noOptionsMessage={() => 'Keine passenden Wolke-Ordner gefunden'}

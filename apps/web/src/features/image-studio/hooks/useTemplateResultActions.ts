@@ -48,11 +48,12 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
   const { updateImageShare, isCreating: isUpdating } = useShareStore();
   const { getOriginalImageBase64, buildShareMetadata } = useImageHelpers();
   const { generateAltTextForImage } = useAltTextGeneration();
-  const { generatedPosts, generatePost, loading: socialLoading } = useGenerateSocialPost() as {
+  const socialPostHook = useGenerateSocialPost() as unknown as {
     generatedPosts: GeneratedPosts;
     generatePost: (thema: string, details: string, platforms: string[], includeActionIdeas: boolean) => Promise<unknown>;
     loading: boolean;
   };
+  const { generatedPosts, generatePost, loading: socialLoading } = socialPostHook;
 
   const typeConfig = getTypeConfig(type || '');
 
@@ -103,8 +104,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
     try {
       const imageBase64 = generatedImageSrc.replace(/^data:image\/[^;]+;base64,/, '');
       const contextText = `${line1} ${line2} ${line3}`.trim();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await generateAltTextForImage(imageBase64, (contextText || null) as any);
+      const response = await generateAltTextForImage(imageBase64, contextText || null);
       if (response?.altText) {
         setAltText(response.altText);
       }

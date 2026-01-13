@@ -137,7 +137,7 @@ const TextsSection = ({
                         await textsQuery.refetch();
                     } catch (error) {
                         console.error('[TextsSection] Error refreshing texts:', error);
-                        onErrorMessage('Fehler beim Aktualisieren der Texte: ' + error.message);
+                        onErrorMessage('Fehler beim Aktualisieren der Texte: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
                     }
                 }}
                 onDelete={(textId) => deleteText(textId)}

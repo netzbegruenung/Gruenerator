@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 import * as Slider from '@radix-ui/react-slider';
-import {
-    ALL_ILLUSTRATIONS,
-    ILLUSTRATION_COLORS,
+import type {
     IllustrationInstance,
     KawaiiMood,
     KawaiiIllustrationType,
-    getIllustrationPath,
     KawaiiInstance,
     SvgDef,
-} from '../../utils/canvasIllustrations';
+    IllustrationDef,
+} from '../../utils/illustrations/types';
+import { ILLUSTRATION_COLORS } from '../../utils/illustrations/types';
+import { getIllustrationPath } from '../../utils/illustrations/registry';
+import { prefetchVisible, onThumbnailHover, onThumbnailLeave } from '../../utils/illustrations/svgCache';
 import {
     Planet,
     Cat,
@@ -26,8 +27,14 @@ import {
 } from 'react-kawaii';
 import './IllustrationenSection.css';
 
+interface KawaiiComponentProps {
+  size: number;
+  mood: string;
+  color: string;
+}
+
 // Map for preview components
-const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<any>> = {
+const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<KawaiiComponentProps>> = {
     planet: Planet,
     cat: Cat,
     ghost: Ghost,
@@ -49,7 +56,52 @@ const MOOD_OPTIONS: { id: KawaiiMood; label: string }[] = [
     { id: 'sad', label: '😢' },
 ];
 
+/**
+ * Hook to prefetch SVG illustrations when thumbnails become visible
+ * Uses Intersection Observer with 500px margin for early prefetching
+ */
+function useIllustrationPrefetch(illustrations: IllustrationDef[]) {
+    const thumbnailRefs = useRef<Map<string, HTMLElement>>(new Map());
 
+    useEffect(() => {
+        // Only observe SVG illustrations
+        const svgIllustrations = illustrations.filter(ill => ill.source !== 'kawaii') as SvgDef[];
+        if (svgIllustrations.length === 0) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visibleIllustrations = entries
+                    .filter(e => e.isIntersecting)
+                    .map(e => {
+                        const id = e.target.getAttribute('data-ill-id');
+                        return svgIllustrations.find(ill => ill.id === id);
+                    })
+                    .filter((def): def is SvgDef => def !== undefined);
+
+                if (visibleIllustrations.length > 0) {
+                    // Batch prefetch visible illustrations
+                    prefetchVisible(
+                        visibleIllustrations.map(def => ({ id: def.id, def }))
+                    );
+                }
+            },
+            {
+                root: null, // viewport
+                rootMargin: '500px', // Prefetch 500px before visible
+                threshold: 0.1, // 10% visible triggers callback
+            }
+        );
+
+        // Observe all thumbnail elements
+        thumbnailRefs.current.forEach(element => {
+            if (element) observer.observe(element);
+        });
+
+        return () => observer.disconnect();
+    }, [illustrations]);
+
+    return thumbnailRefs;
+}
 
 export interface IllustrationenSectionProps {
     onAddIllustration: (id: string) => void;
@@ -58,6 +110,7 @@ export interface IllustrationenSectionProps {
     onRemoveIllustration: (id: string) => void;
     onDuplicateIllustration?: (id: string) => void;
     isExpanded?: boolean;
+    illustrations?: IllustrationDef[];
 }
 
 export function IllustrationenSection({
@@ -67,11 +120,15 @@ export function IllustrationenSection({
     onRemoveIllustration,
     onDuplicateIllustration,
     isExpanded = false,
+    illustrations = [],
 }: IllustrationenSectionProps) {
     const isKawaiiSelected = selectedIllustration?.source === 'kawaii';
     const kawaiiInstance = isKawaiiSelected ? (selectedIllustration as KawaiiInstance) : null;
 
-    const visibleIllustrations = isExpanded ? ALL_ILLUSTRATIONS : ALL_ILLUSTRATIONS.slice(0, 4);
+    const visibleIllustrations = isExpanded ? illustrations : illustrations.slice(0, 4);
+
+    // Set up Intersection Observer for prefetching
+    const thumbnailRefs = useIllustrationPrefetch(visibleIllustrations);
 
     return (
         <div className="sidebar-section sidebar-section--illustrationen">
@@ -95,16 +152,27 @@ export function IllustrationenSection({
                     }
 
                     // SVG
+                    const svgDef = illDef as SvgDef;
                     return (
                         <button
                             key={illDef.id}
+                            ref={(el) => {
+                                if (el) {
+                                    thumbnailRefs.current.set(illDef.id, el);
+                                } else {
+                                    thumbnailRefs.current.delete(illDef.id);
+                                }
+                            }}
+                            data-ill-id={illDef.id}
                             className="sidebar-selectable-card"
                             onClick={() => onAddIllustration(illDef.id)}
+                            onMouseEnter={() => onThumbnailHover(svgDef.id, svgDef)}
+                            onMouseLeave={() => onThumbnailLeave()}
                             title={`${illDef.name} hinzufügen`}
                         >
                             <div className="sidebar-selectable-card__preview illustration-preview illustration-preview--svg">
                                 <img
-                                    src={getIllustrationPath(illDef as SvgDef)}
+                                    src={getIllustrationPath(svgDef)}
                                     alt={illDef.name}
                                     loading="lazy"
                                     style={{

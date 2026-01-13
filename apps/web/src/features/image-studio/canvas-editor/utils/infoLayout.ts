@@ -9,6 +9,8 @@
  * - Body text with first sentence bold
  */
 
+import { SYSTEM_ASSETS } from './canvasAssets';
+
 export const INFO_CONFIG = {
   canvas: {
     width: 1080,
@@ -34,7 +36,7 @@ export const INFO_CONFIG = {
     size: 60,
     x: 50,
     rightPadding: 15,
-    src: '/arrow_right.svg',
+    src: SYSTEM_ASSETS.arrow.src,
   },
   body: {
     leftMargin: 125, // 50 + 60 + 15
@@ -53,11 +55,11 @@ export const INFO_CONFIG = {
     x: 540, // Center horizontally
     y: 675, // Center vertically
     size: 800,
-    src: '/sunflower.svg',
+    src: SYSTEM_ASSETS.sunflower.yellow.src,
   },
   backgrounds: {
-    tanne: '/Info_bg_tanne.png',
-    sand: '/Info_bg_sand.png',
+    tanne: SYSTEM_ASSETS.backgrounds.info.tanne,
+    sand: SYSTEM_ASSETS.backgrounds.info.sand,
   },
   colors: {
     tanne: '#005538',

@@ -4,6 +4,72 @@
  * Maps frontend Konva.js layer instances to backend rendering format
  */
 
+interface BalkenData {
+  id: string;
+  mode: string;
+  colorSchemeId?: string;
+  texts?: string[];
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  widthScale: number;
+  opacity: number;
+}
+
+interface IllustrationData {
+  id: string;
+  source: string;
+  illustrationId: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  opacity: number;
+  color?: string;
+  mood?: string;
+}
+
+interface ShapeData {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+  opacity: number;
+}
+
+interface IconData {
+  id: string;
+  iconId: string;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  rotation: number;
+  opacity: number;
+}
+
+interface TextData {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  fontFamily: string;
+  fontStyle: string;
+  color: string;
+  maxWidth: number;
+  align: string;
+  rotation: number;
+  opacity: number;
+}
+
 interface FreeCanvasRequest {
   canvasWidth: number;
   canvasHeight: number;
@@ -14,11 +80,29 @@ interface FreeCanvasRequest {
   };
   layerOrder: string[];
   layers: {
-    balkens?: any[];
-    illustrations?: any[];
-    shapes?: any[];
-    icons?: any[];
-    texts?: any[];
+    balkens?: BalkenData[];
+    illustrations?: IllustrationData[];
+    shapes?: ShapeData[];
+    icons?: IconData[];
+    texts?: TextData[];
+  };
+}
+
+interface CanvasState {
+  backgroundImage?: string | null;
+  backgroundColor?: string;
+  balkenInstances?: Record<string, unknown>[];
+  illustrationInstances?: Record<string, unknown>[];
+  shapeInstances?: Record<string, unknown>[];
+  iconInstances?: Record<string, unknown>[];
+  textInstances?: Record<string, unknown>[];
+  layerOrder?: string[];
+}
+
+interface CanvasConfig {
+  canvas?: {
+    width: number;
+    height: number;
   };
 }
 
@@ -32,8 +116,8 @@ interface FreeCanvasRequest {
  * @returns Serialized request for Free Canvas API
  */
 export function serializeCanvasState(
-  config: any,
-  state: any
+  config: CanvasConfig,
+  state: CanvasState
 ): FreeCanvasRequest {
   const background = state.backgroundImage
     ? {
@@ -45,71 +129,71 @@ export function serializeCanvasState(
         color: state.backgroundColor || '#F5F1E9'
       };
 
-  const balkens = state.balkenInstances?.map((balken: any) => ({
-    id: balken.id,
-    mode: balken.mode,
-    colorSchemeId: balken.colorSchemeId,
-    texts: balken.texts,
-    x: balken.offset?.x || balken.x || 540,
-    y: balken.offset?.y || balken.y || 675,
-    rotation: balken.rotation || 0,
-    scale: balken.scale || 1.0,
-    widthScale: balken.widthScale || 1.0,
-    opacity: balken.opacity ?? 1.0
-  }));
+  const balkens = state.balkenInstances?.map((balken: Record<string, unknown>) => ({
+    id: String(balken.id),
+    mode: String(balken.mode),
+    colorSchemeId: balken.colorSchemeId ? String(balken.colorSchemeId) : undefined,
+    texts: Array.isArray(balken.texts) ? balken.texts : undefined,
+    x: ((balken.offset as Record<string, number> | undefined)?.x) || (balken.x as number) || 540,
+    y: ((balken.offset as Record<string, number> | undefined)?.y) || (balken.y as number) || 675,
+    rotation: (balken.rotation as number) || 0,
+    scale: (balken.scale as number) || 1.0,
+    widthScale: (balken.widthScale as number) || 1.0,
+    opacity: (balken.opacity as number) ?? 1.0
+  } as BalkenData));
 
-  const illustrations = state.illustrationInstances?.map((illust: any) => ({
-    id: illust.id,
-    source: illust.source,
-    illustrationId: illust.illustrationId,
-    x: illust.x,
-    y: illust.y,
-    scale: illust.scale || 1.0,
-    rotation: illust.rotation || 0,
-    opacity: illust.opacity ?? 1.0,
-    color: illust.color,
-    mood: illust.mood
-  }));
+  const illustrations = state.illustrationInstances?.map((illust: Record<string, unknown>) => ({
+    id: String(illust.id),
+    source: String(illust.source),
+    illustrationId: String(illust.illustrationId),
+    x: illust.x as number,
+    y: illust.y as number,
+    scale: (illust.scale as number) || 1.0,
+    rotation: (illust.rotation as number) || 0,
+    opacity: (illust.opacity as number) ?? 1.0,
+    color: illust.color ? String(illust.color) : undefined,
+    mood: illust.mood ? String(illust.mood) : undefined
+  } as IllustrationData));
 
-  const shapes = state.shapeInstances?.map((shape: any) => ({
-    id: shape.id,
-    type: shape.type,
-    x: shape.x,
-    y: shape.y,
-    width: shape.width,
-    height: shape.height,
-    fill: shape.fill,
-    rotation: shape.rotation || 0,
-    scaleX: shape.scaleX || 1.0,
-    scaleY: shape.scaleY || 1.0,
-    opacity: shape.opacity ?? 1.0
-  }));
+  const shapes = state.shapeInstances?.map((shape: Record<string, unknown>) => ({
+    id: String(shape.id),
+    type: String(shape.type),
+    x: shape.x as number,
+    y: shape.y as number,
+    width: shape.width as number,
+    height: shape.height as number,
+    fill: String(shape.fill),
+    rotation: (shape.rotation as number) || 0,
+    scaleX: (shape.scaleX as number) || 1.0,
+    scaleY: (shape.scaleY as number) || 1.0,
+    opacity: (shape.opacity as number) ?? 1.0
+  } as ShapeData));
 
-  const icons = state.iconInstances?.map((icon: any) => ({
-    id: icon.id,
-    iconId: icon.iconId,
-    x: icon.x,
-    y: icon.y,
-    size: icon.size || 64,
-    color: icon.color || '#005538',
-    rotation: icon.rotation || 0,
-    opacity: icon.opacity ?? 1.0
-  }));
+  const icons = state.iconInstances?.map((icon: Record<string, unknown>) => ({
+    id: String(icon.id),
+    iconId: String(icon.iconId),
+    x: icon.x as number,
+    y: icon.y as number,
+    size: (icon.size as number) || 64,
+    color: (icon.color as string) || '#005538',
+    rotation: (icon.rotation as number) || 0,
+    opacity: (icon.opacity as number) ?? 1.0
+  } as IconData));
 
-  const texts = state.textInstances?.map((text: any) => ({
-    id: text.id,
-    text: text.text,
-    x: text.x,
-    y: text.y,
-    fontSize: text.fontSize,
-    fontFamily: text.fontFamily || 'GrueneTypeNeue',
-    fontStyle: text.fontStyle || 'normal',
-    color: text.color || '#FFFFFF',
-    maxWidth: text.maxWidth,
-    align: text.align || 'left',
-    rotation: text.rotation || 0,
-    opacity: text.opacity ?? 1.0
-  }));
+  const texts = state.textInstances?.map((text: Record<string, unknown>) => ({
+    id: String(text.id),
+    text: String(text.text),
+    x: text.x as number,
+    y: text.y as number,
+    fontSize: text.fontSize as number,
+    fontFamily: (text.fontFamily as string) || 'GrueneTypeNeue',
+    fontStyle: (text.fontStyle as string) || 'normal',
+    color: (text.color as string) || '#FFFFFF',
+    maxWidth: text.maxWidth as number,
+    align: (text.align as string) || 'left',
+    rotation: (text.rotation as number) || 0,
+    opacity: (text.opacity as number) ?? 1.0
+  } as TextData));
 
   const layerOrder = state.layerOrder || [];
 
@@ -128,6 +212,10 @@ export function serializeCanvasState(
   };
 }
 
+interface ExportResult {
+  image?: string;
+}
+
 /**
  * Export canvas as PNG via Free Canvas API
  * @param config - Canvas configuration
@@ -136,8 +224,8 @@ export function serializeCanvasState(
  * @returns Base64 PNG data URL or null on error
  */
 export async function exportFreeCanvas(
-  config: any,
-  state: any,
+  config: CanvasConfig,
+  state: CanvasState,
   apiEndpoint: string = '/api/sharepic/simple_canvas'
 ): Promise<string | null> {
   try {
@@ -152,12 +240,11 @@ export async function exportFreeCanvas(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
       return null;
     }
 
-    const result = await response.json();
-    return result.image;
+    const result = (await response.json()) as ExportResult;
+    return result.image || null;
   } catch (error) {
     return null;
   }

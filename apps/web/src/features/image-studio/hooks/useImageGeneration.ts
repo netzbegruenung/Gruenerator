@@ -126,7 +126,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     setError('');
 
     try {
-      let submitFn: (data: Record<string, unknown>) => Promise<any>;
+      let submitFn: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
       let isQuoteType = false;
       let isInfoType = false;
       let isVeranstaltungType = false;
@@ -225,7 +225,14 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         };
       }
     } catch (err) {
-      const errorMessage = (err as any).response?.data?.message || (err as Error).message || 'Ein Fehler ist aufgetreten';
+      let errorMessage = 'Ein Fehler ist aufgetreten';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'response' in err) {
+        const errObj = err as Record<string, unknown>;
+        const response = errObj.response as Record<string, unknown> | undefined;
+        errorMessage = (response?.data as Record<string, unknown>)?.message as string || errorMessage;
+      }
       setError(errorMessage);
       console.error("Error generating text:", err);
       throw err;
@@ -244,7 +251,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     setError('');
 
     try {
-      let submitFn: (data: Record<string, unknown>) => Promise<any>;
+      let submitFn: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
       let isQuoteType = false;
       let isInfoType = false;
       let isVeranstaltungType = false;
@@ -327,7 +334,14 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         };
       }
     } catch (err) {
-      const errorMessage = (err as any).response?.data?.message || (err as Error).message || 'Ein Fehler ist aufgetreten';
+      let errorMessage = 'Ein Fehler ist aufgetreten';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'response' in err) {
+        const errObj = err as Record<string, unknown>;
+        const response = errObj.response as Record<string, unknown> | undefined;
+        errorMessage = (response?.data as Record<string, unknown>)?.message as string || errorMessage;
+      }
       setError(errorMessage);
       console.error("Error generating alternatives:", err);
       throw err;
@@ -349,7 +363,7 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         count: 5
       };
 
-      let submitFn: (data: any) => Promise<any>;
+      let submitFn: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
       switch (type) {
         case IMAGE_STUDIO_TYPES.ZITAT:
@@ -690,7 +704,14 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
         return await generateTemplateImage(type, formData as TemplateImageFormData);
       }
     } catch (err) {
-      const errorMessage = (err as any).response?.data?.message || (err as Error).message || 'Ein Fehler ist aufgetreten';
+      let errorMessage = 'Ein Fehler ist aufgetreten';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err !== null && 'response' in err) {
+        const errObj = err as Record<string, unknown>;
+        const response = errObj.response as Record<string, unknown> | undefined;
+        errorMessage = (response?.data as Record<string, unknown>)?.message as string || errorMessage;
+      }
       setError(errorMessage);
       throw err;
     } finally {

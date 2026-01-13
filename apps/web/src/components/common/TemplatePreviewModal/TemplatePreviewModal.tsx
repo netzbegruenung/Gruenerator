@@ -20,7 +20,7 @@ const formatDate = (value: string | number | Date | null | undefined) => {
 interface TemplatePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  template: any;
+  template: Record<string, unknown>;
   onTagClick?: (tag: string) => void;
 }
 
@@ -33,17 +33,23 @@ const TemplatePreviewModal = ({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const allImages = useMemo(() => {
-    const images: any[] = [];
-    if (Array.isArray(template?.images) && template.images.length > 0) {
-      const sorted = [...template.images].sort((a, b) =>
-        (a.display_order || 0) - (b.display_order || 0)
-      );
+    const images: Array<{ url: string; title: string }> = [];
+    const images_array = (template as Record<string, unknown>)?.images;
+    if (Array.isArray(images_array)) {
+      const sorted = [...images_array].sort((a, b) => {
+        const aOrder = (a as Record<string, unknown>)?.display_order as number | undefined || 0;
+        const bOrder = (b as Record<string, unknown>)?.display_order as number | undefined || 0;
+        return aOrder - bOrder;
+      });
       sorted.forEach(img => {
-        if (img.url) images.push({ url: img.url, title: img.title || '' });
+        const url = (img as Record<string, unknown>)?.url;
+        const title = (img as Record<string, unknown>)?.title as string | undefined;
+        if (url) images.push({ url: url as string, title: title || '' });
       });
     }
-    if (template?.thumbnail_url && !images.some(img => img.url === template.thumbnail_url)) {
-      images.unshift({ url: template.thumbnail_url, title: 'Vorschau' });
+    const thumbnail = (template as Record<string, unknown>)?.thumbnail_url as string | undefined;
+    if (thumbnail && !images.some(img => img.url === thumbnail)) {
+      images.unshift({ url: thumbnail, title: 'Vorschau' });
     }
     return images;
   }, [template]);

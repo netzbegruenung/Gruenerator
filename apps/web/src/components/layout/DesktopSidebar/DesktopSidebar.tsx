@@ -26,9 +26,9 @@ const DesktopSidebar = () => {
 
   const menuItems = useMemo(() => getMenuItems(betaFeatures), [betaFeatures]);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path;
 
-  const handleNavigation = useCallback((path, title) => {
+  const handleNavigation = useCallback((path: string, title: string) => {
     const activeTab = tabs.find(t => t.id === activeTabId);
 
     if (activeTab && activeTab.route === path) {
@@ -66,7 +66,7 @@ const DesktopSidebar = () => {
               {expanded && (
                 <span className="sidebar-section-title">{section.title}</span>
               )}
-              {section.items.map((item) => (
+              {section.items.map((item: { id: string; path: string; title: string; icon: React.ComponentType | null }) => (
                 <button
                   key={item.id}
                   onClick={() => handleNavigation(item.path, item.title)}

@@ -16,7 +16,7 @@ const COMPRESSION_OPTIONS = {
  * @returns boolean
  */
 const isImage = (file: File | null | undefined): boolean => {
-  return file && file.type.startsWith('image/');
+  return Boolean(file && file.type.startsWith('image/'));
 };
 
 /**

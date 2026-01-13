@@ -2,22 +2,30 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import apiClient from '../components/utils/apiClient';
 
+type DocumentStatus = 'completed' | 'processing' | 'pending' | 'failed';
+
 interface Document {
   id: string;
   title: string;
-  status: string;
+  status: DocumentStatus;
   filename?: string;
   file_type?: string;
   created_at?: string;
   updated_at?: string;
-  [key: string]: any;
+  user_id?: string;
+  group_id?: string;
+  description?: string;
+  file_size?: number;
+  processed_chunks?: number;
 }
 
 interface Text {
   id: string;
   title?: string;
   content?: string;
-  [key: string]: any;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface SearchResult {
@@ -25,7 +33,9 @@ interface SearchResult {
   content?: string;
   search_type?: string;
   score?: number;
-  [key: string]: any;
+  document_id?: string;
+  title?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface SearchOptions {
@@ -39,7 +49,8 @@ interface WolkeFile {
   name: string;
   size?: number;
   mimeType?: string;
-  [key: string]: any;
+  lastModified?: string;
+  isDirectory?: boolean;
 }
 
 interface DocumentsState {
@@ -51,6 +62,18 @@ interface DocumentsState {
   error: string | null;
   searchResults: SearchResult[];
   isSearching: boolean;
+}
+
+interface WolkeFileResponse {
+  success: boolean;
+  files: WolkeFile[];
+  message?: string;
+}
+
+interface WolkeImportResponse {
+  success: boolean;
+  summary?: Record<string, unknown>;
+  message?: string;
 }
 
 interface DocumentsActions {
@@ -68,11 +91,11 @@ interface DocumentsActions {
   getDocumentById: (documentId: string) => Document | undefined;
   getCompletedDocuments: () => Document[];
   getProcessingDocuments: () => Document[];
-  updateDocumentStatus: (documentId: string, status: string, updates?: Partial<Document>) => void;
+  updateDocumentStatus: (documentId: string, status: DocumentStatus, updates?: Partial<Document>) => void;
   updateDocumentTitle: (documentId: string, newTitle: string) => Promise<boolean>;
   refreshDocument: (documentId: string) => Promise<Document>;
-  browseWolkeFiles: (shareLinkId: string) => Promise<any>;
-  importWolkeFiles: (shareLinkId: string, files: WolkeFile[], onProgress?: ((progress: number) => void) | null) => Promise<any>;
+  browseWolkeFiles: (shareLinkId: string) => Promise<WolkeFileResponse>;
+  importWolkeFiles: (shareLinkId: string, files: WolkeFile[], onProgress?: ((progress: number) => void) | null) => Promise<WolkeImportResponse>;
 }
 
 type DocumentsStore = DocumentsState & DocumentsActions;
@@ -133,10 +156,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to fetch documents');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error fetching documents:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isLoading = false;
         });
       }
@@ -163,10 +187,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to fetch combined content');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error fetching combined content:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isLoading = false;
         });
         throw error;
@@ -207,10 +232,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to process document');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error uploading document:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isUploading = false;
           state.uploadProgress = 0;
         });
@@ -247,10 +273,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to crawl and process URL');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error crawling URL:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isUploading = false;
           state.uploadProgress = 0;
         });
@@ -274,10 +301,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to delete document');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error deleting document:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
         });
         throw error;
       }
@@ -300,7 +328,7 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
 
         if (result.success) {
           set((state) => {
-            state.searchResults = (result.data || []).map((item: any) => ({
+            state.searchResults = (result.data || []).map((item: SearchResult) => ({
               ...item,
               search_type: item.search_type || result.searchType || searchMode
             }));
@@ -311,10 +339,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to search documents');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error searching documents:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isSearching = false;
           state.searchResults = [];
         });
@@ -427,10 +456,11 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to browse Wolke files');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error browsing Wolke files:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isLoading = false;
         });
         throw error;
@@ -477,11 +507,12 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
         } else {
           throw new Error(result.message || 'Failed to import Wolke files');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (progressInterval) clearInterval(progressInterval);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('[DocumentsStore] Error importing Wolke files:', error);
         set((state) => {
-          state.error = error.message;
+          state.error = errorMessage;
           state.isUploading = false;
           state.uploadProgress = 0;
         });
@@ -491,3 +522,5 @@ export const useDocumentsStore = create<DocumentsStore>()(immer((set, get) => {
     },
   };
 }));
+
+export type { Document, Text, SearchResult, SearchOptions, WolkeFile, WolkeFileResponse, WolkeImportResponse };

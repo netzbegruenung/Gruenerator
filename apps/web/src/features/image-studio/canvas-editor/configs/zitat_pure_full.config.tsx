@@ -17,7 +17,9 @@ import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureL
 import type { IconType } from '../utils/canvasIcons';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
 import { createShape } from '../utils/shapes';
-import { IllustrationInstance, createIllustration } from '../utils/canvasIllustrations';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import { createIllustration } from '../utils/illustrations/registry';
+import { injectFeatureProps } from './featureInjector';
 
 // ============================================================================
 // CONSTANTS
@@ -134,7 +136,7 @@ const calculateLayout = (state: ZitatPureFullState): GenericLayoutResult => {
             fontColor,
             quoteFontSize: layoutResult.quoteFontSize,
             authorFontSize: layoutResult.authorFontSize,
-        } as any,
+        } as Record<string, unknown>,
     };
 };
 
@@ -188,8 +190,8 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
                     additionalTexts: state.additionalTexts || [],
                     onUpdateAdditionalText: (id: string, text: string) => actions.updateAdditionalText(id, { text }),
                     onRemoveAdditionalText: actions.removeAdditionalText,
-                    quoteFontSize: state.customQuoteFontSize ?? (layout._meta as any)?.quoteFontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
-                    nameFontSize: state.customNameFontSize ?? (layout._meta as any)?.authorFontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
+                    quoteFontSize: state.customQuoteFontSize ?? (layout._meta as Record<string, unknown>)?.quoteFontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
+                    nameFontSize: state.customNameFontSize ?? (layout._meta as Record<string, unknown>)?.authorFontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
                     onQuoteFontSizeChange: actions.handleQuoteFontSizeChange,
                     onNameFontSizeChange: actions.handleNameFontSizeChange,
                     onUpdateAdditionalTextFontSize: (id: string, size: number) => actions.updateAdditionalText(id, { fontSize: size }),
@@ -216,21 +218,9 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
                 })),
                 onAssetToggle: actions.handleAssetToggle,
                 recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['zitat-pure'],
-                selectedIcons: state.selectedIcons,
-                onIconToggle: actions.toggleIcon,
-                onAddShape: actions.addShape,
-                shapeInstances: state.shapeInstances,
-                selectedShapeId: context?.selectedElement,
-                onUpdateShape: actions.updateShape,
-                onRemoveShape: actions.removeShape,
-                // Illustrations
-                illustrationInstances: state.illustrationInstances,
-                selectedIllustrationId: context?.selectedElement,
-                onAddIllustration: actions.addIllustration,
-                onUpdateIllustration: actions.updateIllustration,
-                onRemoveIllustration: actions.removeIllustration,
-                onDuplicateIllustration: actions.duplicateIllustration,
-                onDuplicateShape: actions.duplicateShape,
+
+                // Auto-inject all feature props (icons, shapes, illustrations, balken)
+                ...injectFeatureProps(state, actions, context),
             }),
         },
 
@@ -270,8 +260,8 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         {
             id: 'quote-mark',
             type: 'image',
-            x: (state: any, layout: GenericLayoutResult) => layout['quote-mark']?.x ?? ZITAT_PURE_CONFIG.quotationMark.x,
-            y: (state: any, layout: GenericLayoutResult) => layout['quote-mark']?.y ?? 120,
+            x: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-mark']?.x ?? ZITAT_PURE_CONFIG.quotationMark.x,
+            y: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-mark']?.y ?? 120,
             order: 2,
             width: ZITAT_PURE_CONFIG.quotationMark.size,
             height: ZITAT_PURE_CONFIG.quotationMark.size,
@@ -285,12 +275,12 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         {
             id: 'quote-text',
             type: 'text',
-            x: (state: any, layout: GenericLayoutResult) => layout['quote-text']?.x ?? ZITAT_PURE_CONFIG.quote.x,
-            y: (state: any, layout: GenericLayoutResult) => layout['quote-text']?.y ?? 200,
+            x: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-text']?.x ?? ZITAT_PURE_CONFIG.quote.x,
+            y: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-text']?.y ?? 200,
             order: 3,
             textKey: 'quote',
             width: ZITAT_PURE_CONFIG.quote.maxWidth,
-            fontSize: (state: any, layout: GenericLayoutResult) => layout['quote-text']?.fontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
+            fontSize: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-text']?.fontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
             fontFamily: `${ZITAT_PURE_CONFIG.quote.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_PURE_CONFIG.quote.fontStyle,
             align: 'left',
@@ -300,21 +290,21 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customQuoteFontSize',
-            opacity: (state: any) => state.quoteOpacity ?? 1,
+            opacity: (state: ZitatPureFullState) => state.quoteOpacity ?? 1,
             opacityStateKey: 'quoteOpacity',
-            fill: (state: any, layout: any) => state.quoteColor ?? layout._meta.fontColor,
+            fill: (state: ZitatPureFullState, layout: GenericLayoutResult) => state.quoteColor ?? (layout._meta as Record<string, unknown>)?.fontColor,
             fillStateKey: 'quoteColor',
         },
         // Author name
         {
             id: 'name-text',
             type: 'text',
-            x: (state: any, layout: GenericLayoutResult) => layout['name-text']?.x ?? ZITAT_PURE_CONFIG.author.x,
-            y: (state: any, layout: GenericLayoutResult) => layout['name-text']?.y ?? 500,
+            x: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['name-text']?.x ?? ZITAT_PURE_CONFIG.author.x,
+            y: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['name-text']?.y ?? 500,
             order: 4,
             textKey: 'name',
             width: ZITAT_PURE_CONFIG.quote.maxWidth,
-            fontSize: (state: any, layout: GenericLayoutResult) => layout['name-text']?.fontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
+            fontSize: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['name-text']?.fontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
             fontFamily: `${ZITAT_PURE_CONFIG.author.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_PURE_CONFIG.author.fontStyle,
             align: 'left',
@@ -322,9 +312,9 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             editable: true,
             draggable: true,
             fontSizeStateKey: 'customNameFontSize',
-            opacity: (state: any) => state.nameOpacity ?? 1,
+            opacity: (state: ZitatPureFullState) => state.nameOpacity ?? 1,
             opacityStateKey: 'nameOpacity',
-            fill: (state: any, layout: any) => state.nameColor ?? layout._meta.fontColor,
+            fill: (state: ZitatPureFullState, layout: GenericLayoutResult) => state.nameColor ?? (layout._meta as Record<string, unknown>)?.fontColor,
             fillStateKey: 'nameColor',
         },
     ],
@@ -476,8 +466,8 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             saveToHistory({ ...getState(), shapeInstances: [...getState().shapeInstances, newShape] });
         },
         // Illustration actions
-        addIllustration: (id: string) => {
-            const newIllustration = createIllustration(
+        addIllustration: async (id: string) => {
+            const newIllustration = await createIllustration(
                 id,
                 ZITAT_PURE_CONFIG.canvas.width,
                 ZITAT_PURE_CONFIG.canvas.height

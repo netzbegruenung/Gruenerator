@@ -10,13 +10,22 @@ import type { OptionalCanvasActions } from './useCanvasElementHandlers';
  * for different element types (text, image, shape, icon, illustration).
  */
 
+/**
+ * Helper to safely access state array property
+ */
+function getStateArray<T>(state: unknown, key: string): T[] {
+    const stateObj = state as Record<string, unknown>;
+    const value = stateObj[key];
+    return Array.isArray(value) ? (value as T[]) : [];
+}
+
 export interface UseFloatingModuleHandlersOptions<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions> {
     activeFloatingModule: FloatingModuleState | null;
     actions: TActions;
     config: FullCanvasConfig<TState, TActions>;
     state: TState;
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
-    debouncedSaveToHistory: (state: any) => void;
+    debouncedSaveToHistory: (state: TState) => void;
 }
 
 export interface UseFloatingModuleHandlersResult {
@@ -51,7 +60,8 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
             } else if (activeFloatingModule.type === 'text') {
                 const id = activeFloatingModule.data.id;
 
-                if ((state as any).additionalTexts?.find((t: any) => t.id === id)) {
+                const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
+                if (additionalTexts.find((t) => t.id === id)) {
                     if (actions.updateAdditionalText) {
                         actions.updateAdditionalText(id, { fill: color });
                     }
@@ -59,18 +69,24 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                 }
 
                 const elementConfig = config.elements.find((e) => e.id === id);
-                if (elementConfig && elementConfig.type === 'text' && (elementConfig as any).fillStateKey) {
-                    const next = { ...state, [(elementConfig as any).fillStateKey]: color };
-                    setState(() => next);
-                    debouncedSaveToHistory(next);
+                if (elementConfig && elementConfig.type === 'text') {
+                    const fillStateKey = elementConfig.fillStateKey as string | undefined;
+                    if (fillStateKey) {
+                        const next = { ...state, [fillStateKey]: color };
+                        setState(() => next);
+                        debouncedSaveToHistory(next);
+                    }
                 }
             } else if (activeFloatingModule.type === 'image') {
                 const id = activeFloatingModule.data.id;
                 const elementConfig = config.elements.find((e) => e.id === id);
-                if (elementConfig && elementConfig.type === 'image' && (elementConfig as any).fillStateKey) {
-                    const next = { ...state, [(elementConfig as any).fillStateKey]: color };
-                    setState(() => next);
-                    debouncedSaveToHistory(next);
+                if (elementConfig && elementConfig.type === 'image') {
+                    const fillStateKey = elementConfig.fillStateKey as string | undefined;
+                    if (fillStateKey) {
+                        const next = { ...state, [fillStateKey]: color };
+                        setState(() => next);
+                        debouncedSaveToHistory(next);
+                    }
                 }
             }
         },
@@ -92,7 +108,8 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                     actions.updateIcon(id, { opacity });
                 }
             } else if (type === 'text') {
-                if ((state as any).additionalTexts?.find((t: any) => t.id === id)) {
+                const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
+                if (additionalTexts.find((t) => t.id === id)) {
                     if (actions.updateAdditionalText) {
                         actions.updateAdditionalText(id, { opacity });
                     }
@@ -100,20 +117,27 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                 }
 
                 const elementConfig = config.elements.find((e) => e.id === id);
-                if (elementConfig && elementConfig.type === 'text' && (elementConfig as any).opacityStateKey) {
-                    const next = { ...state, [(elementConfig as any).opacityStateKey]: opacity };
-                    setState(() => next);
-                    debouncedSaveToHistory(next);
+                if (elementConfig && elementConfig.type === 'text') {
+                    const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
+                    if (opacityStateKey) {
+                        const next = { ...state, [opacityStateKey]: opacity };
+                        setState(() => next);
+                        debouncedSaveToHistory(next);
+                    }
                 }
             } else if (type === 'image') {
                 const elementConfig = config.elements.find((e) => e.id === id);
-                if (elementConfig && elementConfig.type === 'image' && (elementConfig as any).opacityStateKey) {
-                    const next = { ...state, [(elementConfig as any).opacityStateKey]: opacity };
-                    setState(() => next);
-                    debouncedSaveToHistory(next);
+                if (elementConfig && elementConfig.type === 'image') {
+                    const opacityStateKey = elementConfig.opacityStateKey as string | undefined;
+                    if (opacityStateKey) {
+                        const next = { ...state, [opacityStateKey]: opacity };
+                        setState(() => next);
+                        debouncedSaveToHistory(next);
+                    }
                 }
             } else {
-                const isBalken = (state as any).balkenInstances?.some((b: any) => b.id === id);
+                const balkenInstances = getStateArray<{ id: string }>(state, 'balkenInstances');
+                const isBalken = balkenInstances.some((b) => b.id === id);
                 if (isBalken && actions.updateBalken) {
                     actions.updateBalken(id, { opacity });
                 }

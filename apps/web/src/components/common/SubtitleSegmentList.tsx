@@ -40,7 +40,7 @@ const SubtitleSegmentList = ({ segments,
 
   const activeSegmentId = getActiveSegmentId();
 
-  const handleSegmentClick = (segment: any) => {
+  const handleSegmentClick = (segment: SubtitleSegmentListProps['segments'][number]) => {
     setEditingId(segment.id);
     onSegmentClick?.(segment.id);
     onSeek?.(segment.startTime || 0);

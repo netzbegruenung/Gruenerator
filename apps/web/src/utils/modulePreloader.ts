@@ -19,7 +19,7 @@ interface PriorityMap {
 // Module definition for batch preloading
 interface ModuleDefinition {
   name: string;
-  importFn: () => Promise<any>;
+  importFn: () => Promise<unknown>;
   priority: PriorityLevel;
 }
 
@@ -65,8 +65,8 @@ declare global {
 
 class ModulePreloader {
   // Class properties with types
-  private cache: Map<string, any>;
-  private loadingPromises: Map<string, Promise<any>>;
+  private cache: Map<string, unknown>;
+  private loadingPromises: Map<string, Promise<unknown>>;
   private loadTimes: Map<string, number>;
   private priorities: PriorityMap;
   private isSlowConnection: boolean;
@@ -109,10 +109,10 @@ class ModulePreloader {
    */
   async preloadModule(
     name: string,
-    importFn: () => Promise<any>,
+    importFn: () => Promise<unknown>,
     priority: PriorityLevel = 'NORMAL',
-    options: Record<string, any> = {}
-  ): Promise<any> {
+    options: Record<string, unknown> = {}
+  ): Promise<unknown> {
     // Return cached module if available
     if (this.cache.has(name)) {
       return this.cache.get(name);
@@ -143,10 +143,10 @@ class ModulePreloader {
    */
   private _scheduleLoad(
     name: string,
-    importFn: () => Promise<any>,
+    importFn: () => Promise<unknown>,
     priority: PriorityLevel,
-    options: Record<string, any>
-  ): Promise<any> {
+    options: Record<string, unknown>
+  ): Promise<unknown> {
     const startTime = performance.now();
 
     // Adjust behavior for slow connections
@@ -154,7 +154,7 @@ class ModulePreloader {
       return Promise.resolve(null);
     }
 
-    const loadFn = async (): Promise<any> => {
+    const loadFn = async (): Promise<unknown> => {
       try {
         const module = await importFn();
 
@@ -183,12 +183,12 @@ class ModulePreloader {
         });
 
       case 'NORMAL':
-        return new Promise(resolve => {
+        return new Promise<unknown>(resolve => {
           const delay = this.isSlowConnection ? 2000 : 100;
           if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-            (window as any).requestIdleCallback(() => resolve(loadFn()), { timeout: delay * 10 });
-          } else if (typeof window !== 'undefined' && (window as any).scheduler?.postTask) {
-            (window as any).scheduler.postTask(() => resolve(loadFn()), { priority: 'user-visible' });
+            (window as unknown as { requestIdleCallback(callback: () => void, options?: { timeout?: number }): void }).requestIdleCallback(() => resolve(loadFn()), { timeout: delay * 10 });
+          } else if (typeof window !== 'undefined' && (window as unknown as { scheduler?: { postTask(callback: () => void, options?: { priority?: string }): void } }).scheduler?.postTask) {
+            (window as unknown as { scheduler: { postTask(callback: () => void, options?: { priority?: string }): void } }).scheduler.postTask(() => resolve(loadFn()), { priority: 'user-visible' });
           } else {
             setTimeout(() => resolve(loadFn()), delay);
           }
@@ -200,10 +200,10 @@ class ModulePreloader {
           // Skip low priority loading on slow connections
           return Promise.resolve(null);
         }
-        return new Promise(resolve => {
+        return new Promise<unknown>(resolve => {
           const delay = priority === 'LOW' ? 1000 : 3000;
           if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-            (window as any).requestIdleCallback(() => resolve(loadFn()), { timeout: delay * 3 });
+            (window as unknown as { requestIdleCallback(callback: () => void, options?: { timeout?: number }): void }).requestIdleCallback(() => resolve(loadFn()), { timeout: delay * 3 });
           } else {
             setTimeout(() => resolve(loadFn()), delay);
           }
@@ -257,7 +257,7 @@ class ModulePreloader {
    * @param name - Module name
    * @returns Cached module or null
    */
-  getCachedModule(name: string): any {
+  getCachedModule(name: string): unknown {
     return this.cache.get(name) || null;
   }
 

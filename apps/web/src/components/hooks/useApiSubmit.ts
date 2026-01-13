@@ -24,11 +24,11 @@ const getGeneratorTypeFromEndpoint = (endpoint: string): string | undefined => {
 };
 
 interface ApiSubmitOptions {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface ApiSubmitResponse {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 const useApiSubmit = (endpoint: string) => {
@@ -37,7 +37,7 @@ const useApiSubmit = (endpoint: string) => {
   const [error, setError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
 
-  const submitForm = async (formData: Record<string, any>, options: ApiSubmitOptions = {}): Promise<any> => {
+  const submitForm = async (formData: Record<string, unknown>, options: ApiSubmitOptions = {}): Promise<ApiSubmitResponse> => {
 
     setLoading(true);
     setSuccess(false);
@@ -52,7 +52,7 @@ const useApiSubmit = (endpoint: string) => {
 
 
       // Pass only intent flags; provider/model selection remains on the backend.
-      const requestData = {
+      const requestData: Record<string, unknown> = {
         ...formData,
         ...options,
         usePrivacyMode: privacyMode,
@@ -65,15 +65,22 @@ const useApiSubmit = (endpoint: string) => {
       };
 
 
-      const response = await processText(endpoint, requestData) as ApiSubmitResponse;
+      const response = (await processText(endpoint, requestData)) as ApiSubmitResponse;
+
+      // Special handling for plan mode responses
+      // Plan mode returns { workflowId, plan, questions, ... } instead of { content, metadata }
+      if (response && typeof response === 'object' && 'workflowId' in response) {
+        // Return plan mode response directly without parsing
+        return response;
+      }
 
       // Special validation for /claude_social endpoint to catch raw AI responses
       if (endpoint === '/claude_social' && response && typeof response === 'object') {
-        if ((response as any).tool_calls) {
+        if ('tool_calls' in response) {
           console.error('[useApiSubmit] Received raw AI response with tool_calls - this should have been handled by backend:', response);
           throw new Error('Unexpected response format. Please try again without web search enabled.');
         }
-        if ((response as any).stop_reason || (response as any).raw_content_blocks) {
+        if ('stop_reason' in response || 'raw_content_blocks' in response) {
           console.error('[useApiSubmit] Received raw AI worker response structure:', response);
           throw new Error('Server returned invalid response format. Please try again.');
         }
@@ -106,11 +113,12 @@ const useApiSubmit = (endpoint: string) => {
         content: parsedResult.content,
         metadata: {},
       };
-    } catch (err: any) {
-      console.error('[useApiSubmit] Submit error:', err);
-      setError(`${err.name || 'Fehler'}: ${err.message}`);
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      console.error('[useApiSubmit] Submit error:', error);
+      setError(`${error.name || 'Fehler'}: ${error.message}`);
       setSuccess(false);
-      throw err;
+      throw error;
     } finally {
       setLoading(false);
     }

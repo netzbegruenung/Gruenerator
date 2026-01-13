@@ -147,8 +147,9 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({ onReset, onEdit
         title: 'Gruenerator Video',
         text: socialText || '',
       });
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
+    } catch (error: unknown) {
+      const shareError = error as { name: string };
+      if (shareError.name !== 'AbortError') {
         console.error('Share failed:', error);
       }
     } finally {

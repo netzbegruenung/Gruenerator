@@ -10,7 +10,7 @@ interface IndexPageProps {
   error?: string | null;
   emptyMessage?: string;
   className?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 const IndexPage = ({

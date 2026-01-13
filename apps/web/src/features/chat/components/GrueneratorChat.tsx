@@ -277,7 +277,7 @@ const GrueneratorChat = () => {
     }
 
     if (currentAgent) {
-      const placeholders = {
+      const placeholders: Record<string, string> = {
         'social_media': 'Welchen Social Media Post möchtest du erstellen?',
         'pressemitteilung': 'Über welches Thema soll die Pressemitteilung sein?',
         'antrag': 'Welchen Antrag möchtest du verfassen?',
@@ -303,7 +303,11 @@ const GrueneratorChat = () => {
         modes={{ chat: { label: 'Chat' } }}
         onModeChange={() => {}}
         messages={messages as Array<{ type: 'user' | 'assistant' | 'error'; content: string; timestamp?: number }>}
-        onSubmit={handleSubmit}
+        onSubmit={(value) => {
+          if (typeof value === 'string') {
+            handleSubmit(value);
+          }
+        }}
         isProcessing={isLoading}
         placeholder={placeholder}
         inputValue={inputValue}

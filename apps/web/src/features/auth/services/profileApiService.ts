@@ -10,7 +10,7 @@ export interface Profile {
     is_admin?: boolean;
     bundestag_api_enabled?: boolean;
     igel_modus?: boolean;
-    beta_features?: Record<string, any>;
+    beta_features?: Record<string, unknown>;
     memory_enabled?: boolean;
     [key: string]: unknown;
 }
@@ -24,20 +24,227 @@ export interface BundleOptions {
     includeMemories?: boolean;
 }
 
+// === INSTRUCTION & KNOWLEDGE TYPES ===
+export interface KnowledgeEntry {
+    id?: string | number;
+    title?: string;
+    content?: string;
+}
+
+export interface AnweisungenWissen {
+    antragPrompt?: string;
+    antragGliederung?: string;
+    socialPrompt?: string;
+    universalPrompt?: string;
+    redePrompt?: string;
+    buergeranfragenPrompt?: string;
+    gruenejugendPrompt?: string;
+    presseabbinder?: string;
+    knowledge?: KnowledgeEntry[];
+}
+
+export interface GroupAnweisungenWissen extends AnweisungenWissen {
+    customAntragPrompt?: string;
+    customAntragGliederung?: string;
+    customSocialPrompt?: string;
+    customUniversalPrompt?: string;
+    customRedePrompt?: string;
+    customBuergeranfragenPrompt?: string;
+    customGruenejugendPrompt?: string;
+    groupInfo?: {
+        [key: string]: unknown;
+    };
+    userRole?: string;
+    isAdmin?: boolean;
+    joinToken?: string;
+    antragInstructionsEnabled?: boolean;
+    socialInstructionsEnabled?: boolean;
+}
+
+export interface InstructionsStatusResponse {
+    success: boolean;
+    message?: string;
+    [key: string]: unknown;
+}
+
+export interface AnweisungenSaveData {
+    customAntragPrompt?: string;
+    customAntragGliederung?: string;
+    customSocialPrompt?: string;
+    customUniversalPrompt?: string;
+    customRedePrompt?: string;
+    customBuergeranfragenPrompt?: string;
+    customGruenejugendPrompt?: string;
+    presseabbinder?: string;
+    knowledge?: KnowledgeEntry[];
+    antragInstructionsEnabled?: boolean;
+    socialInstructionsEnabled?: boolean;
+    _groupMembership?: {
+        isAdmin: boolean;
+    };
+}
+
+export interface AnweisungenSaveResponse {
+    success: boolean;
+    message?: string;
+    skipSave?: boolean;
+    [key: string]: unknown;
+}
+
+// === Q&A COLLECTION TYPES ===
+export interface QACollectionData {
+    name: string;
+    description?: string;
+    custom_prompt?: string;
+    selectionMode?: 'documents' | 'wolke';
+    documents?: (string | number)[];
+    wolkeShareLinks?: string[];
+    auto_sync?: boolean;
+    remove_missing_on_sync?: boolean;
+}
+
+export interface QACollection extends QACollectionData {
+    id: string | number;
+}
+
+export interface QACollectionResponse {
+    success: boolean;
+    message?: string;
+    collection?: QACollection;
+    collections?: QACollection[];
+    [key: string]: unknown;
+}
+
+// === CUSTOM GENERATOR TYPES ===
+export interface CustomGeneratorData {
+    name: string;
+    prompt?: string;
+    [key: string]: unknown;
+}
+
+export interface CustomGenerator extends CustomGeneratorData {
+    id: string | number;
+}
+
+export interface CustomGeneratorResponse {
+    success?: boolean;
+    message?: string;
+    generator?: CustomGenerator;
+    generators?: CustomGenerator[];
+    [key: string]: unknown;
+}
+
+// === SAVED TEXT TYPES ===
+export interface SavedText {
+    id: string | number;
+    title: string;
+    content?: string;
+    [key: string]: unknown;
+}
+
+export interface SavedTextResponse {
+    success: boolean;
+    message?: string;
+    data?: SavedText[];
+    [key: string]: unknown;
+}
+
+export interface SavedTextMetadata {
+    title?: string;
+}
+
+// === USER TEMPLATE TYPES ===
+export interface UserTemplate {
+    id: string | number;
+    title: string;
+    is_private?: boolean;
+    [key: string]: unknown;
+}
+
+export interface UserTemplateResponse {
+    success: boolean;
+    message?: string;
+    data?: UserTemplate[];
+    [key: string]: unknown;
+}
+
+export interface UserTemplateUpdateData {
+    is_private?: boolean;
+    title?: string;
+    [key: string]: unknown;
+}
+
+// === DOCUMENT TYPES ===
+export interface Document {
+    id: string | number;
+    status: 'completed' | 'processing' | 'failed';
+    [key: string]: unknown;
+}
+
+export interface DocumentResponse {
+    success: boolean;
+    message?: string;
+    data?: Document[];
+    [key: string]: unknown;
+}
+
+// === MEMORY TYPES ===
+export interface Memory {
+    id: string | number;
+    content: string;
+    topic?: string;
+    created_at?: string;
+    [key: string]: unknown;
+}
+
+export interface MemoryResponse {
+    success: boolean;
+    message?: string;
+    memories?: Memory[];
+    [key: string]: unknown;
+}
+
+// === PROFILE BUNDLE ===
 export interface ProfileBundle {
     profile: Profile;
-    anweisungenWissen: any;
-    notebookCollections: any;
-    customGenerators: any;
-    userTexts: any;
-    userTemplates: any;
-    memories: any;
+    anweisungenWissen: AnweisungenWissen | null;
+    notebookCollections: QACollection[] | null;
+    customGenerators: CustomGenerator[] | null;
+    userTexts: SavedText[] | null;
+    userTemplates: UserTemplate[] | null;
+    memories: Memory[] | null;
 }
 
 export interface ProfileUpdateData {
     display_name?: string;
     username?: string | null;
     email?: string | null;
+}
+
+// === AVATAR DISPLAY TYPES ===
+export interface RobotAvatarDisplay {
+    type: 'robot';
+    src: string;
+    alt: string;
+    robotId: number;
+}
+
+export interface InitialsAvatarDisplay {
+    type: 'initials';
+    initials: string;
+}
+
+export type AvatarDisplay = RobotAvatarDisplay | InitialsAvatarDisplay;
+
+export interface ProfileFormFields {
+    displayName: string;
+    username: string;
+    email: string;
+}
+
+// === ERROR RESPONSE TYPE ===
+interface ApiErrorWithResponse extends Error {
+    response?: { status: number };
 }
 
 export const profileApiService = {
@@ -137,7 +344,7 @@ export const profileApiService = {
     },
 
     // === ANWEISUNGEN & WISSEN ===
-    async getInstructionsStatusForType(instructionType: string): Promise<any> {
+    async getInstructionsStatusForType(instructionType: string): Promise<InstructionsStatusResponse> {
         const response = await apiClient.get(`/auth/instructions-status/${instructionType}`);
         const data = response.data;
 
@@ -148,7 +355,7 @@ export const profileApiService = {
         return data;
     },
 
-    async getAnweisungenWissen(context: 'user' | 'group' = 'user', groupId: string | null = null): Promise<any> {
+    async getAnweisungenWissen(context: 'user' | 'group' = 'user', groupId: string | null = null): Promise<AnweisungenWissen | GroupAnweisungenWissen> {
         if (context === 'group' && groupId) {
             // Group endpoint - fetch group details which includes instructions and knowledge
             const response = await apiClient.get(`/auth/groups/${groupId}/details`);
@@ -196,8 +403,8 @@ export const profileApiService = {
         }
     },
 
-    async saveAnweisungenWissen(data: any, context: 'user' | 'group' = 'user', groupId: string | null = null): Promise<any> {
-        const cleanedKnowledge = (data.knowledge || []).map((entry: any) => ({
+    async saveAnweisungenWissen(data: AnweisungenSaveData, context: 'user' | 'group' = 'user', groupId: string | null = null): Promise<AnweisungenSaveResponse> {
+        const cleanedKnowledge = (data.knowledge || []).map((entry: KnowledgeEntry) => ({
             id: typeof entry.id === 'string' && entry.id.startsWith('new-') ? undefined : entry.id,
             title: entry.title,
             content: entry.content
@@ -244,7 +451,7 @@ export const profileApiService = {
 
             // Handle knowledge entries - implement proper create/update operations
             if (cleanedKnowledge && cleanedKnowledge.length > 0) {
-                const knowledgePromises = cleanedKnowledge.map(async (entry: any) => {
+                const knowledgePromises = cleanedKnowledge.map(async (entry: KnowledgeEntry) => {
                     // Determine if this is a new entry or an update
                     const isNewEntry = !entry.id || (typeof entry.id === 'string' && entry.id.startsWith('new-'));
 
@@ -297,7 +504,7 @@ export const profileApiService = {
         }
     },
 
-    async deleteKnowledgeEntry(entryId: string | number, context: 'user' | 'group' = 'user', groupId: string | null = null): Promise<any> {
+    async deleteKnowledgeEntry(entryId: string | number, context: 'user' | 'group' = 'user', groupId: string | null = null): Promise<void | string | number> {
         if (typeof entryId === 'string' && entryId.startsWith('new-')) {
             return;
         }
@@ -314,7 +521,7 @@ export const profileApiService = {
     },
 
     // === Q&A COLLECTIONS ===
-    async getNotebookCollections(): Promise<any[]> {
+    async getNotebookCollections(): Promise<QACollection[]> {
         const response = await apiClient.get('/auth/notebook-collections');
         const json = response.data;
 
@@ -325,7 +532,7 @@ export const profileApiService = {
         return json.collections || [];
     },
 
-    async createQACollection(collectionData: any): Promise<any> {
+    async createQACollection(collectionData: QACollectionData): Promise<QACollection> {
         const selectionMode = collectionData.selectionMode || 'documents';
         const body = {
             name: collectionData.name,
@@ -342,7 +549,7 @@ export const profileApiService = {
         const json = response.data;
 
         if (!json?.success) {
-            const err = new Error(json?.message || 'Failed to create Q&A collection') as any;
+            const err = new Error(json?.message || 'Failed to create Q&A collection') as unknown as ApiErrorWithResponse;
             err.response = { status: 400 };
             throw err;
         }
@@ -350,7 +557,7 @@ export const profileApiService = {
         return json.collection;
     },
 
-    async updateQACollection(collectionId: string | number, collectionData: any): Promise<any> {
+    async updateQACollection(collectionId: string | number, collectionData: QACollectionData): Promise<QACollectionResponse> {
         const selectionMode = collectionData.selectionMode || 'documents';
         const body = {
             name: collectionData.name,
@@ -367,7 +574,7 @@ export const profileApiService = {
         const json = response.data;
 
         if (!json?.success) {
-            const err = new Error(json?.message || 'Failed to update Q&A collection') as any;
+            const err = new Error(json?.message || 'Failed to update Q&A collection') as unknown as ApiErrorWithResponse;
             err.response = { status: 400 };
             throw err;
         }
@@ -375,12 +582,12 @@ export const profileApiService = {
         return json;
     },
 
-    async syncQACollection(collectionId: string | number): Promise<any> {
+    async syncQACollection(collectionId: string | number): Promise<QACollectionResponse> {
         const response = await apiClient.post(`/auth/notebook-collections/${collectionId}/sync`);
         const json = response.data;
 
         if (!json?.success) {
-            const err = new Error(json?.message || 'Failed to sync Q&A collection') as any;
+            const err = new Error(json?.message || 'Failed to sync Q&A collection') as unknown as ApiErrorWithResponse;
             err.response = { status: 400 };
             throw err;
         }
@@ -388,7 +595,7 @@ export const profileApiService = {
         return json;
     },
 
-    async deleteQACollection(collectionId: string | number): Promise<any> {
+    async deleteQACollection(collectionId: string | number): Promise<QACollectionResponse> {
         const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
         const json = response.data;
 
@@ -400,56 +607,56 @@ export const profileApiService = {
     },
 
     // === CUSTOM GENERATORS ===
-    async getCustomGenerators(): Promise<any[]> {
+    async getCustomGenerators(): Promise<CustomGenerator[]> {
         const response = await apiClient.get('/auth/custom_generator');
         return response.data?.generators || [];
     },
 
-    async updateCustomGenerator(generatorId: string | number, updateData: any): Promise<any> {
+    async updateCustomGenerator(generatorId: string | number, updateData: CustomGeneratorData): Promise<CustomGenerator> {
         const response = await apiClient.put(`/auth/custom_generator/${generatorId}`, updateData);
         return response.data.generator;
     },
 
-    async deleteCustomGenerator(generatorId: string | number): Promise<any> {
+    async deleteCustomGenerator(generatorId: string | number): Promise<CustomGeneratorResponse> {
         const response = await apiClient.delete(`/auth/custom_generator/${generatorId}`);
         return response.data;
     },
 
-    async getGeneratorDocuments(generatorId: string | number): Promise<any[]> {
+    async getGeneratorDocuments(generatorId: string | number): Promise<Document[]> {
         const response = await apiClient.get(`/auth/custom_generator/${generatorId}/documents`);
         return response.data.documents || [];
     },
 
-    async addDocumentsToGenerator(generatorId: string | number, documentIds: string[]): Promise<any> {
+    async addDocumentsToGenerator(generatorId: string | number, documentIds: string[]): Promise<CustomGeneratorResponse> {
         const response = await apiClient.post(`/auth/custom_generator/${generatorId}/documents`, {
             documentIds: documentIds
         });
         return response.data;
     },
 
-    async removeDocumentFromGenerator(generatorId: string | number, documentId: string | number): Promise<any> {
+    async removeDocumentFromGenerator(generatorId: string | number, documentId: string | number): Promise<CustomGeneratorResponse> {
         const response = await apiClient.delete(`/auth/custom_generator/${generatorId}/documents/${documentId}`);
         return response.data;
     },
 
-    async createCustomGenerator(generatorData: any): Promise<any> {
+    async createCustomGenerator(generatorData: CustomGeneratorData): Promise<CustomGeneratorResponse> {
         const response = await apiClient.post('/auth/custom_generator/create', generatorData);
         return response.data;
     },
 
     // === SAVED GENERATORS ===
-    async getSavedGenerators(): Promise<any[]> {
+    async getSavedGenerators(): Promise<CustomGenerator[]> {
         const response = await apiClient.get('/auth/saved_generators');
         return response.data?.generators || [];
     },
 
-    async unsaveGenerator(generatorId: string | number): Promise<any> {
+    async unsaveGenerator(generatorId: string | number): Promise<CustomGeneratorResponse> {
         const response = await apiClient.delete(`/auth/saved_generators/${generatorId}`);
         return response.data;
     },
 
     // === USER TEXTS ===
-    async getUserTexts(): Promise<any[]> {
+    async getUserTexts(): Promise<SavedText[]> {
         const response = await apiClient.get('/auth/saved-texts');
         const data = response.data;
 
@@ -460,7 +667,7 @@ export const profileApiService = {
         return data.data || [];
     },
 
-    async updateTextTitle(textId: string | number, newTitle: string): Promise<any> {
+    async updateTextTitle(textId: string | number, newTitle: string): Promise<SavedTextResponse> {
         const response = await apiClient.post(`/auth/saved-texts/${textId}/metadata`, { title: newTitle.trim() });
         const result = response.data;
 
@@ -471,7 +678,7 @@ export const profileApiService = {
         return result;
     },
 
-    async deleteText(textId: string | number): Promise<any> {
+    async deleteText(textId: string | number): Promise<SavedTextResponse> {
         const response = await apiClient.delete(`/auth/saved-texts/${textId}`);
         const result = response.data;
 
@@ -483,7 +690,7 @@ export const profileApiService = {
     },
 
     // === USER TEMPLATES ===
-    async getUserTemplates(): Promise<any[]> {
+    async getUserTemplates(): Promise<UserTemplate[]> {
         const response = await apiClient.get('/auth/user-templates');
         const data = response.data;
 
@@ -494,7 +701,7 @@ export const profileApiService = {
         return data.data || [];
     },
 
-    async updateTemplateTitle(templateId: string | number, newTitle: string): Promise<any> {
+    async updateTemplateTitle(templateId: string | number, newTitle: string): Promise<UserTemplateResponse> {
         const response = await apiClient.post(`/auth/user-templates/${templateId}/metadata`, { title: newTitle.trim() });
         const result = response.data;
 
@@ -505,7 +712,7 @@ export const profileApiService = {
         return result;
     },
 
-    async deleteTemplate(templateId: string | number): Promise<any> {
+    async deleteTemplate(templateId: string | number): Promise<UserTemplateResponse> {
         const response = await apiClient.delete(`/auth/user-templates/${templateId}`);
         const result = response.data;
 
@@ -516,7 +723,7 @@ export const profileApiService = {
         return result;
     },
 
-    async updateTemplateVisibility(templateId: string | number, isPrivate: boolean): Promise<any> {
+    async updateTemplateVisibility(templateId: string | number, isPrivate: boolean): Promise<UserTemplateResponse> {
         const response = await apiClient.put(`/auth/user-templates/${templateId}`, { is_private: isPrivate });
         const result = response.data;
 
@@ -527,7 +734,7 @@ export const profileApiService = {
         return result;
     },
 
-    async updateTemplate(templateId: string | number, data: any): Promise<any> {
+    async updateTemplate(templateId: string | number, data: UserTemplateUpdateData): Promise<UserTemplateResponse> {
         const response = await apiClient.put(`/auth/user-templates/${templateId}`, data);
         const result = response.data;
 
@@ -539,7 +746,7 @@ export const profileApiService = {
     },
 
     // === AVAILABLE DOCUMENTS (for Q&A) ===
-    async getAvailableDocuments(): Promise<any[]> {
+    async getAvailableDocuments(): Promise<Document[]> {
         const response = await apiClient.get('/documents/user');
         const json = response.data;
 
@@ -548,12 +755,12 @@ export const profileApiService = {
         }
 
         // Filter only completed documents
-        const completedDocuments = (json.data || []).filter((doc: any) => doc.status === 'completed');
+        const completedDocuments = (json.data || []).filter((doc: Document) => doc.status === 'completed');
         return completedDocuments;
     },
 
     // === MEMORY (MEM0RY) ===
-    async getMemories(userId: string): Promise<any[]> {
+    async getMemories(userId: string): Promise<Memory[]> {
         const response = await apiClient.get(`/mem0/user/${userId}`);
         const result = response.data;
 
@@ -564,7 +771,7 @@ export const profileApiService = {
         return result.memories || [];
     },
 
-    async addMemory(text: string, topic: string = ''): Promise<any> {
+    async addMemory(text: string, topic: string = ''): Promise<MemoryResponse> {
         const response = await apiClient.post('/mem0/add-text', { text, topic });
         const result = response.data;
 
@@ -575,7 +782,7 @@ export const profileApiService = {
         return result;
     },
 
-    async deleteMemory(memoryId: string | number): Promise<any> {
+    async deleteMemory(memoryId: string | number): Promise<MemoryResponse> {
         const response = await apiClient.delete(`/mem0/${memoryId}`);
         const result = response.data;
 
@@ -624,7 +831,7 @@ export const getInitials = (displayName: string | undefined, mail: string | unde
  * @param {number|string} avatarRobotId - The robot avatar ID
  * @returns {boolean} True if robot avatar should be shown
  */
-export const shouldShowRobotAvatar = (avatarRobotId: any): boolean => {
+export const shouldShowRobotAvatar = (avatarRobotId: unknown): boolean => {
     const id = Number(avatarRobotId);
     return !isNaN(id) && id >= 1 && id <= 9;
 };
@@ -635,7 +842,7 @@ export const shouldShowRobotAvatar = (avatarRobotId: any): boolean => {
  * @param {object} profile - User profile object
  * @returns {object} Avatar display properties
  */
-export const getAvatarDisplayProps = (profile: any): any => {
+export const getAvatarDisplayProps = (profile: Profile | null): AvatarDisplay => {
     const { avatar_robot_id, display_name, email } = profile || {};
 
     if (shouldShowRobotAvatar(avatar_robot_id)) {
@@ -659,19 +866,22 @@ export const getAvatarDisplayProps = (profile: any): any => {
  * @param {object} user - User data from auth
  * @returns {object} Initialized form values
  */
-export const initializeProfileFormFields = (profile: any, user: any): any => {
-    const safeName = profile?.display_name ||
-        user?.email || user?.username || 'User';
+export const initializeProfileFormFields = (profile: Profile | null | undefined, user: Record<string, unknown> | null | undefined): ProfileFormFields => {
+    const userEmail = typeof user?.email === 'string' ? user.email : '';
+    const userName = typeof user?.username === 'string' ? user.username : '';
 
-    const safeUsername = profile?.username || user?.username || '';
+    const safeName = profile?.display_name ||
+        userEmail || userName || 'User';
+
+    const safeUsername = profile?.username || userName || '';
 
     // Prioritize auth user email if profile email is empty/null
-    const syncedEmail = (profile?.email && profile.email.trim()) ?
+    const syncedEmail = (profile?.email && typeof profile.email === 'string' && profile.email.trim()) ?
         profile.email :
-        (user?.email || '');
+        userEmail;
 
     return {
-        displayName: safeName,
+        displayName: String(safeName),
         username: safeUsername,
         email: syncedEmail
     };

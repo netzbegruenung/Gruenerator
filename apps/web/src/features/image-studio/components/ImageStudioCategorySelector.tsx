@@ -84,9 +84,9 @@ const ImageStudioCategorySelector: React.FC = () => {
             // Navigate to the sharepic edit page
             navigate(`/image-studio/templates/${result.type}`);
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('[ImageStudioCategorySelector] Prompt submission error:', error);
-            setGenerationError(error.message || 'Ein Fehler ist aufgetreten');
+            setGenerationError((error instanceof Error ? error.message : String(error)) || 'Ein Fehler ist aufgetreten');
         } finally {
             setIsGenerating(false);
         }

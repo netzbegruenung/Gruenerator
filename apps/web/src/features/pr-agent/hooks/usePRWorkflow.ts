@@ -1,12 +1,23 @@
 import { useState, useCallback } from 'react';
 import apiClient from '../../../components/utils/apiClient';
 
+interface PRWorkflowResponse {
+    success: boolean;
+    workflow_id: string;
+    content: string;
+    error?: string;
+}
+
+interface ProductionResponse {
+    success: boolean;
+    [key: string]: unknown;
+}
+
 interface PRWorkflowState {
     workflowId: string | null;
     status: 'idle' | 'generating_strategy' | 'awaiting_approval' | 'generating_production' | 'completed' | 'error';
-    // Backend returns pre-formatted markdown content string, not structured strategy object
     strategy: string | null;
-    production: any | null;
+    production: ProductionResponse | null;
     error: string | null;
 }
 
@@ -45,11 +56,12 @@ export const usePRWorkflow = () => {
             } else {
                 throw new Error(response.data.error || 'Strategie-Generierung fehlgeschlagen');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Fehler beim Generieren der Strategie';
             setState(prev => ({
                 ...prev,
                 status: 'error',
-                error: error.message || 'Fehler beim Generieren der Strategie'
+                error: errorMessage
             }));
             throw error;
         }
@@ -82,11 +94,12 @@ export const usePRWorkflow = () => {
             } else {
                 throw new Error(response.data.error || 'Produktion fehlgeschlagen');
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Fehler beim Generieren der Inhalte';
             setState(prev => ({
                 ...prev,
                 status: 'error',
-                error: error.message || 'Fehler beim Generieren der Inhalte'
+                error: errorMessage
             }));
             throw error;
         }

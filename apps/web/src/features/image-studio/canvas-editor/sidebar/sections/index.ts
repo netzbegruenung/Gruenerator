@@ -1,18 +1,45 @@
+/**
+ * Sidebar Sections Index
+ *
+ * Exports are split into static and lazy-loaded sections:
+ * - Lightweight sections are exported directly (TextSection, FontSizeSection, etc.)
+ * - Heavy sections are lazy-loaded with React.lazy() to reduce initial bundle size
+ */
+
+import { lazy } from 'react';
+
+// =============================================================================
+// STATIC EXPORTS - Lightweight sections loaded immediately
+// =============================================================================
+
 export { TextSection } from './TextSection';
 export { FontSizeSection } from './FontSizeSection';
-export { BackgroundSection } from './BackgroundSection';
-export { AssetsSection } from './AssetsSection';
 export { AlternativesSection } from './AlternativesSection';
 export type { AlternativesSectionProps } from './AlternativesSection';
-export { ImageBackgroundSection } from './ImageBackgroundSection';
 export { IconsSection } from './IconsSection';
 export { BalkenSection } from './BalkenSection';
 export type { BalkenSectionProps } from './BalkenSection';
-
 export { FormenSection } from './FormenSection';
 export type { FormenSectionProps } from './FormenSection';
-
-export { GenericShareSection } from './GenericShareSection';
-
 export * from './dreizeilen';
+
+// =============================================================================
+// LAZY EXPORTS - Heavy sections loaded on-demand
+// =============================================================================
+
+export const AssetsSection = lazy(() =>
+  import('./AssetsSection').then(m => ({ default: m.AssetsSection }))
+);
+
+export const BackgroundSection = lazy(() =>
+  import('./BackgroundSection').then(m => ({ default: m.BackgroundSection }))
+);
+
+export const ImageBackgroundSection = lazy(() =>
+  import('./ImageBackgroundSection').then(m => ({ default: m.ImageBackgroundSection }))
+);
+
+export const GenericShareSection = lazy(() =>
+  import('./GenericShareSection').then(m => ({ default: m.GenericShareSection }))
+);
 

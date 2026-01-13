@@ -1,10 +1,11 @@
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { SidebarTabBar, SidebarPanel } from '../sidebar';
 import { CanvasEditorLayout } from '../layouts';
 import { ZoomableViewport } from './ZoomableViewport';
 import type { FullCanvasConfig } from '../configs/types';
 import type { SidebarTabId } from '../sidebar/types';
+import Spinner from '../../../../components/common/Spinner';
 import './GenericCanvasEditor.css';
 
 interface GenericCanvasEditorProps<TState, TActions = Record<string, unknown>> {
@@ -90,7 +91,15 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
             ...shareProps
         });
 
-        return <SectionComponent {...sectionProps} />;
+        return (
+            <Suspense fallback={
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-large)', minHeight: '200px' }}>
+                    <Spinner size="medium" />
+                </div>
+            }>
+                <SectionComponent {...sectionProps} />
+            </Suspense>
+        );
     };
 
     const tabBar = (

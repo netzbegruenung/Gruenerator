@@ -14,12 +14,30 @@ import { CanvasClipboard } from '../utils/canvasClipboard';
  * Automatically prevents actions when typing in input/textarea fields.
  */
 
+export interface CanvasActions {
+    removeBalken?: (id: string) => void;
+    toggleIcon?: (id: string, enabled: boolean) => void;
+    removeShape?: (id: string) => void;
+    removeAdditionalText?: (id: string) => void;
+    removeIllustration?: (id: string) => void;
+    handleAssetToggle?: (id: string, enabled: boolean) => void;
+}
+
 export interface UseCanvasKeyboardHandlersOptions<TState> {
     selectedElement: string | null;
     state: TState;
-    actions: any;
+    actions: CanvasActions;
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
     setSelectedElement: (id: string | null) => void;
+}
+
+/**
+ * Helper to safely access state array property
+ */
+function getStateArray<T>(state: unknown, key: string): T[] {
+    const stateObj = state as Record<string, unknown>;
+    const value = stateObj[key];
+    return Array.isArray(value) ? (value as T[]) : [];
 }
 
 /**
@@ -44,28 +62,36 @@ export function useCanvasKeyboardHandlers<TState>(
                 const offset = 20;
 
                 setState((prev) => {
-                    const newState = { ...prev } as any;
-                    const prevState = prev as any;
+                    const newState = { ...prev } as Record<string, unknown>;
+                    const prevState = prev as Record<string, unknown>;
 
-                    if (type === 'shape') {
-                        const newShape = { ...data, id: newId, x: data.x + offset, y: data.y + offset };
-                        newState.shapeInstances = [...(prevState.shapeInstances || []), newShape];
-                    } else if (type === 'illustration') {
-                        const newIll = { ...data, id: newId, x: data.x + offset, y: data.y + offset };
-                        newState.illustrationInstances = [...(prevState.illustrationInstances || []), newIll];
-                    } else if (type === 'balken') {
+                    if (type === 'shape' && typeof data === 'object' && data !== null) {
+                        const shapeData = data as { x: number; y: number };
+                        const newShape = { ...shapeData, id: newId, x: shapeData.x + offset, y: shapeData.y + offset };
+                        const existing = getStateArray<unknown>(prevState, 'shapeInstances');
+                        (newState as Record<string, unknown>).shapeInstances = [...existing, newShape];
+                    } else if (type === 'illustration' && typeof data === 'object' && data !== null) {
+                        const illData = data as { x: number; y: number };
+                        const newIll = { ...illData, id: newId, x: illData.x + offset, y: illData.y + offset };
+                        const existing = getStateArray<unknown>(prevState, 'illustrationInstances');
+                        (newState as Record<string, unknown>).illustrationInstances = [...existing, newIll];
+                    } else if (type === 'balken' && typeof data === 'object' && data !== null) {
+                        const balkenData = data as { offset?: { x: number; y: number } };
                         const newBalken = {
-                            ...data,
+                            ...balkenData,
                             id: newId,
-                            offset: { x: (data.offset?.x || 0) + offset, y: (data.offset?.y || 0) + offset },
+                            offset: { x: (balkenData.offset?.x || 0) + offset, y: (balkenData.offset?.y || 0) + offset },
                         };
-                        newState.balkenInstances = [...(prevState.balkenInstances || []), newBalken];
-                    } else if (type === 'additional-text') {
-                        const newText = { ...data, id: newId, x: data.x + offset, y: data.y + offset };
-                        newState.additionalTexts = [...(prevState.additionalTexts || []), newText];
+                        const existing = getStateArray<unknown>(prevState, 'balkenInstances');
+                        (newState as Record<string, unknown>).balkenInstances = [...existing, newBalken];
+                    } else if (type === 'additional-text' && typeof data === 'object' && data !== null) {
+                        const textData = data as { x: number; y: number };
+                        const newText = { ...textData, id: newId, x: textData.x + offset, y: textData.y + offset };
+                        const existing = getStateArray<unknown>(prevState, 'additionalTexts');
+                        (newState as Record<string, unknown>).additionalTexts = [...existing, newText];
                     }
 
-                    return newState;
+                    return newState as TState;
                 });
 
                 setTimeout(() => setSelectedElement(newId), 0);
@@ -76,25 +102,32 @@ export function useCanvasKeyboardHandlers<TState>(
 
             // COPY (Ctrl+C)
             if (isCtrlOrCmd && e.key === 'c') {
-                const shape = (state as any).shapeInstances?.find((s: any) => s.id === selectedElement);
+                const shapes = getStateArray<ShapeInstance>(state, 'shapeInstances');
+                const shape = shapes.find((s) => s.id === selectedElement);
                 if (shape) {
                     CanvasClipboard.copy('shape', shape);
                     return;
                 }
 
-                const ill = (state as any).illustrationInstances?.find((i: any) => i.id === selectedElement);
+                const illustrations = getStateArray<unknown>(state, 'illustrationInstances');
+                const ill = illustrations.find((i: unknown) => {
+                    const illObj = i as { id?: string };
+                    return illObj.id === selectedElement;
+                });
                 if (ill) {
                     CanvasClipboard.copy('illustration', ill);
                     return;
                 }
 
-                const balken = (state as any).balkenInstances?.find((b: any) => b.id === selectedElement);
+                const balkens = getStateArray<BalkenInstance>(state, 'balkenInstances');
+                const balken = balkens.find((b) => b.id === selectedElement);
                 if (balken) {
                     CanvasClipboard.copy('balken', balken);
                     return;
                 }
 
-                const text = (state as any).additionalTexts?.find((t: any) => t.id === selectedElement);
+                const texts = getStateArray<{ id: string }>(state, 'additionalTexts');
+                const text = texts.find((t) => t.id === selectedElement);
                 if (text) {
                     CanvasClipboard.copy('additional-text', text);
                     return;
@@ -109,7 +142,8 @@ export function useCanvasKeyboardHandlers<TState>(
             // DELETE / BACKSPACE
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 // Remove Balken
-                if ((state as any).balkenInstances?.find((b: BalkenInstance) => b.id === selectedElement)) {
+                const balkens = getStateArray<BalkenInstance>(state, 'balkenInstances');
+                if (balkens.find((b) => b.id === selectedElement)) {
                     if (actions.removeBalken) {
                         actions.removeBalken(selectedElement);
                         setSelectedElement(null);
@@ -118,7 +152,8 @@ export function useCanvasKeyboardHandlers<TState>(
                 }
 
                 // Remove Icon
-                if ((state as any).selectedIcons?.includes(selectedElement)) {
+                const selectedIcons = getStateArray<string>(state, 'selectedIcons');
+                if (selectedIcons.includes(selectedElement)) {
                     if (actions.toggleIcon) {
                         actions.toggleIcon(selectedElement, false);
                         setSelectedElement(null);
@@ -127,7 +162,8 @@ export function useCanvasKeyboardHandlers<TState>(
                 }
 
                 // Remove Shape
-                if ((state as any).shapeInstances?.find((s: ShapeInstance) => s.id === selectedElement)) {
+                const shapes = getStateArray<ShapeInstance>(state, 'shapeInstances');
+                if (shapes.find((s) => s.id === selectedElement)) {
                     if (actions.removeShape) {
                         actions.removeShape(selectedElement);
                         setSelectedElement(null);
@@ -136,7 +172,8 @@ export function useCanvasKeyboardHandlers<TState>(
                 }
 
                 // Remove Additional Text
-                if ((state as any).additionalTexts?.find((t: any) => t.id === selectedElement)) {
+                const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
+                if (additionalTexts.find((t) => t.id === selectedElement)) {
                     if (actions.removeAdditionalText) {
                         actions.removeAdditionalText(selectedElement);
                         setSelectedElement(null);
@@ -145,7 +182,11 @@ export function useCanvasKeyboardHandlers<TState>(
                 }
 
                 // Remove Illustration
-                if ((state as any).illustrationInstances?.find((i: any) => i.id === selectedElement)) {
+                const illustrations = getStateArray<unknown>(state, 'illustrationInstances');
+                if (illustrations.find((i: unknown) => {
+                    const illObj = i as { id?: string };
+                    return illObj.id === selectedElement;
+                })) {
                     if (actions.removeIllustration) {
                         actions.removeIllustration(selectedElement);
                         setSelectedElement(null);

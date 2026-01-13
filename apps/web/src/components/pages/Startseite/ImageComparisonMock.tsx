@@ -8,8 +8,8 @@ import GrueneratorImagine from '../../../assets/images/startseite/gruenerator_im
 import '../../../assets/styles/components/image-comparison.css';
 
 const ImageComparisonMock = () => {
-  const containerRef = useRef(null);
-  const animationFrame = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const animationFrame = useRef<number | null>(null);
   const [sliderPosition, setSliderPosition] = useState(50);
 
   useEffect(() => {

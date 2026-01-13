@@ -7,7 +7,7 @@ type SharepicType = 'default' | 'quote' | 'quote_pure' | 'info' | 'headline' | '
 interface SharepicAttachment {
   type: string;
   data: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface UnifiedSharepicRequestData {
@@ -36,7 +36,7 @@ interface SharepicResult {
   text?: string;
   type?: string;
   originalImage?: string | null;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface UseSharepicGenerationReturn {
@@ -156,12 +156,12 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
     // Handle uploaded image for relevant types
     if (uploadedImage && (type === 'dreizeilen' || type === 'zitat')) {
       // Convert image to base64 for backend processing
-      let imageBase64 = null;
+      let imageBase64: string | null = null;
       if (uploadedImage instanceof File || uploadedImage instanceof Blob) {
         try {
-          imageBase64 = await new Promise((resolve) => {
+          imageBase64 = await new Promise<string>((resolve) => {
             const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
+            reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(uploadedImage);
           });
         } catch (error) {
@@ -188,12 +188,12 @@ const useSharepicGeneration = (): UseSharepicGenerationReturn => {
     }
 
     // Convert original image to base64 for storage if available
-    let originalImageBase64 = null;
+    let originalImageBase64: string | null = null;
     if (uploadedImage && (uploadedImage instanceof File || uploadedImage instanceof Blob)) {
       try {
-        originalImageBase64 = await new Promise((resolve) => {
+        originalImageBase64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
+          reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(uploadedImage);
         });
       } catch (error) {

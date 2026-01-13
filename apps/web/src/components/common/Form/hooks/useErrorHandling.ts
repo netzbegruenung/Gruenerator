@@ -38,14 +38,16 @@ const useErrorHandling = () => {
 
   /**
    * Behandelt Fehler bei der Formularübermittlung
-   * @param {any} err - Fehlerobjekt
+   * @param {Error | { response?: { status?: number }; message?: string }} err - Fehlerobjekt
    */
-  const handleSubmitError = useCallback((err: any) => {
+  const handleSubmitError = useCallback((err: Error | { response?: { status?: number }; message?: string }) => {
     console.error('[useErrorHandling] Submit error:', err);
-    if (err?.response?.status) {
-      setError(`${err.response.status}`);
-    } else if (err?.message) {
+    if (err && typeof err === 'object' && 'response' in err && (err.response as { status?: number })?.status) {
+      setError(`${(err.response as { status?: number }).status}`);
+    } else if (err instanceof Error) {
       setError(err.message);
+    } else if (err && typeof err === 'object' && 'message' in err && typeof (err as { message?: unknown }).message === 'string') {
+      setError((err as { message: string }).message);
     } else {
       setError('Ein unbekannter Fehler ist aufgetreten.');
     }

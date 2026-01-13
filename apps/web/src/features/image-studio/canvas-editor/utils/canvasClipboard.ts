@@ -9,7 +9,7 @@ export type ClipboardItemType = 'balken' | 'shape' | 'illustration' | 'additiona
 
 export interface ClipboardItem {
     type: ClipboardItemType;
-    data: any;
+    data: Record<string, unknown>;
 }
 
 export class CanvasClipboard {
@@ -18,7 +18,7 @@ export class CanvasClipboard {
     /**
      * Copy an element to the clipboard
      */
-    static copy(type: ClipboardItemType, data: any): void {
+    static copy(type: ClipboardItemType, data: Record<string, unknown>): void {
         CanvasClipboard.instance = { type, data };
     }
 
