@@ -76,9 +76,11 @@
     </script>
     <!-- End Umami Code -->
     
-    <!-- Font preloading removed to prevent preload warnings -->
-    <!-- Fonts are loaded via CSS with font-display: swap for optimal performance -->
-    
+    <!-- Font preloading for critical fonts -->
+    <!-- Fonts loaded via CSS with font-display: swap for optimal performance -->
+    <link rel="preload" href="/src/assets/fonts/PTSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/src/assets/fonts/GrueneType.woff2" as="font" type="font/woff2" crossorigin>
+
     <!-- Critical CSS/JS Preloading -->
     <link rel="modulepreload" href="/src/index.jsx">
     <link rel="modulepreload" href="/src/App.jsx">

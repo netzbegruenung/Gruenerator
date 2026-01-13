@@ -115,11 +115,19 @@ export default defineConfig(({ command }) => ({
           return 'assets/[name].[hash][extname]';
         },
         manualChunks: {
+          // Core framework vendors
           'core-vendor': ['react', 'react-dom', 'react-router-dom'],
           'state-vendor': ['@tanstack/react-query', 'zustand'],
           'ui-vendor': ['react-tooltip', 'react-hook-form', 'react-dropzone'],
           'utils-vendor': ['lodash', 'uuid', 'dompurify'],
-          'motion-vendor': ['motion']
+          'motion-vendor': ['motion'],
+
+          // NEW: Additional vendor chunks for better code splitting
+          'shared-vendor': ['@gruenerator/shared'],
+          'i18n-vendor': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          'canvas-vendor': ['konva', 'react-konva', 'use-image'],
+          'ai-vendor': ['onnxruntime-web', '@imgly/background-removal'],
+          'editor-vendor': ['@mdxeditor/editor', 'marked', 'react-markdown']
         }
       }
     },
