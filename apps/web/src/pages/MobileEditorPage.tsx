@@ -1,4 +1,6 @@
+import { useState, useEffect, useCallback } from 'react';
 import { MasterCanvasEditor } from '../features/image-studio/canvas-editor/MasterCanvasEditor';
+import { useAuthStore } from '../stores/authStore';
 
 interface MobileEditorData {
   type: string;
@@ -35,7 +37,7 @@ export default function MobileEditorPage() {
     };
 
     window.addEventListener('message', handleMessage);
-    document.addEventListener('message', handleMessage as any);
+    document.addEventListener('message', handleMessage as EventListener);
 
     const readyMessage = JSON.stringify({ type: 'EDITOR_READY' });
     if (window.ReactNativeWebView) {
@@ -44,7 +46,7 @@ export default function MobileEditorPage() {
 
     return () => {
       window.removeEventListener('message', handleMessage);
-      document.removeEventListener('message', handleMessage as any);
+      document.removeEventListener('message', handleMessage as EventListener);
     };
   }, [setToken]);
 
