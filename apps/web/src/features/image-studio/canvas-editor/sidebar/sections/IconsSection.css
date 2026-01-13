@@ -78,3 +78,9 @@
 [data-theme="dark"] .sidebar-selectable-card:hover:not(:disabled) {
     background: var(--hover-color-alt, #333);
 }
+
+/* Sentinel element for infinite scroll */
+.icons-sentinel {
+    height: 1px;
+    width: 100%;
+}

@@ -1,6 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { ALL_ICONS } from '../../utils/canvasIcons';
+import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
+import Spinner from '../../../../../components/common/Spinner';
 import './IconsSection.css';
 
 export interface IconsSectionProps {
@@ -23,12 +25,35 @@ export function IconsSection({
     maxSelections = 3,
     isExpanded = false,
 }: IconsSectionProps) {
+    const sentinelRef = useRef<HTMLDivElement>(null);
+
     const recommendedIcons = useMemo(
         () => RECOMMENDED_ICON_IDS.map(id => ALL_ICONS.find(icon => icon.id === id)).filter(Boolean),
         []
     );
 
-    const icons = isExpanded ? ALL_ICONS : recommendedIcons;
+    const { visibleIcons, hasMore, loadMore, totalCount, loadedCount } = usePaginatedIcons(isExpanded);
+
+    const icons = isExpanded ? visibleIcons : recommendedIcons;
+
+    useEffect(() => {
+        if (!isExpanded || !hasMore) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore();
+                }
+            },
+            { rootMargin: '300px', threshold: 0 }
+        );
+
+        if (sentinelRef.current) {
+            observer.observe(sentinelRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [isExpanded, hasMore, loadMore]);
 
     const handleIconClick = useCallback((iconId: string) => {
         const isSelected = selectedIcons.includes(iconId);
@@ -69,6 +94,13 @@ export function IconsSection({
                     );
                 })}
             </div>
+
+            {isExpanded && (
+                <>
+                    <div ref={sentinelRef} className="icons-sentinel" />
+                    {hasMore && <Spinner size="small" />}
+                </>
+            )}
         </div>
     );
 }
