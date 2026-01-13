@@ -94,7 +94,8 @@ export class MarkdownService {
       /^[-*+]\s+/m, // Lists
       /^>\s+/m, // Blockquotes
       /`[^`]+`/, // Inline code
-      /^```/m // Code blocks
+      /^```/m, // Code blocks
+      /\|.+\|.+\|/m // Tables (GFM)
     ];
 
     return markdownPatterns.some((pattern) => pattern.test(content));
