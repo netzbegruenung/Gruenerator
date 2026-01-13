@@ -1,4 +1,4 @@
-import React, { lazy, useEffect } from 'react';
+import React, { lazy, useEffect, useState, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import ScrollToTop from './components/utils/ScrollToTop';
 import { useScrollRestoration } from './components/utils/commonFunctions';
@@ -9,8 +9,18 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import RouteComponent from './components/routing/RouteComponent';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
 import { routes } from './config/routes';
-import { FirstRunWizard, useFirstRun } from './features/desktop';
+import { useFirstRun } from './features/desktop/hooks/useFirstRun';
 import { useAuthStore } from './stores/authStore';
+import { initializeApiClient } from './api/lazyApiClient';
+import { initializeI18n } from './i18n/lazyI18n';
+import './App.css';
+
+// Lazy-load FirstRunWizard (desktop-only component)
+const FirstRunWizard = lazy(() =>
+  import('./features/desktop/components/FirstRunWizard').then(m => ({
+    default: m.FirstRunWizard
+  }))
+);
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -63,6 +73,24 @@ function App() {
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { isFirstRun, requireLogin, completeFirstRun } = useFirstRun();
   const { login } = useAuthStore();
+  const [appReady, setAppReady] = useState(false);
+
+  // Initialize API client and i18n after React mounts (deferred from index.tsx)
+  useEffect(() => {
+    Promise.all([
+      initializeApiClient(),
+      initializeI18n()
+    ])
+      .then(() => {
+        setAppReady(true);
+        console.log('[App] Application initialized');
+      })
+      .catch((error) => {
+        console.error('[App] Initialization failed:', error);
+        // Still mark as ready to allow app to render (some features may work)
+        setAppReady(true);
+      });
+  }, []);
 
   useEffect(() => {
     if (darkMode) {
@@ -83,14 +111,29 @@ function App() {
     });
   }, []);
 
+  // Show minimal loading state while API and i18n initialize (typically <100ms)
+  if (!appReady) {
+    return (
+      <div className="app-loading">
+        <div className="app-loading-text">Lädt...</div>
+      </div>
+    );
+  }
+
   if (isFirstRun) {
     return (
       <ErrorBoundary>
-        <FirstRunWizard
-          requireLogin={requireLogin}
-          onComplete={completeFirstRun}
-          onLogin={login}
-        />
+        <Suspense fallback={
+          <div className="app-loading">
+            <div className="app-loading-text">Lädt...</div>
+          </div>
+        }>
+          <FirstRunWizard
+            requireLogin={requireLogin}
+            onComplete={completeFirstRun}
+            onLogin={login}
+          />
+        </Suspense>
       </ErrorBoundary>
     );
   }
