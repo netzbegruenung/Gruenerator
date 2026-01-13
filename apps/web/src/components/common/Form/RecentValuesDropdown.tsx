@@ -1,5 +1,6 @@
-import { JSX, useCallback, useEffect, useMemo, ChangeEvent, FocusEvent } from 'react';
+import { JSX, useCallback, useMemo } from 'react';
 import CreatableSelect from 'react-select/creatable';
+import type { MultiValue, SingleValue, ActionMeta, StylesConfig, GroupBase } from 'react-select';
 import FormFieldWrapper from './Input/FormFieldWrapper';
 import { useRecentValues } from '../../../hooks/useRecentValues';
 
@@ -123,18 +124,21 @@ const RecentValuesDropdown = ({ // Field configuration
   /**
    * Handle selection change
    */
-  const handleChange = useCallback((selectedOption: SelectOption | SelectOption[] | null) => {
+  const handleChange = useCallback((
+    selectedOption: MultiValue<SelectOption> | SingleValue<SelectOption>,
+    _actionMeta: ActionMeta<SelectOption>
+  ) => {
     // Extract the value(s) from the option(s)
     let newValue: string | string[];
 
     if (!selectedOption) {
       newValue = isMulti ? [] : '';
     } else if (isMulti) {
-      newValue = Array.isArray(selectedOption)
-        ? selectedOption.map(opt => opt.value)
-        : [];
+      const options = selectedOption as MultiValue<SelectOption>;
+      newValue = options.map(opt => opt.value);
     } else {
-      newValue = !Array.isArray(selectedOption) ? (selectedOption.value || '') : '';
+      const option = selectedOption as SingleValue<SelectOption>;
+      newValue = option ? option.value : '';
     }
 
     // Call the parent onChange with the extracted value
@@ -148,7 +152,7 @@ const RecentValuesDropdown = ({ // Field configuration
    */
   const handleBlur = useCallback(() => {
     if (onBlur) {
-      onBlur({} as React.FocusEvent);
+      onBlur({} as React.FocusEvent<HTMLDivElement>);
     }
 
     // Auto-save on blur if value is new
@@ -173,17 +177,19 @@ const RecentValuesDropdown = ({ // Field configuration
     const trimmedValue = inputValue.trim();
     if (!trimmedValue) return;
 
-    const newOption = {
+    const newOption: SelectOption = {
       value: trimmedValue,
       label: trimmedValue
     };
 
+    const createAction: ActionMeta<SelectOption> = { action: 'create-option', option: newOption };
+
     // For multi-select, add to existing values
     if (isMulti) {
       const currentValues = Array.isArray(currentOption) ? currentOption : [];
-      handleChange([...currentValues, newOption]);
+      handleChange([...currentValues, newOption], createAction);
     } else {
-      handleChange(newOption);
+      handleChange(newOption, createAction);
     }
 
     // Save the new value immediately if autoSave is enabled
@@ -192,22 +198,15 @@ const RecentValuesDropdown = ({ // Field configuration
     }
   }, [handleChange, isMulti, currentOption, autoSave, saveRecentValue, formName]);
 
-  interface SelectState {
-    isFocused?: boolean;
-    isSelected?: boolean;
-    data?: { __isRecentValue?: boolean };
-    [key: string]: unknown;
-  }
-
   /**
    * Custom styles for the select component
    */
-  const customStyles = useMemo(() => ({
-    container: (provided: Record<string, unknown>) => ({
+  const customStyles = useMemo((): StylesConfig<SelectOption, boolean, GroupBase<SelectOption>> => ({
+    container: (provided) => ({
       ...provided,
       fontSize: 'var(--form-element-font-size)'
     }),
-    control: (provided: Record<string, unknown>, state: SelectState) => ({
+    control: (provided, state) => ({
       ...provided,
       borderColor: error
         ? 'var(--error-color, #e74c3c)'
@@ -223,11 +222,11 @@ const RecentValuesDropdown = ({ // Field configuration
           : 'var(--interactive-accent-color)'
       }
     }),
-    menu: (provided: Record<string, unknown>) => ({
+    menu: (provided) => ({
       ...provided,
       zIndex: 9999
     }),
-    option: (provided: Record<string, unknown>, state: SelectState) => ({
+    option: (provided, state) => ({
       ...provided,
       backgroundColor: state.isSelected
         ? 'var(--button-color)'
@@ -238,14 +237,14 @@ const RecentValuesDropdown = ({ // Field configuration
         ? 'white'
         : 'var(--font-color)',
       fontSize: 'var(--form-element-font-size)',
-      fontStyle: state.data?.__isRecentValue ? 'normal' : 'normal',
-      '&:before': state.data?.__isRecentValue ? {
+      fontStyle: (state.data as SelectOption)?.__isRecentValue ? 'normal' : 'normal',
+      '&:before': (state.data as SelectOption)?.__isRecentValue ? {
         content: '"✓ "',
         color: 'var(--success-color, #27ae60)',
         marginRight: '4px'
       } : {}
     }),
-    placeholder: (provided: Record<string, unknown>) => ({
+    placeholder: (provided) => ({
       ...provided,
       color: 'var(--input-placeholder-color, #999)'
     })

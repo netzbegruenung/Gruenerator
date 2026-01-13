@@ -1,8 +1,14 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect, ComponentType } from 'react';
 import { Controller, Control } from 'react-hook-form';
-import EnhancedSelect from './EnhancedSelect/EnhancedSelect';
+import type { MultiValue, SingleValue, ActionMeta, StylesConfig, GroupBase } from 'react-select';
+import EnhancedSelect, { type EnhancedSelectOption } from './EnhancedSelect/EnhancedSelect';
 import Icon from './Icon';
 import { createFilterOption, findMatches, PLATFORM_ALIASES } from '../../utils/autocompleteUtils';
+
+interface SelectRefLike {
+  inputRef?: { blur: () => void } | null;
+  [key: string]: unknown;
+}
 
 interface PlatformOption {
   id?: string;
@@ -127,7 +133,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const [pendingAutoSelect, setPendingAutoSelect] = useState<string | null>(null);
   const autoSelectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const selectRefInternal = useRef<unknown>(null);
+  const selectRefInternal = useRef<SelectRefLike | null>(null);
 
   const filterOption = useMemo(() =>
     enableAutoSelect ? createFilterOption(aliasMap as typeof PLATFORM_ALIASES) : undefined,
@@ -142,7 +148,12 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     };
   }, []);
 
-  const handleAutoSelectInputChange = useCallback((newValue: string, actionMeta: { action: string }, currentValues: unknown, onChangeCallback: (value: unknown) => void) => {
+  const handleAutoSelectInputChange = useCallback((
+    newValue: string,
+    actionMeta: { action: string },
+    currentValues: string | number | (string | number)[] | null | undefined,
+    onChangeCallback: (value: string | number | (string | number)[] | null) => void
+  ) => {
     if (!enableAutoSelect || actionMeta.action !== 'input-change') return;
 
     if (autoSelectTimeoutRef.current) {
@@ -157,26 +168,28 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     const optionsForMatching = selectOptions.map(opt => ({ value: String(opt.value), label: opt.label }));
     const { bestMatch, isUniqueMatch } = findMatches(newValue, optionsForMatching, { aliases: aliasMap as Record<string, string[]> });
 
-    if (isUniqueMatch && bestMatch) {
+    if (isUniqueMatch && bestMatch && bestMatch.value !== undefined) {
+      const matchValue = bestMatch.value;
+      const currentValuesArray = Array.isArray(currentValues) ? currentValues : [];
       const alreadySelected = isMulti
-        ? (currentValues || []).includes(bestMatch.value)
-        : currentValues === bestMatch.value;
+        ? currentValuesArray.includes(matchValue)
+        : currentValues === matchValue;
 
       if (!alreadySelected) {
-        setPendingAutoSelect(bestMatch.value || null);
+        setPendingAutoSelect(matchValue);
 
         autoSelectTimeoutRef.current = setTimeout(() => {
           if (isMulti) {
-            const newValues = [...(currentValues || []), bestMatch.value];
+            const newValues = [...currentValuesArray, matchValue];
             onChangeCallback(newValues);
           } else {
-            onChangeCallback(bestMatch.value);
+            onChangeCallback(matchValue);
           }
 
           onAutoSelect?.({ value: bestMatch.value ?? '', label: bestMatch.label ?? '' });
           setPendingAutoSelect(null);
 
-          if (selectRefInternal.current?.clearValue) {
+          if (selectRefInternal.current) {
             selectRefInternal.current.inputRef?.blur();
           }
         }, autoSelectDelay);
@@ -188,16 +201,11 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     }
   }, [enableAutoSelect, selectOptions, aliasMap, autoSelectDelay, isMulti, onAutoSelect]);
 
-  interface AutoSelectStylesOption {
-    data: { value: string | number };
-    [key: string]: unknown;
-  }
-
-  const autoSelectStyles = useMemo(() => {
-    if (!enableAutoSelect || !pendingAutoSelect) return {};
+  const autoSelectStyles = useMemo((): StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>> | undefined => {
+    if (!enableAutoSelect || !pendingAutoSelect) return undefined;
 
     return {
-      option: (provided: Record<string, unknown>, state: AutoSelectStylesOption) => ({
+      option: (provided, state) => ({
         ...provided,
         ...(state.data.value === pendingAutoSelect ? {
           backgroundColor: 'var(--klee-light, rgba(0, 128, 0, 0.15))',
@@ -219,19 +227,27 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   };
 
   if (isUncontrolled) {
-    const selectRef = useRef<unknown>(null);
+    const selectRef = useRef<SelectRefLike | null>(null);
     const selectedValue = isMulti
       ? (value ? (value as (string | number)[]).map((val) =>
         selectOptions.find(option => option.value === val)
-      ).filter(Boolean) : [])
+      ).filter((opt): opt is TransformedOption => opt !== undefined) : [])
       : (value ? selectOptions.find(option => option.value === value) : null);
+
+    const defaultValueOption = defaultValue !== undefined && defaultValue !== null
+      ? (isMulti
+          ? (defaultValue as (string | number)[]).map((val) =>
+              selectOptions.find(option => option.value === val)
+            ).filter((opt): opt is TransformedOption => opt !== undefined)
+          : selectOptions.find(option => option.value === defaultValue))
+      : undefined;
 
     return (
       <div className={`platform-selector ${className}`.trim()}>
         <EnhancedSelect
-          ref={(ref: unknown) => {
-            selectRef.current = ref;
-            selectRefInternal.current = ref;
+          ref={(ref) => {
+            selectRef.current = ref as SelectRefLike | null;
+            selectRefInternal.current = ref as SelectRefLike | null;
           }}
           inputId={`${name}-select`}
           label={label}
@@ -246,15 +262,19 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
           placeholder={placeholder}
           isDisabled={disabled}
           value={selectedValue}
-          defaultValue={defaultValue}
-          onChange={(selectedOptions: TransformedOption | TransformedOption[] | null) => {
+          defaultValue={defaultValueOption}
+          onChange={(
+            selectedOptions: MultiValue<EnhancedSelectOption> | SingleValue<EnhancedSelectOption>,
+            _actionMeta: ActionMeta<EnhancedSelectOption>
+          ) => {
             if (onChange) {
               if (isMulti) {
-                const values = selectedOptions ? (Array.isArray(selectedOptions) ? selectedOptions.map((option) => option.value) : []) : [];
+                const options = selectedOptions as MultiValue<EnhancedSelectOption>;
+                const values = options.map((option) => option.value);
                 onChange(values);
               } else {
-                const changedValue = selectedOptions && !Array.isArray(selectedOptions) ? selectedOptions.value : null;
-                onChange(changedValue);
+                const option = selectedOptions as SingleValue<EnhancedSelectOption>;
+                onChange(option ? option.value : null);
               }
             }
           }}
@@ -314,8 +334,8 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
         <div className={`platform-selector ${className}`.trim()}>
           <EnhancedSelect
             {...field}
-            ref={(ref: unknown) => {
-              selectRefInternal.current = ref;
+            ref={(ref) => {
+              selectRefInternal.current = ref as SelectRefLike | null;
             }}
             inputId={`${name}-select`}
             label={label}
@@ -333,20 +353,25 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
             value={isMulti
               ? (field.value ? (field.value as (string | number)[]).map((val) =>
                 selectOptions.find(option => option.value === val)
-              ).filter(Boolean) : [])
+              ).filter((opt): opt is TransformedOption => opt !== undefined) : [])
               : (field.value ? selectOptions.find(option => option.value === field.value) : null)
             }
-            onChange={(selectedOptions: TransformedOption | TransformedOption[] | null) => {
+            onChange={(
+              selectedOptions: MultiValue<EnhancedSelectOption> | SingleValue<EnhancedSelectOption>,
+              _actionMeta: ActionMeta<EnhancedSelectOption>
+            ) => {
               if (isMulti) {
-                const values = selectedOptions ? (Array.isArray(selectedOptions) ? selectedOptions.map((option) => option.value) : []) : [];
+                const options = selectedOptions as MultiValue<EnhancedSelectOption>;
+                const values = options.map((option) => option.value);
                 field.onChange(values);
               } else {
-                const changedValue = selectedOptions && !Array.isArray(selectedOptions) ? selectedOptions.value : null;
-                field.onChange(changedValue);
+                const option = selectedOptions as SingleValue<EnhancedSelectOption>;
+                field.onChange(option ? option.value : null);
               }
             }}
             onInputChange={(newValue: string, actionMeta: { action: string }) => {
-              handleAutoSelectInputChange(newValue, actionMeta, field.value, field.onChange);
+              const fieldValue = field.value as string | number | (string | number)[] | null | undefined;
+              handleAutoSelectInputChange(newValue, actionMeta, fieldValue, field.onChange);
             }}
             onBlur={field.onBlur}
             onMenuOpen={() => setMenuIsOpen(true)}

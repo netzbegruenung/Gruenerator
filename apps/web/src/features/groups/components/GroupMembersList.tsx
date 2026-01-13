@@ -4,11 +4,22 @@ import { useGroupMembers } from '../hooks/useGroups';
 import { getMemberDisplayName, sortMembersByName } from '../utils/anonymousNames';
 import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from '../utils/avatarUtils';
 
-/**
- * Component for displaying group members list
- * Shows real names for users with first_name, anonymous animal names otherwise
- */
-const GroupMembersList = ({ groupId, isActive = false, className = '' }) => {
+interface GroupMember {
+  user_id: string;
+  role: string;
+  avatar_robot_id?: number;
+  joined_at: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+interface GroupMembersListProps {
+  groupId: string;
+  isActive?: boolean;
+  className?: string;
+}
+
+const GroupMembersList = ({ groupId, isActive = false, className = '' }: GroupMembersListProps) => {
   const {
     members,
     isLoadingMembers,
@@ -124,7 +135,7 @@ const GroupMembersList = ({ groupId, isActive = false, className = '' }) => {
         })}
       </div>
 
-      {members.some(m => getMemberDisplayName(m).startsWith('Anonymer')) && (
+      {members.some((m: GroupMember) => getMemberDisplayName(m).startsWith('Anonymer')) && (
         <div className="members-privacy-note">
           <p>
             <small>

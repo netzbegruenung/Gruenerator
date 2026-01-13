@@ -66,7 +66,7 @@ const JoinGroupPage = () => {
     if (!joinToken || !supabaseUser) return;
 
     joinGroup(joinToken, {
-      onSuccess: (result) => {
+      onSuccess: (result: { alreadyMember?: boolean }) => {
         if (result.alreadyMember) {
           setStatus('already_member');
         } else {

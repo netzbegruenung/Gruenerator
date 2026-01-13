@@ -1,6 +1,13 @@
-// Neue Komponente: AdvancedEditingSection.js
-import React from 'react';
 import { BalkenOffsetControl, BalkenGruppeControl, SonnenblumenControl } from '../../../../components/utils/ImageModificationForm';
+
+interface AdvancedEditingSectionProps {
+  balkenOffset: number[];
+  balkenGruppenOffset: { x: number; y: number };
+  sunflowerOffset: { x: number; y: number };
+  onBalkenOffsetChange: (value: number[]) => void;
+  onBalkenGruppenOffsetChange: (offset: { x: number; y: number }) => void;
+  onSonnenblumenOffsetChange: (offset: { x: number; y: number }) => void;
+}
 
 const AdvancedEditingSection = ({
   balkenOffset,
@@ -9,7 +16,7 @@ const AdvancedEditingSection = ({
   onBalkenOffsetChange,
   onBalkenGruppenOffsetChange,
   onSonnenblumenOffsetChange,
-}) => {
+}: AdvancedEditingSectionProps) => {
   return (
     <div className="advanced-editing-section">
       <h3>Erweiterter Editor (für Expert*innen)</h3>

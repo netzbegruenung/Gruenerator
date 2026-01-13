@@ -28,7 +28,7 @@ const CanvaButton = ({ onClick,
     className = '',
     ariaLabel,
     ...props }: CanvaButtonProps): JSX.Element => {
-    const handleClick = (e) => {
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
         if (!disabled && !loading && onClick) {
             onClick(e);
         }

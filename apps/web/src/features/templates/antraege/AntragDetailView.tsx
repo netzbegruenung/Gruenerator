@@ -1,25 +1,38 @@
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 const ReactMarkdown = lazy(() => import('react-markdown'));
-// Removed unused react-icons imports
-// Import the component's CSS file
 import '../../../assets/styles/components/AntragDetailView.css';
 
-const AntragDetailView = ({ antrag, onClose }) => {
+interface Antrag {
+  title?: string;
+  status?: string;
+  tags?: string[];
+  created_at?: string;
+  updated_at?: string;
+  antragsteller?: string;
+  kontakt_email?: string;
+  description?: string;
+  antragstext?: string;
+}
+
+interface AntragDetailViewProps {
+  antrag: Antrag | null;
+  onClose: () => void;
+}
+
+const AntragDetailView = ({ antrag, onClose }: AntragDetailViewProps) => {
   if (!antrag) {
-    return null; // Do not render if no antrag is selected
+    return null;
   }
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '–'; // Use en-dash for missing values
-    // Format with time
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return '–';
     return new Date(dateString).toLocaleString('de-DE', {
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit'
     });
   };
 
-  // Helper to get status CSS class (simplified example) - still needed for badge
-  const getStatusClass = (status) => {
+  const getStatusClass = (status: string | undefined) => {
     const statusLower = status?.toLowerCase() || 'unbekannt';
     switch (statusLower) {
       case 'angenommen': return 'status-angenommen';
@@ -49,7 +62,7 @@ const AntragDetailView = ({ antrag, onClose }) => {
             {/* Render Tags directly here if they exist */}
             {antrag.tags && antrag.tags.length > 0 && (
               <div className="header-tags-container">
-                {antrag.tags.map(tag => (
+                {antrag.tags.map((tag: string) => (
                   <span key={tag} className="tag-chip">{tag}</span>
                 ))}
               </div>

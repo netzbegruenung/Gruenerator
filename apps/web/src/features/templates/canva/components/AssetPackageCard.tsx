@@ -1,10 +1,21 @@
 import { HiCheck, HiDownload } from 'react-icons/hi';
 
-/**
- * Asset Package Card Component
- * Displays a Canva asset package with import functionality
- */
-const AssetPackageCard = ({ package: pkg, isImported, isImporting, onImport }) => {
+interface AssetPackage {
+  id: string;
+  name: string;
+  description?: string;
+  thumbnail?: string;
+  assets?: unknown[];
+}
+
+interface AssetPackageCardProps {
+  package: AssetPackage | null;
+  isImported: boolean;
+  isImporting: boolean;
+  onImport: () => void;
+}
+
+const AssetPackageCard = ({ package: pkg, isImported, isImporting, onImport }: AssetPackageCardProps) => {
     if (!pkg) return null;
 
     return (

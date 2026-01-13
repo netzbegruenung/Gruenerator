@@ -22,6 +22,16 @@ import type {
     LayoutResult,
     PositionValue,
 } from '../configs/types';
+import {
+    assertAsString,
+    assertAsNumber,
+    assertAsBoolean,
+    assertAsPosition,
+    assertAsOpacity,
+    assertAsScale,
+    getStateValue,
+    getOptionalStateValue,
+} from '../utils/stateTypeAssertions';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -92,19 +102,18 @@ const MemoizedTextElement = memo(function MemoizedTextElement<TState extends Rec
     stageHeight,
     snapTargets,
 }: MemoizedTextProps<TState>) {
-    const text = state[config.textKey] ?? '';
-    const customFontSize = config.fontSizeStateKey ? state[config.fontSizeStateKey] : null;
-    const customWidth = config.widthStateKey ? state[config.widthStateKey] : null;
-    const customPosition = config.positionStateKey ? state[config.positionStateKey] : null;
+    const text = assertAsString(state[config.textKey]);
+    const customFontSize = getOptionalStateValue<number>(state, config.fontSizeStateKey);
+    const customWidth = getOptionalStateValue<number>(state, config.widthStateKey);
+    const customPosition = config.positionStateKey ? assertAsPosition(state[config.positionStateKey]) : null;
 
     const layoutItem = layout[config.id];
     const x = customPosition?.x ?? resolveValue(config.x, state, layout);
     const y = customPosition?.y ?? resolveValue(config.y, state, layout);
     const width = customWidth ?? resolveValue(config.width, state, layout);
     const fontSize = customFontSize ?? resolveValue(config.fontSize, state, layout);
-    const customOpacity = config.opacityStateKey ? state[config.opacityStateKey] : null;
-    // opacity is optional, default to 1 if not specified
-    const opacity = customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1) ?? 1;
+    const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
+    const opacity = assertAsOpacity(customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1));
     const fill = resolveColor(config.fill, state, layout);
 
     // Extract padding from config (support both absolute pixels and fontSize factor)
@@ -166,9 +175,9 @@ const MemoizedTextElement = memo(function MemoizedTextElement<TState extends Rec
 
     const posKey = prev.config.positionStateKey;
     if (posKey) {
-        const prevPos = prev.state[posKey];
-        const nextPos = next.state[posKey];
-        if (prevPos?.x !== nextPos?.x || prevPos?.y !== nextPos?.y) return false;
+        const prevPos = assertAsPosition(prev.state[posKey]);
+        const nextPos = assertAsPosition(next.state[posKey]);
+        if (prevPos.x !== nextPos.x || prevPos.y !== nextPos.y) return false;
     }
 
     const opacityKey = prev.config.opacityStateKey;
@@ -228,24 +237,23 @@ const MemoizedImageElement = memo(function MemoizedImageElement<TState extends R
     // Resolve image source
     let imageSrc: string | undefined;
     if (config.srcKey) {
-        imageSrc = state[config.srcKey];
+        imageSrc = getOptionalStateValue<string>(state, config.srcKey);
     } else if (config.src) {
         imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
     }
 
     const [image] = useImage(imageSrc || '', 'anonymous');
 
-    const offset = config.offsetKey ? state[config.offsetKey] : { x: 0, y: 0 };
-    const scale = config.scaleKey ? (state[config.scaleKey] as number | undefined) ?? 1 : 1;
-    const isLocked = config.lockedKey ? (state[config.lockedKey] as boolean | undefined) ?? false : false;
-    const customOpacity = config.opacityStateKey ? state[config.opacityStateKey] : null;
-    // opacity is optional, default to 1 if not specified
-    const opacity = customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1) ?? 1;
-    const customFill = config.fillStateKey ? state[config.fillStateKey] : null;
+    const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
+    const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
+    const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
+    const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
+    const opacity = assertAsOpacity(customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1));
+    const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
     const fill = customFill ?? resolveColor(config.fill, state, layout);
 
-    const x = resolveValue(config.x, state, layout) + (offset?.x ?? 0);
-    const y = resolveValue(config.y, state, layout) + (offset?.y ?? 0);
+    const x = resolveValue(config.x, state, layout) + offset.x;
+    const y = resolveValue(config.y, state, layout) + offset.y;
     const width = resolveValue(config.width, state, layout) * scale;
     const height = resolveValue(config.height, state, layout) * scale;
 
@@ -276,6 +284,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<TState extends R
             snapTargets={snapTargets}
             onSnapLinesChange={onSnapLinesChange}
             listening={config.listening}
+            constrainToBounds={true}
             transformConfig={config.transformable ? {
                 enabledAnchors: isLocked ? [] : ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
                 rotateEnabled: false,
@@ -292,9 +301,9 @@ const MemoizedImageElement = memo(function MemoizedImageElement<TState extends R
 
     const offsetKey = prev.config.offsetKey;
     if (offsetKey) {
-        const prevOffset = prev.state[offsetKey];
-        const nextOffset = next.state[offsetKey];
-        if (prevOffset?.x !== nextOffset?.x || prevOffset?.y !== nextOffset?.y) return false;
+        const prevOffset = assertAsPosition(prev.state[offsetKey]);
+        const nextOffset = assertAsPosition(next.state[offsetKey]);
+        if (prevOffset.x !== nextOffset.x || prevOffset.y !== nextOffset.y) return false;
     }
 
     const scaleKey = prev.config.scaleKey;
@@ -389,7 +398,7 @@ const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<TState
     config,
     state,
 }: MemoizedBackgroundProps<TState>) {
-    const color = config.colorKey ? (state[config.colorKey] as string | undefined) ?? config.color ?? '#ffffff' : config.color ?? '#ffffff';
+    const color = config.colorKey ? getOptionalStateValue<string>(state, config.colorKey) ?? config.color ?? '#ffffff' : config.color ?? '#ffffff';
 
     return (
         <CanvasBackground
