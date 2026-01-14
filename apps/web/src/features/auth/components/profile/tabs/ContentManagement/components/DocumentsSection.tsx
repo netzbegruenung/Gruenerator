@@ -46,6 +46,17 @@ interface BulkDeleteResult {
     hasErrors?: boolean;
 }
 
+interface SearchResultWithIndex {
+    id: string;
+    title?: string;
+    content?: string;
+    search_type?: string;
+    score?: number;
+    document_id?: string;
+    metadata?: Record<string, unknown>;
+    [key: string]: unknown;
+}
+
 interface CombinedItem {
     id: string;
     title?: string;
@@ -160,9 +171,9 @@ const DocumentsSection = ({
     // Combined loading state - using single fetch now
     const combinedLoading = documentsLoading;
 
-    // Stable remote search handler to avoid re-triggering effect
-    const handleDocumentsRemoteSearch = useCallback((q: string, mode: 'intelligent' | 'fulltext') => {
-        return searchDocumentsApi(q, { limit: 10, mode });
+    const handleDocumentsRemoteSearch = useCallback((q: string, mode: string) => {
+        const searchMode = mode as 'intelligent' | 'fulltext';
+        searchDocumentsApi(q, { limit: 10, mode: searchMode });
     }, [searchDocumentsApi]);
 
     // Combined fetch handler using the new unified endpoint - defined early to be used in other handlers
@@ -229,12 +240,11 @@ const DocumentsSection = ({
         }
     };
 
-    // Combined handlers for both documents and texts
-    const handleCombinedEdit = (item: CombinedItem) => {
+    const handleCombinedEdit = (item: { id: string; itemType?: string; [key: string]: unknown }) => {
         if (item.itemType === 'text') {
-            handleTextEdit(item);
+            handleTextEdit(item as CombinedItem);
         } else {
-            handleDocumentEdit(item);
+            handleDocumentEdit(item as CombinedItem);
         }
     };
 
@@ -274,7 +284,7 @@ const DocumentsSection = ({
         }
     };
 
-    const handleBulkDeleteDocuments = async (documentIds: string[]): Promise<BulkDeleteResult> => {
+    const handleBulkDeleteDocuments = async (documentIds: string[]): Promise<void> => {
         try {
             const result = await documentAndTextUtils.bulkDeleteDocuments(documentIds) as BulkDeleteResult;
             fetchDocuments();
@@ -285,7 +295,6 @@ const DocumentsSection = ({
                     onSuccessMessage(result.message);
                 }
             }
-            return result;
         } catch (error) {
             console.error('[DocumentsSection] Error in bulk delete documents:', error);
             onErrorMessage((error instanceof Error ? error.message : String(error)));
@@ -302,9 +311,9 @@ const DocumentsSection = ({
         onSuccessMessage('Dokument wurde erfolgreich gelöscht.');
     }, [onSuccessMessage]);
 
-    const handleModalUploadComplete = React.useCallback((document: { title?: string } | null) => {
-        if (document) {
-            handleUploadComplete(document);
+    const handleModalUploadComplete = React.useCallback((result: unknown) => {
+        if (result && typeof result === 'object' && 'title' in result) {
+            handleUploadComplete(result as { title?: string });
         }
         setShowUploadForm(false);
     }, [handleUploadComplete]);
@@ -491,7 +500,7 @@ const DocumentsSection = ({
                             remoteSearchEnabled={true}
                             onRemoteSearch={handleDocumentsRemoteSearch}
                             isRemoteSearching={isDocumentsSearching}
-                            remoteResults={documentSearchResults}
+                            remoteResults={documentSearchResults as SearchResultWithIndex[]}
                             onClearRemoteSearch={clearSearchResults}
                             headerActions={
                                 <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>

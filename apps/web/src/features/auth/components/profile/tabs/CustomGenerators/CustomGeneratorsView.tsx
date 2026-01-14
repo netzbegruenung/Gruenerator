@@ -28,9 +28,8 @@ import {
     QUERY_KEYS
 } from '../../../../hooks/useProfileData';
 import { useProfileStore } from '../../../../../../stores/profileStore';
-import { useQueryClient, UseQueryResult } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../../../../../components/utils/apiClient';
-import { NotebookCollection } from '../../../../../../types/notebook';
 
 // Styles for generator/notebook list buttons
 import '../../../../../generators/styles/custom-generators-tab.css';
@@ -70,6 +69,22 @@ interface AvailableDocument {
     name?: string;
     filename?: string;
     [key: string]: unknown;
+}
+
+interface NotebookCollectionLocal {
+    id: string;
+    name?: string;
+    description?: string;
+    document_count?: number;
+    created_at?: string;
+    [key: string]: unknown;
+}
+
+interface QAQueryResult {
+    isLoading?: boolean;
+    data?: NotebookCollectionLocal[];
+    error?: Error | null;
+    refetch?: () => void;
 }
 
 const CustomGeneratorsView = ({
@@ -348,17 +363,18 @@ const CustomGeneratorsView = ({
                         onSuccessMessage={onSuccessMessage}
                         onErrorMessage={onErrorMessage}
                         onNotebookSelect={handleNotebookSelect}
-                        notebookCollections={notebookCollections as NotebookCollection[]}
+                        notebookCollections={notebookCollections as NotebookCollectionLocal[]}
                         qaQuery={{
                             isLoading: qaQuery.query?.isLoading,
-                            data: qaQuery.query?.data as NotebookCollection[] | undefined,
+                            data: qaQuery.query?.data as NotebookCollectionLocal[] | undefined,
                             error: qaQuery.query?.error,
                             refetch: qaQuery.query?.refetch
-                        }}
+                        } as QAQueryResult}
                     />
                 );
 
             case 'generator-detail':
+                if (!selectedGeneratorId) return <div>Kein Grünerator ausgewählt</div>;
                 return (
                     <GeneratorDetail
                         isActive={isActive}
@@ -375,6 +391,7 @@ const CustomGeneratorsView = ({
                 );
 
             case 'saved-generator-detail':
+                if (!selectedSavedGeneratorId) return <div>Kein Grünerator ausgewählt</div>;
                 return (
                     <GeneratorDetail
                         isActive={isActive}
@@ -399,9 +416,9 @@ const CustomGeneratorsView = ({
                         qaId={selectedQAId!}
                         onBack={handleBackToNotebooks}
                         onViewQA={handleViewQA}
-                        notebookCollections={notebookCollections as NotebookCollection[]}
+                        notebookCollections={notebookCollections as unknown as import('../../../../../../types/notebook').NotebookCollection[]}
                         qaQuery={{
-                            query: qaQuery.query as UseQueryResult<NotebookCollection[], Error>
+                            query: qaQuery.query as import('@tanstack/react-query').UseQueryResult<import('../../../../../../types/notebook').NotebookCollection[], Error>
                         }}
                         availableDocuments={(Array.isArray(availableDocuments.data) ? availableDocuments.data : []) as AvailableDocument[]}
                     />

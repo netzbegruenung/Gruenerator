@@ -1,14 +1,19 @@
 import React, { forwardRef, useImperativeHandle, useState, useCallback } from 'react';
+import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
 import Icon from '../../../../components/common/Icon';
 import SharepicConfigPopup from '../SharepicConfigPopup';
 
-/**
- * Form data structure for Sharepic configuration
- */
+interface SharepicFormValues {
+  sharepicType?: string;
+  zitatAuthor?: string;
+  uploadedImage?: string | null;
+  [key: string]: unknown;
+}
+
 export interface SharepicFormData {
   sharepicType: string;
   zitatAuthor: string;
-  uploadedImage: File | null;
+  uploadedImage: string | null;
 }
 
 /**
@@ -43,13 +48,9 @@ interface SharepicFormProps {
    */
   success?: boolean;
 
-  /**
-   * React-hook-form control and methods from parent
-   * Required for SharepicConfigPopup compatibility
-   */
-  control?: unknown;
-  setValue?: (name: string, value: unknown) => void;
-  getValues?: (name?: string) => unknown;
+  control?: Control<SharepicFormValues>;
+  setValue?: UseFormSetValue<SharepicFormValues>;
+  getValues?: UseFormGetValues<SharepicFormValues>;
 }
 
 /**
@@ -99,18 +100,17 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
     const [zitatAuthor, setZitatAuthor] = useState<string>(
       defaultValues.zitatAuthor || ''
     );
-    const [uploadedImage, setUploadedImage] = useState<File | null>(
+    const [uploadedImage, setUploadedImage] = useState<string | null>(
       defaultValues.uploadedImage || null
     );
 
     // Modal state
     const [showSharepicConfig, setShowSharepicConfig] = useState(false);
 
-    // Handle image change from config popup
-    const handleImageChange = useCallback((file: File | null) => {
-      setUploadedImage(file);
+    const handleImageChange = useCallback((image: string | null) => {
+      setUploadedImage(image);
       if (setValue) {
-        setValue('uploadedImage', file);
+        setValue('uploadedImage', image);
       }
     }, [setValue]);
 
@@ -162,9 +162,9 @@ const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
         <SharepicConfigPopup
           isOpen={showSharepicConfig}
           onClose={() => setShowSharepicConfig(false)}
-          control={control}
-          setValue={setValue}
-          getValues={getValues}
+          control={control as Control<SharepicFormValues>}
+          setValue={setValue as UseFormSetValue<SharepicFormValues>}
+          getValues={getValues as UseFormGetValues<SharepicFormValues>}
           sharepicTypeOptions={sharepicTypeOptions}
           watchSharepicType={sharepicType}
           uploadedImage={uploadedImage}

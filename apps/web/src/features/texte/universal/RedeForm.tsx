@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { useForm } from 'react-hook-form';
+import { Control, useForm } from 'react-hook-form';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
 interface RedeFormProps {
@@ -39,7 +39,7 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
     <>
       <FormInput
         name="rolle"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Rolle/Position"
         placeholder="Sprecher*in der Grünen OV Musterdorf, Antragssteller*in etc."
         rules={{ required: 'Rolle/Position ist ein Pflichtfeld' }}
@@ -48,7 +48,7 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
 
       <FormInput
         name="thema"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Spezifisches Thema oder Anlass der Rede"
         placeholder="Umwelt- und Klimaschutz in der Stadt"
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
@@ -57,7 +57,7 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
 
       <FormInput
         name="zielgruppe"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Zielgruppe"
         placeholder="Bürger*innen von Musterdorf"
         rules={{ required: 'Zielgruppe ist ein Pflichtfeld' }}
@@ -66,7 +66,7 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
 
       <FormTextarea
         name="schwerpunkte"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Besondere Schwerpunkte oder lokale Aspekte"
         placeholder="Durchführung von Projekten zur Förderung erneuerbarer Energien, Unterstützung lokaler Initiativen..."
         rules={{ required: 'Schwerpunkte sind ein Pflichtfeld' }}
@@ -76,7 +76,7 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
 
       <FormInput
         name="redezeit"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         type="number"
         label="Gewünschte Redezeit (in Minuten)"
         placeholder="1-5"

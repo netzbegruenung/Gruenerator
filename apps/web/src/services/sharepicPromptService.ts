@@ -47,6 +47,16 @@ export interface SharepicFromPromptResult {
   message?: string;
 }
 
+interface AxiosErrorResponse {
+  data?: {
+    error?: string;
+  };
+}
+
+interface AxiosError extends Error {
+  response?: AxiosErrorResponse;
+}
+
 /**
  * Generate sharepic content from a natural language prompt.
  * Uses the dedicated prompt route for direct classification and generation.
@@ -93,9 +103,8 @@ export async function generateSharepicFromPrompt(prompt: string): Promise<Sharep
 
     let errorMessage = 'Ein Fehler ist aufgetreten';
     if (error instanceof Error) {
-      errorMessage = (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
-        ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
-        : error.message;
+      const axiosError = error as AxiosError;
+      errorMessage = axiosError.response?.data?.error || error.message;
     }
 
     return {

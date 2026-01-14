@@ -6,12 +6,21 @@ import {
     TimelineBlock
 } from './blocks';
 
+import type { ReactNode } from 'react';
+
+interface TimelineItem {
+    date?: string;
+    title?: string;
+    content?: string | ReactNode;
+}
+
 interface ContentBlock {
     type: 'paragraph' | 'heading2' | 'heading3' | 'heading4' | 'quote' | 'infoBox' | 'factBox' | 'callout' | 'timeline' | 'html';
     text?: string;
     author?: string;
     title?: string;
     items?: string[];
+    timelineItems?: TimelineItem[];
     variant?: string;
     content?: string;
     facts?: Array<{ number: string; label: string }>;
@@ -73,7 +82,7 @@ const PageContent = ({ content, children }: PageContentProps) => {
                             return (
                                 <QuoteBlock
                                     key={index}
-                                    text={block.text}
+                                    text={block.text ?? ''}
                                     author={block.author}
                                     title={block.title}
                                 />
@@ -115,7 +124,7 @@ const PageContent = ({ content, children }: PageContentProps) => {
                             return (
                                 <TimelineBlock
                                     key={index}
-                                    items={block.items}
+                                    items={block.timelineItems}
                                 />
                             );
 
@@ -123,7 +132,7 @@ const PageContent = ({ content, children }: PageContentProps) => {
                             return (
                                 <div
                                     key={index}
-                                    dangerouslySetInnerHTML={{ __html: block.content }}
+                                    dangerouslySetInnerHTML={{ __html: block.content ?? '' }}
                                 />
                             );
 

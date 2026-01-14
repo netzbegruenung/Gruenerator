@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 import CreatableSelect from 'react-select/creatable';
 import FormFieldWrapper from '../../../components/common/Form/Input/FormFieldWrapper';
@@ -69,9 +69,8 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
     { value: 'loesungsorientiert', label: 'Lösungsorientiert' }
   ];
 
-  const handleAntwortartChange = (newValues: SelectOption[] | null) => {
-    // newValues is an array of selected options
-    const selectedValues = newValues || [];
+  const handleAntwortartChange = (newValues: readonly SelectOption[] | null) => {
+    const selectedValues = newValues ? [...newValues] : [];
     setSelectedAntwortart(selectedValues);
     const antwortartValue = selectedValues.map(option => option.value || option.label).join(', ');
     setValue('antwortart', antwortartValue);
@@ -82,7 +81,7 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
     <>
       <FormInput
         name="gremium"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Gremium/Zuständigkeit"
         placeholder="z.B. Stadtrat, Kreistag, Ortsvorstand, Arbeitskreis Umwelt..."
         rules={{ required: 'Gremium ist ein Pflichtfeld' }}
@@ -91,7 +90,7 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
 
       <FormTextarea
         name="anliegen"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Bürger*innenanfrage"
         placeholder="Beschreiben Sie die vollständige Anfrage der Bürger*innen. Je detaillierter, desto besser kann die Antwort ausfallen..."
         rules={{ required: 'Die Bürger*innenanfrage ist ein Pflichtfeld' }}
@@ -143,7 +142,7 @@ const BuergeranfragenForm = forwardRef<BuergeranfragenFormRef, BuergeranfragenFo
 
       <FormTextarea
         name="kontext"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Zusätzlicher Kontext (optional)"
         placeholder="Weitere Informationen, politische Einordnung, lokale Besonderheiten, rechtliche Rahmenbedingungen..."
         minRows={3}

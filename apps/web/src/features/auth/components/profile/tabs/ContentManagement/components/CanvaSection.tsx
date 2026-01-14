@@ -88,6 +88,31 @@ interface CanvaLogoConfig {
     allowColorChange?: boolean;
 }
 
+interface CanvaUser {
+    [key: string]: unknown;
+}
+
+interface CanvaConnectionResult {
+    connected: boolean;
+    canva_user: CanvaUser | null;
+}
+
+interface ActionItem {
+    separator?: boolean;
+    show?: boolean;
+    label?: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    onClick?: () => void;
+    danger?: boolean;
+    loading?: boolean;
+    submenu?: boolean;
+    submenuItems?: Array<{
+        label: string;
+        description?: string;
+        onClick?: (onClose?: () => void) => void;
+    }>;
+}
+
 interface TemplateMetadataBadge {
     type: string;
     text: string;
@@ -180,8 +205,7 @@ const CanvaSection = ({
     // CANVA FUNCTIONALITY
     // =====================================================================
 
-    // Create stable refs for functions to prevent useEffect loops
-    const checkCanvaConnectionStatusRef = useRef<(() => Promise<void>) | undefined>(undefined);
+    const checkCanvaConnectionStatusRef = useRef<(() => Promise<CanvaConnectionResult | undefined>) | undefined>(undefined);
     const fetchCanvaDesignsRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
     // Canva store-based handlers (using refs for stability in effects)
@@ -260,7 +284,9 @@ const CanvaSection = ({
 
     const handleTemplateTitleUpdate = async (templateId: string, newTitle: string): Promise<void> => {
         try {
-            await updateTemplateTitle(templateId, newTitle);
+            if (updateTemplateTitle) {
+                await updateTemplateTitle(templateId, newTitle);
+            }
         } catch (error) {
             console.error('[CanvaSection] Error updating Canva template title:', error);
             onErrorMessage('Fehler beim Aktualisieren des Canva Vorlagentitels: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
@@ -293,32 +319,28 @@ const CanvaSection = ({
         }
     }, [onErrorMessage]);
 
-    // Action items for templates
-    const getCanvaTemplateActionItems = useCallback((template: CanvaTemplate) => {
-        const actions: Array<{ icon: string; label: string; onClick: () => void }> = [];
+    const getCanvaTemplateActionItems = useCallback((template: CanvaTemplate): ActionItem[] => {
+        const actions: ActionItem[] = [];
 
-        // Basic actions for all templates
         if (template.canva_url || template.external_url) {
             actions.push({
-                icon: 'HiExternalLink',
+                icon: HiExternalLink,
                 label: 'In Canva bearbeiten',
                 onClick: () => handleEditTemplate(template)
             });
         }
 
-        // Save Canva design as local template
         if (template.source === 'canva' && !template.saved_as_template) {
             actions.push({
-                icon: 'HiDownload',
+                icon: HiDownload,
                 label: 'Als Vorlage speichern',
                 onClick: () => handleSaveCanvaTemplate(template)
             });
         }
 
-        // Create alt text action
         if (template.preview_image_url || template.thumbnail_url) {
             actions.push({
-                icon: 'HiChatAlt2',
+                icon: HiChatAlt2,
                 label: 'Alt-Text erstellen',
                 onClick: () => handleCreateAltText(template)
             });
@@ -367,8 +389,12 @@ const CanvaSection = ({
         );
     };
 
-    const createShareAction = useCallback((contentType: string) =>
-        documentAndTextUtils.createShareAction(contentType, onShareToGroup), [onShareToGroup]);
+    const createShareAction = useCallback((contentType: string) => {
+        if (!onShareToGroup) {
+            return () => {};
+        }
+        return documentAndTextUtils.createShareAction(contentType, onShareToGroup);
+    }, [onShareToGroup]);
 
     // CANVA CONSTANTS
     const canvaTemplateTypes = canvaUtils.CANVA_TEMPLATE_TYPES;
@@ -594,7 +620,7 @@ const CanvaSection = ({
                     onUpdateTitle={handleTemplateTitleUpdate}
                     onEdit={(item) => handleEditTemplate(item as unknown as CanvaTemplate)}
                     onShare={(item) => createShareAction('database')(item)}
-                    actionItems={(item) => getCanvaTemplateActionItems(item as unknown as CanvaTemplate) as unknown[]}
+                    actionItems={(item) => getCanvaTemplateActionItems(item as unknown as CanvaTemplate)}
                     documentTypes={{}}
                     metaRenderer={(item) => renderTemplateMetadata(item as unknown as CanvaTemplate)}
                     emptyStateConfig={{

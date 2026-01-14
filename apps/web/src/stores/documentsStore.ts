@@ -49,12 +49,13 @@ interface SearchOptions {
 }
 
 interface WolkeFile {
-  path: string;
+  href: string;
   name: string;
-  size?: number;
-  mimeType?: string;
-  lastModified?: string;
-  isDirectory?: boolean;
+  fileExtension: string;
+  isSupported: boolean;
+  sizeFormatted: string;
+  lastModified: string;
+  shareLinkId?: string;
 }
 
 interface DocumentsState {

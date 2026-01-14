@@ -2,7 +2,20 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import apiClient from '../components/utils/apiClient';
 
-// Field state interface
+interface AxiosErrorResponse {
+  data?: {
+    error?: string;
+  };
+}
+
+interface AxiosError extends Error {
+  response?: AxiosErrorResponse;
+}
+
+function isAxiosError(error: unknown): error is AxiosError {
+  return error instanceof Error && 'response' in error;
+}
+
 interface FieldState {
   values: string[];
   lastFetch: number | null;
@@ -142,11 +155,12 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
           return [];
         }
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error
-          ? (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
-            ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
-            : error.message
-          : 'Failed to fetch recent values';
+        let errorMessage = 'Failed to fetch recent values';
+        if (isAxiosError(error)) {
+          errorMessage = error.response?.data?.error || error.message;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
         console.error(`[RecentValuesStore] Error fetching recent values for ${fieldType}:`, error);
 
         set(state => {

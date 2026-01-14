@@ -1,20 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useDocumentsStore } from '../../../stores/documentsStore';
+import { useDocumentsStore, type Document } from '../../../stores/documentsStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { HiDocumentText, HiCheckCircle, HiClock, HiExclamationCircle, HiPlus, HiX } from 'react-icons/hi';
 import Spinner from '../../../components/common/Spinner';
 import { ProfileIconButton } from '../../../components/profile/actions/ProfileActionButton';
-
-interface Document {
-  id: string;
-  title: string;
-  status: string;
-  name?: string;
-  page_count?: number;
-  filename?: string;
-  created_at?: string;
-  [key: string]: unknown;
-}
 
 interface DocumentSelectorProps {
   selectedDocuments?: Document[];
@@ -126,15 +115,15 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
             {selectedDocuments.map((document) => (
               <div key={document.id} className="grünerator-document-item">
                 <HiDocumentText className="document-icon" />
-                <span className="document-title">{document.title || document.name}</span>
+                <span className="document-title">{document.title || document.filename}</span>
                 {onRemoveDocument && !disabled && (
                   <ProfileIconButton
                     action="delete"
                     variant="delete"
-                    onClick={() => onRemoveDocument(document.id, document.title || document.name)}
+                    onClick={() => onRemoveDocument(document.id, document.title)}
                     title="Dokument entfernen"
-                    ariaLabel={`Dokument ${document.title || document.name} entfernen`}
-                    size="small"
+                    ariaLabel={`Dokument ${document.title} entfernen`}
+                    size="s"
                   />
                 )}
               </div>
@@ -244,7 +233,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
                   <div className="document-details">
                     <span className="document-pages">{document.page_count} Seiten</span>
                     <span className="document-date">
-                      {new Date(document.created_at).toLocaleDateString('de-DE')}
+                      {document.created_at ? new Date(document.created_at).toLocaleDateString('de-DE') : ''}
                     </span>
                   </div>
 

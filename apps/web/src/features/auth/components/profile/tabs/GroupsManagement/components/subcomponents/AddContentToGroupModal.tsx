@@ -7,9 +7,8 @@ import { useDocumentsStore } from '../../../../../../../../stores/documentsStore
 import { ICONS } from '../../../../../../../../config/icons';
 import '../../../../../../../../assets/styles/features/groups/add-content-modal.css';
 
-// Type definitions
 interface ContentItem {
-    id: string;
+    id: string | number;
     title?: string;
     name?: string;
     description?: string;
@@ -34,7 +33,7 @@ interface ContentState {
 }
 
 interface SelectedItemsState {
-    [key: string]: string[];
+    [key: string]: (string | number)[];
 }
 
 interface SharePermissions {
@@ -52,7 +51,7 @@ interface AddContentToGroupModalProps {
     isOpen: boolean;
     onClose: () => void;
     groupId: string;
-    onShareContent: (contentType: string, itemId: string, options: ShareOptions) => Promise<void>;
+    onShareContent: (contentType: string, itemId: string | number, options: ShareOptions) => Promise<void>;
     isSharing?: boolean;
     onSuccess?: (count: number) => void;
     onError?: (error: { message: string } | unknown) => void;
@@ -135,15 +134,15 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         loadContent();
     }, [isOpen]);
 
-    const handleToggleItem = useCallback((tabId: TabId, itemId: string) => {
+    const handleToggleItem = useCallback((tabId: TabId, itemId: string | number) => {
         setSelectedItems(prev => {
             const tabSelections = prev[tabId] || [];
-            const isSelected = tabSelections.includes(itemId);
+            const isSelected = tabSelections.some(id => String(id) === String(itemId));
 
             return {
                 ...prev,
                 [tabId]: isSelected
-                    ? tabSelections.filter((id: string) => id !== itemId)
+                    ? tabSelections.filter(id => String(id) !== String(itemId))
                     : [...tabSelections, itemId]
             };
         });
@@ -153,7 +152,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         const items = content[tabId] || [];
         const allIds = items.map((item: ContentItem) => item.id);
         const currentSelections = selectedItems[tabId] || [];
-        const allSelected = allIds.length > 0 && allIds.every((id: string) => currentSelections.includes(id));
+        const allSelected = allIds.length > 0 && allIds.every(id => currentSelections.some(sel => String(sel) === String(id)));
 
         setSelectedItems(prev => ({
             ...prev,
@@ -162,7 +161,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     }, [content, selectedItems]);
 
     const totalSelectedCount = useMemo(() => {
-        return Object.values(selectedItems).reduce((sum: number, arr: string[]) => sum + arr.length, 0);
+        return Object.values(selectedItems).reduce((sum: number, arr: (string | number)[]) => sum + arr.length, 0);
     }, [selectedItems]);
 
     const handleShare = useCallback(async () => {
@@ -228,8 +227,8 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     if (!isOpen) return null;
 
     const currentItems: ContentItem[] = content[activeTab] || [];
-    const currentSelections: string[] = selectedItems[activeTab] || [];
-    const allSelected = currentItems.length > 0 && currentItems.every((item: ContentItem) => currentSelections.includes(item.id));
+    const currentSelections: (string | number)[] = selectedItems[activeTab] || [];
+    const allSelected = currentItems.length > 0 && currentItems.every((item: ContentItem) => currentSelections.some(sel => String(sel) === String(item.id)));
 
     const modalContent = (
         <div className="add-content-modal-backdrop" onClick={handleBackdropClick}>
@@ -286,7 +285,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                             </div>
                             <div className="add-content-modal-list">
                                 {currentItems.map((item: ContentItem) => {
-                                    const isSelected = currentSelections.includes(item.id);
+                                    const isSelected = currentSelections.some(sel => String(sel) === String(item.id));
                                     const title = item.title || item.name || 'Ohne Titel';
                                     const description = item.description || item.filename || '';
 

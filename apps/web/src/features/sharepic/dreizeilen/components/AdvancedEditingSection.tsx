@@ -2,11 +2,11 @@ import { BalkenOffsetControl, BalkenGruppeControl, SonnenblumenControl } from '.
 
 interface AdvancedEditingSectionProps {
   balkenOffset: number[];
-  balkenGruppenOffset: { x: number; y: number };
-  sunflowerOffset: { x: number; y: number };
+  balkenGruppenOffset: [number, number];
+  sunflowerOffset: [number, number];
   onBalkenOffsetChange: (value: number[]) => void;
-  onBalkenGruppenOffsetChange: (offset: { x: number; y: number }) => void;
-  onSonnenblumenOffsetChange: (offset: { x: number; y: number }) => void;
+  onBalkenGruppenOffsetChange: (offset: [number, number]) => void;
+  onSonnenblumenOffsetChange: (offset: [number, number]) => void;
 }
 
 const AdvancedEditingSection = ({

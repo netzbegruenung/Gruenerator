@@ -65,9 +65,9 @@ interface CanvaStore {
   getDebugInfo: () => { connection: Record<string, unknown>; designs: Record<string, unknown>; ui: Record<string, unknown>; messages: Record<string, unknown> };
 }
 
-const debounce = <T extends (...args: unknown[]) => void>(func: T, wait: number) => {
+const debounce = <Args extends unknown[]>(func: (...args: Args) => void, wait: number) => {
   let timeout: ReturnType<typeof setTimeout>;
-  return function executedFunction(...args: Parameters<T>) {
+  return function executedFunction(...args: Args) {
     const later = () => {
       clearTimeout(timeout);
       func(...args);
@@ -112,7 +112,11 @@ export const useCanvaStore = create<CanvaStore>()(
         }
         try {
           set(state => { state.loading = true; state.error = null; });
-          const result = await canvaUtils.checkCanvaConnectionStatus(true);
+          const apiResult = await canvaUtils.checkCanvaConnectionStatus(true);
+          const result = {
+            connected: apiResult.connected,
+            canva_user: apiResult.canva_user as CanvaUser | null
+          };
           set(state => {
             state.connected = result.connected;
             state.user = result.canva_user;

@@ -27,19 +27,17 @@ const ACCEPTED_FILE_TYPES = [
   'text/markdown'
 ];
 
-// Types
-interface DocumentType {
+interface DocumentPreviewDocument {
   id: string;
   title: string;
   status: string;
-  created_at?: string | number | Date;
+  created_at?: string;
   page_count?: number;
   ocr_text?: string;
-  [key: string]: unknown;
 }
 
 interface DocumentPreviewProps {
-  document: DocumentType;
+  document: DocumentPreviewDocument;
 }
 
 interface DocumentUploadProps {
@@ -58,8 +56,13 @@ export interface DocumentUploadRef {
   hideUploadForm: () => void;
 }
 
-interface DocumentUploadWolkeFile {
+interface WolkeSelectedFile {
+  href: string;
   name: string;
+  fileExtension: string;
+  isSupported: boolean;
+  sizeFormatted: string;
+  lastModified: string;
   shareLinkId: string;
   [key: string]: unknown;
 }
@@ -176,7 +179,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
 
   // Wolke import state
-  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState<DocumentUploadWolkeFile[]>([]);
+  const [selectedWolkeFiles, setSelectedWolkeFiles] = useState<WolkeSelectedFile[]>([]);
   const [wolkeImportProgress, setWolkeImportProgress] = useState(0);
 
   // Use controlled state when forceShowUploadForm is true
@@ -308,8 +311,7 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
     handleFileSelect(files);
   }, [handleFileSelect]);
 
-  // Handle Wolke file selection
-  const handleWolkeFilesSelected = (files: DocumentUploadWolkeFile[]) => {
+  const handleWolkeFilesSelected = (files: WolkeSelectedFile[]) => {
     setSelectedWolkeFiles(files);
     // Always auto-generate title based on selection
     if (files.length === 1) {

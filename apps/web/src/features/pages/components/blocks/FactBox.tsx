@@ -1,5 +1,14 @@
+interface Fact {
+    number: string;
+    label: string;
+}
 
-const FactBox = ({ facts = [], className = '' }) => {
+interface FactBoxProps {
+    facts?: Fact[];
+    className?: string;
+}
+
+const FactBox = ({ facts = [], className = '' }: FactBoxProps) => {
     if (!facts || facts.length === 0) {
         return null;
     }
