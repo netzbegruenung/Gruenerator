@@ -59,12 +59,7 @@ interface QAData {
     remove_missing_on_sync?: boolean;
 }
 
-interface AvailableDocument {
-    id: string;
-    title?: string;
-    name?: string;
-    filename?: string;
-}
+import { Document } from '../../../../../../../types/documents';
 
 interface NotebookDetailProps {
     isActive: boolean;
@@ -77,7 +72,7 @@ interface NotebookDetailProps {
     qaQuery?: {
         query?: UseQueryResult<NotebookCollection[], Error>;
     };
-    availableDocuments: AvailableDocument[];
+    availableDocuments: Document[];
 }
 
 const NotebookDetail: React.FC<NotebookDetailProps> = ({
@@ -118,8 +113,8 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
         entityType: 'notebook'
     });
 
-    // Save handler for editing via QACreator (includes document or Wolke selection)
-    const handleSaveQAEdit = async (qaData: QAData) => {
+    const handleSaveQAEdit = async (data: unknown) => {
+        const qaData = data as QAData;
         onErrorMessage('');
         onSuccessMessage('');
         try {
@@ -325,7 +320,7 @@ const NotebookDetail: React.FC<NotebookDetailProps> = ({
                     <NotebookEditor
                         onSave={handleSaveQAEdit}
                         availableDocuments={availableDocuments}
-                        editingCollection={qa}
+                        editingCollection={qa as NotebookCollection & { [key: string]: unknown }}
                         loading={isUpdatingQA}
                         onCancel={editableDetail.cancelEdit}
                         allowedModes={qa.selection_mode === 'wolke' ? ['wolke'] : ['documents', 'wolke']}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Controller, Control } from 'react-hook-form';
+import { Controller, Control, FieldValues } from 'react-hook-form';
 import FormFieldWrapper from './FormFieldWrapper';
 import { useSimpleFormStore } from '../../../../stores/core/simpleFormStore';
 
@@ -12,7 +12,7 @@ interface FormInputProps {
   disabled?: boolean;
   helpText?: string;
   className?: string;
-  control?: Control<Record<string, unknown>>;
+  control?: Control<FieldValues>;
   rules?: Record<string, unknown>;
   defaultValue?: string | number;
   inputProps?: Record<string, unknown>;

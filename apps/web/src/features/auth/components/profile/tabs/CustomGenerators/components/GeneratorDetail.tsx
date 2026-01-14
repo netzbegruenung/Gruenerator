@@ -74,11 +74,12 @@ const GeneratorDetail = ({
     // Find the current generator (robust to type differences)
     const generator = (generators || []).find(g => String(g.id) === String(generatorId));
 
-    // Use shared editable detail hook
+    const noopUpdateFn = async (_id: string, _data: unknown): Promise<unknown> => undefined;
+
     const editableDetail = useEditableDetail({
         entityId: generatorId,
         entity: generator,
-        updateFn: updateGenerator as ((id: string, data: unknown) => Promise<unknown>) | undefined,
+        updateFn: updateGenerator ?? noopUpdateFn,
         onSuccessMessage,
         onErrorMessage,
         entityType: 'generator'
@@ -98,11 +99,12 @@ const GeneratorDetail = ({
         onSuccessMessage('');
 
         try {
-            await deleteGenerator(generatorId);
-            onSuccessMessage('Grünerator erfolgreich gelöscht.');
-            onBack();
+            if (deleteGenerator) {
+                await deleteGenerator(generatorId);
+                onSuccessMessage('Grünerator erfolgreich gelöscht.');
+                onBack();
+            }
         } catch (err) {
-            // Error already handled by useCustomGenerators hook
         }
     };
 
@@ -177,7 +179,7 @@ const GeneratorDetail = ({
                                 to={`/gruenerator/${generator.slug}`}
                                 className="pabtn pabtn--ghost pabtn--s"
                                 title="Öffnen"
-                                tabIndex={tabIndex.openButton}
+                                tabIndex={tabIndex.get('openButton')}
                                 aria-label={`Custom Grünerator ${generator.title || generator.name} öffnen`}
                             >
                                 <HiArrowRight className="pabtn__icon" />

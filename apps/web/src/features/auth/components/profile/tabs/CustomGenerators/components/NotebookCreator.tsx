@@ -1,13 +1,32 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, ComponentType } from 'react';
+import { useForm, Control } from 'react-hook-form';
 import { motion } from "motion/react";
 import { HiInformationCircle, HiDocumentText } from 'react-icons/hi';
 import EnhancedSelect from '../../../../../../../components/common/EnhancedSelect';
+import type { EnhancedSelectOption } from '../../../../../../../components/common/EnhancedSelect/EnhancedSelect';
 import { useFormFields } from '../../../../../../../components/common/Form/hooks';
 import { ProfileIconButton } from '../../../../../../../components/profile/actions/ProfileActionButton';
 import { useNotebookCollections } from '../../../../../hooks/useProfileData';
 import { useBetaFeatures } from '../../../../../../../hooks/useBetaFeatures';
 import { handleError, type ErrorState, type SetErrorFn } from '../../../../../../../components/utils/errorHandling';
+
+interface FormFieldProps {
+    name: string;
+    control: Control<NotebookFormData>;
+    label?: string;
+    placeholder?: string;
+    rules?: Record<string, unknown>;
+    minRows?: number;
+    maxRows?: number;
+}
+
+interface FormFieldsReturn {
+    Input: (props: FormFieldProps) => React.ReactElement;
+    Textarea: (props: FormFieldProps) => React.ReactElement;
+    AutoInput: (props: FormFieldProps) => React.ReactElement;
+    Select: (props: FormFieldProps) => React.ReactElement;
+    Checkbox: (props: FormFieldProps) => React.ReactElement;
+}
 
 // Adapter to convert string-based error handler to SetErrorFn
 const createErrorAdapter = (onErrorMessage: (message: string) => void): SetErrorFn => {
@@ -33,12 +52,12 @@ interface AvailableDocument {
     [key: string]: unknown;
 }
 
-interface DocumentOption {
+interface DocumentOption extends EnhancedSelectOption {
     value: string;
     label: string;
     iconType: string;
     subtitle: string;
-    tag: { label: string; variant: string } | null;
+    tag?: { label: string; type?: string; variant?: string; icon?: ComponentType };
     searchableContent: string;
     document: AvailableDocument;
     [key: string]: unknown;
@@ -131,7 +150,7 @@ const NotebookCreator = ({
     const [currentStep, setCurrentStep] = useState<number>(STEPS.DOCUMENTS);
     const [selectedDocuments, setSelectedDocuments] = useState<AvailableDocument[]>([]);
 
-    const { Input, Textarea } = useFormFields();
+    const { Input, Textarea } = useFormFields() as FormFieldsReturn;
 
     const {
         control,
@@ -166,7 +185,7 @@ const NotebookCreator = ({
             tag: doc.status ? {
                 label: formatDocumentStatus(doc.status),
                 variant: 'custom'
-            } : null,
+            } : undefined,
             searchableContent: `${doc.title || doc.name || ''} ${doc.filename || ''} ${doc.ocr_text || ''}`.toLowerCase(),
             document: doc
         };
@@ -252,11 +271,11 @@ const NotebookCreator = ({
                                     label: doc.title || '',
                                     iconType: 'document',
                                     subtitle: '',
-                                    tag: null,
+                                    tag: undefined,
                                     searchableContent: doc.title || '',
                                     document: doc
                                 }) as DocumentOption;
-                            })}
+                            }) as EnhancedSelectOption[]}
                             onChange={(newValue) => handleDocumentSelectChange(newValue as readonly DocumentOption[] | null)}
                             filterOption={() => true}
                             noOptionsMessage={() => 'Keine passenden Dokumente gefunden'}

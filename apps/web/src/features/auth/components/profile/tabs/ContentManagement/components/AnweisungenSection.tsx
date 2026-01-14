@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, Control } from 'react-hook-form';
 import { useAutosave } from '../../../../../../../hooks/useAutosave';
 import { useMessageHandling } from '../../../../../../../hooks/useMessageHandling';
 import { useAnweisungenWissen } from '../../../../../hooks/useProfileData';
@@ -19,6 +19,7 @@ interface AnweisungenFormData {
     customBuergeranfragenPrompt: string;
     customGruenejugendPrompt: string;
     knowledge?: unknown[];
+    [key: string]: string | unknown[] | undefined;
 }
 
 interface AnweisungenData {
@@ -29,6 +30,7 @@ interface AnweisungenData {
     buergeranfragenPrompt?: string;
     gruenejugendPrompt?: string;
     knowledge?: unknown[];
+    [key: string]: string | unknown[] | undefined;
 }
 
 const AnweisungenSection = ({
@@ -67,7 +69,7 @@ const AnweisungenSection = ({
     const [autosaveEnabled, setAutosaveEnabled] = useState(false);
 
     const { resetTracking } = useAutosave({
-        saveFunction: useCallback(async (changedFields: Partial<AnweisungenFormData>) => {
+        saveFunction: useCallback(async (changedFields: Record<string, unknown>) => {
             const currentValues = getValues();
             const formData = {
                 customAntragPrompt: changedFields.customAntragPrompt !== undefined ? changedFields.customAntragPrompt : currentValues.customAntragPrompt || '',
@@ -87,7 +89,7 @@ const AnweisungenSection = ({
                 throw error;
             }
         }, [saveChanges, getValues, showSuccess, showError]),
-        formRef: { getValues, watch },
+        formRef: { getValues: getValues as () => Record<string, unknown>, watch },
         enabled: autosaveEnabled,
         debounceMs: 2000,
         getFieldsToTrack: () => INSTRUCTION_FIELDS.map(f => f.name),
@@ -125,8 +127,9 @@ const AnweisungenSection = ({
         setEnabledFields(prev => [...prev, fieldName]);
     }, []);
 
-    const handleRemoveField = useCallback((fieldName: keyof AnweisungenFormData) => {
-        setValue(fieldName, '');
+    const handleRemoveField = useCallback((fieldName: string) => {
+        type FormFieldName = 'customAntragPrompt' | 'customSocialPrompt' | 'customUniversalPrompt' | 'customRedePrompt' | 'customBuergeranfragenPrompt' | 'customGruenejugendPrompt';
+        setValue(fieldName as FormFieldName, '');
         setEnabledFields(prev => prev.filter(f => f !== fieldName));
     }, [setValue]);
 
@@ -147,8 +150,8 @@ const AnweisungenSection = ({
                 tabIndex={-1}
             >
                 <InstructionsGrid
-                    control={control}
-                    data={typedData}
+                    control={control as unknown as Control<Record<string, unknown>>}
+                    data={typedData as Record<string, unknown> | undefined}
                     isReadOnly={false}
                     labelPrefix="Persönliche"
                     maxLength={2000}

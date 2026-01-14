@@ -83,7 +83,8 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
         await updateTemplate(templateId, data);
     }, [updateTemplate]);
 
-    const getTemplateActionItems = useCallback((template: Template): ActionItem[] => {
+    const getTemplateActionItems = useCallback((item: DocumentItem): ActionItem[] => {
+        const template = item as Template;
         const actions: ActionItem[] = [];
 
         actions.push({
@@ -120,7 +121,9 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
         return actions;
     }, [deletingId, togglingVisibilityId, handleDeleteWithConfirm, handleToggleVisibility]);
 
-    const renderTemplateMetadata = (template: Template) => (
+    const renderTemplateMetadata = (item: DocumentItem) => {
+        const template = item as Template;
+        return (
         <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
             {template.template_type && (
                 <span className="document-type">
@@ -133,7 +136,8 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
                 </span>
             )}
         </div>
-    );
+        );
+    };
 
     return (
         <div className="vorlagen-section">
@@ -181,16 +185,18 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
                 }}
             />
 
-            <EditTemplateModal
-                isOpen={!!editingTemplate}
-                onClose={() => setEditingTemplate(null)}
-                onSave={handleSaveTemplate}
-                onSuccess={() => {
-                    templatesQuery.refetch();
-                    onSuccessMessage('Vorlage wurde aktualisiert.');
-                }}
-                template={editingTemplate}
-            />
+            {editingTemplate && (
+                <EditTemplateModal
+                    isOpen={true}
+                    onClose={() => setEditingTemplate(null)}
+                    onSave={handleSaveTemplate}
+                    onSuccess={() => {
+                        templatesQuery.refetch();
+                        onSuccessMessage('Vorlage wurde aktualisiert.');
+                    }}
+                    template={editingTemplate}
+                />
+            )}
         </div>
     );
 };

@@ -1,30 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HiOutlineCloud, HiOutlineDocument, HiSearch, HiX, HiCheck } from 'react-icons/hi';
 import { useWolkeStore } from '../../../stores/wolkeStore';
-import type { ShareLink } from '../../../stores/wolkeStore';
-import apiClient from '../../utils/apiClient';
+import type { ShareLink, WolkeFileItem } from '../../../stores/wolkeStore';
 import Spinner from '../Spinner';
 
 import './WolkeFilePicker.css';
 
-interface WolkeFile {
-  href: string;
-  name: string;
+interface EnrichedWolkeFile extends WolkeFileItem {
   fileExtension: string;
   isSupported: boolean;
   sizeFormatted: string;
-  lastModified: string;
-  [key: string]: unknown;
+  lastModifiedFormatted?: string;
 }
 
-interface SelectedFile extends WolkeFile {
+interface SelectedFile extends EnrichedWolkeFile {
   shareLinkId: string;
 }
 
 interface WolkeFilePickerProps {
   onFilesSelected: (files: SelectedFile[]) => void;
   onCancel: () => void;
-  selectedFiles?: WolkeFile[];
+  selectedFiles?: EnrichedWolkeFile[];
   inline?: boolean;
 }
 
@@ -49,7 +45,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
     } = useWolkeStore();
 
     const [selectedShareLink, setSelectedShareLink] = useState<ShareLink | null>(null);
-    const [files, setFiles] = useState<WolkeFile[]>([]);
+    const [files, setFiles] = useState<EnrichedWolkeFile[]>([]);
     const [filesLoading, setFilesLoading] = useState(false);
     const [filesError, setFilesError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -88,7 +84,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
             const cachedData = getCachedFiles(activeShareLink.id);
             if (cachedData.isCached && cachedData.files.length > 0) {
                 console.log(`[WolkeFilePicker] Immediately showing cached files for ${activeShareLink.id}`);
-                setFiles(cachedData.files);
+                setFiles(cachedData.files as EnrichedWolkeFile[]);
                 setFilesLoading(cachedData.loading);
             }
         }
@@ -104,7 +100,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
     // Initialize selected files from props
     useEffect(() => {
         if (selectedFiles.length > 0) {
-            const fileIds = new Set(selectedFiles.map(f => f.href));
+            const fileIds = new Set(selectedFiles.map(f => f.path));
             setSelectedFileIds(fileIds);
         }
     }, [selectedFiles]);
@@ -117,7 +113,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
             const cachedData = getCachedFiles(shareLinkId);
             if (cachedData.isCached && cachedData.files.length > 0) {
                 console.log(`[WolkeFilePicker] Using cached files for ${shareLinkId}:`, cachedData.files.length);
-                setFiles(cachedData.files as WolkeFile[]);
+                setFiles(cachedData.files as EnrichedWolkeFile[]);
                 setFilesLoading(cachedData.loading);
 
                 // If cache is fresh (less than 3 minutes), use it without refetching
@@ -136,7 +132,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
 
             // Use preloadFiles method which handles caching and deduplication
             const loadedFiles = await preloadFiles(shareLinkId);
-            setFiles(loadedFiles as WolkeFile[]);
+            setFiles(loadedFiles as EnrichedWolkeFile[]);
 
         } catch (error) {
             console.error('[WolkeFilePicker] Error loading files:', error);
@@ -163,20 +159,20 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
         return filteredFiles.filter(file => file.isSupported);
     }, [filteredFiles]);
 
-    const handleFileToggle = (file: WolkeFile): void => {
+    const handleFileToggle = (file: EnrichedWolkeFile): void => {
         const newSelected = new Set(selectedFileIds);
 
-        if (newSelected.has(file.href)) {
-            newSelected.delete(file.href);
+        if (newSelected.has(file.path)) {
+            newSelected.delete(file.path);
         } else {
-            newSelected.add(file.href);
+            newSelected.add(file.path);
         }
 
         setSelectedFileIds(newSelected);
 
         // Immediately propagate selection changes to parent
         const selectedFileObjects: SelectedFile[] = files.filter(f =>
-            f.href !== file.href ? newSelected.has(f.href) : newSelected.has(file.href)
+            f.path !== file.path ? newSelected.has(f.path) : newSelected.has(file.path)
         ).map(f => ({
             ...f,
             shareLinkId: activeShareLink!.id
@@ -194,7 +190,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
             selectedFileObjects = [];
         } else {
             // Select all supported files
-            newSelected = new Set(supportedFiles.map(f => f.href));
+            newSelected = new Set(supportedFiles.map(f => f.path));
             selectedFileObjects = supportedFiles.map(f => ({
                 ...f,
                 shareLinkId: activeShareLink!.id
@@ -207,7 +203,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
         onFilesSelected(selectedFileObjects);
     };
 
-    const getFileIcon = (file: WolkeFile): string => {
+    const getFileIcon = (file: EnrichedWolkeFile): string => {
         const ext = file.fileExtension.toLowerCase();
         if (['.pdf'].includes(ext)) return '📄';
         if (['.docx', '.doc'].includes(ext)) return '📝';
@@ -401,14 +397,14 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
                                 <div className="files-grid">
                                     {supportedFiles.map(file => (
                                         <div
-                                            key={file.href}
-                                            className={`wolke-file-card ${selectedFileIds.has(file.href) ? 'selected' : ''}`}
+                                            key={file.path}
+                                            className={`wolke-file-card ${selectedFileIds.has(file.path) ? 'selected' : ''}`}
                                             onClick={() => handleFileToggle(file)}
                                         >
                                             <div className="wolke-file-card-checkbox">
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedFileIds.has(file.href)}
+                                                    checked={selectedFileIds.has(file.path)}
                                                     onChange={() => handleFileToggle(file)}
                                                 />
                                             </div>
@@ -422,7 +418,7 @@ const WolkeFilePicker: React.FC<WolkeFilePickerProps> = ({
                                                 <div className="wolke-file-card-meta">
                                                     <span className="wolke-file-card-size">{file.sizeFormatted}</span>
                                                     <span className="wolke-file-card-modified">
-                                                        {formatLastModified(file.lastModified)}
+                                                        {formatLastModified(file.lastModified ?? '')}
                                                     </span>
                                                 </div>
                                             </div>

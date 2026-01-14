@@ -26,15 +26,19 @@ export interface StepFlowProps {
   startAtCanvasEdit?: boolean;
 }
 
-// Animation variant type exported for steps to use? 
-// No, I imported slideVariants in steps from '../components/StepFlow'.
-// So I MUST export it here.
 export type AnimationDirection = number;
 
-interface InputStep {
+interface InputStepField {
+  name: string;
+  label: string;
+  subtitle?: string;
+  helpText?: string;
+}
+
+interface InputStepData {
   id: string;
   type: 'input';
-  field?: { name: string };
+  field?: InputStepField;
 }
 
 export const slideVariants = {
@@ -160,8 +164,8 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
           {currentStep.type === 'input' && (
             <InputStep
               key={currentStep.id}
-              field={(currentStep as InputStep).field}
-              value={getFieldValue((currentStep as InputStep).field?.name)}
+              field={(currentStep as InputStepData).field}
+              value={getFieldValue((currentStep as InputStepData).field?.name ?? '')}
               onChange={handleChange}
               onNext={handleNext}
               onBack={handleBack}
@@ -174,7 +178,7 @@ const StepFlow: React.FC<StepFlowProps> = ({ onBack: parentOnBack, onComplete, o
 
           {currentStep.type === 'canvas_edit' && (
             <CanvasEditStep
-              typeConfig={typeConfig}
+              typeConfig={typeConfig ?? undefined}
               uploadedImageUrl={uploadedImageUrl}
               sloganAlternatives={sloganAlternatives}
               getFieldValue={getFieldValue}

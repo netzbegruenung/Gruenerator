@@ -57,14 +57,17 @@ export interface DocumentUploadRef {
 }
 
 interface WolkeSelectedFile {
-  href: string;
+  path: string;
   name: string;
+  size?: number;
+  mimeType?: string;
+  lastModified?: string;
+  isDirectory?: boolean;
   fileExtension: string;
   isSupported: boolean;
   sizeFormatted: string;
-  lastModified: string;
+  lastModifiedFormatted?: string;
   shareLinkId: string;
-  [key: string]: unknown;
 }
 
 // Document Preview Component
@@ -382,9 +385,18 @@ const DocumentUpload = forwardRef<DocumentUploadRef, DocumentUploadProps>(({
 
       try {
         console.log('[DocumentUpload] Starting Wolke import process...');
+        const wolkeFilesForImport = selectedWolkeFiles.map(file => ({
+          href: file.path,
+          name: file.name,
+          fileExtension: file.fileExtension,
+          isSupported: file.isSupported,
+          sizeFormatted: file.sizeFormatted,
+          lastModified: file.lastModified || '',
+          shareLinkId: file.shareLinkId,
+        }));
         const result = await importWolkeFiles(
           selectedWolkeFiles[0].shareLinkId,
-          selectedWolkeFiles,
+          wolkeFilesForImport,
           setWolkeImportProgress
         );
         console.log('[DocumentUpload] Wolke import successful, hiding form and calling onUploadComplete');

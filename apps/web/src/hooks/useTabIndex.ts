@@ -19,19 +19,18 @@ type TabIndexConfig = Record<string, number>;
 export const useTabIndex = (pageType: PageType | string | undefined) => {
   const config = useMemo(() => {
     if (!pageType) {
-      // Silently use default config when no pageType is provided (expected behavior)
       return DEFAULT_TAB_INDEX;
     }
 
-    const pageConfig = TAB_INDEX_CONFIG[pageType];
-    if (!pageConfig) {
+    const isValidPageType = pageType in TAB_INDEX_CONFIG;
+    if (!isValidPageType) {
       if (process.env.NODE_ENV === 'development') {
         console.warn(`useTabIndex: Unknown pageType "${pageType}", using default config`);
       }
       return DEFAULT_TAB_INDEX;
     }
 
-    return pageConfig;
+    return TAB_INDEX_CONFIG[pageType as PageType];
   }, [pageType]);
 
   // Helper functions bound to the current page config
@@ -54,7 +53,10 @@ export const useTabIndex = (pageType: PageType | string | undefined) => {
      * @returns {number}
      */
     getWithOffset: (elementKey: string, offset = 0) => {
-      return TabIndexHelpers.getWithOffset(pageType, elementKey, offset);
+      if (!pageType || !(pageType in TAB_INDEX_CONFIG)) {
+        return (DEFAULT_TAB_INDEX[elementKey as keyof typeof DEFAULT_TAB_INDEX] ?? 100) + offset;
+      }
+      return TabIndexHelpers.getWithOffset(pageType as PageType, elementKey, offset);
     },
 
     /**

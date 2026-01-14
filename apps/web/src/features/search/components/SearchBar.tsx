@@ -82,7 +82,7 @@ const SearchBar = ({ onSearch,
           <input
             type="text"
             value={value}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange?.(e.target.value)}
             className="search-input"
             placeholder={placeholder}
             aria-label="Suchfeld"
@@ -147,7 +147,7 @@ const SearchBar = ({ onSearch,
                 key={index}
                 type="button"
                 className="example-question"
-                onClick={() => onChange(question.text)}
+                onClick={() => question.text && onChange?.(question.text)}
               >
                 <span>{question.icon}</span>
                 <span>{question.text}</span>

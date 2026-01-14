@@ -255,7 +255,8 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
   }, [selectedType, form, currentFormRef, builder]);
 
   const renderForm = () => {
-    const tabIndexValue = form.generator?.tabIndex;
+    const rawTabIndex = form.generator?.tabIndex;
+    const tabIndexValue = rawTabIndex?.config as { formType?: number; hauptfeld?: number; [key: string]: number | undefined } | undefined;
     switch (selectedType) {
       case TEXT_TYPES.REDE:
         return <RedeForm key={`rede-${selectedType}`} ref={redeFormRef} tabIndex={tabIndexValue} />;

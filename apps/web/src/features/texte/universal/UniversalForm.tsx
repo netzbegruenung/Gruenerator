@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
@@ -39,7 +39,7 @@ const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabInd
     <>
       <FormInput
         name="textForm"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Textform"
         placeholder="z.B. Antrag, Pressemitteilung, Social Media Post, Rede..."
         rules={{ required: 'Textform ist ein Pflichtfeld' }}
@@ -48,7 +48,7 @@ const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabInd
 
       <FormInput
         name="sprache"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Sprache & Stil"
         placeholder="z.B. formal, sachlich, emotional, aktivierend..."
         rules={{ required: 'Sprache & Stil ist ein Pflichtfeld' }}
@@ -57,7 +57,7 @@ const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabInd
 
       <FormTextarea
         name="inhalt"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         placeholder={FORM_PLACEHOLDERS.INHALT}
         rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
         minRows={5}

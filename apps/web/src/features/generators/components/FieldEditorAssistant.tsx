@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, FieldValues, Control } from 'react-hook-form';
 import FormInput from '../../../components/common/Form/Input/FormInput';
 import { GeneratorFormField } from '../types/generatorTypes';
 import { sanitizeFieldName, sanitizeOptionValue } from '../utils/sanitization';
@@ -130,7 +130,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
         label="Was soll im Formular stehen?"
         placeholder="z.B. Thema des Artikels"
         required={true}
-        control={control}
+        control={control as unknown as Control<FieldValues>}
         rules={validationRules.label}
       />
 
@@ -186,7 +186,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
         label={watchedType === 'select' ? "Standardtext (optional)" : "Hilfetext im Feld (optional)"}
         placeholder={watchedType === 'select' ? "z.B. Bitte wählen..." : "z.B. Gib hier das Hauptthema an"}
         required={false}
-        control={control}
+        control={control as unknown as Control<FieldValues>}
       />
 
       {/* Options Management - Only shown for select type */}

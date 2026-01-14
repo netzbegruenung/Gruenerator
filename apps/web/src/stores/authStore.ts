@@ -511,7 +511,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       get().clearAuth();
       
       // Step 5: Handle SSO logout if backend provided logout URL
-      const ssoLogoutUrl = backendResponse?.keycloakBackgroundLogoutUrl || backendResponse?.authentikBackgroundLogoutUrl;
+      const ssoLogoutUrlValue = backendResponse?.keycloakBackgroundLogoutUrl || backendResponse?.authentikBackgroundLogoutUrl;
+      const ssoLogoutUrl = typeof ssoLogoutUrlValue === 'string' ? ssoLogoutUrlValue : null;
       if (ssoLogoutUrl) {
         console.log('[AuthStore] Performing background SSO logout...');
         

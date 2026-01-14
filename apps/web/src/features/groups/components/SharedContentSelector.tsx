@@ -545,8 +545,8 @@ const SharedContentSelector = ({
     });
   }, [filteredContent, preloadDocumentContent]);
 
-  // Format date
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
@@ -569,8 +569,8 @@ const SharedContentSelector = ({
     </div>
   );
 
-  // Format date helper
-  const formatDateDetailed = (dateString: string) => {
+  const formatDateDetailed = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
     return new Date(dateString).toLocaleString('de-DE', {
       year: 'numeric',
       month: '2-digit',

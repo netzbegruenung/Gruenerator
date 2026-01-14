@@ -155,11 +155,11 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
         gliederung: rhfData.gliederung
       });
 
-      const response = await submitForm(formDataToSubmit);
+      const response = await submitForm(formDataToSubmit as unknown as Record<string, unknown>);
 
       if (response) {
-        const content = typeof response === 'string' ? response : response.content;
-        const metadata = typeof response === 'object' ? response.metadata : {};
+        const content = typeof response === 'string' ? response : (response as { content?: string }).content;
+        const metadata = typeof response === 'object' ? (response as { metadata?: Record<string, unknown> }).metadata : undefined;
 
         if (content) {
           setAntragContent(content);
@@ -309,7 +309,7 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
         name="requestType"
         options={requestTypeOptions}
         value={selectedRequestType}
-        onChange={setSelectedRequestType}
+        onChange={(value) => setSelectedRequestType(String(value ?? REQUEST_TYPES.ANTRAG))}
         label="Art der Anfrage"
         placeholder="Art der Anfrage auswählen..."
         isMulti={false}

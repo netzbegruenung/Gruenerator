@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, Control } from 'react-hook-form';
 import { motion } from "motion/react";
 
 import { useGroups, getGroupInitials } from '../../../../../../features/groups/hooks/useGroups';
@@ -26,6 +26,25 @@ interface Group {
 
 interface CreateGroupFormData {
     groupName: string;
+}
+
+type GroupDetailView = 'gruppeninfo' | 'anweisungen-wissen' | 'shared' | 'wolke';
+
+interface FormFieldsReturn {
+    Input: React.ComponentType<{
+        name: string;
+        type: string;
+        label: string;
+        placeholder: string;
+        rules?: Record<string, unknown>;
+        disabled?: boolean;
+        control: Control<CreateGroupFormData>;
+        tabIndex?: number;
+    }>;
+    Textarea: React.ComponentType<unknown>;
+    AutoInput: React.ComponentType<unknown>;
+    Select: React.ComponentType<unknown>;
+    Checkbox: React.ComponentType<unknown>;
 }
 
 interface GroupsManagementViewProps {
@@ -58,7 +77,7 @@ const GroupsManagementView = ({
         mode: 'onSubmit'
     });
     const { control: createGroupControl, reset: resetCreateGroup, handleSubmit: handleCreateGroupSubmit } = createGroupFormMethods;
-    const formFields = useFormFields();
+    const formFields = useFormFields() as FormFieldsReturn;
     const Input = formFields.Input;
 
     const {
@@ -216,13 +235,28 @@ const GroupsManagementView = ({
     );
 
     const renderContentPanel = () => {
+        const overviewTabIndex = {
+            createGroupButton: tabIndex.get?.('createGroupButton') ?? 1
+        };
+
+        const createTabIndex = {
+            groupNameInput: tabIndex.get?.('groupNameInput') ?? 1,
+            createSubmitButton: tabIndex.get?.('createSubmitButton') ?? 2,
+            createCancelButton: tabIndex.get?.('createCancelButton') ?? 3
+        };
+
+        const detailTabIndex = {
+            groupDetailTabs: tabIndex.get?.('groupDetailTabs') ?? 1,
+            groupNameEdit: tabIndex.get?.('groupNameEdit') ?? 5
+        };
+
         if (currentView === 'overview') {
             return (
                 <GroupsOverviewSection
                     userGroups={userGroups}
                     isCreatingGroup={isCreatingGroup}
                     onCreateNew={handleCreateNew}
-                    tabIndex={tabIndex}
+                    tabIndex={overviewTabIndex}
                 />
             );
         }
@@ -238,7 +272,7 @@ const GroupsManagementView = ({
                         createGroupError={createGroupError}
                         onSubmit={handleCreateGroupSubmit(handleCreateGroupFormSubmit)}
                         onCancel={handleCancelCreate}
-                        tabIndex={tabIndex}
+                        tabIndex={createTabIndex}
                     />
                 </FormProvider>
             );
@@ -249,11 +283,11 @@ const GroupsManagementView = ({
                 <GroupDetailSection
                     groupId={selectedGroupId}
                     groupDetailView={groupDetailView}
-                    setGroupDetailView={setGroupDetailView}
+                    setGroupDetailView={setGroupDetailView as (view: string) => void}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
                     isActive={isActive}
-                    tabIndex={tabIndex}
+                    tabIndex={detailTabIndex}
                 />
             );
         }
@@ -263,7 +297,7 @@ const GroupsManagementView = ({
                 userGroups={userGroups}
                 isCreatingGroup={isCreatingGroup}
                 onCreateNew={handleCreateNew}
-                tabIndex={tabIndex}
+                tabIndex={overviewTabIndex}
             />
         );
     };

@@ -26,10 +26,10 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
             return collections;
         }
         if (collectionIds && collectionIds.length > 0) {
-            return collectionIds.map(id => ({ id, name: null }));
+            return collectionIds.map(id => ({ id, name: undefined }));
         }
         if (collectionId) {
-            return [{ id: collectionId, name: null }];
+            return [{ id: collectionId, name: undefined }];
         }
         return [];
     }, [collectionId, collectionIds, collections]);
@@ -37,16 +37,16 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
     const isMulti = normalizedCollections.length > 1;
 
     const activeFiltersList = useMemo(() => {
-        const allFilters: Array<{ collectionId: string | undefined; collectionName: string | null; field: string; value: unknown; label: string }> = [];
+        const allFilters: Array<{ collectionId: string | undefined; collectionName: string | undefined; field: string; value: string; label: string }> = [];
 
         normalizedCollections.forEach(collection => {
             const activeFilters = getFiltersForCollection(collection.id);
             const filterValues = getFilterValuesForCollection(collection.id);
 
             Object.entries(activeFilters)
-                .filter(([, values]) => values && (values as unknown[]).length > 0)
+                .filter(([, values]) => values && Array.isArray(values) && values.length > 0)
                 .forEach(([field, values]) => {
-                    (values as unknown[]).forEach(value => {
+                    (values as string[]).forEach(value => {
                         allFilters.push({
                             collectionId: collection.id,
                             collectionName: collection.name,
@@ -61,7 +61,7 @@ const ActiveFiltersDisplay = ({ collectionId, collectionIds, collections, classN
         return allFilters;
     }, [normalizedCollections, getFiltersForCollection, getFilterValuesForCollection]);
 
-    const handleRemove = (cId: string | undefined, field: string, value: unknown) => {
+    const handleRemove = (cId: string | undefined, field: string, value: string) => {
         removeActiveFilter(cId, field, value);
     };
 

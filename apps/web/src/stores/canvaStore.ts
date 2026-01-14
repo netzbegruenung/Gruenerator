@@ -17,6 +17,8 @@ interface CanvaDesign {
   updated_at?: string;
   created_at?: string;
   owner?: { display_name?: string };
+  canva_url?: string;
+  thumbnail_url?: string;
   [key: string]: unknown;
 }
 
