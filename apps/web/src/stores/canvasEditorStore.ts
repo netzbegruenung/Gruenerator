@@ -9,7 +9,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { shallow } from 'zustand/shallow';
+import { useShallow } from 'zustand/shallow';
 import type {
   Layer,
   CanvasEditorConfig,
@@ -376,39 +376,36 @@ export const useCanvasEditorStore = create<CanvasEditorStore>()(
 // SELECTOR HOOKS (for minimal re-renders)
 // =============================================================================
 
-// Use shallow comparison for array/object selectors to prevent unnecessary re-renders
 export const useCanvasLayers = (): Layer[] =>
-  useCanvasEditorStore((s) => s.layers, shallow);
+  useCanvasEditorStore(useShallow((s) => s.layers));
 
 export const useCanvasSelection = (): string[] =>
-  useCanvasEditorStore((s) => s.selectedLayerIds, shallow);
+  useCanvasEditorStore(useShallow((s) => s.selectedLayerIds));
 
 export const useCanvasConfig = (): CanvasEditorState['config'] =>
-  useCanvasEditorStore((s) => s.config, shallow);
+  useCanvasEditorStore(useShallow((s) => s.config));
 
 export const useCanvasContainerSize = (): { width: number; height: number } =>
-  useCanvasEditorStore((s) => s.containerSize, shallow);
+  useCanvasEditorStore(useShallow((s) => s.containerSize));
 
 export const useRenderVersion = (): number =>
   useCanvasEditorStore((s) => s.renderVersion);
 
 export const useSnapGuides = (): { h: boolean; v: boolean } =>
-  useCanvasEditorStore((s) => s.snapGuides, shallow);
+  useCanvasEditorStore(useShallow((s) => s.snapGuides));
 
 export const useSnapLines = (): SnapLine[] =>
-  useCanvasEditorStore((s) => s.snapLines, shallow);
+  useCanvasEditorStore(useShallow((s) => s.snapLines));
 
 export const useElementPositions = (): Record<string, SnapTarget> =>
-  useCanvasEditorStore((s) => s.elementPositions, shallow);
+  useCanvasEditorStore(useShallow((s) => s.elementPositions));
 
-// Combined selector for history state
 export const useCanvasHistory = (): { canUndo: boolean; canRedo: boolean } =>
   useCanvasEditorStore(
-    (s) => ({
+    useShallow((s) => ({
       canUndo: s.historyIndex > 0,
       canRedo: s.historyIndex < s.history.length - 1,
-    }),
-    shallow
+    }))
   );
 
 export default useCanvasEditorStore;

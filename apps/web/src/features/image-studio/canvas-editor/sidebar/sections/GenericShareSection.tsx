@@ -6,7 +6,7 @@ import Spinner from '../../../../../components/common/Spinner';
 import { useShareStore } from '@gruenerator/shared/share';
 import '../../../../../assets/styles/features/templates.css';
 
-interface GenericShareSectionProps {
+export interface GenericShareSectionProps {
   exportedImage: string | null;
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   shareToken: string | null;

@@ -13,6 +13,7 @@ import type { AssetInstance } from '../utils/canvasAssets';
 import { GenericCanvasElement } from './GenericCanvasElement';
 import type { CanvasElementConfig, FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { SnapLine, SnapTarget } from '../utils/snapping';
 
 /**
  * CanvasRenderLayer - Renders all canvas elements in layer order
@@ -35,11 +36,7 @@ interface OptionalCanvasStateProperties {
     }>;
 }
 
-/** Configuration for snap lines */
-interface SnapLineConfig {
-    type: 'vertical' | 'horizontal';
-    position: number;
-}
+type FontStyleType = 'normal' | 'italic' | 'bold' | 'bold italic';
 
 /** Additional text element attributes */
 interface AdditionalTextAttrs {
@@ -59,14 +56,14 @@ interface AdditionalTextItem {
     width?: number;
     fontSize?: number;
     fontFamily?: string;
-    fontStyle?: string;
+    fontStyle?: FontStyleType;
     fill?: string;
     opacity?: number;
     rotation?: number;
     scale?: number;
 }
 
-interface CanvasRenderLayerProps<TState = Record<string, unknown>, TActions = Record<string, unknown>> {
+interface CanvasRenderLayerProps<TState extends Record<string, unknown> = Record<string, unknown>, TActions = Record<string, unknown>> {
     sortedRenderList: CanvasItem[];
     config: FullCanvasConfig<TState, TActions>;
     state: TState;
@@ -87,14 +84,14 @@ interface CanvasRenderLayerProps<TState = Record<string, unknown>, TActions = Re
         handleShapeChange: (id: string, newAttrs: Partial<ShapeInstance>) => void;
         handleAdditionalTextChange: (id: string, newAttrs: AdditionalTextAttrs) => void;
     };
-    getSnapTargets: (id: string) => string[];
+    getSnapTargets: (id: string) => SnapTarget[];
     handleSnapChange: (h: boolean, v: boolean) => void;
-    setSnapLines: (lines: SnapLineConfig[]) => void;
+    setSnapLines: (lines: SnapLine[]) => void;
     stageWidth: number;
     stageHeight: number;
 }
 
-function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Record<string, unknown>>({
+function CanvasRenderLayerInner<TState extends Record<string, unknown> = Record<string, unknown>, TActions = Record<string, unknown>>({
     sortedRenderList,
     config,
     state,
@@ -162,8 +159,8 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
                                 handlers.handleBalkenTransformEnd(balken.id, x, y, s, r)
                             }
                             onSnapChange={handleSnapChange}
-                            onSnapLinesChange={setSnapLines}
-                            getSnapTargets={getSnapTargets}
+                            onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
+                            getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
                             stageWidth={stageWidth}
                             stageHeight={stageHeight}
                             opacity={balken.opacity ?? 1}
@@ -251,8 +248,8 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
                                 }
                             }}
                             onSnapChange={handleSnapChange}
-                            onSnapLinesChange={setSnapLines}
-                            getSnapTargets={getSnapTargets}
+                            onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
+                            getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
                             stageWidth={stageWidth}
                             stageHeight={stageHeight}
                         />
@@ -341,5 +338,7 @@ function CanvasRenderLayerInner<TState = Record<string, unknown>, TActions = Rec
     );
 }
 
-export const CanvasRenderLayer = memo(CanvasRenderLayerInner) as typeof CanvasRenderLayerInner;
-CanvasRenderLayer.displayName = 'CanvasRenderLayer';
+const MemoizedCanvasRenderLayer = memo(CanvasRenderLayerInner) as React.MemoExoticComponent<typeof CanvasRenderLayerInner> & { displayName?: string };
+MemoizedCanvasRenderLayer.displayName = 'CanvasRenderLayer';
+
+export const CanvasRenderLayer = MemoizedCanvasRenderLayer as typeof CanvasRenderLayerInner;

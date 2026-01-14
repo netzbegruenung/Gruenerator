@@ -49,23 +49,21 @@ const ExampleQuestions = ({ onQuestionClick }: ExampleQuestionsProps): JSX.Eleme
   </div>
 );
 
-interface Source {
+interface SourceListSource {
   url: string;
-  title: string;
+  title?: string;
   content_snippets?: string;
-  [key: string]: unknown;
 }
 
-interface SourceRecommendation {
+interface SourceListRecommendation {
   title: string;
   summary: string;
-  [key: string]: unknown;
 }
 
 interface SourceListProps {
-  sources: Source[];
+  sources: SourceListSource[];
   title: string;
-  recommendations?: SourceRecommendation[];
+  recommendations?: SourceListRecommendation[];
 }
 
 const extractMainDomain = (url: string) => {
@@ -82,7 +80,7 @@ const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) =
     <h2>{title}</h2>
     <div className="sources-list">
       {sources.map((source, index) => {
-        const recommendation = recommendations.find(r => r.title === source.title);
+        const recommendation = source.title ? recommendations.find(r => r.title === source.title) : undefined;
         const hasSnippets = source.content_snippets && source.content_snippets.trim().length > 0;
 
         return (
@@ -93,7 +91,7 @@ const SourceList = ({ sources, title, recommendations = [] }: SourceListProps) =
             rel="noopener noreferrer"
             className="source-item"
           >
-            <h3>{source.title}</h3>
+            <h3>{source.title || 'Unbenannte Quelle'}</h3>
             {recommendation && (
               <div className="source-recommendation">
                 <p className="source-summary">{recommendation.summary}</p>
@@ -182,11 +180,12 @@ const SearchPage = () => {
     }];
   }, [hasCitations, handleDeepResearchDOCXExport]);
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = (query?: string) => {
+    if (!query) return;
     if (searchMode === 'deep') {
-      await deepSearch(query);
+      deepSearch(query);
     } else {
-      await webSearch(query);
+      webSearch(query);
     }
   };
 
@@ -260,12 +259,11 @@ const SearchPage = () => {
                   />
                 </div>
 
-                {/* Display citations for web search summary */}
                 {searchMode === 'web' && citations.length > 0 && (
                   <div className="citation-sources-section">
                     <CitationSourcesDisplay
-                      sources={citationSources}
-                      citations={citations}
+                      sources={citationSources as unknown as Array<{ url?: string; title?: string; [key: string]: unknown }>}
+                      citations={citations as unknown as Array<{ id: string; [key: string]: unknown }>}
                       linkConfig={{ type: 'none' }}
                       title="🔗 Quellen der Zusammenfassung"
                       className="search-citation-sources"
@@ -332,12 +330,11 @@ const SearchPage = () => {
                 />
               </div>
 
-              {/* Display citations for deep research dossier */}
               {searchMode === 'deep' && citations.length > 0 && (
                 <div className="citation-sources-section">
                   <CitationSourcesDisplay
-                    sources={citationSources}
-                    citations={citations}
+                    sources={citationSources as unknown as Array<{ url?: string; title?: string; [key: string]: unknown }>}
+                    citations={citations as unknown as Array<{ id: string; [key: string]: unknown }>}
                     linkConfig={{ type: 'none' }}
                     title="🔗 Quellen des Dossiers"
                     className="search-citation-sources"

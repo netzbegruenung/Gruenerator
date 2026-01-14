@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import type { Control, FieldValues } from 'react-hook-form';
 import BaseForm from '../../components/common/BaseForm';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { FormTextarea } from '../../components/common/Form/Input';
@@ -10,12 +11,44 @@ import { useGeneratorSelectionStore } from '../../stores/core/generatorSelection
 import { useUserInstructions } from '../../hooks/useUserInstructions';
 import { useUrlCrawler } from '../../hooks/useUrlCrawler';
 import { PiMagicWand, PiArrowsClockwise, PiTextAlignLeft, PiCheckCircle, PiBriefcase, PiTextAa } from 'react-icons/pi';
+import type { BaseFormProps, HelpContent, PlatformOption } from '@/types/baseform';
 
-const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
+interface TextImproverFormValues {
+  originalText: string;
+  action: string[];
+}
+
+interface ActionOption {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+interface UseBaseFormReturn {
+  control: Control<FieldValues>;
+  handleSubmit: <T>(handler: (data: T) => Promise<void>) => () => Promise<void>;
+  generator?: {
+    attachedFiles?: Array<{ name: string; content: string }>;
+    tabIndex?: Record<string, number>;
+    baseFormTabIndex?: { platformSelectorTabIndex?: number };
+    baseFormProps?: Partial<BaseFormProps>;
+  };
+}
+
+interface ApiResponse {
+  content?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface AITextImproverGeneratorProps {
+  showHeaderFooter?: boolean;
+}
+
+const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({ showHeaderFooter = true }) => {
   const componentName = 'text-improver';
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
 
-  const actionOptions = useMemo(() => [
+  const actionOptions: ActionOption[] = useMemo(() => [
     { id: 'improve', label: 'Verbessern', icon: <PiMagicWand size={16} /> },
     { id: 'rewrite', label: 'Umschreiben', icon: <PiArrowsClockwise size={16} /> },
     { id: 'summarize', label: 'Zusammenfassen', icon: <PiTextAlignLeft size={16} /> },
@@ -32,7 +65,16 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
 
   const customPrompt = useUserInstructions('text_improver', isInstructionsActive);
 
-  const form = useBaseForm({
+  const helpContentConfig: HelpContent = {
+    content: "Dieser Grünerator hilft dir, bestehende Texte zu verbessern, umzuschreiben oder zu transformieren.",
+    tips: [
+      "Füge deinen Text ein",
+      "Wähle eine Aktion: Verbessern, Umschreiben, Zusammenfassen, etc.",
+      "Der KI-Assistent bearbeitet deinen Text entsprechend der gewählten Aktion"
+    ]
+  };
+
+  const baseFormConfig = {
     defaultValues: {
       originalText: '',
       action: ['improve']
@@ -43,15 +85,10 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
     instructionType: 'text_improver',
     features: ['privacyMode'],
     tabIndexKey: 'TEXT_IMPROVER',
-    helpContent: {
-      content: "Dieser Grünerator hilft dir, bestehende Texte zu verbessern, umzuschreiben oder zu transformieren.",
-      tips: [
-        "Füge deinen Text ein",
-        "Wähle eine Aktion: Verbessern, Umschreiben, Zusammenfassen, etc.",
-        "Der KI-Assistent bearbeitet deinen Text entsprechend der gewählten Aktion"
-      ]
-    }
-  });
+    helpContent: helpContentConfig
+  };
+
+  const form = useBaseForm(baseFormConfig as unknown as Parameters<typeof useBaseForm>[0]) as UseBaseFormReturn;
 
   const { control, handleSubmit } = form;
 
@@ -71,7 +108,7 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
     }
   }, [detectAndCrawlUrls, isCrawling, usePrivacyMode]);
 
-  const onSubmitRHF = useCallback(async (rhfData: { originalText: string; action: string | string[] }) => {
+  const onSubmitRHF = useCallback(async (rhfData: TextImproverFormValues) => {
     setStoreIsLoading(true);
 
     try {
@@ -94,11 +131,11 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
         searchQuery: rhfData.originalText?.substring(0, 200) || ''
       };
 
-      const response = await submitForm(formDataToSubmit);
+      const response = await submitForm(formDataToSubmit) as string | ApiResponse | null;
 
       if (response) {
         const content = typeof response === 'string' ? response : response.content;
-        const metadata = typeof response === 'object' ? response.metadata : {};
+        const metadata = typeof response === 'object' && response !== null ? response.metadata || {} : {};
 
         if (content) {
           setImprovedContent(content);
@@ -118,11 +155,16 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
     setGeneratedText(componentName, content);
   }, [setGeneratedText, componentName]);
 
+  const platformOptionsForSelector: PlatformOption[] = actionOptions.map(opt => ({
+    id: opt.id,
+    label: opt.label
+  }));
+
   const renderActionSelector = () => (
     <PlatformSelector
       name="action"
       control={control}
-      platformOptions={actionOptions}
+      platformOptions={platformOptionsForSelector}
       label=""
       placeholder="Aktion auswählen..."
       required={true}
@@ -146,21 +188,28 @@ const AITextImproverGenerator = ({ showHeaderFooter = true }) => {
     />
   );
 
+  const baseFormProps = form.generator?.baseFormProps || {};
+  const generatedContentValue = typeof storeGeneratedText === 'string'
+    ? storeGeneratedText
+    : (storeGeneratedText ? String(storeGeneratedText) : improvedContent);
+
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
-          {...form.generator?.baseFormProps}
+          {...baseFormProps}
           title={<span className="gradient-title">Welchen Text willst du verbessern?</span>}
-          onSubmit={() => handleSubmit(onSubmitRHF)()}
+          onSubmit={() => handleSubmit<TextImproverFormValues>(onSubmitRHF)()}
           loading={loading}
           success={success}
           error={error}
-          generatedContent={storeGeneratedText || improvedContent}
+          generatedContent={generatedContentValue}
           onGeneratedContentChange={handleGeneratedContentChange}
           enableEditMode={true}
           componentName={componentName}
           firstExtrasChildren={renderActionSelector()}
+          helpContent={helpContentConfig}
+          platformOptions={platformOptionsForSelector}
         >
           {renderFormInputs()}
         </BaseForm>

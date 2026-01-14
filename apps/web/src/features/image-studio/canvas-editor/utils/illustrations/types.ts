@@ -7,7 +7,7 @@
 // =============================================================================
 
 // React Kawaii types
-export type KawaiiMood = 'sad' | 'shocked' | 'happy' | 'blissful' | 'lovestruck';
+export type KawaiiMood = 'sad' | 'shocked' | 'happy' | 'blissful' | 'lovestruck' | 'excited' | 'ko';
 
 export type KawaiiIllustrationType =
     | 'planet' | 'cat' | 'ghost' | 'iceCream' | 'browser'

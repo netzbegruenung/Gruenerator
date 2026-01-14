@@ -1,4 +1,4 @@
-import { GenericShareSection } from '../sidebar';
+import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
 import { FaShare } from 'react-icons/fa';
 import type { SectionConfig, SectionContext } from './types';
 
@@ -12,20 +12,19 @@ export const shareTab = {
 export function createShareSection<TState, TActions = unknown>(
     canvasType: string,
     getCanvasText: (state: TState) => string
-): SectionConfig<TState, TActions, Record<string, unknown>> {
+): SectionConfig<TState, TActions, GenericShareSectionProps> {
     return {
         component: GenericShareSection,
-        propsFactory: (state: TState, _actions: TActions, context?: SectionContext) => {
+        propsFactory: (state: TState, _actions: TActions, context?: SectionContext): GenericShareSectionProps => {
             const canvasText = getCanvasText(state);
-            const shareProps = context || {};
 
             return {
-                exportedImage: shareProps.exportedImage || null,
-                autoSaveStatus: shareProps.autoSaveStatus || 'idle',
-                shareToken: shareProps.shareToken || null,
-                onCaptureCanvas: shareProps.onCaptureCanvas || (() => {}),
-                onDownload: shareProps.onDownload || (() => {}),
-                onNavigateToGallery: shareProps.onNavigateToGallery || (() => {}),
+                exportedImage: context?.exportedImage ?? null,
+                autoSaveStatus: context?.autoSaveStatus ?? 'idle',
+                shareToken: context?.shareToken ?? null,
+                onCaptureCanvas: context?.onCaptureCanvas ?? (() => {}),
+                onDownload: context?.onDownload ?? (() => {}),
+                onNavigateToGallery: context?.onNavigateToGallery ?? (() => {}),
                 canvasText,
                 canvasType,
             };

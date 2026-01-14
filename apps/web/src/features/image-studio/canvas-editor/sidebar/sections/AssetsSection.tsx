@@ -27,6 +27,7 @@ import {
   CreditCard,
   File,
   Folder,
+  type KawaiiProps,
 } from 'react-kawaii';
 import { getEnglishSearchTerms } from '../../utils/searchTranslations';
 import { BalkenIcon } from '../../icons';
@@ -49,8 +50,7 @@ interface SearchResult {
   illustrationDef?: IllustrationDef;
 }
 
-// Map for preview components
-const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<{ size: number; mood: string; color: string }>> = {
+const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
   planet: Planet,
   cat: Cat,
   ghost: Ghost,

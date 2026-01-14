@@ -22,6 +22,17 @@ import { GeneratorFormField, GeneratorFormData } from './types/generatorTypes';
 import { MODE_SELECTION, INITIAL_GENERATOR_FORM_DATA } from './constants/generatorConstants';
 import { sanitizeSlug } from './utils/sanitization';
 import { useSlugAvailability } from './hooks/useSlugAvailability';
+import type { Control } from 'react-hook-form';
+
+interface AIGeneratedConfig {
+  name: string;
+  slug: string;
+  fields: GeneratorFormField[];
+  prompt: string;
+  title?: string;
+  description?: string;
+  contact_email?: string;
+}
 
 interface CreateCustomGeneratorPageProps {
   onCompleted?: (data?: { name: string; slug: string }) => void;
@@ -115,10 +126,10 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     setIsGeneratingWithAI(true);
 
     try {
-      const generatedConfig = await submitAIGeneration({ description: aiDescription });
+      const response = await submitAIGeneration({ description: aiDescription });
+      const generatedConfig = response as unknown as AIGeneratedConfig;
 
       if (generatedConfig && generatedConfig.name && generatedConfig.slug && generatedConfig.fields && generatedConfig.prompt) {
-        // Reset form with generated data
         reset({
           name: generatedConfig.name,
           slug: generatedConfig.slug,
@@ -307,7 +318,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               label="Name des Grünerators"
               placeholder="z.B. Social Media Post Generator"
               required={true}
-              control={control}
+              control={control as unknown as Control<Record<string, unknown>>}
               rules={{ required: 'Der Name des Grünerators darf nicht leer sein.' }}
             />
 
@@ -316,7 +327,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               label="URL-Pfad"
               placeholder="z.B. social-media-post"
               required={true}
-              control={control}
+              control={control as unknown as Control<Record<string, unknown>>}
               rules={{
                 required: 'Der URL-Pfad darf nicht leer sein.',
                 pattern: {
@@ -334,7 +345,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               label="Titel"
               placeholder="Titel, der auf der Generator-Seite angezeigt wird"
               required={true}
-              control={control}
+              control={control as unknown as Control<Record<string, unknown>>}
               rules={{ required: 'Der Titel darf nicht leer sein.' }}
             />
 
@@ -343,7 +354,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               label="Beschreibung"
               placeholder="Kurze Beschreibung des Generators und wofür er nützlich ist"
               required={true}
-              control={control}
+              control={control as unknown as Control<Record<string, unknown>>}
               rules={{ required: 'Die Beschreibung darf nicht leer sein.' }}
               minRows={3}
               maxRows={6}
@@ -413,7 +424,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
               label="Prompt-Vorlage"
               placeholder="Beispiel: Erstelle einen kurzen Social-Media-Post..."
               required={true}
-              control={control}
+              control={control as unknown as Control<Record<string, unknown>>}
               rules={{ required: 'Die Prompt-Vorlage darf nicht leer sein.' }}
               minRows={10}
               maxRows={20}
@@ -536,7 +547,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
         showBackButton={currentStep > STEPS.BASICS && !isEditingField}
         nextButtonText={currentStep === STEPS.REVIEW ? 'Speichern' : 'Weiter'}
         useModernForm={true}
-        formControl={control}
+        formControl={{ control: control as unknown as Control<Record<string, unknown>>, setValue: setValue as unknown as (name: string, value: unknown) => void, getValues: getValues as unknown as () => Record<string, unknown>, formState: { errors, isDirty: false, isValid: true } }}
         defaultValues={INITIAL_GENERATOR_FORM_DATA as unknown as Record<string, unknown>}
         hideExtrasSection={true}
         showSubmitButtonInInputSection={true}

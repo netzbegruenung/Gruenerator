@@ -185,7 +185,12 @@ const BaseForm: React.FC<BaseFormProps> = ({
 
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareImageData, setShareImageData] = useState(null);
+  const [shareImageData, setShareImageData] = useState<{
+    image?: string;
+    type?: string;
+    metadata?: Record<string, unknown>;
+    originalImage?: string;
+  } | null>(null);
 
   // Get updateImageShare for gallery edit mode
   const { updateImageShare, isCreating: isSaving } = useShareStore();
@@ -246,8 +251,8 @@ const BaseForm: React.FC<BaseFormProps> = ({
       }
 
       const response = await generateAltTextForImage(generatedImageSrc, imageDescription);
-      if (response && response.altText) {
-        setGeneratedAltText(response.altText);
+      if (response && typeof response === 'object' && 'altText' in response) {
+        setGeneratedAltText((response as { altText: string }).altText);
       }
     } catch (error) {
       console.error('[BaseForm] Alt text generation failed:', error);
@@ -357,12 +362,11 @@ const BaseForm: React.FC<BaseFormProps> = ({
         alert('Fehler beim Aktualisieren: ' + errorMessage);
       }
     } else {
-      // Normal flow: open modal to create new share
       setShareImageData({
-        image: generatedImageSrc,
+        image: generatedImageSrc || undefined,
         type: formData.type,
         metadata,
-        originalImage,
+        originalImage: originalImage ?? undefined,
       });
       setShowShareModal(true);
     }
@@ -468,14 +472,14 @@ const BaseForm: React.FC<BaseFormProps> = ({
       <SharepicBackendResult
         onSubmit={onSubmit}
         loading={loading}
-        success={success}
-        fontSize={fontSize}
-        balkenOffset={balkenOffset}
-        colorScheme={colorScheme}
-        onControlChange={onControlChange}
-        balkenGruppenOffset={balkenGruppenOffset}
-        sunflowerOffset={sunflowerOffset}
-        credit={credit}
+        success={success ?? false}
+        fontSize={fontSize ?? 100}
+        balkenOffset={balkenOffset ?? [0, 0, 0]}
+        colorScheme={colorScheme ?? [{ background: '#004B3F' }]}
+        onControlChange={onControlChange ?? (() => {})}
+        balkenGruppenOffset={balkenGruppenOffset ?? [0, 0]}
+        sunflowerOffset={sunflowerOffset ?? [0, 0]}
+        credit={credit ?? ''}
         formData={formData}
         generatedImage={generatedImageSrc}
         onAltTextClick={handleAltTextClick}
@@ -487,7 +491,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
   };
 
   const renderFormContent = () => {
-    const helpDisplay = helpContent ? (
+    const helpDisplay = helpContent?.content ? (
       <HelpDisplay
         content={helpContent.content}
         tips={helpContent.tips}
@@ -654,7 +658,7 @@ const BaseForm: React.FC<BaseFormProps> = ({
           setShareImageData(null);
         }}
         mediaType="image"
-        imageData={shareImageData}
+        imageData={shareImageData ?? undefined}
         defaultTitle={formData.thema || ''}
       />
     </>

@@ -39,6 +39,15 @@ interface ExportPreferences {
   [key: string]: unknown;
 }
 
+interface AxiosErrorLike {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+  message: string;
+}
+
 interface RemotionExportParams {
   [key: string]: unknown;
 }
@@ -174,11 +183,9 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       get().startPolling();
 
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error
-        ? (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
-          ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
-          : error.message
-        : 'Failed to start export';
+      const axiosError = error as AxiosErrorLike;
+      const errorMessage = axiosError.response?.data?.error
+        || (error instanceof Error ? error.message : 'Failed to start export');
       console.error('[SubtitlerExportStore] Export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
@@ -231,11 +238,9 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       get().startPolling();
 
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error
-        ? (error as Record<string, unknown>).response && (error as Record<string, unknown>).response instanceof Object
-          ? ((error as Record<string, unknown>).response as Record<string, unknown>).data?.error || error.message
-          : error.message
-        : 'Failed to start Remotion export';
+      const axiosError = error as AxiosErrorLike;
+      const errorMessage = axiosError.response?.data?.error
+        || (error instanceof Error ? error.message : 'Failed to start Remotion export');
       console.error('[SubtitlerExportStore] Remotion export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,
@@ -383,7 +388,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
     console.log('[SubtitlerExportStore] Retrying export');
     const { subtitles, ...preferences } = state.exportParams;
-    await get().startExport(subtitles, preferences);
+    await get().startExport(subtitles ?? [], preferences);
   },
 
   // Handle streaming download response

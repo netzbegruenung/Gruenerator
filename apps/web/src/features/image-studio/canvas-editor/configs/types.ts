@@ -195,18 +195,22 @@ export type CanvasElementConfig<TState = Record<string, unknown>> =
 // LAYOUT CONFIGURATION
 // ============================================================================
 
+/** Layout element position and size */
+export interface LayoutElementResult {
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    fontSize?: number;
+    maxWidth?: number;
+    lineHeight?: number;
+    padding?: number;
+}
+
 /** Layout calculation result - element positions and sizes */
 export interface LayoutResult {
-    [key: string]: {
-        x: number;
-        y: number;
-        width?: number;
-        height?: number;
-        fontSize?: number;
-        maxWidth?: number;
-        lineHeight?: number;
-        padding?: number;
-    };
+    [key: string]: LayoutElementResult | Record<string, unknown>;
+    _meta?: Record<string, unknown>;
 }
 
 /** Layout calculator function */
@@ -230,7 +234,7 @@ export interface SectionContext {
     [key: string]: unknown;
 }
 
-export interface SectionConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>, TSectionProps extends Record<string, unknown> = Record<string, unknown>> {
+export interface SectionConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>, TSectionProps = Record<string, unknown>> {
     /** Component to render for this section */
     component: React.ComponentType<TSectionProps>;
     /** Function to map canvas state and handlers to section props */
@@ -265,8 +269,9 @@ export interface FullCanvasConfig<TState = Record<string, unknown>, TActions = R
     };
     /** Sidebar tabs */
     tabs: SidebarTab[];
-    /** Sidebar sections */
-    sections: Record<string, SectionConfig<TState, TActions, Record<string, unknown>>>;
+    /** Sidebar sections - uses 'any' for component props to allow strongly-typed section components */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sections: Record<string, SectionConfig<TState, TActions, any>>;
     /** Canvas elements to render */
     elements: CanvasElementConfig<TState>[];
     /** Layout calculator */
@@ -315,8 +320,9 @@ export interface FullCanvasConfig<TState = Record<string, unknown>, TActions = R
 export interface CanvasConfig<TState = Record<string, unknown>, TActions = Record<string, unknown>> {
     /** List of tabs to display in the sidebar */
     tabs: SidebarTab[];
-    /** Mapping of tab IDs to section configurations */
-    sections: Record<string, SectionConfig<TState, TActions, Record<string, unknown>>>;
+    /** Mapping of tab IDs to section configurations - uses 'any' for component props to allow strongly-typed section components */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sections: Record<string, SectionConfig<TState, TActions, any>>;
     /** Optional function to determine disabled tabs based on state */
     getDisabledTabs?: (state: TState) => SidebarTabId[];
     /** Optional function to determine visible tabs based on state/context */

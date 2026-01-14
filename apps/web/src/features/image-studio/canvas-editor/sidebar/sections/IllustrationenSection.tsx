@@ -24,17 +24,11 @@ import {
     CreditCard,
     File,
     Folder,
+    type KawaiiProps,
 } from 'react-kawaii';
 import './IllustrationenSection.css';
 
-interface KawaiiComponentProps {
-  size: number;
-  mood: string;
-  color: string;
-}
-
-// Map for preview components
-const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<KawaiiComponentProps>> = {
+const PREVIEW_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
     planet: Planet,
     cat: Cat,
     ghost: Ghost,

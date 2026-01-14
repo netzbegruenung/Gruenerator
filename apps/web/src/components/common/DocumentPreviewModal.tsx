@@ -8,8 +8,32 @@ import '../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
+interface DocumentItem {
+  title?: string;
+  type?: string;
+  word_count?: number;
+  created_at?: string;
+  updated_at?: string;
+  markdown_content?: string;
+  full_content?: string;
+  content_preview?: string;
+  ocr_text?: string;
+}
+
+interface NotebookItem {
+  name?: string;
+  description?: string;
+  custom_prompt?: string;
+  document_count?: number;
+  is_public?: boolean;
+  view_count?: number;
+  created_at?: string;
+}
+
+type PreviewItem = DocumentItem | NotebookItem;
+
 interface DocumentPreviewModalProps {
-  item: Record<string, unknown> | null;
+  item: PreviewItem | null;
   itemType?: 'document' | 'notebook';
   documentTypes?: Record<string, string>;
   onClose: () => void;
@@ -18,20 +42,24 @@ interface DocumentPreviewModalProps {
 const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {}, onClose }: DocumentPreviewModalProps) => {
   if (!item) return null;
 
-  const itemTitle = itemType === 'notebook' ? item.name : item.title;
+  const isNotebook = itemType === 'notebook';
+  const notebook = isNotebook ? (item as NotebookItem) : null;
+  const document = !isNotebook ? (item as DocumentItem) : null;
 
-  // Enhanced content priority for optimal markdown rendering from Mistral OCR
-  const getDocumentContent = () => {
-    if (itemType === 'notebook') {
-      return item.description || item.custom_prompt || 'Keine Beschreibung verfügbar';
+  const itemTitle = isNotebook ? notebook?.name : document?.title;
+
+  const getDocumentContent = (): string => {
+    if (isNotebook && notebook) {
+      return notebook.description || notebook.custom_prompt || 'Keine Beschreibung verfügbar';
     }
-
-    // Prioritize markdown content from Mistral OCR, then fallback to other content
-    return item.markdown_content || item.full_content || item.content_preview || item.ocr_text || 'Kein Inhalt verfügbar';
+    if (document) {
+      return document.markdown_content || document.full_content || document.content_preview || document.ocr_text || 'Kein Inhalt verfügbar';
+    }
+    return 'Kein Inhalt verfügbar';
   };
 
   const previewContent = getDocumentContent();
-  const isMarkdownContent = itemType !== 'notebook'; // All documents use markdown renderer
+  const isMarkdownContent = !isNotebook;
 
   return (
     <motion.div
@@ -56,21 +84,21 @@ const DocumentPreviewModal = ({ item, itemType = 'document', documentTypes = {},
         </div>
         <div className="document-preview-content">
           <div className="document-preview-meta">
-            {itemType === 'notebook' ? (
+            {isNotebook && notebook ? (
               <>
-                {item.document_count && <span>Dokumente: {item.document_count}</span>}
-                {item.is_public && <span>Öffentlich</span>}
-                {item.view_count && <span>Aufrufe: {item.view_count}</span>}
-                {item.created_at && <span>Erstellt: {formatDate(item.created_at)}</span>}
+                {notebook.document_count !== undefined && <span>Dokumente: {notebook.document_count}</span>}
+                {notebook.is_public && <span>Öffentlich</span>}
+                {notebook.view_count !== undefined && <span>Aufrufe: {notebook.view_count}</span>}
+                {notebook.created_at && <span>Erstellt: {formatDate(notebook.created_at)}</span>}
               </>
-            ) : (
+            ) : document ? (
               <>
-                {item.type && <span>Typ: {documentTypes[item.type] || item.type}</span>}
-                {item.word_count && <span>Wörter: {item.word_count}</span>}
-                {item.created_at && <span>Erstellt: {formatDate(item.created_at)}</span>}
-                {item.updated_at && <span>Geändert: {formatDate(item.updated_at)}</span>}
+                {document.type && <span>Typ: {documentTypes[document.type] || document.type}</span>}
+                {document.word_count !== undefined && <span>Wörter: {document.word_count}</span>}
+                {document.created_at && <span>Erstellt: {formatDate(document.created_at)}</span>}
+                {document.updated_at && <span>Geändert: {formatDate(document.updated_at)}</span>}
               </>
-            )}
+            ) : null}
           </div>
           <div className={isMarkdownContent ? "markdown-content" : "document-preview-text"}>
             {isMarkdownContent ? (

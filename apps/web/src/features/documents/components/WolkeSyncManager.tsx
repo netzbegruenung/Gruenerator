@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useWolkeSync } from '../hooks/useWolkeSync';
-import WolkeFolderBrowser from './WolkeFolderBrowser';
 import './WolkeSyncManager.css';
-import { getIcon } from '../../../config/icons';
-// Import ProfileActionButton CSS for consistent button styling
+import { getIcon, IconType } from '../../../config/icons';
 import '../../../assets/styles/components/profile/profile-action-buttons.css';
+
+interface AutoSyncResult {
+    success: boolean;
+    autoSyncEnabled?: boolean;
+}
 
 interface ShareLink {
     id: string;
@@ -146,7 +149,10 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                                 disabled={shareLinksLoading}
                                 title="Nach neuen Wolke-Verbindungen suchen"
                             >
-                                {React.createElement(getIcon('actions', 'refresh'), { className: `pabtn__icon ${shareLinksLoading ? 'spinning' : ''}` })}
+                                {(() => {
+                                    const RefreshIcon = getIcon('actions', 'refresh');
+                                    return RefreshIcon ? React.createElement(RefreshIcon, { className: `pabtn__icon ${shareLinksLoading ? 'spinning' : ''}` }) : null;
+                                })()}
                                 <span className="pabtn__label">{shareLinksLoading ? 'Wird aktualisiert...' : 'Aktualisieren'}</span>
                             </button>
                         </div>
@@ -160,7 +166,10 @@ export const WolkeSyncManager = ({ wolkeShareLinks = [], onRefreshShareLinks, on
                             className="pabtn pabtn--primary pabtn--m"
                             onClick={handleConfigureWolke}
                         >
-                            {React.createElement(getIcon('actions', 'cloud'), { className: 'pabtn__icon' })}
+                            {(() => {
+                                const CloudIcon = getIcon('actions', 'cloud');
+                                return CloudIcon ? React.createElement(CloudIcon, { className: 'pabtn__icon' }) : null;
+                            })()}
                             <span className="pabtn__label">{buttonText}</span>
                         </button>
                     </div>
@@ -246,7 +255,7 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
     const handleSyncFolder = async (shareLinkId: string, folderPath?: string) => {
         setSyncingFolders(prev => new Set(prev).add(`${shareLinkId}-${folderPath || ''}`));
         try {
-            await onSyncFolder(shareLinkId, folderPath);
+            await onSyncFolder(shareLinkId, folderPath || '');
         } finally {
             setSyncingFolders(prev => {
                 const newSet = new Set(prev);
@@ -314,30 +323,25 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                         console.log(`[ShareLinksWithSync] Toggling auto-sync for ${shareLink.id} to:`, newCheckedState);
 
                                         try {
-                                            const result = await setAutoSync(shareLink.id, '', newCheckedState);
+                                            const result = await setAutoSync(shareLink.id, '', newCheckedState) as AutoSyncResult;
                                             console.log(`[ShareLinksWithSync] Auto-sync toggle result:`, result);
 
-                                            // Force refresh sync statuses to update UI state immediately
                                             setTimeout(async () => {
                                                 try {
-                                                    await refreshSyncStatuses();
-                                                    if (onSyncComplete) {
-                                                        onSyncComplete();
-                                                    }
+                                                    await refreshSyncStatuses?.();
+                                                    onSyncComplete?.();
                                                 } catch (refreshError) {
                                                     console.error('[ShareLinksWithSync] Failed to refresh sync statuses:', refreshError);
                                                 }
                                             }, 100);
 
-                                            // If auto-sync was successfully enabled, immediately trigger a sync
-                                            if (result && result.success && result.autoSyncEnabled && newCheckedState) {
+                                            if (result?.success && result?.autoSyncEnabled && newCheckedState) {
                                                 console.log('[WolkeSyncManager] Auto-sync enabled, triggering immediate sync...');
                                                 try {
                                                     await handleSyncFolder(shareLink.id, '');
                                                     console.log('[WolkeSyncManager] Auto-sync initial sync completed');
                                                 } catch (syncError) {
                                                     console.error('[WolkeSyncManager] Auto-sync initial sync failed:', syncError);
-                                                    // Don't throw here - auto-sync setting was still successful
                                                 }
                                             }
                                         } catch (error) {
@@ -350,7 +354,7 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                 />
                                 <h3>{shareLink.label || `Link ${shareLink.id.slice(-6)}`}</h3>
                             </div>
-                            <p>{new URL(shareLink.share_link).hostname}</p>
+                            <p>{shareLink.share_link ? new URL(shareLink.share_link).hostname : ''}</p>
                             {isSyncEnabled && syncStatus && syncStatus.sync_status !== 'completed' && syncStatus.sync_status !== 'idle' && (
                                 <span className="sync-status">{getSimpleStatus(syncStatus.sync_status)}</span>
                             )}
@@ -364,7 +368,10 @@ const ShareLinksWithSync = ({ shareLinks, syncStatuses, onSyncFolder, onSyncComp
                                     disabled={isCurrentlySyncing}
                                     title={isCurrentlySyncing ? 'Synchronisiert...' : 'Synchronisieren'}
                                 >
-                                    {React.createElement(getIcon('actions', 'refresh'), { className: `pabtn__icon ${isCurrentlySyncing ? 'spinning' : ''}` })}
+                                    {(() => {
+                                        const RefreshIcon = getIcon('actions', 'refresh');
+                                        return RefreshIcon ? React.createElement(RefreshIcon, { className: `pabtn__icon ${isCurrentlySyncing ? 'spinning' : ''}` }) : null;
+                                    })()}
                                 </button>
                             )}
                         </div>

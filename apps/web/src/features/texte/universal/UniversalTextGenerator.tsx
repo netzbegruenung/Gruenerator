@@ -168,18 +168,17 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
     };
   }, [selectedType]);
 
-  // Create baseForm with knowledge system enabled for document/text fetching
   const form = useBaseForm({
     defaultValues: {} as Record<string, unknown>,
     generatorType: 'universal-text',
     componentName: componentName,
     endpoint: '/placeholder',
     disableKnowledgeSystem: false,
-    features: ['webSearch', 'privacyMode', 'proMode'] as const,
+    features: ['webSearch', 'privacyMode', 'proMode'],
     tabIndexKey: 'UNIVERSAL',
     defaultMode: 'privacy',
     helpContent: helpContent
-  });
+  } as unknown as Parameters<typeof useBaseForm>[0]);
 
   // Memoize attachments array
   const allAttachments = useMemo(() =>
@@ -293,13 +292,17 @@ const UniversalTextGenerator: React.FC<UniversalTextGeneratorProps> = ({ showHea
     />
   );
 
+  const baseFormProps = form.generator?.baseFormProps;
+  const { platformOptions: _platformOptions, componentName: _componentName, ...restBaseFormProps } = baseFormProps || {};
+
   return (
     <ErrorBoundary>
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         {form.generator && (
           <BaseForm
             key={selectedType}
-            {...form.generator.baseFormProps}
+            {...restBaseFormProps}
+            componentName={componentName}
             enableEditMode={true}
             title={<span className="gradient-title">{TEXT_TYPE_TITLES[selectedType as keyof typeof TEXT_TYPE_TITLES]}</span>}
             onSubmit={handleSubmit}

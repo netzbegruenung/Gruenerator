@@ -15,29 +15,29 @@
 
 import type { ExtendedAssetsSectionProps } from '../sidebar/sections/AssetsSection';
 import type { SectionContext } from './types';
+import type { ShapeInstance } from '../utils/shapes';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { BalkenInstance } from '../primitives/BalkenGroup';
 
-/**
- * Feature type definitions for type-safe property access
- */
 interface FeatureStateWithIcons {
     selectedIcons?: string[];
     iconStates?: Record<string, unknown>;
 }
 
 interface FeatureStateWithShapes {
-    shapeInstances?: unknown[];
+    shapeInstances?: ShapeInstance[];
 }
 
 interface FeatureStateWithIllustrations {
-    illustrationInstances?: unknown[];
+    illustrationInstances?: IllustrationInstance[];
 }
 
 interface FeatureStateWithBalken {
-    balkenInstances?: unknown[];
+    balkenInstances?: BalkenInstance[];
 }
 
 interface FeatureActionsBase {
-    [key: string]: ((arg?: unknown) => void) | ((arg1?: unknown, arg2?: unknown) => void);
+    [key: string]: ((...args: unknown[]) => unknown) | undefined;
 }
 
 /**
@@ -62,7 +62,7 @@ interface FeatureActionsBase {
  * }
  * ```
  */
-export function injectFeatureProps<S extends Record<string, unknown>, A extends FeatureActionsBase>(
+export function injectFeatureProps<S extends object, A extends object>(
     state: S,
     actions: A,
     context?: SectionContext

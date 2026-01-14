@@ -15,6 +15,7 @@ import {
     File,
     Folder,
 } from 'react-kawaii';
+import type { KawaiiProps } from 'react-kawaii';
 import type {
     IllustrationInstance,
     KawaiiIllustrationType,
@@ -24,8 +25,7 @@ import type {
 import { getIllustrationPath, findIllustrationById } from '../utils/illustrations/registry';
 import { getCachedSVG, getSVG } from '../utils/illustrations/svgCache';
 
-// Map illustration type to component
-const ILLUSTRATION_COMPONENTS: Record<KawaiiIllustrationType, React.ComponentType<{ size: number; mood: string; color: string }>> = {
+const ILLUSTRATION_COMPONENTS: Record<KawaiiIllustrationType, React.FunctionComponent<KawaiiProps>> = {
     planet: Planet,
     cat: Cat,
     ghost: Ghost,

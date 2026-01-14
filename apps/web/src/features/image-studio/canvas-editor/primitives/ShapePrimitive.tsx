@@ -56,7 +56,6 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     };
 
     const commonProps = {
-        ref: shapeRef as unknown as React.Ref<Konva.Shape>,
         x: shape.x,
         y: shape.y,
         fill: shape.fill,
@@ -82,6 +81,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
         <>
             {shape.type === 'rect' && (
                 <Rect
+                    ref={shapeRef as React.RefObject<Konva.Rect>}
                     {...commonProps}
                     width={shape.width}
                     height={shape.height}
@@ -92,20 +92,17 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
             {shape.type === 'circle' && (
                 <Circle
+                    ref={shapeRef as React.RefObject<Konva.Circle>}
                     {...commonProps}
                     width={shape.width}
                     height={shape.height}
-                    // Circle default offset is center if standard radius used, but width/height works too
-                    // Konva Circle is defined by radius usually, but width/height prop works as diameter?
-                    // No, Circle takes radius. So width should be radius * 2. 
-                    // Let's use radius prop for clarity or rely on Konva's width handling if it supports it.
-                    // Konva Circle uses radius. Let's map width to radius.
                     radius={shape.width / 2}
                 />
             )}
 
             {shape.type === 'triangle' && (
                 <RegularPolygon
+                    ref={shapeRef as React.RefObject<Konva.RegularPolygon>}
                     {...commonProps}
                     sides={3}
                     radius={shape.width / 2}
@@ -114,6 +111,7 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
             {shape.type === 'star' && (
                 <Star
+                    ref={shapeRef as React.RefObject<Konva.Star>}
                     {...commonProps}
                     numPoints={5}
                     innerRadius={shape.width / 4}
@@ -123,30 +121,21 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
             {shape.type === 'arrow' && (
                 <Path
+                    ref={shapeRef as React.RefObject<Konva.Path>}
                     {...commonProps}
                     data="M0,20 L50,20 L50,0 L100,50 L50,100 L50,80 L0,80 Z"
-                    // Center offset (approximate for 100x100 path)
                     offsetX={50}
                     offsetY={50}
-                    // Scale path to match shape width
                     scaleX={shape.width / 100 * shape.scaleX}
                     scaleY={shape.height / 100 * shape.scaleY}
-                // Override commonProps scale because we handled it above effectively?
-                // No, commonProps applies transform to the Node.
-                // If we apply scale here AND commonProps, it doubles.
-                // But commonProps uses shape.scaleX, which is user interaction state.
-                // The path coordinates are fixed 0-100. We need to scale them to shape.width.
-                // So we should map width to scale ONLY, and let commonProps handle user interaction scale?
-                // Wait, Rect/Circle use width/height props. Path does not.
-                // Path needs 'scale' attribute to size it.
                 />
             )}
 
             {shape.type === 'heart' && (
                 <Path
+                    ref={shapeRef as React.RefObject<Konva.Path>}
                     {...commonProps}
                     data="M50,90 C50,90 10,70 10,40 C10,15 30,5 50,30 C70,5 90,15 90,40 C90,70 50,90 50,90 Z"
-                    // 100x100 box approx
                     offsetX={50}
                     offsetY={50}
                     scaleX={shape.width / 100 * shape.scaleX}
@@ -156,9 +145,9 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
 
             {shape.type === 'cloud' && (
                 <Path
+                    ref={shapeRef as React.RefObject<Konva.Path>}
                     {...commonProps}
                     data="M25,60 C10,60 0,50 0,35 C0,20 15,10 25,15 C30,5 45,0 60,5 C75,10 80,20 80,25 C90,25 100,35 100,50 C100,65 85,75 70,70 C60,80 35,80 25,60 Z"
-                    // 100x100 box approx
                     offsetX={50}
                     offsetY={40}
                     scaleX={shape.width / 100 * shape.scaleX}

@@ -184,11 +184,11 @@ const SharepicBackendResult: React.FC<SharepicBackendResultProps> = ({
       {isAdvancedEditingOpen && formData.type !== 'Info' && formData.type !== 'Zitat_Pure' && (
         <AdvancedEditingSection
           balkenOffset={balkenOffset}
-          balkenGruppenOffset={balkenGruppenOffset}
-          sunflowerOffset={sunflowerOffset}
+          balkenGruppenOffset={{ x: balkenGruppenOffset[0], y: balkenGruppenOffset[1] }}
+          sunflowerOffset={{ x: sunflowerOffset[0], y: sunflowerOffset[1] }}
           onBalkenOffsetChange={(newOffset: number[]) => onControlChange('balkenOffset', newOffset)}
-          onBalkenGruppenOffsetChange={(newOffset: [number, number]) => onControlChange('balkenGruppenOffset', newOffset)}
-          onSonnenblumenOffsetChange={(newOffset: [number, number]) => onControlChange('sunflowerOffset', newOffset)}
+          onBalkenGruppenOffsetChange={(newOffset: { x: number; y: number }) => onControlChange('balkenGruppenOffset', [newOffset.x, newOffset.y])}
+          onSonnenblumenOffsetChange={(newOffset: { x: number; y: number }) => onControlChange('sunflowerOffset', [newOffset.x, newOffset.y])}
         />
       )}
     </>

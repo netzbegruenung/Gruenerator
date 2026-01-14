@@ -69,6 +69,34 @@ interface SourceRecommendation {
   summary: string;
 }
 
+interface SearchApiResponse {
+  status: string;
+  results?: Source[];
+}
+
+interface AnalysisApiResponse {
+  analysis: string;
+  sourceRecommendations?: SourceRecommendation[];
+  claudeSourceTitles: string[];
+}
+
+interface DeepSearchApiResponse {
+  status: string;
+  dossier?: string;
+  categorizedSources?: Record<string, Source[]>;
+  researchQuestions?: string[];
+  sources?: Source[];
+  citations?: Citation[];
+  citationSources?: Source[];
+}
+
+interface WebSearchApiResponse {
+  success: boolean;
+  error?: string;
+  citations?: Citation[];
+  sources?: Source[];
+}
+
 const useSearch = () => {
   const [results, setResults] = useState<Source[]>([]);
   const [usedSources, setUsedSources] = useState<Source[]>([]);
@@ -117,7 +145,6 @@ const useSearch = () => {
     clearAllResults();
 
     try {
-      // 1. Tavily Suche (10 Ergebnisse)
       const searchData = await submitSearch({
         query,
         options: {
@@ -125,20 +152,18 @@ const useSearch = () => {
           max_results: 10,
           include_raw_content: true
         }
-      });
+      }) as unknown as SearchApiResponse;
 
       if (searchData.status === 'success' && Array.isArray(searchData.results)) {
         setResults(searchData.results);
 
-        // 2. Claude Analyse (nur die ersten 6 Quellen)
         try {
           const analysisResult = await submitAnalysis({
             contents: searchData.results.slice(0, 6)
-          });
+          }) as unknown as AnalysisApiResponse;
           setAnalysis(formatAnalysisText(analysisResult.analysis));
           setSourceRecommendations(analysisResult.sourceRecommendations || []);
 
-          // 3. Finde genutzte Quellen (nur aus den ersten 6)
           const usedSourcesList = findUsedSources(
             searchData.results.slice(0, 6),
             analysisResult.analysis,
@@ -164,24 +189,18 @@ const useSearch = () => {
     try {
       console.log('[useSearch] Starting deep search for:', query);
 
-      const deepSearchData = await submitDeepSearch({ query });
+      const deepSearchData = await submitDeepSearch({ query }) as unknown as DeepSearchApiResponse;
 
       if (deepSearchData.status === 'success') {
         console.log('[useSearch] Deep search successful:', deepSearchData);
 
-        // Set deep research specific data
-        setDossier(deepSearchData.dossier);
+        setDossier(deepSearchData.dossier ?? null);
         setCategorizedSources(deepSearchData.categorizedSources || {});
         setResearchQuestions(deepSearchData.researchQuestions || []);
-
-        // Set general sources data for potential use
         setResults(deepSearchData.sources || []);
 
-        // Set citation data if available
         if (deepSearchData.citations) {
           setCitations(deepSearchData.citations);
-
-          // Store in generatedTextStore so ContentRenderer can access citations
           setGeneratedTextMetadata('deep-research-dossier', {
             citations: deepSearchData.citations,
             citationSources: deepSearchData.citationSources || []
@@ -190,10 +209,6 @@ const useSearch = () => {
         if (deepSearchData.citationSources) {
           setCitationSources(deepSearchData.citationSources);
         }
-
-        // For deep search, we don't use the standard analysis workflow
-        // The dossier serves as the analysis
-
       } else {
         throw new Error('Ungültiges Antwortformat vom Server');
       }
@@ -216,17 +231,14 @@ const useSearch = () => {
         includeSummary: true,
         maxResults: 10,
         language: 'de-DE'
-      });
+      }) as unknown as WebSearchApiResponse & WebResults;
 
       if (webSearchData.success) {
         console.log('[useSearch] Web search successful:', webSearchData);
         setWebResults(webSearchData);
 
-        // Set citation data if available
         if (webSearchData.citations) {
           setCitations(webSearchData.citations);
-
-          // Store in generatedTextStore so ContentRenderer can access citations
           setGeneratedTextMetadata('web-search-summary', {
             citations: webSearchData.citations,
             citationSources: webSearchData.sources || []

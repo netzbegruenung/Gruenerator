@@ -42,4 +42,5 @@ export const ImageBackgroundSection = lazy(() =>
 export const GenericShareSection = lazy(() =>
   import('./GenericShareSection').then(m => ({ default: m.GenericShareSection }))
 );
+export type { GenericShareSectionProps } from './GenericShareSection';
 

@@ -8,9 +8,9 @@ import { ProfilbildCanvas } from './ProfilbildCanvas';
 import { GenericCanvas } from './components/GenericCanvas';
 import { ZitatMultiPage } from './components/ZitatMultiPage';
 
-// Dynamic config loading
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
-import type { CanvasConfig } from './configs/types';
+import type { FullCanvasConfig } from './configs/types';
+import { assertAsString, assertAsStringArray } from './utils/stateTypeAssertions';
 
 import type { DreizeilenCanvasProps } from './composed/DreizeilenCanvas';
 import type { ProfilbildCanvasProps } from '@gruenerator/shared/canvas-editor';
@@ -36,7 +36,7 @@ export function ControllableCanvasWrapper({
 }: ControllableCanvasWrapperProps) {
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
-  const [config, setConfig] = useState<CanvasConfig | null>(null);
+  const [config, setConfig] = useState<FullCanvasConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
 
   // Load config dynamically when type changes (for config-driven canvases)
@@ -96,9 +96,9 @@ export function ControllableCanvasWrapper({
         return (
           <DreizeilenCanvas
             {...commonProps}
-            line1={internalState.line1 || ''}
-            line2={internalState.line2 || ''}
-            line3={internalState.line3 || ''}
+            line1={assertAsString(internalState.line1)}
+            line2={assertAsString(internalState.line2)}
+            line3={assertAsString(internalState.line3)}
             imageSrc={imageSrc}
             onLine1Change={(line1) => handlePartChange({ line1 })}
             onLine2Change={(line2) => handlePartChange({ line2 })}
@@ -106,16 +106,15 @@ export function ControllableCanvasWrapper({
           />
         );
 
-      // Zitat uses multi-page component (has its own config loading)
       case 'zitat':
         return (
           <ZitatMultiPage
             key={componentKey}
             initialProps={{
-              quote: internalState.quote || '',
-              name: internalState.name || '',
+              quote: assertAsString(internalState.quote),
+              name: assertAsString(internalState.name),
               imageSrc: imageSrc || '',
-              alternatives: internalState.alternatives || [],
+              alternatives: assertAsStringArray(internalState.alternatives),
             }}
             onExport={onExport}
             onCancel={onCancel}

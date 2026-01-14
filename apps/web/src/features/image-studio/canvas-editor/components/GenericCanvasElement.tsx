@@ -32,6 +32,7 @@ import {
     getStateValue,
     getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
+import type { SnapTarget, SnapLine } from '../utils/snapping';
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -75,16 +76,10 @@ interface MemoizedTextProps<TState extends Record<string, unknown> = Record<stri
     onFontSizeChange: (id: string, size: number) => void;
     onPositionChange: (id: string, x: number, y: number, w: number, h: number) => void;
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
-    onSnapLinesChange: (lines: SnapLineConfig[]) => void;
+    onSnapLinesChange: (lines: SnapLine[]) => void;
     stageWidth: number;
     stageHeight: number;
-    snapTargets: string[];
-}
-
-/** Snap line configuration for visual guides */
-interface SnapLineConfig {
-    type: 'vertical' | 'horizontal';
-    position: number;
+    snapTargets: SnapTarget[];
 }
 
 const MemoizedTextElement = memo(function MemoizedTextElement<TState extends Record<string, unknown> = Record<string, unknown>>({
@@ -216,8 +211,8 @@ interface MemoizedImageProps<TState extends Record<string, unknown> = Record<str
     stageWidth: number;
     stageHeight: number;
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
-    onSnapLinesChange: (lines: SnapLineConfig[]) => void;
-    snapTargets: string[];
+    onSnapLinesChange: (lines: SnapLine[]) => void;
+    snapTargets: SnapTarget[];
 }
 
 const MemoizedImageElement = memo(function MemoizedImageElement<TState extends Record<string, unknown> = Record<string, unknown>>({
@@ -425,10 +420,10 @@ export interface GenericCanvasElementProps<TState extends Record<string, unknown
     onImageDragEnd: (id: string, x: number, y: number) => void;
     onImageTransformEnd: (id: string, x: number, y: number, w: number, h: number) => void;
     onSnapChange: (snapH: boolean, snapV: boolean) => void;
-    onSnapLinesChange: (lines: SnapLineConfig[]) => void;
+    onSnapLinesChange: (lines: SnapLine[]) => void;
     stageWidth: number;
     stageHeight: number;
-    snapTargets: string[];
+    snapTargets: SnapTarget[];
 }
 
 export const GenericCanvasElement = memo(function GenericCanvasElement<TState extends Record<string, unknown> = Record<string, unknown>>({
@@ -459,8 +454,8 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<TState ex
         case 'text':
             return (
                 <MemoizedTextElement
-                    config={config}
-                    state={state}
+                    config={config as TextElementConfig<Record<string, unknown>>}
+                    state={state as Record<string, unknown>}
                     layout={layout}
                     selected={selected}
                     onSelect={onSelect}
@@ -478,8 +473,8 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<TState ex
         case 'image':
             return (
                 <MemoizedImageElement
-                    config={config}
-                    state={state}
+                    config={config as ImageElementConfig<Record<string, unknown>>}
+                    state={state as Record<string, unknown>}
                     layout={layout}
                     selected={selected}
                     onSelect={onSelect}
@@ -496,8 +491,8 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<TState ex
         case 'rect':
             return (
                 <MemoizedRectElement
-                    config={config}
-                    state={state}
+                    config={config as RectElementConfig<Record<string, unknown>>}
+                    state={state as Record<string, unknown>}
                     layout={layout}
                 />
             );
@@ -505,8 +500,8 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<TState ex
         case 'circle':
             return (
                 <MemoizedCircleElement
-                    config={config}
-                    state={state}
+                    config={config as CircleElementConfig<Record<string, unknown>>}
+                    state={state as Record<string, unknown>}
                     layout={layout}
                 />
             );
@@ -514,8 +509,8 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<TState ex
         case 'background':
             return (
                 <MemoizedBackgroundElement
-                    config={config}
-                    state={state}
+                    config={config as BackgroundElementConfig<Record<string, unknown>>}
+                    state={state as Record<string, unknown>}
                 />
             );
 
