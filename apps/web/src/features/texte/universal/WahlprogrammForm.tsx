@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
-import { useForm } from 'react-hook-form';
+import { Control, useForm } from 'react-hook-form';
 import { FORM_LABELS, FORM_PLACEHOLDERS } from '../../../components/utils/constants';
 import { FormInput, FormTextarea } from '../../../components/common/Form/Input';
 
@@ -37,7 +37,7 @@ const WahlprogrammForm = forwardRef<WahlprogrammFormRef, WahlprogrammFormProps>(
     <>
       <FormTextarea
         name="inhalt"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         placeholder={FORM_PLACEHOLDERS.INHALT}
         rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
         minRows={5}
@@ -48,7 +48,7 @@ const WahlprogrammForm = forwardRef<WahlprogrammFormRef, WahlprogrammFormProps>(
 
       <FormInput
         name="zeichenanzahl"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         type="number"
         label={FORM_LABELS.CHARACTER_COUNT}
         placeholder="1000-3500"

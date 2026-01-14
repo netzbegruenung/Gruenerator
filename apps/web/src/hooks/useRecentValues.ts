@@ -91,10 +91,14 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
       }
     } catch (err: unknown) {
       console.error('[useRecentValues] Error fetching recent values:', err);
-      const errorMessage = err instanceof Error && 'response' in err
-        ? (err as Record<string, unknown>).response
-        : null;
-      setError((errorMessage as Record<string, unknown> | null)?.data?.error || 'Failed to fetch recent values');
+      let errorMsg = 'Failed to fetch recent values';
+      if (err instanceof Error && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error) {
+          errorMsg = response.data.error;
+        }
+      }
+      setError(errorMsg);
       // Don't clear existing values on error
     } finally {
       setIsLoading(false);
@@ -165,10 +169,14 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
       }
     } catch (err: unknown) {
       console.error('[useRecentValues] Error clearing recent values:', err);
-      const errorMessage = err instanceof Error && 'response' in err
-        ? (err as Record<string, unknown>).response
-        : null;
-      setError((errorMessage as Record<string, unknown> | null)?.data?.error || 'Failed to clear recent values');
+      let errorMsg = 'Failed to clear recent values';
+      if (err instanceof Error && 'response' in err) {
+        const response = (err as { response?: { data?: { error?: string } } }).response;
+        if (response?.data?.error) {
+          errorMsg = response.data.error;
+        }
+      }
+      setError(errorMsg);
     }
   }, [fieldType, cacheKey]);
 

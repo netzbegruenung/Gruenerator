@@ -124,14 +124,16 @@ export function useTextAutoSave(options: UseTextAutoSaveOptions): UseTextAutoSav
       saveTimeoutRef.current = null;
     }
 
-    await performSave(content);
+    if (typeof content === 'string') {
+      await performSave(content);
+    }
   }, [enabled, content, performSave]);
 
   /**
    * Debounced auto-save effect
    */
   useEffect(() => {
-    if (!enabled || !content) {
+    if (!enabled || !content || typeof content !== 'string') {
       return;
     }
 

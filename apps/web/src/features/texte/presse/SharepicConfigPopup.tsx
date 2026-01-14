@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Controller } from 'react-hook-form';
@@ -49,6 +49,27 @@ const SharepicConfigPopup = ({
   loading,
   success
 }: SharepicConfigPopupProps) => {
+  const [fileObject, setFileObject] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (!uploadedImage) {
+      setFileObject(null);
+    }
+  }, [uploadedImage]);
+
+  const handleFileChange = useCallback((file: File | null) => {
+    setFileObject(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleImageChange(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      handleImageChange(null);
+    }
+  }, [handleImageChange]);
+
   if (!isOpen) return null;
 
   const showAuthorField = watchSharepicType === 'quote' || watchSharepicType === 'quote_pure';
@@ -156,9 +177,9 @@ const SharepicConfigPopup = ({
                     transition={{ duration: 0.2 }}
                   >
                     <FileUpload
-                      handleChange={handleImageChange}
+                      handleChange={handleFileChange}
                       allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
-                      file={uploadedImage}
+                      file={fileObject}
                       loading={loading}
                       label="Bild für Sharepic (optional)"
                     />
