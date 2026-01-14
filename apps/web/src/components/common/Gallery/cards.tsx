@@ -30,7 +30,7 @@ interface CardAdapterResult {
   props: Record<string, unknown>;
 }
 
-interface GalleryItem {
+export interface GalleryItem {
   id: string;
   title?: string;
   name?: string;
@@ -51,6 +51,7 @@ interface GalleryItem {
     author_name?: string;
     contact_email?: string;
   };
+  [key: string]: unknown;
 }
 
 type CardAdapter = (item: GalleryItem, options?: CardAdapterOptions) => CardAdapterResult | null;

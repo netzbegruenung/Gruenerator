@@ -22,14 +22,19 @@ interface Instructions {
 }
 
 // Document type
-interface Document {
+export interface Document {
   id: string;
+  title?: string;
+  filename?: string;
+  status?: string;
   [key: string]: unknown;
 }
 
 // Text type
-interface Text {
+export interface Text {
   id: string;
+  title?: string;
+  type?: string;
   [key: string]: unknown;
 }
 

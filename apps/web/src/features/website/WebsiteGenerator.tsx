@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import type { Control } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { HiCode, HiDownload, HiCheck } from 'react-icons/hi';
 import BaseForm from '../../components/common/Form/BaseForm/BaseForm';
@@ -20,7 +21,8 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
 
   const { loading, success, error, submitForm, resetSuccess } = useApiSubmit('/claude_website');
 
-  const storeGeneratedText = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeGeneratedTextRaw = useGeneratedTextStore(state => state.getGeneratedText(componentName));
+  const storeGeneratedText = typeof storeGeneratedTextRaw === 'string' ? storeGeneratedTextRaw : (storeGeneratedTextRaw ? JSON.stringify(storeGeneratedTextRaw, null, 2) : '');
   const { getFeatureState } = useGeneratorSelectionStore();
 
   const {
@@ -114,7 +116,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
     <>
       <FormTextarea
         name="description"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Beschreibung deiner Person und politischen Arbeit"
         placeholder="Ich bin Max Mustermann, 42 Jahre alt und kandidiere für den Stadtrat in München. Seit 15 Jahren engagiere ich mich für Klimaschutz und nachhaltige Mobilität. Als Umweltingenieur bringe ich Fachwissen mit. Meine Schwerpunkte sind: Ausbau des Radwegenetzes, mehr Grünflächen in der Stadt, und bezahlbarer Wohnraum für alle..."
         minRows={6}
@@ -128,7 +130,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
 
       <FormInput
         name="email"
-        control={control}
+        control={control as unknown as Control<Record<string, unknown>>}
         label="Kontakt E-Mail (optional)"
         placeholder="kontakt@beispiel.de"
         type="email"
@@ -136,7 +138,7 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
     </>
   );
 
-  const customRenderer = useCallback(({ content }: { content: string }) => {
+  const customRenderer = useCallback(({ content }: { content: unknown }) => {
     let jsonData = null;
     try {
       jsonData = typeof content === 'string' ? JSON.parse(content) : content;

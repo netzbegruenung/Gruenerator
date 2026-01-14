@@ -234,16 +234,24 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             fill: 'rgba(0,0,0,0.3)',
             listening: false,
         },
-        // Headline text
         {
             id: 'headline-text',
             type: 'text',
-            x: (s: SimpleFullState, l: LayoutResult) => l['headline-text']?.x ?? SIMPLE_CONFIG.headline.x,
-            y: (s: SimpleFullState, l: LayoutResult) => l['headline-text']?.y ?? SIMPLE_CONFIG.headline.y,
+            x: (_s: SimpleFullState, l: LayoutResult) => {
+                const elem = l['headline-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return elem?.x ?? SIMPLE_CONFIG.headline.x;
+            },
+            y: (_s: SimpleFullState, l: LayoutResult) => {
+                const elem = l['headline-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return elem?.y ?? SIMPLE_CONFIG.headline.y;
+            },
             order: 2,
             textKey: 'headline',
             width: SIMPLE_CONFIG.headline.maxWidth,
-            fontSize: (s: SimpleFullState, l: LayoutResult) => l['headline-text']?.fontSize ?? SIMPLE_CONFIG.headline.fontSize,
+            fontSize: (_s: SimpleFullState, l: LayoutResult) => {
+                const elem = l['headline-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return elem?.fontSize ?? SIMPLE_CONFIG.headline.fontSize;
+            },
             fontFamily: `${SIMPLE_CONFIG.headline.fontFamily}, Arial, sans-serif`,
             fontStyle: SIMPLE_CONFIG.headline.fontStyle,
             align: 'left',
@@ -257,16 +265,24 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             fill: (state: SimpleFullState, _layout: LayoutResult) => state.headlineColor ?? SIMPLE_CONFIG.headline.color,
             fillStateKey: 'headlineColor',
         },
-        // Subtext
         {
             id: 'subtext-text',
             type: 'text',
-            x: (s: SimpleFullState, l: LayoutResult) => l['subtext-text']?.x ?? SIMPLE_CONFIG.subtext.x,
-            y: (s: SimpleFullState, l: LayoutResult) => l['subtext-text']?.y ?? 200,
+            x: (_s: SimpleFullState, l: LayoutResult) => {
+                const elem = l['subtext-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return elem?.x ?? SIMPLE_CONFIG.subtext.x;
+            },
+            y: (_s: SimpleFullState, l: LayoutResult) => {
+                const elem = l['subtext-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return elem?.y ?? 200;
+            },
             order: 3,
             textKey: 'subtext',
             width: SIMPLE_CONFIG.subtext.maxWidth,
-            fontSize: (s: SimpleFullState, l: LayoutResult) => l['subtext-text']?.fontSize ?? SIMPLE_CONFIG.subtext.fontSize,
+            fontSize: (_s: SimpleFullState, l: LayoutResult) => {
+                const elem = l['subtext-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return elem?.fontSize ?? SIMPLE_CONFIG.subtext.fontSize;
+            },
             fontFamily: `${SIMPLE_CONFIG.subtext.fontFamily}, Arial, sans-serif`,
             fontStyle: SIMPLE_CONFIG.subtext.fontStyle,
             align: 'left',

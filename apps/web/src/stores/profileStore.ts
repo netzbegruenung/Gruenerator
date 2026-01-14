@@ -11,8 +11,8 @@ const EMPTY_OBJECT = Object.freeze({});
 
 interface Profile {
   display_name?: string;
-  avatar_robot_id?: string;
-  email?: string;
+  avatar_robot_id?: string | number;
+  email?: string | null;
   locale?: string;
   username?: string;
   first_name?: string;
@@ -113,6 +113,8 @@ interface OptimisticLoading {
   customGenerators: Set<string>;
 }
 
+type BooleanLoadingKey = 'avatar' | 'displayName' | 'anweisungen';
+
 interface Messages {
   success: string;
   error: string;
@@ -185,10 +187,10 @@ interface ProfileStore {
   hasUnsavedChanges: (section: keyof UnsavedChanges) => boolean;
   setValidationErrors: (section: keyof Omit<ValidationErrors, 'knowledge' | 'qaCollections' | 'customGenerators'>, errors: Record<string, string>) => void;
   clearValidationErrors: (section: keyof ValidationErrors) => void;
-  updateProfileOptimistic: (updates: Partial<Profile>, loadingKey?: keyof OptimisticLoading | null) => void;
-  completeOptimisticUpdate: (loadingKey: keyof OptimisticLoading | null, finalData?: Partial<Profile> | null) => void;
+  updateProfileOptimistic: (updates: Partial<Profile>, loadingKey?: BooleanLoadingKey | null) => void;
+  completeOptimisticUpdate: (loadingKey: BooleanLoadingKey | null, finalData?: Partial<Profile> | null) => void;
   syncWithAuthStore: (profileUpdates: Partial<Profile>) => void;
-  rollbackOptimisticUpdate: (originalData: Partial<Profile>, loadingKey?: keyof OptimisticLoading | null) => void;
+  rollbackOptimisticUpdate: (originalData: Partial<Profile>, loadingKey?: BooleanLoadingKey | null) => void;
   updateAvatarOptimistic: (avatarRobotId: string) => Promise<{ avatar_robot_id: string }>;
   updateDisplayNameOptimistic: (displayName: string) => Promise<Partial<Profile>>;
   setKnowledgeEntryChanges: (entryId: string, changes: KnowledgeChanges) => void;

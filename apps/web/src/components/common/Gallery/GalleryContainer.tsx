@@ -1,7 +1,7 @@
 import { JSX, useMemo, useState, useCallback } from 'react';
 import GalleryControls from './GalleryControls';
 import IndexCard from '../IndexCard';
-import { GallerySkeleton, cardAdapters } from './cards.jsx';
+import { GallerySkeleton, cardAdapters, type GalleryItem } from './cards';
 import {
   DEFAULT_GALLERY_TYPE,
   GALLERY_CONTENT_TYPES,
@@ -13,6 +13,11 @@ import TemplatePreviewModal from '../TemplatePreviewModal';
 import '../../../assets/styles/components/gallery-layout.css';
 import '../../../assets/styles/components/gallery-content-type.css';
 import '../../../assets/styles/components/SearchBar.css';
+
+interface CategoryItem {
+  id: string;
+  label: string;
+}
 
 interface GalleryContainerProps {
   initialContentType?: string;
@@ -32,13 +37,9 @@ const GalleryContainer = ({ initialContentType,
   const [contentType, setContentType] = useState(
     (initialContentType && GALLERY_CONTENT_TYPES[initialContentType]) ? initialContentType : (firstAvailableType || DEFAULT_GALLERY_TYPE)
   );
-  interface Template {
-    [key: string]: unknown;
-  }
+  const [previewTemplate, setPreviewTemplate] = useState<GalleryItem | null>(null);
 
-  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
-
-  const handleOpenPreview = useCallback((template: Template) => setPreviewTemplate(template), []);
+  const handleOpenPreview = useCallback((template: GalleryItem) => setPreviewTemplate(template), []);
   const handleClosePreview = useCallback(() => setPreviewTemplate(null), []);
 
   const {
@@ -69,30 +70,19 @@ const GalleryContainer = ({ initialContentType,
     setContentType(nextType);
   };
 
-  interface CardAdapterOptions {
-    onTagClick?: (tag: string) => void;
-    onOpenPreview?: (template: Template) => void;
-    [key: string]: unknown;
-  }
-
-  interface CardResult {
-    key: string;
-    props: { title: unknown; [key: string]: unknown };
-    [key: string]: unknown;
-  }
-
-  const renderList = (list: Array<Record<string, unknown>>, rendererId: string): React.ReactNode[] | null => {
+  const renderList = (list: GalleryItem[], rendererId: string): React.ReactNode[] | null => {
     if (!Array.isArray(list) || list.length === 0) return null;
     const adapter = cardAdapters[rendererId as keyof typeof cardAdapters] || cardAdapters.default;
-    const adapterOptions: CardAdapterOptions = rendererId === 'vorlagen'
+    const adapterOptions = rendererId === 'vorlagen'
       ? { onTagClick: handleTagClick, onOpenPreview: handleOpenPreview }
       : {};
 
     return list.map((item) => {
-      const result = adapter(item, adapterOptions) as CardResult | null;
+      const result = adapter(item, adapterOptions);
       if (!result || !result.key || !result.props.title) return null;
       const { key, props } = result;
-      return <IndexCard key={key} title={String(props.title)} {...props} />;
+      const { title, ...restProps } = props;
+      return <IndexCard key={key} title={String(title)} {...restProps} />;
     });
   };
 
@@ -111,12 +101,13 @@ const GalleryContainer = ({ initialContentType,
       return <p className="error-message">{error.message || String(error)}</p>;
     }
 
-    if (sections && Object.keys(sections).length > 0) {
+    const typedSections = sections as Record<string, GalleryItem[]> | undefined;
+    if (typedSections && Object.keys(typedSections).length > 0) {
       return (
         <div className="all-content-container">
           {activeConfig.sectionOrder?.map((sectionId: unknown) => {
             const sectionIdStr = String(sectionId);
-            const list = sections[sectionIdStr] || [];
+            const list = typedSections[sectionIdStr] || [];
             if (!list.length) return null;
             return (
               <div className="content-section" key={sectionIdStr}>
@@ -137,7 +128,7 @@ const GalleryContainer = ({ initialContentType,
 
     return (
       <div className="content-section-grid">
-        {renderList(items, activeConfig.cardRenderer || contentType)}
+        {renderList(items as GalleryItem[], activeConfig.cardRenderer || contentType)}
       </div>
     );
   };
@@ -156,7 +147,7 @@ const GalleryContainer = ({ initialContentType,
             contentTypes={typeOptions}
             activeContentType={contentType}
             onContentTypeChange={(id: string) => handleContentTypeChange(id)}
-            categories={(Array.isArray(categories) ? categories : []) as Array<Record<string, unknown>>}
+            categories={(Array.isArray(categories) ? categories : []) as CategoryItem[]}
             selectedCategory={selectedCategory}
             onCategoryChange={(id: string) => setSelectedCategory(id)}
             showCategoryFilter={showCategoryFilter}

@@ -227,11 +227,23 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         {
             id: 'quote-mark',
             type: 'image',
-            x: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.x ?? ZITAT_CONFIG.quotationMark.x,
-            y: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.y ?? ZITAT_CONFIG.quotationMark.y,
+            x: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteMark = l['quote-mark'] as { x?: number; y?: number; width?: number; height?: number } | undefined;
+                return quoteMark?.x ?? ZITAT_CONFIG.quotationMark.x;
+            },
+            y: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteMark = l['quote-mark'] as { x?: number; y?: number; width?: number; height?: number } | undefined;
+                return quoteMark?.y ?? ZITAT_CONFIG.quotationMark.y;
+            },
             order: 2,
-            width: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.width ?? 100,
-            height: (s: ZitatFullState, l: LayoutResult) => l['quote-mark']?.height ?? 100,
+            width: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteMark = l['quote-mark'] as { x?: number; y?: number; width?: number; height?: number } | undefined;
+                return quoteMark?.width ?? 100;
+            },
+            height: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteMark = l['quote-mark'] as { x?: number; y?: number; width?: number; height?: number } | undefined;
+                return quoteMark?.height ?? 100;
+            },
             src: ZITAT_CONFIG.quotationMark.src,
             listening: true,
             draggable: true,
@@ -241,12 +253,21 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         {
             id: 'quote-text',
             type: 'text',
-            x: (s: ZitatFullState, l: LayoutResult) => l['quote-text']?.x ?? ZITAT_CONFIG.quote.x,
-            y: (s: ZitatFullState, l: LayoutResult) => l['quote-text']?.y ?? 800,
+            x: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteText = l['quote-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return quoteText?.x ?? ZITAT_CONFIG.quote.x;
+            },
+            y: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteText = l['quote-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return quoteText?.y ?? 800;
+            },
             order: 3,
             textKey: 'quote',
             width: ZITAT_CONFIG.quote.maxWidth,
-            fontSize: (s: ZitatFullState, l: LayoutResult) => l['quote-text']?.fontSize ?? ZITAT_CONFIG.quote.fontSize,
+            fontSize: (s: ZitatFullState, l: LayoutResult) => {
+                const quoteText = l['quote-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return quoteText?.fontSize ?? ZITAT_CONFIG.quote.fontSize;
+            },
             fontFamily: `${ZITAT_CONFIG.quote.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_CONFIG.quote.fontStyle,
             align: 'left',
@@ -265,12 +286,21 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         {
             id: 'name-text',
             type: 'text',
-            x: (s: ZitatFullState, l: LayoutResult) => l['name-text']?.x ?? ZITAT_CONFIG.author.x,
-            y: (s: ZitatFullState, l: LayoutResult) => l['name-text']?.y ?? 1000,
+            x: (s: ZitatFullState, l: LayoutResult) => {
+                const nameText = l['name-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return nameText?.x ?? ZITAT_CONFIG.author.x;
+            },
+            y: (s: ZitatFullState, l: LayoutResult) => {
+                const nameText = l['name-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return nameText?.y ?? 1000;
+            },
             order: 4,
             textKey: 'name',
             width: ZITAT_CONFIG.quote.maxWidth,
-            fontSize: (s: ZitatFullState, l: LayoutResult) => l['name-text']?.fontSize ?? 40,
+            fontSize: (s: ZitatFullState, l: LayoutResult) => {
+                const nameText = l['name-text'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return nameText?.fontSize ?? 40;
+            },
             fontFamily: `${ZITAT_CONFIG.author.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_CONFIG.author.fontStyle,
             align: 'left',

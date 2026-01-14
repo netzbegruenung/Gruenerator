@@ -5,7 +5,7 @@
  * Enables copy (Ctrl+C) and paste (Ctrl+V) functionality across canvas instances.
  */
 
-export type ClipboardItemType = 'balken' | 'shape' | 'illustration' | 'additional-text';
+export type ClipboardItemType = 'balken' | 'shape' | 'illustration' | 'additional-text' | 'asset';
 
 export interface ClipboardItem {
     type: ClipboardItemType;
@@ -15,11 +15,8 @@ export interface ClipboardItem {
 export class CanvasClipboard {
     private static instance: ClipboardItem | null = null;
 
-    /**
-     * Copy an element to the clipboard
-     */
-    static copy(type: ClipboardItemType, data: Record<string, unknown>): void {
-        CanvasClipboard.instance = { type, data };
+    static copy(type: ClipboardItemType, data: object): void {
+        CanvasClipboard.instance = { type, data: data as Record<string, unknown> };
     }
 
     /**

@@ -132,7 +132,7 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
     features: [],
     tabIndexKey: (selectedType === ACCESSIBILITY_TYPES.ALT_TEXT ? 'ALT_TEXT' : 'LEICHTE_SPRACHE'),
     helpContent: helpContent
-  });
+  } as Record<string, unknown>);
 
   // Hooks for different functionality
   const {
@@ -376,6 +376,8 @@ const AccessibilityTextGenerator: React.FC<AccessibilityTextGeneratorProps> = ({
           loading={combinedLoading}
           success={combinedSuccess}
           error={combinedError}
+          platformOptions={form.generator?.baseFormProps?.platformOptions ?? undefined}
+          componentName={componentName}
         >
           {renderForm()}
         </BaseForm>

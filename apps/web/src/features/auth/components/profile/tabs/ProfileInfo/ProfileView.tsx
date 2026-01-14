@@ -12,10 +12,10 @@ interface User {
 }
 
 interface Profile {
-  keycloak_id?: string;
+  keycloak_id?: string | null;
   avatar_robot_id?: string | number;
   display_name?: string;
-  email?: string;
+  email?: string | null;
   auth_email?: string;
   username?: string;
   [key: string]: unknown;

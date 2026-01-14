@@ -105,8 +105,8 @@ const CampaignSharepicEditor = ({
   };
 
   const hasChanges = () => {
-    return Object.keys(editedLines).some(key =>
-      editedLines[key] !== (activeSharepic?.[key] || '')
+    return (Object.keys(editedLines) as Array<keyof EditedLines>).some(key =>
+      editedLines[key] !== (activeSharepic?.[key as keyof SharepicData] || '')
     );
   };
 
@@ -125,12 +125,12 @@ const CampaignSharepicEditor = ({
 
       <div className="editor-content">
         <div className="editor-form">
-          {[1, 2, 3, 4, 5].map(lineNum => (
+          {([1, 2, 3, 4, 5] as const).map(lineNum => (
             <div key={lineNum} className="editor-field">
               <FormInput
                 name={`line${lineNum}`}
                 label={`Zeile ${lineNum}`}
-                value={editedLines[`line${lineNum}`]}
+                value={editedLines[`line${lineNum}` as keyof EditedLines]}
                 onChange={(value: string) => handleLineChange(lineNum, value)}
                 placeholder={`Zeile ${lineNum} des Gedichts...`}
                 maxLength={60}

@@ -4,6 +4,7 @@ import { ProfilbildCanvas, DreizeilenCanvas } from '../canvas-editor';
 import { ControllableCanvasWrapper } from '../canvas-editor/ControllableCanvasWrapper';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
 import { slideVariants } from '../components/StepFlow';
+import type { DreizeilenAlternative } from '../canvas-editor/configs/dreizeilen.types';
 
 interface CanvasEditTypeConfig {
     id?: string;
@@ -12,7 +13,13 @@ interface CanvasEditTypeConfig {
 
 interface SloganAlternative {
     quote?: string;
+    id?: string;
+    line1?: string;
+    line2?: string;
+    line3?: string;
 }
+
+type CanvasState = Record<string, unknown>;
 
 export interface CanvasEditStepProps {
     typeConfig: CanvasEditTypeConfig | undefined;
@@ -180,11 +187,16 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     className="typeform-field typeform-field--canvas-edit"
                 >
                     <DreizeilenCanvas
-                        line1={getFieldValue('line1')}
-                        line2={getFieldValue('line2')}
-                        line3={getFieldValue('line3')}
+                        line1={String(getFieldValue('line1') ?? '')}
+                        line2={String(getFieldValue('line2') ?? '')}
+                        line3={String(getFieldValue('line3') ?? '')}
                         imageSrc={uploadedImageUrl ?? undefined}
-                        alternatives={sloganAlternatives}
+                        alternatives={sloganAlternatives.filter((alt): alt is DreizeilenAlternative =>
+                            alt.id !== undefined &&
+                            alt.line1 !== undefined &&
+                            alt.line2 !== undefined &&
+                            alt.line3 !== undefined
+                        )}
                         onExport={handleCanvasExport}
                         onSave={handleCanvasSave}
                         onCancel={handleBack}
@@ -213,9 +225,9 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                         imageSrc={uploadedImageUrl}
                         onExport={handleCanvasExport}
                         onCancel={handleBack}
-                        onStateChange={(state) => {
-                            if (state.headline !== undefined) onHeadlineChange?.(state.headline);
-                            if (state.subtext !== undefined) onSubtextChange?.(state.subtext);
+                        onStateChange={(state: CanvasState) => {
+                            if (typeof state.headline === 'string') onHeadlineChange?.(state.headline);
+                            if (typeof state.subtext === 'string') onSubtextChange?.(state.subtext);
                         }}
                     />
                 </motion.div>

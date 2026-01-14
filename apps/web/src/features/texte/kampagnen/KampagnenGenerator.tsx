@@ -222,7 +222,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
     features: ['privacyMode', 'proMode'],
     tabIndexKey: 'KAMPAGNEN',
     disableKnowledgeSystem: true
-  });
+  } as Record<string, unknown>);
 
   const {
     control,
@@ -233,7 +233,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
 
   // Type assertion for control to work with form components
   const typedControl = control as unknown as import('react-hook-form').Control<Record<string, unknown>>;
-  const typedGetValues = getValues as () => CampaignFormData;
+  const typedGetValues = getValues as unknown as () => CampaignFormData;
   const typedErrors = errors as { location?: { message?: string }; details?: { message?: string }; variant?: { message?: string } };
 
   // Consolidated setup using new hook
@@ -468,7 +468,7 @@ const KampagnenGenerator: React.FC<KampagnenGeneratorProps> = ({ showHeaderFoote
         key={selectedCampaign}
         title="Weihnachtskampagne 2025"
         subtitle="Erstelle festliche Weihnachtsgrüße mit grünen Werten für deine Region"
-        onSubmit={() => handleSubmit(onSubmitRHF)()}
+        onSubmit={() => (handleSubmit as unknown as (handler: (data: CampaignFormData) => Promise<void>) => () => void)(onSubmitRHF)()}
         loading={isGenerating || isRegenerating}
         success={!!storeGeneratedText}
         error={form.generator?.error}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense, lazy, FormEvent } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields, ProfileUpdateData, Profile } from '../../../../services/profileApiService';
+import { profileApiService, getAvatarDisplayProps, initializeProfileFormFields, ProfileUpdateData, Profile, AvatarDisplay, ProfileFormFields } from '../../../../services/profileApiService';
 import { useAutosave } from '../../../../../../hooks/useAutosave';
 import { useProfile } from '../../../../hooks/useProfileData';
 import { useOptimizedAuth } from '../../../../../../hooks/useAuth';
@@ -9,8 +9,6 @@ import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import ProfileView from './ProfileView';
 
 const AvatarSelectionModal = lazy(() => import('../../AvatarSelectionModal'));
-
-
 
 interface User {
   id: string;
@@ -78,10 +76,10 @@ const ProfileInfoTabContainer = ({
         const newProfileData = (oldData: Profile | undefined) => ({ ...oldData, ...updatedProfile });
         queryClient.setQueryData(['profileData', user.id], newProfileData);
         // Manually sync to profileStore for components not using useProfile
-        const currentData = queryClient.getQueryData(['profileData', user.id]);
+        const currentData = queryClient.getQueryData<Profile>(['profileData', user.id]);
         console.log('[ProfileInfo] Syncing to profileStore:', currentData);
         if (currentData) {
-          syncProfile(currentData);
+          syncProfile(currentData as Profile);
         }
       }
     },
@@ -149,7 +147,7 @@ const ProfileInfoTabContainer = ({
 
   const stateBasedSave = useCallback(async () => {
     if (!profile || !isInitialized.current) return;
-    const fullDisplayName = displayName || email || user?.username || 'Benutzer';
+    const fullDisplayName = displayName || email || (user?.username as string | undefined) || 'Benutzer';
     const profileUpdateData: ProfileUpdateData = { display_name: fullDisplayName, username: username || null, email: email?.trim() || null };
     try {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
@@ -177,15 +175,9 @@ const ProfileInfoTabContainer = ({
     },
   });
 
-  interface FormFields {
-    displayName: string;
-    username: string;
-    email: string;
-  }
-
   useEffect(() => {
     if (!profile || !user) return;
-    const formFields: FormFields = initializeProfileFormFields(profile, user) as FormFields;
+    const formFields: ProfileFormFields = initializeProfileFormFields(profile, user);
     if (!isInitialized.current) {
       setDisplayName(formFields.displayName);
       setUsername(formFields.username);
@@ -267,11 +259,11 @@ const ProfileInfoTabContainer = ({
     }
   };
 
-  const avatarProps = getAvatarDisplayProps({
+  const avatarProps: AvatarDisplay = getAvatarDisplayProps({
     avatar_robot_id: avatarRobotId,
     display_name: displayName,
-    email: email || user?.email || user?.username,
-  }) as Record<string, unknown>;
+    email: email || (user?.email as string | undefined) || (user?.username as string | undefined),
+  });
 
   const isLoading = isLoadingProfile;
 

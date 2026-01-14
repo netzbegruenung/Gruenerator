@@ -3,7 +3,7 @@ import useImageStudioStore from '../../../stores/imageStudioStore';
 import type { SloganAlternative } from '../types/storeTypes';
 import { usePreloadStore } from './usePreloadStore';
 import { useImageGeneration } from './useImageGeneration';
-import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS, TypeConfig, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
+import { getTypeConfig, getTemplateFieldConfig, FORM_STEPS, TypeConfig, IMAGE_STUDIO_TYPES, InputField } from '../utils/typeConfig';
 import apiClient from '../../../components/utils/apiClient';
 import { removeBackground } from '../../../services/backgroundRemoval';
 
@@ -34,11 +34,12 @@ interface UseStepFlowOptions {
 }
 
 interface AiImageSuggestionResult {
-  image: {
+  image?: {
     category?: string;
     [key: string]: unknown;
   };
   category?: string;
+  [key: string]: unknown;
 }
 
 interface UseStepFlowReturn {
@@ -127,18 +128,18 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     const inputBeforeImage = typeConfig?.inputBeforeImage ?? false;
 
     if (inputBeforeImage && fieldConfig.inputFields?.length > 0) {
-      fieldConfig.inputFields.forEach((field: Record<string, unknown>, index: number) => {
+      fieldConfig.inputFields.forEach((field: InputField, index: number) => {
         const isLastInput = index === fieldConfig.inputFields.length - 1;
         const afterComplete = isLastInput && typeConfig?.parallelPreload
           ? 'parallelPreload'
           : null;
 
         steps.push({
-          id: field.name as string,
+          id: field.name,
           type: 'input',
-          field: field as { name: string; label: string; subtitle?: string; helpText?: string },
-          stepTitle: field.label as string,
-          stepSubtitle: (field.subtitle as string) || (field.helpText as string) || null,
+          field: { name: field.name, label: field.label, subtitle: field.subtitle, helpText: field.helpText },
+          stepTitle: field.label,
+          stepSubtitle: field.subtitle || field.helpText || null,
           afterComplete
         });
       });
@@ -180,7 +181,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
     }
 
     if (!inputBeforeImage && fieldConfig.inputFields?.length > 0) {
-      fieldConfig.inputFields.forEach((field: Record<string, unknown>, index: number) => {
+      fieldConfig.inputFields.forEach((field: InputField, index: number) => {
         const isLast = index === fieldConfig.inputFields.length - 1;
         let afterComplete: string | null = null;
 
@@ -188,8 +189,6 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           if (typeConfig?.hasTextCanvasEdit) {
             afterComplete = 'generateText';
           } else {
-            // Use afterLastInputTrigger if defined, otherwise default to 'generateImage'
-            // Explicitly check for undefined to allow null values through
             afterComplete = fieldConfig.afterLastInputTrigger !== undefined
               ? fieldConfig.afterLastInputTrigger as string | null
               : 'generateImage';
@@ -197,11 +196,11 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
         }
 
         steps.push({
-          id: field.name as string,
+          id: field.name,
           type: 'input',
-          field: field as { name: string; label: string; subtitle?: string; helpText?: string },
-          stepTitle: field.label as string,
-          stepSubtitle: (field.subtitle as string) || (field.helpText as string) || null,
+          field: { name: field.name, label: field.label, subtitle: field.subtitle, helpText: field.helpText },
+          stepTitle: field.label,
+          stepSubtitle: field.subtitle || field.helpText || null,
           afterComplete
         });
       });
@@ -269,7 +268,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
       const result = await generateText(type!, formData);
 
       if (result && fieldConfig?.responseMapping) {
-        const mappedData = fieldConfig.responseMapping(result as Record<string, unknown>);
+        const mappedData = fieldConfig.responseMapping(result as unknown as Record<string, unknown>);
         updateFormData(mappedData as Record<string, unknown>);
 
         // Store original as first alternative
@@ -482,7 +481,7 @@ export const useStepFlow = ({ startAtCanvasEdit = false }: UseStepFlowOptions = 
           const result = await generateText(type!, formData);
 
           if (result && fieldConfig?.responseMapping) {
-            const mappedData = fieldConfig.responseMapping(result as Record<string, unknown>);
+            const mappedData = fieldConfig.responseMapping(result as unknown as Record<string, unknown>);
             updateFormData(mappedData as Record<string, unknown>);
 
             // Store original as first alternative

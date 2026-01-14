@@ -3,7 +3,7 @@
  * Fully config-driven canvas for quote sharepics without background image
  */
 
-import type { FullCanvasConfig, LayoutResult as GenericLayoutResult, AdditionalText } from './types';
+import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import {
     TextSection,
     AssetsSection,
@@ -106,7 +106,7 @@ export interface ZitatPureFullActions {
 // LAYOUT CALCULATOR
 // ============================================================================
 
-const calculateLayout = (state: ZitatPureFullState): GenericLayoutResult => {
+const calculateLayout = (state: ZitatPureFullState): LayoutResult => {
     const config = ZITAT_PURE_CONFIG;
     const layoutResult = calculateZitatPureLayout(state.quote);
 
@@ -188,8 +188,8 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
                     additionalTexts: state.additionalTexts || [],
                     onUpdateAdditionalText: (id: string, text: string) => actions.updateAdditionalText(id, { text }),
                     onRemoveAdditionalText: actions.removeAdditionalText,
-                    quoteFontSize: state.customQuoteFontSize ?? (layout._meta as Record<string, unknown>)?.quoteFontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
-                    nameFontSize: state.customNameFontSize ?? (layout._meta as Record<string, unknown>)?.authorFontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
+                    quoteFontSize: state.customQuoteFontSize ?? (layout._meta as { quoteFontSize?: number })?.quoteFontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
+                    nameFontSize: state.customNameFontSize ?? (layout._meta as { authorFontSize?: number })?.authorFontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
                     onQuoteFontSizeChange: actions.handleQuoteFontSizeChange,
                     onNameFontSizeChange: actions.handleNameFontSizeChange,
                     onUpdateAdditionalTextFontSize: (id: string, size: number) => actions.updateAdditionalText(id, { fontSize: size }),
@@ -257,8 +257,8 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         {
             id: 'quote-mark',
             type: 'image',
-            x: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-mark']?.x ?? ZITAT_PURE_CONFIG.quotationMark.x,
-            y: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-mark']?.y ?? 120,
+            x: (s: ZitatPureFullState, l: LayoutResult) => (l['quote-mark'] as { x?: number })?.x ?? ZITAT_PURE_CONFIG.quotationMark.x,
+            y: (s: ZitatPureFullState, l: LayoutResult) => (l['quote-mark'] as { y?: number })?.y ?? 120,
             order: 2,
             width: ZITAT_PURE_CONFIG.quotationMark.size,
             height: ZITAT_PURE_CONFIG.quotationMark.size,
@@ -272,12 +272,12 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
         {
             id: 'quote-text',
             type: 'text',
-            x: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-text']?.x ?? ZITAT_PURE_CONFIG.quote.x,
-            y: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-text']?.y ?? 200,
+            x: (s: ZitatPureFullState, l: LayoutResult) => (l['quote-text'] as { x?: number })?.x ?? ZITAT_PURE_CONFIG.quote.x,
+            y: (s: ZitatPureFullState, l: LayoutResult) => (l['quote-text'] as { y?: number })?.y ?? 200,
             order: 3,
             textKey: 'quote',
             width: ZITAT_PURE_CONFIG.quote.maxWidth,
-            fontSize: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['quote-text']?.fontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
+            fontSize: (s: ZitatPureFullState, l: LayoutResult) => (l['quote-text'] as { fontSize?: number })?.fontSize ?? ZITAT_PURE_CONFIG.quote.fontSize,
             fontFamily: `${ZITAT_PURE_CONFIG.quote.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_PURE_CONFIG.quote.fontStyle,
             align: 'left',
@@ -289,19 +289,19 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             fontSizeStateKey: 'customQuoteFontSize',
             opacity: (state: ZitatPureFullState) => state.quoteOpacity ?? 1,
             opacityStateKey: 'quoteOpacity',
-            fill: (state: ZitatPureFullState, layout: GenericLayoutResult) => state.quoteColor ?? (layout._meta as Record<string, unknown>)?.fontColor,
+            fill: (s: ZitatPureFullState, l: LayoutResult) => s.quoteColor ?? (l._meta as { fontColor?: string })?.fontColor ?? '#005437',
             fillStateKey: 'quoteColor',
         },
         // Author name
         {
             id: 'name-text',
             type: 'text',
-            x: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['name-text']?.x ?? ZITAT_PURE_CONFIG.author.x,
-            y: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['name-text']?.y ?? 500,
+            x: (s: ZitatPureFullState, l: LayoutResult) => (l['name-text'] as { x?: number })?.x ?? ZITAT_PURE_CONFIG.author.x,
+            y: (s: ZitatPureFullState, l: LayoutResult) => (l['name-text'] as { y?: number })?.y ?? 500,
             order: 4,
             textKey: 'name',
             width: ZITAT_PURE_CONFIG.quote.maxWidth,
-            fontSize: (state: ZitatPureFullState, layout: GenericLayoutResult) => layout['name-text']?.fontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
+            fontSize: (s: ZitatPureFullState, l: LayoutResult) => (l['name-text'] as { fontSize?: number })?.fontSize ?? ZITAT_PURE_CONFIG.author.fontSize,
             fontFamily: `${ZITAT_PURE_CONFIG.author.fontFamily}, Arial, sans-serif`,
             fontStyle: ZITAT_PURE_CONFIG.author.fontStyle,
             align: 'left',
@@ -311,7 +311,7 @@ export const zitatPureFullConfig: FullCanvasConfig<ZitatPureFullState, ZitatPure
             fontSizeStateKey: 'customNameFontSize',
             opacity: (state: ZitatPureFullState) => state.nameOpacity ?? 1,
             opacityStateKey: 'nameOpacity',
-            fill: (state: ZitatPureFullState, layout: GenericLayoutResult) => state.nameColor ?? (layout._meta as Record<string, unknown>)?.fontColor,
+            fill: (s: ZitatPureFullState, l: LayoutResult) => s.nameColor ?? (l._meta as { fontColor?: string })?.fontColor ?? '#005437',
             fillStateKey: 'nameColor',
         },
     ],

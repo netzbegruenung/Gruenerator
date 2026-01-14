@@ -234,12 +234,21 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         {
             id: 'event-title',
             type: 'text',
-            x: (s: VeranstaltungFullState, l: LayoutResult) => l['event-title']?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin,
-            y: (s: VeranstaltungFullState, l: LayoutResult) => l['event-title']?.y ?? VERANSTALTUNG_CONFIG.eventTitle.startY,
+            x: (s: VeranstaltungFullState, l: LayoutResult) => {
+                const eventTitle = l['event-title'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return eventTitle?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin;
+            },
+            y: (s: VeranstaltungFullState, l: LayoutResult) => {
+                const eventTitle = l['event-title'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return eventTitle?.y ?? VERANSTALTUNG_CONFIG.eventTitle.startY;
+            },
             order: 3,
             textKey: 'eventTitle',
             width: VERANSTALTUNG_CONFIG.text.maxWidth,
-            fontSize: (s: VeranstaltungFullState, l: LayoutResult) => l['event-title']?.fontSize ?? VERANSTALTUNG_CONFIG.eventTitle.fontSize,
+            fontSize: (s: VeranstaltungFullState, l: LayoutResult) => {
+                const eventTitle = l['event-title'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return eventTitle?.fontSize ?? VERANSTALTUNG_CONFIG.eventTitle.fontSize;
+            },
             fontFamily: `${VERANSTALTUNG_CONFIG.eventTitle.fontFamily}, Arial, sans-serif`,
             fontStyle: 'bold italic',
             align: 'left',
@@ -257,12 +266,21 @@ export const veranstaltungFullConfig: FullCanvasConfig<VeranstaltungFullState, V
         {
             id: 'beschreibung',
             type: 'text',
-            x: (s: VeranstaltungFullState, l: LayoutResult) => l['beschreibung']?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin,
-            y: (s: VeranstaltungFullState, l: LayoutResult) => l['beschreibung']?.y ?? 750,
+            x: (s: VeranstaltungFullState, l: LayoutResult) => {
+                const beschreibung = l['beschreibung'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return beschreibung?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin;
+            },
+            y: (s: VeranstaltungFullState, l: LayoutResult) => {
+                const beschreibung = l['beschreibung'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return beschreibung?.y ?? 750;
+            },
             order: 4,
             textKey: 'beschreibung',
             width: VERANSTALTUNG_CONFIG.text.maxWidth,
-            fontSize: (s: VeranstaltungFullState, l: LayoutResult) => l['beschreibung']?.fontSize ?? VERANSTALTUNG_CONFIG.description.fontSize,
+            fontSize: (s: VeranstaltungFullState, l: LayoutResult) => {
+                const beschreibung = l['beschreibung'] as { x?: number; y?: number; fontSize?: number } | undefined;
+                return beschreibung?.fontSize ?? VERANSTALTUNG_CONFIG.description.fontSize;
+            },
             fontFamily: `${VERANSTALTUNG_CONFIG.description.fontFamily}, Arial, sans-serif`,
             fontStyle: 'italic',
             align: 'left',
