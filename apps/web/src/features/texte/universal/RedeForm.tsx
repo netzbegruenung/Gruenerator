@@ -25,7 +25,6 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
       rolle: '',
       thema: '',
       zielgruppe: '',
-      schwerpunkte: '',
       redezeit: ''
     }
   });
@@ -40,18 +39,21 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
       <FormInput
         name="rolle"
         control={control as unknown as Control<Record<string, unknown>>}
-        label="Rolle/Position"
-        placeholder="Sprecher*in der Grünen OV Musterdorf, Antragssteller*in etc."
-        rules={{ required: 'Rolle/Position ist ein Pflichtfeld' }}
+        label="Rolle"
+        placeholder="z.B. Sprecher*in der Grünen OV Musterdorf, Antragssteller*in..."
+        rules={{ required: 'Rolle ist ein Pflichtfeld' }}
         tabIndex={tabIndex.formType || 10}
       />
 
-      <FormInput
+      <FormTextarea
         name="thema"
         control={control as unknown as Control<Record<string, unknown>>}
-        label="Spezifisches Thema oder Anlass der Rede"
-        placeholder="Umwelt- und Klimaschutz in der Stadt"
+        label="Thema"
+        placeholder="Beschreibe das Thema, den Anlass und besondere Schwerpunkte der Rede..."
         rules={{ required: 'Thema ist ein Pflichtfeld' }}
+        minRows={4}
+        maxRows={10}
+        className="form-textarea-large"
         tabIndex={tabIndex.hauptfeld || 11}
       />
 
@@ -59,18 +61,8 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
         name="zielgruppe"
         control={control as unknown as Control<Record<string, unknown>>}
         label="Zielgruppe"
-        placeholder="Bürger*innen von Musterdorf"
+        placeholder="z.B. Bürger*innen von Musterdorf, Parteimitglieder..."
         rules={{ required: 'Zielgruppe ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.hauptfeld || 12}
-      />
-
-      <FormTextarea
-        name="schwerpunkte"
-        control={control as unknown as Control<Record<string, unknown>>}
-        label="Besondere Schwerpunkte oder lokale Aspekte"
-        placeholder="Durchführung von Projekten zur Förderung erneuerbarer Energien, Unterstützung lokaler Initiativen..."
-        rules={{ required: 'Schwerpunkte sind ein Pflichtfeld' }}
-        minRows={3}
         tabIndex={tabIndex.hauptfeld || 12}
       />
 
@@ -78,7 +70,7 @@ const RedeForm = forwardRef<RedeFormRef, RedeFormProps>(({ tabIndex = {} }, ref)
         name="redezeit"
         control={control as unknown as Control<Record<string, unknown>>}
         type="number"
-        label="Gewünschte Redezeit (in Minuten)"
+        label="Redezeit (Minuten)"
         placeholder="1-5"
         rules={{
           required: 'Redezeit ist ein Pflichtfeld',

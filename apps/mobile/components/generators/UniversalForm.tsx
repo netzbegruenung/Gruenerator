@@ -71,10 +71,9 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
       case 'rede':
         return {
           ...base,
-          thema: inhalt.trim(),
           rolle: 'Sprecher*in',
+          thema: inhalt.trim(),
           zielgruppe: 'Bürger*innen',
-          schwerpunkte: inhalt.trim(),
           redezeit: 3,
         };
       case 'wahlprogramm':
@@ -83,14 +82,13 @@ export function UniversalForm({ onResult, onError }: UniversalFormProps) {
         return {
           ...base,
           gremium: 'Stadtrat',
-          anliegen: inhalt.trim(),
-          antwortart: ['bürgerfreundlich'],
+          frage: inhalt.trim(),
+          antwort: 'bürgerfreundlich',
         };
       default:
         return {
           ...base,
           textForm: textForm.trim() || 'Allgemeiner Text',
-          sprache: 'sachlich',
         };
     }
   }, [textType, inhalt, textForm]);

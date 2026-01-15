@@ -38,6 +38,7 @@ const WahlprogrammForm = forwardRef<WahlprogrammFormRef, WahlprogrammFormProps>(
       <FormTextarea
         name="inhalt"
         control={control as unknown as Control<Record<string, unknown>>}
+        label="Inhalt"
         placeholder={FORM_PLACEHOLDERS.INHALT}
         rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
         minRows={5}

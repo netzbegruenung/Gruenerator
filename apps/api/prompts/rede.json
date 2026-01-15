@@ -10,21 +10,20 @@
     "urlCrawl": true,
     "examples": false
   },
-  "requestFields": ["rolle", "thema", "zielgruppe", "schwerpunkte", "redezeit"],
+  "requestFields": ["rolle", "thema", "zielgruppe", "redezeit"],
   "validation": {
     "required": ["rolle", "thema", "zielgruppe"],
     "errorMessage": "Rolle, Thema und Zielgruppe sind Pflichtfelder oder ein benutzerdefinierter Prompt muss angegeben werden."
   },
-  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n<rolle>\nRolle/Position des Redners: {{rolle}}\n</rolle>\n\n<thema>\nSpezifisches Thema oder Anlass der Rede: {{thema}}\n</thema>\n\n<zielgruppe>\nZielgruppe: {{zielgruppe}}\n</zielgruppe>\n\n{{#if schwerpunkte}}\n<schwerpunkte>\nBesondere Schwerpunkte oder lokale Aspekte: {{schwerpunkte}}\n</schwerpunkte>\n{{/if}}\n\n{{#if redezeit}}\n<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}",
+  "requestTemplate": "Erstelle eine politische Rede mit folgenden Anforderungen:\n\n<rolle>\nRolle/Position des Redners: {{rolle}}\n</rolle>\n\n<thema>\nThema, Anlass und Schwerpunkte der Rede: {{thema}}\n</thema>\n\n<zielgruppe>\nZielgruppe: {{zielgruppe}}\n</zielgruppe>\n\n{{#if redezeit}}\n<redezeit>\nGewünschte Redezeit (in Minuten): {{redezeit}}\n</redezeit>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}",
   "customPromptTemplate": {
     "rolle": "{{rolle|default:'Nicht angegeben'}}",
     "thema": "{{thema|default:'Nicht angegeben'}}",
     "zielgruppe": "{{zielgruppe|default:'Nicht angegeben'}}",
-    "schwerpunkte": "{{schwerpunkte|default:''}}",
     "redezeit": "{{redezeit|default:''}}",
     "currentDate": "{{currentDate}}"
   },
-  "webSearchQuery": "{{thema}} {{schwerpunkte}} {{partyName}} Politik Rede",
+  "webSearchQuery": "{{thema}} {{partyName}} Politik Rede",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {

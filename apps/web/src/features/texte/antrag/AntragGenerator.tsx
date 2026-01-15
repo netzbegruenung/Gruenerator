@@ -328,6 +328,7 @@ const AntragGenerator: React.FC<AntragGeneratorProps> = ({ showHeaderFooter = tr
         <FormTextarea
           name="inhalt"
           control={control}
+          label="Inhalt"
           placeholder={FORM_PLACEHOLDERS.INHALT}
           rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
           minRows={5}

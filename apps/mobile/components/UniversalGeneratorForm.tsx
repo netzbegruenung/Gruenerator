@@ -3,19 +3,8 @@ import { View, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 import { TextInput, Button } from './common';
 import { spacing, lightTheme, darkTheme } from '../theme';
 
-const TEXT_FORM_OPTIONS = [
-  'Pressemitteilung',
-  'Brief',
-  'Social Media Post',
-  'E-Mail',
-  'Rede',
-  'Flyer-Text',
-  'Newsletter',
-  'Sonstiges',
-];
-
 interface UniversalGeneratorFormProps {
-  onSubmit: (data: { textForm: string; sprache: string; inhalt: string }) => void;
+  onSubmit: (data: { textForm: string; inhalt: string }) => void;
   isLoading: boolean;
 }
 
@@ -24,7 +13,6 @@ export function UniversalGeneratorForm({ onSubmit, isLoading }: UniversalGenerat
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const [textForm, setTextForm] = useState('Pressemitteilung');
-  const [sprache, setSprache] = useState('');
   const [inhalt, setInhalt] = useState('');
 
   const handleSubmit = () => {
@@ -32,7 +20,6 @@ export function UniversalGeneratorForm({ onSubmit, isLoading }: UniversalGenerat
 
     onSubmit({
       textForm,
-      sprache: sprache || 'Sachlich und klar',
       inhalt: inhalt.trim(),
     });
   };
@@ -50,13 +37,6 @@ export function UniversalGeneratorForm({ onSubmit, isLoading }: UniversalGenerat
         value={textForm}
         onChangeText={setTextForm}
         placeholder="z.B. Pressemitteilung, Brief, Social Media..."
-      />
-
-      <TextInput
-        label="Stil / Tonalität (optional)"
-        value={sprache}
-        onChangeText={setSprache}
-        placeholder="z.B. formal, locker, motivierend..."
       />
 
       <TextInput

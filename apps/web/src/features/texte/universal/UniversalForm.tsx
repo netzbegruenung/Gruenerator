@@ -24,7 +24,6 @@ const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabInd
   } = useForm({
     defaultValues: {
       textForm: '',
-      sprache: '',
       inhalt: '',
       usePrivacyMode: false
     }
@@ -46,18 +45,10 @@ const UniversalForm = forwardRef<UniversalFormRef, UniversalFormProps>(({ tabInd
         tabIndex={tabIndex.formType || 10}
       />
 
-      <FormInput
-        name="sprache"
-        control={control as unknown as Control<Record<string, unknown>>}
-        label="Sprache & Stil"
-        placeholder="z.B. formal, sachlich, emotional, aktivierend..."
-        rules={{ required: 'Sprache & Stil ist ein Pflichtfeld' }}
-        tabIndex={tabIndex.hauptfeld || 11}
-      />
-
       <FormTextarea
         name="inhalt"
         control={control as unknown as Control<Record<string, unknown>>}
+        label="Inhalt"
         placeholder={FORM_PLACEHOLDERS.INHALT}
         rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
         minRows={5}

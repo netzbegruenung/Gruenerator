@@ -10,21 +10,19 @@
     "urlCrawl": true,
     "examples": false
   },
-  "requestFields": ["gremium", "anliegen", "antwortart", "kontext", "absender"],
+  "requestFields": ["gremium", "frage", "antwort"],
   "validation": {
-    "required": ["anliegen"],
-    "errorMessage": "Das Anliegen/die Anfrage ist ein Pflichtfeld oder ein benutzerdefinierter Prompt muss angegeben werden."
+    "required": ["frage"],
+    "errorMessage": "Die Frage ist ein Pflichtfeld oder ein benutzerdefinierter Prompt muss angegeben werden."
   },
-  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n{{#if gremium}}\n<gremium>\nZuständiges Gremium/Position: {{gremium}}\n</gremium>\n{{/if}}\n\n<anliegen>\n{{anliegen}}\n</anliegen>\n\n{{#if antwortart}}\n<antwortart>\nGewünschte Art der Antwort: {{antwortart}}\nBitte berücksichtige diese Stilrichtung beim Verfassen der Antwort.\n</antwortart>\n{{/if}}\n\n{{#if kontext}}\n<kontext>\nZusätzlicher Kontext:\n{{kontext}}\n</kontext>\n{{/if}}\n\n{{#if absender}}\n<absender>\nInformationen zum Absender:\n{{absender}}\n</absender>\n{{/if}}\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
+  "requestTemplate": "Erstelle eine professionelle Antwort auf folgende Bürger*innenanfrage:\n\n{{#if gremium}}\n<gremium>\nZuständiges Gremium/Position: {{gremium}}\n</gremium>\n{{/if}}\n\n<frage>\n{{frage}}\n</frage>\n\n<antwort>\nGewünschte Art der Antwort: {{antwort}}\n</antwort>\n\nAktuelles Datum: {{currentDate}}\n\n{{TITLE_GENERATION_INSTRUCTION}}",
   "customPromptTemplate": {
     "gremium": "{{gremium|default:''}}",
-    "anliegen": "{{anliegen|default:'Nicht angegeben'}}",
-    "antwortart": "{{antwortart|default:''}}",
-    "kontext": "{{kontext|default:''}}",
-    "absender": "{{absender|default:''}}",
+    "frage": "{{frage|default:'Nicht angegeben'}}",
+    "antwort": "{{antwort|default:'Nicht angegeben'}}",
     "currentDate": "{{currentDate}}"
   },
-  "webSearchQuery": "{{anliegen}} {{partyName}} Position Politik",
+  "webSearchQuery": "{{frage}} {{partyName}} Position Politik",
   "formatting": "MARKDOWN_FORMATTING_INSTRUCTIONS",
   "shortFormThreshold": 300,
   "options": {
