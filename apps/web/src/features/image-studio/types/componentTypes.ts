@@ -54,4 +54,4 @@ export interface SloganAlternative {
 }
 
 // URL type map keys
-export type UrlTypeMapKey = 'dreizeilen' | 'zitat' | 'zitat-pure' | 'info' | 'veranstaltung' | 'text2sharepic' | 'ki' | 'green-edit' | 'ally-maker' | 'universal-edit' | 'pure-create' | 'ki-sharepic';
+export type UrlTypeMapKey = 'dreizeilen' | 'zitat' | 'zitat-pure' | 'info' | 'veranstaltung' | 'text2sharepic' | 'ki' | 'green-edit' | 'ally-maker' | 'universal-edit' | 'pure-create';

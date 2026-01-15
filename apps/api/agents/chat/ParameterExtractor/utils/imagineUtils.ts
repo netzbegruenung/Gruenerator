@@ -42,7 +42,7 @@ export function detectImagineMode(
   }
 
   // SHAREPIC mode: explicit title mention
-  const sharepicKeywords = ['mit titel', 'mit dem titel', 'mit text', 'ki-sharepic', 'mit überschrift', 'mit der überschrift', 'titel:', 'überschrift:'];
+  const sharepicKeywords = ['mit titel', 'mit dem titel', 'mit text', 'mit überschrift', 'mit der überschrift', 'titel:', 'überschrift:'];
   if (sharepicKeywords.some(k => normalizedMessage.includes(k))) {
     return 'sharepic';
   }

@@ -12,7 +12,6 @@ import {
     HiOutlinePhotograph,
     HiOutlineUsers,
     HiSave,
-    HiSparkles,
     HiOutlineChat
 } from 'react-icons/hi';
 
@@ -72,7 +71,6 @@ const BETA_VIEWS = {
     NOTEBOOK: 'notebook',
     CANVA: 'canva',
     AUTO_SAVE_EXPORT: 'autoSaveOnExport',
-    AI_SHAREPIC: 'aiSharepic',
     CHAT: 'chat',
     GROUPS: 'groups',
     WEBSITE: 'website',
@@ -148,18 +146,6 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                     featureName: 'Auto-Speichern bei Export',
                     checkboxLabel: 'Automatisches Speichern bei jedem Export aktivieren',
                     icon: HiSave
-                };
-            case BETA_VIEWS.AI_SHAREPIC:
-                return {
-                    title: 'KI-Sharepic',
-                    description: 'KI-gestützte Sharepic-Erstellung aus natürlicher Sprache. Beschreibe einfach, was du möchtest, und die KI erstellt automatisch das passende Sharepic.',
-                    checked: getBetaFeatureState('aiSharepic'),
-                    setter: (value: boolean) => updateUserBetaFeatures('aiSharepic', value),
-                    featureName: 'KI-Sharepic',
-                    checkboxLabel: 'KI-Sharepic im Image Studio aktivieren',
-                    linkTo: '/image-studio',
-                    linkText: 'Zum Image Studio',
-                    icon: HiSparkles
                 };
             case BETA_VIEWS.CHAT:
                 return {

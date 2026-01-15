@@ -30,8 +30,7 @@ export function ProfilbildCanvas({
   canvasSize = DEFAULT_CANVAS_SIZE,
   onExport,
   onCancel,
-  onSave
-}: ProfilbildCanvasProps & { onSave?: (base64: string) => void }) {
+}: ProfilbildCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -133,24 +132,12 @@ export function ProfilbildCanvas({
     }, 50);
   }, [displayScale, onExport]);
 
-  const handleSave = useCallback(() => {
-    setIsSelected(false);
-    setTimeout(() => {
-      if (!stageRef.current) return;
-      const dataUrl = stageRef.current.toDataURL({
-        pixelRatio: 1 / displayScale,
-      });
-      onSave?.(dataUrl);
-    }, 50);
-  }, [displayScale, onSave]);
-
   const tabBar = (
     <SidebarTabBar
       tabs={[]}
       activeTab={null}
       onTabClick={() => { }}
       onExport={handleExport}
-      onSave={handleSave}
     />
   );
 

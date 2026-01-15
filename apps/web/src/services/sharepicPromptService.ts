@@ -28,7 +28,7 @@ interface SharepicGeneratedData {
   theme?: string;
 }
 
-export type SharepicType = 'dreizeilen' | 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'pure-create' | 'ki-sharepic';
+export type SharepicType = 'dreizeilen' | 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'pure-create';
 
 export interface SelectedImage {
   filename: string;

@@ -15,6 +15,9 @@ export interface SubsectionTabBarProps {
     defaultSubsection?: string;
 }
 
+// Track mount ID for debugging
+let mountCounter = 0;
+
 /**
  * SubsectionTabBar - A modular component for sections with multiple subsections.
  * On mobile, renders a fixed secondary bar ABOVE the main tab bar using a portal.
@@ -25,15 +28,30 @@ export function SubsectionTabBar({
     subsections,
     defaultSubsection,
 }: SubsectionTabBarProps) {
+    const [mountId] = useState(() => {
+        const id = ++mountCounter;
+        console.log(`[SubsectionTabBar] MOUNT #${id}`);
+        return id;
+    });
+
     const [isMobile, setIsMobile] = useState(
         typeof window !== 'undefined' && window.innerWidth < 900
     );
 
     // On mobile, start with nothing selected. On desktop, select first/default.
-    const [activeSubsection, setActiveSubsection] = useState<string | null>(
-        isMobile ? null : (defaultSubsection || subsections[0]?.id || null)
-    );
+    const [activeSubsection, setActiveSubsection] = useState<string | null>(() => {
+        const initial = isMobile ? null : (defaultSubsection || subsections[0]?.id || null);
+        console.log(`[SubsectionTabBar #${mountCounter}] Initial activeSubsection:`, initial);
+        return initial;
+    });
     const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+
+    // Log unmount
+    useEffect(() => {
+        return () => {
+            console.log(`[SubsectionTabBar] UNMOUNT #${mountId}`);
+        };
+    }, [mountId]);
 
     useEffect(() => {
         const handleResize = () => {

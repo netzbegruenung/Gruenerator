@@ -37,9 +37,6 @@ function classifySharepicType(prompt: string): ClassificationResult {
   const lower = prompt.toLowerCase();
 
   // KI types (FLUX API) - check first as they're more specific
-  if (/ki-sharepic|sharepic mit ki|ki sharepic/.test(lower)) {
-    return { type: 'ki-sharepic', isKi: true };
-  }
   if (/realistisches bild|ki-bild|illustration|generiere.*bild|erstelle.*bild|flux|visualisiere|fotorealistisch/.test(lower)) {
     return { type: 'pure-create', isKi: true };
   }
@@ -111,7 +108,7 @@ router.post('/generate-from-prompt', requireAuth, async (req: AuthenticatedReque
       // The frontend will redirect to the appropriate KI creation page
       res.json({
         success: true,
-        type: type === 'ki-sharepic' ? 'ki-sharepic' : 'pure-create',
+        type: 'pure-create',
         isKiType: true,
         data: {
           prompt: trimmedPrompt,

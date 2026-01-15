@@ -18,9 +18,9 @@ export function createShareSection<TState, TActions = unknown>(
         propsFactory: (state: TState, _actions: TActions, context?: SectionContext): GenericShareSectionProps => {
             const canvasText = getCanvasText(state);
 
+            // Note: autoSaveStatus removed - DownloadSubsection reads directly from useAutoSaveStore
             return {
                 exportedImage: context?.exportedImage ?? null,
-                autoSaveStatus: context?.autoSaveStatus ?? 'idle',
                 shareToken: context?.shareToken ?? null,
                 onCaptureCanvas: context?.onCaptureCanvas ?? (() => {}),
                 onDownload: context?.onDownload ?? (() => {}),

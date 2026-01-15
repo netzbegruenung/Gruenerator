@@ -132,9 +132,9 @@ export const dreizeilenConfig: CanvasConfig<DreizeilenState, DreizeilenActions> 
                 // Extract text from Dreizeilen canvas state
                 const canvasText = `${state.line1}\n${state.line2}\n${state.line3}`.trim();
 
+                // Note: autoSaveStatus removed - DownloadSubsection reads directly from useAutoSaveStore
                 const props = {
                     exportedImage: shareProps?.exportedImage || null,
-                    autoSaveStatus: shareProps?.autoSaveStatus || 'idle',
                     shareToken: shareProps?.shareToken || null,
                     onCaptureCanvas: shareProps?.onCaptureCanvas || (() => {
                         console.error('[dreizeilen.config] onCaptureCanvas fallback called - shareProps missing!');

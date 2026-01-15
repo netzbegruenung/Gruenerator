@@ -607,28 +607,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
       return response.data.image.base64;
     }
 
-    if (type === IMAGE_STUDIO_TYPES.KI_SHAREPIC) {
-      const { selectedImageSize } = useImageStudioStore.getState();
-
-      const requestData = {
-        prompt: formData.sharepicPrompt || formData.prompt,
-        title: formData.imagineTitle || formData.title,
-        variant: formData.variant || 'light-top',
-        ...(selectedImageSize && {
-          width: selectedImageSize.width,
-          height: selectedImageSize.height
-        })
-      };
-
-      const response = await apiClient.post(endpoint, requestData);
-
-      if (!response.data?.image?.base64) {
-        throw new Error('Keine Bilddaten empfangen');
-      }
-
-      return response.data.image.base64;
-    }
-
     if (type === IMAGE_STUDIO_TYPES.GREEN_EDIT ||
       type === IMAGE_STUDIO_TYPES.ALLY_MAKER ||
       type === IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT) {
@@ -684,10 +662,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
       const kiData = formData as KiImageFormData;
       if (type === IMAGE_STUDIO_TYPES.PURE_CREATE) {
         if (!kiData.purePrompt && !kiData.prompt) {
-          return 'Bitte gib eine Beschreibung ein';
-        }
-      } else if (type === IMAGE_STUDIO_TYPES.KI_SHAREPIC) {
-        if (!kiData.sharepicPrompt && !kiData.prompt) {
           return 'Bitte gib eine Beschreibung ein';
         }
       } else if (type === IMAGE_STUDIO_TYPES.GREEN_EDIT ||

@@ -45,7 +45,6 @@ interface UseBetaFeaturesReturn {
 // Beta features configuration - single source of truth
 const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   { key: 'sharepic', label: 'Sharepic', isAdminOnly: false, devOnly: true },
-  { key: 'aiSharepic', label: 'KI-Sharepic', isAdminOnly: false, devOnly: true },
   { key: 'groups', label: 'Gruppen', isAdminOnly: false, devOnly: true },
   { key: 'vorlagen', label: 'Vorlagen & Galerie', isAdminOnly: false, devOnly: true },
   { key: 'database', label: 'Datenbank', isAdminOnly: true },

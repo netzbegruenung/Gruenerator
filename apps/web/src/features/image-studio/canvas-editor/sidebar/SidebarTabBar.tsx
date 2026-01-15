@@ -1,24 +1,22 @@
 import { useState, useEffect } from 'react';
-import { FaSave } from 'react-icons/fa';
-import { useCanvasEditorStore } from '../../../../stores/canvasEditorStore';
+import { FaCheck } from 'react-icons/fa';
+import { useAutoSaveStore } from '../../hooks/useAutoSaveStore';
 import type { SidebarTabBarProps, SidebarTabId } from './types';
-
-
 
 export function SidebarTabBar({
   tabs,
   activeTab,
   onTabClick,
   onExport,
-  onSave,
   disabledTabs = [],
   horizontal = false,
 }: SidebarTabBarProps) {
-
-
+  // Read autoSaveStatus directly from store to avoid prop-drilling re-renders
+  const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' && window.innerWidth < 900
   );
+  const [showSaved, setShowSaved] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -28,9 +26,17 @@ export function SidebarTabBar({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Show "saved" indicator briefly after save completes
+  useEffect(() => {
+    if (autoSaveStatus === 'saved') {
+      setShowSaved(true);
+      const timer = setTimeout(() => setShowSaved(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [autoSaveStatus]);
+
   // Auto-detect horizontal layout on mobile
   const isHorizontal = horizontal || isMobile;
-
 
   return (
     <div className={`sidebar-tab-bar ${isHorizontal ? 'sidebar-tab-bar--horizontal' : ''}`}>
@@ -59,23 +65,27 @@ export function SidebarTabBar({
         );
       })}
 
-
-
       <div className="sidebar-tab-bar__separator" />
 
-      {onSave && (
-        <>
-          <div className="sidebar-tab-bar__separator" />
-          <button
-            className="sidebar-tab-bar__tab sidebar-tab-bar__tab--save"
-            onClick={onSave}
-            aria-label="Speichern"
-            title="Speichern"
-            type="button"
-          >
-            <FaSave size={20} />
-          </button>
-        </>
+      {/* Auto-save status indicator */}
+      {autoSaveStatus && (
+        <div
+          className={`sidebar-tab-bar__auto-save ${
+            autoSaveStatus === 'saving' ? 'sidebar-tab-bar__auto-save--saving' : ''
+          } ${showSaved ? 'sidebar-tab-bar__auto-save--saved' : ''}`}
+          title={
+            autoSaveStatus === 'saving' ? 'Wird gespeichert...' :
+            autoSaveStatus === 'saved' ? 'Gespeichert' :
+            autoSaveStatus === 'error' ? 'Fehler beim Speichern' : ''
+          }
+        >
+          {autoSaveStatus === 'saving' && (
+            <div className="sidebar-tab-bar__auto-save-spinner" />
+          )}
+          {showSaved && (
+            <FaCheck size={14} className="sidebar-tab-bar__auto-save-check" />
+          )}
+        </div>
       )}
     </div>
   );

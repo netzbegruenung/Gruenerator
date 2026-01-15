@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 // Import DreizeilenCanvas separately (kept as special case)
 import { DreizeilenCanvas } from './composed/DreizeilenCanvas';
@@ -16,6 +16,34 @@ import type { DreizeilenCanvasProps } from './composed/DreizeilenCanvas';
 import type { ProfilbildCanvasProps } from '@gruenerator/shared/canvas-editor';
 
 type CanvasState = Record<string, unknown>;
+
+// Compare two values with special handling for arrays
+function valuesEqual(a: unknown, b: unknown): boolean {
+  // Same reference or primitive value
+  if (a === b) return true;
+
+  // Handle arrays - compare contents
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// Compare two state objects for content equality
+function stateEqual(a: CanvasState, b: CanvasState): boolean {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (!valuesEqual(a[key], b[key])) return false;
+  }
+  return true;
+}
 
 export interface ControllableCanvasWrapperProps {
   type: string;
@@ -39,6 +67,9 @@ export function ControllableCanvasWrapper({
   const [config, setConfig] = useState<FullCanvasConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
 
+  // Track previous initialState to detect actual content changes
+  const prevInitialStateRef = useRef<CanvasState>(initialState);
+
   // Load config dynamically when type changes (for config-driven canvases)
   useEffect(() => {
     const needsConfig = ['zitat-pure', 'info', 'veranstaltung', 'simple'].includes(type);
@@ -58,9 +89,18 @@ export function ControllableCanvasWrapper({
     }
   }, [type]);
 
+  // Only update state and key when initialState CONTENT actually changes
+  // This prevents remounting when parent re-renders with same values but new object reference
   useEffect(() => {
-    setInternalState(initialState);
-    setComponentKey(Date.now());
+    const prevState = prevInitialStateRef.current;
+    const hasContentChanged = !stateEqual(prevState, initialState);
+
+    if (hasContentChanged) {
+      console.log('[ControllableCanvasWrapper] initialState content changed, updating key');
+      setInternalState(initialState);
+      setComponentKey(Date.now());
+      prevInitialStateRef.current = initialState;
+    }
   }, [initialState]);
 
   const handlePartChange = useCallback((change: Partial<CanvasState>) => {

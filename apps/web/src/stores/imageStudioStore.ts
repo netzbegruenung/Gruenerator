@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { DEFAULT_COLORS } from '../components/utils/constants';
+import apiClient from '../components/utils/apiClient';
 import {
   IMAGE_STUDIO_CATEGORIES,
   IMAGE_STUDIO_TYPES,
@@ -189,6 +190,15 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
       precisionMode: config?.alwaysPrecision || false,
       aiGeneratedContent: false
     });
+
+    // Track usage for "last used" feature (fire-and-forget)
+    if (type) {
+      apiClient.post('/recent-values', {
+        fieldType: 'image_studio_type',
+        fieldValue: type,
+        formName: 'image-studio'
+      }).catch(() => {});
+    }
   },
 
   // Form data updates

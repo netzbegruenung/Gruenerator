@@ -32,35 +32,40 @@ export const useRecentValues = (fieldType: string, options: UseRecentValuesOptio
     cacheTimeout = 5 * 60 * 1000
   } = options;
 
-  const [recentValues, setRecentValues] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastFetch, setLastFetch] = useState<number | null>(null);
-
   // Cache key for local storage
   const cacheKey = `recentValues_${fieldType}`;
 
-  // Load from cache if available and not expired
-  useEffect(() => {
-    const cachedData = localStorage.getItem(cacheKey);
-    if (cachedData) {
-      try {
+  // Initialize state synchronously from localStorage to avoid flicker
+  // Using lazy initializer to only read localStorage once on mount
+  const [initialCache] = useState(() => {
+    if (typeof window === 'undefined') return { values: [] as string[], timestamp: null as number | null };
+    try {
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
         const parsed = JSON.parse(cachedData);
         const age = Date.now() - parsed.timestamp;
         if (age < cacheTimeout) {
-          setRecentValues(parsed.values);
-          setLastFetch(parsed.timestamp);
-          return;
+          return { values: (parsed.values || []) as string[], timestamp: parsed.timestamp as number };
         }
-      } catch (err) {
-        console.warn('[useRecentValues] Invalid cache data, clearing:', err);
-        localStorage.removeItem(cacheKey);
       }
+    } catch {
+      // Invalid cache, ignore
     }
+    return { values: [] as string[], timestamp: null as number | null };
+  });
 
-    // If no valid cache, fetch from server
-    fetchRecentValues();
-  }, [fieldType, cacheTimeout]);
+  const [recentValues, setRecentValues] = useState<string[]>(initialCache.values);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number | null>(initialCache.timestamp);
+
+  // Only fetch from server if cache was empty or expired (on mount only)
+  useEffect(() => {
+    if (lastFetch === null) {
+      fetchRecentValues();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldType]);
 
   /**
    * Fetch recent values from the server

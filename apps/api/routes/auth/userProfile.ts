@@ -209,7 +209,6 @@ router.patch('/profile/beta-features', ensureAuthenticated as any, async (req: A
       'groups',
       'database',
       'sharepic',
-      'aiSharepic',
       'anweisungen',
       'notebook',
       'advanced_editor',

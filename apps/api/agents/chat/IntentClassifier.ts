@@ -131,7 +131,7 @@ export const AGENT_MAPPINGS: AgentMappings = {
   // FLUX/Imagine AI image generation
   'imagine': {
     route: 'imagine',
-    keywords: ['bild mit titel', 'bild mit dem titel', 'bild erstellen', 'generiere bild', 'bild erzeugen', 'imagine', 'erstelle ein bild', 'erstelle ein foto', 'erstelle eine illustration', 'erstelle eine grafik', 'transformiere', 'begrüne', 'ki-bild', 'flux', 'illustriere', 'visualisiere', 'realistisches bild', 'realistisches foto', 'fotorealistisch', 'mache grün', 'ki-sharepic'],
+    keywords: ['bild mit titel', 'bild mit dem titel', 'bild erstellen', 'generiere bild', 'bild erzeugen', 'imagine', 'erstelle ein bild', 'erstelle ein foto', 'erstelle eine illustration', 'erstelle eine grafik', 'transformiere', 'begrüne', 'ki-bild', 'flux', 'illustriere', 'visualisiere', 'realistisches bild', 'realistisches foto', 'fotorealistisch', 'mache grün'],
     description: 'AI image generation with FLUX - pure images, sharepics with titles, or image transformation',
     params: {}
   }

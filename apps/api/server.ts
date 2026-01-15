@@ -34,6 +34,7 @@ import { setupRoutes } from './routes.js';
 import AIWorkerPool from './workers/aiWorkerPool.js';
 import redisClient from './utils/redis/client.js';
 import { tusServer } from './services/subtitler/tusService.js';
+import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -105,6 +106,9 @@ if (cluster.isPrimary) {
       }
     });
   }
+
+  // Start export cleanup scheduler (runs in master process only)
+  startExportCleanup();
 
   const { shutdown, registerSignalHandlers } = createMasterShutdownHandler({
     workerTimeout: 10000,

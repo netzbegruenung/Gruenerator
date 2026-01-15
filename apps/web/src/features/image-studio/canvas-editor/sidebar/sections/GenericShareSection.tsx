@@ -1,14 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo, memo } from 'react';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 import { FaDownload, FaShareAlt, FaImages, FaSave, FaCheck } from 'react-icons/fa';
 import { IoCheckmarkOutline } from 'react-icons/io5';
 import Spinner from '../../../../../components/common/Spinner';
 import { useShareStore } from '@gruenerator/shared/share';
+import { useAutoSaveStore } from '../../../hooks/useAutoSaveStore';
 import '../../../../../assets/styles/features/templates.css';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
-  autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  // autoSaveStatus removed - DownloadSubsection now reads directly from useAutoSaveStore
   shareToken: string | null;
   onCaptureCanvas: () => void;
   onDownload: () => void;
@@ -17,16 +18,18 @@ export interface GenericShareSectionProps {
   canvasType: string;
 }
 
-// Download Subsection
+// Download Subsection - reads autoSaveStatus directly from store to avoid re-renders
 function DownloadSubsection({
   exportedImage,
-  autoSaveStatus,
   shareToken,
   onCaptureCanvas,
   onDownload,
   onNavigateToGallery,
-}: GenericShareSectionProps) {
+}: Omit<GenericShareSectionProps, 'canvasText' | 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
+
+  // Read autoSaveStatus directly from store to avoid prop-drilling re-renders
+  const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
 
   const handleDownloadClick = async () => {
     setDownloadState('capturing');
@@ -312,28 +315,78 @@ function TemplateSubsection({
   );
 }
 
-// Main Component
-export function GenericShareSection(props: GenericShareSectionProps) {
-  const subsections = [
+// Track renders for debugging
+let shareSectionRenderCount = 0;
+
+// Main Component - memoizes subsections to prevent re-renders
+export function GenericShareSection({
+  exportedImage,
+  shareToken,
+  onCaptureCanvas,
+  onDownload,
+  onNavigateToGallery,
+  canvasText,
+  canvasType,
+}: GenericShareSectionProps) {
+  shareSectionRenderCount++;
+  console.log(`[GenericShareSection] Render #${shareSectionRenderCount}`, {
+    hasExportedImage: !!exportedImage,
+    shareToken: shareToken?.slice(0, 8),
+  });
+
+  // Memoize subsections to prevent unnecessary re-renders of SubsectionTabBar
+  // Each subsection's content receives only the props it needs
+  const subsections = useMemo(() => {
+    console.log('[GenericShareSection] Creating new subsections array (useMemo triggered)');
+    return [
     {
       id: 'download',
       icon: FaDownload,
       label: 'Download',
-      content: <DownloadSubsection {...props} />,
+      content: (
+        <DownloadSubsection
+          exportedImage={exportedImage}
+          shareToken={shareToken}
+          onCaptureCanvas={onCaptureCanvas}
+          onDownload={onDownload}
+          onNavigateToGallery={onNavigateToGallery}
+        />
+      ),
     },
     {
       id: 'platforms',
       icon: FaShareAlt,
       label: 'Teilen',
-      content: <PlatformsSubsection {...props} />,
+      content: (
+        <PlatformsSubsection
+          exportedImage={exportedImage}
+          shareToken={shareToken}
+          onCaptureCanvas={onCaptureCanvas}
+          onDownload={onDownload}
+          onNavigateToGallery={onNavigateToGallery}
+          canvasText={canvasText}
+          canvasType={canvasType}
+        />
+      ),
     },
     {
       id: 'template',
       icon: FaSave,
       label: 'Vorlage',
-      content: <TemplateSubsection {...props} />,
+      content: (
+        <TemplateSubsection
+          exportedImage={exportedImage}
+          shareToken={shareToken}
+          onCaptureCanvas={onCaptureCanvas}
+          onDownload={onDownload}
+          onNavigateToGallery={onNavigateToGallery}
+          canvasText={canvasText}
+          canvasType={canvasType}
+        />
+      ),
     },
   ];
+  }, [exportedImage, shareToken, onCaptureCanvas, onDownload, onNavigateToGallery, canvasText, canvasType]);
 
   return <SubsectionTabBar subsections={subsections} defaultSubsection="download" />;
 }

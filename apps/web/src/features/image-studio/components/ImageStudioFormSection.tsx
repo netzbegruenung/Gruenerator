@@ -7,7 +7,7 @@ import { ImageStudioFormSectionProps } from '../types/componentTypes';
 import '../../../assets/styles/components/form/form-inputs.css';
 
 const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({ type, currentStep, typeConfig, formErrors, handleChange, updateFormData }) => {
-    const { thema, details, imagineTitle, quote, header, subheader, body, line1, line2, line3, purePrompt, sharepicPrompt } = useImageStudioStore();
+    const { thema, details, quote, header, subheader, body, line1, line2, line3, purePrompt } = useImageStudioStore();
     const loading = false; // Loading is managed by parent
 
     if (typeConfig?.hasTextGeneration && currentStep === FORM_STEPS.INPUT) {
@@ -35,21 +35,6 @@ const ImageStudioFormSection: React.FC<ImageStudioFormSectionProps> = ({ type, c
                     <textarea id="purePrompt" name="purePrompt" value={purePrompt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateFormData({ purePrompt: e.target.value })} placeholder="Beschreibe das Bild, das du erstellen möchtest..." rows={4} className={`form-textarea ${formErrors.purePrompt ? 'error-input' : ''}`} />
                     {formErrors.purePrompt && <span className="error-message">{formErrors.purePrompt}</span>}
                 </div>
-            );
-        }
-        if (type === IMAGE_STUDIO_TYPES.KI_SHAREPIC) {
-            return (
-                <>
-                    <div className="form-field-wrapper">
-                        <h3><label htmlFor="sharepicPrompt">Bildbeschreibung</label></h3>
-                        <textarea id="sharepicPrompt" name="sharepicPrompt" value={sharepicPrompt} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateFormData({ sharepicPrompt: e.target.value })} placeholder="Beschreibe das Bild..." rows={4} className={`form-textarea ${formErrors.sharepicPrompt ? 'error-input' : ''}`} />
-                        {formErrors.sharepicPrompt && <span className="error-message">{formErrors.sharepicPrompt}</span>}
-                    </div>
-                    <div className="form-field-wrapper">
-                        <h3><label htmlFor="imagineTitle">Titel</label></h3>
-                        <input type="text" id="imagineTitle" name="imagineTitle" value={imagineTitle} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFormData({ imagineTitle: e.target.value })} placeholder="Titel für das Sharepic..." className="form-input" />
-                    </div>
-                </>
             );
         }
         if (typeConfig?.formProps) {

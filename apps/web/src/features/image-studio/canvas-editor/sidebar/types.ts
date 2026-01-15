@@ -78,12 +78,14 @@ export interface GradientSectionProps {
   onOpacityChange: (opacity: number) => void;
 }
 
+export type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export interface SidebarTabBarProps {
   tabs: SidebarTab[];
   activeTab: SidebarTabId | null;
   onTabClick: (tabId: SidebarTabId) => void;
   onExport?: () => void;
-  onSave?: () => void;
+  // autoSaveStatus removed - SidebarTabBar now reads directly from useAutoSaveStore
   disabledTabs?: SidebarTabId[];
   horizontal?: boolean;
 }

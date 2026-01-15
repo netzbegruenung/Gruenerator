@@ -5,7 +5,7 @@
 import type { VariantStyle, VariantTypeConfig, Variant } from './types';
 
 /**
- * Base variant styles shared across PURE_CREATE and KI_SHAREPIC
+ * Base variant styles for PURE_CREATE
  * Adding a new style here automatically makes it available to all variant types
  */
 export const VARIANT_STYLES: Record<string, VariantStyle> = {

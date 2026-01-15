@@ -14,7 +14,6 @@ interface GenericCanvasEditorProps<TState, TActions = Record<string, unknown>> {
     actions: TActions;
     children: React.ReactNode; // The Konva Stage / Canvas content
     onExport: () => void;
-    onSave?: () => void;
     onCancel?: () => void; // Optional cancel handler if needed by layout
     sidebarActions?: React.ReactNode; // Optional extra actions for the sidebar
     selectedElement?: string | null;
@@ -29,18 +28,27 @@ interface GenericCanvasEditorProps<TState, TActions = Record<string, unknown>> {
     };
 }
 
+// Debug render counter
+let editorRenderCount = 0;
+
 export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>({
     config,
     state,
     actions,
     children,
     onExport,
-    onSave,
     sidebarActions,
     selectedElement,
     onAddPage,
     shareProps,
 }: GenericCanvasEditorProps<TState, TActions>) {
+    editorRenderCount++;
+    console.log(`[GenericCanvasEditor] Render #${editorRenderCount}`, {
+        activeTabWillBe: 'text',
+        hasShareProps: !!shareProps,
+        shareToken: shareProps?.shareToken?.slice(0, 8),
+    });
+
     const [activeTab, setActiveTab] = useState<SidebarTabId | null>('text');
     const [isDesktop, setIsDesktop] = useState(
         typeof window !== 'undefined' && window.innerWidth >= 900
@@ -80,6 +88,7 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
 
     // Render the active section based on configuration
     const renderActivePanel = () => {
+        console.log(`[GenericCanvasEditor] renderActivePanel called, activeTab=${activeTab}`);
         if (!activeTab) return null;
 
         const sectionConfig = config.sections[activeTab];
@@ -89,6 +98,10 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
         const sectionProps = sectionConfig.propsFactory(state, actions, {
             selectedElement: selectedElement ?? null,
             ...shareProps
+        });
+
+        console.log(`[GenericCanvasEditor] Rendering section: ${activeTab}`, {
+            componentName: SectionComponent.name || 'lazy',
         });
 
         return (
@@ -108,7 +121,6 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
             activeTab={activeTab}
             onTabClick={handleTabClick}
             onExport={onExport}
-            onSave={onSave}
             disabledTabs={disabledTabs}
         />
     );

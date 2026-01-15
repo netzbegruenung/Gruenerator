@@ -58,6 +58,11 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
     bare = false,
     onDelete,
 }: GenericCanvasProps<TState, TActions>) {
+    // Debug render logging
+    const renderCountRef = useRef(0);
+    renderCountRef.current++;
+    console.log(`[GenericCanvas] Render #${renderCountRef.current}`, { configId: config.id });
+
     const stageRef = useRef<CanvasStageRef>(null);
     const navigate = useNavigate();
 
@@ -177,6 +182,29 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
             enabled: true,
         }
     );
+
+    // History-synced auto-save: capture canvas whenever undo/redo history changes
+    const historyIndex = useCanvasEditorStore((s) => s.historyIndex);
+    const lastAutoSaveHistoryIndexRef = useRef(-1);
+
+    useEffect(() => {
+        // Skip initial render, invalid states, and when already exporting
+        if (historyIndex < 0 || isExporting) return;
+        // Skip if already saved for this history index
+        if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
+
+        // Small delay to ensure canvas is fully rendered after state change
+        const timer = setTimeout(() => {
+            const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
+            if (dataUrl) {
+                setExportedImage(dataUrl);
+                exportedImageRef.current = dataUrl;
+                lastAutoSaveHistoryIndexRef.current = historyIndex;
+            }
+        }, 200);
+
+        return () => clearTimeout(timer);
+    }, [historyIndex, isExporting]);
 
     // Backend canvas export hook (server-side rendering via Free Canvas API)
     const {
@@ -340,16 +368,16 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
     }, [isExporting, state, config.canvas.width, config.canvas.height]);
 
     // Share props (MUST be before ANY return statement, including early returns)
+    // Note: autoSaveStatus removed - SidebarTabBar reads directly from useAutoSaveStore
     const sharePropsToPass = useMemo(() => {
         return {
             exportedImage,
-            autoSaveStatus,
             shareToken,
             onCaptureCanvas: handleExportAction,
             onDownload: handleDownload,
             onNavigateToGallery: handleNavigateToGallery,
         };
-    }, [exportedImage, autoSaveStatus, shareToken, handleExportAction, handleDownload, handleNavigateToGallery]);
+    }, [exportedImage, shareToken, handleExportAction, handleDownload, handleNavigateToGallery]);
 
     // Show loading state while font loads
     if (shouldWaitForFont) {
@@ -436,7 +464,6 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
                 actions={actions}
                 selectedElement={selectedElement}
                 onExport={handleExportAction}
-                onSave={handleSave}
                 onAddPage={onAddPage}
                 shareProps={sharePropsToPass}
             >
