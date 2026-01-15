@@ -6,7 +6,10 @@ import { PiFolder, PiLayout, PiUser } from 'react-icons/pi';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
+import { useRecentValues } from '../../../hooks/useRecentValues';
+import { useRecentGalleryItems, RecentGalleryItem } from '../hooks/useRecentGalleryItems';
+import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
+import type { TypeConfig } from '../utils/typeConfig/types';
 import { StartOption } from '../types/componentTypes';
 
 import '../../../assets/styles/components/sharepic/sharepic-type-selector.css';
@@ -42,6 +45,26 @@ const ImageStudioCategorySelector: React.FC = () => {
 
     const setType = useImageStudioStore((state) => state.setType);
 
+    // Recent gallery items - actual saved sharepics that can be edited
+    const recentGalleryOptions = useMemo(() => ({ limit: 6 }), []);
+    const { items: recentGalleryItems, lastFetch: galleryLastFetch } = useRecentGalleryItems(recentGalleryOptions);
+    const showGallerySection = galleryLastFetch !== null && recentGalleryItems.length > 0;
+
+    // Last used types - fetched from PostgreSQL via useRecentValues
+    // Memoize options to prevent unnecessary hook re-runs
+    const recentValuesOptions = useMemo(() => ({ limit: 6 }), []);
+    const { recentValues, lastFetch } = useRecentValues('image_studio_type', recentValuesOptions);
+
+    // Map type IDs to configs for display
+    const recentTypeConfigs = useMemo(() => {
+        return recentValues
+            .map(typeId => getTypeConfig(typeId))
+            .filter((config): config is TypeConfig => config !== null && !config.hidden);
+    }, [recentValues]);
+
+    // Only show section after initial load completes (lastFetch !== null means data was loaded)
+    const showRecentTypesSection = lastFetch !== null && recentTypeConfigs.length > 0;
+
     const handleCategorySelect = useCallback((cat: string | null, subcat: string | null, directType?: string) => {
         if (directType) {
             setType(directType);
@@ -51,6 +74,52 @@ const ImageStudioCategorySelector: React.FC = () => {
             navigate(`/image-studio/${cat}`);
         }
     }, [setCategory, setType, navigate]);
+
+    // Handle editing a recent gallery item (reuses gallery edit pattern)
+    const handleGalleryItemEdit = useCallback((item: RecentGalleryItem) => {
+        const metadata = item.imageMetadata || {};
+        const sharepicType = metadata.sharepicType;
+
+        if (!sharepicType) {
+            console.warn('[ImageStudioCategorySelector] Cannot edit: no sharepicType in metadata');
+            return;
+        }
+
+        // Map both legacy capitalized format AND modern lowercase format to routes
+        const typeRouteMap: Record<string, string> = {
+            // Modern lowercase format (from canvas auto-save)
+            'dreizeilen': '/image-studio/templates/dreizeilen',
+            'zitat': '/image-studio/templates/zitat',
+            'zitat-pure': '/image-studio/templates/zitat-pure',
+            'info': '/image-studio/templates/info',
+            'headline': '/image-studio/templates/headline',
+            // Legacy capitalized format (for backwards compatibility)
+            'Dreizeilen': '/image-studio/templates/dreizeilen',
+            'Zitat': '/image-studio/templates/zitat',
+            'Zitat_Pure': '/image-studio/templates/zitat-pure',
+            'Info': '/image-studio/templates/info',
+            'Headline': '/image-studio/templates/headline',
+        };
+
+        const route = typeRouteMap[sharepicType];
+        if (!route) {
+            console.warn('[ImageStudioCategorySelector] Unknown sharepic type:', sharepicType);
+            return;
+        }
+
+        const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+        navigate(route, {
+            state: {
+                galleryEditMode: true,
+                shareToken: item.shareToken,
+                content: { ...metadata.content, sharepicType },
+                styling: metadata.styling || {},
+                originalImageUrl: `${baseURL}/share/${item.shareToken}/original`,
+                title: item.title,
+            }
+        });
+    }, [navigate]);
 
     // Handle AI prompt submission
     const handlePromptSubmit = useCallback(async (e?: FormEvent) => {
@@ -73,8 +142,7 @@ const ImageStudioCategorySelector: React.FC = () => {
 
             // Handle KI types - navigate to KI creation flow
             if (result.isKiType) {
-                const kiType = result.type === 'ki-sharepic' ? 'ki-sharepic' : 'pure-create';
-                navigate(`/image-studio/ki/create/${kiType}`);
+                navigate(`/image-studio/ki/create/pure-create`);
                 return;
             }
 
@@ -180,6 +248,58 @@ const ImageStudioCategorySelector: React.FC = () => {
                         </motion.p>
                     )}
                 </motion.div>
+
+                {/* Recent Gallery Items - Editable saved sharepics */}
+                {showGallerySection && (
+                    <div className="image-studio-recent-section">
+                        <h3 className="image-studio-section-title">Zuletzt erstellt</h3>
+                        <div className="image-studio-recent-grid image-studio-gallery-grid">
+                            {recentGalleryItems.map(item => {
+                                const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+                                const thumbnailUrl = item.thumbnailPath
+                                    ? `${baseURL}/share/${item.shareToken}/thumbnail`
+                                    : `${baseURL}/share/${item.shareToken}/preview`;
+                                return (
+                                    <div
+                                        key={item.shareToken}
+                                        className="image-studio-recent-card image-studio-gallery-card"
+                                        onClick={() => handleGalleryItemEdit(item)}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleGalleryItemEdit(item)}
+                                    >
+                                        <img src={thumbnailUrl} alt={item.title || 'Sharepic'} />
+                                        <span>{item.title || 'Sharepic'}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Recent Template Types - Quick access to template types */}
+                {showRecentTypesSection && (
+                    <div className="image-studio-recent-section">
+                        <h3 className="image-studio-section-title">Zuletzt verwendete Vorlagen</h3>
+                        <div className="image-studio-recent-grid">
+                            {recentTypeConfigs.map(config => (
+                                <div
+                                    key={config.id}
+                                    className="image-studio-recent-card"
+                                    onClick={() => handleCategorySelect(config.category, null, config.id)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleCategorySelect(config.category, null, config.id)}
+                                >
+                                    {config.previewImage && (
+                                        <img src={config.previewImage} alt={config.label} />
+                                    )}
+                                    <span>{config.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Section Divider */}
                 <div className="image-studio-divider">

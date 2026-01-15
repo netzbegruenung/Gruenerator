@@ -562,6 +562,31 @@ router.get('/my', requireAuth, async (req: AuthenticatedRequest, res: Response<S
   }
 });
 
+router.get('/recent', requireAuth, async (req: AuthenticatedRequest, res: Response<ShareListResponse>) => {
+  try {
+    const userId = req.user!.id;
+    const limit = Math.min(parseInt(req.query.limit as string) || 6, 20);
+
+    const service = await getSharedMediaService();
+    const allShares = await service.getUserShares(userId, 'image');
+    const recentShares = allShares.slice(0, limit);
+
+    res.json({
+      success: true,
+      shares: toCamelCase(recentShares) as CamelCaseObject[],
+      count: recentShares.length,
+      limit
+    });
+
+  } catch (error) {
+    log.error('Failed to get recent shares:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Letzte Bilder konnten nicht geladen werden'
+    });
+  }
+});
+
 router.get('/my/images', requireAuth, async (req: AuthenticatedRequest, res: Response<ShareListResponse>) => {
   try {
     const userId = req.user!.id;

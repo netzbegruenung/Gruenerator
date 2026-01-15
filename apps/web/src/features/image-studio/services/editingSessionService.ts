@@ -146,19 +146,26 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
   }
 
   if (content) {
-    if (sharepicType === 'Info') {
-      formData.header = content.header || '';
-      formData.subheader = content.subheader || '';
-      formData.body = content.body || '';
-    } else if (sharepicType === 'Zitat' || sharepicType === 'Zitat_Pure') {
-      formData.quote = content.quote || '';
-      formData.name = content.name || '';
+    // Normalize sharepicType to lowercase for comparison (handles both legacy and modern formats)
+    const normalizedType = sharepicType?.toLowerCase().replace('_', '-');
+
+    // Handle backwards compatibility: old saves wrapped content in canvasState
+    const canvasState = content.canvasState as Record<string, unknown> | undefined;
+    const effectiveContent = canvasState || content;
+
+    if (normalizedType === 'info') {
+      formData.header = effectiveContent.header || '';
+      formData.subheader = effectiveContent.subheader || '';
+      formData.body = effectiveContent.body || '';
+    } else if (normalizedType === 'zitat' || normalizedType === 'zitat-pure') {
+      formData.quote = effectiveContent.quote || '';
+      formData.name = effectiveContent.name || '';
     } else {
-      formData.line1 = content.line1 || '';
-      formData.line2 = content.line2 || '';
-      formData.line3 = content.line3 || '';
-      if (content.line4) formData.line4 = content.line4;
-      if (content.line5) formData.line5 = content.line5;
+      formData.line1 = effectiveContent.line1 || '';
+      formData.line2 = effectiveContent.line2 || '';
+      formData.line3 = effectiveContent.line3 || '';
+      if (effectiveContent.line4) formData.line4 = effectiveContent.line4;
+      if (effectiveContent.line5) formData.line5 = effectiveContent.line5;
     }
   }
 

@@ -779,3 +779,114 @@
   padding: 0;
   max-width: none;
 }
+
+/* Last Used Section */
+.image-studio-recent-section {
+  margin-bottom: var(--spacing-xlarge);
+  text-align: left;
+}
+
+.image-studio-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--font-color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-medium);
+}
+
+.image-studio-recent-grid {
+  display: flex;
+  gap: var(--spacing-medium);
+  overflow-x: auto;
+  padding-bottom: var(--spacing-small);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.image-studio-recent-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.image-studio-recent-card {
+  flex-shrink: 0;
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-small);
+  padding: var(--spacing-small);
+  background: var(--background-color-alt);
+  border-radius: var(--card-border-radius-small);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.image-studio-recent-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.image-studio-recent-card img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.image-studio-recent-card span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--font-color);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .image-studio-recent-card {
+    width: 100px;
+  }
+
+  .image-studio-recent-card img {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+/* Gallery items grid - shows actual saved sharepics */
+.image-studio-gallery-grid {
+  gap: var(--spacing-large);
+}
+
+.image-studio-gallery-card {
+  width: 140px;
+  background: var(--background-color);
+  border: 1px solid var(--border-color);
+}
+
+.image-studio-gallery-card img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--background-color-alt);
+}
+
+.image-studio-gallery-card span {
+  font-size: 0.8rem;
+  max-width: 120px;
+}
+
+@media (max-width: 768px) {
+  .image-studio-gallery-card {
+    width: 110px;
+  }
+
+  .image-studio-gallery-card img {
+    width: 90px;
+    height: 90px;
+  }
+}
