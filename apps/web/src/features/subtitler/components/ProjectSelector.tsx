@@ -44,15 +44,17 @@ const formatDate = (dateStr: string | undefined): string => {
     return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const formatFileSize = (bytes: number | undefined): string => {
-    if (!bytes || isNaN(bytes)) return '0 B';
+const formatFileSize = (bytes: number | string | undefined): string => {
+    const numBytes = Number(bytes);
+    if (!numBytes || isNaN(numBytes)) return '0 B';
     const units = ['B', 'KB', 'MB', 'GB'];
     let i = 0;
-    while (bytes >= 1024 && i < units.length - 1) {
-        bytes /= 1024;
+    let size = numBytes;
+    while (size >= 1024 && i < units.length - 1) {
+        size /= 1024;
         i++;
     }
-    return `${bytes.toFixed(1)} ${units[i]}`;
+    return `${size.toFixed(1)} ${units[i]}`;
 };
 
 const isDevelopment = import.meta.env.VITE_APP_ENV === 'development';
