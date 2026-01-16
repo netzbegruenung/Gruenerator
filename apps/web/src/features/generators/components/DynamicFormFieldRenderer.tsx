@@ -9,12 +9,15 @@
  * This component eliminates ~90 lines of duplicated field rendering code.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, memo } from 'react';
 import { Control, Controller } from 'react-hook-form';
 import FormInput from '../../../components/common/Form/Input/FormInput';
 import FormTextarea from '../../../components/common/Form/Input/FormTextarea';
 import EnhancedSelect from '../../../components/common/EnhancedSelect';
 import { GeneratorFormField } from '../types/generatorTypes';
+
+// Static constant moved outside component
+const MENU_PORTAL_TARGET = typeof document !== 'undefined' ? document.body : null;
 
 interface DynamicFormFieldRendererProps {
   fields: GeneratorFormField[];
@@ -26,7 +29,7 @@ interface DynamicFormFieldRendererProps {
 /**
  * Renders dynamic form fields based on field configuration
  */
-export const DynamicFormFieldRenderer: React.FC<DynamicFormFieldRendererProps> = ({
+const DynamicFormFieldRenderer: React.FC<DynamicFormFieldRendererProps> = memo(({
   fields,
   control,
   onUrlsDetected,
@@ -90,7 +93,7 @@ export const DynamicFormFieldRenderer: React.FC<DynamicFormFieldRendererProps> =
               classNamePrefix="react-select"
               error={fieldState.error?.message}
               required={field.required}
-              menuPortalTarget={document.body}
+              menuPortalTarget={MENU_PORTAL_TARGET}
               menuPosition="fixed"
             />
           )}
@@ -113,11 +116,13 @@ export const DynamicFormFieldRenderer: React.FC<DynamicFormFieldRendererProps> =
     );
   }, [control, onUrlsDetected, enableUrlDetection]);
 
-  return (
-    <>
-      {fields.map(renderField)}
-    </>
-  );
-};
+  // Memoize rendered fields to prevent unnecessary re-renders
+  const renderedFields = useMemo(() => fields.map(renderField), [fields, renderField]);
 
+  return <>{renderedFields}</>;
+});
+
+DynamicFormFieldRenderer.displayName = 'DynamicFormFieldRenderer';
+
+export { DynamicFormFieldRenderer };
 export default DynamicFormFieldRenderer;

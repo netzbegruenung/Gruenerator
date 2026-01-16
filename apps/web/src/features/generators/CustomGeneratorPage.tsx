@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import type { HelpContent, BaseFormProps } from '../../types/baseform';
@@ -18,7 +18,7 @@ interface CustomGeneratorPageProps {
   showHeaderFooter?: boolean;
 }
 
-const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFooter = true }) => {
+const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = memo(({ showHeaderFooter = true }) => {
   const { slug } = useParams<{ slug: string }>();
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const [generatorConfig, setGeneratorConfig] = useState<GeneratorConfig | null>(null);
@@ -35,27 +35,30 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
   const {
     crawledUrls,
     isCrawling,
-    detectAndCrawlUrls,
-    retryUrl
+    detectAndCrawlUrls
   } = useUrlCrawler();
 
   // API submission hook for loading state management
   const { submitForm, loading: isSubmitting, success: submissionSuccess, resetSuccess, error: submissionError } = useApiSubmit('/custom_generator');
 
-  // Create default values for the form
-  const defaultValues: Record<string, unknown> = { ...DEFAULT_FEATURE_TOGGLES };
-  if (generatorConfig) {
-    generatorConfig.form_schema.fields.forEach(field => {
-      defaultValues[field.name] = field.defaultValue || '';
-    });
-  }
+  // Memoize default values for the form
+  const defaultValues = useMemo<Record<string, unknown>>(() => {
+    const values: Record<string, unknown> = { ...DEFAULT_FEATURE_TOGGLES };
+    if (generatorConfig) {
+      generatorConfig.form_schema.fields.forEach(field => {
+        values[field.name] = field.defaultValue || '';
+      });
+    }
+    return values;
+  }, [generatorConfig]);
 
-  const helpContent: HelpContent = {
+  // Memoize help content
+  const helpContent = useMemo<HelpContent>(() => ({
     content: generatorConfig?.description || "Benutzerdefinierter Grünerator",
     tips: [
       "Fülle alle erforderlichen Felder aus"
     ]
-  };
+  }), [generatorConfig?.description]);
 
   const form = useBaseForm({
     defaultValues,
@@ -130,14 +133,6 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
       await detectAndCrawlUrls(urls.join(' '), toggles.privacyMode);
     }
   }, [detectAndCrawlUrls, isCrawling, form.generator]);
-
-  // Handle URL retry
-  const handleRetryUrl = useCallback(async (url: string) => {
-    if (form.generator) {
-      const { toggles } = form.generator as unknown as { toggles: { privacyMode: boolean } };
-      await retryUrl(url, toggles.privacyMode);
-    }
-  }, [retryUrl, form.generator]);
 
   // Custom submission handler for dynamic generator configuration
   const customSubmit = useCallback(async (formData: Record<string, unknown>) => {
@@ -214,45 +209,70 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
     }
   }, [generatorConfig?.id, isSaving, isSaved, isOwner]);
 
-  if (loading) return <div>Lade...</div>;
-  if (error) return <div>Fehler: {error}</div>;
-  if (!generatorConfig) return <div>Generator nicht gefunden</div>;
+  // Memoize saved button style
+  const savedButtonStyle = useMemo(() =>
+    isSaved ? { backgroundColor: 'var(--klee)', cursor: 'default' } : {},
+    [isSaved]
+  );
 
-  // Build owner display name
-  const ownerName = generatorConfig.owner_first_name
-    ? `${generatorConfig.owner_first_name} ${generatorConfig.owner_last_name || ''}`.trim()
-    : generatorConfig.owner_email || 'Unbekannt';
-
-  // Save button component for non-owners
-  const saveButton = !isOwner && (
+  // Memoize save button component for non-owners
+  const saveButton = useMemo(() => !isOwner ? (
     <button
       type="button"
       className={`btn-primary size-s ${isSaved ? 'saved' : ''}`}
       onClick={handleSaveGenerator}
       disabled={isSaving || isSaved}
       title={isSaved ? 'Bereits gespeichert' : 'In meinem Profil speichern'}
-      style={isSaved ? { backgroundColor: 'var(--klee)', cursor: 'default' } : {}}
+      style={savedButtonStyle}
     >
       {isSaving ? 'Speichern...' : isSaved ? 'Gespeichert ✓' : 'Speichern'}
     </button>
-  );
+  ) : null, [isOwner, isSaved, isSaving, handleSaveGenerator, savedButtonStyle]);
 
+  // Memoize submit button props
+  const submitButtonProps = useMemo(() => ({
+    defaultText: 'Grünerieren'
+  }), []);
 
-  const baseFormProps: BaseFormProps = {
+  // Memoize onSubmit handler
+  const handleFormSubmit = useCallback(() => {
+    const submitHandler = form.handleSubmit(async (data: unknown) => {
+      await customSubmit(data as unknown as Record<string, unknown>);
+    });
+    return submitHandler();
+  }, [form, customSubmit]);
+
+  // Memoize baseFormProps - use safe defaults when generatorConfig is null
+  const baseFormProps = useMemo<BaseFormProps>(() => ({
     ...(form.generator?.baseFormProps as unknown as BaseFormProps || {}),
-    title: generatorConfig.name || generatorConfig.title,
-    onSubmit: () => form.handleSubmit(customSubmit)(),
+    title: generatorConfig?.name || generatorConfig?.title || '',
+    onSubmit: handleFormSubmit,
     loading: isSubmitting,
     success: submissionSuccess,
     error: submissionError,
     generatedContent: localGeneratedContent,
     onGeneratedContentChange: handleGeneratedContentChange,
-    submitButtonProps: {
-      defaultText: 'Grünerieren'
-    },
+    submitButtonProps,
     showProfileSelector: false,
     firstExtrasChildren: saveButton
-  };
+  }), [
+    form.generator?.baseFormProps,
+    generatorConfig?.name,
+    generatorConfig?.title,
+    handleFormSubmit,
+    isSubmitting,
+    submissionSuccess,
+    submissionError,
+    localGeneratedContent,
+    handleGeneratedContentChange,
+    submitButtonProps,
+    saveButton
+  ]);
+
+  // Early returns AFTER all hooks are called
+  if (loading) return <div>Lade...</div>;
+  if (error) return <div>Fehler: {error}</div>;
+  if (!generatorConfig) return <div>Generator nicht gefunden</div>;
 
   return (
     <ErrorBoundary>
@@ -268,6 +288,8 @@ const CustomGeneratorPage: React.FC<CustomGeneratorPageProps> = ({ showHeaderFoo
       </div>
     </ErrorBoundary>
   );
-};
+});
+
+CustomGeneratorPage.displayName = 'CustomGeneratorPage';
 
 export default CustomGeneratorPage;

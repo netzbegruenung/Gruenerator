@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useForm, Controller, FieldValues, Control } from 'react-hook-form';
 import FormInput from '../../../components/common/Form/Input/FormInput';
 import { GeneratorFormField } from '../types/generatorTypes';
 import { sanitizeFieldName, sanitizeOptionValue } from '../utils/sanitization';
 import { GENERATOR_VALIDATION_RULES, validateFieldNameUniqueness } from '../utils/validation';
 import { useFieldAutoSuggest } from '../hooks/useFieldAutoSuggest';
+
+// Static default values moved outside component
+const DEFAULT_FIELD_VALUES: GeneratorFormField = {
+  label: '',
+  name: '',
+  type: 'text',
+  placeholder: '',
+  required: false,
+  options: [],
+};
 
 interface FieldEditorAssistantProps {
   initialFieldData?: GeneratorFormField | null;
@@ -13,7 +23,12 @@ interface FieldEditorAssistantProps {
   existingFieldNames?: string[];
 }
 
-const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFieldData, onSave, onCancel, existingFieldNames = [] }) => {
+const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = memo(({
+  initialFieldData,
+  onSave,
+  onCancel,
+  existingFieldNames = []
+}) => {
   // Initialize React Hook Form
   const {
     control,
@@ -24,41 +39,34 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     reset,
     trigger
   } = useForm<GeneratorFormField>({
-    defaultValues: {
-      label: '',
-      name: '',
-      type: 'text',
-      placeholder: '',
-      required: false,
-      options: [],
-    },
+    defaultValues: DEFAULT_FIELD_VALUES,
     mode: 'onChange'
   });
 
   const [error, setError] = useState<string | null>(null);
 
-  // Helper functions for managing select options
-  const addOption = () => {
-    const currentOptions = watchedOptions || [];
-    setValue('options', [...currentOptions, { label: '', value: '' }], { shouldValidate: false });
-  };
-
-  const updateOption = (index: number, field: 'label' | 'value', value: string): void => {
-    const currentOptions = watchedOptions || [];
-    const newOptions = [...currentOptions];
-    newOptions[index] = { ...newOptions[index], [field]: value };
-    setValue('options', newOptions, { shouldValidate: false });
-  };
-
-  const removeOption = (index: number): void => {
-    const currentOptions = watchedOptions || [];
-    setValue('options', currentOptions.filter((_, i) => i !== index), { shouldValidate: false });
-  };
-
   // Watch label for auto-generation
   const watchedLabel = watch('label');
   const watchedType = watch('type');
   const watchedOptions = watch('options');
+
+  // Memoized helper functions for managing select options
+  const addOption = useCallback(() => {
+    const currentOptions = watchedOptions || [];
+    setValue('options', [...currentOptions, { label: '', value: '' }], { shouldValidate: false });
+  }, [watchedOptions, setValue]);
+
+  const updateOption = useCallback((index: number, field: 'label' | 'value', value: string): void => {
+    const currentOptions = watchedOptions || [];
+    const newOptions = [...currentOptions];
+    newOptions[index] = { ...newOptions[index], [field]: value };
+    setValue('options', newOptions, { shouldValidate: false });
+  }, [watchedOptions, setValue]);
+
+  const removeOption = useCallback((index: number): void => {
+    const currentOptions = watchedOptions || [];
+    setValue('options', currentOptions.filter((_, i) => i !== index), { shouldValidate: false });
+  }, [watchedOptions, setValue]);
 
   useEffect(() => {
     // Initialize with existing data if provided (for editing)
@@ -68,14 +76,7 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
         name: initialFieldData.name || sanitizeFieldName(initialFieldData.label || '')
       });
     } else {
-      reset({
-        label: '',
-        name: '',
-        type: 'text',
-        placeholder: '',
-        required: false,
-        options: [],
-      });
+      reset(DEFAULT_FIELD_VALUES);
     }
     setError(null);
   }, [initialFieldData, reset]);
@@ -96,23 +97,23 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
     }
   }, [watchedType, watchedOptions, setValue]);
 
-  // Define validation rules
-  const validationRules = {
+  // Memoize validation rules
+  const validationRules = useMemo(() => ({
     label: GENERATOR_VALIDATION_RULES.fieldLabel,
     name: {
       ...GENERATOR_VALIDATION_RULES.fieldName,
       validate: (value: string): string | boolean =>
         validateFieldNameUniqueness(value, existingFieldNames, initialFieldData?.name)
     }
-  };
+  }), [existingFieldNames, initialFieldData?.name]);
 
-  // Form submission handler
-  const onSubmit = (data: GeneratorFormField): void => {
+  // Memoized form submission handler
+  const onSubmit = useCallback((data: GeneratorFormField): void => {
     setError(null);
     onSave(data);
-  };
+  }, [onSave]);
 
-  const handleSaveClick = handleSubmit(onSubmit);
+  const handleSaveClick = useMemo(() => handleSubmit(onSubmit), [handleSubmit, onSubmit]);
 
   return (
     <div className="field-editor-assistant p-3 mb-3 border rounded">
@@ -277,6 +278,8 @@ const FieldEditorAssistant: React.FC<FieldEditorAssistantProps> = ({ initialFiel
         </div>
     </div>
   );
-};
+});
+
+FieldEditorAssistant.displayName = 'FieldEditorAssistant';
 
 export default FieldEditorAssistant;

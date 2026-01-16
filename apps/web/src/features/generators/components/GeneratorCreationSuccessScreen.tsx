@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FaCheckCircle } from 'react-icons/fa';
 
@@ -9,7 +9,15 @@ interface GeneratorCreationSuccessScreenProps {
   onClose?: () => void;
 }
 
-const GeneratorCreationSuccessScreen: React.FC<GeneratorCreationSuccessScreenProps> = ({ name, slug, onRestart, onClose }) => {
+const GeneratorCreationSuccessScreen: React.FC<GeneratorCreationSuccessScreenProps> = memo(({
+  name,
+  slug,
+  onRestart,
+  onClose
+}) => {
+  // Memoize the link path
+  const generatorPath = useMemo(() => `/gruenerator/${slug}`, [slug]);
+
   return (
     <div className="success-screen-container">
       <FaCheckCircle className="success-icon" />
@@ -18,7 +26,7 @@ const GeneratorCreationSuccessScreen: React.FC<GeneratorCreationSuccessScreenPro
         Dein Grünerator "<strong>{name}</strong>" wurde erfolgreich erstellt.
       </p>
       <div className="success-actions">
-        <Link to={`/gruenerator/${slug}`} className="button button-primary button-large">
+        <Link to={generatorPath} className="button button-primary button-large">
           Zum Grünerator
         </Link>
         <button
@@ -40,6 +48,8 @@ const GeneratorCreationSuccessScreen: React.FC<GeneratorCreationSuccessScreenPro
       </div>
     </div>
   );
-};
+});
+
+GeneratorCreationSuccessScreen.displayName = 'GeneratorCreationSuccessScreen';
 
 export default GeneratorCreationSuccessScreen;

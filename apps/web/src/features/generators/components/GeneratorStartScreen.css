@@ -1,0 +1,112 @@
+/* Wrapper for centering */
+.create-generator-wrapper {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-medium);
+}
+
+/* Content layout */
+.create-generator-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-large);
+}
+
+/* Override PromptInput margin */
+.create-generator-content .prompt-input-section {
+  margin-bottom: 0;
+}
+
+/* Generator list */
+.generator-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-medium);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--spacing-large);
+}
+
+.generator-list-section h4 {
+  font-size: 0.75rem;
+  color: var(--font-color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--spacing-small) 0;
+  font-weight: 600;
+}
+
+/* Generator items container - horizontal wrap */
+.generator-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-small);
+}
+
+/* Generator list item - pill shaped */
+.generator-list-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: 8px 16px;
+  background: var(--background-color-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  color: var(--font-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.generator-list-item:hover {
+  background: var(--card-background);
+  border-color: var(--primary);
+}
+
+.generator-list-item--saved {
+  background: color-mix(in srgb, var(--sonne) 10%, var(--background-color-alt));
+  border-color: color-mix(in srgb, var(--sonne) 30%, var(--border-subtle));
+}
+
+.generator-list-item--saved:hover {
+  border-color: var(--sonne);
+}
+
+.generator-list-item-name {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+}
+
+.generator-list-item-owner {
+  font-size: 0.8rem;
+  color: var(--font-color-secondary);
+  font-weight: 400;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .create-generator-wrapper {
+    padding: 0 var(--spacing-small);
+  }
+
+  .generator-list-items {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--spacing-xsmall);
+  }
+
+  .generator-list-items::-webkit-scrollbar {
+    display: none;
+  }
+
+  .generator-list-item {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+}

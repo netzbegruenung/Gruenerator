@@ -106,7 +106,7 @@
 
 .field-item {
   background: var(--background-color-pure);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--border-radius-medium);
   padding: var(--spacing-large);
   box-shadow: var(--shadow-sm);
@@ -150,7 +150,7 @@
 .field-required.optional {
   background: var(--background-color-alt);
   color: var(--font-color-subtle);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 [data-theme="dark"] .field-required.required {
@@ -162,7 +162,7 @@
 [data-theme="dark"] .field-required.optional {
   background: color-mix(in srgb, var(--font-color) 8%, transparent);
   color: var(--font-color-subtle);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 .field-details {
@@ -194,7 +194,7 @@
   padding: var(--spacing-medium);
   background: var(--input-background);
   border-radius: var(--border-radius-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 .select-options-container .form-field-label {
@@ -236,7 +236,7 @@
 
 .prompt-container {
   background: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--border-radius-medium);
   padding: var(--spacing-medium);
 }
@@ -265,7 +265,7 @@
   background-color: var(--background-color-alt);
   padding: var(--spacing-medium);
   border-radius: var(--border-radius-medium);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   font-family: monospace;
   font-size: 0.9rem;
   line-height: 1.4;
@@ -419,7 +419,7 @@
 .groups-action-button {
   background-color: transparent;
   color: var(--font-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   padding: var(--spacing-small) var(--spacing-medium);
   border-radius: 4px;
   font-weight: bold;
@@ -513,7 +513,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-small);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
   width: 100%;
   max-width: 220px;
 }

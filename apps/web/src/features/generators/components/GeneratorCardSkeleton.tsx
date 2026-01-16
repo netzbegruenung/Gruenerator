@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 
-// Skeleton Loader für Generator-Karten im Ladezustand
-const GeneratorCardSkeleton: React.FC = () => {
+/**
+ * Skeleton Loader for Generator Cards during loading state.
+ * Memoized since it has no props and renders static content.
+ */
+const GeneratorCardSkeleton: React.FC = memo(() => {
   return (
     <div className="gallery-item-card generator-card skeleton">
       <div className="skeleton-title"></div>
@@ -9,6 +12,8 @@ const GeneratorCardSkeleton: React.FC = () => {
       <div className="skeleton-date"></div>
     </div>
   );
-};
+});
+
+GeneratorCardSkeleton.displayName = 'GeneratorCardSkeleton';
 
 export default GeneratorCardSkeleton;

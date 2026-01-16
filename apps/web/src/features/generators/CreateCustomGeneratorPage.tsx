@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import FormSection from '../../components/common/Form/BaseForm/FormSection';
 import FormStateProvider from '../../components/common/Form/FormStateProvider';
@@ -34,9 +34,22 @@ interface AIGeneratedConfig {
   contact_email?: string;
 }
 
+interface GeneratorListItem {
+  id: string;
+  name?: string;
+  title?: string;
+  slug: string;
+  description?: string;
+  owner_first_name?: string;
+  owner_last_name?: string;
+}
+
 interface CreateCustomGeneratorPageProps {
   onCompleted?: (data?: { name: string; slug: string }) => void;
   onCancel?: () => void;
+  generators?: GeneratorListItem[];
+  savedGenerators?: GeneratorListItem[];
+  onSelectGenerator?: (generator: GeneratorListItem) => void;
 }
 
 interface CompletionData {
@@ -46,7 +59,13 @@ interface CompletionData {
 }
 
 // Embedded-only component; use in profile tab
-const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ onCompleted, onCancel }) => {
+const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = memo(({
+  onCompleted,
+  onCancel,
+  generators = [],
+  savedGenerators = [],
+  onSelectGenerator
+}) => {
   const [currentStep, setCurrentStep] = useState<number>(MODE_SELECTION);
   const [aiDescription, setAiDescription] = useState<string>('');
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState<boolean>(false);
@@ -104,24 +123,18 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
   }, [user, setValue]);
 
   // Handler for clearing errors when inputs change
-  const handleInputChange = () => {
+  const handleInputChange = useCallback(() => {
     setError(null);
-  };
+  }, []);
 
   // Handler for AI description
-  const handleAiDescriptionChange = (value: string) => {
+  const handleAiDescriptionChange = useCallback((value: string) => {
     setAiDescription(value);
     setError(null);
-  };
-
-  // Handler for manual mode selection
-  const handleManualSetup = () => {
-    setCurrentStep(STEPS.BASICS);
-    setError(null);
-  };
+  }, []);
 
   // Handler for AI generation
-  const handleGenerateWithAI = async () => {
+  const handleGenerateWithAI = useCallback(async () => {
     setError(null);
     setIsGeneratingWithAI(true);
 
@@ -151,23 +164,23 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     } finally {
       setIsGeneratingWithAI(false);
     }
-  };
+  }, [aiDescription, submitAIGeneration, reset, aiError]);
 
   // Field management
-  const startAddField = () => {
+  const startAddField = useCallback(() => {
     const currentFields = getValues('fields');
     if (currentFields.length < 5) {
       setEditingFieldIndex(null);
       setIsEditingField(true);
     }
-  };
+  }, [getValues]);
 
-  const startEditField = (index: number) => {
+  const startEditField = useCallback((index: number) => {
     setEditingFieldIndex(index);
     setIsEditingField(true);
-  };
+  }, []);
 
-  const handleSaveField = (fieldData: GeneratorFormField) => {
+  const handleSaveField = useCallback((fieldData: GeneratorFormField) => {
     const currentFields = getValues('fields');
     const newFields = [...currentFields];
     if (editingFieldIndex === null) {
@@ -178,20 +191,20 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     setValue('fields', newFields);
     setIsEditingField(false);
     setEditingFieldIndex(null);
-  };
+  }, [getValues, setValue, editingFieldIndex]);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setIsEditingField(false);
     setEditingFieldIndex(null);
-  };
+  }, []);
 
-  const deleteField = (index: number) => {
+  const deleteField = useCallback((index: number) => {
     const currentFields = getValues('fields');
     setValue('fields', currentFields.filter((_, i) => i !== index));
-  };
+  }, [getValues, setValue]);
 
   // Validation - only handle special cases not covered by React Hook Form
-  const validateStep = async () => {
+  const validateStep = useCallback(async () => {
     setError(null);
 
     // Special validations that React Hook Form doesn't handle
@@ -226,33 +239,10 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       default:
         return true;
     }
-  };
-
-  // Navigation with React Hook Form
-  const onSubmit = async (_data: GeneratorFormData) => {
-    const isValid = await validateStep();
-    if (!isValid) {
-      return;
-    }
-    if (currentStep < STEPS.REVIEW) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleSave();
-    }
-  };
-
-  // Navigation
-  const handleNext = handleSubmit(onSubmit);
-
-  const handleBack = () => {
-    setError(null);
-    if (currentStep > STEPS.BASICS) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  }, [currentStep, slugAvailabilityError, isCheckingSlug, isEditingField]);
 
   // Save
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setIsGeneratingWithAI(true);
     setError(null);
     try {
@@ -293,10 +283,33 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     } finally {
       setIsGeneratingWithAI(false);
     }
-  };
+  }, [user, getValues, onCompleted]);
+
+  // Navigation with React Hook Form
+  const onSubmit = useCallback(async (_data: GeneratorFormData) => {
+    const isValid = await validateStep();
+    if (!isValid) {
+      return;
+    }
+    if (currentStep < STEPS.REVIEW) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      handleSave();
+    }
+  }, [validateStep, currentStep, handleSave]);
+
+  // Navigation
+  const handleNext = handleSubmit(onSubmit);
+
+  const handleBack = useCallback(() => {
+    setError(null);
+    if (currentStep > STEPS.BASICS) {
+      setCurrentStep(currentStep - 1);
+    }
+  }, [currentStep]);
 
   // Restart the creation process
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     setCurrentStep(MODE_SELECTION);
     reset(INITIAL_GENERATOR_FORM_DATA);
     setAiDescription('');
@@ -305,7 +318,7 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
     setIsEditingField(false);
     setEditingFieldIndex(null);
     resetAISuccess();
-  };
+  }, [reset, resetAISuccess]);
 
   // Render current step content for BaseForm
   const renderCurrentStep = () => {
@@ -521,9 +534,11 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
         aiDescription={aiDescription}
         onDescriptionChange={handleAiDescriptionChange}
         onGenerateWithAI={handleGenerateWithAI}
-        onManualSetup={handleManualSetup}
         isLoading={isGeneratingWithAI || aiLoading}
         error={error || aiError}
+        generators={generators}
+        savedGenerators={savedGenerators}
+        onSelectGenerator={onSelectGenerator}
       />
     );
   }
@@ -556,6 +571,8 @@ const CreateCustomGeneratorPage: React.FC<CreateCustomGeneratorPageProps> = ({ o
       </FormSection>
     </FormStateProvider>
   );
-};
+});
+
+CreateCustomGeneratorPage.displayName = 'CreateCustomGeneratorPage';
 
 export default CreateCustomGeneratorPage;

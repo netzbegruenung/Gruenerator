@@ -1,166 +1,134 @@
-import React from 'react';
-import TextareaAutosize from 'react-textarea-autosize';
+import React, { memo, useCallback, useMemo } from 'react';
+import FormCard from '../../../components/common/Form/BaseForm/FormCard';
+import PromptInput from '../../../components/common/PromptInput/PromptInput';
+import type { PromptExample } from '../../../components/common/PromptInput/PromptInput';
+import './GeneratorStartScreen.css';
 
-interface ExamplePrompt {
-  icon: string;
-  text: string;
-  fullPrompt: string;
-}
-
-interface ExamplePromptsProps {
-  onExampleClick: (prompt: string) => void;
+interface GeneratorListItem {
+  id: string;
+  name?: string;
+  title?: string;
+  slug: string;
+  description?: string;
+  owner_first_name?: string;
+  owner_last_name?: string;
 }
 
 interface GeneratorStartScreenProps {
   aiDescription: string;
   onDescriptionChange: (value: string) => void;
   onGenerateWithAI: () => void;
-  onManualSetup: () => void;
   isLoading: boolean;
   error?: string | null;
+  generators?: GeneratorListItem[];
+  savedGenerators?: GeneratorListItem[];
+  onSelectGenerator?: (generator: GeneratorListItem) => void;
 }
 
-// Define example prompts
-const EXAMPLE_PROMPTS: ExamplePrompt[] = [
+const EXAMPLE_PROMPTS: PromptExample[] = [
   {
-    icon: '📰',
-    text: 'Pressemitteilung: Neuer Radweg',
-    fullPrompt: 'Erstelle einen Grünerator für Pressemitteilungen über neu eröffnete Radwege. Er soll nach dem Ort, der Länge des Radwegs und besonderen Merkmalen fragen.'
+    label: '📰 Pressemitteilung',
+    text: 'Erstelle einen Grünerator für Pressemitteilungen über neu eröffnete Radwege. Er soll nach dem Ort, der Länge des Radwegs und besonderen Merkmalen fragen.'
   },
   {
-    icon: '📱',
-    text: 'Social Media: Klimaschutz-Tipps',
-    fullPrompt: 'Ich brauche einen Grünerator für Social-Media-Posts (Instagram, Facebook) mit kurzen Klimaschutz-Tipps für den Alltag. Er soll nach der Zielgruppe (z.B. Studierende, Familien) fragen.'
+    label: '📱 Social Media',
+    text: 'Ich brauche einen Grünerator für Social-Media-Posts (Instagram, Facebook) mit kurzen Klimaschutz-Tipps für den Alltag. Er soll nach der Zielgruppe (z.B. Studierende, Familien) fragen.'
   },
   {
-    icon: '📣',
-    text: 'Ankündigung: Bürgerversammlung',
-    fullPrompt: 'Entwickle einen Grünerator, der Ankündigungen für Bürgerversammlungen zu Umweltthemen erstellt. Er soll nach dem Thema, Datum, Uhrzeit und Ort der Versammlung fragen.'
+    label: '📣 Ankündigung',
+    text: 'Entwickle einen Grünerator, der Ankündigungen für Bürgerversammlungen zu Umweltthemen erstellt. Er soll nach dem Thema, Datum, Uhrzeit und Ort der Versammlung fragen.'
   }
 ];
 
-// Component to display example prompts
-const ExamplePrompts: React.FC<ExamplePromptsProps> = ({ onExampleClick }) => (
-  <div className="example-prompts">
-    {EXAMPLE_PROMPTS.map((example, index) => (
-      <button
-        key={index}
-        type="button" // Prevent form submission
-        className="example-prompt-button"
-        onClick={() => onExampleClick(example.fullPrompt)}
-        title={example.fullPrompt}
-      >
-        <span>{example.icon}</span>
-        <span>{example.text}</span>
-      </button>
-    ))}
-  </div>
-);
-
-const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = ({
+const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(({
   aiDescription,
   onDescriptionChange,
   onGenerateWithAI,
-  onManualSetup,
   isLoading,
   error,
+  generators = [],
+  savedGenerators = [],
+  onSelectGenerator,
 }) => {
-  // Ref for the example prompts container to measure its height
-  const examplesRef = React.useRef<HTMLDivElement>(null);
-  // State to store the height of the example prompts
-  const [examplesHeight, setExamplesHeight] = React.useState<number>(0);
-
-  // Handler for clicking an example prompt
-  const handleExampleClick = (promptText: string): void => {
-    onDescriptionChange(promptText);
-    // Optional: Focus the textarea after selecting an example
-    const textarea = document.getElementById('aiDescription') as HTMLTextAreaElement | null;
-    if (textarea) {
-      textarea.focus();
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = promptText.length;
-      }, 0);
-    }
-  };
-
-  // Effect to measure and set the height of the examples container
-  React.useEffect(() => {
-    const measureHeight = () => {
-      if (examplesRef.current) {
-        // Add a small buffer (e.g., 8px) to the height for spacing
-        setExamplesHeight(examplesRef.current.offsetHeight + 8);
-      }
-    };
-
-    measureHeight(); // Measure initially
-
-    // Optional: Use ResizeObserver for more robust height updates if content wraps
-    const resizeObserver = new ResizeObserver(measureHeight);
-    if (examplesRef.current) {
-      resizeObserver.observe(examplesRef.current);
-    }
-
-    // Cleanup observer on unmount
-    return () => resizeObserver.disconnect();
-  }, [examplesRef]); // Re-run if ref changes (should not happen often)
+  const hasGenerators = useMemo(() =>
+    generators.length > 0 || savedGenerators.length > 0,
+    [generators.length, savedGenerators.length]
+  );
 
   return (
-    <div className="generator-start-screen">
-      <div className="start-screen-content">
-        <p className="subtitle">
-          Beschreibe einfach, was dein Grünerator können soll, und die KI erledigt den Rest.
-        </p>
-
-        {/* New Wrapper Div */}
-        <div className={`input-wrapper ${error ? 'error-input' : ''}`}>
-          <TextareaAutosize
-            id="aiDescription"
-            name="aiDescription"
-            className="description-input" // Keep original class for some styles, but visuals are now on wrapper
-            minRows={2} // Set minimum rows instead of fixed rows or min-height
+    <div className="create-generator-wrapper">
+      <FormCard
+        title="Eigene Grüneratoren"
+        subtitle="Erstelle neue oder nutze bestehende"
+        size="large"
+        variant="elevated"
+        hover={false}
+      >
+        <div className="create-generator-content">
+          <PromptInput
             value={aiDescription}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onDescriptionChange(e.target.value)}
-            placeholder="Beispiel: Ein Grünerator für Social-Media-Posts über Radwege in meiner Stadt, der nach Zielgruppe und Anlass fragt..."
-            aria-label="Beschreibung für den KI-Grünerator"
-            aria-describedby={error ? "start-screen-error" : undefined}
-            disabled={isLoading}
-            style={{ paddingBottom: `${examplesHeight}px` }} // Apply dynamic padding
-            cacheMeasurements // Optional: Improves performance by caching measurements
+            onChange={onDescriptionChange}
+            onSubmit={onGenerateWithAI}
+            placeholder="Beschreibe deinen neuen Grünerator..."
+            isLoading={isLoading}
+            error={error}
+            examples={EXAMPLE_PROMPTS}
+            minRows={2}
+            submitLabel="Grünerator erstellen"
           />
 
-          {/* Add Example Prompts inside the wrapper, pass the ref */}
-          <div ref={examplesRef} className="example-prompts-container">
-            <ExamplePrompts onExampleClick={handleExampleClick} />
-          </div>
-        </div>
+          {hasGenerators && (
+            <div className="generator-list">
+              {generators.length > 0 && (
+                <div className="generator-list-section">
+                  <h4>Meine Grüneratoren</h4>
+                  <div className="generator-list-items">
+                    {generators.map((gen) => (
+                      <button
+                        key={gen.id}
+                        className="generator-list-item"
+                        onClick={() => onSelectGenerator?.(gen)}
+                        type="button"
+                      >
+                        {gen.name || gen.title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-        {error && <p id="start-screen-error" className="error-message">{error}</p>}
-
-        <button
-          className="button button-primary button-large generate-button"
-          onClick={onGenerateWithAI}
-          disabled={isLoading || !aiDescription.trim()}
-          aria-live="polite"
-        >
-          {isLoading ? (
-            <>
-              <span className="loading-spinner" /> Generiere Vorschlag...
-            </>
-          ) : (
-            'KI-Vorschlag generieren'
+              {savedGenerators.length > 0 && (
+                <div className="generator-list-section">
+                  <h4>Gespeichert</h4>
+                  <div className="generator-list-items">
+                    {savedGenerators.map((gen) => (
+                      <button
+                        key={gen.id}
+                        className="generator-list-item generator-list-item--saved"
+                        onClick={() => onSelectGenerator?.(gen)}
+                        type="button"
+                      >
+                        <span className="generator-list-item-name">
+                          {gen.name || gen.title}
+                          {gen.owner_first_name && (
+                            <span className="generator-list-item-owner">
+                              · {gen.owner_first_name}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-        </button>
-
-        <button
-          className="button button-link manual-setup-link"
-          onClick={onManualSetup}
-          disabled={isLoading}
-        >
-          Oder: Schritt für Schritt manuell konfigurieren
-        </button>
-      </div>
+        </div>
+      </FormCard>
     </div>
   );
-};
+});
+
+GeneratorStartScreen.displayName = 'GeneratorStartScreen';
 
 export default GeneratorStartScreen;
