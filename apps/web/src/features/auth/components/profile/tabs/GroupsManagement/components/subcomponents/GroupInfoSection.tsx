@@ -1,3 +1,4 @@
+import { memo, useCallback } from 'react';
 import { HiPencil, HiCheck, HiX } from 'react-icons/hi';
 import DeleteWarningTooltip from '../../../../../../../../components/common/DeleteWarningTooltip';
 import GroupMembersList from '../../../../../../../../features/groups/components/GroupMembersList';
@@ -10,18 +11,12 @@ interface GroupInfo {
 }
 
 interface GroupData {
-    antragInstructionsEnabled?: boolean;
-    socialInstructionsEnabled?: boolean;
+    instructionsEnabled?: boolean;
     isAdmin?: boolean;
     membership?: {
         role?: string;
     };
-    antragPrompt?: string;
-    socialPrompt?: string;
-    universalPrompt?: string;
-    redePrompt?: string;
-    buergeranfragenPrompt?: string;
-    gruenejugendPrompt?: string;
+    customPrompt?: string;
     groupInfo?: GroupInfo;
     joinToken?: string;
     [key: string]: unknown;
@@ -55,9 +50,11 @@ interface GroupInfoSectionProps {
     confirmDeleteGroup: () => void;
     isActive: boolean;
     tabIndex: TabIndexConfig;
+    customPrompt: string;
+    setCustomPrompt: (value: string) => void;
 }
 
-const GroupInfoSection = ({
+const GroupInfoSection = memo(({
     data,
     groupId,
     isEditingName,
@@ -79,8 +76,43 @@ const GroupInfoSection = ({
     saveGroupDescription,
     confirmDeleteGroup,
     isActive,
-    tabIndex
+    tabIndex,
+    customPrompt,
+    setCustomPrompt
 }: GroupInfoSectionProps) => {
+    // Memoized handlers to prevent inline function recreation
+    const handleSaveBoth = useCallback(() => {
+        saveGroupName();
+        saveGroupDescription();
+    }, [saveGroupName, saveGroupDescription]);
+
+    const handleCancelBoth = useCallback(() => {
+        cancelEditingName();
+        cancelEditingDescription();
+    }, [cancelEditingName, cancelEditingDescription]);
+
+    const handleStartEditingBoth = useCallback(() => {
+        startEditingName();
+        startEditingDescription();
+    }, [startEditingName, startEditingDescription]);
+
+    const handleGroupNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setEditedGroupName(e.target.value);
+    }, [setEditedGroupName]);
+
+    const handleGroupDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setEditedGroupDescription(e.target.value);
+    }, [setEditedGroupDescription]);
+
+    const handleCustomPromptChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setCustomPrompt(e.target.value);
+    }, [setCustomPrompt]);
+
+    const handleTextareaAutoResize = useCallback((e: React.FormEvent<HTMLTextAreaElement>) => {
+        const target = e.target as HTMLTextAreaElement;
+        target.style.height = 'auto';
+        target.style.height = (target.scrollHeight + 2) + 'px';
+    }, []);
     return (
         <>
             {/* Group Header */}
@@ -93,7 +125,7 @@ const GroupInfoSection = ({
                                     <input
                                         type="text"
                                         value={editedGroupName}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedGroupName(e.target.value)}
+                                        onChange={handleGroupNameChange}
                                         className="group-name-edit-input"
                                         placeholder="Gruppenname"
                                         maxLength={100}
@@ -103,17 +135,13 @@ const GroupInfoSection = ({
                                     />
                                     <textarea
                                         value={editedGroupDescription}
-                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditedGroupDescription(e.target.value)}
+                                        onChange={handleGroupDescriptionChange}
                                         className="form-textarea"
                                         placeholder="Beschreibung der Gruppe (optional)..."
                                         maxLength={500}
                                         disabled={isUpdatingGroupName}
                                         style={{ minHeight: 'auto', resize: 'none', overflow: 'hidden' }}
-                                        onInput={(e) => {
-                                            const target = e.target as HTMLTextAreaElement;
-                                            target.style.height = 'auto';
-                                            target.style.height = (target.scrollHeight + 2) + 'px';
-                                        }}
+                                        onInput={handleTextareaAutoResize}
                                     />
                                     {editedGroupDescription.length >= 450 && (
                                         <div className="character-count">
@@ -122,7 +150,7 @@ const GroupInfoSection = ({
                                     )}
                                     <div className="group-name-edit-actions">
                                         <button
-                                            onClick={() => { saveGroupName(); saveGroupDescription(); }}
+                                            onClick={handleSaveBoth}
                                             className="group-name-edit-button save"
                                             disabled={!editedGroupName.trim() || isUpdatingGroupName}
                                             title="Speichern"
@@ -130,7 +158,7 @@ const GroupInfoSection = ({
                                             <HiCheck />
                                         </button>
                                         <button
-                                            onClick={() => { cancelEditingName(); cancelEditingDescription(); }}
+                                            onClick={handleCancelBoth}
                                             className="group-name-edit-button cancel"
                                             disabled={isUpdatingGroupName}
                                             title="Abbrechen"
@@ -145,7 +173,7 @@ const GroupInfoSection = ({
                                         <h2 className="profile-user-name large-profile-title">{data?.groupInfo?.name}</h2>
                                         {data?.isAdmin && (
                                             <button
-                                                onClick={() => { startEditingName(); startEditingDescription(); }}
+                                                onClick={handleStartEditingBoth}
                                                 className="group-name-edit-icon"
                                                 title="Gruppe bearbeiten"
                                                 disabled={isUpdatingGroupName}
@@ -212,8 +240,41 @@ const GroupInfoSection = ({
                     isActive={isActive}
                 />
             </div>
+
+            {/* Group Instructions Section */}
+            <div className="group-content-card">
+                <div className="auth-form">
+                    <div className="form-group">
+                        <div className="form-group-title">Gruppenanweisungen</div>
+                        <div className="form-field-wrapper">
+                            <textarea
+                                id="groupCustomPrompt"
+                                value={customPrompt}
+                                onChange={handleCustomPromptChange}
+                                placeholder="Diese Anweisungen werden bei allen Text-Generierungen für Gruppenmitglieder berücksichtigt..."
+                                className="form-textarea"
+                                rows={4}
+                                maxLength={2000}
+                                disabled={!data?.isAdmin}
+                            />
+                            {customPrompt.length > 1500 && (
+                                <div className="form-character-count">
+                                    {customPrompt.length}/2000 Zeichen
+                                </div>
+                            )}
+                        </div>
+                        {!data?.isAdmin && (
+                            <div className="form-help-text">
+                                Nur Gruppenadministratoren können die Anweisungen bearbeiten
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         </>
     );
-};
+});
+
+GroupInfoSection.displayName = 'GroupInfoSection';
 
 export default GroupInfoSection;

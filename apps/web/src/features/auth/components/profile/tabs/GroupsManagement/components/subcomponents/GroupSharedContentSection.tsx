@@ -53,8 +53,8 @@ interface SharePermissions {
 
 /** Options for sharing content to a group */
 interface ShareOptions {
-    permissions: SharePermissions;
-    targetGroupId: string;
+    permissions: SharePermissions | Record<string, boolean>;
+    targetGroupId: string | null;
 }
 
 /** Template data returned from AddTemplateModal */
@@ -78,7 +78,7 @@ interface GroupSharedContentSectionProps {
     onUnshare: (contentType: string, contentId: string) => void;
     isUnsharing: boolean;
     groupId: string;
-    onShareContent: (contentType: string, itemId: string, options: ShareOptions) => Promise<void>;
+    onShareContent: (contentType: string, itemId: string | number, options: ShareOptions) => Promise<void>;
     isSharing: boolean;
     onRefetch?: () => Promise<unknown>;
     onSuccessMessage?: (message: string) => void;

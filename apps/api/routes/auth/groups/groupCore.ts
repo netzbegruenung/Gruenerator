@@ -450,9 +450,9 @@ router.get('/groups/:groupId/details', ensureAuthenticated as any, async (req: A
       throw new Error('Group not found');
     }
 
-    // 3. Fetch instructions
+    // 3. Fetch instructions (only custom_prompt remains active - all specific types deprecated)
     const instructions = await postgres.queryOne(
-      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_rede_prompt, custom_buergeranfragen_prompt, custom_gruenejugend_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
+      'SELECT group_id, custom_prompt, instructions_enabled FROM group_instructions WHERE group_id = $1',
       [groupId],
       { table: 'group_instructions' }
     );
@@ -472,14 +472,8 @@ router.get('/groups/:groupId/details', ensureAuthenticated as any, async (req: A
       group: group,
       instructions: instructions || {
         group_id: groupId,
-        custom_antrag_prompt: '',
-        custom_social_prompt: '',
-        custom_universal_prompt: '',
-        custom_rede_prompt: '',
-        custom_buergeranfragen_prompt: '',
-        custom_gruenejugend_prompt: '',
-        antrag_instructions_enabled: false,
-        social_instructions_enabled: false
+        custom_prompt: '',
+        instructions_enabled: false
       },
       knowledge: knowledge || [],
       membership: {

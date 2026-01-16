@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from "motion/react";
 import type { Control } from 'react-hook-form';
 
@@ -27,7 +28,19 @@ interface GroupsCreateSectionProps {
     tabIndex: TabIndexConfig;
 }
 
-const GroupsCreateSection = ({
+// Static motion config moved outside component
+const MOTION_CONFIG = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: { duration: 0.3 }
+} as const;
+
+// Static validation rules moved outside component
+const GROUP_NAME_RULES = {
+    maxLength: { value: 100, message: 'Gruppenname darf maximal 100 Zeichen haben' }
+} as const;
+
+const GroupsCreateSection = memo(({
     control,
     Input,
     isCreatingGroup,
@@ -40,9 +53,9 @@ const GroupsCreateSection = ({
     return (
         <motion.div
             className="group-create-container"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            initial={MOTION_CONFIG.initial}
+            animate={MOTION_CONFIG.animate}
+            transition={MOTION_CONFIG.transition}
         >
             <div className="group-content-card">
                 <div className="group-info-panel">
@@ -66,9 +79,7 @@ const GroupsCreateSection = ({
                                     type="text"
                                     label="Gruppenname:"
                                     placeholder="Name der neuen Gruppe (optional - falls leer: 'unbenannte Gruppe')"
-                                    rules={{
-                                        maxLength: { value: 100, message: 'Gruppenname darf maximal 100 Zeichen haben' }
-                                    }}
+                                    rules={GROUP_NAME_RULES}
                                     disabled={isCreatingGroup}
                                     control={control}
                                     tabIndex={tabIndex.groupNameInput}
@@ -99,6 +110,8 @@ const GroupsCreateSection = ({
             </div>
         </motion.div>
     );
-};
+});
+
+GroupsCreateSection.displayName = 'GroupsCreateSection';
 
 export default GroupsCreateSection;

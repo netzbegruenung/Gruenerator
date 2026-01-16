@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, memo, useMemo } from 'react';
 import { useForm, FormProvider, Control } from 'react-hook-form';
 import { motion } from "motion/react";
 
@@ -18,6 +18,13 @@ import '../../../../../generators/styles/custom-generators-tab.css';
 import '../../../../../../assets/styles/features/auth/profile-layout.css';
 import '../../../../../../assets/styles/features/groups/groups.css';
 
+// Static motion config moved outside component
+const MOTION_CONFIG = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: { duration: 0.3 }
+} as const;
+
 interface Group {
     id: string;
     name: string;
@@ -27,8 +34,6 @@ interface Group {
 interface CreateGroupFormData {
     groupName: string;
 }
-
-type GroupDetailView = 'gruppeninfo' | 'anweisungen-wissen' | 'shared' | 'wolke';
 
 interface FormFieldsReturn {
     Input: React.ComponentType<{
@@ -53,7 +58,7 @@ interface GroupsManagementViewProps {
     onErrorMessage: (message: string) => void;
 }
 
-const GroupsManagementView = ({
+const GroupsManagementView = memo(({
     isActive,
     onSuccessMessage,
     onErrorMessage
@@ -64,11 +69,9 @@ const GroupsManagementView = ({
     const {
         selectedGroupId,
         currentView,
-        groupDetailView,
         hasInitialAutoSelection,
         setSelectedGroup,
         setCurrentView,
-        setGroupDetailView,
         setHasInitialAutoSelection,
     } = useGroupsStore();
 
@@ -99,7 +102,6 @@ const GroupsManagementView = ({
         createGroup(groupName, {
             onSuccess: (newGroup: Group) => {
                 setSelectedGroup(newGroup.id);
-                setGroupDetailView('anweisungen-wissen');
                 resetCreateGroup();
                 onSuccessMessage(`Gruppe "${groupName}" erfolgreich erstellt!`);
             },
@@ -107,7 +109,7 @@ const GroupsManagementView = ({
                 onErrorMessage(error?.message || 'Gruppe konnte nicht erstellt werden.');
             }
         });
-    }, [isCreatingGroup, onSuccessMessage, onErrorMessage, createGroup, setSelectedGroup, setGroupDetailView, resetCreateGroup]);
+    }, [isCreatingGroup, onSuccessMessage, onErrorMessage, createGroup, setSelectedGroup, resetCreateGroup]);
 
     useEffect(() => {
         if (!userGroups) return;
@@ -145,9 +147,8 @@ const GroupsManagementView = ({
             onSuccessMessage('');
             onErrorMessage('');
             setSelectedGroup(groupId);
-            setGroupDetailView('anweisungen-wissen');
         }
-    }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroup, setGroupDetailView]);
+    }, [selectedGroupId, onSuccessMessage, onErrorMessage, setSelectedGroup]);
 
     const handleCreateNew = useCallback(() => {
         setSelectedGroup(null);
@@ -177,79 +178,76 @@ const GroupsManagementView = ({
         announceToScreenReader(`${view === 'overview' ? 'Übersicht' : view} ausgewählt`);
     }, [setCurrentView, setSelectedGroup, onSuccessMessage, onErrorMessage]);
 
-    const navigationItems: string[] = [
+    // Memoize navigation items to prevent recreation
+    const navigationItems = useMemo<string[]>(() => [
         'overview',
         ...(userGroups ? userGroups.map((g: Group) => `group-${g.id}`) : [])
-    ];
+    ], [userGroups]);
+
+    // Memoize default active item
+    const defaultActiveItem = useMemo(() =>
+        currentView === 'overview' ? 'overview' : `group-${selectedGroupId}`,
+    [currentView, selectedGroupId]);
 
     const { getItemProps } = useRovingTabindex({
         items: navigationItems,
-        defaultActiveItem: currentView === 'overview' ? 'overview' : `group-${selectedGroupId}`
+        defaultActiveItem
     });
 
-    const renderNavigationPanel = () => (
-        <div className="profile-navigation-panel">
-            <div
-                className="profile-vertical-navigation"
-                role="tablist"
-                aria-label="Gruppen Navigation"
-                aria-orientation="vertical"
-            >
-                <button
-                    {...getItemProps('overview')}
-                    className={`profile-vertical-tab ${currentView === 'overview' ? 'active' : ''}`}
-                    onClick={() => handleTabClick('overview')}
-                    role="tab"
-                    aria-selected={currentView === 'overview'}
-                    aria-controls="overview-panel"
-                    id="overview-tab"
-                >
-                    Übersicht
-                </button>
+    // Memoize tab index configs to prevent object recreation
+    const overviewTabIndex = useMemo(() => ({
+        createGroupButton: tabIndex.get?.('createGroupButton') ?? 1
+    }), [tabIndex]);
 
-                {userGroups && userGroups.map((group: Group) => (
-                    <button
-                        key={group.id}
-                        {...getItemProps(`group-${group.id}`)}
-                        className={`profile-vertical-tab ${selectedGroupId === group.id ? 'active' : ''} ${group.isAdmin ? 'admin-group' : 'member-group'}`}
-                        onClick={() => handleSelectGroup(group.id)}
-                        role="tab"
-                        aria-selected={selectedGroupId === group.id}
-                        aria-controls={`group-${group.id}-panel`}
-                        id={`group-${group.id}-tab`}
-                        aria-label={`Gruppe ${group.name} ${group.isAdmin ? '(Admin)' : '(Mitglied)'}`}
-                    >
-                        <div className="group-tab-content">
-                            <div className="group-tab-avatar">
-                                {getGroupInitials(group.name)}
-                            </div>
-                            <div className="group-tab-info">
-                                <div className="group-tab-name">{group.name}</div>
-                                <div className="group-tab-badge">{group.isAdmin ? 'Admin' : 'Mitglied'}</div>
-                            </div>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
+    const createTabIndex = useMemo(() => ({
+        groupNameInput: tabIndex.get?.('groupNameInput') ?? 1,
+        createSubmitButton: tabIndex.get?.('createSubmitButton') ?? 2,
+        createCancelButton: tabIndex.get?.('createCancelButton') ?? 3
+    }), [tabIndex]);
+
+    const detailTabIndex = useMemo(() => ({
+        groupDetailTabs: tabIndex.get?.('groupDetailTabs') ?? 1,
+        groupNameEdit: tabIndex.get?.('groupNameEdit') ?? 5
+    }), [tabIndex]);
+
+    const renderNavigationPanel = () => (
+        <nav
+            className="profile-row-navigation"
+            role="tablist"
+            aria-label="Gruppen Navigation"
+        >
+            <button
+                {...getItemProps('overview')}
+                className={`profile-row-tab ${currentView === 'overview' ? 'active' : ''}`}
+                onClick={() => handleTabClick('overview')}
+                role="tab"
+                aria-selected={currentView === 'overview'}
+                aria-controls="overview-panel"
+                id="overview-tab"
+            >
+                Übersicht
+            </button>
+
+            {userGroups && userGroups.map((group: Group) => (
+                <button
+                    key={group.id}
+                    {...getItemProps(`group-${group.id}`)}
+                    className={`profile-row-tab ${selectedGroupId === group.id ? 'active' : ''}`}
+                    onClick={() => handleSelectGroup(group.id)}
+                    role="tab"
+                    aria-selected={selectedGroupId === group.id}
+                    aria-controls={`group-${group.id}-panel`}
+                    id={`group-${group.id}-tab`}
+                    aria-label={`Gruppe ${group.name} ${group.isAdmin ? '(Admin)' : '(Mitglied)'}`}
+                >
+                    <span className="group-tab-avatar-small">{getGroupInitials(group.name)}</span>
+                    <span className="group-tab-name">{group.name}</span>
+                </button>
+            ))}
+        </nav>
     );
 
     const renderContentPanel = () => {
-        const overviewTabIndex = {
-            createGroupButton: tabIndex.get?.('createGroupButton') ?? 1
-        };
-
-        const createTabIndex = {
-            groupNameInput: tabIndex.get?.('groupNameInput') ?? 1,
-            createSubmitButton: tabIndex.get?.('createSubmitButton') ?? 2,
-            createCancelButton: tabIndex.get?.('createCancelButton') ?? 3
-        };
-
-        const detailTabIndex = {
-            groupDetailTabs: tabIndex.get?.('groupDetailTabs') ?? 1,
-            groupNameEdit: tabIndex.get?.('groupNameEdit') ?? 5
-        };
-
         if (currentView === 'overview') {
             return (
                 <GroupsOverviewSection
@@ -282,8 +280,6 @@ const GroupsManagementView = ({
             return (
                 <GroupDetailSection
                     groupId={selectedGroupId}
-                    groupDetailView={groupDetailView}
-                    setGroupDetailView={setGroupDetailView as (view: string) => void}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
                     isActive={isActive}
@@ -304,21 +300,21 @@ const GroupsManagementView = ({
 
     return (
         <motion.div
-            className="profile-content profile-management-layout"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            className="profile-content profile-single-column"
+            initial={MOTION_CONFIG.initial}
+            animate={MOTION_CONFIG.animate}
+            transition={MOTION_CONFIG.transition}
         >
             {renderNavigationPanel()}
-            <div className="profile-content-panel profile-form-section">
-                <div className="group-content-card">
-                    <div className="auth-form">
-                        {renderContentPanel()}
-                    </div>
+            <div className="profile-form-section">
+                <div className="auth-form">
+                    {renderContentPanel()}
                 </div>
             </div>
         </motion.div>
     );
-};
+});
+
+GroupsManagementView.displayName = 'GroupsManagementView';
 
 export default GroupsManagementView;

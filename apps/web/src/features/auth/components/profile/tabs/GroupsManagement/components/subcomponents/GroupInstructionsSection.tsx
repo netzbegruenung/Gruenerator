@@ -45,7 +45,7 @@ const GroupInstructionsSection = ({
                 <div className="auth-form">
                     <InstructionsGrid
                         control={control}
-                        data={data}
+                        data={data ?? undefined}
                         isReadOnly={!isAdmin}
                         labelPrefix="Gruppen"
                         maxLength={GROUP_MAX_CONTENT_LENGTH}

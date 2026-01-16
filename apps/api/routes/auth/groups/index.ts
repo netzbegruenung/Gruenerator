@@ -7,7 +7,6 @@ import express, { Router } from 'express';
 import groupCoreRouter, { getPostgresAndCheckMembership } from './groupCore.js';
 import groupKnowledgeRouter from './groupKnowledge.js';
 import groupContentRouter from './groupContent.js';
-import groupWolkeRouter from './groupWolke.js';
 
 const router: Router = express.Router();
 
@@ -15,12 +14,11 @@ const router: Router = express.Router();
 router.use(groupCoreRouter);
 router.use(groupKnowledgeRouter);
 router.use(groupContentRouter);
-router.use(groupWolkeRouter);
 
 export default router;
 
 // Also export individual routers for flexibility
-export { groupCoreRouter, groupKnowledgeRouter, groupContentRouter, groupWolkeRouter };
+export { groupCoreRouter, groupKnowledgeRouter, groupContentRouter };
 
 // Re-export helper function from groupCore
 export { getPostgresAndCheckMembership };

@@ -34,9 +34,9 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated as any, async (r
 
     const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-    // Fetch instructions
+    // Fetch instructions (only custom_prompt and instructions_enabled remain active)
     const instructions = await postgres.queryOne(
-      'SELECT group_id, custom_antrag_prompt, custom_social_prompt, custom_universal_prompt, custom_rede_prompt, custom_buergeranfragen_prompt, custom_gruenejugend_prompt, antrag_instructions_enabled, social_instructions_enabled FROM group_instructions WHERE group_id = $1',
+      'SELECT group_id, custom_prompt, instructions_enabled FROM group_instructions WHERE group_id = $1',
       [groupId],
       { table: 'group_instructions' }
     );
@@ -45,14 +45,8 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated as any, async (r
       success: true,
       instructions: instructions || {
         group_id: groupId,
-        custom_antrag_prompt: '',
-        custom_social_prompt: '',
-        custom_universal_prompt: '',
-        custom_rede_prompt: '',
-        custom_buergeranfragen_prompt: '',
-        custom_gruenejugend_prompt: '',
-        antrag_instructions_enabled: false,
-        social_instructions_enabled: false
+        custom_prompt: '',
+        instructions_enabled: false
       }
     });
 
@@ -66,21 +60,12 @@ router.get('/groups/:groupId/instructions', ensureAuthenticated as any, async (r
   }
 });
 
-// Update group instructions
+// Update group instructions (simplified - only custom_prompt and instructions_enabled)
 router.put('/groups/:groupId/instructions', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { groupId } = req.params;
     const userId = req.user!.id;
-    const {
-      custom_antrag_prompt,
-      custom_social_prompt,
-      custom_universal_prompt,
-      custom_rede_prompt,
-      custom_buergeranfragen_prompt,
-      custom_gruenejugend_prompt,
-      antrag_instructions_enabled,
-      social_instructions_enabled
-    } = req.body;
+    const { custom_prompt, instructions_enabled } = req.body;
 
     if (!groupId) {
       res.status(400).json({
@@ -97,37 +82,13 @@ router.put('/groups/:groupId/instructions', ensureAuthenticated as any, async (r
     const updateValues: any[] = [];
     let paramIndex = 1;
 
-    if (custom_antrag_prompt !== undefined) {
-      updateFields.push(`custom_antrag_prompt = $${paramIndex++}`);
-      updateValues.push(custom_antrag_prompt);
+    if (custom_prompt !== undefined) {
+      updateFields.push(`custom_prompt = $${paramIndex++}`);
+      updateValues.push(custom_prompt);
     }
-    if (custom_social_prompt !== undefined) {
-      updateFields.push(`custom_social_prompt = $${paramIndex++}`);
-      updateValues.push(custom_social_prompt);
-    }
-    if (custom_universal_prompt !== undefined) {
-      updateFields.push(`custom_universal_prompt = $${paramIndex++}`);
-      updateValues.push(custom_universal_prompt);
-    }
-    if (custom_rede_prompt !== undefined) {
-      updateFields.push(`custom_rede_prompt = $${paramIndex++}`);
-      updateValues.push(custom_rede_prompt);
-    }
-    if (custom_buergeranfragen_prompt !== undefined) {
-      updateFields.push(`custom_buergeranfragen_prompt = $${paramIndex++}`);
-      updateValues.push(custom_buergeranfragen_prompt);
-    }
-    if (custom_gruenejugend_prompt !== undefined) {
-      updateFields.push(`custom_gruenejugend_prompt = $${paramIndex++}`);
-      updateValues.push(custom_gruenejugend_prompt);
-    }
-    if (antrag_instructions_enabled !== undefined) {
-      updateFields.push(`antrag_instructions_enabled = $${paramIndex++}`);
-      updateValues.push(antrag_instructions_enabled);
-    }
-    if (social_instructions_enabled !== undefined) {
-      updateFields.push(`social_instructions_enabled = $${paramIndex++}`);
-      updateValues.push(social_instructions_enabled);
+    if (instructions_enabled !== undefined) {
+      updateFields.push(`instructions_enabled = $${paramIndex++}`);
+      updateValues.push(instructions_enabled);
     }
 
     if (updateFields.length === 0) {

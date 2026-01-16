@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from "motion/react";
 import { HiPlus } from 'react-icons/hi';
 import HelpTooltip from '../../../../../../../components/common/HelpTooltip';
@@ -19,7 +20,14 @@ interface GroupsOverviewSectionProps {
     tabIndex: TabIndexConfig;
 }
 
-const GroupsOverviewSection = ({
+// Static motion config moved outside component
+const MOTION_CONFIG = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: { duration: 0.3 }
+} as const;
+
+const GroupsOverviewSection = memo(({
     userGroups,
     isCreatingGroup,
     onCreateNew,
@@ -28,9 +36,9 @@ const GroupsOverviewSection = ({
     return (
         <motion.div
             className="group-overview-container"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            initial={MOTION_CONFIG.initial}
+            animate={MOTION_CONFIG.animate}
+            transition={MOTION_CONFIG.transition}
         >
             <div className="group-content-card">
                 <div className="group-info-panel">
@@ -118,6 +126,8 @@ const GroupsOverviewSection = ({
             </div>
         </motion.div>
     );
-};
+});
+
+GroupsOverviewSection.displayName = 'GroupsOverviewSection';
 
 export default GroupsOverviewSection;

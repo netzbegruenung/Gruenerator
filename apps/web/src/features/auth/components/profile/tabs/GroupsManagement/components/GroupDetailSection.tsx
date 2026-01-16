@@ -1,31 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
 import { motion } from "motion/react";
 
 import { useAutosave } from '../../../../../../../hooks/useAutosave';
 import { useGroups, useGroupSharing } from '../../../../../../../features/groups/hooks/useGroups';
 import { useAnweisungenWissen } from '../../../../../hooks/useProfileData';
 import { useInstructionsUiStore } from '../../../../../../../stores/auth/instructionsUiStore';
-import { useWolkeStore } from '../../../../../../../stores/wolkeStore';
 
 import GroupInfoSection from './subcomponents/GroupInfoSection';
-import GroupInstructionsSection from './subcomponents/GroupInstructionsSection';
 import GroupSharedContentSection from './subcomponents/GroupSharedContentSection';
-import GroupWolkeSection from './subcomponents/GroupWolkeSection';
 
 interface GroupData {
-    antragInstructionsEnabled?: boolean;
-    socialInstructionsEnabled?: boolean;
+    instructionsEnabled?: boolean;
     isAdmin?: boolean;
     membership?: {
         role?: string;
     };
-    antragPrompt?: string;
-    socialPrompt?: string;
-    universalPrompt?: string;
-    redePrompt?: string;
-    buergeranfragenPrompt?: string;
-    gruenejugendPrompt?: string;
+    customPrompt?: string;
     groupInfo?: {
         id?: string;
         name?: string;
@@ -42,8 +32,6 @@ interface TabIndexConfig {
 
 interface GroupDetailSectionProps {
     groupId: string;
-    groupDetailView: string;
-    setGroupDetailView: (view: string) => void;
     onSuccessMessage: (msg: string) => void;
     onErrorMessage: (msg: string) => void;
     isActive: boolean;
@@ -52,8 +40,6 @@ interface GroupDetailSectionProps {
 
 const GroupDetailSection = memo(({
     groupId,
-    groupDetailView,
-    setGroupDetailView,
     onSuccessMessage,
     onErrorMessage,
     isActive,
@@ -64,28 +50,13 @@ const GroupDetailSection = memo(({
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedGroupDescription, setEditedGroupDescription] = useState('');
     const [joinLinkCopied, setJoinLinkCopied] = useState(false);
-    const [enabledFields, setEnabledFields] = useState<string[]>([]);
+    const [customPrompt, setCustomPrompt] = useState('');
 
     const isInitialized = useRef(false);
-    const prevCurrentView = useRef<string | undefined>(undefined);
 
     useEffect(() => {
         isInitialized.current = false;
     }, [groupId]);
-
-    const formMethods = useForm({
-        defaultValues: {
-            customAntragPrompt: '',
-            customSocialPrompt: '',
-            customUniversalPrompt: '',
-            customRedePrompt: '',
-            customBuergeranfragenPrompt: '',
-            customGruenejugendPrompt: ''
-        },
-        mode: 'onSubmit'
-    });
-
-    const { control, reset, getValues, watch, setValue } = formMethods;
 
     const {
         query,
@@ -106,8 +77,6 @@ const GroupDetailSection = memo(({
     } = query;
 
     const data = rawData as GroupData | undefined;
-
-    const GROUP_MAX_CONTENT_LENGTH = 1000;
     const isSaveError = !!saveError;
 
     const {
@@ -130,52 +99,35 @@ const GroupDetailSection = memo(({
     } = useGroupSharing(groupId, { isActive });
 
     const { clearMessages: clearUiMessages } = useInstructionsUiStore();
-    const { setScope, permissions } = useWolkeStore();
 
     const { resetTracking } = useAutosave({
         saveFunction: useCallback(async () => {
-            const formValues = getValues();
             const saveData = {
-                customAntragPrompt: formValues.customAntragPrompt || '',
-                customSocialPrompt: formValues.customSocialPrompt || '',
-                customUniversalPrompt: formValues.customUniversalPrompt || '',
-                customRedePrompt: formValues.customRedePrompt || '',
-                customBuergeranfragenPrompt: formValues.customBuergeranfragenPrompt || '',
-                customGruenejugendPrompt: formValues.customGruenejugendPrompt || '',
-                presseabbinder: '',
-                antragInstructionsEnabled: data?.antragInstructionsEnabled || false,
-                socialInstructionsEnabled: data?.socialInstructionsEnabled || false,
+                customPrompt: customPrompt || '',
                 _groupMembership: {
                     isAdmin: data?.isAdmin || false,
                     role: data?.membership?.role || 'member'
                 }
             };
-            return await (saveChanges as unknown as (data: typeof saveData) => Promise<unknown>)(saveData);
-        }, [saveChanges, getValues, data]),
-        formRef: { getValues, watch },
+            await (saveChanges as unknown as (data: typeof saveData) => Promise<unknown>)(saveData);
+        }, [saveChanges, customPrompt, data]),
+        formRef: { getValues: () => ({ customPrompt }), watch: (callback: (value: Record<string, unknown>, info: { name?: string }) => void) => ({ unsubscribe: () => {} }) },
         enabled: data && isInitialized.current && data?.isAdmin,
         debounceMs: 2000,
-        getFieldsToTrack: () => ['customAntragPrompt', 'customSocialPrompt', 'customUniversalPrompt', 'customRedePrompt', 'customBuergeranfragenPrompt', 'customGruenejugendPrompt'],
+        getFieldsToTrack: () => ['customPrompt'],
         onError: (error) => console.error('Groups autosave failed:', error)
     });
 
     useEffect(() => {
         if (!data) return;
         if (!isInitialized.current) {
-            reset({
-                customAntragPrompt: data.antragPrompt || '',
-                customSocialPrompt: data.socialPrompt || '',
-                customUniversalPrompt: data.universalPrompt || '',
-                customRedePrompt: data.redePrompt || '',
-                customBuergeranfragenPrompt: data.buergeranfragenPrompt || '',
-                customGruenejugendPrompt: data.gruenejugendPrompt || ''
-            });
+            setCustomPrompt(data.customPrompt || '');
             setEditedGroupName(data.groupInfo?.name || '');
             setEditedGroupDescription(data.groupInfo?.description || '');
             isInitialized.current = true;
             setTimeout(() => resetTracking(), 100);
         }
-    }, [data, reset, resetTracking]);
+    }, [data, resetTracking]);
 
     useEffect(() => {
         if (isSaveError) {
@@ -187,17 +139,6 @@ const GroupDetailSection = memo(({
     useEffect(() => {
         clearUiMessages();
     }, [groupId, isActive, clearUiMessages]);
-
-    useEffect(() => {
-        if (prevCurrentView.current !== groupDetailView) {
-            if (groupDetailView === 'wolke' && groupId && data?.groupInfo?.id) {
-                setScope('group', data.groupInfo.id);
-            } else if (groupDetailView !== 'wolke' && prevCurrentView.current === 'wolke') {
-                setScope('personal', null);
-            }
-            prevCurrentView.current = groupDetailView;
-        }
-    }, [groupDetailView, groupId, data?.groupInfo?.id, setScope]);
 
     const getJoinUrl = useCallback(() => {
         if (!data?.joinToken) return '';
@@ -283,15 +224,6 @@ const GroupDetailSection = memo(({
         });
     }, [editedGroupDescription, data?.groupInfo?.description, data?.groupInfo?.name, groupId, updateGroupInfo, cancelEditingDescription, onSuccessMessage, onErrorMessage, refetchGroupData]);
 
-    const handleAddField = useCallback((fieldName: string) => {
-        setEnabledFields(prev => [...prev, fieldName]);
-    }, []);
-
-    const handleRemoveField = useCallback((fieldName: string) => {
-        (setValue as (name: string, value: string) => void)(fieldName, '');
-        setEnabledFields(prev => prev.filter(f => f !== fieldName));
-    }, [setValue]);
-
     if (isLoadingDetails || !data) {
         return null;
     }
@@ -305,119 +237,56 @@ const GroupDetailSection = memo(({
     }
 
     return (
-        <>
-            <div className="groups-horizontal-navigation" role="tablist">
-                <button
-                    className={`profile-vertical-tab ${groupDetailView === 'gruppeninfo' ? 'active' : ''}`}
-                    onClick={() => setGroupDetailView('gruppeninfo')}
-                    tabIndex={tabIndex.groupDetailTabs}
-                    role="tab"
-                    aria-selected={groupDetailView === 'gruppeninfo'}
-                >
-                    Gruppeninfo
-                </button>
-                <button
-                    className={`profile-vertical-tab ${groupDetailView === 'anweisungen-wissen' ? 'active' : ''}`}
-                    onClick={() => setGroupDetailView('anweisungen-wissen')}
-                    tabIndex={tabIndex.groupDetailTabs + 1}
-                    role="tab"
-                    aria-selected={groupDetailView === 'anweisungen-wissen'}
-                >
-                    Anweisungen & Wissen
-                </button>
-                <button
-                    className={`profile-vertical-tab ${groupDetailView === 'shared' ? 'active' : ''}`}
-                    onClick={() => setGroupDetailView('shared')}
-                    tabIndex={tabIndex.groupDetailTabs + 2}
-                    role="tab"
-                    aria-selected={groupDetailView === 'shared'}
-                >
-                    Geteilte Inhalte & Vorlagen
-                </button>
-                <button
-                    className={`profile-vertical-tab ${groupDetailView === 'wolke' ? 'active' : ''}`}
-                    onClick={() => setGroupDetailView('wolke')}
-                    tabIndex={tabIndex.groupDetailTabs + 3}
-                    role="tab"
-                    aria-selected={groupDetailView === 'wolke'}
-                >
-                    Wolke-Ordner
-                </button>
-            </div>
+        <motion.div
+            className="group-detail-cards-layout"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
+            <GroupInfoSection
+                data={data}
+                groupId={groupId}
+                isEditingName={isEditingName}
+                editedGroupName={editedGroupName}
+                setEditedGroupName={setEditedGroupName}
+                isEditingDescription={isEditingDescription}
+                editedGroupDescription={editedGroupDescription}
+                setEditedGroupDescription={setEditedGroupDescription}
+                isUpdatingGroupName={isUpdatingGroupName}
+                isDeletingGroup={isDeletingGroup}
+                joinLinkCopied={joinLinkCopied}
+                getJoinUrl={getJoinUrl}
+                copyJoinLink={copyJoinLink}
+                startEditingName={startEditingName}
+                cancelEditingName={cancelEditingName}
+                saveGroupName={saveGroupName}
+                startEditingDescription={startEditingDescription}
+                cancelEditingDescription={cancelEditingDescription}
+                saveGroupDescription={saveGroupDescription}
+                confirmDeleteGroup={confirmDeleteGroup}
+                isActive={isActive}
+                tabIndex={{ ...tabIndex, groupNameEdit: tabIndex.groupNameEdit ?? 0 }}
+                customPrompt={customPrompt}
+                setCustomPrompt={setCustomPrompt}
+            />
 
-            <motion.div
-                className="group-detail-cards-layout"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-            >
-                {groupDetailView === 'gruppeninfo' && (
-                    <GroupInfoSection
-                        data={data}
-                        groupId={groupId}
-                        isEditingName={isEditingName}
-                        editedGroupName={editedGroupName}
-                        setEditedGroupName={setEditedGroupName}
-                        isEditingDescription={isEditingDescription}
-                        editedGroupDescription={editedGroupDescription}
-                        setEditedGroupDescription={setEditedGroupDescription}
-                        isUpdatingGroupName={isUpdatingGroupName}
-                        isDeletingGroup={isDeletingGroup}
-                        joinLinkCopied={joinLinkCopied}
-                        getJoinUrl={getJoinUrl}
-                        copyJoinLink={copyJoinLink}
-                        startEditingName={startEditingName}
-                        cancelEditingName={cancelEditingName}
-                        saveGroupName={saveGroupName}
-                        startEditingDescription={startEditingDescription}
-                        cancelEditingDescription={cancelEditingDescription}
-                        saveGroupDescription={saveGroupDescription}
-                        confirmDeleteGroup={confirmDeleteGroup}
-                        isActive={isActive}
-                        tabIndex={{ ...tabIndex, groupNameEdit: tabIndex.groupNameEdit ?? 0 }}
-                    />
-                )}
-
-                {groupDetailView === 'anweisungen-wissen' && (
-                    <FormProvider {...formMethods}>
-                        <GroupInstructionsSection
-                            data={data}
-                            control={control as unknown as import('react-hook-form').Control<Record<string, unknown>>}
-                            GROUP_MAX_CONTENT_LENGTH={GROUP_MAX_CONTENT_LENGTH}
-                            enabledFields={enabledFields}
-                            onAddField={handleAddField}
-                            onRemoveField={handleRemoveField}
-                        />
-                    </FormProvider>
-                )}
-
-                {groupDetailView === 'shared' && (
-                    <GroupSharedContentSection
-                        groupContent={groupContent}
-                        isLoadingGroupContent={isLoadingGroupContent}
-                        isFetchingGroupContent={isFetchingGroupContent}
-                        isAdmin={data?.isAdmin ?? false}
-                        onUnshare={(contentType: string, contentId: string) => unshareContent(contentType, contentId)}
-                        isUnsharing={isUnsharing}
-                        groupId={groupId}
-                        onShareContent={async (contentType: string, itemId: string, options: { permissions: { read: boolean; write: boolean; collaborative: boolean }; targetGroupId: string }) => {
-                            shareContent(contentType, itemId, options);
-                        }}
-                        isSharing={isSharing}
-                        onRefetch={refetchGroupContent}
-                        onSuccessMessage={onSuccessMessage}
-                        onErrorMessage={onErrorMessage}
-                    />
-                )}
-
-                {groupDetailView === 'wolke' && (
-                    <GroupWolkeSection
-                        isAdmin={data?.isAdmin ?? false}
-                        permissions={permissions}
-                    />
-                )}
-            </motion.div>
-        </>
+            <GroupSharedContentSection
+                groupContent={groupContent}
+                isLoadingGroupContent={isLoadingGroupContent}
+                isFetchingGroupContent={isFetchingGroupContent}
+                isAdmin={data?.isAdmin ?? false}
+                onUnshare={(contentType: string, contentId: string) => unshareContent(contentType, contentId)}
+                isUnsharing={isUnsharing}
+                groupId={groupId}
+                onShareContent={async (contentType: string, itemId: string | number, options: any) => {
+                    shareContent(contentType, String(itemId), options);
+                }}
+                isSharing={isSharing}
+                onRefetch={refetchGroupContent}
+                onSuccessMessage={onSuccessMessage}
+                onErrorMessage={onErrorMessage}
+            />
+        </motion.div>
     );
 });
 
