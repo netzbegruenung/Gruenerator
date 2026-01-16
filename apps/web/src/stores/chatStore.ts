@@ -66,6 +66,14 @@ interface LinesContent {
 
 type ChatContent = SharepicContent | TextContent | SocialContent | LinesContent;
 
+interface ResultData {
+  componentId?: string;
+  text?: string;
+  sharepic?: SharepicObject | null;
+  metadata?: Record<string, unknown>;
+  title?: string;
+}
+
 interface ChatMessage {
   id: string;
   type: 'user' | 'assistant' | 'system';
@@ -74,6 +82,7 @@ interface ChatMessage {
   agent?: string;
   metadata?: Record<string, unknown>;
   suggestions?: string[];
+  resultData?: ResultData;
 }
 
 interface MultiResult {
@@ -261,7 +270,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       timestamp: message.timestamp || Date.now(),
       agent: message.agent,
       metadata: message.metadata,
-      suggestions: message.suggestions
+      suggestions: message.suggestions,
+      resultData: message.resultData
     };
 
     set(state => ({
@@ -485,6 +495,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       const storePayload = response.content.sharepic
         ? {
+            type: 'sharepic' as const,
             content: response.content.text,
             sharepic: response.content.sharepic,
             sharepicTitle: response.content.sharepicTitle,
@@ -495,7 +506,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           }
         : response.content.text;
 
-      textStore.setGeneratedText('grueneratorChat', storePayload, metadata);
+      if (storePayload) {
+        textStore.setGeneratedText('grueneratorChat', storePayload, metadata);
+      }
     }
 
     let messageContent = response.content?.text;

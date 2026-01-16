@@ -175,6 +175,7 @@ interface ProfileStore {
   syncProfile: (profileData: Profile | null) => void;
   syncAnweisungenWissen: (data: AnweisungenWissen | null) => void;
   syncQACollections: (collections: QACollection[] | null) => void;
+  syncNotebookCollections: (collections: QACollection[] | null) => void;
   syncCustomGenerators: (generators: CustomGenerator[] | null) => void;
   syncSavedGenerators: (generators: CustomGenerator[] | null) => void;
   syncUserTexts: (texts: UserText[] | null) => void;
@@ -298,6 +299,10 @@ export const useProfileStore = create<ProfileStore>()(
       }),
 
       syncQACollections: (collections) => set(state => {
+        state.qaCollections = collections || [];
+      }),
+
+      syncNotebookCollections: (collections) => set(state => {
         state.qaCollections = collections || [];
       }),
 

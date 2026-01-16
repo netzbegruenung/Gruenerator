@@ -14,7 +14,6 @@ export { crossTabSyncMiddleware, createCrossTabSyncConfig } from './middlewares/
 // Active stores:
 export { default as useGeneratedTextStore } from './core/generatedTextStore';
 export { default as useFormStateStore } from './core/formStateStore';
-export { default as useSharepicStore } from './sharepicStore';
 export { default as useTextEditActions } from './hooks/useTextEditActions';
 
 // Canvas Editor

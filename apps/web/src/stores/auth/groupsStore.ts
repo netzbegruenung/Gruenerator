@@ -4,7 +4,6 @@ import { create } from 'zustand';
  * Type definitions for groups store
  */
 type CurrentView = 'overview' | 'group' | 'create';
-type GroupDetailView = 'gruppeninfo' | 'anweisungen-wissen' | 'shared' | 'wolke';
 
 interface GroupsStoreState {
   // Loading states
@@ -35,7 +34,6 @@ interface GroupsStoreState {
   // Navigation and selection state
   selectedGroupId: string | null;
   currentView: CurrentView;
-  groupDetailView: GroupDetailView;
 
   // User preferences
   hasInitialAutoSelection: boolean;
@@ -64,7 +62,6 @@ interface GroupsStoreState {
   // Navigation actions
   setSelectedGroup: (groupId: string | null) => void;
   setCurrentView: (view: CurrentView) => void;
-  setGroupDetailView: (view: GroupDetailView) => void;
 
   // Auto-selection tracking
   setHasInitialAutoSelection: (hasSelected: boolean) => void;
@@ -77,7 +74,6 @@ interface GroupsStoreState {
 /**
  * Zustand store for comprehensive groups state management
  * Includes UI states, navigation state, and user preferences
- * Follows the pattern of wolkeStore and profileStore
  */
 export const useGroupsStore = create<GroupsStoreState>((set) => ({
   // Loading states
@@ -108,7 +104,6 @@ export const useGroupsStore = create<GroupsStoreState>((set) => ({
   // Navigation and selection state
   selectedGroupId: null,
   currentView: 'overview',
-  groupDetailView: 'anweisungen-wissen',
 
   // User preferences
   hasInitialAutoSelection: false,
@@ -135,15 +130,12 @@ export const useGroupsStore = create<GroupsStoreState>((set) => ({
   setErrorMessage: (message: string) => set({ errorMessage: message }),
 
   // Navigation actions
-  setSelectedGroup: (groupId: string | null) => set((state: GroupsStoreState) => ({
+  setSelectedGroup: (groupId: string | null) => set({
     selectedGroupId: groupId,
-    currentView: groupId ? 'group' : 'overview',
-    // Reset detail view when switching groups
-    groupDetailView: groupId && groupId !== state.selectedGroupId ? 'anweisungen-wissen' : state.groupDetailView
-  })),
+    currentView: groupId ? 'group' : 'overview'
+  }),
 
   setCurrentView: (view: CurrentView) => set({ currentView: view }),
-  setGroupDetailView: (view: GroupDetailView) => set({ groupDetailView: view }),
 
   // Auto-selection tracking
   setHasInitialAutoSelection: (hasSelected: boolean) => set({ hasInitialAutoSelection: hasSelected }),
@@ -178,10 +170,8 @@ export const useGroupsStore = create<GroupsStoreState>((set) => ({
     joinError: null,
     successMessage: '',
     errorMessage: '',
-    // Reset navigation state
     selectedGroupId: null,
     currentView: 'overview',
-    groupDetailView: 'anweisungen-wissen',
     hasInitialAutoSelection: false
   }),
 
@@ -189,7 +179,6 @@ export const useGroupsStore = create<GroupsStoreState>((set) => ({
   resetNavigation: () => set({
     selectedGroupId: null,
     currentView: 'overview',
-    groupDetailView: 'anweisungen-wissen',
     hasInitialAutoSelection: false
   })
 }));

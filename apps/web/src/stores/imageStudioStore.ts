@@ -29,7 +29,7 @@ import {
 } from '../features/image-studio/types/storeTypes';
 
 // Initial state
-const initialState: ImageStudioState = {
+const initialState = {
   // Category and type selection
   category: null,
   subcategory: null,
@@ -106,6 +106,7 @@ const initialState: ImageStudioState = {
   galleryEditMode: false,
   editShareToken: null,
   editTitle: null,
+  templateCreator: null,
 
   // UI State
   currentStep: FORM_STEPS.CATEGORY_SELECT,
@@ -153,14 +154,15 @@ const initialState: ImageStudioState = {
   aiEditorHistory: [],
   aiEditorHistoryIndex: -1,
   aiEditorSessionId: null,
-  aiEditorMode: 'create'
+  aiEditorMode: 'create' as const
 };
 
-const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
-  ...initialState,
+const useImageStudioStore = create<ImageStudioStore>((set, get) => {
+  return {
+    ...initialState,
 
   // Category and type selection
-  setCategory: (category, subcategory = null) => {
+  setCategory: (category: string | null, subcategory: string | null = null) => {
     set({
       category,
       subcategory,
@@ -171,7 +173,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     });
   },
 
-  setSubcategory: (subcategory) => {
+  setSubcategory: (subcategory: string | null) => {
     set({
       subcategory,
       type: null,
@@ -180,7 +182,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     });
   },
 
-  setType: (type) => {
+  setType: (type: string | null) => {
     const config = getTypeConfig(type || '');
     const firstStep = config?.steps?.[0] || FORM_STEPS.INPUT;
     set({
@@ -202,7 +204,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   },
 
   // Form data updates
-  updateFormData: (data) => {
+  updateFormData: (data: FormDataUpdate) => {
     set((state) => {
       const safeData = { ...data };
 
@@ -220,13 +222,13 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     });
   },
 
-  handleChange: (e) => {
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     set((state) => ({ ...state, [name]: value }));
   },
 
   // Step navigation
-  setCurrentStep: (step) => {
+  setCurrentStep: (step: string) => {
     set({ currentStep: step });
   },
 
@@ -271,59 +273,59 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   },
 
   // Step wizard animation state
-  setNavigationDirection: (direction) => set({ navigationDirection: direction }),
-  setIsAnimating: (isAnimating) => set({ isAnimating }),
+  setNavigationDirection: (direction: 'forward' | 'back') => set({ navigationDirection: direction }),
+  setIsAnimating: (isAnimating: boolean) => set({ isAnimating }),
 
   // Loading states
-  setLoading: (loading) => set({ loading }),
-  setLoadingUnsplashImages: (loading) => set({ isLoadingUnsplashImages: loading }),
+  setLoading: (loading: boolean) => set({ loading }),
+  setLoadingUnsplashImages: (loading: boolean) => set({ isLoadingUnsplashImages: loading }),
 
   // Error handling
-  setError: (error) => set({ error }),
-  setUnsplashError: (error) => set({ unsplashError: error }),
+  setError: (error: string | null) => set({ error }),
+  setUnsplashError: (error: string | null) => set({ unsplashError: error }),
 
   // File handling
-  setFile: (file) => set({ file }),
-  setUploadedImage: (image) => set({ uploadedImage: image }),
+  setFile: (file: File | Blob | null) => set({ file }),
+  setUploadedImage: (image: File | Blob | null) => set({ uploadedImage: image }),
 
   // Image handling
-  setSelectedImage: (image) => set({ selectedImage: image }),
-  setGeneratedImage: (src) => set({ generatedImageSrc: src }),
-  setUnsplashImages: (images) => {
+  setSelectedImage: (image: SelectedImageData | null) => set({ selectedImage: image }),
+  setGeneratedImage: (src: string | null) => set({ generatedImageSrc: src }),
+  setUnsplashImages: (images: unknown[]) => {
     set({
       unsplashImages: images,
       isLoadingUnsplashImages: false
     });
   },
-  setTransparentImage: (image) => set({ transparentImage: image }),
+  setTransparentImage: (image: string | null) => set({ transparentImage: image }),
 
   // UI state
-  setSearchBarActive: (isActive) => set({ isSearchBarActive: isActive }),
-  setAdvancedEditing: (isOpen) => set({ isAdvancedEditingOpen: isOpen }),
+  setSearchBarActive: (isActive: boolean) => set({ isSearchBarActive: isActive }),
+  setAdvancedEditing: (isOpen: boolean) => set({ isAdvancedEditingOpen: isOpen }),
   toggleAdvancedEditing: () => {
     const { isAdvancedEditingOpen } = get();
     set({ isAdvancedEditingOpen: !isAdvancedEditingOpen });
   },
-  setSubmitting: (isSubmitting, step = null) => set({
+  setSubmitting: (isSubmitting: boolean, step: string | null = null) => set({
     isSubmitting,
     currentSubmittingStep: step
   }),
 
 
   // Rate limit data (for KI types)
-  setImageLimitData: (data) => set({ imageLimitData: data }),
+  setImageLimitData: (data: ImageLimitData | null) => set({ imageLimitData: data }),
 
   // Imagine-specific state
-  setPrecisionMode: (mode) => set({ precisionMode: mode }),
-  setPrecisionInstruction: (instruction) => set({ precisionInstruction: instruction }),
-  setSelectedInfrastructure: (infrastructure) => set({ selectedInfrastructure: infrastructure }),
-  setVariant: (variant) => set({ variant }),
-  setImagineTitle: (title) => set({ imagineTitle: title }),
-  setPurePrompt: (prompt) => set({ purePrompt: prompt }),
-  setSharepicPrompt: (prompt) => set({ sharepicPrompt: prompt }),
+  setPrecisionMode: (mode: boolean) => set({ precisionMode: mode }),
+  setPrecisionInstruction: (instruction: string) => set({ precisionInstruction: instruction }),
+  setSelectedInfrastructure: (infrastructure: string[]) => set({ selectedInfrastructure: infrastructure }),
+  setVariant: (variant: string | null) => set({ variant }),
+  setImagineTitle: (title: string) => set({ imagineTitle: title }),
+  setPurePrompt: (prompt: string) => set({ purePrompt: prompt }),
+  setSharepicPrompt: (prompt: string) => set({ sharepicPrompt: prompt }),
 
   // Veranstaltung per-field font size controls (px-based)
-  updateFieldFontSize: (fieldName, value) => {
+  updateFieldFontSize: (fieldName: keyof VeranstaltungFieldFontSizes, value: number) => {
     const baseFontSizes: VeranstaltungFieldFontSizes = {
       eventTitle: 94, beschreibung: 62,
       weekday: 57, date: 55, time: 55, locationName: 42, address: 42
@@ -363,7 +365,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   resetToTypeSelect: () => {
     const { category } = get();
     set({
-      ...initialState,
+      ...(initialState as unknown as Partial<ImageStudioStore>),
       category,
       currentStep: FORM_STEPS.TYPE_SELECT
     });
@@ -371,31 +373,29 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
 
   resetToCategorySelect: () => {
     set({
-      ...initialState,
+      ...(initialState as unknown as Partial<ImageStudioStore>),
       currentStep: FORM_STEPS.CATEGORY_SELECT
     });
   },
 
-  resetStore: () => set({
-    ...initialState
-  }),
+  resetStore: () => set(initialState as unknown as Partial<ImageStudioStore>),
 
   // Advanced editing controls
   updateBalkenGruppenOffset: (newOffset: number[]) => set({ balkenGruppenOffset: newOffset as [number, number] }),
   updateSunflowerOffset: (newOffset: number[]) => set({ sunflowerOffset: newOffset as [number, number] }),
-  updateCredit: (credit) => set({ credit }),
+  updateCredit: (credit: string) => set({ credit }),
 
   // Slogan handling
-  setSloganAlternatives: (alternatives) => set({ sloganAlternatives: alternatives }),
-  setAlternatives: (alternatives) => set({ sloganAlternatives: alternatives }),
-  selectSlogan: (slogan) => set({
+  setSloganAlternatives: (alternatives: SloganAlternative[]) => set({ sloganAlternatives: alternatives }),
+  setAlternatives: (alternatives: SloganAlternative[]) => set({ sloganAlternatives: alternatives }),
+  selectSlogan: (slogan: SloganAlternative) => set({
     line1: slogan.line1 || '',
     line2: slogan.line2 || '',
     line3: slogan.line3 || '',
     line4: slogan.line4 || '',
     line5: slogan.line5 || ''
   }),
-  handleSloganSelect: (selected) => {
+  handleSloganSelect: (selected: SloganAlternative) => {
     const { type } = get();
     const config = getTypeConfig(type || '');
 
@@ -423,27 +423,27 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   },
 
   // Slogan image caching for alternative switching
-  cacheSloganImage: (alternativeIndex, imageSrc) => {
+  cacheSloganImage: (alternativeIndex: number, imageSrc: string | null) => {
     if (!imageSrc) return;
     const { cachedSloganImages } = get();
     set({ cachedSloganImages: { ...cachedSloganImages, [alternativeIndex]: imageSrc } });
   },
-  getCachedSloganImage: (alternativeIndex) => {
+  getCachedSloganImage: (alternativeIndex: number) => {
     const { cachedSloganImages } = get();
     return cachedSloganImages[alternativeIndex] || null;
   },
   clearSloganImageCache: () => set({ cachedSloganImages: {}, currentAlternativeIndex: -1 }),
-  setCurrentAlternativeIndex: (index) => set({ currentAlternativeIndex: index }),
+  setCurrentAlternativeIndex: (index: number) => set({ currentAlternativeIndex: index }),
 
   // Unsplash integration
-  handleUnsplashSearch: (query) => {
+  handleUnsplashSearch: (query: string) => {
     if (!query) return;
     const searchUrl = `https://unsplash.com/de/s/fotos/${encodeURIComponent(query)}?license=free`;
     window.open(searchUrl, '_blank');
   },
 
   // Image modification state updates
-  updateImageModification: (modificationData) => {
+  updateImageModification: (modificationData: ImageModificationData) => {
     set((state) => ({
       ...state,
       colorScheme: modificationData.colorScheme || state.colorScheme,
@@ -455,7 +455,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   },
 
   // Load data for editing
-  loadSharepicForEditing: (sharepicData, source = 'presseSocial') => {
+  loadSharepicForEditing: (sharepicData: OriginalSharepicData, source: string = 'presseSocial') => {
     const formData = parseSharepicForEditing(sharepicData, source);
     set(formData as Partial<ImageStudioState>);
   },
@@ -466,19 +466,20 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
       originalSharepicData: null,
       galleryEditMode: false,
       editShareToken: null,
-      editTitle: null
+      editTitle: null,
+      templateCreator: null
     });
   },
 
   // Load data from gallery for editing
-  loadGalleryEditData: async (editData) => {
+  loadGalleryEditData: async (editData: GalleryEditData) => {
     const formData = await loadGalleryEditDataService(editData);
     set(formData as Partial<ImageStudioState>);
     return formData;
   },
 
   // Load data from editSession (from PresseSocialGenerator)
-  loadEditSessionData: async (editSessionId) => {
+  loadEditSessionData: async (editSessionId: string) => {
     const formData = await loadEditSessionDataService(editSessionId);
     if (formData) {
       set(formData as Partial<ImageStudioState>);
@@ -491,18 +492,19 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     set({
       galleryEditMode: false,
       editShareToken: null,
-      editTitle: null
+      editTitle: null,
+      templateCreator: null
     });
   },
 
 
   // Flow title and subtitle (dynamic header per step)
-  setFlowTitle: (title) => set({ flowTitle: title }),
-  setFlowSubtitle: (subtitle) => set({ flowSubtitle: subtitle }),
+  setFlowTitle: (title: string | null) => set({ flowTitle: title }),
+  setFlowSubtitle: (subtitle: string | null) => set({ flowSubtitle: subtitle }),
 
 
   // Load data from AI-generated prompt (from ImageStudio chat input)
-  loadFromAIGeneration: (sharepicType, generatedData, selectedImage) => {
+  loadFromAIGeneration: (sharepicType: string, generatedData: Record<string, string>, selectedImage?: { filename: string; path: string; alt_text: string; category?: string } | null) => {
     const formData = parseAIGeneratedData(sharepicType, generatedData, selectedImage);
     set(formData as Partial<ImageStudioState>);
   },
@@ -522,7 +524,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   },
 
   // AI Editor undo/redo actions
-  commitAiGeneration: (image, prompt) => {
+  commitAiGeneration: (image: string, prompt: string) => {
     const {
       aiEditorHistory,
       aiEditorHistoryIndex,
@@ -605,11 +607,11 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
     return aiEditorHistoryIndex < aiEditorHistory.length - 1;
   },
 
-  setAiEditorMode: (mode) => {
+  setAiEditorMode: (mode: 'create' | 'edit') => {
     set({ aiEditorMode: mode });
   },
 
-  loadHistoryEntry: (index) => {
+  loadHistoryEntry: (index: number) => {
     const { aiEditorHistory } = get();
 
     if (index >= 0 && index < aiEditorHistory.length) {
@@ -632,7 +634,8 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => ({
   FORM_STEPS,
   FONT_SIZES,
   DEFAULT_COLORS
-}));
+    } as unknown as ImageStudioStore;
+});
 
 export default useImageStudioStore;
 
