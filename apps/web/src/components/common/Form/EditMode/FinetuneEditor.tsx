@@ -7,7 +7,6 @@ import {
   linkDialogPlugin,
   toolbarPlugin,
   BoldItalicUnderlineToggles,
-  ListsToggle,
   BlockTypeSelect,
   MDXEditorMethods
 } from '@mdxeditor/editor';
@@ -179,7 +178,6 @@ const FinetuneEditor = ({ componentName, readOnly = false }: FinetuneEditorProps
         <>
           {!isMobile && <BlockTypeSelect />}
           <BoldItalicUnderlineToggles />
-          <ListsToggle />
         </>
       )
     })

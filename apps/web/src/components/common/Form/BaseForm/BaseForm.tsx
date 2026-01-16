@@ -70,6 +70,7 @@ import { getDocumentType } from '../../../../utils/documentTypeMapper';
  */
 const BaseFormInternal: React.FC<BaseFormProps> = ({
   title,
+  subtitle,
   children,
   onSubmit,
   loading: propLoading,
@@ -560,7 +561,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
             >
               <FormSection
                 ref={formSectionRef}
-                title={typeof title === 'string' ? title : undefined}
+                title={title}
+                subtitle={subtitle}
                 onSubmit={isEditModeActive && onEditSubmit ? (() => onEditSubmit('')) : (useModernForm ? handleEnhancedSubmit : onSubmit)}
                 isFormVisible={isFormVisible}
                 isMultiStep={isMultiStep}
@@ -615,6 +617,7 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
                 contextualTip={contextualTip}
                 selectedPlatforms={selectedPlatforms}
                 inputHeaderContent={inputHeaderContent}
+                helpContent={helpContent}
               >
                 {children}
               </FormSection>
@@ -622,8 +625,8 @@ const BaseFormInternal: React.FC<BaseFormProps> = ({
           )}
         </AnimatePresence>
 
-        {/* In desktop mode or non-edit mode, show DisplaySection after FormSection (hidden in start mode) */}
-        {(!isEditModeActive || !isMobileView) && !isStartMode && (
+        {/* In desktop mode or non-edit mode, show DisplaySection after FormSection (hidden in start mode or when no content) */}
+        {(!isEditModeActive || !isMobileView) && !isStartMode && hasAnyContent && (
           <motion.div
             /* layout */
             transition={{ duration: 0.25, ease: "easeOut" }}

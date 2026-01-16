@@ -15,15 +15,18 @@ export function getBaseContainerClasses({
   isEditModeActive,
   isStartMode
 }: BaseContainerClassesParams): string {
+  const hasContent = generatedContent && (
+    typeof generatedContent === 'string'
+      ? generatedContent.length > 0
+      : ((generatedContent as { content?: string; sharepic?: unknown }).content?.length ?? 0) > 0 || !!(generatedContent as { sharepic?: unknown }).sharepic
+  );
+
   const classes = [
     'base-container',
-    generatedContent && (
-      typeof generatedContent === 'string'
-        ? generatedContent.length > 0
-        : (generatedContent as { content?: string; sharepic?: unknown }).content?.length > 0 || (generatedContent as { sharepic?: unknown }).sharepic
-    ) ? 'has-generated-content' : '',
+    hasContent ? 'has-generated-content' : '',
     isEditModeActive ? 'edit-mode-active' : '',
-    isStartMode ? 'base-container--start-mode' : ''
+    isStartMode ? 'base-container--start-mode' : '',
+    !hasContent && !isStartMode ? 'no-content-column' : ''
   ];
   return classes.filter(Boolean).join(' ');
 }

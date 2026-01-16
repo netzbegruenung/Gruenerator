@@ -211,7 +211,8 @@ export interface FormCardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'tit
   variant?: FormCardVariant;
   size?: FormCardSize;
   hover?: boolean;
-  title?: string | null;
+  title?: string | ReactNode | null;
+  subtitle?: string;
   showHideButton?: boolean;
   onHide?: (() => void) | null;
   children: ReactNode;

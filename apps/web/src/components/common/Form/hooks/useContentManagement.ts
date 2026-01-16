@@ -54,14 +54,16 @@ export function useContentManagement(params: UseContentManagementParams) {
         ('sharepic' in generatedContent || 'social' in generatedContent);
 
       if (isMixedContent) {
-        setGeneratedText(componentName, JSON.stringify(generatedContent), generatedContent);
+        // Store mixed content as-is (object), not stringified
+        setGeneratedText(componentName, generatedContent, generatedContent);
       } else if (typeof generatedContent === 'object' && generatedContent !== null && 'content' in generatedContent) {
         const contentObj = generatedContent as { content?: string; metadata?: unknown };
         setGeneratedText(componentName, contentObj.content || '', contentObj.metadata);
       } else if (typeof generatedContent === 'string') {
         setGeneratedText(componentName, generatedContent);
       } else {
-        setGeneratedText(componentName, JSON.stringify(generatedContent), generatedContent);
+        // Fallback: store object as-is
+        setGeneratedText(componentName, generatedContent as GeneratedContent, generatedContent);
       }
     }
   }, [generatedContent, setGeneratedText, componentName]);

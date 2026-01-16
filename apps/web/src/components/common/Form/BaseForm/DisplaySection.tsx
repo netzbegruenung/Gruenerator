@@ -1,16 +1,10 @@
 import React, { forwardRef, ReactNode } from 'react';
 import type { GeneratedContent, HelpContent, CustomExportOption, ContentMetadata } from '@/types/baseform';
 import ActionButtons from '../../ActionButtons';
-import SubmitButton from '../../SubmitButton';
-import { HiCog, HiOutlineUsers } from "react-icons/hi";
-import { BUTTON_LABELS, ARIA_LABELS } from '../constants';
 import ContentRenderer from './ContentRenderer';
 import ErrorDisplay from './ErrorDisplay';
-import HelpDisplay from '../../HelpDisplay';
 import EnrichmentSourcesDisplay from '../../EnrichmentSourcesDisplay';
-import apiClient from '../../../utils/apiClient';
 import { useLazyAuth } from '../../../../hooks/useAuth';
-import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
 import { useSaveToLibrary } from '../../../../hooks/useSaveToLibrary';
 import { useFormStateSelector } from '../FormStateProvider';
@@ -95,8 +89,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
   hideDefaultExportOptions = false,
   isStartMode = false,
 }, ref) => {
-  const { user } = useLazyAuth(); // Keep for other auth functionality
-  const { getBetaFeatureState } = useBetaFeatures();
+  const { user } = useLazyAuth();
   const storeGeneratedText = useGeneratedTextStore(state => state.generatedTexts[componentName] || '');
   const storeGeneratedTextMetadata = useGeneratedTextStore(state => state.getGeneratedTextMetadata(componentName)) as ContentMetadata | null;
   const isStreaming = useGeneratedTextStore(state => state.isStreaming);
@@ -222,23 +215,8 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(({
     : null;
 
   return (
-    <div className={`display-container ${isStartMode ? 'display-container--start-mode' : ''} ${helpContent?.isNewFeature && helpContent?.featureId && localStorage.getItem(`feature-seen-${helpContent.featureId}`) !== 'true' ? 'display-container--new-feature' : ''}`} id="display-section-container" ref={ref}>
+    <div className={`display-container ${isStartMode ? 'display-container--start-mode' : ''}`} id="display-section-container" ref={ref}>
       {actionsNode}
-      {!hasRenderableContent && helpContent && (
-        <div className={`help-section ${isStartMode ? 'help-section--start-mode' : ''}`}>
-          <HelpDisplay
-            content={helpContent.content}
-            tips={helpContent.tips}
-            hasGeneratedContent={!!activeContent}
-            isNewFeature={helpContent.isNewFeature}
-            featureId={helpContent.featureId}
-            fallbackContent={helpContent.fallbackContent}
-            fallbackTips={helpContent.fallbackTips}
-            layout={isStartMode ? 'cards' : 'default'}
-            features={helpContent.features as { title?: string; description?: string }[] | undefined}
-          />
-        </div>
-      )}
       <div className="display-content">
         {hasRenderableContent ? (
           <>

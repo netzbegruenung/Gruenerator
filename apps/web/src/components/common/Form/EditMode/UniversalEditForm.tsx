@@ -247,11 +247,13 @@ const UniversalEditForm = ({ componentName, onClose }: UniversalEditFormProps): 
     );
   }, []);
 
-  const handleSubmit = useCallback(async (instruction: string) => {
+  const handleSubmit = useCallback(async (instruction: string | React.FormEvent) => {
     if (isSharepicOnly || !hasEditableText) {
       return;
     }
-    const trimmed = (instruction || '').trim();
+    // Handle both string (from ChatWorkbenchLayout) and FormEvent
+    const instructionStr = typeof instruction === 'string' ? instruction : '';
+    const trimmed = (instructionStr || '').trim();
     if (!trimmed) return;
 
     // Sync scroll to relevant section based on instruction keywords

@@ -1,4 +1,4 @@
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, Control, UseFormProps, FieldValues } from 'react-hook-form';
 import { useCallback, useState, useMemo, useEffect } from 'react';
 import useApiSubmit from '../../../hooks/useApiSubmit';
 import useGeneratedTextStore from '../../../../stores/core/generatedTextStore';
@@ -8,31 +8,127 @@ import { useTabIndex, useBaseFormTabIndex } from '../../../../hooks/useTabIndex'
 import { prepareFilesForSubmission } from '../../../../utils/fileAttachmentUtils';
 import { HiGlobeAlt, HiShieldCheck } from 'react-icons/hi';
 import { useOptimizedAuth } from '../../../../hooks/useAuth';
-import { useAuthStore } from '../../../../stores/authStore';
+import type { FeatureToggle as FeatureToggleType } from '../../../../types/baseform';
 
 /**
- * Simplified BaseForm Hook für react-hook-form Integration
- * Dünner Wrapper um useForm mit einigen Utility-Funktionen
- * @param {Object} config - Hook-Konfiguration
- * @returns {Object} Form-Funktionen und Zustand
+ * Feature toggles configuration
  */
-const useFeatureToggles = (control, defaultValues) => {
+interface FeatureToggles {
+  webSearch: boolean;
+  privacyMode: boolean;
+  proMode: boolean;
+}
+
+/**
+ * Generator logic object returned when generatorType is provided
+ */
+interface GeneratorLogic {
+  loading: boolean;
+  success: boolean;
+  error: unknown;
+  resetSuccess: () => void;
+  attachedFiles: unknown[];
+  handleAttachmentClick: (files: File[]) => Promise<void>;
+  handleRemoveFile: (index: number) => void;
+  onSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
+  generatedContent: string | Record<string, unknown>;
+  handleGeneratedContentChange: (content: string) => void;
+  toggles: FeatureToggles;
+  tabIndex: unknown;
+  baseFormTabIndex: unknown;
+  baseFormProps: Record<string, unknown>;
+}
+
+/**
+ * Return type for the useBaseForm hook
+ */
+interface UseBaseFormReturn {
+  // React-Hook-Form core methods
+  control: Control<FieldValues>;
+  handleSubmit: ReturnType<typeof useForm>['handleSubmit'];
+  reset: (values?: Record<string, unknown>) => void;
+  setValue: (name: string, value: unknown, options?: Record<string, unknown>) => void;
+  getValues: ReturnType<typeof useForm>['getValues'];
+  trigger: () => Promise<boolean>;
+  clearErrors: (names?: string | string[]) => void;
+  setError: (name: string, error: string) => void;
+
+  // Form state
+  formData: Record<string, unknown>;
+  errors: Record<string, unknown>;
+  isDirty: boolean;
+  isValid: boolean;
+  isSubmitted: boolean;
+  isSubmitting: boolean;
+  isLoading: boolean;
+  isSubmitSuccessful: boolean;
+  submitCount: number;
+  touchedFields: Record<string, boolean>;
+  dirtyFields: Record<string, boolean>;
+
+  // Validation
+  validateForm: () => Promise<boolean>;
+
+  // Error handling
+  globalError: string;
+  setGlobalError: (error: string) => void;
+  getErrorMessage: (error: unknown) => string;
+  handleSubmitError: (error: unknown) => void;
+  clearGlobalError: () => void;
+
+  // Utility functions
+  utils: {
+    hasErrors: boolean;
+    getFieldError: (name: string) => unknown;
+    isFieldTouched: (name: string) => boolean;
+    isFieldDirty: (name: string) => boolean;
+    resetField: (name: string) => void;
+  };
+
+  // Generator-specific properties (only when generatorType is provided)
+  generator?: GeneratorLogic;
+}
+
+/**
+ * Configuration options for the useBaseForm hook
+ */
+interface UseBaseFormOptions extends Omit<UseFormProps<FieldValues>, 'defaultValues'> {
+  defaultValues?: Record<string, unknown>;
+  // Generator-specific configuration
+  generatorType?: string | null;
+  componentName?: string | null;
+  endpoint?: string | null;
+  instructionType?: string | null;
+  features?: string[];
+  tabIndexKey?: string | null;
+  helpContent?: unknown;
+  platformOptions?: unknown;
+  enablePlatformSelector?: boolean;
+  disableKnowledgeSystem?: boolean;
+  useFeatureIcons?: boolean;
+  defaultMode?: unknown;
+}
+
+/**
+ * Helper hook to watch and memoize feature toggles
+ */
+const useFeatureToggles = (control: Control<FieldValues>, defaultValues: Record<string, unknown>): FeatureToggles => {
   const webSearch = useWatch({
     control,
     name: 'useWebSearchTool',
-    defaultValue: defaultValues.useWebSearchTool ?? false
+    defaultValue: (defaultValues.useWebSearchTool ?? false) as boolean
   });
 
   const privacyMode = useWatch({
     control,
     name: 'usePrivacyMode',
-    defaultValue: defaultValues.usePrivacyMode ?? false
+    defaultValue: (defaultValues.usePrivacyMode ?? false) as boolean
   });
 
   const proMode = useWatch({
     control,
     name: 'useProMode',
-    defaultValue: defaultValues.useProMode ?? false
+    defaultValue: (defaultValues.useProMode ?? false) as boolean
   });
 
   return useMemo(() => ({
@@ -42,6 +138,12 @@ const useFeatureToggles = (control, defaultValues) => {
   }), [webSearch, privacyMode, proMode]);
 };
 
+/**
+ * Simplified BaseForm Hook für react-hook-form Integration
+ * Dünner Wrapper um useForm mit einigen Utility-Funktionen
+ * @param {UseBaseFormOptions} config - Hook-Konfiguration
+ * @returns {UseBaseFormReturn} Form-Funktionen und Zustand
+ */
 const useBaseForm = ({
   defaultValues = {},
   mode = 'onSubmit',
@@ -67,8 +169,8 @@ const useBaseForm = ({
   defaultMode = null,
 
   ...restOptions
-} = {}) => {
-  
+}: UseBaseFormOptions = {}): UseBaseFormReturn => {
+
   // React-Hook-Form Initialization
   const hookFormMethods = useForm({
     defaultValues,
@@ -89,7 +191,6 @@ const useBaseForm = ({
     setError,
     clearErrors,
     setValue,
-    getValue,
     getValues,
     trigger,
     formState: {
@@ -111,11 +212,10 @@ const useBaseForm = ({
   // ALWAYS call hooks unconditionally (Rules of Hooks)
   // Authentication hooks
   const { user, isAuthenticated } = useOptimizedAuth();
-  const { memoryEnabled } = useAuthStore();
 
   // Tab index hooks - pass undefined (not null) when not needed to avoid warnings
-  const tabIndex = useTabIndex(tabIndexKey || undefined);
-  const baseFormTabIndex = useBaseFormTabIndex(tabIndexKey || undefined);
+  const tabIndex = useTabIndex((tabIndexKey ?? undefined) as string | undefined);
+  const baseFormTabIndex = useBaseFormTabIndex((tabIndexKey ?? undefined) as string | undefined);
 
   // Store hooks
   const { setGeneratedText, setIsLoading: setStoreIsLoading } = useGeneratedTextStore();
@@ -123,19 +223,19 @@ const useBaseForm = ({
   const { fetchCombinedContent, documents: documentsFromStore, texts: textsFromStore } = useDocumentsStore();
 
   // State hooks
-  const [attachedFiles, setAttachedFiles] = useState([]);
-  const [processedAttachments, setProcessedAttachments] = useState([]);
+  const [attachedFiles, setAttachedFiles] = useState<unknown[]>([]);
+  const [processedAttachments, setProcessedAttachments] = useState<unknown[]>([]);
 
-  // API hook - pass null when not needed
-  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(generatorType ? endpoint : null);
+  // API hook - pass empty string when not needed
+  const { submitForm, loading, success, resetSuccess, error } = useApiSubmit(generatorType && endpoint ? endpoint : '');
 
   // Enhanced reset function that preserves original API
-  const enhancedReset = useCallback((values = defaultValues) => {
+  const enhancedReset = useCallback((values: Record<string, unknown> = defaultValues) => {
     reset(values);
   }, [reset, defaultValues]);
 
   // Enhanced set field value with better defaults
-  const setFieldValue = useCallback((name, value, options = {}) => {
+  const setFieldValue = useCallback((name: string, value: unknown, options: Record<string, unknown> = {}) => {
     setValue(name, value, {
       shouldValidate: true,
       shouldDirty: true,
@@ -144,7 +244,7 @@ const useBaseForm = ({
   }, [setValue]);
 
   // Enhanced set field error
-  const setFieldError = useCallback((name, error) => {
+  const setFieldError = useCallback((name: string, error: string) => {
     setError(name, {
       type: 'manual',
       message: error
@@ -152,7 +252,7 @@ const useBaseForm = ({
   }, [setError]);
 
   // Enhanced clear field errors
-  const clearFieldErrors = useCallback((names) => {
+  const clearFieldErrors = useCallback((names?: string | string[]) => {
     if (Array.isArray(names)) {
       names.forEach(name => clearErrors(name));
     } else if (names) {
@@ -163,22 +263,24 @@ const useBaseForm = ({
   }, [clearErrors]);
 
   // Validation function
-  const validateForm = useCallback(async (data = getValues()) => {
+  const validateForm = useCallback(async (): Promise<boolean> => {
     return await trigger();
-  }, [trigger, getValues]);
+  }, [trigger]);
 
   // Error handling state and functions
-  const [globalError, setGlobalError] = useState('');
+  const [globalError, setGlobalError] = useState<string>('');
 
   /**
    * Generates user-friendly error message based on error code
-   * @param {string} error - Error text or code
+   * @param {unknown} error - Error text or code
    * @returns {string} User-friendly error message
    */
-  const getErrorMessage = useCallback((error) => {
+  const getErrorMessage = useCallback((error: unknown): string => {
     if (!error) return '';
-    
-    const errorMessages = {
+
+    const errorString = typeof error === 'string' ? error : (error instanceof Error) ? error.message : String(error);
+
+    const errorMessages: Record<string, string> = {
       '400': 'Deine Eingabe konnte nicht verarbeitet werden. Bitte überprüfe deine Eingaben und versuche es erneut.',
       '401': 'Es gibt ein Problem mit der Verbindung zum Server. Bitte lade die Seite neu.',
       '403': 'Du hast leider keine Berechtigung für diese Aktion. Bitte kontaktiere uns, wenn du denkst, dass dies ein Fehler ist.',
@@ -190,7 +292,7 @@ const useBaseForm = ({
     };
 
     for (const [code, message] of Object.entries(errorMessages)) {
-      if (error.includes(code)) {
+      if (errorString.includes(code)) {
         return `[Fehler ${code}] ${message} Es tut mir sehr leid. Bitte versuche es später erneut.`;
       }
     }
@@ -200,14 +302,22 @@ const useBaseForm = ({
 
   /**
    * Handles errors during form submission
-   * @param {Error} error - Error object
+   * @param {unknown} error - Error object
    */
-  const handleSubmitError = useCallback((error) => {
+  const handleSubmitError = useCallback((error: unknown) => {
     console.error('[useBaseForm] Submit error:', error);
-    if (error?.response?.status) {
-      setGlobalError(`${error.response.status}`);
-    } else if (error?.message) {
+    if (error && typeof error === 'object' && 'response' in error) {
+      const errorObj = error as Record<string, unknown>;
+      if (errorObj.response && typeof errorObj.response === 'object') {
+        const response = errorObj.response as Record<string, unknown>;
+        if (response.status) {
+          setGlobalError(String(response.status));
+        }
+      }
+    } else if (error instanceof Error) {
       setGlobalError(error.message);
+    } else if (typeof error === 'string') {
+      setGlobalError(error);
     } else {
       setGlobalError('Ein unbekannter Fehler ist aufgetreten.');
     }
@@ -233,23 +343,27 @@ const useBaseForm = ({
       });
 
       // Fetch documents and texts from backend
-      fetchCombinedContent().catch((error) => {
+      fetchCombinedContent().catch((error: unknown) => {
         console.error('[useBaseForm] Failed to fetch combined content:', error);
       });
     }
   }, [generatorType, disableKnowledgeSystem, setUIConfig, fetchCombinedContent]);
 
   // Sync documents from documentsStore to generatorSelectionStore
+  // Note: documentsStore and generatorSelectionStore have incompatible Document type definitions
+  // Both have required 'id' property so data is compatible despite type checker differences
   useEffect(() => {
     if (generatorType && !disableKnowledgeSystem && documentsFromStore) {
-      setAvailableDocuments(documentsFromStore);
+      setAvailableDocuments(documentsFromStore as unknown as Parameters<typeof setAvailableDocuments>[0]);
     }
   }, [generatorType, disableKnowledgeSystem, documentsFromStore, setAvailableDocuments]);
 
   // Sync texts from documentsStore to generatorSelectionStore
+  // Note: documentsStore and generatorSelectionStore have incompatible Text type definitions
+  // Both have required 'id' property so data is compatible despite type checker differences
   useEffect(() => {
     if (generatorType && !disableKnowledgeSystem && textsFromStore) {
-      setAvailableTexts(textsFromStore);
+      setAvailableTexts(textsFromStore as unknown as Parameters<typeof setAvailableTexts>[0]);
     }
   }, [generatorType, disableKnowledgeSystem, textsFromStore, setAvailableTexts]);
 
@@ -265,68 +379,67 @@ const useBaseForm = ({
       // 1. Detect if we switched to a new component
       // 2. Reset features when switching
       // 3. Apply this component's default mode (from store or param)
-      setActiveComponent(componentName, defaultMode);
+      setActiveComponent(componentName, defaultMode as unknown as ('privacy' | 'pro' | 'ultra' | 'balanced') | null | undefined);
     }
   }, [componentName, generatorType]); // Re-run when component changes
 
   // Conditionally extract values based on knowledge system status
-  const source = (!generatorType || disableKnowledgeSystem) ? { type: 'neutral' } : selectionStore.source;
+  const source = (!generatorType || disableKnowledgeSystem) ? { type: 'neutral' as const } : selectionStore.source;
   const isInstructionsActive = (!generatorType || disableKnowledgeSystem) ? false : selectionStore.isInstructionsActive;
   const instructions = (!generatorType || disableKnowledgeSystem) ? {} : selectionStore.instructions;
   const getActiveInstruction = (!generatorType || disableKnowledgeSystem) ? () => null : selectionStore.getActiveInstruction;
-  const groupDetailsData = (!generatorType || disableKnowledgeSystem) ? null : selectionStore.groupData;
   const selectedDocumentIds = (!generatorType || disableKnowledgeSystem) ? [] : selectionStore.selectedDocumentIds;
   const selectedTextIds = (!generatorType || disableKnowledgeSystem) ? [] : selectionStore.selectedTextIds;
   const useAutomaticSearch = (!generatorType || disableKnowledgeSystem) ? false : selectionStore.useAutomaticSearch;
 
   // File attachment handlers - always define, conditionally use
-  const handleAttachmentClick = useCallback(async (files) => {
+  const handleAttachmentClick = useCallback(async (files: File[]) => {
     if (!generatorType) return;
     try {
       const processed = await prepareFilesForSubmission(files);
       setAttachedFiles(prevFiles => [...prevFiles, ...files]);
       setProcessedAttachments(prevProcessed => [...prevProcessed, ...processed]);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`[${generatorType}] File processing error:`, error);
     }
   }, [generatorType]);
 
-  const handleRemoveFile = useCallback((index) => {
+  const handleRemoveFile = useCallback((index: number) => {
     setAttachedFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
     setProcessedAttachments(prevProcessed => prevProcessed.filter((_, i) => i !== index));
   }, []);
 
   // Feature toggles configuration
-  const webSearchFeatureToggle = useMemo(() => ({
+  const webSearchFeatureToggle = useMemo((): FeatureToggleType => ({
       isActive: Boolean(toggles.webSearch),
-      onToggle: (checked) => {
+      onToggle: (checked: boolean) => {
         setFieldValue('useWebSearchTool', checked);
       },
       label: "Websuche verwenden",
       icon: HiGlobeAlt,
       description: "",
-      tabIndex: tabIndex?.webSearch || 11
-  }), [toggles.webSearch, setFieldValue, tabIndex?.webSearch]);
+      tabIndex: (tabIndex as Record<string, unknown>)?.webSearch as number || 11
+  }), [toggles.webSearch, setFieldValue, tabIndex]);
 
-  const privacyModeToggle = useMemo(() => ({
+  const privacyModeToggle = useMemo((): FeatureToggleType => ({
       isActive: Boolean(toggles.privacyMode),
-      onToggle: (checked) => {
+      onToggle: (checked: boolean) => {
         setFieldValue('usePrivacyMode', checked);
       },
       label: "Privacy-Mode",
       icon: HiShieldCheck,
       description: "Verwendet deutsche Server der Netzbegrünung.",
-      tabIndex: tabIndex?.privacyMode || 13
-  }), [toggles.privacyMode, setFieldValue, tabIndex?.privacyMode]);
+      tabIndex: (tabIndex as Record<string, unknown>)?.privacyMode as number || 13
+  }), [toggles.privacyMode, setFieldValue, tabIndex]);
 
-  const proModeToggle = useMemo(() => {
+  const proModeToggle = useMemo((): FeatureToggleType | null => {
       if (!generatorType || !features.includes('proMode')) {
         return null;
       }
 
       return {
         isActive: Boolean(toggles.proMode),
-        onToggle: (checked) => {
+        onToggle: (checked: boolean) => {
           setFieldValue('useProMode', checked);
         },
         label: "Pro-Mode",
@@ -335,12 +448,12 @@ const useBaseForm = ({
   }, [generatorType, features, toggles.proMode, setFieldValue]);
 
   // Unified submission handler
-  const onSubmitGenerator = useCallback(async (rhfData) => {
+  const onSubmitGenerator = useCallback(async (rhfData: Record<string, unknown>) => {
       if (!generatorType) return;
       setStoreIsLoading(true);
 
       try {
-        const formDataToSubmit = {
+        const formDataToSubmit: Record<string, unknown> = {
           ...rhfData,
           useWebSearchTool: rhfData.useWebSearchTool,
           usePrivacyMode: rhfData.usePrivacyMode,
@@ -350,25 +463,25 @@ const useBaseForm = ({
         };
 
         // Extract search query from form data for intelligent document content
-        const extractQueryFromFormData = (data) => {
-          const queryParts = [];
+        const extractQueryFromFormData = (data: Record<string, unknown>): string => {
+          const queryParts: string[] = [];
           // Common field extraction
-          if (data.thema) queryParts.push(data.thema);
-          if (data.details) queryParts.push(data.details);
-          if (data.idee) queryParts.push(data.idee);
-          if (data.zitatgeber) queryParts.push(data.zitatgeber);
-          if (data.gliederung) queryParts.push(data.gliederung);
-          if (data.hauptthema) queryParts.push(data.hauptthema);
-          if (data.anliegen) queryParts.push(data.anliegen);
-          if (data.topic) queryParts.push(data.topic);
-          if (data.subject) queryParts.push(data.subject);
-          if (data.zielgruppe) queryParts.push(data.zielgruppe);
-          if (data.context) queryParts.push(data.context);
-          if (data.beschreibung) queryParts.push(data.beschreibung);
-          if (data.inhalt) queryParts.push(data.inhalt);
-          if (data.anfrage) queryParts.push(data.anfrage);
-          if (data.gremium) queryParts.push(data.gremium);
-          if (data.kontext) queryParts.push(data.kontext);
+          if (data.thema) queryParts.push(String(data.thema));
+          if (data.details) queryParts.push(String(data.details));
+          if (data.idee) queryParts.push(String(data.idee));
+          if (data.zitatgeber) queryParts.push(String(data.zitatgeber));
+          if (data.gliederung) queryParts.push(String(data.gliederung));
+          if (data.hauptthema) queryParts.push(String(data.hauptthema));
+          if (data.anliegen) queryParts.push(String(data.anliegen));
+          if (data.topic) queryParts.push(String(data.topic));
+          if (data.subject) queryParts.push(String(data.subject));
+          if (data.zielgruppe) queryParts.push(String(data.zielgruppe));
+          if (data.context) queryParts.push(String(data.context));
+          if (data.beschreibung) queryParts.push(String(data.beschreibung));
+          if (data.inhalt) queryParts.push(String(data.inhalt));
+          if (data.anfrage) queryParts.push(String(data.anfrage));
+          if (data.gremium) queryParts.push(String(data.gremium));
+          if (data.kontext) queryParts.push(String(data.kontext));
 
           return queryParts.filter(part => part && part.trim()).join(' ');
         };
@@ -376,7 +489,7 @@ const useBaseForm = ({
         const searchQuery = extractQueryFromFormData(formDataToSubmit);
 
         // Get instructions for backend (if active)
-        const customPrompt = isInstructionsActive && getActiveInstruction
+        const customPrompt = isInstructionsActive && instructionType
           ? getActiveInstruction(instructionType)
           : null;
 
@@ -390,8 +503,8 @@ const useBaseForm = ({
         // Debug logging
         if (process.env.NODE_ENV === 'development') {
           console.log('[useBaseForm] Submitting with IDs:', {
-            selectedDocumentIds: formDataToSubmit.selectedDocumentIds.length,
-            selectedTextIds: formDataToSubmit.selectedTextIds.length,
+            selectedDocumentIds: (formDataToSubmit.selectedDocumentIds as unknown[]).length,
+            selectedTextIds: (formDataToSubmit.selectedTextIds as unknown[]).length,
             hasSearchQuery: Boolean(formDataToSubmit.searchQuery),
             hasCustomPrompt: Boolean(formDataToSubmit.customPrompt),
             useAutomaticSearch: formDataToSubmit.useAutomaticSearch
@@ -399,16 +512,16 @@ const useBaseForm = ({
         }
 
         const response = await submitForm(formDataToSubmit);
-        if (response) {
-          const content = typeof response === 'string' ? response : response.content;
-          const metadata = typeof response === 'object' ? response.metadata : {};
+        if (response && componentName) {
+          const content = typeof response === 'string' ? response : (response as Record<string, unknown>).content;
+          const metadata = typeof response === 'object' ? (response as Record<string, unknown>).metadata : {};
 
           if (content) {
             setGeneratedText(componentName, content, metadata);
             setTimeout(resetSuccess, 3000);
           }
         }
-      } catch (submitError) {
+      } catch (submitError: unknown) {
         console.error(`[${generatorType}] Error submitting form:`, submitError);
       } finally {
         setStoreIsLoading(false);
@@ -416,15 +529,16 @@ const useBaseForm = ({
   }, [generatorType, submitForm, resetSuccess, setGeneratedText, setStoreIsLoading, isInstructionsActive, getActiveInstruction, processedAttachments, componentName, instructionType, selectedDocumentIds, selectedTextIds, useAutomaticSearch]);
 
   // Generated content handling
-  const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName)) || '';
+  const generatedContent = useGeneratedTextStore(state => state.getGeneratedText(componentName ?? '')) || '';
 
-  const handleGeneratedContentChange = useCallback((content) => {
-      setGeneratedText(componentName, content);
+  const handleGeneratedContentChange = useCallback((content: string) => {
+      if (componentName) {
+        setGeneratedText(componentName, content);
+      }
   }, [setGeneratedText, componentName]);
 
   // Base form props compilation
   const baseFormProps = useMemo(() => ({
-      title: helpContent?.title || `${generatorType} Generator`,
       loading,
       success,
       error,
@@ -436,7 +550,7 @@ const useBaseForm = ({
       enablePlatformSelector,
       platformOptions,
       helpContent,
-      componentName,
+      componentName: componentName ?? '',
       webSearchFeatureToggle: features.includes('webSearch') ? webSearchFeatureToggle : undefined,
       useWebSearchFeatureToggle: features.includes('webSearch'),
       privacyModeToggle: features.includes('privacyMode') ? privacyModeToggle : undefined,
@@ -448,15 +562,15 @@ const useBaseForm = ({
       onRemoveFile: handleRemoveFile,
       attachedFiles,
       featureIconsTabIndex: {
-        webSearch: tabIndex?.webSearch,
-        privacyMode: tabIndex?.privacyMode,
-        attachment: tabIndex?.attachment
+        webSearch: (tabIndex as Record<string, unknown>)?.webSearch,
+        privacyMode: (tabIndex as Record<string, unknown>)?.privacyMode,
+        attachment: (tabIndex as Record<string, unknown>)?.attachment
       },
-      platformSelectorTabIndex: baseFormTabIndex?.platformSelectorTabIndex,
-      knowledgeSelectorTabIndex: baseFormTabIndex?.knowledgeSelectorTabIndex,
-      knowledgeSourceSelectorTabIndex: baseFormTabIndex?.knowledgeSourceSelectorTabIndex,
-      documentSelectorTabIndex: baseFormTabIndex?.documentSelectorTabIndex,
-      submitButtonTabIndex: baseFormTabIndex?.submitButtonTabIndex,
+      platformSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.platformSelectorTabIndex,
+      knowledgeSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.knowledgeSelectorTabIndex,
+      knowledgeSourceSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.knowledgeSourceSelectorTabIndex,
+      documentSelectorTabIndex: (baseFormTabIndex as Record<string, unknown>)?.documentSelectorTabIndex,
+      submitButtonTabIndex: (baseFormTabIndex as Record<string, unknown>)?.submitButtonTabIndex,
       formControl: control
   }), [
       helpContent, generatorType, loading, success, error, generatedContent,
@@ -467,7 +581,7 @@ const useBaseForm = ({
   ]);
 
   // Build generator logic object (conditionally included in return)
-  const generatorLogic = generatorType ? {
+  const generatorLogic: GeneratorLogic | null = generatorType ? {
       loading,
       success,
       error,
@@ -491,7 +605,6 @@ const useBaseForm = ({
     handleSubmit,
     reset: enhancedReset,
     setValue: setFieldValue,
-    getValue,
     getValues,
     trigger: validateForm,
     clearErrors: clearFieldErrors,
@@ -523,11 +636,11 @@ const useBaseForm = ({
     // Utility functions
     utils: {
       hasErrors: Object.keys(errors).length > 0,
-      getFieldError: (name) => errors[name]?.message || errors[name],
-      isFieldTouched: (name) => !!touchedFields[name],
-      isFieldDirty: (name) => !!dirtyFields[name],
-      resetField: (name) => {
-        setValue(name, defaultValues[name] || '');
+      getFieldError: (name: string) => (errors[name] as Record<string, unknown>)?.message || errors[name],
+      isFieldTouched: (name: string) => !!touchedFields[name],
+      isFieldDirty: (name: string) => !!dirtyFields[name],
+      resetField: (name: string) => {
+        setValue(name, (defaultValues[name] ?? '') as FieldValues);
         clearErrors(name);
       }
     },
@@ -537,4 +650,4 @@ const useBaseForm = ({
   };
 };
 
-export default useBaseForm; 
+export default useBaseForm;

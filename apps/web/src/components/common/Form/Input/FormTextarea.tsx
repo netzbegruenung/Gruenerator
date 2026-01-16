@@ -164,8 +164,11 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
             ) : (
               <div>
                 <TextareaAutosize
-                  {...field}
                   id={textareaId}
+                  name={field.name}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  value={typeof field.value === 'string' ? field.value : String(field.value ?? '')}
                   placeholder={placeholder}
                   disabled={disabled}
                   minRows={minRows}
@@ -186,7 +189,7 @@ const FormTextarea: React.FC<FormTextareaProps> = ({
                   }}
                   {...textareaProps}
                 />
-                <CharacterCount value={field.value} />
+                <CharacterCount value={typeof field.value === 'string' ? field.value : String(field.value ?? '')} />
               </div>
             )}
           </FormFieldWrapper>

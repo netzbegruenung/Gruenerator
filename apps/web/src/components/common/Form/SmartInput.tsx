@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import { Controller, Control } from 'react-hook-form';
+import type { ActionMeta, SingleValue, MultiValue } from 'react-select';
 import { useRecentValues } from '../../../hooks/useRecentValues';
 import { FormInput } from './Input';
 import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
+import type { EnhancedSelectOption } from '../EnhancedSelect/EnhancedSelect';
 import { useLazyAuth } from '../../../hooks/useAuth';
 
 interface SmartInputProps {
@@ -25,7 +27,7 @@ interface SmartInputProps {
   [key: string]: unknown;
 }
 
-interface RecentOption {
+interface RecentOption extends EnhancedSelectOption {
   value: string;
   label: string;
   tag: {
@@ -34,7 +36,6 @@ interface RecentOption {
   };
   __isRecentValue: boolean;
   __recentIndex: number;
-  [key: string]: unknown;
 }
 
 /**
@@ -143,34 +144,50 @@ const SmartInput: React.FC<SmartInputProps> = ({
       control={control}
       rules={rules}
       defaultValue=""
-      render={({ field, fieldState: { error } }) => (
-        <EnhancedSelect
-          value={field.value ? { value: field.value, label: field.value } : null}
-          onBlur={field.onBlur}
-          inputId={name}
-          label={label}
-          required={rules?.required ? true : false}
-          error={error?.message}
-          enableTags={true}
-          options={recentOptions}
-          isLoading={isLoading}
-          onChange={(selectedOption: RecentOption | null) => {
-            field.onChange(selectedOption ? selectedOption.value : '');
-          }}
-          isSearchable={true}
-          onInputChange={(inputValue: string, actionMeta: { action: string }) => {
-            if (actionMeta.action === 'input-change') {
-              field.onChange(inputValue);
-            }
-          }}
-          noOptionsMessage={() => null}
-          placeholder={placeholder || `${label} eingeben oder aus vorherigen Werten auswählen...`}
-          isDisabled={disabled}
-          className={className}
-          tabIndex={tabIndex}
-          {...inputProps}
-        />
-      )}
+      render={({ field, fieldState: { error } }) => {
+        const currentValue = field.value as string | undefined;
+        const selectedValue: SingleValue<EnhancedSelectOption> = currentValue
+          ? { value: currentValue, label: currentValue, tag: { label: '', variant: '' }, __isRecentValue: false, __recentIndex: -1 }
+          : null;
+
+        return (
+          <EnhancedSelect
+            value={selectedValue}
+            onBlur={field.onBlur}
+            inputId={name}
+            label={label}
+            required={rules?.required ? true : false}
+            error={error?.message}
+            enableTags={true}
+            options={recentOptions}
+            isLoading={isLoading}
+            onChange={(newValue: MultiValue<EnhancedSelectOption> | SingleValue<EnhancedSelectOption>, _actionMeta: ActionMeta<EnhancedSelectOption>) => {
+              // Handle both multi-value and single-value cases
+              if (Array.isArray(newValue)) {
+                // Multi-value: take the first item
+                const selectedOption = newValue[0] as RecentOption | undefined;
+                field.onChange(selectedOption ? selectedOption.value : '');
+              } else {
+                // Single value
+                const selectedOption = newValue as RecentOption | null;
+                field.onChange(selectedOption ? selectedOption.value : '');
+              }
+            }}
+            isSearchable={true}
+            onInputChange={(inputValue: string, actionMeta: { action: string }) => {
+              if (actionMeta.action === 'input-change') {
+                field.onChange(inputValue);
+              }
+            }}
+            noOptionsMessage={() => null}
+            placeholder={placeholder || `${label} eingeben oder aus vorherigen Werten auswählen...`}
+            isDisabled={disabled}
+            className={className}
+            tabIndex={tabIndex}
+            {...inputProps}
+          />
+        );
+      }}
     />
   );
 };

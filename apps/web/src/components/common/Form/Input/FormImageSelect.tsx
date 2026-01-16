@@ -114,7 +114,7 @@ const FormImageSelect = ({
             htmlFor={name}
           >
             <div className={`form-image-select ${className}`.trim()}>
-              {renderImageGrid(field.value, field.onChange)}
+              {renderImageGrid(field.value as string | number | undefined, field.onChange)}
             </div>
           </FormFieldWrapper>
         )}

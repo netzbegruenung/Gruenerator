@@ -108,13 +108,15 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     processedGeneratedContent = (processedGeneratedContent as { content: string }).content;
   }
 
+  // Detect mixed content: has sharepic OR has selectedPlatforms (simplified social content structure)
   const isMixedContent = processedGeneratedContent && typeof processedGeneratedContent === 'object' &&
-    ('sharepic' in processedGeneratedContent || 'social' in processedGeneratedContent);
+    ('sharepic' in processedGeneratedContent || 'selectedPlatforms' in processedGeneratedContent);
 
   const mixedContent = processedGeneratedContent as MixedContent | undefined;
 
+  // Extract content directly (simplified structure has content at top level, no social wrapper)
   const rawContent = isMixedContent && mixedContent
-    ? (mixedContent.social?.content || mixedContent.content || '')
+    ? (mixedContent.content || '')
     : (value || processedGeneratedContent || '');
 
   const contentToRender = typeof rawContent === 'string'

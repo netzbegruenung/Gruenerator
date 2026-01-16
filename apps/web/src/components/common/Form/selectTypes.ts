@@ -178,7 +178,7 @@ export function extractSelectValues<T extends BaseSelectOption>(
 ): T[] {
     if (value === null || value === undefined) return [];
     if (Array.isArray(value)) return [...value];
-    return [value];
+    return [value as T];
 }
 
 /**

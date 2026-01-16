@@ -1,6 +1,6 @@
 import React, { forwardRef, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { FeatureToggle, PlatformOption, ExamplePrompt, ContextualTip, FormControl } from '@/types/baseform';
+import type { FeatureToggle, PlatformOption, ExamplePrompt, ContextualTip, FormControl, HelpContent } from '@/types/baseform';
 import { HiUpload } from 'react-icons/hi';
 import FormCard from './FormCard';
 import FormInputSection from './FormInputSection';
@@ -21,7 +21,8 @@ interface FeatureIconsTabIndex {
 }
 
 interface FormSectionProps {
-  title?: string;
+  title?: string | React.ReactNode;
+  subtitle?: string;
   onSubmit?: ((data?: Record<string, unknown>) => void | Promise<void>) | (() => void);
   isFormVisible: boolean;
   isMultiStep?: boolean;
@@ -80,10 +81,12 @@ interface FormSectionProps {
   selectedPlatforms?: string[];
   inputHeaderContent?: ReactNode;
   hideInputSection?: boolean;
+  helpContent?: HelpContent | null;
 }
 
 const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
   title,
+  subtitle,
   onSubmit,
   isFormVisible,
   isMultiStep,
@@ -146,7 +149,8 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
   onExamplePromptClick = null,
   contextualTip = null,
   selectedPlatforms = [],
-  inputHeaderContent = null
+  inputHeaderContent = null,
+  helpContent = null
 }, ref) => {
   // Store selectors
   const loading = useFormStateSelector(state => state.loading);
@@ -238,9 +242,11 @@ const FormSection = forwardRef<HTMLDivElement, FormSectionProps>(({
           size="large"
           hover={false}
           title={useEditMode || isStartMode ? null : (title ?? null)}
+          subtitle={useEditMode || isStartMode ? undefined : subtitle}
           showHideButton={showHideButton}
           onHide={onHide}
           isStartMode={isStartMode}
+          helpContent={helpContent}
         >
           <form onSubmit={(e: React.FormEvent) => {
             e.preventDefault();
