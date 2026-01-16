@@ -484,16 +484,44 @@ const DocumentOverview = ({
 
     // Build action items via builder, falling back to custom actionItems if provided
 
+    // Helper to get file extension from filename
+    const getFileExtension = (filename?: string) => {
+        if (!filename) return null;
+        const ext = filename.split('.').pop()?.toUpperCase();
+        return ext && ext.length <= 4 ? ext : null;
+    };
+
     // Render default card
     const renderDefaultCard = (item: DocumentItem) => {
         const itemTitle = itemType === 'notebook' ? item.name : item.title;
         const isDocument = itemType === 'document';
+        const fileExt = isDocument ? getFileExtension(item.title || '') : null;
 
         return (
             <div
                 key={item.id}
                 className="document-card"
             >
+                {/* Source Type Badge */}
+                {isDocument && item.source_type && (
+                    <span className={`document-source-badge document-source-badge--${item.source_type}`}>
+                        {item.source_type === 'wolke' ? '☁️ Wolke' :
+                         item.source_type === 'url' ? '🔗 URL' : '📁 Upload'}
+                    </span>
+                )}
+
+                {/* File Type Badge */}
+                {fileExt && (
+                    <span className="document-file-badge">{fileExt}</span>
+                )}
+
+                {/* Document Icon */}
+                {isDocument && !item.preview_image_url && !item.thumbnail_url && (
+                    <div className="document-card-icon">
+                        <HiOutlineDocumentText />
+                    </div>
+                )}
+
                 {/* Header with title and dropdown menu */}
                 <div className="document-card-header">
                     {/* Bulk selection checkbox */}

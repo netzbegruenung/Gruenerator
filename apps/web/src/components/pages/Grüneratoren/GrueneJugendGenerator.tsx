@@ -63,9 +63,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
   };
 
   // Initialize useBaseForm with proper type casting
-  // useBaseForm is a JS file with flexible parameter typing
   const form = useBaseForm({
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     defaultValues: {
       thema: initialContent?.thema || '',
       details: initialContent?.details || '',
@@ -74,37 +72,15 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
       usePrivacyMode: false,
       useProMode: false
     },
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     generatorType: 'gruene-jugend',
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     componentName: componentName,
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     endpoint: '/claude_gruene_jugend',
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     instructionType: 'gruenejugend',
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     features: ['webSearch', 'privacyMode'],
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     tabIndexKey: 'GRUENE_JUGEND',
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     defaultMode: 'privacy',
-    // @ts-ignore - JS function expects flexible typing for optional generator-specific params
     helpContent
-  }) as {
-    control: import('react-hook-form').Control<Record<string, unknown>>;
-    handleSubmit: (cb: (data: Record<string, unknown>) => Promise<void>) => () => Promise<void>;
-    reset: () => void;
-    setValue: (name: string, value: unknown) => void;
-    errors: Record<string, unknown>;
-    getValues: (name?: string) => unknown;
-    generator?: {
-      tabIndex?: Record<string, number>;
-      baseFormTabIndex?: Record<string, number>;
-      attachedFiles?: unknown[];
-      baseFormProps?: Record<string, unknown>;
-    };
-    [key: string]: unknown;
-  };
+  } as unknown as Parameters<typeof useBaseForm>[0]);
 
   const { control, handleSubmit, setValue } = form;
 
@@ -135,7 +111,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
     searchQueryFields: ['thema', 'details'] as const
   });
 
-  const onSubmitRHF = useCallback(async (rhfData: FieldValues) => {
+  const onSubmitRHF = useCallback(async (rhfData: Record<string, unknown>) => {
     setStoreIsLoading(true);
     try {
       // Use platforms array directly from multi-select
@@ -146,7 +122,7 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
         thema: String(rhfData.thema || ''),
         details: String(rhfData.details || ''),
         platforms: selectedPlatforms
-      });
+      } as Record<string, unknown>);
 
       console.log('[GrueneJugendGenerator] Sende Formular mit Daten:', formDataToSubmit);
       const content = await submitForm(formDataToSubmit);
@@ -234,7 +210,12 @@ const GrueneJugendGenerator = ({ showHeaderFooter = true }: GrueneJugendGenerato
         <BaseForm
           {...baseFormProps}
           title={<span className="gradient-title">Grüne Jugend</span>}
-          onSubmit={() => handleSubmit(onSubmitRHF)()}
+          onSubmit={() => {
+            const submitHandler = handleSubmit(async (data: unknown) => {
+              await onSubmitRHF(data as unknown as Record<string, unknown>);
+            });
+            return submitHandler();
+          }}
           loading={loading}
           success={success}
           error={error}

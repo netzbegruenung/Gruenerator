@@ -14,20 +14,18 @@ interface MobileEditorData {
 export default function MobileEditorPage() {
   const [data, setData] = useState<MobileEditorData | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const { setToken } = useAuthStore();
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       try {
         const message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        
+
         if (message.type === 'INIT_DATA') {
           const payload = message.payload as MobileEditorData;
-          
-          if (payload.authToken) {
-            setToken(payload.authToken);
-          }
-          
+
+          // Auth token is available in payload.authToken if needed for API requests
+          // It can be used via apiClient or other HTTP methods
+
           setData(payload);
           setIsReady(true);
         }
@@ -48,7 +46,7 @@ export default function MobileEditorPage() {
       window.removeEventListener('message', handleMessage);
       document.removeEventListener('message', handleMessage as EventListener);
     };
-  }, [setToken]);
+  }, []);
 
   const handleExport = useCallback((base64: string) => {
     const message = JSON.stringify({

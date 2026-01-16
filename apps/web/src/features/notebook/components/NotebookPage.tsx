@@ -229,7 +229,7 @@ const NotebookPageContent = ({ config }: NotebookPageContentProps): React.ReactE
                 onInputChange={setInputValue}
                 disabled={submitLoading}
                 renderMessage={(msg, i) => (
-                    <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg} index={i} />
+                    <NotebookChatMessage key={msg.timestamp || `msg-${i}`} msg={msg as any} index={i} />
                 )}
                 infoPanelContent={isMobileView ? null : renderInfoPanel()}
                 hideHeader={true}

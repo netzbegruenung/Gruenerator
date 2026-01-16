@@ -90,7 +90,7 @@ const NotebookChat = () => {
   const renderMessage = useCallback((msg: unknown, i: number) => {
     const timestamp = (msg as Record<string, unknown>)?.timestamp;
     const key = typeof timestamp === 'number' ? timestamp.toString() : `msg-${i}`;
-    return <NotebookChatMessage key={key} msg={msg} index={i} />;
+    return <NotebookChatMessage key={key} msg={msg as any} index={i} />;
   }, []);
 
   return (

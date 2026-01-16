@@ -444,11 +444,11 @@ export const useAuth = (options: AuthOptions = {}) => {
         }
 
         // Prevent infinite loop by only setting state if user is different
-        if (authData.user.id !== currentUser?.id) {
+        if ((authData.user as any)?.id !== currentUser?.id) {
           setAuthState({
-            user: authData.user,
+            user: authData.user as any,
             isAuthenticated: authData.isAuthenticated,
-            supabaseSession: authData.supabaseSession
+            supabaseSession: authData.supabaseSession as any
           });
 
           // Prefetch groups if user doesn't already have groups loaded

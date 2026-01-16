@@ -9,7 +9,7 @@ interface SearchResultsProps {
   loading?: boolean;
 }
 
-const SearchResults = ({ results, loading }: SearchResultsProps): JSX.Element => {
+const SearchResults = ({ results, loading }: SearchResultsProps): JSX.Element | null => {
   if (loading) {
     return (
       <div className="search-results-loading">

@@ -511,7 +511,7 @@
   padding: 0;
   background: var(--background-color-alt);
   color: var(--font-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 50%;
   cursor: pointer;
   font-size: 14px;
@@ -665,7 +665,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;

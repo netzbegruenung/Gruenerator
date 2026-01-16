@@ -54,6 +54,7 @@ const BETA_FEATURES_CONFIG: BetaFeatureConfig[] = [
   // { key: 'sites', label: 'Web-Visitenkarte', isAdminOnly: false, devOnly: true }, // Removed - outdated
   { key: 'website', label: 'Website Generator', isAdminOnly: false, devOnly: true },
   { key: 'interactiveAntrag', label: 'Interaktiver Antrag', isAdminOnly: false, defaultEnabled: true },
+  { key: 'automatischPlanMode', label: 'Automatisch Plan-Modus', isAdminOnly: false, defaultEnabled: false },
   { key: 'autoSaveOnExport', label: 'Auto-Speichern bei Export', isAdminOnly: false },
   { key: 'videoEditor', label: 'Video Editor', isAdminOnly: false },
   // Profile-only settings (not shown in Labor tab)

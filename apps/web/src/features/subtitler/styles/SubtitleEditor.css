@@ -60,7 +60,7 @@
   background: var(--background-color);
   border-radius: 12px;
   padding: var(--spacing-medium);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 /* Combined preview and styling section */
@@ -71,7 +71,7 @@
   background: var(--background-color);
   border-radius: 12px;
   padding: var(--spacing-medium);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 /* Video Section */
@@ -227,7 +227,7 @@
   display: flex;
   justify-content: center;
   min-height: 24px;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   background: var(--background-color);
 }
 
@@ -340,7 +340,7 @@
   background: var(--background-color);
   border-radius: 8px;
   padding: var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 .timeline-loading {
@@ -367,7 +367,7 @@
   align-items: center;
   gap: 0.75rem;
   background: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   cursor: pointer;

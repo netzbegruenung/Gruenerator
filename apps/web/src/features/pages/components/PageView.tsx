@@ -131,7 +131,7 @@ const PageView = ({
                         title={currentPage.title}
                         subtitle={currentPage.subtitle}
                         author={currentPage.author}
-                        readTime={calculatedReadingTime}
+                        readTime={calculatedReadingTime || undefined}
                         alignment={currentPage.headerAlignment || 'center'}
                     />
                     <PageContent content={currentPage.content} />

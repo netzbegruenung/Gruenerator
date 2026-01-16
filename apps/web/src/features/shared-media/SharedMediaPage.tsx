@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { FaInstagram } from 'react-icons/fa';
+import type { AxiosRequestConfig } from 'axios';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import Spinner from '../../components/common/Spinner';
@@ -12,6 +13,11 @@ import './SharedMediaPage.css';
 import '../../assets/styles/components/ui/button.css';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+// Extend axios config to allow skipAuthRedirect
+interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
+  skipAuthRedirect?: boolean;
+}
 
 interface ShareData {
   title: string;
@@ -58,7 +64,7 @@ const SharedMediaPage = () => {
       try {
         const response = await apiClient.get(`/share/${shareToken}`, {
           skipAuthRedirect: true
-        });
+        } as ExtendedAxiosRequestConfig);
         if (response.data.success) {
           setShareData(response.data.share);
           if (response.data.share.status === 'processing') {
@@ -91,7 +97,7 @@ const SharedMediaPage = () => {
       try {
         const response = await apiClient.get(`/share/${shareToken}`, {
           skipAuthRedirect: true
-        });
+        } as ExtendedAxiosRequestConfig);
         if (response.data.success) {
           const newStatus = response.data.share.status;
           if (newStatus === 'ready') {

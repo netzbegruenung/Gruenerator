@@ -198,7 +198,8 @@ const AITextImproverGenerator: React.FC<AITextImproverGeneratorProps> = ({ showH
       <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
         <BaseForm
           {...baseFormProps}
-          title={<span className="gradient-title">Welchen Text willst du verbessern?</span>}
+          title="Was möchtest du heute grünerieren?"
+          subtitle="Verbessere und optimiere deine Texte"
           onSubmit={() => handleSubmit<TextImproverFormValues>(onSubmitRHF)()}
           loading={loading}
           success={success}

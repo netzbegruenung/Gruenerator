@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, memo, forwardRef, ComponentType, ReactNode } from 'react';
+import { lazy, Suspense, useCallback, memo, ComponentType, ReactNode, forwardRef, useRef, useImperativeHandle } from 'react';
 import type { Props as ReactSelectProps, GroupBase, StylesConfig, MultiValueProps, PlaceholderProps } from 'react-select';
 const Select = lazy(() => import('react-select')) as unknown as typeof import('react-select').default;
 const CreatableSelect = lazy(() => import('react-select/creatable')) as unknown as typeof import('react-select/creatable').default;
@@ -59,6 +59,11 @@ interface IconConfig {
   [key: string]: unknown;
 }
 
+interface EnhancedSelectRef {
+  inputRef?: { blur: () => void } | null;
+  [key: string]: unknown;
+}
+
 interface EnhancedSelectProps extends Omit<ReactSelectProps<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>, 'options' | 'formatOptionLabel'> {
   // Enhanced functionality
   enableTags?: boolean;
@@ -84,7 +89,7 @@ interface EnhancedSelectProps extends Omit<ReactSelectProps<EnhancedSelectOption
   components?: Record<string, ComponentType<unknown>>;
 }
 
-const EnhancedSelect = forwardRef<HTMLDivElement, EnhancedSelectProps>(({
+const EnhancedSelect = forwardRef<EnhancedSelectRef, EnhancedSelectProps>(({
   // Enhanced functionality props
   enableTags = false,
   enableIcons = false,
@@ -111,7 +116,14 @@ const EnhancedSelect = forwardRef<HTMLDivElement, EnhancedSelectProps>(({
   styles: customStyles,
   inputId,
   ...selectProps
-}, ref) => {
+}, forwardedRef) => {
+  // Ref to the internal select component
+  const selectRef = useRef<{ inputRef?: { blur: () => void } | null }>(null);
+
+  // Expose select API through imperative handle
+  useImperativeHandle(forwardedRef, () => ({
+    inputRef: selectRef.current?.inputRef
+  }), []);
 
   // Internal formatOptionLabel that handles enhanced features
   const internalFormatOptionLabel = useCallback((option: EnhancedSelectOption, { context }: { context: 'menu' | 'value' }) => {
@@ -227,7 +239,7 @@ const EnhancedSelect = forwardRef<HTMLDivElement, EnhancedSelectProps>(({
     ...enhancedStyles,
     ...customStyles,
     // Merge functions for overlapping style keys
-    ...(customStyles && Object.keys(customStyles).reduce<Record<string, unknown>>((acc, key) => {
+    ...(customStyles ? Object.keys(customStyles).reduce<Record<string, unknown>>((acc, key) => {
       const styleKey = key as keyof StylesConfig<EnhancedSelectOption, boolean, GroupBase<EnhancedSelectOption>>;
       const enhancedStyleFn = enhancedStyles[styleKey];
       const customStyleFn = customStyles[styleKey];
@@ -238,13 +250,13 @@ const EnhancedSelect = forwardRef<HTMLDivElement, EnhancedSelectProps>(({
         };
       }
       return acc;
-    }, {}))
+    }, {}) : {})
   };
 
   const selectElement = (
     <Suspense fallback={<div>Loading...</div>}>
       <SelectComponent
-        ref={ref}
+        ref={selectRef as any}
         options={options}
         formatOptionLabel={internalFormatOptionLabel}
         components={components}

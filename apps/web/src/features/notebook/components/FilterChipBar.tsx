@@ -27,7 +27,7 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
         }
     }, [collectionId, fetchFilterValues]);
 
-    const handleChipClick = (field: string, value: unknown) => {
+    const handleChipClick = (field: string, value: string | { date_from?: string; date_to?: string } | null) => {
         setActiveFilter(collectionId, field, value);
     };
 
@@ -76,11 +76,13 @@ const FilterChipGroup = ({ collectionId, collectionName, showCollectionLabel }: 
                             const obj = item as Record<string, unknown>;
                             const displayValue = isObject ? (obj.value as string) : (item as string);
                             const count = isObject ? (obj.count as number | undefined) : null;
+                            const fieldFilter = activeFilters[field];
+                            const isActive = Array.isArray(fieldFilter) && fieldFilter.includes(displayValue);
                             return (
                                 <button
                                     key={displayValue}
                                     type="button"
-                                    className={`notebook - filter - chip ${activeFilters[field]?.includes(displayValue) ? 'active' : ''} `}
+                                    className={`notebook - filter - chip ${isActive ? 'active' : ''} `}
                                     onClick={() => handleChipClick(field, displayValue)}
                                 >
                                     {displayValue}

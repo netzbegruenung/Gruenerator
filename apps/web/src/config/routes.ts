@@ -27,9 +27,41 @@ const LeichteSpracheRedirect = lazy(() => Promise.resolve({
   default: createRedirect('/barrierefreiheit?type=leichte-sprache')
 }));
 
+// Redirects for unified TexteGenerator
+const PresseSocialRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=presse-social')
+}));
+
+const AntragRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=antrag')
+}));
+
+const UniversalRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=universal')
+}));
+
+const RedeRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=universal')
+}));
+
+const WahlprogrammRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=universal')
+}));
+
+const BuergeranfragenRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=universal')
+}));
+
+const BarrierefreiheitRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=barrierefreiheit')
+}));
+
+const TextEditorRedirect = lazy(() => Promise.resolve({
+  default: createRedirect('/texte?tab=texteditor')
+}));
+
 // Statische Importe in dynamische umwandeln
-const UniversalTextGenerator = lazy(() => import('../features/texte/universal/UniversalTextGenerator'));
-const AntragPage = lazy(() => import('../features/texte/antrag/AntragPage'));
+const TexteGenerator = lazy(() => import('../features/texte/TexteGenerator'));
 const GalleryPage = lazy(() => import('../components/common/Gallery'));
 const VorlagenGallery = lazy(() =>
   Promise.all([
@@ -45,6 +77,7 @@ const VorlagenGallery = lazy(() =>
 );
 const AntragDetailPage = lazy(() => import('../features/templates/antraege/AntragDetailPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
+const CreateCustomGeneratorPage = lazy(() => import('../features/generators/CreateCustomGeneratorPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const ProfilePage = lazy(() => import('../features/auth/pages/ProfilePage'));
@@ -76,11 +109,9 @@ const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPa
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
-const PresseSocialGenerator = lazy(() => import('../features/texte/presse/PresseSocialGenerator'));
 const KampagnenGenerator = lazy(() => import('../features/texte/kampagnen/KampagnenGenerator'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
 const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
-const AccessibilityTextGenerator = lazy(() => import('../features/texte/accessibility/AccessibilityTextGenerator'));
 const WebsiteGenerator = lazy(() => import('../features/website/WebsiteGenerator'));
 const TextEditorPage = lazy(() => import('../features/texteditor/TextEditorPage'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
@@ -121,17 +152,12 @@ const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
  * Lazy loading für Grüneratoren Bundle
  */
 export const GrueneratorenBundle = {
-  Universal: UniversalTextGenerator,
-  Antrag: AntragPage,
-  PresseSocial: PresseSocialGenerator,
+  Texte: TexteGenerator,
   Kampagnen: KampagnenGenerator,
-  Accessibility: AccessibilityTextGenerator,
   Website: WebsiteGenerator,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   GrueneJugend: lazy(() => import('../components/pages/Grüneratoren/GrueneJugendGenerator')),
-  Rede: UniversalTextGenerator,
-  Wahlprogramm: UniversalTextGenerator,
   Search: Search,
   Oparl: OparlPage,
   Ask: NotebookSearchPage,
@@ -158,19 +184,23 @@ export const GrueneratorenBundle = {
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
   { path: '/', component: HomeWrapper },
-  { path: '/universal', component: GrueneratorenBundle.Universal, withForm: true },
-  { path: '/antrag', component: GrueneratorenBundle.Antrag, withForm: true },
-  { path: '/presse-social', component: GrueneratorenBundle.PresseSocial, withForm: true },
+  // Unified Text Generator route
+  { path: '/texte', component: GrueneratorenBundle.Texte, withForm: true },
+  // Redirects from old routes to unified generator
+  { path: '/universal', component: UniversalRedirect },
+  { path: '/antrag', component: AntragRedirect },
+  { path: '/presse-social', component: PresseSocialRedirect },
+  { path: '/rede', component: RedeRedirect },
+  { path: '/buergerinnenanfragen', component: BuergeranfragenRedirect },
+  { path: '/wahlprogramm', component: WahlprogrammRedirect },
+  // Other generators (not part of unified)
   { path: '/kampagnen', component: GrueneratorenBundle.Kampagnen, withForm: true },
   { path: '/weihnachten', component: GrueneratorenBundle.Kampagnen, withForm: true },
-  { path: '/barrierefreiheit', component: GrueneratorenBundle.Accessibility, withForm: true },
+  { path: '/barrierefreiheit', component: BarrierefreiheitRedirect },
   { path: '/alttext', component: AltTextRedirect },
   { path: '/leichte-sprache', component: LeichteSpracheRedirect },
   { path: '/website', component: GrueneratorenBundle.Website, withForm: true },
   { path: '/gruene-jugend', component: GrueneratorenBundle.GrueneJugend, withForm: true },
-  { path: '/rede', component: GrueneratorenBundle.Rede, withForm: true },
-  { path: '/buergerinnenanfragen', component: GrueneratorenBundle.Universal, withForm: true },
-  { path: '/wahlprogramm', component: GrueneratorenBundle.Wahlprogramm, withForm: true },
   { path: '/datenbank/antraege', component: GrueneratorenBundle.AntraegeListe },
   { path: '/datenbank/antraege/:antragId', component: GrueneratorenBundle.AntragDetail },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
@@ -187,6 +217,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, showHeaderFooter: false },
   { path: '/share/:shareToken', component: SharedMediaPage, showHeaderFooter: false },
+  { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   { path: '/datenschutz', component: Datenschutz },
   { path: '/impressum', component: Impressum },
@@ -205,8 +236,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat },
   // Grünerator Chat Route
   { path: '/chat', component: GrueneratorenBundle.Chat },
-  // Text Editor
-  { path: '/texteditor', component: GrueneratorenBundle.TextEditor },
+  // Text Editor - redirect to unified
+  { path: '/texteditor', component: TextEditorRedirect },
   // Apps Download Page
   { path: '/apps', component: AppsPage },
   // Media Library Route
@@ -223,9 +254,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '*', component: NotFound }
 ];
 
-const specialRoutes: RouteConfig[] = [
-  // Sharepic routes removed - now handled by Image Studio at /image-studio/templates
-];
+const specialRoutes: RouteConfig[] = [];
 
 /**
  * Hilfsfunktion zum Erstellen der No-Header-Footer-Variante

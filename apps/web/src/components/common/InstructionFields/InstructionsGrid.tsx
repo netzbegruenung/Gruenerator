@@ -42,34 +42,6 @@ const INSTRUCTION_FIELDS: InstructionField[] = [
     title: 'Presse & Social Media',
     placeholder: 'Gib hier deine Anweisungen für die Erstellung von Presse- und Social Media-Inhalten ein...',
     helpText: 'z.B. Tonalität, Hashtag-Präferenzen, Zielgruppen-Ansprache'
-  },
-  {
-    name: 'customUniversalPrompt',
-    dataKey: 'universalPrompt',
-    title: 'Universelle Texte',
-    placeholder: 'Gib hier deine Anweisungen für die Erstellung von universellen Texten ein...',
-    helpText: 'z.B. allgemeine Schreibweise, politische Grundhaltung, Formulierungspräferenzen'
-  },
-  {
-    name: 'customRedePrompt',
-    dataKey: 'redePrompt',
-    title: 'Reden',
-    placeholder: 'Gib hier deine Anweisungen für die Erstellung von Reden ein...',
-    helpText: 'z.B. bevorzugter Redestil, rhetorische Mittel, Ansprache der Zielgruppe'
-  },
-  {
-    name: 'customBuergeranfragenPrompt',
-    dataKey: 'buergeranfragenPrompt',
-    title: 'Bürger*innenanfragen',
-    placeholder: 'Gib hier deine Anweisungen für die Beantwortung von Bürger*innenanfragen ein...',
-    helpText: 'z.B. bevorzugte Tonalität, Detailgrad, Ansprechpartner-Informationen'
-  },
-  {
-    name: 'customGruenejugendPrompt',
-    dataKey: 'gruenejugendPrompt',
-    title: 'Grüne Jugend',
-    placeholder: 'Gib hier deine Anweisungen für die Erstellung von Grüne Jugend-Inhalten ein...',
-    helpText: 'z.B. jugendgerechte Sprache, spezielle Themen, Aktivismus-Fokus'
   }
 ];
 
@@ -103,12 +75,13 @@ const InstructionsGrid = ({
 
   const getFieldValue = (fieldName: string): string => {
     const field = INSTRUCTION_FIELDS.find(f => f.name === fieldName);
-    return data[field?.dataKey as string] || '';
+    const value = data[field?.dataKey as string];
+    return typeof value === 'string' ? value : '';
   };
 
   const fieldsWithContent = INSTRUCTION_FIELDS.filter(field => {
     const value = data[field.dataKey];
-    return value && value.trim().length > 0;
+    return typeof value === 'string' && value.trim().length > 0;
   }).map(f => f.name);
 
   const activeFieldNames = [...new Set([...fieldsWithContent, ...enabledFields])];

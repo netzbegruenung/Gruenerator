@@ -19,7 +19,10 @@ import {
   PiBrain,
   PiTextAlignLeftFill,
   PiGlobe,
-  PiPaintBrush
+  PiPaintBrush,
+  PiArticle,
+  PiSquaresFour,
+  PiHouse
 } from 'react-icons/pi';
 
 import {
@@ -111,7 +114,7 @@ export type TextTypeIconName =
 export type NavigationIconName =
   | 'antrag' | 'presse-social' | 'universal' | 'gruene-jugend' | 'suche'
   | 'reel' | 'sharepic' | 'datenbank' | 'vorlagen' | 'you' | 'tools'
-  | 'barrierefreiheit' | 'imagine' | 'website';
+  | 'barrierefreiheit' | 'imagine' | 'website' | 'texte' | 'eigene' | 'home';
 
 /**
  * Action icon names
@@ -165,7 +168,7 @@ export const ICONS: IconRegistry = {
     rede: HiMicrophone,
     wahlprogramm: HiClipboardCheck,
     buergeranfragen: HiUserGroup,
-    universal: HiPencilAlt,
+    universal: PiSquaresFour,
     antrag: HiClipboardList,
     kleine_anfrage: HiQuestionMarkCircle,
     grosse_anfrage: HiSpeakerphone
@@ -174,7 +177,7 @@ export const ICONS: IconRegistry = {
   navigation: {
     antrag: PiFileText,
     'presse-social': PiNewspaper,
-    universal: PiMagicWand,
+    universal: PiSquaresFour,
     'gruene-jugend': GiHedgehog,
     suche: PiMagnifyingGlass,
     reel: PiVideoCamera,
@@ -185,7 +188,10 @@ export const ICONS: IconRegistry = {
     tools: PiWrench,
     barrierefreiheit: IoAccessibilityOutline,
     imagine: RiMagicLine,
-    website: PiGlobe
+    website: PiGlobe,
+    texte: PiArticle,
+    eigene: PiWrench,
+    home: PiHouse
   },
 
   actions: {

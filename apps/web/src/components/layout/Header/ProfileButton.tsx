@@ -20,9 +20,8 @@ const ProfileButton = () => {
   // Profildaten aus Query holen - now uses backend API via useAuth
   const { data: profile } = useProfile(user?.id) as { data: Profile | undefined };
 
-  // Fetch custom generators for authenticated users
+  // Fetch custom generators for authenticated users (for data sync)
   useCustomGeneratorsData({ enabled: !!user?.id });
-  const customGenerators = useProfileStore(state => state.customGenerators) || [];
 
   // Fetch user groups for authenticated users
   const { userGroups = [] } = useGroups({ isActive: !!user?.id });
@@ -180,7 +179,6 @@ const ProfileButton = () => {
             <ProfileMenu
               variant="dropdown"
               onNavigate={() => setIsDropdownOpen(false)}
-              customGenerators={customGenerators}
               groups={userGroups}
             />
             <div className="profile-dropdown-divider" />

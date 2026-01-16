@@ -26,7 +26,7 @@ const WolkeSetupModal = ({ onClose, onSubmit }: WolkeSetupModalProps) => {
 
         const validation = NextcloudShareManager.validateShareLink(shareLink);
         if (!validation.isValid) {
-            setValidationError(validation.error);
+            setValidationError(validation.error || '');
             return;
         }
 

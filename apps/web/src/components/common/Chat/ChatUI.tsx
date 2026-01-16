@@ -103,7 +103,7 @@ const ChatUI = ({ messages = [],
       email: user?.email
     });
     return props;
-  }, [avatarRobotId, displayName, user?.email, profile]);
+  }, [avatarRobotId, displayName, user?.email]);
 
   // Use internal hook only if voice props not provided from parent
   const hasExternalVoice = externalStartRecording !== undefined;
@@ -195,8 +195,9 @@ const ChatUI = ({ messages = [],
 
         <Suspense fallback={<div>Loading...</div>}><ReactMarkdown
           components={{
-            // eslint-disable-next-line react/prop-types
-            a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />
+            a: ({ ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+              <a {...props} target="_blank" rel="noopener noreferrer" />
+            )
           }}
         >
           {msg.content}

@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { TypeAnimation } from 'react-type-animation';
 import { getIcon } from '../../../config/icons';
@@ -12,16 +12,12 @@ const ImageComparisonMock = lazy(() => import('./ImageComparisonMock'));
 
 const Home = () => {
   const email = 'info' + '@' + 'moritz-waechter.de';
-  const [showMore, setShowMore] = useState(false);
 
   // Icon-Komponenten für bessere JSX-Lesbarkeit
-  const PresseIcon = getIcon('navigation', 'presse-social')!;
-  const AntragIcon = getIcon('navigation', 'antrag')!;
-  const UniversalIcon = getIcon('navigation', 'universal')!;
+  const TexteIcon = getIcon('navigation', 'texte')!;
   const GrueneJugendIcon = getIcon('navigation', 'gruene-jugend')!;
   const ReelIcon = getIcon('navigation', 'reel')!;
   const SucheIcon = getIcon('navigation', 'suche')!;
-  const ImagineIcon = getIcon('navigation', 'imagine')!;
   const SharepicIcon = getIcon('navigation', 'sharepic')!;
 
   return (
@@ -55,16 +51,10 @@ const Home = () => {
         <p>Mit dem Grünerator kannst du schnell und kostenlos einen Vorschlag für Grüne Inhalte deiner Wahl erhalten. Deine Eingaben werden sicher in Europa verarbeitet.</p>
         <div className="link-buttons-container">
           <div className="link-buttons primary-buttons">
-            <Link to="/presse-social" aria-label="Zum Presse & Social Media Generator"><PresseIcon /> Presse & Social Media</Link>
-            <Link to="/antrag" aria-label="Zu Anträge & Anfragen Generator"><AntragIcon /> Anträge & Anfragen</Link>
-            <button
-              onClick={() => setShowMore(!showMore)}
-              className={`more-button ${showMore ? 'active' : ''}`}
-              aria-expanded={showMore}
-              aria-label="Weitere Grüneratoren anzeigen"
-            >
-              <Icon category="ui" name="caretDown" /> Mehr
-            </button>
+            <Link to="/texte" aria-label="Zum Texte Grünerator"><TexteIcon /> Texte</Link>
+            <Link to="/image-studio" aria-label="Zum Bilder Grünerator"><SharepicIcon /> Bilder</Link>
+            <Link to="/reel" aria-label="Zum Reel Grünerator"><ReelIcon /> Reel</Link>
+            <Link to="/suche" aria-label="Zur Suche"><SucheIcon /> Suche</Link>
             <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW"
               target="_blank"
               rel="noopener noreferrer"
@@ -72,13 +62,6 @@ const Home = () => {
               aria-label="Zum Newsletter anmelden">
               Newsletter <Icon category="actions" name="arrowRight" />
             </a>
-          </div>
-          <div className={`link-buttons secondary-buttons ${showMore ? 'show' : ''}`}>
-            <Link to="/universal" aria-label="Zum Universal Grünerator"><UniversalIcon /> Universal</Link>
-            <Link to="/reel" aria-label="Zum Reel Grünerator"><ReelIcon /> Reel</Link>
-            <Link to="/image-studio/ki" aria-label="Zum KI Bilder Grünerator"><ImagineIcon /> KI Bilder</Link>
-            <Link to="/image-studio/templates" aria-label="Zum Sharepic Grünerator"><SharepicIcon /> Sharepic</Link>
-            <Link to="/suche" aria-label="Zur Suche"><SucheIcon /> Suche</Link>
           </div>
           <a href="https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW"
             target="_blank"
@@ -189,7 +172,7 @@ const Home = () => {
                 <Icon category="navigation" name="barrierefreiheit" />
               </div>
               <h3>
-                <Link to="/barrierefreiheit" aria-label="Zum Barrierefreiheit Grünerator">Barrierefreiheit</Link>
+                <Link to="/texte?tab=barrierefreiheit" aria-label="Zum Barrierefreiheit Grünerator">Barrierefreiheit</Link>
               </h3>
               <p>Barrierefreie Texte schneller erstellen – verständlich und inklusiv.</p>
             </div>

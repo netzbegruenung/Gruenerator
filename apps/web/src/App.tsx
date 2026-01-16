@@ -26,7 +26,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 const PopupNutzungsbedingungen = lazy(() => import('./components/Popups/popup_nutzungsbedingungen'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
-const PopupWeihnachten = lazy(() => import('./components/Popups/popup_weihnachten'));
+const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
 // QueryClient Instanz erstellen
 const queryClient = new QueryClient({
@@ -145,7 +145,7 @@ function App() {
                 <RouteLogger />
                 <SuspenseWrapper>
                   <PopupNutzungsbedingungen />
-                  <PopupWeihnachten />
+                  <PopupAustriaLaunch />
                   <div id="aria-live-region" aria-live="polite" className="sr-only"></div>
 
                   <Routes>

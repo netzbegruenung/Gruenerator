@@ -313,7 +313,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     setActiveFilter: (collectionId, field, value) => {
         if (!collectionId) return;
 
-        set(state => {
+        set((state: NotebookState) => {
             // Handle date range objects (for date_range filter type)
             if (value && typeof value === 'object' && ('date_from' in value || 'date_to' in value)) {
                 // Filter out empty date values
@@ -328,7 +328,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
                             ...state.activeFilters,
                             [collectionId]: rest
                         }
-                    };
+                    } as Partial<NotebookState>;
                 }
 
                 return {
@@ -342,7 +342,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
                             }
                         }
                     }
-                };
+                } as Partial<NotebookState>;
             }
 
             // Handle null value (clear filter)
@@ -353,14 +353,15 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
                         ...state.activeFilters,
                         [collectionId]: rest
                     }
-                };
+                } as Partial<NotebookState>;
             }
 
             // Handle regular multi-select values (strings)
+            const stringValue = value as string;
             const existing = (state.activeFilters[collectionId]?.[field] as string[]) || [];
-            const newValues = existing.includes(value)
-                ? existing.filter((v: string) => v !== value)
-                : [...existing, value];
+            const newValues = existing.includes(stringValue)
+                ? existing.filter((v: string) => v !== stringValue)
+                : [...existing, stringValue];
 
             if (newValues.length === 0) {
                 const { [field]: _unused, ...rest } = state.activeFilters[collectionId] || {};
@@ -369,7 +370,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
                         ...state.activeFilters,
                         [collectionId]: rest
                     }
-                };
+                } as Partial<NotebookState>;
             }
 
             return {
@@ -380,7 +381,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
                         [field]: newValues
                     }
                 }
-            };
+            } as Partial<NotebookState>;
         });
     },
 

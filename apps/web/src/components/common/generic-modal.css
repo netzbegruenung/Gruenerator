@@ -21,7 +21,7 @@
     max-height: 90vh;
     max-width: 90vw;
     overflow: hidden;
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
 }
 
 .generic-modal-container.small {
@@ -49,7 +49,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: var(--border-subtle);
 }
 
 .generic-modal-title {

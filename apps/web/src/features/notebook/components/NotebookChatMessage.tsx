@@ -11,16 +11,23 @@ import '../../../assets/styles/common/markdown-styles.css';
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
+interface LinkConfig {
+  type: 'none' | 'vectorDocument' | 'external';
+  linkKey?: string;
+  titleKey?: string;
+  urlKey?: string;
+}
+
 interface NotebookResultData {
   sources?: Array<{ url?: string; title?: string }>;
   additionalSources?: Array<{ url?: string; title?: string }>;
   citations?: Array<{ id: string; text: string }>;
   question?: string;
-  linkConfig?: Record<string, unknown>;
+  linkConfig?: LinkConfig;
 }
 
 interface NotebookMessage {
-  type: 'user' | 'assistant';
+  type: 'user' | 'assistant' | 'error';
   content: string;
   timestamp?: number;
   userName?: string;

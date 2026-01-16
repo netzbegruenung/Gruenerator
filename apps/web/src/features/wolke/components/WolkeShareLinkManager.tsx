@@ -469,7 +469,7 @@ Kontext: ${contextLabel}
                     }
                 >
                     <div className="wolke-share-links-list">
-                        {shareLinks.map((shareLink: ShareLink) => (
+                        {shareLinks.map((shareLink: ShareLink | any) => (
                             <div key={shareLink.id} className="wolke-share-link-item">
                                 <div className="wolke-share-link-info">
                                     <div className="wolke-share-link-header">

@@ -42,7 +42,7 @@ export const useTabIndex = (pageType: PageType | string | undefined) => {
      * @returns {number|undefined}
      */
     getConditional: (elementKey: string, isVisible: boolean) => {
-      const baseIndex = config[elementKey];
+      const baseIndex = config[elementKey as keyof typeof config];
       return TabIndexHelpers.getConditional(baseIndex, isVisible);
     },
 
@@ -65,7 +65,7 @@ export const useTabIndex = (pageType: PageType | string | undefined) => {
      * @returns {number}
      */
     get: (elementKey: string) => {
-      const value = config[elementKey];
+      const value = config[elementKey as keyof typeof config];
       if (value === undefined) {
         if (process.env.NODE_ENV === 'development') {
           console.warn(`useTabIndex: Element key "${elementKey}" not found in ${pageType} config`);

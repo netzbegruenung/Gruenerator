@@ -181,7 +181,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step1.png" alt="Grüne Wolke Hauptinterface" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step1.png" alt="Grüne Wolke Hauptinterface" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'heading3',
@@ -193,7 +193,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step2.png" alt="Ordnerauswahl in der Grünen Wolke" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step2.png" alt="Ordnerauswahl in der Grünen Wolke" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'heading3',
@@ -205,7 +205,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step3.png" alt="Teilen-Dialog öffnen" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step3.png" alt="Teilen-Dialog öffnen" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'heading3',
@@ -217,7 +217,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step4.png" alt="Freigabe-Einstellungen konfigurieren" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step4.png" alt="Freigabe-Einstellungen konfigurieren" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'heading3',
@@ -229,7 +229,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step5.png" alt="Freigabe erstellen" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step5.png" alt="Freigabe erstellen" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'paragraph',
@@ -237,7 +237,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step6.png" alt="Berechtigungen konfigurieren" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step6.png" alt="Berechtigungen konfigurieren" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'heading3',
@@ -249,7 +249,7 @@ export const examplePages = {
             },
             {
                 type: 'html',
-                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step7.png" alt="Fertiger Share-Link" style="max-width: 100%; height: auto; border: 1px solid var(--border-subtle); border-radius: 8px;" /></div>'
+                content: '<div style="text-align: center; margin: var(--spacing-large) 0;"><img src="/src/assets/images/wolke-tutorial/step7.png" alt="Fertiger Share-Link" style="max-width: 100%; height: auto; border: var(--border-subtle); border-radius: 8px;" /></div>'
             },
             {
                 type: 'heading2',

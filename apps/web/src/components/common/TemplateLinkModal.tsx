@@ -69,7 +69,7 @@ const TemplateLinkModal = ({ template, onClose, onSubmit }: TemplateLinkModalPro
 
                 <div className="citation-modal-content">
                     <div className="template-link-info">
-                        <p><strong>Server Template:</strong> {template.title}</p>
+                        <p><strong>Server Template:</strong> {typeof template.title === 'string' ? template.title : String(template.title)}</p>
                         <p>Geben Sie Ihre eigene Canva URL ein, um diese mit dem Template zu verknüpfen:</p>
                     </div>
 

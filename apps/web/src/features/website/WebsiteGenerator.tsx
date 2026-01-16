@@ -168,7 +168,8 @@ const WebsiteGeneratorContent = ({ showHeaderFooter = true }) => {
   return (
     <div className={`container ${showHeaderFooter ? 'with-header' : ''}`}>
       <BaseForm
-        title="Website Grünerator"
+        title="Was möchtest du heute grünerieren?"
+        subtitle="Generiere Website-Inhalte als JSON"
         onSubmit={() => handleSubmit(onSubmitRHF)()}
         loading={loading}
         success={success}

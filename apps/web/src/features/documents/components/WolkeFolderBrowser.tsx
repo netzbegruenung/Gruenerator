@@ -88,7 +88,7 @@ export const WolkeFolderBrowser = ({ onFolderSelect, selectedFolderId }: WolkeFo
             const result = await setAutoSync(shareId, folderPath, enabled);
 
             // If auto-sync was successfully enabled, immediately trigger a sync
-            if (result && result.success && result.autoSyncEnabled && enabled) {
+            if (result && result.success && (result as any).autoSyncEnabled && enabled) {
                 console.log('[WolkeFolderBrowser] Auto-sync enabled, triggering immediate sync...');
                 try {
                     await syncFolder(shareId, folderPath);

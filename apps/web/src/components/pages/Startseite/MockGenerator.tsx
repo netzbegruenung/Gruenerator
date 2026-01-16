@@ -152,7 +152,7 @@ const MockGenerator = () => {
             className="mock-submit-button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            animate={gradientAnimation}
+            animate={gradientAnimation as any}
             transition={
               isGenerating ? {
                 duration: 5,

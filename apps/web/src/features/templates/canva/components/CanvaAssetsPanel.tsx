@@ -32,7 +32,7 @@ const CanvaAssetsPanel = memo(({
 
     // Store-based state (memoized)
     const { connected: canvaConnected, loading: canvaLoading } = useCanvaConnection();
-    const [importingPackage, setImportingPackage] = useState(null);
+    const [importingPackage, setImportingPackage] = useState<string | null>(null);
     const [importProgress, setImportProgress] = useState('');
     const [importedPackages, setImportedPackages] = useState(canvaUtils.getImportedPackages());
 
@@ -50,7 +50,7 @@ const CanvaAssetsPanel = memo(({
                 (importResult: { packageName: string; importedAssets: number }) => {
                     canvaUtils.markPackageAsImported(packageId);
                     setImportedPackages(canvaUtils.getImportedPackages());
-                    onSuccessMessage(`Asset Package "${importResult.packageName}" wurde erfolgreich importiert! ${importResult.importedAssets} Assets hinzugefügt.`);
+                    onSuccessMessage?.(`Asset Package "${importResult.packageName}" wurde erfolgreich importiert! ${importResult.importedAssets} Assets hinzugefügt.`);
                 },
                 onErrorMessage
             );

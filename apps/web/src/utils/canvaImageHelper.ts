@@ -221,7 +221,7 @@ export const getCanvaImagePreviewUrl = (canvaDesign: CanvaDesign, options: Image
     return null;
   }
 
-  return thumbnail_url;
+  return thumbnail_url ?? null;
 };
 
 /**

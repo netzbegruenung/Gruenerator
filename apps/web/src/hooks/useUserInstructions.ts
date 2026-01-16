@@ -3,14 +3,14 @@ import { useAuth } from './useAuth';
 import apiClient from '../components/utils/apiClient';
 
 /**
- * Simplified hook to fetch user's custom instructions (Anweisungen)
- * Replaces the over-engineered 282-line useKnowledge.js
+ * Hook to fetch user's unified custom instruction (Anweisung)
+ * Returns a single instruction that applies to all generators.
  *
- * @param {string} instructionType - Type of instruction ('antrag', 'social', 'universal', etc.)
+ * @param {string} _instructionType - DEPRECATED: No longer used, kept for backward compatibility
  * @param {boolean} isActive - Whether instructions are currently active (from Anweisungen toggle)
  * @returns {string|null} Custom prompt text or null
  */
-export const useUserInstructions = (instructionType: string, isActive = false) => {
+export const useUserInstructions = (_instructionType: string, isActive = false) => {
   const { user } = useAuth();
 
   const { data } = useQuery({
@@ -20,28 +20,18 @@ export const useUserInstructions = (instructionType: string, isActive = false) =
       const result = response.data;
 
       if (result.success) {
-        return {
-          antrag: result.antragPrompt || null,
-          antragGliederung: result.antragGliederung || null,
-          social: result.socialPrompt || null,
-          universal: result.universalPrompt || null,
-          gruenejugend: result.gruenejugendPrompt || null,
-          rede: result.redePrompt || null,
-          buergeranfragen: result.buergeranfragenPrompt || null
-        };
+        return result.customPrompt || null;
       }
 
       return null;
     },
     enabled: !!user && isActive,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
-  // Return specific instruction type or null
-  if (!isActive || !data) return null;
-  return data[instructionType] || null;
+  return isActive ? data : null;
 };
 
 export default useUserInstructions;

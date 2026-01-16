@@ -5,7 +5,7 @@ import CopyButton from './CopyButton';
 import HelpTooltip from './HelpTooltip';
 import { ProfileIconButton, ProfileActionButton } from '../profile/actions/ProfileActionButton';
 import useAltTextGeneration from '../hooks/useAltTextGeneration';
-import useSharepicStore from '../../stores/sharepicStore';
+import { useAltTextStore } from '../../features/image-studio/hooks/useAltText';
 import apiClient from '../utils/apiClient';
 import CanvaTemplateModal from './CanvaTemplateModal';
 import SharepicShareModal from './SharepicShareModal';
@@ -104,7 +104,7 @@ const ImageDisplay = ({ sharepicData,
     setAltTextLoading,
     setAltTextError,
     setShowAltText
-  } = useSharepicStore();
+  } = useAltTextStore();
 
   if (!sharepicItems.length || !sharepicItems.some(item => item?.image)) {
     return null;
@@ -150,9 +150,10 @@ const ImageDisplay = ({ sharepicData,
       const imageBase64 = (currentSharepic.image || '').replace(/^data:image\/[^;]+;base64,/, '');
 
       // Generate alt text using the existing hook
-      const response = await generateAltTextForImage(imageBase64, currentSharepic.text || null);
+      const textInput = typeof currentSharepic.text === 'string' ? currentSharepic.text : null;
+      const response = await generateAltTextForImage(imageBase64, textInput);
 
-      if (response?.altText) {
+      if (response && typeof response === 'object' && 'altText' in response && typeof response.altText === 'string') {
         setAltText(response.altText);
         setShowAltText(true);
       } else {

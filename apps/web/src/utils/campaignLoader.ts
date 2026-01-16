@@ -67,7 +67,7 @@ async function loadManifest(): Promise<Manifest> {
  */
 async function loadCampaignConfig(campaignId: string): Promise<Campaign | null> {
   if (cachedCampaigns.has(campaignId)) {
-    return cachedCampaigns.get(campaignId);
+    return cachedCampaigns.get(campaignId) ?? null;
   }
 
   try {

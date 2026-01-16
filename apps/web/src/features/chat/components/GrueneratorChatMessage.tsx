@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useMemo, memo } from 'react';
 import { motion } from 'motion/react';
 import ActionButtons from '../../../components/common/ActionButtons';
-import ImageDisplay from '../../../components/common/ImageDisplay';
+import ImageDisplay, { type SharepicDataItem } from '../../../components/common/ImageDisplay';
 import AssistantAvatar from '../../../components/common/Chat/AssistantAvatar';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
@@ -23,7 +23,7 @@ interface ResultData {
   imageUrl?: string;
   type?: string;
   images?: string[];
-  sharepic?: unknown;
+  sharepic?: SharepicDataItem | SharepicDataItem[];
 }
 
 interface ChatMessage {
