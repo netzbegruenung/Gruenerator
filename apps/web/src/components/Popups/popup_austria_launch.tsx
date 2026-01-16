@@ -2,17 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import Icon from '../common/Icon';
 import { BasePopup } from '../common/Popup';
-import './popup_weihnachten.css';
 
-const WEIHNACHTEN_CONFIG = {
-  storageKey: 'weihnachtenCampaign2025Shown',
-  title: 'WEIHNACHTS-',
-  titleHighlight: 'GRÜNERATOR',
-  subtitle: 'Erstelle dein Weihnachts-Sharepic',
-  content: 'Erstelle festliche Weihnachtsgrüße für deinen Orts- oder Kreisverband! Der Weihnachts-Grünerator grüneriert ein 5-zeiliges Gedicht passend zu deinem Heimatort - wähle aus 6 Designs und teile es auf Social Media.',
+const AUSTRIA_LAUNCH_CONFIG = {
+  storageKey: 'austriaLaunch2025Shown',
+  title: 'GRÜNERATOR',
+  titleHighlight: 'FÜR ÖSTERREICH',
+  subtitle: 'Ab jetzt auch in Österreich verfügbar!',
+  content: 'Der Grünerator ist jetzt auch für die österreichischen Grünen verfügbar! Erstelle Texte und mehr mit österreichischer Lokalisierung.',
 };
 
-const PopupWeihnachten = () => {
+const PopupAustriaLaunch = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -35,19 +34,14 @@ const PopupWeihnachten = () => {
     };
   }, []);
 
-  const handleTryNow = () => {
-    localStorage.setItem(WEIHNACHTEN_CONFIG.storageKey, 'true');
-    window.open('/weihnachten', '_self');
-  };
-
   return (
     <BasePopup
-      storageKey={WEIHNACHTEN_CONFIG.storageKey}
+      storageKey={AUSTRIA_LAUNCH_CONFIG.storageKey}
       variant="single"
     >
       {({ onClose }) => (
         <div className="popup-single-container">
-          <div className="popup-slide start-screen gradient-primary popup-weihnachten">
+          <div className="popup-slide start-screen gradient-primary">
             <div className="popup-particles">
               {[...Array(isMobile ? 8 : 20)].map((_, i) => (
                 <motion.div
@@ -72,21 +66,6 @@ const PopupWeihnachten = () => {
               ))}
             </div>
 
-            <div className="popup-weihnachten-preview">
-              <motion.div
-                className="popup-weihnachten-image-container"
-                animate={{ y: [0, -8, 0], rotate: [0, 1, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <img
-                  src="/images/weihnachten-preview.png"
-                  alt="Weihnachts-Sharepic Beispiel"
-                  className="popup-weihnachten-image"
-                />
-                <p className="popup-weihnachten-caption">Beispielbeitrag ohne Bezug zu den Kieler Grünen</p>
-              </motion.div>
-            </div>
-
             <div className="popup-slide-content">
               <motion.h1
                 className="start-screen-title"
@@ -94,8 +73,8 @@ const PopupWeihnachten = () => {
                 animate={isMobile ? {} : { y: 0, opacity: 1 }}
                 transition={isMobile ? {} : { delay: 0.2, duration: 0.6 }}
               >
-                <span className="title-normal">{WEIHNACHTEN_CONFIG.title}</span>
-                <span className="title-gradient">{WEIHNACHTEN_CONFIG.titleHighlight}</span>
+                <span className="title-normal">{AUSTRIA_LAUNCH_CONFIG.title} </span>
+                <span className="title-gradient">{AUSTRIA_LAUNCH_CONFIG.titleHighlight}</span>
               </motion.h1>
 
               <motion.p
@@ -104,7 +83,7 @@ const PopupWeihnachten = () => {
                 animate={isMobile ? {} : { y: 0, opacity: 1 }}
                 transition={isMobile ? {} : { delay: 0.4, duration: 0.5 }}
               >
-                {WEIHNACHTEN_CONFIG.subtitle}
+                {AUSTRIA_LAUNCH_CONFIG.subtitle}
               </motion.p>
 
               <motion.p
@@ -113,7 +92,7 @@ const PopupWeihnachten = () => {
                 animate={isMobile ? {} : { y: 0, opacity: 1 }}
                 transition={isMobile ? {} : { delay: 0.6, duration: 0.5 }}
               >
-                {WEIHNACHTEN_CONFIG.content}
+                {AUSTRIA_LAUNCH_CONFIG.content}
               </motion.p>
 
               <motion.div
@@ -124,20 +103,12 @@ const PopupWeihnachten = () => {
               >
                 <motion.button
                   className="popup-button popup-button--primary"
-                  onClick={handleTryNow}
-                  whileHover={isMobile ? {} : { scale: 1.05 }}
-                  whileTap={isMobile ? {} : { scale: 0.95 }}
-                >
-                  <span>Jetzt erstellen</span>
-                  <Icon category="actions" name="arrowRight" />
-                </motion.button>
-                <motion.button
-                  className="popup-button popup-button--secondary"
                   onClick={onClose}
                   whileHover={isMobile ? {} : { scale: 1.05 }}
                   whileTap={isMobile ? {} : { scale: 0.95 }}
                 >
-                  Später
+                  <span>Los geht's</span>
+                  <Icon category="actions" name="arrowRight" />
                 </motion.button>
               </motion.div>
             </div>
@@ -148,4 +119,4 @@ const PopupWeihnachten = () => {
   );
 };
 
-export default PopupWeihnachten;
+export default PopupAustriaLaunch;

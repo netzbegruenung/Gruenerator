@@ -4,7 +4,7 @@ import Icon from '../common/Icon';
 import { BasePopup, PopupSlider } from '../common/Popup';
 import type { IconCategory } from '../../config/icons';
 
-interface Slide {
+interface ImagineUpdateSlide {
   id: number;
   title: string;
   subtitle: string;
@@ -13,6 +13,7 @@ interface Slide {
   iconCategory?: IconCategory;
   gradient: string;
   isStartScreen?: boolean;
+  [key: string]: unknown;
 }
 
 const IMAGINE_UPDATE_CONFIG = {
@@ -90,11 +91,11 @@ const IMAGINE_UPDATE_CONFIG = {
       iconCategory: 'ui',
       gradient: 'gradient-neutral',
     },
-  ] as Slide[],
+  ] as ImagineUpdateSlide[],
 };
 
 interface StartScreenSlideProps {
-  slide: Slide;
+  slide: ImagineUpdateSlide;
   isMobile: boolean;
   onNext: () => void;
 }
@@ -195,7 +196,7 @@ const StartScreenSlide = ({ slide, isMobile, onNext }: StartScreenSlideProps) =>
 );
 
 interface ContentSlideProps {
-  slide: Slide;
+  slide: ImagineUpdateSlide;
   isMobile: boolean;
 }
 
@@ -276,7 +277,7 @@ const ImagineUpdatePopup = () => {
   };
 
   interface RenderSlideProps {
-    slide: Slide;
+    slide: ImagineUpdateSlide;
     isMobile: boolean;
     onNext: () => void;
   }
@@ -339,7 +340,7 @@ const ImagineUpdatePopup = () => {
         <PopupSlider
           slides={IMAGINE_UPDATE_CONFIG.slides}
           onClose={onClose}
-          renderSlide={(props: Record<string, unknown>) => renderSlide({ ...props, isMobile })}
+          renderSlide={(props) => renderSlide({ ...props, isMobile } as unknown as RenderSlideProps)}
           renderFooter={renderFooter}
         />
       )}
