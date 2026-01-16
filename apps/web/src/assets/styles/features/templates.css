@@ -162,3 +162,117 @@
     transform: translateY(0);
   }
 }
+
+/* Share Subsection Styles */
+.share-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-small);
+  padding: var(--spacing-medium);
+}
+
+.share-subsection__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--font-color);
+  margin: 0 0 var(--spacing-xsmall) 0;
+}
+
+.share-message {
+  font-size: 0.8125rem;
+  color: var(--font-color-disabled);
+  margin: 0;
+}
+
+.share-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  font-size: 0.8125rem;
+  color: var(--font-color-disabled);
+  padding: var(--spacing-xsmall) 0;
+}
+
+.share-status--success {
+  color: var(--font-color-green);
+}
+
+.share-status--error {
+  color: var(--status-error);
+}
+
+/* Platform Icon Buttons Row */
+.platform-icons {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--spacing-small);
+  flex-wrap: wrap;
+}
+
+/* Platform Icon Button */
+.platform-icon-btn {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.platform-icon-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.platform-icon-btn:active:not(:disabled) {
+  transform: scale(1);
+}
+
+.platform-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.platform-icon-btn svg {
+  font-size: 1.25rem;
+}
+
+/* Platform Icon Button Colors */
+.platform-icon-btn--download {
+  background: var(--primary-600);
+}
+
+.platform-icon-btn--download:hover:not(:disabled) {
+  background: var(--primary-700);
+}
+
+.platform-icon-btn--native {
+  background: var(--primary-500);
+}
+
+.platform-icon-btn--native:hover:not(:disabled) {
+  background: var(--primary-600);
+}
+
+/* Share textarea for links */
+.share-textarea {
+  width: 100%;
+  padding: var(--spacing-small);
+  font-size: 0.8125rem;
+  font-family: inherit;
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-border-radius-small);
+  background: var(--background-color);
+  color: var(--font-color);
+  resize: none;
+}
+
+.share-textarea:focus {
+  outline: none;
+  border-color: var(--primary-500);
+}

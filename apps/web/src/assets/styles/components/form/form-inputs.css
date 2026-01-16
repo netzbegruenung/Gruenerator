@@ -112,7 +112,7 @@
   font-weight: 600;
   color: var(--font-color);
   margin-bottom: var(--spacing-xsmall);
-  font-size: 14px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }
 
@@ -125,7 +125,7 @@
 /* ===== Help Text ===== */
 .form-field-help {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-size-xs);
   color: var(--font-color-disabled);
   margin-top: var(--spacing-xxsmall);
   line-height: 1.4;
@@ -134,7 +134,7 @@
 /* ===== Error Message ===== */
 .form-field-error {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-size-xs);
   color: var(--error-red);
   margin-top: var(--spacing-xxsmall);
   line-height: 1.4;
@@ -203,7 +203,7 @@
   position: absolute;
   bottom: 4px;
   right: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-xxs);
   color: var(--font-color-disabled);
   pointer-events: none;
   opacity: 0.7;
@@ -274,7 +274,7 @@
 
 .checkbox-label {
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
   color: var(--font-color);
   margin: 0;

@@ -42,7 +42,7 @@
 .content-section-title {
   margin-bottom: var(--spacing-medium);
   padding-bottom: var(--spacing-xsmall);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-subtle);
 }
 
 .content-section-grid {

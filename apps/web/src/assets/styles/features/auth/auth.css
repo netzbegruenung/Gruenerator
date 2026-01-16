@@ -55,7 +55,7 @@
 .form-textarea {
   width: 100%;
   padding: var(--spacing-small) var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   background-color: var(--background-color-alt);
   color: var(--font-color);
@@ -302,7 +302,7 @@
 .logout-button {
   background-color: transparent;
   color: var(--font-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   padding: var(--spacing-xsmall) var(--spacing-small);
   cursor: pointer;
@@ -357,7 +357,7 @@
 
 .recovery-code-item {
   padding: var(--spacing-xsmall) var(--spacing-small);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-subtle);
 }
 
 .recovery-code-item:last-child {
@@ -374,7 +374,7 @@
   flex: 1;
   padding: var(--spacing-small);
   background: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -410,7 +410,7 @@
   width: 100%;
   padding: var(--spacing-small);
   margin-bottom: var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   background-color: var(--background-color);
   color: var(--font-color);
@@ -431,7 +431,7 @@
   width: 100%;
   padding: var(--spacing-small);
   margin-bottom: var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   background-color: var(--background-color); 
   color: var(--font-color); 
@@ -511,7 +511,7 @@
 .auth-legal {
   margin-top: var(--spacing-large);
   text-align: center;
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
   padding-top: var(--spacing-medium);
 }
 

@@ -4,20 +4,7 @@
  */
 
 .auto-save-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: var(--grey-600);
-  background: transparent;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.auto-save-indicator__text {
-  font-size: 0.875rem;
-  line-height: 1.25;
+  display: none;
 }
 
 /* Spinner animation */

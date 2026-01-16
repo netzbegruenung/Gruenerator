@@ -15,7 +15,7 @@
   width: 38px;
   height: 20px;
   background-color: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 20px;
   position: relative;
   box-shadow: var(--shadow-sm);

@@ -188,7 +188,6 @@
     --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
     --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
-    
     --interactive-accent-color: var(--white);
     --font-color-disabled: var(--grey-500);
     --border-color-disabled: var(--grey-600);
@@ -213,7 +212,7 @@
         --hover-color-alt: var(--grey-700);
         --font-color: var(--neutral-600);
         --font-color-h: var(--neutral-600);
-        --font-color-green: var(--neutral-600)
+        --font-color-green: var(--neutral-600);
         --font-color-h3: var(--neutral-600);
         --link-color: var(--neutral-600);
         --button-background-color: var(--secondary-600);

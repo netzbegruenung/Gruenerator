@@ -32,7 +32,7 @@
 
 .control-item {
     background: var(--card-background);
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
     border-radius: var(--card-border-radius-small);
     padding: var(--spacing-medium);
 }
@@ -100,7 +100,7 @@
     align-items: center;
     justify-content: center;
     background: var(--background-color-alt);
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
     border-radius: var(--card-border-radius-small);
     width: 36px;
     height: 36px;

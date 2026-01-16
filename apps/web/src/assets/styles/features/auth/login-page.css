@@ -115,7 +115,7 @@
 
 .auth-status-message {
   background: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--spacing-small);
   padding: var(--spacing-medium);
   margin-bottom: var(--spacing-medium);
@@ -130,7 +130,7 @@
 
 .auth-registration-link {
   background: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--spacing-small);
   padding: var(--spacing-medium);
   margin-bottom: var(--spacing-medium);
@@ -217,7 +217,7 @@
   overflow-y: auto;
   margin: 0;
   background: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--spacing-small);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s ease-out;
@@ -236,7 +236,7 @@
   width: 36px;
   height: 36px;
   background: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -331,7 +331,7 @@
   .auth-content-left {
     flex: 0 0 40%;
     padding-right: var(--spacing-xlarge);
-    border-right: 1px solid var(--border-subtle);
+    border-right: var(--border-subtle);
     background: var(--background-color);
     border-radius: var(--spacing-small);
     padding: var(--spacing-xlarge);

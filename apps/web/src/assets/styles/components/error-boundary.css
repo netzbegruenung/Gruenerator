@@ -1,7 +1,7 @@
 /* Styling for the ErrorBoundary component */
 .error-boundary {
   padding: var(--spacing-large);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--spacing-xsmall);
   background-color: var(--background-color-alt);
   margin: var(--spacing-large) auto;
@@ -54,7 +54,7 @@
   background-color: var(--background-color-alt);
   padding: var(--spacing-medium);
   border-radius: var(--spacing-xsmall);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   max-height: 200px;
   overflow-y: auto;
   font-size: 0.85em;

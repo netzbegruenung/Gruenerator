@@ -38,7 +38,7 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-medium);
   padding: var(--spacing-medium);
   box-shadow: var(--shadow-md);
@@ -58,7 +58,7 @@
   width: 12px;
   height: 12px;
   background: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-bottom: none;
   border-right: none;
   transform: translateX(-50%) rotate(45deg);

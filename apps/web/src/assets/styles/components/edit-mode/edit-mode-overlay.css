@@ -229,9 +229,9 @@
 
 /* Root-level content-wrapper overrides when edit mode is detected via CSS */
 body:has(.base-container.edit-mode-active) .content-wrapper {
+  margin-top: 0 !important;
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
-  /* Keep margin-top for header spacing */
 }
 
 /* Fallback for browsers without :has() support */

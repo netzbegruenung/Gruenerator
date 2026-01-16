@@ -138,7 +138,7 @@
 /* Fact Box */
 .fact-box {
     background: var(--background-color);
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
     border-radius: var(--card-border-radius-medium);
     padding: var(--spacing-xlarge);
     margin: var(--spacing-xlarge) 0;

@@ -11,7 +11,7 @@
 @import url('./components/layout/footer.css');
 @import url('./components/layout/header.css');
 @import url('./components/layout/profile-dropdown.css');
-@import url('./components/layout/navmenu.css');
+@import url('./components/layout/sidebar.css');
 
 
 /* Moved to component level: spinner.css, image-slider.css, animatedcheckbox.css, tooltip.css, SegmentedControl.css, menu-dropdown.css, TypingIndicator.css, success-screen.css, profile-skeleton.css */
@@ -53,4 +53,3 @@
 @import url('./pages/homepage.css');
 @import url('./pages/notfound.css');
 @import url('./pages/Impressum_datenschutz.css');
-@import url('./pages/GeneratorStartScreen.css');

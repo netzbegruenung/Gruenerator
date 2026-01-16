@@ -929,7 +929,7 @@
 .btn-secondary {
   background-color: var(--background-color);
   color: var(--font-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--primary-button-radius);
   cursor: pointer;
   font-weight: 500;

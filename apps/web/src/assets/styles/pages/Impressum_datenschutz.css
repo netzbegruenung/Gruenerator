@@ -71,7 +71,7 @@
 }
 
 .page-container tbody tr {
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: var(--border-subtle);
 }
 
 .page-container tbody tr:last-child {

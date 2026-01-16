@@ -255,7 +255,7 @@
 .advanced-search-options .category-button {
   padding: 0.5rem 1rem; /* Kleinere Buttons */
   font-size: 0.85rem;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 15px; /* Kleinere Radien */
   background: var(--background-color);
   color: var(--font-color);
@@ -278,7 +278,7 @@
 
 /* Vorlagen card with thumbnail */
 .gallery-item-card.vorlagen-card {
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 8px;
   background: var(--background-color);
   cursor: pointer;

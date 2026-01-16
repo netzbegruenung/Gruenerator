@@ -69,7 +69,7 @@
   overflow-x: auto;
   font-family: monospace;
   font-size: 0.9em;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 .markdown-content pre code {
@@ -167,12 +167,12 @@
   padding: var(--spacing-small) var(--spacing-medium);
   text-align: left;
   font-weight: 600;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 .markdown-content td {
   padding: var(--spacing-small) var(--spacing-medium);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   vertical-align: top;
 }
 

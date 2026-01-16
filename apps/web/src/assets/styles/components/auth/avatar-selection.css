@@ -27,7 +27,7 @@
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   transform: translateZ(0);
   isolation: isolate;
   z-index: 1;
@@ -40,7 +40,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-large) var(--spacing-large) var(--spacing-medium);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-subtle);
   background: var(--background-color);
   z-index: 2;
 }
@@ -162,7 +162,7 @@
   bottom: 0;
   padding: var(--spacing-medium) var(--spacing-large) var(--spacing-large);
   text-align: center;
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
   background: var(--background-color);
 }
 

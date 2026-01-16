@@ -36,7 +36,7 @@
 .group-item-button {
   width: 100%;
   background-color: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-medium);
   padding: var(--spacing-medium);
   text-align: left;
@@ -147,7 +147,7 @@
   gap: var(--spacing-medium);
   padding: var(--spacing-medium);
   background: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-medium);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -348,7 +348,7 @@
   flex: 1;
   min-width: 250px;
   padding: var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-small);
   background-color: var(--background-color-alt);
   font-family: monospace;
@@ -467,7 +467,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-medium);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-subtle);
 }
 
 .modal-header h3 {
@@ -497,20 +497,20 @@
   justify-content: flex-end;
   gap: var(--spacing-medium);
   padding: var(--spacing-medium);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
 }
 
 
 .form-divider {
   margin: var(--spacing-large) 0 var(--spacing-medium) 0;
   border: none;
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
 }
 
 .form-divider-large {
   margin: var(--spacing-xlarge) 0;
   border: none;
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
 }
 
 /* Die folgenden Klassen werden jetzt aus profile.css verwendet und können hier entfernt werden */
@@ -520,7 +520,7 @@
 }
 
 .knowledge-entry-bordered {
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
   padding-top: var(--spacing-large);
 }
 
@@ -564,7 +564,7 @@
 .group-invite-section {
   margin-top: var(--spacing-large);
   padding-top: var(--spacing-medium);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
 }
 
 .group-invite-section h3 {
@@ -672,7 +672,7 @@
   padding: 0; 
   justify-content: center; 
   align-items: center; 
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   font-size: 0.9rem; 
   white-space: nowrap; 
 }
@@ -775,7 +775,7 @@
   margin-top: var(--spacing-medium);
   padding: var(--spacing-medium);
   background-color: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-medium);
   border-left: 4px solid var(--interactive-accent-color);
 }
@@ -806,7 +806,7 @@
   font-size: 0.85rem;
   padding: var(--spacing-small);
   background-color: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-small);
   color: var(--grey-500);
   overflow: hidden;
@@ -843,7 +843,7 @@
   padding: var(--spacing-xsmall) var(--spacing-small); 
   justify-content: center; 
   align-items: center; 
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   font-size: 0.85rem; 
   white-space: nowrap; 
   gap: var(--spacing-xsmall);
@@ -895,7 +895,7 @@
   gap: var(--spacing-medium);
   padding: var(--spacing-small);
   background-color: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-medium);
 }
 
@@ -1152,7 +1152,7 @@
 .group-name-edit-button.cancel {
   background-color: var(--background-color-alt);
   color: var(--font-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
 }
 
 .group-name-edit-button.cancel:hover:not(:disabled) {
@@ -1195,7 +1195,7 @@
 /* Read-only notice for non-admin group members */
 .group-readonly-notice {
   background-color: var(--background-color-alt);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-left: 4px solid var(--interactive-accent-color);
   border-radius: var(--card-border-radius-medium);
   padding: var(--spacing-medium);

@@ -63,7 +63,7 @@
   right: 0;
   width: 300px;
   background-color: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   box-shadow: var(--shadow-md);
   padding: var(--spacing-medium);
@@ -76,7 +76,7 @@
   align-items: center;
   margin-bottom: var(--spacing-medium);
   padding-bottom: var(--spacing-small);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-subtle);
 }
 
 .search-options-header h3 {
@@ -121,7 +121,7 @@
   display: flex;
   align-items: center;
   padding: var(--spacing-xsmall) var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;

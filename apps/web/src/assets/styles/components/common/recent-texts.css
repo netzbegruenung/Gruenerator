@@ -140,7 +140,7 @@
   justify-content: center;
   border-radius: 50%;
   background: var(--background-color);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   color: var(--error-red);
   opacity: 0;
   cursor: pointer;

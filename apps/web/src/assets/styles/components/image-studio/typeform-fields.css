@@ -58,7 +58,7 @@
   align-items: flex-end;
   gap: var(--spacing-small);
   background: var(--card-background);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius);
   padding: var(--spacing-small);
   box-shadow: var(--shadow-md);
@@ -172,7 +172,7 @@
   font-size: 1rem;
   color: var(--font-color);
   background: var(--card-background);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius);
   outline: none;
   cursor: pointer;

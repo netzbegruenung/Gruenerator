@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: var(--spacing-small);
   position: relative;
-  padding-top: var(--spacing-medium);
+  padding-top: var(--spacing-xlarge);
 }
 
 .gruenerator-result-content p {

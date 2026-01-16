@@ -94,7 +94,7 @@
     display: inline-block;
     padding: var(--spacing-xxsmall) var(--spacing-small);
     background-color: var(--background-color-alt);
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
     border-radius: 4px;
     font-size: 0.9em;
     color: var(--font-color);
@@ -114,7 +114,7 @@
     padding: var(--spacing-medium);
     background-color: var(--background-color-alt); 
     border-radius: var(--spacing-small);
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
     
     
      
@@ -145,7 +145,7 @@
     padding: var(--spacing-medium);
     background-color: var(--background-color-alt);
     border-radius: var(--spacing-small);
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
      
      display: grid;
      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -271,7 +271,7 @@
       border-radius: 3px;
       font-family: monospace;
       font-size: 0.95em; 
-      border: 1px solid var(--border-subtle);
+      border: var(--border-subtle);
   }
   .markdown-content pre {
       background-color: var(--background-color-alt);
@@ -280,7 +280,7 @@
       overflow-x: auto;
       font-family: monospace;
       font-size: 0.95em; 
-      border: 1px solid var(--border-subtle);
+      border: var(--border-subtle);
       line-height: 1.5; 
   }
   .markdown-content pre code {
@@ -321,7 +321,7 @@
   .antrag-detail-page-footer {
       margin-top: var(--spacing-xxlarge);
       padding-top: var(--spacing-large);
-      border-top: 1px solid var(--border-subtle);
+      border-top: var(--border-subtle);
       text-align: center;
   }
   

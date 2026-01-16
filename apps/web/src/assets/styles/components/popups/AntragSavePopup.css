@@ -4,7 +4,7 @@
   background: var(--background-color);
   color: var(--font-color);
   border-radius: var(--border-radius-medium, 8px);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   box-shadow: var(--shadow-lg);
   max-width: 600px;
   width: 90%;
@@ -21,7 +21,7 @@
   font-weight: bold;
   font-size: 1.5em;
   padding-bottom: var(--spacing-small);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: var(--border-subtle);
 }
 
 .antrag-save-popup-content p {
@@ -51,7 +51,7 @@
   font-family: 'PT Sans', Arial, sans-serif;
   width: 100%;
   padding: var(--spacing-small);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--border-radius-small, 4px);
   box-sizing: border-box;
   font-size: 0.9em;
@@ -99,7 +99,7 @@
 .antrag-save-popup-content .modal-actions {
   margin-top: var(--spacing-large);
   padding-top: var(--spacing-medium);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-small);
@@ -108,7 +108,7 @@
 
 .antrag-save-popup-content .modal-actions .button.secondary {
   padding: var(--spacing-xsmall) var(--spacing-medium);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   background-color: var(--background-color-alt);
   color: var(--font-color);
   border-radius: var(--border-radius-small, 4px);
