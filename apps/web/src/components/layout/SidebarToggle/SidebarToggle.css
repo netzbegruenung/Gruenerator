@@ -1,0 +1,92 @@
+/* Sidebar Toggle Button - Logo transforms to hamburger on hover */
+.sidebar-toggle {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--card-border-radius-small);
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-toggle:hover {
+  background-color: var(--hover-color-alt);
+}
+
+/* Hamburger container - always visible */
+.sidebar-toggle__hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  transition: transform 0.2s ease;
+}
+
+/* Hamburger lines */
+.sidebar-toggle__line {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background-color: var(--font-color-h);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  transform-origin: center;
+}
+
+/* X animation when active (sidebar open) */
+.sidebar-toggle.active .sidebar-toggle__line:nth-child(1) {
+  transform: rotate(45deg) translate(4px, 4px);
+}
+
+.sidebar-toggle.active .sidebar-toggle__line:nth-child(2) {
+  opacity: 0;
+}
+
+.sidebar-toggle.active .sidebar-toggle__line:nth-child(3) {
+  transform: rotate(-45deg) translate(4px, -4px);
+}
+
+/* When app sidebar is hidden (Image Studio), adjust positioning */
+.sidebar-hidden .sidebar-toggle {
+  left: 12px;
+  top: 12px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    left: 6px;
+    top: 6px;
+    width: 38px;
+    height: 38px;
+    background: var(--background-color);
+    border-radius: var(--card-border-radius-small);
+  }
+
+  .sidebar-toggle__line {
+    width: 16px;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1920px) {
+  .sidebar-toggle {
+    left: 12px;
+    top: 12px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .sidebar-toggle__line {
+    width: 20px;
+  }
+}

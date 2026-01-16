@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getMenuItems } from '../Header/menuData';
+import { getMenuItems, getDirectMenuItems } from '../Header/menuData';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
@@ -25,6 +25,7 @@ const DesktopSidebar = () => {
   }), [getBetaFeatureState, isAustrian]);
 
   const menuItems = useMemo(() => getMenuItems(betaFeatures), [betaFeatures]);
+  const directMenuItems = useMemo(() => Object.values(getDirectMenuItems(betaFeatures)), [betaFeatures]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -61,28 +62,50 @@ const DesktopSidebar = () => {
         </button>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
-          {Object.entries(menuItems).map(([sectionKey, section]) => (
-            <div key={sectionKey} className="sidebar-section">
-              {expanded && (
-                <span className="sidebar-section-title">{section.title}</span>
-              )}
-              {section.items.map((item: { id: string; path: string; title: string; icon: React.ComponentType | null }) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavigation(item.path, item.title)}
-                  className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
-                  aria-current={isActive(item.path) ? 'page' : undefined}
-                  title={!expanded ? item.title : undefined}
-                  type="button"
-                >
-                  <span className="sidebar-icon">
-                    {item.icon && <item.icon aria-hidden="true" />}
-                  </span>
-                  {expanded && <span className="sidebar-label">{item.title}</span>}
-                </button>
-              ))}
-            </div>
-          ))}
+          {/* Direct menu items - main navigation */}
+          <div className="sidebar-section">
+            {directMenuItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleNavigation(item.path, item.title)}
+                className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
+                aria-current={isActive(item.path) ? 'page' : undefined}
+                title={!expanded ? item.title : undefined}
+                type="button"
+              >
+                <span className="sidebar-icon">
+                  {item.icon && <item.icon aria-hidden="true" />}
+                </span>
+                {expanded && <span className="sidebar-label">{item.title}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Only render dropdown sections that have items */}
+          {Object.entries(menuItems)
+            .filter(([_, section]) => section.items && section.items.length > 0)
+            .map(([sectionKey, section]) => (
+              <div key={sectionKey} className="sidebar-section">
+                {expanded && (
+                  <span className="sidebar-section-title">{section.title}</span>
+                )}
+                {section.items.map((item: { id: string; path: string; title: string; icon: React.ComponentType | null }) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavigation(item.path, item.title)}
+                    className={`sidebar-item ${isActive(item.path) ? 'active' : ''}`}
+                    aria-current={isActive(item.path) ? 'page' : undefined}
+                    title={!expanded ? item.title : undefined}
+                    type="button"
+                  >
+                    <span className="sidebar-icon">
+                      {item.icon && <item.icon aria-hidden="true" />}
+                    </span>
+                    {expanded && <span className="sidebar-label">{item.title}</span>}
+                  </button>
+                ))}
+              </div>
+            ))}
         </nav>
       </div>
     </aside>
