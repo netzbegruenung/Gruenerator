@@ -1,5 +1,12 @@
 @import './SidebarPrimitives.css';
 
+/* Image Studio CSS Variables */
+:root {
+  --image-studio-tab-bar-width: 64px;
+  --mobile-tab-bar-height: 60px;
+}
+
+/* Image Studio sidebar - full left edge (app sidebar hidden via hideAppSidebar) */
 .canvas-sidebar {
   display: flex;
   position: fixed;
@@ -23,9 +30,9 @@
   width: 64px;
   height: 100%;
   background: var(--background-color);
-  border-right: 1px solid var(--border-subtle);
+  border-right: var(--border-subtle);
   box-shadow: 4px 0 12px rgba(0, 0, 0, 0.08);
-  padding-top: 120px;
+  padding-top: 60px; /* Space for hamburger toggle */
   padding-bottom: var(--spacing-medium);
 }
 
@@ -59,7 +66,7 @@
 }
 
 .sidebar-tab-bar__label {
-  font-size: 9px;
+  font-size: var(--font-size-xxs);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -173,14 +180,14 @@
   position: fixed;
   background: var(--background-color);
   padding: 0;
-  padding-top: 100px;
+  padding-top: 60px; /* Match tab bar padding for hamburger space */
   overflow: hidden;
   z-index: 101;
   display: flex;
   flex-direction: column;
   /* Desktop: left side, connected to tab bar, full height */
   top: 0;
-  left: 64px;
+  left: var(--image-studio-tab-bar-width, 64px);
   bottom: 0;
   right: auto;
   width: auto;
@@ -358,6 +365,7 @@
   .canvas-sidebar {
     position: static;
     display: contents;
+    left: 0; /* App sidebar hidden on mobile */
   }
 
   /* Mobile: Bottom Tab Bar - Fixed horizontal scrollable */
@@ -368,7 +376,7 @@
     left: 0;
     right: 0;
     width: 100%;
-    height: 60px;
+    height: var(--mobile-tab-bar-height, 60px);
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
@@ -377,7 +385,7 @@
     /* Firefox */
     background: var(--background-color);
     border-right: none;
-    border-top: 1px solid var(--border-subtle);
+    border-top: var(--border-subtle);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
     padding: 4px 6px;
     padding-bottom: calc(4px + env(safe-area-inset-bottom));
@@ -440,16 +448,16 @@
     position: fixed;
     top: auto;
     right: 0;
-    bottom: 60px;
+    bottom: var(--mobile-tab-bar-height, 60px);
     left: 0;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    max-height: calc(70vh - 60px);
+    max-height: calc(70vh - var(--mobile-tab-bar-height, 60px));
     padding-top: 0;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
-    transform: translateY(calc(100% + 60px));
+    transform: translateY(calc(100% + var(--mobile-tab-bar-height, 60px)));
     transition: none;
     z-index: 99;
   }
@@ -497,7 +505,7 @@
 
   /* Panel content adjustments for mobile - only bottom padding */
   .sidebar-panel__content {
-    max-height: calc(70vh - 120px);
+    max-height: calc(70vh - var(--mobile-tab-bar-height, 60px) - 60px);
     padding: 0 0 var(--spacing-medium) 0;
   }
 
@@ -508,6 +516,6 @@
 
   /* Add safe spacing at bottom of canvas for mobile */
   .canvas-wrapper {
-    padding-bottom: 64px;
+    padding-bottom: calc(var(--mobile-tab-bar-height, 60px) + 4px);
   }
 }

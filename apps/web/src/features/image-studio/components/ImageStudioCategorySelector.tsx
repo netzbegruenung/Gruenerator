@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useCallback, FormEvent } from 'react';
+import { useState, useMemo, useCallback, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { HiSparkles, HiArrowUp } from 'react-icons/hi';
+import { HiSparkles } from 'react-icons/hi';
 import { PiFolder, PiLayout, PiUser } from 'react-icons/pi';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -11,11 +10,11 @@ import { useRecentGalleryItems, RecentGalleryItem } from '../hooks/useRecentGall
 import { IMAGE_STUDIO_CATEGORIES, IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
 import type { TypeConfig } from '../utils/typeConfig/types';
 import { StartOption } from '../types/componentTypes';
+import { PromptInput, PromptExample } from '../../../components/common/PromptInput';
 
 import '../../../assets/styles/components/sharepic/sharepic-type-selector.css';
 
-// Example prompts for the AI chat input
-const EXAMPLE_PROMPTS = [
+const EXAMPLE_PROMPTS: PromptExample[] = [
     { label: 'Zitat', text: 'Erstelle ein Zitat zum Thema Klimaschutz' },
     { label: 'Sharepic', text: 'Sharepic mit 3 Zeilen über Windenergie' },
     { label: 'Info', text: 'Info-Grafik über erneuerbare Energien' }
@@ -160,18 +159,6 @@ const ImageStudioCategorySelector: React.FC = () => {
         }
     }, [promptInput, isGenerating, loadFromAIGeneration, navigate]);
 
-    // Handle keyboard submit (Enter without Shift)
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handlePromptSubmit();
-        }
-    }, [handlePromptSubmit]);
-
-    // Handle example prompt click
-    const handleExampleClick = useCallback((text: string) => {
-        setPromptInput(text);
-    }, []);
 
     const startOptions: StartOption[] = [
         { id: 'sharepics', category: IMAGE_STUDIO_CATEGORIES.TEMPLATES, subcategory: null, label: 'Sharepics', description: 'Erstelle Sharepics mit vorgefertigten Designs', Icon: PiLayout, previewImage: '/imagine/previews/dreizeilen-preview.png' },
@@ -191,63 +178,16 @@ const ImageStudioCategorySelector: React.FC = () => {
                 </div>
 
                 {/* AI Prompt Input Section */}
-                <motion.div
-                    className="image-studio-prompt-section"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
-                >
-                    <form className="image-studio-prompt-form" onSubmit={handlePromptSubmit}>
-                        <div className="image-studio-prompt-input-container">
-                            <div className="image-studio-prompt-input-wrapper">
-                                <textarea
-                                    value={promptInput}
-                                    onChange={(e) => setPromptInput(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Beschreibe dein Sharepic..."
-                                    disabled={isGenerating}
-                                    rows={2}
-                                    className="image-studio-prompt-input"
-                                />
-                                <div className="image-studio-prompt-examples">
-                                    {EXAMPLE_PROMPTS.map((example, index) => (
-                                        <button
-                                            key={index}
-                                            type="button"
-                                            className="image-studio-prompt-example"
-                                            onClick={() => handleExampleClick(example.text)}
-                                            disabled={isGenerating}
-                                        >
-                                            {example.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <button
-                                type="submit"
-                                className={`image-studio-prompt-submit ${isGenerating ? 'loading' : ''}`}
-                                disabled={!promptInput.trim() || isGenerating}
-                                aria-label="Sharepic generieren"
-                            >
-                                {isGenerating ? (
-                                    <span className="spinner-small" />
-                                ) : (
-                                    <HiArrowUp />
-                                )}
-                            </button>
-                        </div>
-                    </form>
-
-                    {generationError && (
-                        <motion.p
-                            className="image-studio-prompt-error"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                        >
-                            {generationError}
-                        </motion.p>
-                    )}
-                </motion.div>
+                <PromptInput
+                    value={promptInput}
+                    onChange={setPromptInput}
+                    onSubmit={handlePromptSubmit}
+                    placeholder="Beschreibe dein Sharepic..."
+                    isLoading={isGenerating}
+                    error={generationError}
+                    examples={EXAMPLE_PROMPTS}
+                    submitLabel="Sharepic generieren"
+                />
 
                 {/* Recent Gallery Items - Editable saved sharepics */}
                 {showGallerySection && (

@@ -289,7 +289,7 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
     useCanvasKeyboardHandlers({
         selectedElement,
         state,
-        actions,
+        actions: actions as any, // TActions may have different shape; keyboard handlers check with optional chaining
         setState: setStateWrapper,
         setSelectedElement,
     });
@@ -368,16 +368,16 @@ function GenericCanvasInner<TState extends Record<string, unknown>, TActions ext
     }, [isExporting, state, config.canvas.width, config.canvas.height]);
 
     // Share props (MUST be before ANY return statement, including early returns)
-    // Note: autoSaveStatus removed - SidebarTabBar reads directly from useAutoSaveStore
     const sharePropsToPass = useMemo(() => {
         return {
             exportedImage,
+            autoSaveStatus: autoSaveStatus,
             shareToken,
             onCaptureCanvas: handleExportAction,
             onDownload: handleDownload,
             onNavigateToGallery: handleNavigateToGallery,
         };
-    }, [exportedImage, shareToken, handleExportAction, handleDownload, handleNavigateToGallery]);
+    }, [exportedImage, autoSaveStatus, shareToken, handleExportAction, handleDownload, handleNavigateToGallery]);
 
     // Show loading state while font loads
     if (shouldWaitForFont) {

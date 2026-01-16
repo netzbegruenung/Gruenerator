@@ -22,7 +22,7 @@ export interface OptionalCanvasActions {
     updateAdditionalText?: (id: string, attrs: Partial<AdditionalText>) => void;
 }
 
-export interface UseCanvasElementHandlersOptions<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions> {
+export interface UseCanvasElementHandlersOptions<TState extends Record<string, unknown>, TActions extends OptionalCanvasActions = OptionalCanvasActions> {
     config: FullCanvasConfig<TState, TActions>;
     state: TState;
     setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
@@ -63,7 +63,7 @@ function getStateArray<T>(state: unknown, key: string): T[] {
 /**
  * Hook to handle all canvas element interactions
  */
-export function useCanvasElementHandlers<TState, TActions extends OptionalCanvasActions = OptionalCanvasActions>(
+export function useCanvasElementHandlers<TState extends Record<string, unknown>, TActions extends OptionalCanvasActions = OptionalCanvasActions>(
     options: UseCanvasElementHandlersOptions<TState, TActions>
 ): UseCanvasElementHandlersResult {
     const {
@@ -142,8 +142,8 @@ export function useCanvasElementHandlers<TState, TActions extends OptionalCanvas
         (id: string, x: number, y: number) => {
             const elementConfig = config.elements.find((e) => e.id === id);
             if (elementConfig && elementConfig.type === 'image' && elementConfig.offsetKey) {
-                const baseX = resolveValue(elementConfig.x, state, layout);
-                const baseY = resolveValue(elementConfig.y, state, layout);
+                const baseX = resolveValue<number, TState>(elementConfig.x, state, layout);
+                const baseY = resolveValue<number, TState>(elementConfig.y, state, layout);
                 const newOffset = { x: x - baseX, y: y - baseY };
                 setState((prev) => ({ ...prev, [elementConfig.offsetKey!]: newOffset }));
                 saveToHistory({ ...state, [elementConfig.offsetKey!]: newOffset });

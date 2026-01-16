@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { HiArrowLeft } from 'react-icons/hi';
 import { generateSharepicFromPrompt } from '../../services/sharepicPromptService';
@@ -61,10 +61,11 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
 
   const { generateText, generateImage, loading, error, setError } = useImageGeneration();
   const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
-  const { cloneTemplate, isCloning } = useTemplateClone();
+  const { cloneTemplate, isCloning, error: cloneError } = useTemplateClone();
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isAlternativesExpanded, setIsAlternativesExpanded] = useState(false);
+  const cloneInitiatedRef = useRef(false);
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
 
@@ -90,12 +91,14 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
     }
 
     // Check if urlType is actually a subcategory (create/edit)
-    const isSubcategory = urlType && Object.values(KI_SUBCATEGORIES).includes(urlType as unknown as string);
+    const isKiSubcategory = (value: string | undefined): value is 'edit' | 'create' => {
+      return value === KI_SUBCATEGORIES.EDIT || value === KI_SUBCATEGORIES.CREATE;
+    };
 
-    if (isSubcategory) {
+    if (isKiSubcategory(urlType)) {
       // URL: /image-studio/ki/create or /image-studio/ki/edit
       if (!category || !subcategory || subcategory !== urlType) {
-        setCategory(urlCategory, urlType as unknown as "edit" | "create");
+        setCategory(urlCategory, urlType);
       }
     } else if (urlType) {
       // URL: /image-studio/ki/green-edit (actual type)
@@ -133,10 +136,64 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
     loadGalleryEdit();
   }, [location.state, loadGalleryEditData]);
 
+  // Handle template cloning result from location.state (after navigation from useTemplateClone)
+  useEffect(() => {
+    const loadTemplateData = async () => {
+      console.log('[ImageStudioPage] Checking location.state for templateMode:', {
+        hasState: !!location.state,
+        templateMode: location.state?.templateMode,
+        galleryEditMode: location.state?.galleryEditMode,
+        keys: location.state ? Object.keys(location.state) : []
+      });
+
+      if (!location.state?.templateMode) return;
+
+      console.log('[ImageStudioPage] Loading template data from state:', {
+        shareToken: location.state.shareToken,
+        templateCreator: location.state.templateCreator,
+        sharepicType: location.state.sharepicType,
+        contentKeys: Object.keys(location.state.content || {}),
+        stylingKeys: Object.keys(location.state.styling || {}),
+        content: location.state.content,
+        styling: location.state.styling
+      });
+
+      const editData = {
+        shareToken: location.state.shareToken,
+        content: {
+          ...location.state.content,
+          sharepicType: location.state.sharepicType || location.state.content?.sharepicType || urlType
+        },
+        styling: location.state.styling,
+      };
+
+      console.log('[ImageStudioPage] Calling loadGalleryEditData with:', editData);
+      await loadGalleryEditData(editData);
+
+      // Store templateCreator for display in canvas editor
+      if (location.state.templateCreator) {
+        updateFormData({ templateCreator: location.state.templateCreator });
+      }
+      console.log('[ImageStudioPage] Template data loaded successfully');
+
+      window.history.replaceState({}, document.title);
+      console.log('[ImageStudioPage] Cleared location state');
+    };
+
+    loadTemplateData();
+  }, [location.state, loadGalleryEditData, urlType]);
+
   // Handle template cloning from URL query parameter
   useEffect(() => {
     const templateToken = searchParams.get('template');
-    if (templateToken) {
+    console.log('[ImageStudioPage] Template URL param check:', {
+      templateToken,
+      allParams: Object.fromEntries(searchParams.entries()),
+      cloneInitiated: cloneInitiatedRef.current
+    });
+    if (templateToken && !cloneInitiatedRef.current) {
+      cloneInitiatedRef.current = true;
+      console.log('[ImageStudioPage] Initiating template clone for:', templateToken);
       cloneTemplate(templateToken);
     }
   }, [searchParams, cloneTemplate]);
@@ -328,6 +385,32 @@ const ImageStudioPageContent: React.FC<ImageStudioPageContentProps> = ({ showHea
   // Category selector rendering is handled by ImageStudioCategorySelector sub-component
 
   // Type selector and form fields are handled by sub-components
+
+  // Show loading state while cloning template
+  if (isCloning) {
+    console.log('[ImageStudioPage] Showing cloning spinner');
+    return (
+      <div className="container" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '50vh', gap: 'var(--spacing-medium)' }}>
+        <Spinner size="medium" />
+        <p>Vorlage wird geladen...</p>
+      </div>
+    );
+  }
+
+  // Show error if template cloning failed (only when there's actually a template param)
+  const hasTemplateParam = searchParams.get('template');
+  if (cloneError && hasTemplateParam) {
+    console.error('[ImageStudioPage] Clone error display:', cloneError);
+    return (
+      <div className="container" role="main" aria-label="Image Studio">
+        <div className="form-card form-card--elevated">
+          <h2>Fehler beim Laden der Vorlage</h2>
+          <p>{cloneError}</p>
+          <Button onClick={() => navigate('/image-studio')} text="Zurück" icon={<HiArrowLeft />} />
+        </div>
+      </div>
+    );
+  }
 
   if (currentStep === FORM_STEPS.CATEGORY_SELECT || !category) {
     return <ImageStudioCategorySelector />;

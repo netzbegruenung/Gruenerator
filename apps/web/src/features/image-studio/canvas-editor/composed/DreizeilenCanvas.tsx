@@ -16,7 +16,7 @@
 import React, { useState, useEffect } from 'react';
 import { GenericCanvas } from '../components/GenericCanvas';
 import { loadCanvasConfig } from '../configs/configLoader';
-import type { CanvasConfig } from '../configs/types';
+import type { FullCanvasConfig } from '../configs/types';
 import type { DreizeilenFullState, DreizeilenFullActions, DreizeilenAlternative } from '../configs/dreizeilen.types';
 import type { StockImageAttribution } from '../../services/imageSourceService';
 
@@ -103,7 +103,7 @@ export function DreizeilenCanvas({
     onDelete,
     bare,
 }: DreizeilenCanvasProps) {
-    const [config, setConfig] = useState<CanvasConfig | null>(null);
+    const [config, setConfig] = useState<FullCanvasConfig | null>(null);
 
     // Load config dynamically
     useEffect(() => {
@@ -133,19 +133,19 @@ export function DreizeilenCanvas({
     };
 
     // Map component callbacks to config's callback format
-    const callbacks = {
-        onLine1Change,
-        onLine2Change,
-        onLine3Change,
-        onFontSizeChange,
-        onColorSchemeChange,
-        onImageSrcChange,
-        onReset,
+    const callbacks: Record<string, ((val: unknown) => void) | undefined> = {
+        onLine1Change: onLine1Change as ((val: unknown) => void) | undefined,
+        onLine2Change: onLine2Change as ((val: unknown) => void) | undefined,
+        onLine3Change: onLine3Change as ((val: unknown) => void) | undefined,
+        onFontSizeChange: onFontSizeChange as ((val: unknown) => void) | undefined,
+        onColorSchemeChange: onColorSchemeChange as ((val: unknown) => void) | undefined,
+        onImageSrcChange: onImageSrcChange as ((val: unknown) => void) | undefined,
+        onReset: onReset as ((val: unknown) => void) | undefined,
     };
 
     return (
         <GenericCanvas<DreizeilenFullState, DreizeilenFullActions>
-            config={config}
+            config={config as unknown as FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions>}
             initialProps={initialProps}
             onExport={onExport}
             onSave={onSave}

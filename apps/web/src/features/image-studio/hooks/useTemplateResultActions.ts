@@ -105,7 +105,7 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
       const imageBase64 = generatedImageSrc.replace(/^data:image\/[^;]+;base64,/, '');
       const contextText = `${line1} ${line2} ${line3}`.trim();
       const response = await generateAltTextForImage(imageBase64, contextText || null);
-      if (response?.altText) {
+      if (response?.altText && typeof response.altText === 'string') {
         setAltText(response.altText);
       }
     } catch (error) {

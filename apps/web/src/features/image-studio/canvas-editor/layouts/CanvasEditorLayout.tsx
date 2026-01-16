@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { HiLink } from 'react-icons/hi';
+import useImageStudioStore from '../../../../stores/imageStudioStore';
 import './CanvasEditorLayout.css';
 import '../sidebar/CanvasSidebar.css';
 
@@ -19,6 +21,7 @@ export function CanvasEditorLayout({
   tabBar,
 }: CanvasEditorLayoutProps) {
   const hasSidebar = Boolean(tabBar);
+  const templateCreator = useImageStudioStore((state) => state.templateCreator);
 
   return (
     <div className={`canvas-editor-layout ${hasSidebar ? 'canvas-editor-layout--with-sidebar' : ''}`}>
@@ -31,6 +34,12 @@ export function CanvasEditorLayout({
       )}
 
       <div className="canvas-editor-layout__main">
+        {templateCreator && (
+          <div className="template-creator-banner">
+            <HiLink className="template-creator-banner__icon" />
+            <span>Vorlage von <strong>{templateCreator}</strong></span>
+          </div>
+        )}
         <div className="canvas-editor-layout__canvas">
           {children}
         </div>

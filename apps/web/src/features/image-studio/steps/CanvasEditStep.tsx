@@ -66,7 +66,6 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
                     <ProfilbildCanvas
                         transparentImage={transparentImage}
                         onExport={handleCanvasExport}
-                        onSave={handleCanvasSave}
                         onCancel={handleBack}
                     />
                 </motion.div>

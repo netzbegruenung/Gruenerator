@@ -6,6 +6,7 @@ import { ZoomableViewport } from './ZoomableViewport';
 import type { FullCanvasConfig } from '../configs/types';
 import type { SidebarTabId } from '../sidebar/types';
 import Spinner from '../../../../components/common/Spinner';
+import useSidebarStore from '../../../../stores/sidebarStore';
 import './GenericCanvasEditor.css';
 
 interface GenericCanvasEditorProps<TState, TActions = Record<string, unknown>> {
@@ -53,6 +54,13 @@ export function GenericCanvasEditor<TState, TActions = Record<string, unknown>>(
     const [isDesktop, setIsDesktop] = useState(
         typeof window !== 'undefined' && window.innerWidth >= 900
     );
+    const setHideAppSidebar = useSidebarStore((state) => state.setHideAppSidebar);
+
+    // Hide app navigation sidebar when canvas editor is active
+    useEffect(() => {
+        setHideAppSidebar(true);
+        return () => setHideAppSidebar(false);
+    }, [setHideAppSidebar]);
 
     useEffect(() => {
         const handleResize = () => setIsDesktop(window.innerWidth >= 900);

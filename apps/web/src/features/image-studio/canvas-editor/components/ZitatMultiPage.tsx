@@ -8,7 +8,7 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { GenericCanvas } from './GenericCanvas';
 import { useMultiPageCanvas } from '../hooks';
 import { loadCanvasConfig } from '../configs/configLoader';
-import type { CanvasConfig } from '../configs/types';
+import type { FullCanvasConfig } from '../configs/types';
 import './ZitatMultiPage.css';
 
 interface ZitatMultiPageProps {
@@ -30,7 +30,7 @@ function ZitatMultiPageContent({
     onCancel,
     callbacks = {},
 }: {
-    config: CanvasConfig;
+    config: FullCanvasConfig;
     initialProps: ZitatMultiPageProps['initialProps'];
     onExport: (base64: string) => void;
     onCancel: () => void;
@@ -77,7 +77,7 @@ function ZitatMultiPageContent({
 }
 
 export function ZitatMultiPage(props: ZitatMultiPageProps) {
-    const [config, setConfig] = useState<CanvasConfig | null>(null);
+    const [config, setConfig] = useState<FullCanvasConfig | null>(null);
 
     // Load config dynamically
     useEffect(() => {

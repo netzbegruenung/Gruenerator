@@ -42,7 +42,7 @@ export function buildCanvasItems<TState extends StateWithFeatures = StateWithFea
 
     // 1. Config Elements (sorted by order property)
     const sortedConfigElements = [...config.elements].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    sortedConfigElements.forEach((el) => items.push({ id: el.id, type: 'element', data: el as Record<string, unknown> }));
+    sortedConfigElements.forEach((el) => items.push({ id: el.id, type: 'element', data: el as unknown as Record<string, unknown> }));
 
     // 2. Balkens
     if (state.balkenInstances) {

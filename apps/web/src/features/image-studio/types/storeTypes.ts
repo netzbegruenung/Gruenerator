@@ -206,6 +206,7 @@ export interface ImageStudioState {
   galleryEditMode: boolean;
   editShareToken: string | null;
   editTitle: string | null;
+  templateCreator: string | null;
 
   // UI State
   currentStep: string;

@@ -31,7 +31,7 @@
   position: relative;
   padding: 8px;
   background: var(--card-background);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;

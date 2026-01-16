@@ -47,6 +47,7 @@ export interface DreizeilenFullState {
 
   // === Background Image ===
   currentImageSrc?: string;
+  backgroundImageFile?: File | Blob | null;  // Original file for base64 conversion when saving
   imageOffset: { x: number; y: number };
   imageScale: number;
   imageAttribution?: StockImageAttribution | null;
@@ -82,6 +83,8 @@ export interface DreizeilenFullState {
   // === UI State ===
   isDesktop: boolean;
   alternatives: Array<{ id: string; line1: string; line2: string; line3: string }>;
+
+  [key: string]: unknown;
 }
 
 /**

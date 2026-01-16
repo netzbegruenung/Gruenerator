@@ -1,13 +1,14 @@
 .canvas-editor-layout {
+  /* Uses --image-studio-tab-bar-width from CanvasSidebar.css */
   display: flex;
   flex-direction: column;
   height: 100vh;
   min-height: 500px;
 }
 
-/* When sidebar is present, add left margin for fixed sidebar */
+/* When sidebar is present, add left margin for fixed Image Studio sidebar */
 .canvas-editor-layout--with-sidebar {
-  margin-left: 64px;
+  margin-left: var(--image-studio-tab-bar-width);
 }
 
 .canvas-editor-layout__main {
@@ -40,6 +41,29 @@
   min-width: 120px;
 }
 
+/* Template Creator Banner */
+.template-creator-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xsmall);
+  padding: var(--spacing-xsmall) var(--spacing-small);
+  background: var(--klee-10);
+  border-bottom: 1px solid var(--klee-20);
+  color: var(--font-color-secondary);
+  font-size: var(--font-size-small);
+  width: 100%;
+}
+
+.template-creator-banner__icon {
+  color: var(--klee);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.template-creator-banner strong {
+  color: var(--font-color);
+}
+
 /* Mobile Responsive */
 @media (max-width: 900px) {
   .canvas-editor-layout--with-sidebar {
@@ -61,5 +85,10 @@
   .canvas-editor-layout__actions .btn {
     flex: 1;
     min-width: auto;
+  }
+
+  .template-creator-banner {
+    font-size: var(--font-size-xsmall);
+    padding: var(--spacing-xxsmall) var(--spacing-xsmall);
   }
 }

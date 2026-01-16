@@ -310,7 +310,7 @@ function BalkenGroupInner({
             currentAbsY,
             contentWidth,
             contentHeight,
-            getSnapTargets('balken-group'),
+            getSnapTargets('balken-group') as unknown as import('../utils/snapping').SnapTarget[],
             stageWidth,
             stageHeight
         );

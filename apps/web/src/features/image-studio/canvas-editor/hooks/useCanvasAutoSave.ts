@@ -3,6 +3,18 @@ import { useAutoSaveStore } from '../../hooks/useAutoSaveStore';
 import { useShareStore } from '@gruenerator/shared/share';
 import type { ShareMetadata } from '../../types/templateResultTypes';
 
+/**
+ * Convert a File/Blob to base64 data URL
+ */
+async function fileToBase64(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 interface CanvasAutoSaveOptions {
   canvasType: string;
   canvasState: Record<string, unknown>;
@@ -45,18 +57,18 @@ function buildCanvasShareMetadata(
       balkenScale: canvasState.balkenScale as number | undefined,
       balkenOffset: canvasState.balkenOffset as number[] | undefined,
       barOffsets: canvasState.barOffsets as [number, number, number] | undefined,
-      sunflowerPos: canvasState.sunflowerPos,
-      sunflowerSize: canvasState.sunflowerSize,
-      sunflowerVisible: canvasState.sunflowerVisible,
-      sunflowerOpacity: canvasState.sunflowerOpacity,
-      balkenOpacity: canvasState.balkenOpacity,
-      imageOffset: canvasState.imageOffset,
-      imageScale: canvasState.imageScale,
-      selectedIcons: canvasState.selectedIcons,
-      iconStates: canvasState.iconStates,
-      shapeInstances: canvasState.shapeInstances,
-      layerOrder: canvasState.layerOrder,
-      additionalTexts: canvasState.additionalTexts,
+      sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
+      sunflowerSize: canvasState.sunflowerSize as { w: number; h: number } | null | undefined,
+      sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
+      sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
+      balkenOpacity: canvasState.balkenOpacity as number | undefined,
+      imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
+      imageScale: canvasState.imageScale as number | undefined,
+      selectedIcons: canvasState.selectedIcons as string[] | undefined,
+      iconStates: canvasState.iconStates as Record<string, unknown> | undefined,
+      shapeInstances: canvasState.shapeInstances as unknown[] | undefined,
+      layerOrder: canvasState.layerOrder as string[] | undefined,
+      additionalTexts: canvasState.additionalTexts as unknown[] | undefined,
     };
   } else if (canvasType === 'zitat' || canvasType === 'zitat-pure') {
     metadata.content = {
@@ -66,17 +78,17 @@ function buildCanvasShareMetadata(
     metadata.styling = {
       fontSize: canvasState.fontSize as number | undefined,
       colorScheme: canvasState.colorSchemeId as string | undefined,
-      imageOffset: canvasState.imageOffset,
-      imageScale: canvasState.imageScale,
-      sunflowerPos: canvasState.sunflowerPos,
-      sunflowerSize: canvasState.sunflowerSize,
-      sunflowerVisible: canvasState.sunflowerVisible,
-      sunflowerOpacity: canvasState.sunflowerOpacity,
-      selectedIcons: canvasState.selectedIcons,
-      iconStates: canvasState.iconStates,
-      shapeInstances: canvasState.shapeInstances,
-      layerOrder: canvasState.layerOrder,
-      additionalTexts: canvasState.additionalTexts,
+      imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
+      imageScale: canvasState.imageScale as number | undefined,
+      sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
+      sunflowerSize: canvasState.sunflowerSize as { w: number; h: number } | null | undefined,
+      sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
+      sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
+      selectedIcons: canvasState.selectedIcons as string[] | undefined,
+      iconStates: canvasState.iconStates as Record<string, unknown> | undefined,
+      shapeInstances: canvasState.shapeInstances as unknown[] | undefined,
+      layerOrder: canvasState.layerOrder as string[] | undefined,
+      additionalTexts: canvasState.additionalTexts as unknown[] | undefined,
     };
   } else if (canvasType === 'info') {
     metadata.content = {
@@ -87,17 +99,17 @@ function buildCanvasShareMetadata(
     metadata.styling = {
       fontSize: canvasState.fontSize as number | undefined,
       colorScheme: canvasState.colorSchemeId as string | undefined,
-      imageOffset: canvasState.imageOffset,
-      imageScale: canvasState.imageScale,
-      sunflowerPos: canvasState.sunflowerPos,
-      sunflowerSize: canvasState.sunflowerSize,
-      sunflowerVisible: canvasState.sunflowerVisible,
-      sunflowerOpacity: canvasState.sunflowerOpacity,
-      selectedIcons: canvasState.selectedIcons,
-      iconStates: canvasState.iconStates,
-      shapeInstances: canvasState.shapeInstances,
-      layerOrder: canvasState.layerOrder,
-      additionalTexts: canvasState.additionalTexts,
+      imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
+      imageScale: canvasState.imageScale as number | undefined,
+      sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
+      sunflowerSize: canvasState.sunflowerSize as { w: number; h: number } | null | undefined,
+      sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
+      sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
+      selectedIcons: canvasState.selectedIcons as string[] | undefined,
+      iconStates: canvasState.iconStates as Record<string, unknown> | undefined,
+      shapeInstances: canvasState.shapeInstances as unknown[] | undefined,
+      layerOrder: canvasState.layerOrder as string[] | undefined,
+      additionalTexts: canvasState.additionalTexts as unknown[] | undefined,
     };
   } else {
     // Generic canvas - store full state
@@ -187,6 +199,17 @@ export const useCanvasAutoSave = (
 
       let share;
 
+      // Convert backgroundImageFile to base64 if present
+      let originalImageBase64: string | undefined;
+      const bgFile = refs.canvasState.backgroundImageFile as File | Blob | null | undefined;
+      if (bgFile) {
+        try {
+          originalImageBase64 = await fileToBase64(bgFile);
+        } catch (err) {
+          console.warn('[AutoSave] Failed to convert background image to base64:', err);
+        }
+      }
+
       // If we already have a shareToken, update the existing entry instead of creating new
       if (storeState.autoSavedShareToken) {
         console.log('[AutoSave] Updating existing share:', storeState.autoSavedShareToken);
@@ -195,6 +218,7 @@ export const useCanvasAutoSave = (
           imageBase64: imageSrc,
           title,
           metadata,
+          originalImage: originalImageBase64,
         });
       } else {
         console.log('[AutoSave] Creating new share entry');
@@ -203,7 +227,7 @@ export const useCanvasAutoSave = (
           title,
           imageType: refs.canvasType,
           metadata,
-          originalImage: (refs.canvasState.currentImageSrc as string) ?? undefined,
+          originalImage: originalImageBase64,
         });
       }
 

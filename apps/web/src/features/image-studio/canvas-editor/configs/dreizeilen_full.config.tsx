@@ -334,6 +334,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
         // Background Image
         currentImageSrc: props.currentImageSrc as string | undefined,
+        backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
         imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
@@ -546,6 +547,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             setState(prev => ({
                 ...prev,
                 currentImageSrc: src,
+                backgroundImageFile: file,
                 imageAttribution: attribution ?? null,
                 hasBackgroundImage: !!src,
             }));
@@ -553,6 +555,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
             saveToHistory({
                 ...getState(),
                 currentImageSrc: src,
+                backgroundImageFile: file,
                 imageAttribution: attribution ?? null,
                 hasBackgroundImage: !!src,
             });

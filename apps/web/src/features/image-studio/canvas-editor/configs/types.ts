@@ -209,7 +209,7 @@ export interface LayoutElementResult {
 
 /** Layout calculation result - element positions and sizes */
 export interface LayoutResult {
-    [key: string]: LayoutElementResult | Record<string, unknown>;
+    [key: string]: LayoutElementResult | Record<string, unknown> | undefined;
     _meta?: Record<string, unknown>;
 }
 

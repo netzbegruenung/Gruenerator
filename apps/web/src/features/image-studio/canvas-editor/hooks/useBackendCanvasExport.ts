@@ -32,7 +32,7 @@ export function useBackendCanvasExport<TState, TActions>(
     setError(null);
 
     try {
-      const result = await exportFreeCanvas(config, state);
+      const result = await exportFreeCanvas(config as unknown as any, state as unknown as any);
 
       if (!result) {
         setError('Export failed: No image returned from API');

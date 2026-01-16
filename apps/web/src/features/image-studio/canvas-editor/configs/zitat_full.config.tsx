@@ -24,6 +24,7 @@ export interface ZitatFullState {
     quote: string;
     name: string;
     currentImageSrc: string;
+    backgroundImageFile?: File | Blob | null;
     imageOffset: { x: number; y: number };
     imageScale: number;
     gradientOpacity: number;
@@ -45,6 +46,8 @@ export interface ZitatFullState {
     illustrationInstances: IllustrationInstance[];
     additionalTexts: AdditionalText[];
     quoteMarkOffset?: { x: number; y: number };
+
+    [key: string]: unknown;
 }
 
 // ============================================================================
@@ -56,6 +59,7 @@ export interface ZitatFullActions {
     setName: (val: string) => void;
     handleQuoteFontSizeChange: (size: number) => void;
     handleNameFontSizeChange: (size: number) => void;
+    setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
     setImageScale: (scale: number) => void;
     setGradientOpacity: (opacity: number) => void;
     toggleBackgroundLock: () => void;
@@ -169,7 +173,9 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
             component: ImageBackgroundSection,
             propsFactory: (state, actions) => ({
                 currentImageSrc: state.currentImageSrc,
-                onImageChange: () => { },
+                onImageChange: (file: File | null, objectUrl?: string) => {
+                    actions.setCurrentImageSrc(file, objectUrl);
+                },
                 scale: state.imageScale,
                 onScaleChange: actions.setImageScale,
                 gradientOpacity: state.gradientOpacity,
@@ -322,6 +328,7 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         name: (props.name as string | undefined) ?? '',
         // Accept both imageSrc (from wrapper) and currentImageSrc (from saved state)
         currentImageSrc: (props.currentImageSrc as string | undefined) ?? (props.imageSrc as string | undefined) ?? '',
+        backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
         gradientOpacity: (props.gradientOpacity as number | undefined) ?? ZITAT_CONFIG.gradient.bottomOpacity,
@@ -358,6 +365,15 @@ export const zitatFullConfig: FullCanvasConfig<ZitatFullState, ZitatFullActions>
         },
         handleNameFontSizeChange: (size: number) => {
             setState((prev) => ({ ...prev, customNameFontSize: size }));
+        },
+        setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
+            const src = file ? objectUrl : '';
+            setState(prev => ({
+                ...prev,
+                currentImageSrc: src ?? '',
+                backgroundImageFile: file,
+            }));
+            saveToHistory({ ...getState(), currentImageSrc: src ?? '', backgroundImageFile: file });
         },
         setImageScale: (scale: number) => {
             setState((prev) => ({ ...prev, imageScale: scale }));

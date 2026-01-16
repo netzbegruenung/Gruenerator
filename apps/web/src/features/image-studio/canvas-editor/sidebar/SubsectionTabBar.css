@@ -1,4 +1,5 @@
 /* SubsectionTabBar - Secondary navigation bar positioned above main tab bar */
+/* Uses --mobile-tab-bar-height from CanvasSidebar.css */
 
 /* Stacked layout (desktop) */
 .subsection-stacked {
@@ -32,20 +33,19 @@
     }
 }
 
-/* Fixed bar - positioned above main tab bar (bottom: 64px), same height as main bar */
+/* Fixed bar - positioned above main tab bar, same height as main bar */
 .subsection-bar-fixed {
     position: fixed;
-    bottom: 64px;
+    bottom: var(--mobile-tab-bar-height);
     left: 0;
     right: 0;
-    height: 64px;
-    /* Same as main tab bar */
+    height: var(--mobile-tab-bar-height);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0;
     background: var(--background-color);
-    border-top: 1px solid var(--border-subtle);
+    border-top: var(--border-subtle);
     z-index: 99;
     padding: 0;
 }
@@ -103,11 +103,11 @@
 /* Safe area adjustment */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .subsection-bar-fixed {
-        bottom: calc(64px + env(safe-area-inset-bottom));
+        bottom: calc(var(--mobile-tab-bar-height) + env(safe-area-inset-bottom));
     }
 
     .subsection-content-mobile {
-        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+        padding-bottom: calc(var(--mobile-tab-bar-height) + 12px + env(safe-area-inset-bottom));
     }
 }
 

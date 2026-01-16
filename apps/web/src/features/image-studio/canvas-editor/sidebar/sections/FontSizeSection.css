@@ -10,7 +10,7 @@
   display: flex;
   align-items: center;
   gap: 0;
-  border: 1px solid var(--border-subtle);
+  border: var(--border-subtle);
   border-radius: var(--card-border-radius-small, 8px);
   overflow: hidden;
   background: var(--background-color);
@@ -43,8 +43,8 @@
   width: 48px;
   height: 36px;
   border: none;
-  border-left: 1px solid var(--border-subtle);
-  border-right: 1px solid var(--border-subtle);
+  border-left: var(--border-subtle);
+  border-right: var(--border-subtle);
   background: var(--background-color-alt);
   color: var(--font-color);
   font-size: var(--font-size-small);

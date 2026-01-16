@@ -258,6 +258,8 @@ interface IllustrationAnalyticsWindow extends Window {
         resetMetrics: typeof resetMetrics;
         getCacheHitRate: typeof getCacheHitRate;
         getAverageRenderTime: typeof getAverageRenderTime;
+        getMedianRenderTime: typeof getMedianRenderTime;
+        getP95RenderTime: typeof getP95RenderTime;
     };
 }
 

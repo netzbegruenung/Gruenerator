@@ -75,7 +75,7 @@
 }
 
 .image-background-placeholder span {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
 }
 
 /* Upload button with icon */
@@ -107,7 +107,7 @@
     font-family: 'PT Sans', sans-serif;
     color: var(--grey-500);
     line-height: 1.4;
-    font-size: 11px;
+    font-size: var(--font-size-xxs);
     text-align: center;
     margin: 12px 0 0 0;
     padding: 0;
@@ -154,7 +154,7 @@
 /* Expandable Sections */
 .image-source-expandable {
     margin-top: 12px;
-    border: 1px solid var(--border-subtle);
+    border: var(--border-subtle);
     border-radius: 8px;
     overflow: hidden;
 }

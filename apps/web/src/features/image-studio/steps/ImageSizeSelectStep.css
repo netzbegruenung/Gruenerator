@@ -65,12 +65,12 @@
 .image-size-card__label {
   font-weight: 600;
   color: var(--font-color);
-  font-size: 15px;
+  font-size: var(--font-size-sm);
   line-height: 1.3;
 }
 
 .image-size-card__dimensions {
-  font-size: 13px;
+  font-size: var(--font-size-xs);
   color: var(--font-color-disabled);
   font-weight: 500;
 }
@@ -80,7 +80,7 @@
 }
 
 .image-size-card__platform {
-  font-size: 11px;
+  font-size: var(--font-size-xxs);
   color: var(--font-color-disabled);
   font-weight: 500;
   text-transform: uppercase;
@@ -108,15 +108,15 @@
   }
 
   .image-size-card__label {
-    font-size: 14px;
+    font-size: var(--font-size-sm);
   }
 
   .image-size-card__dimensions {
-    font-size: 12px;
+    font-size: var(--font-size-xxs);
   }
 
   .image-size-card__platform {
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
   }
 }
 

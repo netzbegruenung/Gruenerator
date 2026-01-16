@@ -51,15 +51,15 @@ export function useFloatingModuleHandlers<TState, TActions extends OptionalCanva
                 }
             } else if (activeFloatingModule.type === 'icon') {
                 if (actions.updateIcon) {
-                    actions.updateIcon(activeFloatingModule.data.id, { color });
+                    actions.updateIcon(activeFloatingModule.data.id, { color } as unknown as Parameters<typeof actions.updateIcon>[1]);
                 }
             } else if (activeFloatingModule.type === 'illustration') {
                 if (actions.updateIllustration) {
-                    actions.updateIllustration(activeFloatingModule.data.id, { color });
+                    actions.updateIllustration(activeFloatingModule.data.id, { color } as unknown as Parameters<typeof actions.updateIllustration>[1]);
                 }
             } else if (activeFloatingModule.type === 'asset') {
                 if (actions.updateAsset) {
-                    actions.updateAsset(activeFloatingModule.data.id, { color });
+                    actions.updateAsset(activeFloatingModule.data.id, { color } as unknown as Parameters<typeof actions.updateAsset>[1]);
                 }
             } else if (activeFloatingModule.type === 'text') {
                 const id = activeFloatingModule.data.id;

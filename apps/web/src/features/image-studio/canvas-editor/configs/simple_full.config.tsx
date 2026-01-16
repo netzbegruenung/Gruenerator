@@ -26,6 +26,7 @@ export interface SimpleFullState {
     headline: string;
     subtext: string;
     currentImageSrc: string;
+    backgroundImageFile?: File | Blob | null;
     imageOffset: { x: number; y: number };
     imageScale: number;
     gradientOpacity: number;
@@ -51,6 +52,8 @@ export interface SimpleFullState {
     additionalTexts: AdditionalText[];
     // Attribution
     imageAttribution?: StockImageAttribution | null;
+
+    [key: string]: unknown;
 }
 
 // ============================================================================
@@ -62,6 +65,7 @@ export interface SimpleFullActions {
     setSubtext: (val: string) => void;
     handleHeadlineFontSizeChange: (size: number) => void;
     handleSubtextFontSizeChange: (size: number) => void;
+    setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
     setImageScale: (scale: number) => void;
     addAsset: (assetId: string) => void;
     updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
@@ -171,9 +175,8 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
             component: ImageBackgroundSection,
             propsFactory: (state, actions) => ({
                 currentImageSrc: state.currentImageSrc,
-                onImageChange: (_: File | null, url?: string, attribution?: StockImageAttribution | null) => {
-                    // Note: setCurrentImageSrc is handled by GenericCanvas file upload logic
-                    // Only handle attribution here
+                onImageChange: (file: File | null, objectUrl?: string, attribution?: StockImageAttribution | null) => {
+                    actions.setCurrentImageSrc(file, objectUrl);
                     if (attribution !== undefined) actions.setImageAttribution?.(attribution);
                 },
                 scale: state.imageScale,
@@ -304,6 +307,7 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         headline: (props.headline as string | undefined) ?? '',
         subtext: (props.subtext as string | undefined) ?? '',
         currentImageSrc: (props.imageSrc as string | undefined) ?? '',
+        backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
         imageOffset: { x: 0, y: 0 },
         imageScale: 1,
         gradientOpacity: 0.3,
@@ -342,6 +346,15 @@ export const simpleFullConfig: FullCanvasConfig<SimpleFullState, SimpleFullActio
         },
         handleSubtextFontSizeChange: (size: number) => {
             setState((prev) => ({ ...prev, customSubtextFontSize: size }));
+        },
+        setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
+            const src = file ? objectUrl : '';
+            setState(prev => ({
+                ...prev,
+                currentImageSrc: src ?? '',
+                backgroundImageFile: file,
+            }));
+            saveToHistory({ ...getState(), currentImageSrc: src ?? '', backgroundImageFile: file });
         },
         setImageScale: (scale: number) => {
             setState((prev) => ({ ...prev, imageScale: scale }));

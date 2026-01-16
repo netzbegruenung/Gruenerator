@@ -116,11 +116,20 @@ export function parseSharepicForEditing(
 }
 
 export async function loadGalleryEditData(editData: GalleryEditData): Promise<Record<string, unknown>> {
-  console.log('[loadGalleryEditData] Input:', editData);
+  console.log('[loadGalleryEditData] === START ===');
+  console.log('[loadGalleryEditData] Input editData:', JSON.stringify(editData, null, 2));
   const { shareToken, content, styling, originalImageUrl, title } = editData;
   const sharepicType = content?.sharepicType || styling?.sharepicType;
   const mappedType = sharepicType ? (LEGACY_TYPE_MAP[sharepicType] || sharepicType) : null;
-  console.log('[loadGalleryEditData] sharepicType:', sharepicType, '-> mappedType:', mappedType);
+  console.log('[loadGalleryEditData] Type mapping:', {
+    sharepicType,
+    mappedType,
+    isLegacyType: sharepicType !== mappedType,
+    hasContent: !!content,
+    hasStyling: !!styling,
+    contentKeys: content ? Object.keys(content) : [],
+    stylingKeys: styling ? Object.keys(styling) : []
+  });
 
   const formData: Record<string, unknown> = {
     galleryEditMode: true,
@@ -170,15 +179,27 @@ export async function loadGalleryEditData(editData: GalleryEditData): Promise<Re
   }
 
   if (originalImageUrl) {
+    console.log('[loadGalleryEditData] Fetching original image from:', originalImageUrl);
     try {
       const urlPath = originalImageUrl.startsWith('/api') ? originalImageUrl.slice(4) : originalImageUrl;
       const response = await apiClient.get(urlPath, { responseType: 'blob' });
       formData.uploadedImage = response.data;
       formData.file = response.data;
+      console.log('[loadGalleryEditData] Original image fetched successfully');
     } catch (error) {
-      console.warn('[EditingSessionService] Failed to fetch original image:', error);
+      console.warn('[loadGalleryEditData] Failed to fetch original image:', error);
     }
   }
+
+  console.log('[loadGalleryEditData] Final formData:', {
+    type: formData.type,
+    currentStep: formData.currentStep,
+    category: formData.category,
+    hasContent: ['line1', 'line2', 'line3', 'quote', 'header', 'body'].filter(k => formData[k]),
+    hasStyling: ['fontSize', 'colorScheme', 'balkenOffset', 'credit'].filter(k => formData[k]),
+    hasUploadedImage: !!formData.uploadedImage
+  });
+  console.log('[loadGalleryEditData] === END ===');
 
   return formData;
 }

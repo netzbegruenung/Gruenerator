@@ -1,3 +1,4 @@
+import React from 'react';
 import { AlternativesSection } from '../sidebar';
 import { HiSparkles } from 'react-icons/hi';
 import type { SectionConfig } from './types';
@@ -46,7 +47,7 @@ export function createAlternativesSection<TState, TActions = unknown>(
     config: AlternativesConfig<TState, TActions>
 ): SectionConfig<TState, TActions, Record<string, unknown>> {
     return {
-        component: AlternativesSection,
+        component: AlternativesSection as unknown as React.ComponentType<Record<string, unknown>>,
         propsFactory: (state: TState, actions: TActions) => {
             if (config.type === 'string') {
                 return {

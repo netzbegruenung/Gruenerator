@@ -94,7 +94,7 @@
   gap: var(--spacing-small);
   margin-top: var(--spacing-small);
   padding-top: var(--spacing-small);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
 }
 
 /* Inline add buttons - desktop only */
@@ -103,7 +103,7 @@
   gap: var(--spacing-small);
   margin-top: var(--spacing-small);
   padding-top: var(--spacing-small);
-  border-top: 1px solid var(--border-subtle);
+  border-top: var(--border-subtle);
 }
 
 .text-add-inline .btn {

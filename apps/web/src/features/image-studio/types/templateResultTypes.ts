@@ -120,11 +120,27 @@ export interface ShareMetadata {
   content: Record<string, unknown>;
   styling: {
     fontSize?: number;
-    colorScheme?: ColorSchemeItem[] | ColorScheme;
+    colorScheme?: string | ColorSchemeItem[] | ColorScheme;
     balkenOffset?: number[];
     balkenGruppenOffset?: [number, number];
     sunflowerOffset?: [number, number];
     credit?: string;
+    // Dreizeilen-specific
+    balkenWidthScale?: number;
+    balkenScale?: number;
+    barOffsets?: [number, number, number];
+    sunflowerPos?: { x: number; y: number } | null;
+    sunflowerSize?: { w: number; h: number } | null;
+    sunflowerVisible?: boolean;
+    sunflowerOpacity?: number;
+    balkenOpacity?: number;
+    imageOffset?: { x: number; y: number };
+    imageScale?: number;
+    selectedIcons?: string[];
+    iconStates?: Record<string, unknown>;
+    shapeInstances?: unknown[];
+    layerOrder?: string[];
+    additionalTexts?: unknown[];
   };
   searchTerms?: string[];
   sloganAlternatives?: SloganAlternative[];

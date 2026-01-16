@@ -1,15 +1,16 @@
-import { useCallback, useState, useMemo, memo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { SubsectionTabBar } from '../SubsectionTabBar';
-import { FaDownload, FaShareAlt, FaImages, FaSave, FaCheck } from 'react-icons/fa';
-import { IoCheckmarkOutline } from 'react-icons/io5';
+import { FaDownload, FaImages, FaSave, FaCheck, FaInstagram, FaCopy } from 'react-icons/fa';
+import { MdTextFields } from 'react-icons/md';
+import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import Spinner from '../../../../../components/common/Spinner';
 import { useShareStore } from '@gruenerator/shared/share';
 import { useAutoSaveStore } from '../../../hooks/useAutoSaveStore';
+import { useGenerateSocialPost } from '../../../../../components/hooks/useGenerateSocialPost';
 import '../../../../../assets/styles/features/templates.css';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
-  // autoSaveStatus removed - DownloadSubsection now reads directly from useAutoSaveStore
   shareToken: string | null;
   onCaptureCanvas: () => void;
   onDownload: () => void;
@@ -18,76 +19,105 @@ export interface GenericShareSectionProps {
   canvasType: string;
 }
 
-// Download Subsection - reads autoSaveStatus directly from store to avoid re-renders
-function DownloadSubsection({
+// Download & Share Subsection - combined with 2 icon buttons
+function DownloadShareSubsection({
   exportedImage,
   shareToken,
   onCaptureCanvas,
   onDownload,
   onNavigateToGallery,
-}: Omit<GenericShareSectionProps, 'canvasText' | 'canvasType'>) {
+  canvasText,
+}: Omit<GenericShareSectionProps, 'canvasType'>) {
   const [downloadState, setDownloadState] = useState<'idle' | 'capturing' | 'success'>('idle');
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
 
-  // Read autoSaveStatus directly from store to avoid prop-drilling re-renders
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
+  const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
   const handleDownloadClick = async () => {
     setDownloadState('capturing');
-
     try {
-      // Capture canvas
       await onCaptureCanvas();
-
-      // Wait a brief moment for state update
       await new Promise(resolve => setTimeout(resolve, 150));
-
-      // Auto-download (onDownload uses the latest exportedImage)
       onDownload();
-
-      // Show success state
       setDownloadState('success');
-
-      // Reset after 1.5 seconds
-      setTimeout(() => {
-        setDownloadState('idle');
-      }, 1500);
+      setTimeout(() => setDownloadState('idle'), 1500);
     } catch (error) {
-      console.error('[DownloadSubsection] Download failed:', error);
+      console.error('[DownloadShareSubsection] Download failed:', error);
       setDownloadState('idle');
     }
   };
 
+  const handleNativeShare = useCallback(async () => {
+    if (!exportedImage) {
+      // Auto-capture if no image yet
+      await onCaptureCanvas();
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+
+    const imageToShare = exportedImage || useAutoSaveStore.getState().autoSavedShareToken;
+    if (!imageToShare) return;
+
+    setIsSharing(true);
+    try {
+      const blob = await (await fetch(exportedImage!)).blob();
+      const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          text: canvasText,
+          title: 'Grünerator Share',
+        });
+      } else {
+        await navigator.share({
+          text: canvasText,
+          title: 'Grünerator Share',
+        });
+      }
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 2000);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        console.error('Share failed:', err);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [exportedImage, canvasText, onCaptureCanvas]);
+
   return (
     <div className="share-subsection">
-      <h3 className="share-subsection__title">Download</h3>
+      <h3 className="share-subsection__title">Download & Teilen</h3>
 
-      <button
-        className="btn btn-primary"
-        onClick={handleDownloadClick}
-        disabled={downloadState !== 'idle'}
-        type="button"
-      >
-        {downloadState === 'capturing' && (
-          <>
-            <Spinner size="small" />
-            Erfassen...
-          </>
-        )}
-        {downloadState === 'success' && (
-          <>
-            <FaCheck />
-            Erfolgreich
-          </>
-        )}
-        {downloadState === 'idle' && (
-          <>
-            <FaDownload />
-            Bild herunterladen
-          </>
-        )}
-      </button>
+      <div className="platform-icons">
+        <button
+          className="platform-icon-btn platform-icon-btn--download"
+          onClick={handleDownloadClick}
+          disabled={downloadState !== 'idle'}
+          title="Herunterladen"
+          aria-label="Bild herunterladen"
+          type="button"
+        >
+          {downloadState === 'capturing' ? <Spinner size="small" /> :
+           downloadState === 'success' ? <FaCheck /> : <FaDownload />}
+        </button>
 
-      {/* Show auto-save status after successful download */}
+        {canUseNativeShare && (
+          <button
+            className="platform-icon-btn platform-icon-btn--native"
+            onClick={handleNativeShare}
+            disabled={isSharing}
+            title="Teilen"
+            aria-label="Bild teilen"
+            type="button"
+          >
+            {isSharing ? <Spinner size="small" /> : shareSuccess ? <FaCheck /> : <IoShareOutline />}
+          </button>
+        )}
+      </div>
+
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
         <div className="share-status">
           <Spinner size="small" />
@@ -121,120 +151,50 @@ function DownloadSubsection({
   );
 }
 
-// Platform Sharing Subsection
-function PlatformsSubsection({
-  exportedImage,
-  canvasText,
-}: GenericShareSectionProps) {
-  const handlePlatformShare = useCallback(async (platform: string) => {
-    if (!exportedImage) return;
-
-    const blob = await (await fetch(exportedImage)).blob();
-    const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
-
-    // Try native Web Share API first
-    if (navigator.share && navigator.canShare({ files: [file], text: canvasText })) {
-      try {
-        await navigator.share({
-          files: [file],
-          text: canvasText,
-          title: 'Grünerator Share',
-        });
-        return;
-      } catch (err) {
-        console.error('Share failed:', err);
-      }
-    }
-
-    // Platform-specific fallbacks
-    const shareUrl = URL.createObjectURL(blob);
-    const text = encodeURIComponent(canvasText);
-
-    const urls: Record<string, string> = {
-      instagram: shareUrl, // Instagram requires app
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`,
-      twitter: `https://twitter.com/intent/tweet?text=${text}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`,
-      whatsapp: `https://api.whatsapp.com/send?text=${text}`,
-    };
-
-    if (urls[platform]) {
-      window.open(urls[platform], '_blank', 'width=600,height=400');
-    }
-  }, [exportedImage, canvasText]);
-
-  if (!exportedImage) {
-    return (
-      <div className="share-subsection">
-        <p className="share-message">Bild zuerst erfassen, um zu teilen</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="share-subsection">
-      <h3 className="share-subsection__title">Auf Plattformen teilen</h3>
-
-      <div className="platform-buttons">
-        <button
-          className="platform-button platform-button--instagram"
-          onClick={() => handlePlatformShare('instagram')}
-          type="button"
-        >
-          Instagram
-        </button>
-        <button
-          className="platform-button platform-button--facebook"
-          onClick={() => handlePlatformShare('facebook')}
-          type="button"
-        >
-          Facebook
-        </button>
-        <button
-          className="platform-button platform-button--twitter"
-          onClick={() => handlePlatformShare('twitter')}
-          type="button"
-        >
-          Twitter
-        </button>
-        <button
-          className="platform-button platform-button--linkedin"
-          onClick={() => handlePlatformShare('linkedin')}
-          type="button"
-        >
-          LinkedIn
-        </button>
-        <button
-          className="platform-button platform-button--whatsapp"
-          onClick={() => handlePlatformShare('whatsapp')}
-          type="button"
-        >
-          WhatsApp
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // Template Subsection
 function TemplateSubsection({
   shareToken,
+  onCaptureCanvas,
   canvasType
-}: GenericShareSectionProps) {
+}: Pick<GenericShareSectionProps, 'shareToken' | 'onCaptureCanvas' | 'canvasType'>) {
   const [isSaving, setIsSaving] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
   const { saveAsTemplate } = useShareStore();
+  const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
 
   const handleSaveAsTemplate = async () => {
-    if (!shareToken) {
-      alert('Bild zuerst erfassen, um als Vorlage zu speichern');
-      return;
-    }
-
     setIsSaving(true);
+
     try {
+      let tokenToUse = shareToken || currentShareToken;
+
+      // Auto-capture if no shareToken exists
+      if (!tokenToUse) {
+        await onCaptureCanvas();
+        // Wait for auto-save to complete
+        await new Promise<void>((resolve, reject) => {
+          const checkStatus = () => {
+            const status = useAutoSaveStore.getState().autoSaveStatus;
+            const token = useAutoSaveStore.getState().autoSavedShareToken;
+            if (status === 'saved' && token) {
+              resolve();
+            } else if (status === 'error') {
+              reject(new Error('Auto-save failed'));
+            } else {
+              setTimeout(checkStatus, 100);
+            }
+          };
+          setTimeout(checkStatus, 200);
+        });
+        tokenToUse = useAutoSaveStore.getState().autoSavedShareToken;
+      }
+
+      if (!tokenToUse) {
+        throw new Error('Kein Share-Token verfügbar');
+      }
+
       const result = await saveAsTemplate(
-        shareToken,
+        tokenToUse,
         `${canvasType} Vorlage`,
         'public'
       );
@@ -262,14 +222,10 @@ function TemplateSubsection({
 
       {!templateUrl ? (
         <>
-          <p className="share-message">
-            Design öffentlich teilen
-          </p>
-
           <button
             className="btn btn-primary"
             onClick={handleSaveAsTemplate}
-            disabled={isSaving || !shareToken}
+            disabled={isSaving}
             type="button"
           >
             {isSaving ? (
@@ -315,10 +271,83 @@ function TemplateSubsection({
   );
 }
 
-// Track renders for debugging
-let shareSectionRenderCount = 0;
+// Instagram Text Subsection
+interface GeneratedPosts {
+  instagram?: string;
+  [key: string]: string | undefined;
+}
 
-// Main Component - memoizes subsections to prevent re-renders
+function InstagramTextSubsection({
+  canvasText,
+  canvasType,
+}: Pick<GenericShareSectionProps, 'canvasText' | 'canvasType'>) {
+  const [copied, setCopied] = useState(false);
+  const socialPostHook = useGenerateSocialPost() as unknown as {
+    generatedPosts: GeneratedPosts;
+    generatePost: (thema: string, details: string, platforms: string[], includeActionIdeas: boolean) => Promise<unknown>;
+    loading: boolean;
+  };
+  const { generatedPosts, generatePost, loading } = socialPostHook;
+
+  const handleGenerate = async () => {
+    if (!canvasText.trim() || loading) return;
+    await generatePost(canvasText, `Sharepic: ${canvasType}`, ['instagram'], false);
+  };
+
+  const handleCopy = async () => {
+    if (generatedPosts?.instagram) {
+      await navigator.clipboard.writeText(generatedPosts.instagram);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="share-subsection">
+      <h3 className="share-subsection__title">Instagram Text</h3>
+
+      {!generatedPosts?.instagram ? (
+        <button
+          className="btn btn-primary"
+          onClick={handleGenerate}
+          disabled={loading || !canvasText.trim()}
+          type="button"
+        >
+          {loading ? (
+            <>
+              <Spinner size="small" />
+              Generiere...
+            </>
+          ) : (
+            <>
+              <FaInstagram />
+              Text generieren
+            </>
+          )}
+        </button>
+      ) : (
+        <>
+          <textarea
+            readOnly
+            value={generatedPosts.instagram}
+            className="share-textarea"
+            rows={6}
+            onClick={(e) => e.currentTarget.select()}
+          />
+          <button
+            className="btn btn-secondary"
+            onClick={handleCopy}
+            type="button"
+          >
+            {copied ? <FaCheck /> : <FaCopy />}
+            {copied ? 'Kopiert!' : 'Kopieren'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function GenericShareSection({
   exportedImage,
   shareToken,
@@ -328,44 +357,19 @@ export function GenericShareSection({
   canvasText,
   canvasType,
 }: GenericShareSectionProps) {
-  shareSectionRenderCount++;
-  console.log(`[GenericShareSection] Render #${shareSectionRenderCount}`, {
-    hasExportedImage: !!exportedImage,
-    shareToken: shareToken?.slice(0, 8),
-  });
-
-  // Memoize subsections to prevent unnecessary re-renders of SubsectionTabBar
-  // Each subsection's content receives only the props it needs
-  const subsections = useMemo(() => {
-    console.log('[GenericShareSection] Creating new subsections array (useMemo triggered)');
-    return [
+  const subsections = useMemo(() => [
     {
       id: 'download',
       icon: FaDownload,
       label: 'Download',
       content: (
-        <DownloadSubsection
-          exportedImage={exportedImage}
-          shareToken={shareToken}
-          onCaptureCanvas={onCaptureCanvas}
-          onDownload={onDownload}
-          onNavigateToGallery={onNavigateToGallery}
-        />
-      ),
-    },
-    {
-      id: 'platforms',
-      icon: FaShareAlt,
-      label: 'Teilen',
-      content: (
-        <PlatformsSubsection
+        <DownloadShareSubsection
           exportedImage={exportedImage}
           shareToken={shareToken}
           onCaptureCanvas={onCaptureCanvas}
           onDownload={onDownload}
           onNavigateToGallery={onNavigateToGallery}
           canvasText={canvasText}
-          canvasType={canvasType}
         />
       ),
     },
@@ -375,18 +379,24 @@ export function GenericShareSection({
       label: 'Vorlage',
       content: (
         <TemplateSubsection
-          exportedImage={exportedImage}
           shareToken={shareToken}
           onCaptureCanvas={onCaptureCanvas}
-          onDownload={onDownload}
-          onNavigateToGallery={onNavigateToGallery}
+          canvasType={canvasType}
+        />
+      ),
+    },
+    {
+      id: 'instagram-text',
+      icon: MdTextFields,
+      label: 'Text',
+      content: (
+        <InstagramTextSubsection
           canvasText={canvasText}
           canvasType={canvasType}
         />
       ),
     },
-  ];
-  }, [exportedImage, shareToken, onCaptureCanvas, onDownload, onNavigateToGallery, canvasText, canvasType]);
+  ], [exportedImage, shareToken, onCaptureCanvas, onDownload, onNavigateToGallery, canvasText, canvasType]);
 
   return <SubsectionTabBar subsections={subsections} defaultSubsection="download" />;
 }
