@@ -128,6 +128,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: unsplashRouter } = await import('./routes/unsplash/unsplashRoutes.js');
   const { default: docsRouter } = await import('./routes/docs/index.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
+  const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
 
   // Auth routes - combined TypeScript router
   app.use('/api/auth', authRouter);
@@ -209,6 +210,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/etherpad', etherpadRoute);
   app.use('/api/claude_wahlprogramm', wahlprogrammRouter);
   app.use('/api/claude_universal', universalRouter);
+  app.use('/api/texte/smart', smartTexteRouter);
   app.use('/api/claude_gruene_jugend', claudeGrueneJugendRoute);
   app.use('/api/claude_gruenerator_ask', claudeGrueneratorAskRoute);
   app.use('/api/custom_generator', customGeneratorRoute);

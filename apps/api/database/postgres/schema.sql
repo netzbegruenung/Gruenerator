@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     custom_gruenejugend_prompt TEXT,
     custom_rede_prompt TEXT,
     custom_buergeranfragen_prompt TEXT,
+    custom_prompt TEXT,
     igel_modus BOOLEAN DEFAULT FALSE,
     beta_features JSONB DEFAULT '{}',
     presseabbinder TEXT,
@@ -146,14 +147,12 @@ CREATE TABLE IF NOT EXISTS group_content_shares (
     shared_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- Group instructions
+-- Group instructions (simplified - only unified custom_prompt)
 CREATE TABLE IF NOT EXISTS group_instructions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     group_id UUID REFERENCES groups(id) ON DELETE CASCADE,
-    custom_antrag_prompt TEXT DEFAULT '',
-    custom_social_prompt TEXT DEFAULT '',
-    antrag_instructions_enabled BOOLEAN DEFAULT FALSE,
-    social_instructions_enabled BOOLEAN DEFAULT FALSE,
+    custom_prompt TEXT DEFAULT '',
+    instructions_enabled BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

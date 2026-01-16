@@ -25,7 +25,8 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated as any, 
     const userId = req.user!.id;
     const { instructionType } = req.params;
 
-    const validInstructionTypes = ['antrag', 'social', 'universal', 'gruenejugend', 'rede', 'buergeranfragen', 'custom_generator'];
+    // Only antrag and social instruction types remain active
+    const validInstructionTypes = ['antrag', 'social', 'custom_generator'];
     if (!validInstructionTypes.includes(instructionType)) {
       res.status(400).json({
         success: false,
@@ -36,11 +37,7 @@ router.get('/instructions-status/:instructionType', ensureAuthenticated as any, 
 
     const fieldMapping: Record<string, string[]> = {
       antrag: ['custom_antrag_prompt'],
-      social: ['custom_social_prompt'],
-      universal: ['custom_universal_prompt'],
-      gruenejugend: ['custom_gruenejugend_prompt'],
-      rede: ['custom_rede_prompt'],
-      buergeranfragen: ['custom_buergeranfragen_prompt']
+      social: ['custom_social_prompt']
     };
 
     if (instructionType === 'custom_generator') {
@@ -160,12 +157,13 @@ router.get('/anweisungen-wissen', ensureAuthenticated as any, async (req: AuthRe
 
     res.json({
       success: true,
+      // Unified custom prompt (new system)
+      customPrompt: (profileData as any)?.custom_prompt || '',
+      // Per-generator prompts (only antrag and social remain active)
       antragPrompt: (profileData as any)?.custom_antrag_prompt || '',
+      antragGliederung: (profileData as any)?.custom_antrag_gliederung || '',
       socialPrompt: (profileData as any)?.custom_social_prompt || '',
-      universalPrompt: (profileData as any)?.custom_universal_prompt || '',
-      gruenejugendPrompt: (profileData as any)?.custom_gruenejugend_prompt || '',
-      redePrompt: (profileData as any)?.custom_rede_prompt || '',
-      buergeranfragenPrompt: (profileData as any)?.custom_buergeranfragen_prompt || '',
+      presseabbinder: (profileData as any)?.presseabbinder || '',
       knowledge: knowledgeEntries?.map(entry => ({
         id: entry.id,
         title: entry.title,
@@ -191,12 +189,11 @@ router.put('/anweisungen-wissen', ensureAuthenticated as any, async (req: AuthRe
   try {
     const userId = req.user!.id;
     const {
+      custom_prompt,
       custom_antrag_prompt,
+      custom_antrag_gliederung,
       custom_social_prompt,
-      custom_universal_prompt,
-      custom_gruenejugend_prompt,
-      custom_rede_prompt,
-      custom_buergeranfragen_prompt,
+      presseabbinder,
       knowledge = []
     } = req.body || {};
 
@@ -206,12 +203,11 @@ router.put('/anweisungen-wissen', ensureAuthenticated as any, async (req: AuthRe
 
     const profileService = getProfileService();
     const profilePayload = {
+      custom_prompt: custom_prompt ?? null,
       custom_antrag_prompt: custom_antrag_prompt ?? null,
+      custom_antrag_gliederung: custom_antrag_gliederung ?? null,
       custom_social_prompt: custom_social_prompt ?? null,
-      custom_universal_prompt: custom_universal_prompt ?? null,
-      custom_gruenejugend_prompt: custom_gruenejugend_prompt ?? null,
-      custom_rede_prompt: custom_rede_prompt ?? null,
-      custom_buergeranfragen_prompt: custom_buergeranfragen_prompt ?? null,
+      presseabbinder: presseabbinder ?? null,
     };
 
     await profileService.updateProfile(userId, profilePayload);

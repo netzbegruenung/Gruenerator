@@ -73,7 +73,7 @@ router.get('/profile', ensureAuthenticated as any, async (req: AuthRequest, res:
 router.put('/profile', ensureAuthenticated as any, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const profileService = getProfileService();
-    const { display_name, username, avatar_robot_id, email } = req.body as ProfileUpdateBody & { email?: string };
+    const { display_name, username, avatar_robot_id, email, custom_prompt } = req.body as ProfileUpdateBody & { email?: string; custom_prompt?: string };
 
     if (avatar_robot_id && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
       res.status(400).json({
@@ -89,6 +89,7 @@ router.put('/profile', ensureAuthenticated as any, async (req: AuthRequest, res:
     if (username !== undefined) updateData.username = username || null;
     if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
     if (email !== undefined) updateData.email = email || null;
+    if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
 
     log.debug(`[User Profile /profile PUT] Updating profile for user ${req.user!.id}:`, updateData);
     const data = await profileService.updateProfile(req.user!.id, updateData);
@@ -223,7 +224,8 @@ router.patch('/profile/beta-features', ensureAuthenticated as any, async (req: A
       'website',
       'vorlagen',
       'videoEditor',
-      'igel_modus'
+      'igel_modus',
+      'automatischPlanMode'
     ];
 
     if (!allowedFeatures.includes(feature)) {
