@@ -128,6 +128,7 @@ const ProfileInfoTabContainer = ({
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [customPrompt, setCustomPrompt] = useState('');
   const [errorProfile, setErrorProfile] = useState('');
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
@@ -148,7 +149,12 @@ const ProfileInfoTabContainer = ({
   const stateBasedSave = useCallback(async () => {
     if (!profile || !isInitialized.current) return;
     const fullDisplayName = displayName || email || (user?.username as string | undefined) || 'Benutzer';
-    const profileUpdateData: ProfileUpdateData = { display_name: fullDisplayName, username: username || null, email: email?.trim() || null };
+    const profileUpdateData: ProfileUpdateData = {
+      display_name: fullDisplayName,
+      username: username || null,
+      email: email?.trim() || null,
+      custom_prompt: customPrompt || null
+    };
     try {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Save timeout')), 10000));
       await Promise.race([updateProfile(profileUpdateData), timeoutPromise]);
@@ -161,14 +167,14 @@ const ProfileInfoTabContainer = ({
         onErrorProfileMessage('Speichern dauert zu lange. Bitte versuchen Sie es erneut.');
       }
     }
-  }, [displayName, username, email, user?.username, profile, updateProfile, onErrorProfileMessage]);
+  }, [displayName, username, email, customPrompt, user?.username, profile, updateProfile, onErrorProfileMessage]);
 
   const { resetTracking } = useAutosave({
     saveFunction: async () => { await stateBasedSave(); },
-    formRef: { getValues: () => ({ displayName, username, email }), watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({ unsubscribe: () => { } }) },
+    formRef: { getValues: () => ({ displayName, username, email, customPrompt }), watch: (callback: (value: Record<string, unknown>, { name }: { name?: string }) => void) => ({ unsubscribe: () => { } }) },
     enabled: profile && isInitialized.current,
     debounceMs: 2000,
-    getFieldsToTrack: () => ['displayName', 'username', 'email'],
+    getFieldsToTrack: () => ['displayName', 'username', 'email', 'customPrompt'],
     onError: (error: unknown) => {
       console.error('Profile autosave failed:', error);
       setErrorProfile('Automatisches Speichern fehlgeschlagen.');
@@ -182,6 +188,7 @@ const ProfileInfoTabContainer = ({
       setDisplayName(formFields.displayName);
       setUsername(formFields.username);
       setEmail(formFields.email);
+      setCustomPrompt((profile as { custom_prompt?: string })?.custom_prompt || '');
       isInitialized.current = true;
       setTimeout(() => resetTracking(), 100);
     }
@@ -194,7 +201,7 @@ const ProfileInfoTabContainer = ({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [displayName, username, email, resetTracking, profile]);
+  }, [displayName, username, email, customPrompt, resetTracking, profile]);
 
   useEffect(() => {
     if (profileUpdateError) {
@@ -280,6 +287,8 @@ const ProfileInfoTabContainer = ({
         setEmail={setEmail}
         username={username}
         setUsername={setUsername}
+        customPrompt={customPrompt}
+        setCustomPrompt={setCustomPrompt}
         errorProfile={errorProfile}
         isErrorProfileQuery={isErrorProfileQuery}
         errorProfileQueryMessage={errorProfileQuery?.message}

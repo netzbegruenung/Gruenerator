@@ -1,8 +1,10 @@
 import React, { FormEvent } from 'react';
 import { motion } from 'motion/react';
+import { GiHedgehog } from 'react-icons/gi';
 import Spinner from '../../../../../../components/common/Spinner';
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
 import SettingsSection from './SettingsSection';
+import { useAuthStore, SupportedLocale } from '../../../../../../stores/authStore';
 
 interface User {
   id: string;
@@ -46,6 +48,8 @@ interface ProfileViewProps {
   setEmail: (value: string) => void;
   username: string;
   setUsername: (value: string) => void;
+  customPrompt: string;
+  setCustomPrompt: (value: string) => void;
   errorProfile: string;
   isErrorProfileQuery: boolean;
   errorProfileQueryMessage: string | undefined;
@@ -76,6 +80,8 @@ const ProfileView = ({
   setEmail,
   username,
   setUsername,
+  customPrompt,
+  setCustomPrompt,
   errorProfile,
   isErrorProfileQuery,
   errorProfileQueryMessage,
@@ -94,6 +100,12 @@ const ProfileView = ({
   isBetaFeaturesUpdating,
   onSuccessMessage,
 }: ProfileViewProps) => {
+  const { locale, updateLocale } = useAuthStore();
+
+  const handleLocaleChange = (newLocale: SupportedLocale) => {
+    updateLocale(newLocale);
+  };
+
   const getPossessiveForm = (name: string | undefined): string => {
     if (!name) return 'Dein';
     if (/[sßzx]$/.test(name) || name.endsWith('ss') || name.endsWith('tz') || name.endsWith('ce')) {
@@ -104,65 +116,120 @@ const ProfileView = ({
   };
 
   return (
-    <>
-      <motion.div
-        className="profile-content"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="profile-avatar-section">
-          <div
-            className="profile-avatar clickable-avatar"
-            onClick={onOpenAvatarModal}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e: React.KeyboardEvent) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onOpenAvatarModal();
-              }
-            }}
-            aria-label="Avatar ändern"
-          >
-            {avatarProps.type === 'robot' ? (
-              <img src={avatarProps.src} alt={avatarProps.alt} className="avatar-image" />
-            ) : (
-              <div className="profile-avatar-placeholder">{avatarProps.initials}</div>
-            )}
-            <div className="profile-avatar-edit-overlay"></div>
-          </div>
-          <div className="profile-user-info">
-            <div className="profile-user-name">
-              {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
-            </div>
-            {(email || user?.email || user?.username) && (
-              <div className="profile-user-email">{email || user?.email || user?.username}</div>
-            )}
-            {username && (
-              <div className="profile-user-email">@{username}</div>
-            )}
-          </div>
+    <motion.div
+      className="profile-content"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      {(errorProfile || isErrorProfileQuery) && (
+        <div className="auth-error-message error-margin">
+          {errorProfile || errorProfileQueryMessage || 'Ein Fehler ist aufgetreten.'}
+          {isErrorProfileQuery && (
+            <button
+              type="button"
+              onClick={onRetryProfileRefetch}
+              className="retry-button profile-action-button profile-secondary-button"
+            >
+              Erneut versuchen
+            </button>
+          )}
         </div>
+      )}
 
-        <div className="profile-form-section">
-          {(errorProfile || isErrorProfileQuery) && (
-            <div className="auth-error-message error-margin">
-              {errorProfile || errorProfileQueryMessage || 'Ein Fehler ist aufgetreten.'}
-              {isErrorProfileQuery && (
-                <button
-                  type="button"
-                  onClick={onRetryProfileRefetch}
-                  className="retry-button profile-action-button profile-secondary-button"
-                >
-                  Erneut versuchen
-                </button>
+      {/* Two-column layout: Profile Card + Experimental Features */}
+      <div className="profile-main-row">
+        {/* Left: Profile Card */}
+        <div className="profile-card">
+          <div className="profile-card-header">
+            <div
+              className="profile-card-avatar"
+              onClick={onOpenAvatarModal}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOpenAvatarModal();
+                }
+              }}
+              aria-label="Avatar ändern"
+            >
+              {avatarProps.type === 'robot' ? (
+                <img src={avatarProps.src} alt={avatarProps.alt} className="avatar-image" />
+              ) : (
+                <div className="profile-avatar-placeholder">{avatarProps.initials}</div>
               )}
             </div>
-          )}
 
-          <div className="auth-form">
-            <div className="form-group">
+            <div className="profile-card-user-info">
+              <div className="profile-card-name">
+                {displayName ? getPossessiveForm(displayName.split(' ')[0]) : 'Dein'} Grünerator
+              </div>
+              {(email || user?.email || user?.username) && (
+                <div className="profile-card-email">{email || user?.email || user?.username}</div>
+              )}
+              {username && (
+                <div className="profile-card-username">@{username}</div>
+              )}
+            </div>
+
+            <div className="profile-card-actions">
+              <div className="profile-locale-flags">
+                <button
+                  type="button"
+                  className={`profile-flag-btn ${locale === 'de-DE' ? 'active' : ''}`}
+                  onClick={() => handleLocaleChange('de-DE')}
+                  aria-label="Deutsch (Deutschland)"
+                  title="Deutsch (Deutschland)"
+                >
+                  🇩🇪
+                </button>
+                <button
+                  type="button"
+                  className={`profile-flag-btn ${locale === 'de-AT' ? 'active' : ''}`}
+                  onClick={() => handleLocaleChange('de-AT')}
+                  aria-label="Deutsch (Österreich)"
+                  title="Deutsch (Österreich)"
+                >
+                  🇦🇹
+                </button>
+              </div>
+              <button
+                type="button"
+                className={`profile-igel-btn ${igelActive ? 'active' : ''}`}
+                onClick={() => onToggleIgelModus(!igelActive)}
+                aria-label="Igel-Modus"
+                title={igelActive ? 'Igel-Modus deaktivieren' : 'Igel-Modus aktivieren'}
+                disabled={isBetaFeaturesUpdating}
+              >
+                <GiHedgehog size={20} />
+              </button>
+            </div>
+          </div>
+
+          <div className="profile-card-anweisungen">
+            <label htmlFor="customPrompt" className="profile-card-section-title">Persönliche Anweisungen</label>
+            <textarea
+              id="customPrompt"
+              value={customPrompt}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomPrompt(e.target.value)}
+              placeholder="Diese Anweisungen werden bei allen Text-Generierungen berücksichtigt, z.B. dein Schreibstil oder Infos zu dir und deinem Wahlkreis..."
+              className="profile-card-textarea"
+              rows={4}
+              maxLength={2000}
+              disabled={isLoading}
+            />
+            <div className="profile-card-char-count">
+              {customPrompt.length}/2000
+            </div>
+          </div>
+
+          {/* Hidden profile fields - only shown when not from Keycloak */}
+          {(!(profile?.keycloak_id && (profile?.email || profile?.auth_email)) ||
+            !(profile?.keycloak_id && profile?.display_name) ||
+            !(profile?.keycloak_id && profile?.username)) && (
+            <div className="profile-card-extra-fields">
               {!(profile?.keycloak_id && (profile?.email || profile?.auth_email)) && (
                 <div className="form-field-wrapper">
                   <label htmlFor="email">E-Mail:</label>
@@ -206,67 +273,65 @@ const ProfileView = ({
                 </div>
               )}
             </div>
-          </div>
-
-          <SettingsSection
-            isActive={true}
-            igelActive={igelActive}
-            onToggleIgelModus={onToggleIgelModus}
-            isBetaFeaturesUpdating={isBetaFeaturesUpdating}
-            onSuccessMessage={onSuccessMessage}
-            onErrorMessage={() => {}}
-          />
-
-          {canManageCurrentAccount && !showDeleteAccountForm && (
-            <>
-              <hr className="form-divider-large" />
-              <div className="profile-actions profile-actions-centered">
-                <button
-                  type="button"
-                  className="delete-all-link"
-                  onClick={onToggleDeleteAccountForm}
-                  disabled={isLoading}
-                >
-                  Konto löschen
-                </button>
-              </div>
-            </>
-          )}
-
-          {showDeleteAccountForm && (
-            <form className="auth-form" onSubmit={onDeleteAccountSubmit}>
-              <div className="form-group">
-                <div className="form-group-title">Konto löschen</div>
-                <p className="warning-text">
-                  <strong>Warnung:</strong> Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden permanent gelöscht.
-                </p>
-                {deleteAccountError && <div className="auth-error-message">{deleteAccountError}</div>}
-                <div className="form-field-wrapper">
-                  <label htmlFor="deleteConfirmText">Um fortzufahren, gib "löschen" ein:</label>
-                  <TextInput
-                    id="deleteConfirmText"
-                    type="text"
-                    value={deleteConfirmText}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
-                    placeholder="löschen"
-                    aria-label="Bestätigung: löschen"
-                    disabled={isDeletingAccount}
-                  />
-                </div>
-              </div>
-              <div className="profile-actions">
-                <button type="submit" className="profile-action-button profile-danger-button" disabled={isDeletingAccount}>
-                  {isDeletingAccount ? <Spinner size="small" /> : 'Konto unwiderruflich löschen'}
-                </button>
-                <button type="button" className="profile-action-button" onClick={onToggleDeleteAccountForm} disabled={isDeletingAccount}>
-                  Abbrechen
-                </button>
-              </div>
-            </form>
           )}
         </div>
-      </motion.div>
-    </>
+
+        {/* Right: Experimental Features */}
+        <SettingsSection
+          isActive={true}
+          igelActive={igelActive}
+          onToggleIgelModus={onToggleIgelModus}
+          isBetaFeaturesUpdating={isBetaFeaturesUpdating}
+          onSuccessMessage={onSuccessMessage}
+          onErrorMessage={() => {}}
+          compact
+        />
+      </div>
+
+        {showDeleteAccountForm && (
+          <form className="auth-form" onSubmit={onDeleteAccountSubmit}>
+            <div className="form-group">
+              <div className="form-group-title">Konto löschen</div>
+              <p className="warning-text">
+                <strong>Warnung:</strong> Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden permanent gelöscht.
+              </p>
+              {deleteAccountError && <div className="auth-error-message">{deleteAccountError}</div>}
+              <div className="form-field-wrapper">
+                <label htmlFor="deleteConfirmText">Um fortzufahren, gib "löschen" ein:</label>
+                <TextInput
+                  id="deleteConfirmText"
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
+                  placeholder="löschen"
+                  aria-label="Bestätigung: löschen"
+                  disabled={isDeletingAccount}
+                />
+              </div>
+            </div>
+            <div className="profile-actions">
+              <button type="submit" className="profile-action-button profile-danger-button" disabled={isDeletingAccount}>
+                {isDeletingAccount ? <Spinner size="small" /> : 'Konto unwiderruflich löschen'}
+              </button>
+              <button type="button" className="profile-action-button" onClick={onToggleDeleteAccountForm} disabled={isDeletingAccount}>
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Konto löschen link - at bottom of page */}
+        {canManageCurrentAccount && !showDeleteAccountForm && (
+          <button
+            type="button"
+            className="profile-delete-link-bottom"
+            onClick={onToggleDeleteAccountForm}
+            disabled={isLoading}
+          >
+            Konto löschen
+          </button>
+        )}
+    </motion.div>
   );
 };
 

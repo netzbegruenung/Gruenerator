@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, memo } from 'react';
 
 // Components
 import DocumentOverview, { type DocumentItem } from '../../../../../../../components/common/DocumentOverview';
@@ -10,6 +10,15 @@ import { useUserTexts } from '../../../../../hooks/useProfileData';
 // Utils
 import { handleError, type ErrorState, type SetErrorFn } from '../../../../../../../components/utils/errorHandling';
 import * as documentAndTextUtils from '../../../../../../../components/utils/documentAndTextUtils';
+
+// Static constants moved outside component
+const TEXT_DOCUMENT_TYPES = documentAndTextUtils.TEXT_DOCUMENT_TYPES;
+
+// Static empty state config - moved outside to prevent recreation
+const EMPTY_STATE_CONFIG = {
+    noDocuments: 'Du hast noch keine Texte erstellt.',
+    createMessage: 'Erstelle deinen ersten Text mit einem der Grueneratoren und er wird hier angezeigt.'
+} as const;
 
 // Adapter to convert string-based error handler to SetErrorFn
 const createErrorAdapter = (onErrorMessage: (message: string) => void): SetErrorFn => {
@@ -37,14 +46,14 @@ interface TextsSectionProps {
     onShareToGroup?: (text: DocumentItem) => void;
 }
 
-const TextsSection = ({
+const TextsSection = memo(({
     isActive,
     onSuccessMessage,
     onErrorMessage,
     onShareToGroup
 }: TextsSectionProps): React.ReactElement => {
-    // Auth state
-    const { user, isAuthenticated } = useOptimizedAuth();
+    // Auth state - only destructure what's needed
+    const { isAuthenticated } = useOptimizedAuth();
 
     // =====================================================================
     // TEXTS-RELATED STATE AND FUNCTIONALITY
@@ -65,8 +74,8 @@ const TextsSection = ({
     // TEXTS FUNCTIONALITY
     // =====================================================================
 
-    // Text handlers
-    const handleTextTitleUpdate = async (textId: string, newTitle: string) => {
+    // Text handlers - memoized to prevent unnecessary re-renders
+    const handleTextTitleUpdate = useCallback(async (textId: string, newTitle: string) => {
         try {
             await updateTextTitle(textId, newTitle);
             onSuccessMessage('Texttitel erfolgreich aktualisiert.');
@@ -76,13 +85,13 @@ const TextsSection = ({
             onErrorMessage('Fehler beim Aktualisieren des Texttitels: ' + errorMessage);
             throw error;
         }
-    };
+    }, [updateTextTitle, onSuccessMessage, onErrorMessage]);
 
-    const handleEditText = (text: TextItem) => {
+    const handleEditText = useCallback((text: TextItem) => {
         window.open(`/editor/collab/${text.id}`, '_blank');
-    };
+    }, []);
 
-    const handleBulkDeleteTexts = async (textIds: string[]): Promise<BulkDeleteResult> => {
+    const handleBulkDeleteTexts = useCallback(async (textIds: string[]): Promise<BulkDeleteResult> => {
         try {
             const result = await documentAndTextUtils.bulkDeleteTexts(textIds) as BulkDeleteResult;
             textsQuery.refetch();
@@ -100,7 +109,7 @@ const TextsSection = ({
             onErrorMessage(errorMessage);
             throw error;
         }
-    };
+    }, [textsQuery, onSuccessMessage, onErrorMessage]);
 
     // =====================================================================
     // EFFECTS
@@ -114,55 +123,53 @@ const TextsSection = ({
         }
     }, [textsError, onErrorMessage]);
 
-    // Document types from utilities
-    const textDocumentTypes = documentAndTextUtils.TEXT_DOCUMENT_TYPES;
+    // Memoized fetch handler to prevent inline function recreation
+    const handleFetch = useCallback(async () => {
+        try {
+            await textsQuery.refetch();
+        } catch (error) {
+            console.error('[TextsSection] Error refreshing texts:', error);
+            onErrorMessage('Fehler beim Aktualisieren der Texte: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
+        }
+    }, [textsQuery, onErrorMessage]);
 
-    // =====================================================================
-    // RENDER METHODS
-    // =====================================================================
+    // Memoized delete handler
+    const handleDelete = useCallback((textId: string) => deleteText(textId), [deleteText]);
 
-    // Render Texts content
-    const renderTextsContent = () => (
-        <div
-            role="tabpanel"
-            id="texts-panel"
-            aria-labelledby="texts-tab"
-            tabIndex={-1}
-        >
-            <DocumentOverview
-                documents={texts}
-                loading={textsLoading}
-                onFetch={async () => {
-                    try {
-                        await textsQuery.refetch();
-                    } catch (error) {
-                        console.error('[TextsSection] Error refreshing texts:', error);
-                        onErrorMessage('Fehler beim Aktualisieren der Texte: ' + (error instanceof Error ? error.message : 'Unbekannter Fehler'));
-                    }
-                }}
-                onDelete={(textId) => deleteText(textId)}
-                onBulkDelete={async (ids) => { await handleBulkDeleteTexts(ids); }}
-                onUpdateTitle={handleTextTitleUpdate}
-                onEdit={handleEditText}
-                onShare={onShareToGroup}
-                documentTypes={textDocumentTypes}
-                emptyStateConfig={{
-                    noDocuments: 'Du hast noch keine Texte erstellt.',
-                    createMessage: 'Erstelle deinen ersten Text mit einem der Grueneratoren und er wird hier angezeigt.'
-                }}
-                searchPlaceholder="Texte durchsuchen..."
-                title="Meine Texte"
-                onSuccessMessage={onSuccessMessage}
-                onErrorMessage={onErrorMessage}
-            />
-        </div>
-    );
+    // Memoized bulk delete handler wrapper
+    const handleBulkDelete = useCallback(async (ids: string[]) => {
+        await handleBulkDeleteTexts(ids);
+    }, [handleBulkDeleteTexts]);
 
     return (
         <div className="texts-section">
-            {renderTextsContent()}
+            <div
+                role="tabpanel"
+                id="texts-panel"
+                aria-labelledby="texts-tab"
+                tabIndex={-1}
+            >
+                <DocumentOverview
+                    documents={texts}
+                    loading={textsLoading}
+                    onFetch={handleFetch}
+                    onDelete={handleDelete}
+                    onBulkDelete={handleBulkDelete}
+                    onUpdateTitle={handleTextTitleUpdate}
+                    onEdit={handleEditText}
+                    onShare={onShareToGroup}
+                    documentTypes={TEXT_DOCUMENT_TYPES}
+                    emptyStateConfig={EMPTY_STATE_CONFIG}
+                    searchPlaceholder="Texte durchsuchen..."
+                    title="Meine Texte"
+                    onSuccessMessage={onSuccessMessage}
+                    onErrorMessage={onErrorMessage}
+                />
+            </div>
         </div>
     );
-};
+});
+
+TextsSection.displayName = 'TextsSection';
 
 export default TextsSection;

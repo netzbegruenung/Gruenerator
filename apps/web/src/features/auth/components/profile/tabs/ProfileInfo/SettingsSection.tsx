@@ -22,6 +22,7 @@ interface SettingsSectionProps {
     igelActive: boolean;
     onToggleIgelModus: (checked: boolean) => void;
     isBetaFeaturesUpdating: boolean;
+    compact?: boolean;
 }
 
 interface BetaFeatureUIConfig {
@@ -84,7 +85,8 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
     onErrorMessage,
     igelActive,
     onToggleIgelModus,
-    isBetaFeaturesUpdating
+    isBetaFeaturesUpdating,
+    compact = false
 }) => {
     const {
         getBetaFeatureState,
@@ -98,7 +100,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.DATABASE:
                 return {
                     title: 'Texte & Vorlagen',
-                    description: 'Zugang zur Datenbank mit Texten und Vorlagen für deine Arbeit.',
+                    description: 'Datenbank für Texte und Vorlagen',
                     checked: getBetaFeatureState('database'),
                     setter: (value: boolean) => updateUserBetaFeatures('database', value),
                     featureName: 'Datenbank',
@@ -110,7 +112,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.COLLAB:
                 return {
                     title: 'Kollaborative Bearbeitung',
-                    description: 'Arbeite in Echtzeit mit anderen an Dokumenten und Texten.',
+                    description: 'Echtzeit-Zusammenarbeit an Dokumenten',
                     checked: getBetaFeatureState('collab'),
                     setter: (value: boolean) => updateUserBetaFeatures('collab', value),
                     featureName: 'Kollaborative Bearbeitung',
@@ -120,7 +122,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.NOTEBOOK:
                 return {
                     title: 'Notebooks',
-                    description: 'Fragesysteme basierend auf deinen Dokumenten für natürliche Gespräche.',
+                    description: 'KI-Fragen basierend auf Dokumenten',
                     checked: getBetaFeatureState('notebook'),
                     setter: (value: boolean) => updateUserBetaFeatures('notebook', value),
                     featureName: 'Notebooks',
@@ -130,7 +132,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.CANVA:
                 return {
                     title: 'Canva Integration',
-                    description: 'Erweiterte Canva-Integration mit Zugriff auf deine Designs, Vorlagen und Assets. Synchronisiere deine Canva-Inhalte und nutze sie direkt in der Grünerator-Plattform.',
+                    description: 'Designs und Assets aus Canva nutzen',
                     checked: getBetaFeatureState('canva'),
                     setter: (value: boolean) => updateUserBetaFeatures('canva', value),
                     featureName: 'Canva Integration',
@@ -139,8 +141,8 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
                 };
             case BETA_VIEWS.AUTO_SAVE_EXPORT:
                 return {
-                    title: 'Auto-Speichern bei Export',
-                    description: 'Speichere jeden Export (PDF, DOCX, Etherpad, Wolke, Kopieren) automatisch in deiner Textbibliothek. Verhindert doppelte Speicherungen innerhalb der gleichen Sitzung.',
+                    title: 'Auto-Speichern',
+                    description: 'Exporte automatisch in Bibliothek speichern',
                     checked: getBetaFeatureState('autoSaveOnExport'),
                     setter: (value: boolean) => updateUserBetaFeatures('autoSaveOnExport', value),
                     featureName: 'Auto-Speichern bei Export',
@@ -150,7 +152,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.CHAT:
                 return {
                     title: 'Grünerator Chat',
-                    description: 'Interaktiver Chat-Assistent für direkte Gespräche mit dem Grünerator. Stelle Fragen und erhalte KI-gestützte Antworten.',
+                    description: 'KI-Chat für Fragen und Antworten',
                     checked: getBetaFeatureState('chat'),
                     setter: (value: boolean) => updateUserBetaFeatures('chat', value),
                     featureName: 'Grünerator Chat',
@@ -162,7 +164,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.GROUPS:
                 return {
                     title: 'Gruppen',
-                    description: 'Erstelle und verwalte Gruppen für gemeinsames Arbeiten. Teile Anweisungen, Wissen und Inhalte mit deinem Team oder Verband.',
+                    description: 'Team-Zusammenarbeit und Inhalte teilen',
                     checked: getBetaFeatureState('groups'),
                     setter: (value: boolean) => updateUserBetaFeatures('groups', value),
                     featureName: 'Gruppen',
@@ -174,7 +176,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.WEBSITE:
                 return {
                     title: 'Website Generator',
-                    description: 'Generiere JSON-Inhalte für WordPress Landing Pages. Ideal für Kandidat*innen, die eine professionelle politische Website erstellen möchten.',
+                    description: 'WordPress Landing Pages generieren',
                     checked: getBetaFeatureState('website'),
                     setter: (value: boolean) => updateUserBetaFeatures('website', value),
                     featureName: 'Website Generator',
@@ -186,7 +188,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.VORLAGEN:
                 return {
                     title: 'Vorlagen & Galerie',
-                    description: 'Zugang zu deinen persönlichen Vorlagen und der öffentlichen Vorlagen-Galerie.',
+                    description: 'Persönliche und öffentliche Vorlagen',
                     checked: getBetaFeatureState('vorlagen'),
                     setter: (value: boolean) => updateUserBetaFeatures('vorlagen', value),
                     featureName: 'Vorlagen & Galerie',
@@ -198,7 +200,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
             case BETA_VIEWS.VIDEO_EDITOR:
                 return {
                     title: 'Video Editor',
-                    description: 'Volle Video-Bearbeitung im Reel-Studio: Video schneiden, Text-Overlays und Untertitel.',
+                    description: 'Videos schneiden, Overlays & Untertitel',
                     checked: getBetaFeatureState('videoEditor'),
                     setter: (value: boolean) => updateUserBetaFeatures('videoEditor', value),
                     featureName: 'Video Editor',
@@ -213,85 +215,34 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({
     };
 
     return (
-        <div
-            role="tabpanel"
-            id="einstellungen-panel"
-            aria-labelledby="einstellungen-tab"
-            tabIndex={-1}
-        >
-            <div className="auth-form">
-                <div className="form-group">
-                    <div className="form-group-title">Sprache & Mitgliedschaften</div>
-                    <div className="settings-row">
-                        <LocaleSelector />
-                        <FeatureToggle
-                            isActive={igelActive}
-                            onToggle={onToggleIgelModus}
-                            label="Igel-Modus (Grüne Jugend)"
-                            icon={GiHedgehog}
-                            className="igel-modus-toggle"
-                            disabled={isBetaFeaturesUpdating}
-                        />
-                    </div>
-                </div>
+        <div className={`settings-section-container ${compact ? 'settings-section-compact' : ''}`}>
+            <div className="settings-section-title">Experimentelle Features</div>
+            <div className={`settings-features-grid ${compact ? 'settings-features-compact' : ''}`}>
+                {getAvailableFeatures().map(feature => {
+                    const config = getBetaFeatureConfig(feature.key);
+                    if (!config) return null;
 
-                <hr className="form-divider" />
-
-                <div className="form-group">
-                    <div className="form-group-title">Experimentelle Features</div>
-                    <div className="profile-cards-grid">
-                        {getAvailableFeatures().map(feature => {
-                            const config = getBetaFeatureConfig(feature.key);
-                            if (!config) return null;
-
-                            return (
-                                <div key={feature.key} className="profile-card">
-                                    <div className="profile-card-header">
-                                        <h3>{config.title}</h3>
-                                        {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
-                                    </div>
-                                    <div className="profile-card-content">
-                                        <FeatureToggle
-                                            isActive={config.checked}
-                                            onToggle={(checked) => {
-                                                config.setter(checked);
-                                                onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
-                                            }}
-                                            label={config.checkboxLabel}
-                                            icon={config.icon}
-                                            description={config.description}
-                                            className="labor-feature-toggle"
-                                            noBorder
-                                        />
-
-                                        {config.linkTo && config.checked && (
-                                            <Link
-                                                to={config.linkTo}
-                                                className="profile-action-button profile-secondary-button labor-tab-external-link"
-                                            >
-                                                {config.linkText} <HiOutlineExternalLink className="labor-tab-external-link-icon" />
-                                            </Link>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {!isAdmin && getAvailableFeatures().some(f => f.isAdminOnly) && (
-                        <div className="profile-card" style={{ marginTop: 'var(--spacing-large)' }}>
-                            <div className="profile-card-header">
-                                <h3>Administrator-Features</h3>
-                            </div>
-                            <div className="profile-card-content">
-                                <p><strong>Hinweis:</strong> Einige Beta-Features sind nur für Administratoren verfügbar.</p>
-                            </div>
+                    return (
+                        <div key={feature.key} className="settings-feature-item">
+                            <FeatureToggle
+                                isActive={config.checked}
+                                onToggle={(checked) => {
+                                    config.setter(checked);
+                                    onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
+                                }}
+                                label={compact ? config.title : config.checkboxLabel}
+                                icon={config.icon}
+                                description={config.description}
+                                className={`settings-feature-toggle ${compact ? 'settings-feature-toggle-compact' : ''}`}
+                            />
+                            {feature.isAdminOnly && <span className="admin-badge">Admin</span>}
                         </div>
-                    )}
-                </div>
+                    );
+                })}
             </div>
         </div>
     );
 };
 
 export default SettingsSection;
+export { LocaleSelector };

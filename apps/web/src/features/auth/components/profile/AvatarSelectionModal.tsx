@@ -81,7 +81,9 @@ const AvatarSelectionModal = ({ isOpen, onClose, currentAvatarId, onSelect }: Av
       };
 
   const gridVariants = shouldReduceMotion
-    ? {}
+    ? {
+        open: {}
+      }
     : {
         open: {
           transition: {

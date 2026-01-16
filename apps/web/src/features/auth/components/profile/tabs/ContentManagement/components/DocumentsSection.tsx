@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, memo, useMemo, FormEvent, ChangeEvent } from 'react';
 import { HiPlus } from 'react-icons/hi';
 
 // Components
@@ -89,7 +89,10 @@ const MemoizedDocumentUpload = memo(({ onUploadComplete, onDeleteComplete, showD
 
 MemoizedDocumentUpload.displayName = 'MemoizedDocumentUpload';
 
-const DocumentsSection = ({
+// Static constants moved outside component
+const DOCUMENT_TYPES = documentAndTextUtils.DOCUMENT_TYPES;
+
+const DocumentsSection = memo(({
     isActive,
     onSuccessMessage,
     onErrorMessage,
@@ -303,15 +306,15 @@ const DocumentsSection = ({
     };
 
     // Upload handlers
-    const handleUploadComplete = React.useCallback((document: { title?: string }) => {
+    const handleUploadComplete = useCallback((document: { title?: string }) => {
         onSuccessMessage(`Dokument "${document.title}" wurde erfolgreich hochgeladen und wird verarbeitet.`);
     }, [onSuccessMessage]);
 
-    const handleDeleteComplete = React.useCallback(() => {
+    const handleDeleteComplete = useCallback(() => {
         onSuccessMessage('Dokument wurde erfolgreich gelöscht.');
     }, [onSuccessMessage]);
 
-    const handleModalUploadComplete = React.useCallback((result: unknown) => {
+    const handleModalUploadComplete = useCallback((result: unknown) => {
         if (result && typeof result === 'object' && 'title' in result) {
             handleUploadComplete(result as { title?: string });
         }
@@ -327,7 +330,7 @@ const DocumentsSection = ({
         }
     }, [showDeleteAllForm]);
 
-    const handleDeleteAllSubmit = useCallback(async (e: React.FormEvent) => {
+    const handleDeleteAllSubmit = useCallback(async (e: FormEvent) => {
         e.preventDefault();
         setDeleteAllError('');
         onErrorMessage('');
@@ -438,9 +441,6 @@ const DocumentsSection = ({
         }
     }, [isActive, wolkeInitialized, handleRefreshWolkeShareLinks]);
 
-    // Document types from utilities
-    const documentTypes = documentAndTextUtils.DOCUMENT_TYPES;
-
     // =====================================================================
     // RENDER METHODS
     // =====================================================================
@@ -487,7 +487,7 @@ const DocumentsSection = ({
                                     onShareToGroup(typedItem.itemType, typedItem.id, typedItem.title || '');
                                 }
                             }}
-                            documentTypes={documentTypes}
+                            documentTypes={DOCUMENT_TYPES}
                             emptyStateConfig={{
                                 noDocuments: 'Keine Inhalte vorhanden.',
                                 createMessage: 'Lade dein erstes Dokument hoch oder erstelle einen Text um loszulegen. Alle Inhalte werden als durchsuchbare Vektoren gespeichert.'
@@ -574,7 +574,7 @@ const DocumentsSection = ({
                                         id="deleteConfirmText"
                                         type="text"
                                         value={deleteConfirmText}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
+                                        onChange={(e: ChangeEvent<HTMLInputElement>) => setDeleteConfirmText(e.target.value)}
                                         placeholder="alles löschen"
                                         aria-label="Bestätigung: alles löschen"
                                         disabled={isDeletingAll}
@@ -623,6 +623,8 @@ const DocumentsSection = ({
             {renderDocumentsContent()}
         </div>
     );
-};
+});
+
+DocumentsSection.displayName = 'DocumentsSection';
 
 export default DocumentsSection;

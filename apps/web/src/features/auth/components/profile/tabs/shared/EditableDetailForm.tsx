@@ -349,7 +349,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuil
                             variant="delete"
                             onClick={() => removeFormField(index)}
                             title="Feld entfernen"
-                            size="small"
+                            size="s"
                             disabled={disabled}
                         />
                     </div>
@@ -403,7 +403,7 @@ const FormBuilderSection = ({ formSchema, updateFormSchema, disabled }: FormBuil
                                         variant="delete"
                                         onClick={() => removeOption(index, optIndex)}
                                         title="Option entfernen"
-                                        size="small"
+                                        size="s"
                                         disabled={disabled}
                                     />
                                 </div>

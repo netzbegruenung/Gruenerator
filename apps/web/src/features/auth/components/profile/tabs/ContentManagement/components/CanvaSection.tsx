@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HiPlus, HiExternalLink, HiDownload, HiChatAlt2, HiRefresh } from 'react-icons/hi';
+import { HiExternalLink, HiDownload, HiChatAlt2, HiRefresh } from 'react-icons/hi';
 
 // Canva components - OVERVIEW, TEMPLATES AND ASSETS
 import CanvaOverview from '../../../../../../templates/canva/components/CanvaOverview';
@@ -135,7 +135,24 @@ interface TemplateMetadataConfig {
     metadata: TemplateMetadataItem[];
 }
 
-const CanvaSection = ({
+// Static constants moved outside component
+const AVAILABLE_SUBSECTIONS = [
+    { key: 'overview', label: 'Übersicht' },
+    { key: 'vorlagen', label: 'Vorlagen' },
+    { key: 'assets', label: 'Assets' }
+] as const;
+
+const EMPTY_STATE_CONNECTED = {
+    noDocuments: 'Du hast noch keine Vorlagen. Verwende den "Sync mit Canva" Button um deine Canva-Designs zu laden.',
+    createMessage: 'Synchronisiere deine Canva-Designs oder erstelle neue Vorlagen.'
+} as const;
+
+const EMPTY_STATE_DISCONNECTED = {
+    noDocuments: 'Du hast noch keine Vorlagen.',
+    createMessage: 'Verbinde dich mit Canva um deine Designs zu synchronisieren.'
+} as const;
+
+const CanvaSection = memo(({
     isActive,
     onSuccessMessage,
     onErrorMessage,
@@ -159,20 +176,16 @@ const CanvaSection = ({
     // CANVA SUBSECTION HANDLING
     // =====================================================================
 
-    // Available subsections
-    const availableSubsections = [
-        { key: 'overview', label: 'Übersicht' },
-        { key: 'vorlagen', label: 'Vorlagen' },
-        { key: 'assets', label: 'Assets' }
-    ];
+    // Memoized subsection change handler
+    const handleSubsectionChange = useCallback((subsectionKey: string) => {
+        onSubsectionChange?.(subsectionKey);
+    }, [onSubsectionChange]);
 
     // Simple tab navigation for subsections
     const { currentTab: currentSubsection, handleTabClick: handleSubsectionClick } = useTabNavigation(
         initialSubsection,
-        availableSubsections,
-        (subsectionKey: string) => {
-            onSubsectionChange?.(subsectionKey);
-        }
+        AVAILABLE_SUBSECTIONS as unknown as Array<{ key: string; label: string }>,
+        handleSubsectionChange
     );
 
     // =====================================================================
@@ -584,6 +597,62 @@ const CanvaSection = ({
         </ProfileCard>
     );
 
+    // Memoized values for vorlagen section
+    const emptyStateConfig = useMemo(() =>
+        canvaConnected ? EMPTY_STATE_CONNECTED : EMPTY_STATE_DISCONNECTED,
+    [canvaConnected]);
+
+    const combinedVorlagenItems = useMemo(() =>
+        [...typedTemplates, ...canvaDesigns].map(item => ({ ...item, id: item.id || '' })),
+    [typedTemplates, canvaDesigns]);
+
+    const vorlagenTitle = useMemo(() =>
+        `Meine Vorlagen (${typedTemplates.length + canvaDesigns.length})`,
+    [typedTemplates.length, canvaDesigns.length]);
+
+    const searchPlaceholder = useMemo(() =>
+        canvaConnected ? "Alle Vorlagen und Canva-Designs durchsuchen..." : "Vorlagen durchsuchen...",
+    [canvaConnected]);
+
+    // Memoized handlers for DocumentOverview to prevent inline function recreation
+    const handleVorlagenFetch = useCallback(() => {
+        templatesQuery.refetch();
+        if (canvaConnected) {
+            getCanvaState().fetchDesigns(true);
+        }
+    }, [templatesQuery, canvaConnected, getCanvaState]);
+
+    const handleVorlagenDelete = useCallback(async (id: string) => {
+        await handleDeleteTemplate(id);
+    }, [handleDeleteTemplate]);
+
+    const handleVorlagenBulkDelete = useCallback(async (ids: string[]) => {
+        await handleBulkDeleteTemplates(ids);
+    }, [handleBulkDeleteTemplates]);
+
+    const handleVorlagenEdit = useCallback((item: unknown) => {
+        handleEditTemplate(item as unknown as CanvaTemplate);
+    }, [handleEditTemplate]);
+
+    const handleVorlagenShare = useCallback((item: unknown) => {
+        createShareAction('database')(item);
+    }, [createShareAction]);
+
+    const handleVorlagenActionItems = useCallback((item: unknown) => {
+        return getCanvaTemplateActionItems(item as unknown as CanvaTemplate);
+    }, [getCanvaTemplateActionItems]);
+
+    const handleVorlagenMetaRender = useCallback((item: unknown) => {
+        return renderTemplateMetadata(item as unknown as CanvaTemplate);
+    }, [renderTemplateMetadata]);
+
+    const handleSyncWithCanva = useCallback(async () => {
+        await Promise.all([
+            getCanvaState().refreshDesigns(),
+            templatesQuery.refetch()
+        ]);
+    }, [getCanvaState, templatesQuery]);
+
     // Render Canva Vorlagen content
     const renderCanvaVorlagenContent = () => {
         if (!isAuthenticated) {
@@ -607,51 +676,36 @@ const CanvaSection = ({
                 tabIndex={-1}
             >
                 <DocumentOverview
-                    items={[...typedTemplates, ...canvaDesigns].map(item => ({ ...item, id: item.id || '' }))}
+                    items={combinedVorlagenItems}
                     loading={templatesLoading || fetchingCanvaDesigns}
-                    onFetch={() => {
-                        templatesQuery.refetch();
-                        if (canvaConnected) {
-                            getCanvaState().fetchDesigns(true);
-                        }
-                    }}
-                    onDelete={async (id: string) => { await handleDeleteTemplate(id); }}
-                    onBulkDelete={async (ids: string[]) => { await handleBulkDeleteTemplates(ids); }}
+                    onFetch={handleVorlagenFetch}
+                    onDelete={handleVorlagenDelete}
+                    onBulkDelete={handleVorlagenBulkDelete}
                     onUpdateTitle={handleTemplateTitleUpdate}
-                    onEdit={(item) => handleEditTemplate(item as unknown as CanvaTemplate)}
-                    onShare={(item) => createShareAction('database')(item)}
-                    actionItems={(item) => getCanvaTemplateActionItems(item as unknown as CanvaTemplate)}
+                    onEdit={handleVorlagenEdit}
+                    onShare={handleVorlagenShare}
+                    actionItems={handleVorlagenActionItems}
                     documentTypes={{}}
-                    metaRenderer={(item) => renderTemplateMetadata(item as unknown as CanvaTemplate)}
-                    emptyStateConfig={{
-                        noDocuments: canvaConnected ? 'Du hast noch keine Vorlagen. Verwende den "Sync mit Canva" Button um deine Canva-Designs zu laden.' : 'Du hast noch keine Vorlagen.',
-                        createMessage: canvaConnected ? 'Synchronisiere deine Canva-Designs oder erstelle neue Vorlagen.' : 'Verbinde dich mit Canva um deine Designs zu synchronisieren.'
-                    }}
-                    searchPlaceholder={canvaConnected ? "Alle Vorlagen und Canva-Designs durchsuchen..." : "Vorlagen durchsuchen..."}
-                    title={`Meine Vorlagen (${typedTemplates.length + canvaDesigns.length})`}
+                    metaRenderer={handleVorlagenMetaRender}
+                    emptyStateConfig={emptyStateConfig}
+                    searchPlaceholder={searchPlaceholder}
+                    title={vorlagenTitle}
                     onSuccessMessage={onSuccessMessage}
                     onErrorMessage={onErrorMessage}
                     headerActions={
                         <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
                             {canvaConnected ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        className="btn-secondary size-s"
-                                        onClick={async () => {
-                                            await Promise.all([
-                                                getCanvaState().refreshDesigns(),
-                                                templatesQuery.refetch()
-                                            ]);
-                                        }}
-                                        aria-label="Mit Canva synchronisieren"
-                                        disabled={fetchingCanvaDesigns || canvaLoading}
-                                        title="Aktuelle Designs von Canva laden"
-                                    >
-                                        <HiRefresh className="icon" />
-                                        Sync mit Canva
-                                    </button>
-                                </>
+                                <button
+                                    type="button"
+                                    className="btn-secondary size-s"
+                                    onClick={handleSyncWithCanva}
+                                    aria-label="Mit Canva synchronisieren"
+                                    disabled={fetchingCanvaDesigns || canvaLoading}
+                                    title="Aktuelle Designs von Canva laden"
+                                >
+                                    <HiRefresh className="icon" />
+                                    Sync mit Canva
+                                </button>
                             ) : (
                                 <CanvaButton
                                     onClick={handleCanvaLogin}
@@ -722,6 +776,8 @@ const CanvaSection = ({
             {renderMainContent()}
         </div>
     );
-};
+});
+
+CanvaSection.displayName = 'CanvaSection';
 
 export default CanvaSection;

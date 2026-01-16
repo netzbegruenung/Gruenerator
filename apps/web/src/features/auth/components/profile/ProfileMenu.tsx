@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaFolder, FaUsers, FaCogs, FaChevronDown, FaChevronUp, FaClipboardList, FaLayerGroup } from 'react-icons/fa';
+import { FaUsers, FaChevronDown, FaChevronUp, FaFolder } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
 import { SiCanva } from 'react-icons/si';
 import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
@@ -14,12 +14,6 @@ interface MenuItem {
   hasSubmenu?: boolean;
 }
 
-interface Generator {
-  id: string;
-  slug?: string;
-  name?: string;
-}
-
 interface Group {
   id: string;
   name: string;
@@ -29,24 +23,19 @@ interface ProfileMenuProps {
   onNavigate?: () => void;
   variant?: 'dropdown' | 'sidebar';
   className?: string;
-  customGenerators?: Generator[];
   groups?: Group[];
 }
 
 const PROFILE_MENU_ITEMS: MenuItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/profile/gruppen', betaFeature: 'groups', icon: FaUsers, hasSubmenu: true },
-  { key: 'custom_generators', label: 'Meine Grüneratoren', path: '/profile/grueneratoren', icon: FaCogs, hasSubmenu: true },
-  { key: 'inhalte', label: 'Dateien und Inhalte', path: '/profile/inhalte', icon: FaFolder },
-  { key: 'vorlagen', label: 'Meine Vorlagen', path: '/profile/inhalte/vorlagen', betaFeature: 'vorlagen', icon: FaLayerGroup },
-  { key: 'anweisungen', label: 'Anweisungen', path: '/profile/inhalte/anweisungen', icon: FaClipboardList },
-  { key: 'canva', label: 'Canva', path: '/profile/inhalte/canva', betaFeature: 'canva', icon: SiCanva }
+  { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
+  { key: 'canva', label: 'Canva', path: '/profile/canva', betaFeature: 'canva', icon: SiCanva }
 ];
 
 const ProfileMenu = ({
   onNavigate,
   variant = 'dropdown',
   className = '',
-  customGenerators = [],
   groups = []
 }: ProfileMenuProps): React.ReactElement => {
   const location = useLocation();
@@ -82,11 +71,10 @@ const ProfileMenu = ({
   return (
     <div className={`profile-menu profile-menu--${variant} ${className}`}>
       {filteredItems.map(item => {
-        const hasGenerators = item.key === 'custom_generators' && item.hasSubmenu && variant === 'dropdown' && customGenerators.length > 0;
         const hasGroups = item.key === 'gruppen' && item.hasSubmenu && variant === 'dropdown' && groups.length > 0;
         const isExpanded = expandedSubmenu === item.key;
 
-        if (hasGenerators || hasGroups) {
+        if (hasGroups) {
           return (
             <div key={item.key} className="profile-menu-item-with-submenu">
               <button
@@ -102,48 +90,23 @@ const ProfileMenu = ({
               </button>
               {isExpanded && (
                 <div className="profile-menu-submenu">
-                  {hasGenerators && (
-                    <>
-                      <Link
-                        to={item.path}
-                        className="profile-menu-submenu-item"
-                        onClick={handleClick}
-                      >
-                        Übersicht
-                      </Link>
-                      {customGenerators.map(generator => (
-                        <Link
-                          key={generator.id}
-                          to={`/gruenerator/${generator.slug}`}
-                          className="profile-menu-submenu-item"
-                          onClick={handleClick}
-                        >
-                          {generator.name}
-                        </Link>
-                      ))}
-                    </>
-                  )}
-                  {hasGroups && (
-                    <>
-                      <Link
-                        to={item.path}
-                        className="profile-menu-submenu-item"
-                        onClick={handleClick}
-                      >
-                        Übersicht
-                      </Link>
-                      {groups.map(group => (
-                        <Link
-                          key={group.id}
-                          to={`/profile/gruppen?group=${group.id}`}
-                          className="profile-menu-submenu-item"
-                          onClick={handleClick}
-                        >
-                          {group.name}
-                        </Link>
-                      ))}
-                    </>
-                  )}
+                  <Link
+                    to={item.path}
+                    className="profile-menu-submenu-item"
+                    onClick={handleClick}
+                  >
+                    Übersicht
+                  </Link>
+                  {groups.map(group => (
+                    <Link
+                      key={group.id}
+                      to={`/profile/gruppen?group=${group.id}`}
+                      className="profile-menu-submenu-item"
+                      onClick={handleClick}
+                    >
+                      {group.name}
+                    </Link>
+                  ))}
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import { HiPlus, HiExternalLink, HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff, HiOutlinePencil } from 'react-icons/hi';
 
 import DocumentOverview, { type DocumentItem } from '../../../../../../../components/common/DocumentOverview';
@@ -32,7 +32,13 @@ interface VorlagenSectionProps {
     onErrorMessage: (message: string) => void;
 }
 
-const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: VorlagenSectionProps): React.ReactElement => {
+// Static constants moved outside component
+const EMPTY_STATE_CONFIG = {
+    noDocuments: 'Du hast noch keine Vorlagen gespeichert.',
+    createMessage: 'Füge Canva-Vorlagen über den Button oben hinzu oder durchsuche die öffentliche Galerie.'
+} as const;
+
+const VorlagenSection = memo(({ isActive, onSuccessMessage, onErrorMessage }: VorlagenSectionProps): React.ReactElement => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
 
@@ -121,45 +127,65 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
         return actions;
     }, [deletingId, togglingVisibilityId, handleDeleteWithConfirm, handleToggleVisibility]);
 
-    const renderTemplateMetadata = (item: DocumentItem) => {
+    const renderTemplateMetadata = useCallback((item: DocumentItem) => {
         const template = item as Template;
         return (
-        <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
-            {template.template_type && (
-                <span className="document-type">
-                    {template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)}
-                </span>
-            )}
-            {template.is_private === false && (
-                <span className="document-type" style={{ background: 'var(--klee)' }}>
-                    Öffentlich
-                </span>
-            )}
-        </div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-small)', flexWrap: 'wrap' }}>
+                {template.template_type && (
+                    <span className="document-type">
+                        {template.template_type.charAt(0).toUpperCase() + template.template_type.slice(1)}
+                    </span>
+                )}
+                {template.is_private === false && (
+                    <span className="document-type" style={{ background: 'var(--klee)' }}>
+                        Öffentlich
+                    </span>
+                )}
+            </div>
         );
-    };
+    }, []);
+
+    // Memoized handlers
+    const handleFetch = useCallback(() => templatesQuery.refetch(), [templatesQuery]);
+    const handleOpenAddModal = useCallback(() => setShowAddModal(true), []);
+    const handleCloseAddModal = useCallback(() => setShowAddModal(false), []);
+    const handleCloseEditModal = useCallback(() => setEditingTemplate(null), []);
+    const handleNavigateToGallery = useCallback(() => {
+        window.location.href = '/datenbank/vorlagen';
+    }, []);
+
+    const handleAddSuccess = useCallback(() => {
+        templatesQuery.refetch();
+        onSuccessMessage('Vorlage wurde hinzugefügt.');
+        setShowAddModal(false);
+    }, [templatesQuery, onSuccessMessage]);
+
+    const handleEditSuccess = useCallback(() => {
+        templatesQuery.refetch();
+        onSuccessMessage('Vorlage wurde aktualisiert.');
+    }, [templatesQuery, onSuccessMessage]);
+
+    // Memoized title
+    const vorlagenTitle = useMemo(() => `Meine Vorlagen (${templates.length})`, [templates.length]);
 
     return (
         <div className="vorlagen-section">
             <DocumentOverview
                 items={templates}
                 loading={isLoading}
-                onFetch={() => templatesQuery.refetch()}
+                onFetch={handleFetch}
                 actionItems={getTemplateActionItems}
                 metaRenderer={renderTemplateMetadata}
-                emptyStateConfig={{
-                    noDocuments: 'Du hast noch keine Vorlagen gespeichert.',
-                    createMessage: 'Füge Canva-Vorlagen über den Button oben hinzu oder durchsuche die öffentliche Galerie.'
-                }}
+                emptyStateConfig={EMPTY_STATE_CONFIG}
                 searchPlaceholder="Vorlagen durchsuchen..."
-                title={`Meine Vorlagen (${templates.length})`}
+                title={vorlagenTitle}
                 enableBulkSelect={true}
                 headerActions={
                     <div style={{ display: 'flex', gap: 'var(--spacing-small)' }}>
                         <button
                             type="button"
                             className="pabtn pabtn--primary pabtn--s"
-                            onClick={() => setShowAddModal(true)}
+                            onClick={handleOpenAddModal}
                         >
                             <HiPlus className="pabtn__icon" />
                             <span className="pabtn__label">Vorlage hinzufügen</span>
@@ -167,7 +193,7 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
                         <button
                             type="button"
                             className="pabtn pabtn--secondary pabtn--s"
-                            onClick={() => { window.location.href = '/datenbank/vorlagen'; }}
+                            onClick={handleNavigateToGallery}
                         >
                             <span className="pabtn__label">Zur Galerie</span>
                         </button>
@@ -177,28 +203,23 @@ const VorlagenSection = ({ isActive, onSuccessMessage, onErrorMessage }: Vorlage
 
             <AddTemplateModal
                 isOpen={showAddModal}
-                onClose={() => setShowAddModal(false)}
-                onSuccess={() => {
-                    templatesQuery.refetch();
-                    onSuccessMessage('Vorlage wurde hinzugefügt.');
-                    setShowAddModal(false);
-                }}
+                onClose={handleCloseAddModal}
+                onSuccess={handleAddSuccess}
             />
 
             {editingTemplate && (
                 <EditTemplateModal
                     isOpen={true}
-                    onClose={() => setEditingTemplate(null)}
+                    onClose={handleCloseEditModal}
                     onSave={handleSaveTemplate}
-                    onSuccess={() => {
-                        templatesQuery.refetch();
-                        onSuccessMessage('Vorlage wurde aktualisiert.');
-                    }}
+                    onSuccess={handleEditSuccess}
                     template={editingTemplate}
                 />
             )}
         </div>
     );
-};
+});
+
+VorlagenSection.displayName = 'VorlagenSection';
 
 export default VorlagenSection;

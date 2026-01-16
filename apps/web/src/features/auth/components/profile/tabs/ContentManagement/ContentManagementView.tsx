@@ -1,23 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import { motion } from "motion/react";
 
 // Common components
-import TabNavigation from '../../../../../../components/common/TabNavigation';
 import ShareToGroupModal from '../../../../../../components/common/ShareToGroupModal';
 
-// Content sections
+// Content section
 import DocumentsSection from './components/DocumentsSection';
-import AnweisungenSection from './components/AnweisungenSection';
-import VorlagenSection from './components/VorlagenSection';
-
-// Integration sections
-import CanvaSection from './components/CanvaSection';
-import WolkeSection from './components/WolkeSection';
-
-// Hooks
-import { useTabNavigation } from '../../../../../../hooks/useTabNavigation';
-import { useMessageHandling } from '../../../../../../hooks/useMessageHandling';
-import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 
 type ShareableContentType = 'documents' | 'custom_generators' | 'notebook_collections' | 'user_documents' | 'database';
 
@@ -31,84 +19,26 @@ interface ContentManagementViewProps {
     isActive: boolean;
     onSuccessMessage: (message: string) => void;
     onErrorMessage: (message: string) => void;
-    initialTab?: string;
-    canvaSubsection?: string;
-    onTabChange?: (tab: string, subsection?: string) => void;
 }
 
-const ContentManagementView = ({
+// Static animation config moved outside component
+const MOTION_CONFIG = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: { duration: 0.3 }
+} as const;
+
+const ContentManagementView = memo(({
     isActive,
     onSuccessMessage,
-    onErrorMessage,
-    initialTab = 'inhalte',
-    canvaSubsection = 'overview',
-    onTabChange
+    onErrorMessage
 }: ContentManagementViewProps): React.ReactElement => {
-    // Beta features check
-    const { canAccessBetaFeature } = useBetaFeatures();
-
-    // Message handling
-    const { clearMessages } = useMessageHandling(onSuccessMessage, onErrorMessage);
-
-    // Available tabs - content plus integrations
-    const availableTabs = [
-        { key: 'inhalte', label: 'Inhalte' },
-        ...(canAccessBetaFeature('vorlagen') ? [{ key: 'vorlagen', label: 'Meine Vorlagen' }] : []),
-        // { key: 'wolke', label: 'Wolke' }, // Temporarily hidden
-        ...(canAccessBetaFeature('canva') ? [{ key: 'canva', label: 'Canva' }] : []),
-        { key: 'anweisungen', label: 'Anweisungen' }
-    ];
-
-    // Simple tab navigation
-    const { currentTab, handleTabClick, setCurrentTab } = useTabNavigation(
-        initialTab === 'dokumente' || initialTab === 'texte' ? 'inhalte' : initialTab,
-        availableTabs,
-        (tabKey: string) => {
-            clearMessages();
-            onTabChange?.(tabKey);
-        }
-    );
-
-    // Sync tab state with URL changes
-    useEffect(() => {
-        const normalizedTab = initialTab === 'dokumente' || initialTab === 'texte' ? 'inhalte' : initialTab;
-        setCurrentTab((prevTab: string) => {
-            if (prevTab !== normalizedTab) {
-                return normalizedTab;
-            }
-            return prevTab;
-        });
-    }, [initialTab, setCurrentTab]);
-
-    // =====================================================================
-    // CANVA SUBSECTION HANDLING
-    // =====================================================================
-
-    // Canva subsection state for when user is on the Canva tab
-    const [currentCanvaSubsection, setCurrentCanvaSubsection] = useState(canvaSubsection);
-
-    // Update canva subsection when prop changes
-    useEffect(() => {
-        setCurrentCanvaSubsection(canvaSubsection);
-    }, [canvaSubsection]);
-
-    const handleCanvaSubsectionChange = useCallback((subsection: string) => {
-        setCurrentCanvaSubsection(subsection);
-        // Notify parent about the subsection change for URL updates
-        onTabChange?.('canva', subsection);
-    }, [onTabChange]);
-
-    // =====================================================================
-    // SHARED FUNCTIONALITY
-    // =====================================================================
-
     // Modal state for sharing
     const [showShareModal, setShowShareModal] = useState(false);
     const [shareContent, setShareContent] = useState<ShareContent | null>(null);
 
     // Share functionality
     const handleShareToGroup = useCallback(async (contentType: ShareableContentType, contentId: string, contentTitle: string) => {
-        // Standard sharing logic
         setShareContent({
             type: contentType,
             id: contentId,
@@ -117,117 +47,43 @@ const ContentManagementView = ({
         setShowShareModal(true);
     }, []);
 
-    const handleCloseShareModal = () => {
+    const handleCloseShareModal = useCallback(() => {
         setShowShareModal(false);
         setShareContent(null);
-    };
+    }, []);
 
-    const handleShareSuccess = (message: string) => {
+    const handleShareSuccess = useCallback((message: string) => {
         onSuccessMessage(message);
         handleCloseShareModal();
-    };
+    }, [onSuccessMessage, handleCloseShareModal]);
 
-    const handleShareError = (error: string) => {
+    const handleShareError = useCallback((error: string) => {
         onErrorMessage(error);
-    };
+    }, [onErrorMessage]);
 
-    // =====================================================================
-    // RENDER METHODS
-    // =====================================================================
-
-    // Render main content based on current tab
-    const renderMainContent = () => {
-        if (currentTab === 'inhalte') {
-            return (
-                <DocumentsSection
-                    isActive={isActive}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                    onShareToGroup={(contentType: string, contentId: string, contentTitle: string) => {
-                        handleShareToGroup(contentType as ShareableContentType, contentId, contentTitle);
-                    }}
-                />
-            );
-        }
-
-        if (currentTab === 'vorlagen') {
-            return (
-                <VorlagenSection
-                    isActive={isActive}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                />
-            );
-        }
-
-        if (currentTab === 'anweisungen') {
-            return (
-                <AnweisungenSection
-                    isActive={isActive}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                />
-            );
-        }
-
-        if (currentTab === 'canva') {
-            return (
-                <CanvaSection
-                    isActive={isActive}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                    initialSubsection={currentCanvaSubsection}
-                    onSubsectionChange={handleCanvaSubsectionChange}
-                    onShareToGroup={(contentType: string, content: unknown) => {
-                        const contentData = content as { id?: string; title?: string } | undefined;
-                        if (contentData?.id) {
-                            handleShareToGroup(contentType as ShareableContentType, contentData.id, contentData.title || '');
-                        }
-                    }}
-                />
-            );
-        }
-
-        if (currentTab === 'wolke') {
-            return (
-                <WolkeSection
-                    isActive={isActive}
-                    onSuccessMessage={onSuccessMessage}
-                    onErrorMessage={onErrorMessage}
-                />
-            );
-        }
-
-        return <div>Content not found</div>;
-    };
-
-    const isSingleTab = availableTabs.length === 1;
+    // Memoized callback for DocumentsSection to prevent inline function recreation
+    const handleDocumentShareToGroup = useCallback((contentType: string, contentId: string, contentTitle: string) => {
+        handleShareToGroup(contentType as ShareableContentType, contentId, contentTitle);
+    }, [handleShareToGroup]);
 
     return (
         <motion.div
-            className={`profile-content ${isSingleTab ? 'profile-full-width-layout' : 'profile-management-layout'}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+            className="profile-content profile-full-width-layout"
+            initial={MOTION_CONFIG.initial}
+            animate={MOTION_CONFIG.animate}
+            transition={MOTION_CONFIG.transition}
         >
-            {!isSingleTab && (
-                <div className="profile-navigation-panel">
-                    <h2 className="profile-section-header">Einstellungen</h2>
-                    <TabNavigation
-                        tabs={availableTabs}
-                        currentTab={currentTab}
-                        onTabClick={handleTabClick}
-                        orientation="vertical"
-                    />
-                </div>
-            )}
             <div className="profile-content-panel profile-form-section">
                 <div className="auth-form">
-                    {renderMainContent()}
+                    <DocumentsSection
+                        isActive={isActive}
+                        onSuccessMessage={onSuccessMessage}
+                        onErrorMessage={onErrorMessage}
+                        onShareToGroup={handleDocumentShareToGroup}
+                    />
                 </div>
             </div>
 
-            {/* Share modal */}
             {showShareModal && shareContent && (
                 <ShareToGroupModal
                     isOpen={showShareModal}
@@ -239,9 +95,10 @@ const ContentManagementView = ({
                     onError={handleShareError}
                 />
             )}
-
         </motion.div>
     );
-};
+});
+
+ContentManagementView.displayName = 'ContentManagementView';
 
 export default ContentManagementView;

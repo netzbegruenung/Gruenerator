@@ -35,30 +35,23 @@ export interface AnweisungenWissen {
     antragPrompt?: string;
     antragGliederung?: string;
     socialPrompt?: string;
-    universalPrompt?: string;
-    redePrompt?: string;
-    buergeranfragenPrompt?: string;
-    gruenejugendPrompt?: string;
     presseabbinder?: string;
     knowledge?: KnowledgeEntry[];
 }
 
 export interface GroupAnweisungenWissen extends AnweisungenWissen {
-    customAntragPrompt?: string;
-    customAntragGliederung?: string;
-    customSocialPrompt?: string;
-    customUniversalPrompt?: string;
-    customRedePrompt?: string;
-    customBuergeranfragenPrompt?: string;
-    customGruenejugendPrompt?: string;
+    customPrompt?: string;
     groupInfo?: {
         [key: string]: unknown;
     };
     userRole?: string;
     isAdmin?: boolean;
+    membership?: {
+        role?: string;
+        isAdmin?: boolean;
+    };
     joinToken?: string;
-    antragInstructionsEnabled?: boolean;
-    socialInstructionsEnabled?: boolean;
+    instructionsEnabled?: boolean;
 }
 
 export interface InstructionsStatusResponse {
@@ -68,19 +61,18 @@ export interface InstructionsStatusResponse {
 }
 
 export interface AnweisungenSaveData {
+    // Group-specific (only customPrompt)
+    customPrompt?: string;
+    instructionsEnabled?: boolean;
+    // User-specific (still supported for personal instructions)
     customAntragPrompt?: string;
     customAntragGliederung?: string;
     customSocialPrompt?: string;
-    customUniversalPrompt?: string;
-    customRedePrompt?: string;
-    customBuergeranfragenPrompt?: string;
-    customGruenejugendPrompt?: string;
     presseabbinder?: string;
     knowledge?: KnowledgeEntry[];
-    antragInstructionsEnabled?: boolean;
-    socialInstructionsEnabled?: boolean;
     _groupMembership?: {
         isAdmin: boolean;
+        role?: string;
     };
 }
 
@@ -219,6 +211,7 @@ export interface ProfileUpdateData {
     display_name?: string;
     username?: string | null;
     email?: string | null;
+    custom_prompt?: string | null;
 }
 
 // === AVATAR DISPLAY TYPES ===
@@ -365,24 +358,17 @@ export const profileApiService = {
                 throw new Error(data.message || 'Failed to fetch group details');
             }
 
-            // Transform group data to match expected format
+            // Transform group data to match expected format (only customPrompt for groups)
             return {
-                antragPrompt: data.instructions.custom_antrag_prompt || '',
-                antragGliederung: data.instructions.custom_antrag_gliederung || '',
-                socialPrompt: data.instructions.custom_social_prompt || '',
-                universalPrompt: data.instructions.custom_universal_prompt || '',
-                redePrompt: data.instructions.custom_rede_prompt || '',
-                buergeranfragenPrompt: data.instructions.custom_buergeranfragen_prompt || '',
-                gruenejugendPrompt: data.instructions.custom_gruenejugend_prompt || '',
-                presseabbinder: data.instructions.presseabbinder || '',
+                customPrompt: data.instructions.custom_prompt || '',
                 knowledge: data.knowledge || [],
                 // Additional group data
                 groupInfo: data.group,
                 userRole: data.membership.role,
                 isAdmin: data.membership.isAdmin,
+                membership: data.membership,
                 joinToken: data.group?.join_token || data.joinToken,
-                antragInstructionsEnabled: data.instructions.antrag_instructions_enabled || false,
-                socialInstructionsEnabled: data.instructions.social_instructions_enabled || false
+                instructionsEnabled: data.instructions.instructions_enabled || false
             };
         } else {
             // Individual user endpoint (existing logic)
@@ -393,10 +379,6 @@ export const profileApiService = {
                 antragPrompt: json.antragPrompt || '',
                 antragGliederung: json.antragGliederung || '',
                 socialPrompt: json.socialPrompt || '',
-                universalPrompt: json.universalPrompt || '',
-                gruenejugendPrompt: json.gruenejugendPrompt || '',
-                redePrompt: json.redePrompt || '',
-                buergeranfragenPrompt: json.buergeranfragenPrompt || '',
                 presseabbinder: json.presseabbinder || '',
                 knowledge: json.knowledge || []
             };
@@ -424,18 +406,10 @@ export const profileApiService = {
             // Group endpoint - save instructions and knowledge separately
             const promises = [];
 
-            // Save instructions if they exist
+            // Save unified instruction
             const instructionsPayload = {
-                custom_antrag_prompt: data.customAntragPrompt,
-                custom_antrag_gliederung: data.customAntragGliederung,
-                custom_social_prompt: data.customSocialPrompt,
-                custom_universal_prompt: data.customUniversalPrompt,
-                custom_rede_prompt: data.customRedePrompt,
-                custom_buergeranfragen_prompt: data.customBuergeranfragenPrompt,
-                custom_gruenejugend_prompt: data.customGruenejugendPrompt,
-                presseabbinder: data.presseabbinder,
-                antrag_instructions_enabled: data.antragInstructionsEnabled,
-                social_instructions_enabled: data.socialInstructionsEnabled
+                custom_prompt: data.customPrompt,
+                instructions_enabled: true
             };
 
             const instructionsPromise = apiClient.put(`/auth/groups/${groupId}/instructions`, instructionsPayload)
@@ -486,15 +460,11 @@ export const profileApiService = {
             return results[0];
 
         } else {
-            // Individual user endpoint (existing logic)
+            // Individual user endpoint (only active fields - deprecated ones removed)
             const payload = {
                 custom_antrag_prompt: data.customAntragPrompt,
                 custom_antrag_gliederung: data.customAntragGliederung,
                 custom_social_prompt: data.customSocialPrompt,
-                custom_universal_prompt: data.customUniversalPrompt,
-                custom_gruenejugend_prompt: data.customGruenejugendPrompt,
-                custom_rede_prompt: data.customRedePrompt,
-                custom_buergeranfragen_prompt: data.customBuergeranfragenPrompt,
                 presseabbinder: data.presseabbinder,
                 knowledge: cleanedKnowledge
             };

@@ -24,10 +24,7 @@ interface ContentManagementTabContainerProps {
 const ContentManagementTabContainer = ({
     isActive,
     onSuccessMessage,
-    onErrorMessage,
-    initialTab = 'inhalte',
-    canvaSubsection = 'overview',
-    onTabChange
+    onErrorMessage
 }: ContentManagementTabContainerProps): React.ReactElement => {
     const { user } = useOptimizedAuth();
 
@@ -45,9 +42,6 @@ const ContentManagementTabContainer = ({
                 isActive={isActive}
                 onSuccessMessage={onSuccessMessage}
                 onErrorMessage={onErrorMessage}
-                initialTab={initialTab}
-                canvaSubsection={canvaSubsection}
-                onTabChange={onTabChange}
             />
         </Suspense>
     );
