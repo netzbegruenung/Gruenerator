@@ -214,7 +214,7 @@ export function usePresseSocialSubmit(
             generateSharepic(
               formData.inhalt,
               '', // details merged into inhalt
-              formData.uploadedImage || null,
+              formData.uploadedImage ? (formData.uploadedImage as unknown as Blob) : null,
               (formData.sharepicType || 'default') as SharepicType,
               formData.zitatAuthor || '',
               config.customPrompt,
@@ -285,11 +285,6 @@ export function usePresseSocialSubmit(
               typeof response === 'object' && response !== null
                 ? (response as { metadata?: Record<string, unknown> }).metadata || {}
                 : {};
-
-            // Append presseabbinder if provided
-            if (otherPlatforms.includes('pressemitteilung') && formData.presseabbinder?.trim()) {
-              content = `${content}\n\n---\n\n${formData.presseabbinder.trim()}`;
-            }
 
             combinedResults.social = { content, metadata };
           } else if (outcome.type === 'social' && outcome.error) {

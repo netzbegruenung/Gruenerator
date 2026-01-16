@@ -113,7 +113,7 @@ const SharepicEditorModal: React.FC<SharepicEditorModalProps> = ({
       case 'dreizeilen':
       case 'headline': {
         const lines = parseLines(sharepic.text);
-        const rawAlternatives = sharepic.alternatives || [];
+        const rawAlternatives = (sharepic.alternatives || []) as unknown[];
         // Map alternatives to add required id field
         const alternatives: DreizeilenAlternative[] = rawAlternatives.map((alt: unknown, index: number) => ({
           id: `alt-${index}`,

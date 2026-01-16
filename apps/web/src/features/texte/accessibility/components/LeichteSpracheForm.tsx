@@ -16,7 +16,7 @@ interface LeichteSpracheFormRef {
 }
 
 const LeichteSpracheForm = forwardRef<LeichteSpracheFormRef, LeichteSpracheFormProps>(({ tabIndex = {}, onUrlsDetected }, ref) => {
-  const { Textarea } = useFormFields();
+  const { Textarea } = useFormFields() as unknown as { Textarea: React.ComponentType<any> };
 
   const {
     control,
@@ -39,7 +39,7 @@ const LeichteSpracheForm = forwardRef<LeichteSpracheFormRef, LeichteSpracheFormP
     },
     isValid: () => {
       const formData = getValues();
-      return formData.originalText && formData.originalText.trim().length > 0;
+      return !!(formData.originalText && formData.originalText.trim().length > 0);
     }
   }), [getValues]);
 

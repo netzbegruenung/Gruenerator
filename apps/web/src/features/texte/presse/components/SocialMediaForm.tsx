@@ -95,7 +95,8 @@ const SocialMediaForm = forwardRef<SocialMediaFormRef, SocialMediaFormProps>(
     return (
       <FormTextarea
         name="inhalt"
-        control={control}
+        label="Inhalt"
+        control={control as any}
         placeholder={FORM_PLACEHOLDERS.INHALT}
         rules={{ required: 'Inhalt ist ein Pflichtfeld' }}
         minRows={5}

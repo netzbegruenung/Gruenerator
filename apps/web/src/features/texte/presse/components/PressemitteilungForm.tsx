@@ -10,7 +10,6 @@ import { TabIndexHelpers } from '../../../../utils/tabIndexConfig';
  */
 export interface PressemitteilungFormData {
   zitatgeber: string;
-  presseabbinder: string;
 }
 
 /**
@@ -27,7 +26,6 @@ interface PressemitteilungFormProps {
    */
   tabIndex?: {
     zitatgeber?: number;
-    presseabbinder?: number;
     [key: string]: number | undefined;
   };
 
@@ -65,7 +63,7 @@ export interface PressemitteilungFormRef {
  *
  * const handleSubmit = () => {
  *   const data = formRef.current?.getFormData();
- *   console.log(data?.zitatgeber, data?.presseabbinder);
+ *   console.log(data?.zitatgeber);
  * };
  * ```
  */
@@ -78,8 +76,7 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
       reset
     } = useForm<PressemitteilungFormData>({
       defaultValues: {
-        zitatgeber: defaultValues.zitatgeber || '',
-        presseabbinder: defaultValues.presseabbinder || ''
+        zitatgeber: defaultValues.zitatgeber || ''
       },
       shouldUnregister: false // Keep values when hidden
     });
@@ -91,8 +88,7 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
         getFormData: () => {
           const formData = getValues();
           return {
-            zitatgeber: formData.zitatgeber || '',
-            presseabbinder: formData.presseabbinder || ''
+            zitatgeber: formData.zitatgeber || ''
           };
         },
         resetForm: (data?: Partial<PressemitteilungFormData>) => {
@@ -137,20 +133,6 @@ const PressemitteilungForm = forwardRef<PressemitteilungFormRef, Pressemitteilun
           rules={{}}
           tabIndex={TabIndexHelpers.getConditional(tabIndex.zitatgeber || 0, isVisible)}
           onSubmitSuccess={success ? String(getValues('zitatgeber') || '') : null}
-          shouldSave={success}
-        />
-        <SmartInput
-          fieldType="presseabbinder"
-          formName="presseSocial"
-          name="presseabbinder"
-          control={control as never}
-          setValue={setValue as never}
-          getValues={getValues as never}
-          label="Presseabbinder (optional)"
-          subtext="Standard-Abbinder, der an die Pressemitteilung angehängt wird (z.B. Kontaktdaten, Vereinsinformationen)."
-          placeholder="z.B. Kontakt: Max Mustermann, presse@gruene-example.de"
-          tabIndex={TabIndexHelpers.getConditional(tabIndex.presseabbinder || 0, isVisible)}
-          onSubmitSuccess={success ? String(getValues('presseabbinder') || '') : null}
           shouldSave={success}
         />
       </motion.div>

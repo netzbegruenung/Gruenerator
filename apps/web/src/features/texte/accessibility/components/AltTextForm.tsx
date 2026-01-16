@@ -27,7 +27,7 @@ interface CanvaDesign {
 }
 
 const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {} }, ref) => {
-  const { Input } = useFormFields();
+  const { Input } = useFormFields() as unknown as { Input: React.ComponentType<any> };
 
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [selectedCanvaDesign, setSelectedCanvaDesign] = useState<CanvaDesign | null>(null);
@@ -87,14 +87,15 @@ const AltTextForm = forwardRef<AltTextFormRef, AltTextFormProps>(({ tabIndex = {
     isValid: () => {
       return uploadedImage !== null;
     },
-    setCanvaDesign: (designData: { template?: { id?: string; thumbnail_url?: string; preview_image_url?: string; title?: string } } | null) => {
-      if (designData && designData.template) {
+    setCanvaDesign: (designData: unknown) => {
+      const typedDesignData = designData as { template?: { id?: string; thumbnail_url?: string; preview_image_url?: string; title?: string } } | null;
+      if (typedDesignData && typedDesignData.template) {
         setImageSource('canva');
         setSelectedCanvaDesign({
           type: 'canva',
-          design: designData.template,
-          imageUrl: designData.template.thumbnail_url || designData.template.preview_image_url,
-          title: designData.template.title
+          design: typedDesignData.template,
+          imageUrl: typedDesignData.template.thumbnail_url || typedDesignData.template.preview_image_url,
+          title: typedDesignData.template.title
         });
         setUploadedImage(null);
       }

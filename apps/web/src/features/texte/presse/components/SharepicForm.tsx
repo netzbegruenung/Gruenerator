@@ -1,14 +1,10 @@
-import React, { forwardRef, useImperativeHandle, useState, useCallback } from 'react';
-import type { Control, UseFormSetValue, UseFormGetValues } from 'react-hook-form';
-import Icon from '../../../../components/common/Icon';
-import SharepicConfigPopup from '../SharepicConfigPopup';
-
-interface SharepicFormValues {
-  sharepicType?: string;
-  zitatAuthor?: string;
-  uploadedImage?: string | null;
-  [key: string]: unknown;
-}
+import React, { forwardRef, useImperativeHandle, useState, useCallback, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { motion, AnimatePresence } from 'motion/react';
+import ReactSelect from 'react-select';
+import SmartInput from '../../../../components/common/Form/SmartInput';
+import FormFieldWrapper from '../../../../components/common/Form/Input/FormFieldWrapper';
+import FileUpload from '../../../../components/common/FileUpload';
 
 export interface SharepicFormData {
   sharepicType: string;
@@ -16,163 +12,196 @@ export interface SharepicFormData {
   uploadedImage: string | null;
 }
 
-/**
- * Props for SharepicForm component
- */
 interface SharepicFormProps {
-  /**
-   * Default values for form fields
-   */
-  defaultValues?: Partial<SharepicFormData>;
-
-  /**
-   * Whether sharepic platform is currently selected
-   */
   isVisible: boolean;
-
-  /**
-   * Available sharepic type options
-   */
   sharepicTypeOptions: Array<{
     value: string;
     label: string;
   }>;
-
-  /**
-   * Whether the form is in loading state
-   */
   loading?: boolean;
-
-  /**
-   * Whether submission was successful
-   */
   success?: boolean;
-
-  control?: Control<SharepicFormValues>;
-  setValue?: UseFormSetValue<SharepicFormValues>;
-  getValues?: UseFormGetValues<SharepicFormValues>;
+  control?: unknown;
+  setValue?: unknown;
+  getValues?: unknown;
 }
 
-/**
- * FormRef interface for imperative handle
- * Allows parent to access form data
- */
 export interface SharepicFormRef {
   getFormData: () => SharepicFormData;
   resetForm: (data?: Partial<SharepicFormData>) => void;
 }
 
-/**
- * SharepicForm - Configuration UI for sharepic generation
- *
- * Extracted from PresseSocialGenerator for Form Ref pattern.
- * Provides a config button that opens SharepicConfigPopup modal.
- * Only shown when "sharepic" platform is selected.
- *
- * @example
- * ```tsx
- * const formRef = useRef<SharepicFormRef>(null);
- *
- * const handleSubmit = () => {
- *   const data = formRef.current?.getFormData();
- *   console.log(data?.sharepicType, data?.uploadedImage);
- * };
- * ```
- */
 const SharepicForm = forwardRef<SharepicFormRef, SharepicFormProps>(
   (
     {
-      defaultValues = {},
       isVisible,
       sharepicTypeOptions,
       loading,
-      success,
-      control,
-      setValue,
-      getValues
+      success
     },
     ref
   ) => {
-    // Local state for form data
-    const [sharepicType, setSharepicType] = useState<string>(
-      defaultValues.sharepicType || 'default'
-    );
-    const [zitatAuthor, setZitatAuthor] = useState<string>(
-      defaultValues.zitatAuthor || ''
-    );
-    const [uploadedImage, setUploadedImage] = useState<string | null>(
-      defaultValues.uploadedImage || null
-    );
+    const {
+      control,
+      getValues,
+      setValue,
+      reset,
+      watch
+    } = useForm<SharepicFormData>({
+      defaultValues: {
+        sharepicType: 'default',
+        zitatAuthor: '',
+        uploadedImage: null
+      },
+      shouldUnregister: false
+    });
 
-    // Modal state
-    const [showSharepicConfig, setShowSharepicConfig] = useState(false);
+    const watchSharepicType = watch('sharepicType');
+    const [fileObject, setFileObject] = useState<File | null>(null);
+    const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
-    const handleImageChange = useCallback((image: string | null) => {
-      setUploadedImage(image);
-      if (setValue) {
-        setValue('uploadedImage', image);
+    useEffect(() => {
+      if (!uploadedImage) {
+        setFileObject(null);
+      }
+    }, [uploadedImage]);
+
+    const handleFileChange = useCallback((file: File | null) => {
+      setFileObject(file);
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          setUploadedImage(result);
+          setValue('uploadedImage', result);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setUploadedImage(null);
+        setValue('uploadedImage', null);
       }
     }, [setValue]);
 
-    // Expose form data to parent component
     useImperativeHandle(
       ref,
       () => ({
-        getFormData: () => ({
-          sharepicType,
-          zitatAuthor,
-          uploadedImage
-        }),
+        getFormData: () => {
+          const formData = getValues();
+          return {
+            sharepicType: formData.sharepicType || 'default',
+            zitatAuthor: formData.zitatAuthor || '',
+            uploadedImage: formData.uploadedImage || null
+          };
+        },
         resetForm: (data?: Partial<SharepicFormData>) => {
           if (data) {
-            if (data.sharepicType !== undefined) {
-              setSharepicType(data.sharepicType);
-            }
-            if (data.zitatAuthor !== undefined) {
-              setZitatAuthor(data.zitatAuthor);
-            }
-            if (data.uploadedImage !== undefined) {
-              setUploadedImage(data.uploadedImage);
-            }
+            reset(data as SharepicFormData);
           } else {
-            setSharepicType('default');
-            setZitatAuthor('');
-            setUploadedImage(null);
+            reset();
           }
+          setUploadedImage(null);
+          setFileObject(null);
         }
       }),
-      [sharepicType, zitatAuthor, uploadedImage]
+      [getValues, reset]
     );
 
     if (!isVisible) {
       return null;
     }
 
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => setShowSharepicConfig(true)}
-          className="sharepic-config-button"
-          title="Sharepic konfigurieren"
-        >
-          <Icon category="platforms" name="sharepic" size={18} />
-        </button>
+    const showAuthorField = watchSharepicType === 'quote' || watchSharepicType === 'quote_pure';
+    const showImageUpload = watchSharepicType === 'dreizeilen' || watchSharepicType === 'quote';
 
-        <SharepicConfigPopup
-          isOpen={showSharepicConfig}
-          onClose={() => setShowSharepicConfig(false)}
-          control={control as Control<SharepicFormValues>}
-          setValue={setValue as UseFormSetValue<SharepicFormValues>}
-          getValues={getValues as UseFormGetValues<SharepicFormValues>}
-          sharepicTypeOptions={sharepicTypeOptions}
-          watchSharepicType={sharepicType}
-          uploadedImage={uploadedImage}
-          handleImageChange={handleImageChange}
-          loading={loading}
-          success={success}
+    return (
+      <motion.div
+        className="sharepic-fields"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 8 }}
+        transition={{
+          type: 'spring',
+          stiffness: 400,
+          damping: 25,
+          duration: 0.25
+        }}
+      >
+        <h4>Sharepic:</h4>
+
+        <Controller
+          name="sharepicType"
+          control={control}
+          defaultValue="default"
+          render={({ field, fieldState: { error } }) => (
+            <FormFieldWrapper
+              label="Sharepic Art"
+              required={false}
+              error={error?.message}
+              htmlFor="sharepicType-select"
+            >
+              <ReactSelect
+                {...field}
+                inputId="sharepicType-select"
+                className={`react-select ${error ? 'error' : ''}`.trim()}
+                classNamePrefix="react-select"
+                options={sharepicTypeOptions}
+                value={sharepicTypeOptions.find(option => option.value === field.value)}
+                onChange={(selectedOption) => {
+                  field.onChange(selectedOption ? selectedOption.value : 'default');
+                }}
+                onBlur={field.onBlur}
+                placeholder="Sharepic Art auswählen..."
+                isClearable={false}
+                isSearchable={false}
+                noOptionsMessage={() => 'Keine Optionen verfügbar'}
+              />
+            </FormFieldWrapper>
+          )}
         />
-      </>
+
+        <AnimatePresence>
+          {showAuthorField && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <SmartInput
+                fieldType="zitatAuthor"
+                formName="presseSocial"
+                name="zitatAuthor"
+                control={control as never}
+                setValue={setValue as never}
+                getValues={getValues as never}
+                label="Autor/Urheber des Zitats"
+                placeholder="z.B. Anton Hofreiter"
+                rules={{ required: 'Autor ist für Zitat-Sharepics erforderlich' }}
+                onSubmitSuccess={success ? String(getValues('zitatAuthor') || '') : null}
+                shouldSave={success}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showImageUpload && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <FileUpload
+                handleChange={handleFileChange}
+                allowedTypes={['.jpg', '.jpeg', '.png', '.webp']}
+                file={fileObject}
+                loading={loading}
+                label="Bild für Sharepic (optional)"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     );
   }
 );
