@@ -36,10 +36,6 @@ export interface CombinedContentItem {
 export interface AnweisungenWissen {
   antragPrompt?: string;
   socialPrompt?: string;
-  universalPrompt?: string;
-  redePrompt?: string;
-  buergeranfragenPrompt?: string;
-  gruenejugendPrompt?: string;
   knowledge?: KnowledgeEntry[];
 }
 

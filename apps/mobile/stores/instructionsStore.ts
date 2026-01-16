@@ -6,13 +6,10 @@ import {
 } from '../services/content';
 import { getErrorMessage } from '../utils/errors';
 
+// Only antrag and social instruction types remain active
 export const INSTRUCTION_TYPES = [
   { key: 'antragPrompt', title: 'Anträge' },
   { key: 'socialPrompt', title: 'Presse & Social Media' },
-  { key: 'universalPrompt', title: 'Universelle Texte' },
-  { key: 'redePrompt', title: 'Reden' },
-  { key: 'buergeranfragenPrompt', title: 'Bürgeranfragen' },
-  { key: 'gruenejugendPrompt', title: 'Grüne Jugend' },
 ] as const;
 
 export type InstructionKey = typeof INSTRUCTION_TYPES[number]['key'];
@@ -38,10 +35,6 @@ type InstructionsStore = InstructionsState & InstructionsActions;
 const initialInstructions: Record<InstructionKey, string> = {
   antragPrompt: '',
   socialPrompt: '',
-  universalPrompt: '',
-  redePrompt: '',
-  buergeranfragenPrompt: '',
-  gruenejugendPrompt: '',
 };
 
 const initialState: InstructionsState = {
@@ -62,10 +55,6 @@ export const useInstructionsStore = create<InstructionsStore>()((set, get) => ({
       const instructions: Record<InstructionKey, string> = {
         antragPrompt: data.antragPrompt || '',
         socialPrompt: data.socialPrompt || '',
-        universalPrompt: data.universalPrompt || '',
-        redePrompt: data.redePrompt || '',
-        buergeranfragenPrompt: data.buergeranfragenPrompt || '',
-        gruenejugendPrompt: data.gruenejugendPrompt || '',
       };
       set({ instructions, isLoading: false });
     } catch (error: unknown) {
