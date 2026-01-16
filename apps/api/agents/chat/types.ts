@@ -50,10 +50,12 @@ export interface ClassificationResult {
   method: 'ai' | 'keyword' | 'context' | 'fallback';
   /** Overall confidence score */
   confidence?: number;
-  /** Type of request (conversation, content creation, or document query) */
-  requestType?: 'conversation' | 'document_query' | 'content_creation';
+  /** Type of request (conversation, content creation, document query, or text edit) */
+  requestType?: 'conversation' | 'document_query' | 'content_creation' | 'text_edit';
   /** Sub-intent for conversation requests */
   subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general';
+  /** Context for text edit requests */
+  editContext?: EditContext;
 }
 
 /**
@@ -76,7 +78,7 @@ export interface ChatContext {
  * AI Worker Pool interface for processing AI requests
  */
 export interface AIWorkerPool {
-  processRequest(request: AIWorkerRequest): Promise<AIWorkerResponse>;
+  processRequest(request: AIWorkerRequest, req?: unknown): Promise<AIWorkerResponse>;
 }
 
 /**
@@ -114,11 +116,13 @@ export interface AIWorkerResponse {
  */
 export interface AIClassificationResponse {
   /** Type of request */
-  requestType: 'conversation' | 'document_query' | 'content_creation';
+  requestType: 'conversation' | 'document_query' | 'content_creation' | 'text_edit';
   /** Sub-intent for conversation requests */
   subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general';
   /** Detected intents (fully enriched with routes and params) */
   intents: Intent[];
+  /** Context for text edit requests */
+  editContext?: EditContext;
 }
 
 /**
@@ -146,5 +150,32 @@ export interface ContextClassification {
   /** Parameters for the agent */
   params: Record<string, unknown>;
   /** Confidence score */
+  confidence: number;
+}
+
+/**
+ * Edit operation types for text editing
+ */
+export type EditOperationType =
+  | 'shorten'
+  | 'expand'
+  | 'rewrite'
+  | 'improve'
+  | 'simplify'
+  | 'formalize'
+  | 'translate'
+  | 'generic';
+
+/**
+ * Context for text edit operations
+ */
+export interface EditContext {
+  /** The source text to be edited */
+  sourceText: string;
+  /** The edit instruction from the user */
+  instruction: string;
+  /** Type of edit operation */
+  editType: EditOperationType;
+  /** Confidence score for the extraction */
   confidence: number;
 }

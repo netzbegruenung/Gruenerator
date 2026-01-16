@@ -172,6 +172,26 @@ router.post('/', withErrorHandler(async (req, res) => {
       return res.json(result);
     }
 
+    // Handle text_edit requests
+    if (intentResult.requestType === 'text_edit') {
+      log.debug('[Chat] Routing to text edit handler');
+      const { processEditIntent } = await import('../../services/chat/EditIntentService.js');
+      const editResult = await processEditIntent(
+        message,
+        userId,
+        req.app.locals.aiWorkerPool,
+        req,
+        intentResult.editContext
+      );
+
+      // Store edited text in chat memory
+      if (editResult.success && editResult.content.text) {
+        await chatMemory.addMessage(userId, 'assistant', editResult.content.text, 'text_edit');
+      }
+
+      return res.json(editResult);
+    }
+
     if (intentResult.isMultiIntent) {
       log.debug('[Chat] Processing multi-intent request');
       await processMultiIntentRequest(intentResult.intents, req, res, baseContext);

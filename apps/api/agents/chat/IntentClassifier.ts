@@ -10,7 +10,8 @@ import type {
   AIWorkerPool,
   KeywordMatch,
   ContextClassification,
-  AIClassificationResponse
+  AIClassificationResponse,
+  EditContext
 } from './types.js';
 
 // Agent mappings with routing information
@@ -169,6 +170,19 @@ export async function classifyIntent(
           };
         }
 
+        // Handle text_edit requests with editContext
+        if (requestType === 'text_edit') {
+          console.log('[IntentClassifier] Text edit detected - routing to text_edit handler');
+          return {
+            isMultiIntent: false,
+            intents: [{ agent: 'text_edit', route: 'text_edit', params: {}, confidence: 0.9 }],
+            method: 'ai',
+            confidence: 0.9,
+            requestType: 'text_edit',
+            editContext: aiResult.editContext
+          };
+        }
+
         return {
           isMultiIntent: intents.length > 1,
           intents: intents,
@@ -313,15 +327,32 @@ ${context.topic ? `Aktuelles Thema: ${context.topic}` : ''}
 
 SCHRITT 1 - REQUEST-TYP BESTIMMEN (WICHTIGSTER SCHRITT!):
 
-1. "content_creation" - Benutzer will INHALT ERSTELLEN
+1. "content_creation" - Benutzer will NEUEN INHALT ERSTELLEN
    Signale: "erstelle", "mache", "schreibe", "generiere", Plattform-Namen, Format-Anfragen
    Beispiele: "Erstelle einen Tweet", "Mach ein Sharepic", "Schreib eine PM"
 
-2. "document_query" - Benutzer fragt nach SEINEN Dokumenten/Texten
+2. "text_edit" - Benutzer hat VORHANDENEN TEXT mitgeschickt und will ihn BEARBEITEN
+   WICHTIG: Der Text muss bereits in der Nachricht enthalten sein (nicht zu erstellen!)
+   Signale:
+   - Nachricht enthält längeren Text (>100 Zeichen) der wie fertiger Inhalt aussieht
+   - Bearbeitungsanweisung wie: kürze, verbessere, überarbeite, ändere, mach kürzer/länger
+   - Der Text sieht aus wie ein Social-Media-Post, E-Mail, Artikel (mit Hashtags, Emojis, Formatierung)
+   Beispiele:
+   - "Kürze diesen Post: [langer Text mit Hashtags]" → text_edit
+   - "Mach das kürzer: [eingefügter Text]" → text_edit
+   - "Verbessere folgenden Text: [vorhandener Text]" → text_edit
+   - "Das ist zu lang, bitte straffen: [Text]" → text_edit
+
+   Bei text_edit MUSST du auch editContext extrahieren:
+   - sourceText: Der zu bearbeitende Text (der längere Teil der Nachricht)
+   - instruction: Was soll gemacht werden (der kürzere Anweisungsteil)
+   - editType: shorten|expand|rewrite|improve|simplify|formalize|translate|generic
+
+3. "document_query" - Benutzer fragt nach SEINEN Dokumenten/Texten
    Signale: "meine Dokumente", "in meinen Unterlagen", "was steht in", "habe ich", "such in meinen"
    Beispiele: "Was steht in meinem Klimadokument?", "Such in meinen Texten"
 
-3. "conversation" - ALLGEMEINE Wissensfrage oder Chat (KEINE Inhaltserstellung!)
+4. "conversation" - ALLGEMEINE Wissensfrage oder Chat (KEINE Inhaltserstellung!)
    Signale: Philosophische Fragen, wissenschaftliche Fragen, Smalltalk, Meinungsfragen
    Beispiele: "Was kam zuerst, Huhn oder Ei?", "Warum ist der Himmel blau?", "Was meinst du?"
 
@@ -333,6 +364,7 @@ ${agentDescriptions}
 REGELN:
 - Bei "conversation" → NUR {"agent": "universal"}, NIEMALS mehrere Intents!
 - Bei "document_query" → NUR {"agent": "universal"}
+- Bei "text_edit" → NUR {"agent": "text_edit"} + editContext PFLICHT!
 - Bei "content_creation" → passende Agents (social, sharepic, antrag, imagine, etc.)
 
 SHAREPIC-SPEZIFISCHE REGELN (WICHTIG!):
@@ -374,9 +406,13 @@ Beispiele für requestType:
 - "Was steht in meinem Klimadokument?" → document_query
 - "Erstelle einen Tweet über Klima" → content_creation, twitter
 - "Sharepic und Instagram Post" → content_creation, [sharepic_auto, instagram]
+- "Kürze diesen Post: Klimaschutz ist wichtig... #Klima" → text_edit + editContext
+- "Mach das kürzer: [langer eingefügter Text]" → text_edit + editContext
 
 Antworte als JSON:
-{"requestType": "conversation|document_query|content_creation", "subIntent": "summarize|translate|compare|explain|brainstorm|general", "intents": [{"agent": "...", "confidence": 0.9}]}${context.singleIntentOnly ? '\n\nWICHTIG: Gib NUR EINEN Intent zurück - den besten Match! Keine mehreren Intents.' : ''}`;
+{"requestType": "conversation|document_query|content_creation|text_edit", "subIntent": "...", "intents": [{"agent": "...", "confidence": 0.9}], "editContext": {"sourceText": "...", "instruction": "...", "editType": "shorten|expand|rewrite|improve|simplify|formalize|translate|generic"}}
+
+WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.singleIntentOnly ? '\n\nWICHTIG: Gib NUR EINEN Intent zurück - den besten Match! Keine mehreren Intents.' : ''}`;
 
   try {
     console.log('[IntentClassifier] Calling AI for multi-intent classification');
@@ -398,8 +434,9 @@ Antworte als JSON:
     // Parse the AI response
     let parsedResponse: AIClassificationResponse | undefined;
     let parsedIntents: Array<{ agent: string; confidence?: number; params?: Record<string, unknown> }> = [];
-    let requestType: 'conversation' | 'document_query' | 'content_creation' = 'content_creation';
+    let requestType: 'conversation' | 'document_query' | 'content_creation' | 'text_edit' = 'content_creation';
     let subIntent: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general' = 'general';
+    let editContext: EditContext | undefined;
 
     try {
       // Try to parse as full JSON object first (new format)
@@ -409,6 +446,17 @@ Antworte als JSON:
         requestType = parsedResponse.requestType || 'content_creation';
         subIntent = parsedResponse.subIntent || 'general';
         parsedIntents = parsedResponse.intents || [];
+
+        // Extract editContext if present (for text_edit requests)
+        if (requestType === 'text_edit' && parsedResponse.editContext) {
+          editContext = parsedResponse.editContext;
+          console.log('[IntentClassifier] Extracted editContext:', {
+            instructionLength: editContext.instruction?.length,
+            sourceTextLength: editContext.sourceText?.length,
+            editType: editContext.editType
+          });
+        }
+
         console.log('[IntentClassifier] Parsed requestType:', requestType, 'subIntent:', subIntent);
       } else {
         // Fallback: Try to extract JSON array (old format)
@@ -480,12 +528,19 @@ Antworte als JSON:
     console.log('[IntentClassifier] AI successfully classified', processedIntents.length, 'intents:',
                 processedIntents.map(i => i.agent), 'requestType:', requestType, 'subIntent:', subIntent);
 
-    // Return requestType, subIntent, and intents
-    return {
+    // Return requestType, subIntent, intents, and editContext if present
+    const result_obj: AIClassificationResponse = {
       requestType: requestType,
       subIntent: subIntent,
       intents: processedIntents
     };
+
+    // Include editContext for text_edit requests
+    if (requestType === 'text_edit' && editContext) {
+      result_obj.editContext = editContext;
+    }
+
+    return result_obj;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
