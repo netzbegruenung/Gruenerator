@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import apiClient from '../components/utils/apiClient';
-import { generateSharepicImage } from '../features/sharepic/core/services/sharepicImageService';
 
 type SharepicType = 'default' | 'quote' | 'quote_pure' | 'info' | 'headline' | 'dreizeilen';
 

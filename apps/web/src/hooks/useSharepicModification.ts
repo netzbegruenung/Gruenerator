@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { debounce } from 'lodash';
-import { prepareDataForCanvas } from '../features/sharepic/dreizeilen/utils/dataPreparation';
+import { prepareDataForCanvas } from '../utils/sharepicDataPreparation';
 import { ERROR_MESSAGES } from '../components/utils/constants';
 import apiClient from '../components/utils/apiClient';
 
