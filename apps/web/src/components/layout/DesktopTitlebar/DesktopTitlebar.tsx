@@ -1,10 +1,10 @@
 import { Suspense, lazy, Component, ReactNode } from 'react';
 import { isDesktopApp } from '../../../utils/platform';
+import { minimizeWindow, toggleMaximizeWindow, closeWindow } from '../../../utils/tauriWindow';
 import ProfileButton from '../Header/ProfileButton';
 import '../../../assets/styles/components/layout/profile-dropdown.css';
 import './desktop-titlebar.css';
 
-// Lazy load TabBar so it doesn't crash the titlebar if it fails
 const TabBar = lazy(() => import('../DesktopTabs/TabBar').catch(() => ({ default: () => null })));
 
 interface TabBarErrorBoundaryProps {
@@ -15,7 +15,6 @@ interface TabBarErrorBoundaryState {
   hasError: boolean;
 }
 
-// Error boundary to catch TabBar errors
 class TabBarErrorBoundary extends Component<TabBarErrorBoundaryProps, TabBarErrorBoundaryState> {
   state: TabBarErrorBoundaryState = { hasError: false };
 
@@ -39,7 +38,6 @@ class TabBarErrorBoundary extends Component<TabBarErrorBoundaryProps, TabBarErro
   }
 }
 
-// Fallback title shown while TabBar loads or if it fails
 const TitlebarFallback = () => (
   <div className="titlebar-title" data-tauri-drag-region>
     Grünerator
@@ -49,33 +47,12 @@ const TitlebarFallback = () => (
 const DesktopTitlebar = () => {
   if (!isDesktopApp()) return null;
 
-  const handleMinimize = async () => {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    getCurrentWindow().minimize();
-  };
-
-  const handleMaximize = async () => {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    const win = getCurrentWindow();
-    const isMaximized = await win.isMaximized();
-    if (isMaximized) {
-      win.unmaximize();
-    } else {
-      win.maximize();
-    }
-  };
-
-  const handleClose = async () => {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
-    getCurrentWindow().close();
-  };
-
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest('.tab-bar-container') || target.closest('.titlebar-controls')) {
       return;
     }
-    handleMaximize();
+    toggleMaximizeWindow();
   };
 
   return (
@@ -92,7 +69,7 @@ const DesktopTitlebar = () => {
         </div>
         <button
           className="titlebar-button minimize"
-          onClick={handleMinimize}
+          onClick={minimizeWindow}
           aria-label="Minimieren"
         >
           <svg width="10" height="1" viewBox="0 0 10 1">
@@ -101,7 +78,7 @@ const DesktopTitlebar = () => {
         </button>
         <button
           className="titlebar-button maximize"
-          onClick={handleMaximize}
+          onClick={toggleMaximizeWindow}
           aria-label="Maximieren"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
@@ -110,7 +87,7 @@ const DesktopTitlebar = () => {
         </button>
         <button
           className="titlebar-button close"
-          onClick={handleClose}
+          onClick={closeWindow}
           aria-label="Schließen"
         >
           <svg width="10" height="10" viewBox="0 0 10 10">

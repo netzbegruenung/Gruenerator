@@ -91,7 +91,7 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: packages/desktop/src-tauri -> target
+          workspaces: apps/desktop/src-tauri -> target
 
       - name: Install canvas build dependencies (macOS)
         if: matrix.platform == 'macos-latest'
@@ -114,7 +114,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           TAURI_ENV_PLATFORM: ${{ matrix.target }}
         with:
-          projectPath: packages/desktop
+          projectPath: apps/desktop
           tauriScript: pnpm tauri
           args: ${{ matrix.args }}
           tagName: ${{ github.ref_name }}
