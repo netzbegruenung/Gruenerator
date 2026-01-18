@@ -53,17 +53,27 @@ jobs:
             os_type: windows
 
     runs-on: ${{ matrix.platform }}
-    if: >-
-      github.event.inputs.platforms == 'all' ||
-      github.event.inputs.platforms == '' ||
-      github.event.inputs.platforms == matrix.os_type
 
     steps:
+      - name: Check platform filter
+        id: check
+        shell: bash
+        run: |
+          SELECTED="${{ github.event.inputs.platforms }}"
+          OS_TYPE="${{ matrix.os_type }}"
+          if [[ "$SELECTED" == "all" || "$SELECTED" == "" || "$SELECTED" == "$OS_TYPE" ]]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Skipping $OS_TYPE build (selected: $SELECTED)"
+          fi
+
       - name: Checkout repository
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -73,40 +83,46 @@ jobs:
             patchelf
 
       - name: Setup pnpm
+        if: steps.check.outputs.should_run == 'true'
         uses: pnpm/action-setup@v2
         with:
           version: 8
 
       - name: Setup Node.js
+        if: steps.check.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
       - name: Setup Rust
+        if: steps.check.outputs.should_run == 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
       - name: Rust cache
+        if: steps.check.outputs.should_run == 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri -> target
 
       - name: Install canvas build dependencies (macOS)
-        if: matrix.platform == 'macos-latest'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'macos-latest'
         run: |
           brew install pkg-config cairo pango libpng jpeg giflib librsvg python-setuptools
 
       - name: Install canvas build dependencies (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: steps.check.outputs.should_run == 'true' && matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
 
       - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
         run: pnpm install
 
       - name: Build Tauri app
+        if: steps.check.outputs.should_run == 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
